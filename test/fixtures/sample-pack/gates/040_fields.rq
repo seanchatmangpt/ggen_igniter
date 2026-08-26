@@ -1,0 +1,7 @@
+PREFIX aex: <http://seanchatmangpt.github.io/packs/ash-extension-core#>
+SELECT ?entity_struct ?field_order ?field_name ?field_type ?field_required ?field_doc WHERE {
+  ?field a aex:EntitySchemaField ; aex:fieldOf ?entity ; aex:fieldOrder ?field_order ;
+         aex:fieldName ?field_name ; aex:fieldType ?field_type ;
+         aex:fieldRequired ?field_required ; aex:fieldDoc ?field_doc .
+  ?entity aex:entityStruct ?entity_struct .
+} ORDER BY ?field_order

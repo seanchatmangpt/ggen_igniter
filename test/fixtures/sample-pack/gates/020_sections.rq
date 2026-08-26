@@ -1,0 +1,4 @@
+PREFIX aex: <http://seanchatmangpt.github.io/packs/ash-extension-core#>
+SELECT ?section_name ?section_order WHERE {
+  ?s a aex:DslSection ; aex:sectionName ?section_name ; aex:sectionOrder ?section_order .
+} ORDER BY ?section_order
