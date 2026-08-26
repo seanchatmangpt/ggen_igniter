@@ -1,20 +1,13 @@
 @prefix gno: <https://w3id.org/gno#> .
-@prefix gnoa: <https://w3id.org/gno/store/adapter/> .
 @prefix dcatr: <https://w3id.org/dcatr#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 
 <Repository> a dcatr:Repository
     ; dcatr:repositoryDataGraph <Graph>
+    ; dcatr:repositoryManifestGraph <RepositoryManifestGraph>
     ; dcterms:title "ash_r2rml fortune5 SHACL shapes repository"
 .
 
 <Graph> a dcatr:DataGraph
     ; dcterms:title "Fortune5 operational SHACL shapes data graph"
-.
-
-<Qlever> a gnoa:Qlever
-    ; gno:storeEndpointScheme "http"
-    ; gno:storeEndpointHost "localhost"
-    ; gno:storeEndpointPort 7020
-    ; gnoa:qleverAccessToken "fortune5_test"
 .

@@ -18,7 +18,7 @@ defmodule GgenIgniter.AshR2rmlGateQleverTest do
   @gate_010 Path.join(@ash_r2rml_root, "priv/ggen/ash-r2rml-pack/gates/010_required_resource_contract.rq")
   @gate_020 Path.join(@ash_r2rml_root, "priv/ggen/ash-r2rml-pack/gates/020_property_contract.rq")
 
-  @manifest_graph "config/gno/test/repository.ttl"
+  @manifest_graph "config/gno/test/store.ttl"
                   |> RDF.Turtle.read_file!(base: "http://example.com/")
   @store_id "http://example.com/Qlever"
 

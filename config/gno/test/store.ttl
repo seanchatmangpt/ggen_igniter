@@ -1,0 +1,9 @@
+@prefix gno: <https://w3id.org/gno#> .
+@prefix gnoa: <https://w3id.org/gno/store/adapter/> .
+
+<Qlever> a gnoa:Qlever
+    ; gno:storeEndpointScheme "http"
+    ; gno:storeEndpointHost "127.0.0.1"
+    ; gno:storeEndpointPort 7020
+    ; gnoa:qleverAccessToken "fortune5_test"
+.
