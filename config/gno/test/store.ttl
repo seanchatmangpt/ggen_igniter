@@ -1,5 +1,6 @@
 @prefix gno: <https://w3id.org/gno#> .
 @prefix gnoa: <https://w3id.org/gno/store/adapter/> .
+@base <http://example.com/> .
 
 <Qlever> a gnoa:Qlever
     ; gno:storeEndpointScheme "http"

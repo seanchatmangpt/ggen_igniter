@@ -14,7 +14,20 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   `hd(spec)["module_name"]`. Later `--query` flags win on key collisions in the
   flattened namespace -- pass queries in the order you want that tie-break to resolve.
 
-  ## Example
+  ## Engines
+
+  `--engine sparql` (default) runs every query in-process against the loaded
+  `%RDF.Graph{}` via `GgenIgniter.Query.run/2` (the `sparql` hex package).
+
+  `--engine qlever` runs every query instead against a real, already-running
+  QLever SPARQL endpoint via `GgenIgniter.Query.Qlever.run/2` (`gno` + real
+  HTTP, no in-process SPARQL evaluation). `--ontology` is then still read as a
+  `%RDF.Graph{}` (via the same `Ontology.load!/1`), but only to look up the
+  `gnoa:Qlever`-typed store resource named by `--store-id` -- the query text
+  itself never touches this graph's data, it runs on the remote QLever store.
+  `--store-id` is required when `--engine qlever` is given.
+
+  ## Example (default sparql engine)
 
       mix ggen_igniter.sync \\
         --ontology test/fixtures/audit_trail_ontology.ttl \\
@@ -24,10 +37,23 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         --query fields=test/fixtures/fields.rq \\
         --template test/fixtures/extension.ex.eex \\
         --out tmp_out/probe.ex
+
+  ## Example (qlever engine)
+
+      mix ggen_igniter.sync \\
+        --engine qlever \\
+        --ontology config/gno/test/store.ttl \\
+        --store-id http://example.com/Qlever \\
+        --query spec=priv/ggen/some-pack/gates/010.rq \\
+        --template priv/ggen/some-pack/templates/out.ex.eex \\
+        --out lib/generated.ex
   """
   use Igniter.Mix.Task
 
   alias GgenIgniter.{Ontology, Query, Render, Actuate}
+  alias GgenIgniter.Query.Qlever, as: QleverQuery
+
+  @valid_engines ~w[sparql qlever]
 
   @impl Igniter.Mix.Task
   def info(_argv, _composing_task) do
@@ -36,15 +62,23 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       example:
         "mix ggen_igniter.sync --ontology spec.ttl --query spec=rows.rq --query entities=entities.rq --template out.ex.eex --out lib/generated.ex",
       positional: [],
-      schema: [ontology: :string, query: [:string, :keep], template: :string, out: :string],
+      schema: [
+        ontology: :string,
+        query: [:string, :keep],
+        template: :string,
+        out: :string,
+        engine: :string,
+        store_id: :string
+      ],
       required: [:ontology, :query, :template, :out]
     }
   end
 
-  @doc "Reads --ontology/--query(N)/--template/--out options and runs the pipeline."
+  @doc "Reads --ontology/--query(N)/--template/--out/--engine/--store-id options and runs the pipeline."
   @impl Igniter.Mix.Task
   def igniter(igniter) do
     opts = igniter.args.options
+    engine = validate_engine!(opts[:engine] || "sparql")
 
     graph = Ontology.load!(opts[:ontology])
 
@@ -53,10 +87,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       |> Keyword.get_values(:query)
       |> Enum.map(&parse_named_query!/1)
 
-    named_results =
-      Enum.map(named_queries, fn {name, path} ->
-        {name, Query.run(graph, File.read!(path))}
-      end)
+    named_results = run_queries(engine, graph, opts, named_queries)
 
     bindings = build_bindings(named_results)
 
@@ -67,8 +98,39 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
     Igniter.add_notice(
       igniter,
-      "ggen_igniter: wrote #{opts[:out]} (#{length(named_queries)} quer#{if length(named_queries) == 1, do: "y", else: "ies"}, #{total_rows} total row(s))"
+      "ggen_igniter: wrote #{opts[:out]} (engine: #{engine}, #{length(named_queries)} quer#{if length(named_queries) == 1, do: "y", else: "ies"}, #{total_rows} total row(s))"
     )
+  end
+
+  defp validate_engine!(engine) when engine in @valid_engines, do: engine
+
+  defp validate_engine!(engine) do
+    raise ArgumentError,
+          "invalid --engine #{inspect(engine)}, must be one of: #{Enum.join(@valid_engines, ", ")}"
+  end
+
+  defp run_queries("sparql", graph, _opts, named_queries) do
+    Enum.map(named_queries, fn {name, path} ->
+      {name, Query.run(graph, File.read!(path))}
+    end)
+  end
+
+  defp run_queries("qlever", graph, opts, named_queries) do
+    store_id =
+      opts[:store_id] ||
+        raise ArgumentError, "--store-id is required when --engine qlever is given"
+
+    # Igniter tasks don't boot the full OTP application tree (they operate on
+    # ASTs, not a running app), so ensure the real HTTP client stack this
+    # engine needs is up, idempotently, right before using it.
+    {:ok, _} = Application.ensure_all_started(:tesla)
+    unless Process.whereis(GgenIgniter.Finch), do: {:ok, _} = Finch.start_link(name: GgenIgniter.Finch)
+
+    store = QleverQuery.load_store!(graph, store_id)
+
+    Enum.map(named_queries, fn {name, path} ->
+      {name, QleverQuery.run(store, File.read!(path))}
+    end)
   end
 
   defp parse_named_query!(arg) do

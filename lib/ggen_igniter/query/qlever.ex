@@ -21,21 +21,19 @@ defmodule GgenIgniter.Query.Qlever do
 
   ## Note on `Gno.select/1`
 
-  `Gno.select/1` (the top-level `Gno.Manifest`-driven convenience API) was
-  tried first and hit a real bug in `gno` 0.1.0: `Gno.Service`'s polymorphic
-  `store` link (`type: Gno.Store`) does not dispatch to the registered
-  `Gno.Store.Adapters.Qlever` subtype when loaded through `Grax.load/3` with
-  the base `Gno.Store` type -- it validates against `Gno.Store`'s own schema
-  (which requires `query_endpoint` at cardinality 1) instead of the adapter's
-  overridden schema (`required: false`, computed from scheme/host/port),
-  raising a spurious `Grax.Schema.CardinalityError`. Reproduced directly:
-
-      Grax.load(graph, id, Gno.Store)                    # => {:error, CardinalityError}
-      Grax.load(graph, id, Gno.Store.Adapters.Qlever)     # => {:ok, %Gno.Store.Adapters.Qlever{...}}
-
-  Loading the concrete adapter type directly (as this module does) sidesteps
-  the bug entirely while still using `gno`'s real, working store/endpoint
-  abstraction -- not a hand-rolled URL string.
+  `Gno.select/1` (the top-level `Gno.Manifest`-driven convenience API) works
+  fine once a manifest is authored correctly (in particular, once shared
+  resources like a store description live in DCATR's "default graph" so its
+  Manifest Graph Expansion can pull them into the service-manifest graph --
+  see `~/dev/ggen_igniter/config/gno/test/store.ttl` for a real example, and
+  https://github.com/rdf-elixir/gno/pull/2 for an unrelated real doc-comment
+  fix found along the way). This module deliberately bypasses `Gno.Manifest`
+  entirely: it takes a plain `%RDF.Graph{}` (the same type
+  `GgenIgniter.Ontology.load!/1` already produces) and a store resource IRI,
+  and loads just that one `Gno.Store.Adapters.Qlever` resource directly via
+  `Grax.load/3` -- no `gno:Service`/`dcatr:Repository` manifest ceremony
+  needed when all `ggen_igniter.sync` wants is "run this query against this
+  QLever endpoint."
   """
 
   alias Gno.Store
