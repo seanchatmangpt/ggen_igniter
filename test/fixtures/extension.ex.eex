@@ -1,0 +1,42 @@
+defmodule <%= module_name %> do
+  @moduledoc """
+  Spark.Dsl.Extension for `<%= package_name %>`.
+
+  Manufactured by ggen_igniter from an admitted `aex:AshExtensionSpec` --
+  do not hand-edit; regenerate from the spec instead.
+  """
+
+<%= for entity <- entities do %>
+  defmodule <%= entity["entity_struct"] %> do
+    @moduledoc false
+
+    defstruct [
+<%= for f <- fields, f["entity_struct"] == entity["entity_struct"] do %>      :<%= f["field_name"] %>,
+<% end %>      :__identifier__,
+      :__spark_metadata__
+    ]
+  end
+<% end %>
+<%= for entity <- entities do %>
+  @<%= entity["entity_name"] %> %Spark.Dsl.Entity{
+    name: :<%= entity["entity_name"] %>,
+    target: <%= entity["entity_struct"] %>,
+    schema: [
+<%= for f <- fields, f["entity_struct"] == entity["entity_struct"] do %>      <%= f["field_name"] %>: [type: :<%= f["field_type"] %>, required: <%= f["field_required"] %>, doc: "<%= f["field_doc"] %>"],
+<% end %>    ]
+  }
+<% end %>
+<%= for section <- sections do %>
+  @<%= section["section_name"] %> %Spark.Dsl.Section{
+    name: :<%= section["section_name"] %>,
+    entities: [
+<%= for entity <- entities, entity["section_name"] == section["section_name"] do %>      @<%= entity["entity_name"] %>,
+<% end %>    ]
+  }
+<% end %>
+
+  use Spark.Dsl.Extension,
+    sections: [<%= sections |> Enum.map(& "@#{&1["section_name"]}") |> Enum.join(", ") %>],
+    transformers: [<%= module_name %>.Persist],
+    verifiers: [<%= module_name %>.Verify]
+end

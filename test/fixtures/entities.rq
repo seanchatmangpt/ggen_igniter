@@ -1,0 +1,7 @@
+PREFIX aex: <http://seanchatmangpt.github.io/packs/ash-extension-core#>
+SELECT ?section_name ?entity_name ?entity_struct ?entity_order WHERE {
+  ?entity a aex:DslEntity ; aex:entityOf ?section ; aex:entityName ?entity_name ;
+          aex:entityStruct ?entity_struct .
+  OPTIONAL { ?entity aex:entityOrder ?entity_order }
+  ?section aex:sectionName ?section_name .
+} ORDER BY ?entity_order
