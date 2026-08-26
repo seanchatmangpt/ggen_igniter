@@ -19,7 +19,8 @@ defmodule GgenIgniter.MixProject do
     [
       {:rdf, "~> 3.0"},
       {:sparql, "~> 0.3"},
-      {:igniter, "~> 0.8"}
+      {:igniter, "~> 0.8"},
+      {:gno, "~> 0.1", only: [:dev, :test]}
     ]
   end
 end

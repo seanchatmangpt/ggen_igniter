@@ -1,0 +1,9 @@
+@prefix gno: <https://w3id.org/gno#> .
+@prefix dcatr: <https://w3id.org/dcatr#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<Service> a gno:Service, dcatr:Service
+    ; dcatr:serviceRepository <Repository>
+    ; gno:serviceStore <Qlever>
+    ; dcterms:title "Fortune5 test QLever service (real, local docker instance)"
+.
