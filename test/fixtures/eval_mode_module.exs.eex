@@ -1,0 +1,9 @@
+---
+mode: eval
+---
+sentinel = System.get_env("EVAL_SENTINEL_PATH")
+if sentinel do
+  File.write!(sentinel, package_name)
+end
+
+"evaluated-#{package_name}"

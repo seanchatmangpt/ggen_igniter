@@ -30,10 +30,25 @@ defmodule GgenIgniter.SyncQleverEngineTest do
   @tag :requires_qlever_server
   test "mix ggen_igniter.sync --engine qlever runs a real gate query against real QLever and writes a real file" do
     out_dir =
-      Path.join(System.tmp_dir!(), "ggen_igniter_qlever_engine_test_#{System.unique_integer([:positive])}")
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_qlever_engine_test_#{System.unique_integer([:positive])}"
+      )
 
     out_path = Path.join(out_dir, "gate_010_report.txt")
-    gate_010 = Path.expand("~/ash_r2rml/priv/ggen/ash-r2rml-pack/gates/010_required_resource_contract.rq")
+
+    # `System.unique_integer/1` resets per-BEAM-VM, so across separate `mix
+    # test` invocations (a fresh VM each time) this path can collide with a
+    # stale directory left over from a prior run -- without cleanup, that
+    # stale file's content makes this test non-idempotent (a fresh run can
+    # see "unchanged" instead of "wrote" because the file already exists with
+    # matching content). Force a clean slate and clean up after, real
+    # filesystem state each time, not a shared/reused fixture.
+    File.rm_rf!(out_dir)
+    on_exit(fn -> File.rm_rf!(out_dir) end)
+
+    gate_010 =
+      Path.expand("~/ash_r2rml/priv/ggen/ash-r2rml-pack/gates/010_required_resource_contract.rq")
 
     template_path = Path.join(out_dir, "report.eex")
     File.mkdir_p!(out_dir)
@@ -68,10 +83,16 @@ defmodule GgenIgniter.SyncQleverEngineTest do
   @tag :requires_qlever_server
   test "mix ggen_igniter.sync --engine qlever requires --store-id" do
     out_path =
-      Path.join(System.tmp_dir!(), "ggen_igniter_qlever_engine_no_store_id_#{System.unique_integer([:positive])}.txt")
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_qlever_engine_no_store_id_#{System.unique_integer([:positive])}.txt"
+      )
 
     template_path =
-      Path.join(System.tmp_dir!(), "ggen_igniter_qlever_engine_template_#{System.unique_integer([:positive])}.eex")
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_qlever_engine_template_#{System.unique_integer([:positive])}.eex"
+      )
 
     File.write!(template_path, "<%= length(rows) %>\n")
 
@@ -97,7 +118,10 @@ defmodule GgenIgniter.SyncQleverEngineTest do
 
   test "mix ggen_igniter.sync rejects an unknown --engine" do
     out_path =
-      Path.join(System.tmp_dir!(), "ggen_igniter_bad_engine_#{System.unique_integer([:positive])}.txt")
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_bad_engine_#{System.unique_integer([:positive])}.txt"
+      )
 
     args = [
       "ggen_igniter.sync",

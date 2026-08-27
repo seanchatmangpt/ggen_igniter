@@ -11,12 +11,23 @@ defmodule GgenIgniter.SyncPackTaskTest do
 
   test "mix ggen_igniter.sync --pack-dir resolves ontology/queries/template from the pack and writes a real file" do
     out_dir =
-      Path.join(System.tmp_dir!(), "ggen_igniter_sync_pack_test_#{System.unique_integer([:positive])}")
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_sync_pack_test_#{System.unique_integer([:positive])}"
+      )
 
     out_path = Path.join(out_dir, "resource.ex")
 
     args = [
       "ggen_igniter.sync",
+      # Pinned to sparql: asserts real generated Elixir content built from
+      # ontology literal values -- oxigraph (the default since v26.8.27)
+      # returns typed literals as raw, datatype-annotated N-Triples-style
+      # term strings, a real, disclosed engine-shape difference (see the
+      # sync task's own moduledoc), not something this --pack-dir resolution
+      # test is about.
+      "--engine",
+      "sparql",
       "--pack-dir",
       "test/fixtures/sample-pack",
       "--out",
@@ -39,7 +50,10 @@ defmodule GgenIgniter.SyncPackTaskTest do
 
   test "mix ggen_igniter.sync --pack NAME resolves under priv/ggen/<name>/" do
     out_dir =
-      Path.join(System.tmp_dir!(), "ggen_igniter_sync_pack_name_test_#{System.unique_integer([:positive])}")
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_sync_pack_name_test_#{System.unique_integer([:positive])}"
+      )
 
     out_path = Path.join(out_dir, "resource.ex")
     pack_root = Path.join(["priv", "ggen", "doctest-pack"])
@@ -47,13 +61,30 @@ defmodule GgenIgniter.SyncPackTaskTest do
     File.mkdir_p!(Path.join(pack_root, "gates"))
     File.mkdir_p!(Path.join(pack_root, "templates"))
     File.cp!("test/fixtures/sample-pack/ontology.ttl", Path.join(pack_root, "ontology.ttl"))
-    File.cp!("test/fixtures/sample-pack/gates/010_spec.rq", Path.join([pack_root, "gates", "010_spec.rq"]))
-    File.cp!("test/fixtures/sample-pack/templates/extension.ex.eex", Path.join([pack_root, "templates", "extension.ex.eex"]))
+
+    File.cp!(
+      "test/fixtures/sample-pack/gates/010_spec.rq",
+      Path.join([pack_root, "gates", "010_spec.rq"])
+    )
+
+    File.cp!(
+      "test/fixtures/sample-pack/templates/extension.ex.eex",
+      Path.join([pack_root, "templates", "extension.ex.eex"])
+    )
 
     on_exit(fn -> File.rm_rf!(pack_root) end)
 
     args = [
       "ggen_igniter.sync",
+      # Pinned to sparql: this test parses the written file as real Elixir
+      # (Code.string_to_quoted!/1) -- oxigraph (the default since v26.8.27)
+      # returns typed literals as raw, datatype-annotated N-Triples-style
+      # term strings, which is not valid Elixir when interpolated directly
+      # into generated source; a real, disclosed engine-shape difference
+      # (see the sync task's own moduledoc), not something this --pack NAME
+      # resolution test is about.
+      "--engine",
+      "sparql",
       "--pack",
       "doctest-pack",
       # `spec` alone doesn't provide the `sections`/`entities`/`fields`
@@ -78,10 +109,17 @@ defmodule GgenIgniter.SyncPackTaskTest do
   end
 
   test "mix ggen_igniter.sync with no ontology/query/template/pack fails with a clear error" do
-    out_path = Path.join(System.tmp_dir!(), "ggen_igniter_sync_pack_missing_#{System.unique_integer([:positive])}.ex")
+    out_path =
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_sync_pack_missing_#{System.unique_integer([:positive])}.ex"
+      )
 
     {output, exit_code} =
-      System.cmd("mix", ["ggen_igniter.sync", "--out", out_path], cd: File.cwd!(), stderr_to_stdout: true)
+      System.cmd("mix", ["ggen_igniter.sync", "--out", out_path],
+        cd: File.cwd!(),
+        stderr_to_stdout: true
+      )
 
     refute exit_code == 0
     assert output =~ "--ontology is required"

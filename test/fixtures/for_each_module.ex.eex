@@ -1,0 +1,5 @@
+defmodule <%= module_name %> do
+  @moduledoc false
+
+  def field_name, do: "<%= field_name %>"
+end

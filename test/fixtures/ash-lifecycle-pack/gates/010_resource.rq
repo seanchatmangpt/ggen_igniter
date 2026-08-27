@@ -1,0 +1,7 @@
+PREFIX alp: <http://seanchatmangpt.github.io/packs/ash-lifecycle-pack#>
+SELECT DISTINCT ?resource_name ?resource_module ?data_layer ?primary_key_name ?primary_key_type ?domain_module WHERE {
+  ?resource a alp:Resource ; alp:resourceName ?resource_name ; alp:resourceModule ?resource_module ;
+            alp:dataLayer ?data_layer ; alp:primaryKeyName ?primary_key_name ;
+            alp:primaryKeyType ?primary_key_type ; alp:resourceDomain ?domain .
+  ?domain alp:domainModule ?domain_module .
+} ORDER BY ?resource_name

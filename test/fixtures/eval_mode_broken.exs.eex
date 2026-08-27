@@ -1,0 +1,5 @@
+---
+mode: eval
+---
+def broken do
+  1 +

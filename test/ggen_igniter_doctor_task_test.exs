@@ -11,7 +11,8 @@ defmodule GgenIgniter.DoctorTaskTest do
   @moduletag :integration
 
   test "mix ggen_igniter.doctor with no --pack only runs the environment checks and passes" do
-    {output, exit_code} = System.cmd("mix", ["ggen_igniter.doctor"], cd: File.cwd!(), stderr_to_stdout: true)
+    {output, exit_code} =
+      System.cmd("mix", ["ggen_igniter.doctor"], cd: File.cwd!(), stderr_to_stdout: true)
 
     assert exit_code == 0, "mix ggen_igniter.doctor failed:\n#{output}"
     assert output =~ ~r/✔ Elixir .* \/ OTP/
@@ -50,12 +51,42 @@ defmodule GgenIgniter.DoctorTaskTest do
 
   test "mix ggen_igniter.doctor --engine qlever without --store-id fails the reachability check" do
     {output, exit_code} =
-      System.cmd("mix", ["ggen_igniter.doctor", "--engine", "qlever", "--pack-dir", "test/fixtures/sample-pack"],
+      System.cmd(
+        "mix",
+        ["ggen_igniter.doctor", "--engine", "qlever", "--pack-dir", "test/fixtures/sample-pack"],
         cd: File.cwd!(),
         stderr_to_stdout: true
       )
 
     refute exit_code == 0, "expected a non-zero exit without --store-id, got 0:\n#{output}"
     assert output =~ "--store-id is missing"
+  end
+
+  test "mix ggen_igniter.doctor reports the real NIF compile check and oxigraph smoke test" do
+    {output, exit_code} =
+      System.cmd("mix", ["ggen_igniter.doctor"], cd: File.cwd!(), stderr_to_stdout: true)
+
+    assert exit_code == 0, "mix ggen_igniter.doctor failed:\n#{output}"
+    assert output =~ ~r/✔ (native\/ggen_graph_nif|priv\/native\/ggen_graph_nif\.so)/
+    assert output =~ ~r/✔ GgenIgniter\.Query\.Oxigraph real SELECT query.*returned \d+ row\(s\)/
+  end
+
+  test "mix ggen_igniter.doctor --hex-check runs a real mix hex.build and checks package metadata" do
+    {output, exit_code} =
+      System.cmd("mix", ["ggen_igniter.doctor", "--hex-check"],
+        cd: File.cwd!(),
+        stderr_to_stdout: true
+      )
+
+    assert output =~ "mix hex.build"
+    assert exit_code == 0, "mix ggen_igniter.doctor --hex-check failed unexpectedly:\n#{output}"
+  end
+
+  test "mix ggen_igniter.doctor without --hex-check never runs mix hex.build" do
+    {output, exit_code} =
+      System.cmd("mix", ["ggen_igniter.doctor"], cd: File.cwd!(), stderr_to_stdout: true)
+
+    assert exit_code == 0, "mix ggen_igniter.doctor failed:\n#{output}"
+    refute output =~ "hex.build"
   end
 end

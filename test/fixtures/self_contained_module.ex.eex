@@ -1,0 +1,21 @@
+---
+to: "tmp_out/frontmatter/<%= module_name %>.ex"
+sparql:
+  spec: |
+    PREFIX aex: <http://seanchatmangpt.github.io/packs/ash-extension-core#>
+    SELECT DISTINCT ?package_name ?module_name ?extension_target WHERE {
+      ?s a aex:AshExtensionSpec ; aex:packageName ?package_name ;
+         aex:moduleName ?module_name ; aex:extensionTarget ?extension_target .
+    }
+unless_exists: false
+skip_if: "DO NOT REGENERATE"
+---
+defmodule <%= module_name %> do
+  @moduledoc """
+  Manufactured entirely from this template's own frontmatter header --
+  no --out, no --query, no --skip-if passed on the CLI.
+  """
+
+  def package_name, do: "<%= package_name %>"
+  def extension_target, do: "<%= extension_target %>"
+end

@@ -1,0 +1,13 @@
+[package]
+name = "ggen_graph_nif"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "ggen_graph_nif"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.36"
+oxigraph = { version = "0.5.9", features = ["rdf-12"] }

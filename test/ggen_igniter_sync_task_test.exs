@@ -4,11 +4,23 @@ defmodule GgenIgniter.SyncTaskTest do
   @moduletag :integration
 
   test "mix ggen_igniter.sync runs end-to-end as a real subprocess and writes a real file" do
-    out_dir = Path.join(System.tmp_dir!(), "ggen_igniter_sync_test_#{System.unique_integer([:positive])}")
+    out_dir =
+      Path.join(System.tmp_dir!(), "ggen_igniter_sync_test_#{System.unique_integer([:positive])}")
+
     out_path = Path.join(out_dir, "resource.ex")
 
     args = [
       "ggen_igniter.sync",
+      # Pinned to sparql: this test parses the written file as real Elixir
+      # (Code.string_to_quoted!/1) built directly from ontology literal
+      # values -- oxigraph (the default since v26.8.27) returns typed
+      # literals as raw, datatype-annotated N-Triples-style term strings,
+      # which is not valid Elixir when interpolated straight into generated
+      # source the way this fixture template does. Real, disclosed
+      # engine-shape difference (see the sync task's own moduledoc), not
+      # something this basic end-to-end smoke test is about.
+      "--engine",
+      "sparql",
       "--ontology",
       "test/fixtures/audit_trail_ontology.ttl",
       "--query",

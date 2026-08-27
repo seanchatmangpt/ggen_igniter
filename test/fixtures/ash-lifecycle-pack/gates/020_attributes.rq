@@ -1,0 +1,8 @@
+PREFIX alp: <http://seanchatmangpt.github.io/packs/ash-lifecycle-pack#>
+SELECT ?resource_name ?attribute_order ?attribute_name ?attribute_type ?attribute_allow_nil ?attribute_default WHERE {
+  ?attr a alp:Attribute ; alp:attributeOf ?resource ; alp:attributeOrder ?attribute_order ;
+        alp:attributeName ?attribute_name ; alp:attributeType ?attribute_type ;
+        alp:attributeAllowNil ?attribute_allow_nil .
+  OPTIONAL { ?attr alp:attributeDefault ?attribute_default }
+  ?resource alp:resourceName ?resource_name .
+} ORDER BY ?resource_name ?attribute_order

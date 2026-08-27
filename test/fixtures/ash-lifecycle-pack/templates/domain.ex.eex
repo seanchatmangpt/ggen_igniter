@@ -1,0 +1,26 @@
+---
+to: "lib/support_desk/support.ex"
+mode: file
+---
+<% domain_module = domain_resources |> List.first() |> Map.get("domain_module") %>
+defmodule <%= domain_module %> do
+  @moduledoc """
+  Ash.Domain registering every resource in the ash-lifecycle-pack fixture.
+
+  Manufactured by ggen_igniter from the admitted alp: ontology -- do not
+  hand-edit; regenerate from the ontology instead. This template fully
+  regenerates the whole module from scratch on every run (mode: file, same
+  idempotent-regeneration convention as resource.ex.eex) rather than
+  injecting into an existing file: `GgenIgniter.Actuate.inject_content!/5`
+  exists in this codebase but `Mix.Tasks.GgenIgniter.Sync` never calls it for
+  `mode: file` templates (only `Actuate.write_file!/3`), so AST-patch/inject
+  wiring is not actually exercised on this path -- regenerating the whole
+  small module avoids depending on machinery that isn't wired here.
+  """
+
+  use Ash.Domain
+
+  resources do
+<%= for d <- domain_resources do %>    resource(<%= d["resource_module"] %>)
+<% end %>  end
+end

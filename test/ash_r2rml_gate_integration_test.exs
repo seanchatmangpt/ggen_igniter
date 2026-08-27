@@ -18,7 +18,10 @@ defmodule GgenIgniter.AshR2rmlGateIntegrationTest do
   alias GgenIgniter.{Ontology, Query}
 
   @ash_r2rml_root Path.expand("~/ash_r2rml")
-  @gate_010 Path.join(@ash_r2rml_root, "priv/ggen/ash-r2rml-pack/gates/010_required_resource_contract.rq")
+  @gate_010 Path.join(
+              @ash_r2rml_root,
+              "priv/ggen/ash-r2rml-pack/gates/010_required_resource_contract.rq"
+            )
   @gate_020 Path.join(@ash_r2rml_root, "priv/ggen/ash-r2rml-pack/gates/020_property_contract.rq")
   @fortune5_shapes Path.join(@ash_r2rml_root, "priv/ontologies/fortune5/operational_shapes.ttl")
 

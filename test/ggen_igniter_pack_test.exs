@@ -17,11 +17,13 @@ defmodule GgenIgniter.PackTest do
     end
 
     test "resolves --pack NAME under priv/ggen/<name>" do
-      assert Pack.resolve_dir!(pack: "audit-trail-pack") == Path.join(["priv", "ggen", "audit-trail-pack"])
+      assert Pack.resolve_dir!(pack: "audit-trail-pack") ==
+               Path.join(["priv", "ggen", "audit-trail-pack"])
     end
 
     test "--pack-dir wins over --pack when both given" do
-      assert Pack.resolve_dir!(pack: "audit-trail-pack", pack_dir: @sample_pack_dir) == @sample_pack_dir
+      assert Pack.resolve_dir!(pack: "audit-trail-pack", pack_dir: @sample_pack_dir) ==
+               @sample_pack_dir
     end
 
     test "raises when neither --pack nor --pack-dir is given" do
@@ -33,7 +35,8 @@ defmodule GgenIgniter.PackTest do
 
   describe "default_ontology/1" do
     test "points at <pack_dir>/ontology.ttl" do
-      assert Pack.default_ontology(@sample_pack_dir) == Path.join(@sample_pack_dir, "ontology.ttl")
+      assert Pack.default_ontology(@sample_pack_dir) ==
+               Path.join(@sample_pack_dir, "ontology.ttl")
     end
   end
 
@@ -48,11 +51,21 @@ defmodule GgenIgniter.PackTest do
       assert length(queries) == 4
 
       # Lexical sort of the real filenames == numeric-prefix order here.
-      assert Enum.map(queries, fn {name, _path} -> name end) == ["spec", "sections", "entities", "fields"]
+      assert Enum.map(queries, fn {name, _path} -> name end) == [
+               "spec",
+               "sections",
+               "entities",
+               "fields"
+             ]
     end
 
     test "returns an empty list when no gates/ dir or *.rq files exist" do
-      tmp_dir = Path.join(System.tmp_dir!(), "ggen_igniter_pack_test_empty_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(
+          System.tmp_dir!(),
+          "ggen_igniter_pack_test_empty_#{System.unique_integer([:positive])}"
+        )
+
       File.mkdir_p!(tmp_dir)
 
       assert Pack.discover_queries(tmp_dir) == []
@@ -67,7 +80,12 @@ defmodule GgenIgniter.PackTest do
       # entities.rq (no prefix) in the flat, unpacked fixtures dir has a query
       # named 1:1 with its filename already -- verify the stem, unprefixed, is
       # preserved verbatim when there is no leading NNN_ to strip.
-      tmp_dir = Path.join(System.tmp_dir!(), "ggen_igniter_pack_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(
+          System.tmp_dir!(),
+          "ggen_igniter_pack_test_#{System.unique_integer([:positive])}"
+        )
+
       gates_dir = Path.join(tmp_dir, "gates")
       File.mkdir_p!(gates_dir)
       File.write!(Path.join(gates_dir, "entities.rq"), "SELECT * WHERE { ?s ?p ?o }")
@@ -87,7 +105,12 @@ defmodule GgenIgniter.PackTest do
     end
 
     test "returns {:error, {:ambiguous, paths}} when more than one template exists" do
-      tmp_dir = Path.join(System.tmp_dir!(), "ggen_igniter_pack_test_#{System.unique_integer([:positive])}")
+      tmp_dir =
+        Path.join(
+          System.tmp_dir!(),
+          "ggen_igniter_pack_test_#{System.unique_integer([:positive])}"
+        )
+
       templates_dir = Path.join(tmp_dir, "templates")
       File.mkdir_p!(templates_dir)
       File.write!(Path.join(templates_dir, "a.eex"), "a")

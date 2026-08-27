@@ -1,0 +1,18 @@
+@prefix mod: <http://seanchatmangpt.github.io/packs/multi-module#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# Minimal fixture ontology for --for-each multi-row fan-out testing: three
+# independent modules, each with its own module_name/field_name row, so a
+# single `--for-each modules` sync must produce three separate files.
+
+mod:M1 a mod:GeneratedModule ;
+    mod:moduleName "Multi.Alpha" ;
+    mod:fieldName "alpha_field" .
+
+mod:M2 a mod:GeneratedModule ;
+    mod:moduleName "Multi.Beta" ;
+    mod:fieldName "beta_field" .
+
+mod:M3 a mod:GeneratedModule ;
+    mod:moduleName "Multi.Gamma" ;
+    mod:fieldName "gamma_field" .

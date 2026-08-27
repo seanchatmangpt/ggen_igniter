@@ -2,5 +2,21 @@
 /deps/
 *.beam
 /.elixir_ls/
+/.lexical/
 erl_crash.dump
 *.ez
+*.tar
+/tmp_out/
+
+# Rust NIF build artifacts (native/ggen_graph_nif/target/ alone runs into the
+# GBs -- never commit compiled crate output or the platform-specific .so
+# Rustler copies into priv/native/).
+/native/*/target/
+/priv/native/*.so
+
+# Dialyzer PLT cache and ExCoveralls coverage output (both real, regenerable
+# tool output, not source).
+/priv/plts/
+*.plt
+*.plt.hash
+/cover/

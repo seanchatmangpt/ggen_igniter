@@ -15,7 +15,10 @@ defmodule GgenIgniter.AshR2rmlGateQleverTest do
   alias GgenIgniter.Query.Qlever, as: QleverQuery
 
   @ash_r2rml_root Path.expand("~/ash_r2rml")
-  @gate_010 Path.join(@ash_r2rml_root, "priv/ggen/ash-r2rml-pack/gates/010_required_resource_contract.rq")
+  @gate_010 Path.join(
+              @ash_r2rml_root,
+              "priv/ggen/ash-r2rml-pack/gates/010_required_resource_contract.rq"
+            )
   @gate_020 Path.join(@ash_r2rml_root, "priv/ggen/ash-r2rml-pack/gates/020_property_contract.rq")
 
   @manifest_graph "config/gno/test/store.ttl"
@@ -44,9 +47,11 @@ defmodule GgenIgniter.AshR2rmlGateQleverTest do
     rows = QleverQuery.run(store, query)
 
     assert is_list(rows)
-    assert length(rows) > 0
+    assert rows != []
 
-    assert Enum.all?(rows, fn row -> Map.has_key?(row, "shape") and Map.has_key?(row, "missing") end)
+    assert Enum.all?(rows, fn row ->
+             Map.has_key?(row, "shape") and Map.has_key?(row, "missing")
+           end)
 
     missing_predicates = rows |> Enum.map(& &1["missing"]) |> Enum.uniq() |> Enum.sort()
 
@@ -66,7 +71,7 @@ defmodule GgenIgniter.AshR2rmlGateQleverTest do
     rows = QleverQuery.run(store, query)
 
     assert is_list(rows)
-    assert length(rows) > 0
+    assert rows != []
 
     assert Enum.all?(rows, fn row ->
              Map.has_key?(row, "shape") and Map.has_key?(row, "property") and
@@ -98,6 +103,6 @@ defmodule GgenIgniter.AshR2rmlGateQleverTest do
     rows = QleverQuery.run(store, query)
 
     assert is_list(rows)
-    assert length(rows) > 0
+    assert rows != []
   end
 end

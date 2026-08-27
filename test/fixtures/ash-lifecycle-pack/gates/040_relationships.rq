@@ -1,0 +1,8 @@
+PREFIX alp: <http://seanchatmangpt.github.io/packs/ash-lifecycle-pack#>
+SELECT ?relationship_name ?relationship_kind ?source_resource_name ?target_resource_name ?target_resource_module ?foreign_key WHERE {
+  ?rel a alp:Relationship ; alp:relationshipName ?relationship_name ; alp:relationshipKind ?relationship_kind ;
+       alp:relationshipSource ?source ; alp:relationshipTarget ?target ;
+       alp:relationshipForeignKey ?foreign_key .
+  ?source alp:resourceName ?source_resource_name .
+  ?target alp:resourceName ?target_resource_name ; alp:resourceModule ?target_resource_module .
+} ORDER BY ?source_resource_name ?relationship_name

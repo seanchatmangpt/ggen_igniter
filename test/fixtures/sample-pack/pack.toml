@@ -1,1 +1,10 @@
-# sample pack for tests
+name = "sample-pack"
+ontology = "ontology.ttl"
+
+[[templates]]
+name = "extension"
+path = "templates/extension.ex.eex"
+
+[[templates]]
+name = "spec"
+path = "templates/spec.md.eex"

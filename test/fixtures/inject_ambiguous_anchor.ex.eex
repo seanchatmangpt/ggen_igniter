@@ -1,0 +1,14 @@
+---
+to: "unused_since_--out_is_always_passed_explicitly.ex"
+sparql:
+  spec: |
+    PREFIX aex: <http://seanchatmangpt.github.io/packs/ash-extension-core#>
+    SELECT DISTINCT ?package_name ?module_name ?extension_target WHERE {
+      ?s a aex:AshExtensionSpec ; aex:packageName ?package_name ;
+         aex:moduleName ?module_name ; aex:extensionTarget ?extension_target .
+    }
+inject: true
+before: "# GGEN:INJECT:BEFORE"
+after: "# GGEN:INJECT:AFTER"
+---
+  def injected_ambiguous, do: "<%= package_name %>"

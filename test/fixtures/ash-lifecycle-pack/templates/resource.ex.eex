@@ -1,0 +1,62 @@
+---
+to: "lib/support_desk/support/<%= String.downcase(resource_name) %>.ex"
+for_each: resource
+mode: file
+---
+defmodule <%= resource_module %> do
+  @moduledoc """
+  Ash.Resource for `<%= resource_name %>`, backed by `<%= data_layer %>`.
+
+  Manufactured by ggen_igniter from the admitted alp: ontology (pack
+  test/fixtures/ash-lifecycle-pack/) -- do not hand-edit; regenerate from the
+  ontology instead.
+  """
+
+  use Ash.Resource,
+    domain: <%= domain_module %>,
+    data_layer: <%= data_layer %>
+
+  attributes do
+<%= if primary_key_type == "uuid" do %>    uuid_primary_key(:<%= primary_key_name %>)
+<% else %>    integer_primary_key(:<%= primary_key_name %>)
+<% end %>
+<% resource_attributes =
+     attributes
+     |> Enum.filter(fn a -> a["resource_name"] == resource_name end)
+     |> Enum.sort_by(fn a -> a["attribute_order"] end) %>
+<%= for a <- resource_attributes do %>    attribute :<%= a["attribute_name"] %>, :<%= a["attribute_type"] %> do
+      allow_nil?(<%= a["attribute_allow_nil"] %>)
+      public?(true)
+<%= if a["attribute_default"] not in [nil, ""] do %>      default(<%= a["attribute_default"] %>)
+<% end %>    end
+
+<% end %>  end
+
+  actions do
+    default_accept(:*)
+
+<% resource_actions =
+     actions
+     |> Enum.filter(fn act -> act["resource_name"] == resource_name end)
+     |> Enum.sort_by(fn act -> act["action_order"] end)
+
+   default_action_types =
+     resource_actions
+     |> Enum.filter(fn act -> act["action_name"] == act["action_type"] end)
+     |> Enum.map(fn act -> act["action_type"] end) %>
+<%= if default_action_types != [] do %>    defaults([<%= default_action_types |> Enum.map(&(":" <> &1)) |> Enum.join(", ") %>])
+<% end %>
+<%= for act <- resource_actions, act["action_name"] != act["action_type"] do %>    <%= act["action_type"] %> :<%= act["action_name"] %> do
+    end
+
+<% end %>  end
+
+  relationships do
+<%= for r <- relationships, r["source_resource_name"] == resource_name do %>    <%= r["relationship_kind"] %> :<%= r["relationship_name"] %>, <%= r["target_resource_module"] %> do
+<%= if r["relationship_kind"] == "belongs_to" do %>      attribute_writable?(true)
+      source_attribute(:<%= r["foreign_key"] %>)
+<% else %>      destination_attribute(:<%= r["foreign_key"] %>)
+<% end %>    end
+
+<% end %>  end
+end

@@ -1,0 +1,9 @@
+---
+mode: eval
+---
+base = System.get_env("EVAL_SENTINEL_DIR")
+if base do
+  File.write!(Path.join(base, "#{module_name}.txt"), field_name)
+end
+
+"evaluated-#{module_name}"
