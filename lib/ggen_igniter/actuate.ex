@@ -205,7 +205,7 @@ defmodule GgenIgniter.Actuate do
       end
 
     cond do
-      already_present_at?(lines, body_lines, insert_at) ->
+      already_present_at?(lines, body_lines, insert_at, insert_mode) ->
         {:ok, :unchanged}
 
       dry_run ->
@@ -326,9 +326,31 @@ defmodule GgenIgniter.Actuate do
     at - 1
   end
 
-  # Idempotency check: are `body_lines` already present, in order, starting
-  # exactly at `insert_at` in `lines`?
-  defp already_present_at?(lines, body_lines, insert_at) do
+  # Idempotency check: are `body_lines` already present, in order, exactly
+  # where a real re-run of this exact injection would place them?
+  #
+  # For `:after` and `:at_line`, `insert_at` is a fixed offset from the START
+  # of the file (or, for `:after`, from a marker whose own line index is
+  # unaffected by a prior insertion placed strictly after it) -- so checking
+  # the slice starting AT `insert_at` is correct on every re-run.
+  #
+  # For `:before`, `insert_at` IS the marker's own line index, resolved fresh
+  # on every call via `unique_marker_line!/3`. After a first real injection,
+  # the previously-inserted `body_lines` sit immediately BEFORE the marker
+  # line, which has shifted `length(body_lines)` positions later in the file
+  # -- so `insert_at` on the second call points at the marker line itself,
+  # not at the body. Checking the slice ending AT `insert_at` (i.e. starting
+  # `length(body_lines)` positions earlier) is what actually re-detects
+  # "already injected" for this mode; without this, a second identical
+  # `:before` injection would splice a duplicate copy of `body_lines` instead
+  # of returning `:unchanged`.
+  defp already_present_at?(lines, body_lines, insert_at, :before) do
+    lines
+    |> Enum.slice(insert_at - length(body_lines), length(body_lines))
+    |> Kernel.==(body_lines)
+  end
+
+  defp already_present_at?(lines, body_lines, insert_at, _mode) do
     lines
     |> Enum.slice(insert_at, length(body_lines))
     |> Kernel.==(body_lines)

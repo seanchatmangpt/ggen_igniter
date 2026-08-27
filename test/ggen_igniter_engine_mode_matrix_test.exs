@@ -32,18 +32,23 @@ defmodule GgenIgniter.EngineModeMatrixTest do
   `modules.rq`'s three rows -- no combination here requires forcing a
   nonsensical flag pairing.
 
-  ## Honest, already-documented `--engine oxigraph` divergence (not a new bug)
+  ## `--engine oxigraph` literal-quoting bug: FIXED at the source (real, verified)
 
-  `GgenIgniter.Query.Oxigraph.run/2` returns RDF literal values with their raw
-  serialized quoting still attached (a string literal comes back as the
-  3-character sequence `"name"`, literal quote characters embedded in the
-  Elixir string) -- already documented and asserted on in
+  `GgenIgniter.Query.Oxigraph.run/2` used to return RDF literal values with
+  their raw serialized quoting still attached (a string literal came back as
+  the 3-character sequence `"name"`, literal quote characters embedded in
+  the Elixir string) -- previously documented and asserted on in
   `test/ggen_igniter_e2e_all_engines_test.exs`'s moduledoc and
-  `test/ggen_igniter_oxigraph_engine_test.exs`. Every `oxigraph` test below
-  asserts on that REAL quoted shape (in rendered file content, in eval'd
-  string values, and even in `--for-each`-templated OUTPUT FILENAMES, since
-  `--out`'s `<%= module_name %>` is rendered from the same quoted binding) --
-  never on a cleaned-up shape this engine does not, today, actually produce.
+  `test/ggen_igniter_oxigraph_engine_test.exs`. This is now fixed AT THE
+  SOURCE, in the Rust NIF itself (`native/ggen_graph_nif/src/oxigraph_engine.rs`'s
+  `normalize_term/1`, using oxrdf's own typed accessors -- see
+  `GgenIgniter.Query.Oxigraph`'s own moduledoc, "Term normalization", for the
+  full rationale). Every `oxigraph` test below now asserts on that same
+  clean, unwrapped shape the `sparql` engine's tests above already assert on
+  (in rendered file content, in eval'd string values, and in
+  `--for-each`-templated output filenames) -- verified fresh via real
+  `mix ggen_igniter.sync --engine oxigraph` subprocess runs against these
+  exact fixtures, not assumed from reading the fix alone.
 
   Row order across `--for-each` is intentionally NOT asserted on (observed to
   differ between engines/runs) -- every for-each assertion here compares a
@@ -68,7 +73,12 @@ defmodule GgenIgniter.EngineModeMatrixTest do
 
   defp unique_tmp_dir(prefix) do
     dir = Path.join(System.tmp_dir!(), "#{prefix}_#{System.unique_integer([:positive])}")
+    # `System.unique_integer/1` resets per-BEAM-VM, so across separate `mix
+    # test` invocations this path can collide with a stale directory left
+    # over from a prior run. Force a clean slate and clean up after.
+    File.rm_rf!(dir)
     File.mkdir_p!(dir)
+    ExUnit.Callbacks.on_exit(fn -> File.rm_rf!(dir) end)
     dir
   end
 
@@ -221,12 +231,14 @@ defmodule GgenIgniter.EngineModeMatrixTest do
 
   # --- {engine: oxigraph} x {mode: file, eval} x {for_each: absent, present} ---
   #
-  # Every assertion below is on the REAL, already-documented quoted-literal
-  # shape this engine produces (see moduledoc) -- never on the clean
-  # `sparql`-engine shape asserted on above.
+  # Every assertion below is on the same clean, unwrapped shape the
+  # `sparql`-engine tests above assert on (see moduledoc's "FIXED at the
+  # source" note) -- the literal-quoting bug this engine used to have is
+  # fixed, so these are no longer separately-documented-divergence
+  # assertions, just the normal expected output.
 
   describe "engine: oxigraph" do
-    test "mode: file, for_each: absent -- writes one real file with real oxigraph literal quoting" do
+    test "mode: file, for_each: absent -- writes one real, compiling file (clean, unwrapped values)" do
       out_path = Path.join(unique_tmp_dir("matrix_oxigraph_file"), "resource.ex")
 
       {output, exit_code} =
@@ -257,20 +269,21 @@ defmodule GgenIgniter.EngineModeMatrixTest do
       assert File.exists?(out_path)
       content = File.read!(out_path)
 
-      # Real, checked report: today's oxigraph literal quoting makes this
-      # Elixir-source template's output fail to parse -- confirmed via the
-      # non-raising `Code.string_to_quoted/1`, never `!/1`.
-      assert {:error, _reason} = Code.string_to_quoted(content)
+      # Real, checked report: the literal-quoting fix means this
+      # Elixir-source template's output now parses cleanly -- confirmed via
+      # the raising `Code.string_to_quoted!/1` (never masking a real parse
+      # failure).
+      assert {:defmodule, _, _} = Code.string_to_quoted!(content)
 
-      assert content =~ ~s(defmodule "AuditTrail.Resource" do)
-      assert content =~ ~s(Spark.Dsl.Extension for `"audit_trail"`.)
-      assert content =~ ~s(defmodule "AuditTrail.Dsl.Event" do)
-      assert content =~ ~s(defmodule "AuditTrail.Dsl.Projection" do)
-      assert content =~ ~s(sections: [@"audit"],)
-      assert content =~ ~s(transformers: ["AuditTrail.Resource".Persist],)
+      assert content =~ "defmodule AuditTrail.Resource do"
+      assert content =~ "Spark.Dsl.Extension for `audit_trail`."
+      assert content =~ "defmodule AuditTrail.Dsl.Event do"
+      assert content =~ "defmodule AuditTrail.Dsl.Projection do"
+      assert content =~ "sections: [@audit],"
+      assert content =~ "transformers: [AuditTrail.Resource.Persist],"
     end
 
-    test "mode: file, for_each: present -- writes three distinct files, filenames AND content carrying real oxigraph quoting" do
+    test "mode: file, for_each: present -- writes three distinct real files, one per modules.rq row (clean filenames and content)" do
       out_dir = unique_tmp_dir("matrix_oxigraph_file_foreach")
       out_template = Path.join(out_dir, "<%= module_name %>.ex")
 
@@ -293,28 +306,25 @@ defmodule GgenIgniter.EngineModeMatrixTest do
       assert exit_code == 0, "oxigraph/file/present sync failed:\n#{output}"
       assert output =~ "(engine: oxigraph, 1 query, 3 total row(s))"
 
-      # `module_name` itself comes back quoted from the oxigraph engine, and
-      # `--out`'s `<%= module_name %>` is rendered from that same binding --
-      # so the real output FILENAMES carry the embedded quote characters too,
-      # not just the file content. Real, observed behavior, asserted honestly.
+      # `module_name` now comes back plain/unwrapped from the oxigraph
+      # engine (the literal-quoting fix), so `--out`'s `<%= module_name %>`
+      # renders clean output FILENAMES too -- same shape as the `sparql`
+      # engine's equivalent test above.
       written = out_dir |> File.ls!() |> Enum.sort()
-      assert written == [~s("Multi.Alpha".ex), ~s("Multi.Beta".ex), ~s("Multi.Gamma".ex)]
+      assert written == ["Multi.Alpha.ex", "Multi.Beta.ex", "Multi.Gamma.ex"]
 
       for {name, field} <- [
-            {~s("Multi.Alpha".ex), "alpha_field"},
-            {~s("Multi.Beta".ex), "beta_field"},
-            {~s("Multi.Gamma".ex), "gamma_field"}
+            {"Multi.Alpha.ex", "alpha_field"},
+            {"Multi.Beta.ex", "beta_field"},
+            {"Multi.Gamma.ex", "gamma_field"}
           ] do
         content = File.read!(Path.join(out_dir, name))
-        # The template itself already wraps `field_name` in literal quotes
-        # (`do: "<%= field_name %>"`), and the oxigraph-returned value is
-        # ITSELF already quoted -- so the real rendered output has the value
-        # double-quoted (four literal quote characters total), not one pair.
-        assert content =~ "def field_name, do: \"\"#{field}\"\""
+        assert {:defmodule, _, _} = Code.string_to_quoted!(content)
+        assert content =~ "def field_name, do: \"#{field}\""
       end
     end
 
-    test "mode: eval, for_each: absent -- evaluates in-process with real oxigraph-quoted bindings, writes nothing to disk" do
+    test "mode: eval, for_each: absent -- evaluates the rendered body in-process with clean bindings, writes nothing to disk" do
       sentinel = Path.join(unique_tmp_dir("matrix_oxigraph_eval"), "sentinel.txt")
 
       {output, exit_code} =
@@ -334,23 +344,16 @@ defmodule GgenIgniter.EngineModeMatrixTest do
 
       assert exit_code == 0, "oxigraph/eval/absent sync failed:\n#{output}"
 
-      # The real returned eval value is a runtime string with an embedded
-      # quote character (`package_name` itself comes back quoted from the
-      # oxigraph engine -- see moduledoc); `inspect/1` is what adds the
-      # backslash-escaping visible in the real notice text, so build the
-      # expected notice via `inspect/1` too rather than hand-escaping it.
-      real_eval_value = "evaluated-" <> ~s("audit_trail")
-
       assert output =~
-               "ggen_igniter: evaluated test/fixtures/eval_mode_module.exs.eex -> #{inspect(real_eval_value)} (engine: oxigraph, 1 query, 1 total row(s))"
+               "ggen_igniter: evaluated test/fixtures/eval_mode_module.exs.eex -> \"evaluated-audit_trail\" (engine: oxigraph, 1 query, 1 total row(s))"
 
       refute output =~ "wrote "
 
       assert File.exists?(sentinel)
-      assert File.read!(sentinel) == ~s("audit_trail")
+      assert File.read!(sentinel) == "audit_trail"
     end
 
-    test "mode: eval, for_each: present -- evaluates once per row with real oxigraph-quoted bindings, writes nothing to disk" do
+    test "mode: eval, for_each: present -- evaluates once per row with clean bindings, writes nothing to disk" do
       sentinel_dir = unique_tmp_dir("matrix_oxigraph_eval_foreach")
 
       {output, exit_code} =
@@ -374,25 +377,21 @@ defmodule GgenIgniter.EngineModeMatrixTest do
       assert output =~ "(engine: oxigraph, 1 query, 3 total row(s))"
       refute output =~ "wrote "
 
-      # Real observed shape: `EVAL_SENTINEL_DIR`'s per-row filename is built
-      # from the SAME quoted `module_name` binding, so it carries embedded
-      # quote characters exactly like the file-mode --out template does above.
+      # `EVAL_SENTINEL_DIR`'s per-row filename is now built from the SAME
+      # clean, unwrapped `module_name` binding -- same shape as the
+      # file-mode `--out` template above, and as the `sparql`-engine
+      # equivalent test.
       written = sentinel_dir |> File.ls!() |> Enum.sort()
-      assert written == [~s("Multi.Alpha".txt), ~s("Multi.Beta".txt), ~s("Multi.Gamma".txt)]
+      assert written == ["Multi.Alpha.txt", "Multi.Beta.txt", "Multi.Gamma.txt"]
 
       for {name, field} <- [
-            {~s("Multi.Alpha".txt), "alpha_field"},
-            {~s("Multi.Beta".txt), "beta_field"},
-            {~s("Multi.Gamma".txt), "gamma_field"}
+            {"Multi.Alpha.txt", "alpha_field"},
+            {"Multi.Beta.txt", "beta_field"},
+            {"Multi.Gamma.txt", "gamma_field"}
           ] do
-        # Same `inspect/1`-vs-raw-value distinction as the absent-for_each
-        # oxigraph eval test above: the notice text shows inspect's
-        # backslash-escaped display of a value that itself contains real
-        # embedded quote characters (no backslashes) -- build the expected
-        # notice substring via `inspect/1`, not by hand-escaping it.
         real_eval_value = "evaluated-" <> Path.rootname(name)
         assert output =~ inspect(real_eval_value)
-        assert File.read!(Path.join(sentinel_dir, name)) == ~s("#{field}")
+        assert File.read!(Path.join(sentinel_dir, name)) == field
       end
     end
   end

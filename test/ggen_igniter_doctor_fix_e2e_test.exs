@@ -68,6 +68,7 @@ defmodule GgenIgniter.DoctorFixE2eTest do
         "ggen_igniter_doctor_fix_e2e_#{System.unique_integer([:positive])}"
       )
 
+    File.rm_rf!(dir)
     File.mkdir_p!(Path.join(dir, "lib"))
     File.mkdir_p!(Path.join(dir, "config"))
 
@@ -153,7 +154,7 @@ defmodule GgenIgniter.DoctorFixE2eTest do
     before_content = File.read!(config_path)
     refute before_content =~ "dcatr", "fixture should start without config :dcatr"
 
-    {output, _exit_code} =
+    {output, exit_code} =
       System.cmd("mix", ["ggen_igniter.doctor", "--fix"],
         cd: dir,
         env: [{"MIX_ENV", "dev"}],
@@ -162,6 +163,27 @@ defmodule GgenIgniter.DoctorFixE2eTest do
 
     assert output =~ "FIXED: added `config :dcatr, env: Mix.env()`",
            "expected a real FIXED line for the dcatr config in doctor's output:\n#{output}"
+
+    # Real regression coverage for the `check_nif_compiles/0` bug found by
+    # Agent 8's real consumer-scenario audit (2026-08-27): this fixture is a
+    # real *consumer* of `ggen_igniter` (its own `Mix.Project.config()[:app]`
+    # is `:doctor_fix_e2e_fixture`, not `:ggen_igniter`), so it has no
+    # `native/ggen_graph_nif` directory of its own -- that crate only exists
+    # inside `ggen_igniter`'s own package tree. Before the fix, check 14
+    # (`check_nif_compiles/0`) resolved the crate path via `File.cwd!()`
+    # unconditionally, which is this fixture's own project root, so it
+    # ALWAYS reported "native/ggen_graph_nif directory not found" (✘) and
+    # the whole `mix ggen_igniter.doctor` run exited 1 for every real
+    # consumer -- this exact fixture, confirmed directly, before the fix.
+    # `ggen_igniter_root/0` now resolves the crate via
+    # `Mix.Project.deps_paths()[:ggen_igniter]` when the current app isn't
+    # `:ggen_igniter` itself, so the real crate inside the path dependency
+    # is found and this check passes for a real consumer too.
+    assert output =~ ~r/✔ (native\/ggen_graph_nif|priv\/native\/ggen_graph_nif\.so)/,
+           "expected the nif check to pass by resolving ggen_igniter's real on-disk path, not cwd:\n#{output}"
+
+    assert exit_code == 0,
+           "expected mix ggen_igniter.doctor --fix to exit 0 for this real consumer fixture, got #{exit_code}:\n#{output}"
 
     after_content = File.read!(config_path)
     assert after_content =~ "config :dcatr, env: Mix.env()"
@@ -172,7 +194,7 @@ defmodule GgenIgniter.DoctorFixE2eTest do
 
     # Re-running doctor (still --fix) now reports :ok / no-op for this check
     # -- the fix is idempotent against the real file it just wrote.
-    {second_output, _} =
+    {second_output, second_exit_code} =
       System.cmd("mix", ["ggen_igniter.doctor", "--fix"],
         cd: dir,
         env: [{"MIX_ENV", "dev"}],
@@ -181,5 +203,11 @@ defmodule GgenIgniter.DoctorFixE2eTest do
 
     assert second_output =~ "config :dcatr, env: ... already present"
     refute second_output =~ "FIXED: added `config :dcatr"
+
+    # The "broken consumer -> doctor detects -> doctor fixes -> second run =
+    # clean" requirement: a second `--fix` run is a genuine no-op (nothing
+    # left to fix, real exit 0), not just a different message.
+    assert second_exit_code == 0,
+           "expected the second doctor --fix run to be a genuine no-op (exit 0), got #{second_exit_code}:\n#{second_output}"
   end
 end

@@ -18,25 +18,23 @@ defmodule GgenIgniter.E2eAllEnginesTest do
   (ontology -> query -> render -> write, through the real CLI, through each
   real engine) -- not a unit test of any one function in isolation.
 
-  ## Honest note on the `oxigraph` engine's real output
+  ## `oxigraph` engine literal-quoting bug: FIXED at the source (real, verified)
 
-  `GgenIgniter.Query.Oxigraph.run/2` (the native oxigraph NIF path) returns
-  RDF literal values with their raw serialized quoting/datatype suffixes
-  still attached (e.g. a string literal comes back as the 3-character
-  sequence `"name"` -- literal quote characters embedded in the Elixir
-  string -- rather than the bare `name` the `sparql` engine returns; a
-  typed boolean comes back as `"true"^^<http://www.w3.org/2001/XMLSchema#boolean>`).
-  Rendered through `test/fixtures/sample-pack`'s Elixir-source template, this
-  produces syntactically-invalid Elixir (confirmed below via
-  `Code.string_to_quoted/1` returning `{:error, _}`, not
-  `Code.string_to_quoted!/1`, which would raise and abort the test). This
-  test reports that real, current outcome honestly -- same "reports the real
-  outcome, does not force a pass" discipline as
-  `test/ggen_igniter_oxigraph_engine_test.exs` -- rather than asserting
-  compileable output the oxigraph engine does not, today, actually produce.
-  The end-to-end LOOP (ontology -> query -> render -> write, plus the
-  idempotent-no-op re-run) is real and asserted either way; only the
-  Elixir-syntax-validity sub-assertion is engine-specific.
+  `GgenIgniter.Query.Oxigraph.run/2` (the native oxigraph NIF path) used to
+  return RDF literal values with their raw serialized quoting/datatype
+  suffixes still attached (e.g. a string literal came back as the
+  3-character sequence `"name"` -- literal quote characters embedded in the
+  Elixir string -- rather than the bare `name` the `sparql` engine returns).
+  This is now fixed AT THE SOURCE, in the Rust NIF itself
+  (`native/ggen_graph_nif/src/oxigraph_engine.rs`'s `normalize_term/1`, using
+  oxrdf's own typed accessors -- see `GgenIgniter.Query.Oxigraph`'s own
+  moduledoc, "Term normalization", for the full rationale and its one
+  disclosed scope limit). Rendered through `test/fixtures/sample-pack`'s
+  Elixir-source template, the `oxigraph` engine's output is now real,
+  compileable Elixir -- confirmed below via `Code.string_to_quoted!/1`,
+  byte-identical to what the `sparql` engine's describe block above already
+  asserts. The end-to-end LOOP (ontology -> query -> render -> write, plus
+  the idempotent-no-op re-run) is real and asserted for both engines.
   """
   use ExUnit.Case, async: false
 
@@ -51,6 +49,9 @@ defmodule GgenIgniter.E2eAllEnginesTest do
           System.tmp_dir!(),
           "ggen_igniter_e2e_sparql_#{System.unique_integer([:positive])}"
         )
+
+      File.rm_rf!(out_dir)
+      on_exit(fn -> File.rm_rf!(out_dir) end)
 
       out_path = Path.join(out_dir, "resource.ex")
 
@@ -110,6 +111,9 @@ defmodule GgenIgniter.E2eAllEnginesTest do
           "ggen_igniter_e2e_oxigraph_#{System.unique_integer([:positive])}"
         )
 
+      File.rm_rf!(out_dir)
+      on_exit(fn -> File.rm_rf!(out_dir) end)
+
       out_path = Path.join(out_dir, "resource.ex")
 
       args = [
@@ -133,21 +137,19 @@ defmodule GgenIgniter.E2eAllEnginesTest do
       assert File.exists?(out_path)
       content = File.read!(out_path)
 
-      # Real content the oxigraph engine actually produces today: the RDF
-      # literal quoting comes through into the rendered module/atom/field
-      # names (see moduledoc above) -- assert on that real shape, not on a
-      # cleaned-up shape this engine doesn't currently emit.
-      assert content =~ ~s(defmodule "AuditTrail.Resource" do)
-      assert content =~ ~s(defmodule "AuditTrail.Dsl.Event" do)
-      assert content =~ ~s(defmodule "AuditTrail.Dsl.Projection" do)
-      assert content =~ ~s("attribute": [type: :"atom")
+      # Real content the oxigraph engine actually produces now that the
+      # literal-quoting bug is fixed at the source: byte-identical shape to
+      # the sparql engine's assertions above (see moduledoc's "FIXED at the
+      # source" note) -- no quote characters leaking into module/atom/field
+      # names.
+      assert {:defmodule, _, _} = Code.string_to_quoted!(content)
 
-      # Honest, checked report (not assumed): today's oxigraph literal
-      # quoting makes this particular Elixir-source template's output fail
-      # to parse as valid Elixir. Confirmed via the non-raising
-      # `Code.string_to_quoted/1`, never `!/1` (which would abort the test
-      # instead of letting this be observed and reported).
-      assert {:error, _reason} = Code.string_to_quoted(content)
+      assert content =~ "defmodule AuditTrail.Resource do"
+      assert content =~ "defmodule AuditTrail.Dsl.Event do"
+      assert content =~ "defmodule AuditTrail.Dsl.Projection do"
+      assert content =~ "name: [type: :atom, required: true, doc: \"The audited event's slug.\"]"
+      assert content =~ "sections: [@audit],"
+      assert content =~ "transformers: [AuditTrail.Resource.Persist],"
 
       # --- run #2: same real idempotent no-op path, same real CLI, this
       # engine's real (quoted) content included -- no duplicate write, no
@@ -186,6 +188,9 @@ defmodule GgenIgniter.E2eAllEnginesTest do
           System.tmp_dir!(),
           "ggen_igniter_e2e_qlever_#{System.unique_integer([:positive])}"
         )
+
+      File.rm_rf!(out_dir)
+      on_exit(fn -> File.rm_rf!(out_dir) end)
 
       out_path = Path.join(out_dir, "gate_010_report.txt")
 

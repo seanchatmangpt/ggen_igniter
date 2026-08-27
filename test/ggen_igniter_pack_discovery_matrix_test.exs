@@ -37,7 +37,10 @@ defmodule GgenIgniter.PackDiscoveryMatrixTest do
       directory at all, no `ontology.ttl` on disk (path construction in
       `default_ontology/1` doesn't check existence, so this is still asserted).
     * `test/fixtures/ash-lifecycle-pack/gates/{010_resource,020_attributes,
-      030_actions,040_relationships,050_domain_resources}.rq` +
+      030_actions,040_relationships,050_domain_resources,055_domains}.rq`
+      (`055_domains.rq` added when the domain.ex.eex multi-domain admission
+      gap was fixed -- see that template's moduledoc -- so this pack now
+      ships 6 real gate queries, not 5) +
       `test/fixtures/ash-lifecycle-pack/templates/{domain.ex.eex,resource.ex.eex}`
       (exactly two templates -> the real `{:error, {:ambiguous, paths}}` case)
       + `test/fixtures/ash-lifecycle-pack/ontology.ttl`.
@@ -201,17 +204,18 @@ defmodule GgenIgniter.PackDiscoveryMatrixTest do
     end
   end
 
-  describe "pinned: ash-lifecycle-pack (5 gate queries, 2 templates -> ambiguous)" do
+  describe "pinned: ash-lifecycle-pack (6 gate queries, 2 templates -> ambiguous)" do
     @ash_pack_dir Path.join(@fixtures_root, "ash-lifecycle-pack")
 
-    test "discover_queries/1 returns all 5 real, ordered {name, path} tuples" do
+    test "discover_queries/1 returns all 6 real, ordered {name, path} tuples" do
       assert Pack.discover_queries(@ash_pack_dir) == [
                {"resource", Path.join([@ash_pack_dir, "gates", "010_resource.rq"])},
                {"attributes", Path.join([@ash_pack_dir, "gates", "020_attributes.rq"])},
                {"actions", Path.join([@ash_pack_dir, "gates", "030_actions.rq"])},
                {"relationships", Path.join([@ash_pack_dir, "gates", "040_relationships.rq"])},
                {"domain_resources",
-                Path.join([@ash_pack_dir, "gates", "050_domain_resources.rq"])}
+                Path.join([@ash_pack_dir, "gates", "050_domain_resources.rq"])},
+               {"domains", Path.join([@ash_pack_dir, "gates", "055_domains.rq"])}
              ]
     end
 

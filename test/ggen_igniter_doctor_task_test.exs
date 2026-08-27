@@ -89,4 +89,52 @@ defmodule GgenIgniter.DoctorTaskTest do
     assert exit_code == 0, "mix ggen_igniter.doctor failed:\n#{output}"
     refute output =~ "hex.build"
   end
+
+  test "mix ggen_igniter.doctor's check_version_policy reports the REAL current state of " <>
+         "this project's own mix.exs version vs. CHANGELOG.md's top entry" do
+    # Ground truth, read fresh from the real files on disk (Chicago-style: no
+    # mocked/assumed content) -- this project's own real, observed versioning
+    # convention is "mix.exs's version: literal mirrors CHANGELOG.md's topmost
+    # `## vX` entry heading" (there are no git tags at all in this repo's real
+    # history: `git tag --list` returns empty).
+    mix_exs_source = File.read!(Path.join(File.cwd!(), "mix.exs"))
+    [_, mix_version] = Regex.run(~r/version:\s*"([^"]+)"/, mix_exs_source)
+
+    changelog_source = File.read!(Path.join(File.cwd!(), "CHANGELOG.md"))
+    [_, changelog_version] = Regex.run(~r/^##\s+v(\S+)/m, changelog_source)
+
+    {output, exit_code} =
+      System.cmd("mix", ["ggen_igniter.doctor"], cd: File.cwd!(), stderr_to_stdout: true)
+
+    assert exit_code == 0, "mix ggen_igniter.doctor failed:\n#{output}"
+
+    if mix_version == changelog_version do
+      assert output =~
+               ~r/✔ mix\.exs version #{Regex.escape(inspect(mix_version))} matches CHANGELOG\.md's top entry \(## v#{Regex.escape(changelog_version)}\) -- MATCH/
+    else
+      assert output =~
+               ~r/⚠ MISMATCH: mix\.exs version #{Regex.escape(inspect(mix_version))} but CHANGELOG\.md's top entry \(## v#{Regex.escape(changelog_version)}\) says it should be #{Regex.escape(inspect(changelog_version))}/
+    end
+  end
+
+  test "GgenIgniter.DoctorFixes.check_version_policy/1 matches this project's real current " <>
+         "mix.exs/CHANGELOG.md state directly (no subprocess)" do
+    project_dir = File.cwd!()
+
+    mix_exs_source = File.read!(Path.join(project_dir, "mix.exs"))
+    [_, mix_version] = Regex.run(~r/version:\s*"([^"]+)"/, mix_exs_source)
+
+    changelog_source = File.read!(Path.join(project_dir, "CHANGELOG.md"))
+    [_, changelog_version] = Regex.run(~r/^##\s+v(\S+)/m, changelog_source)
+
+    result = GgenIgniter.DoctorFixes.check_version_policy(project_dir)
+
+    if mix_version == changelog_version do
+      assert {:ok, msg} = result
+      assert msg =~ "MATCH"
+    else
+      assert {:fixable, msg} = result
+      assert msg =~ "MISMATCH"
+    end
+  end
 end

@@ -78,6 +78,7 @@ defmodule GgenIgniter.FullPipelinePropertiesTest do
         "ggen_igniter_full_pipeline_properties_test_#{System.unique_integer([:positive])}"
       )
 
+    File.rm_rf!(tmp_dir)
     File.mkdir_p!(tmp_dir)
     on_exit(fn -> File.rm_rf!(tmp_dir) end)
     {:ok, tmp_dir: tmp_dir}

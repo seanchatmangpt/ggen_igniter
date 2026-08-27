@@ -55,6 +55,9 @@ defmodule GgenIgniter.SyncFrontmatterTest do
     explicit_out =
       Path.join(System.tmp_dir!(), "explicit_out_#{System.unique_integer([:positive])}.ex")
 
+    File.rm(explicit_out)
+    on_exit(fn -> File.rm(explicit_out) end)
+
     args = [
       "ggen_igniter.sync",
       "--ontology",

@@ -64,6 +64,7 @@ defmodule GgenIgniter.SyncPackTemplateStemTest do
         "ggen_igniter_sync_pack_stem_test_#{System.unique_integer([:positive])}"
       )
 
+    File.rm_rf!(tmp_dir)
     File.mkdir_p!(tmp_dir)
     on_exit(fn -> File.rm_rf!(tmp_dir) end)
 

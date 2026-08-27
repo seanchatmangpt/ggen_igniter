@@ -25,21 +25,26 @@ defmodule GgenIgniter.CrossEngineEquivalencePropertiesTest do
      -- or be mistaken for a failure of -- the SET-equivalence property this
      file actually tests.
 
-  2. **Literal/IRI term ENCODING is normalized, not ignored.**
-     `test/ggen_igniter_e2e_all_engines_test.exs`'s moduledoc and
-     `native/ggen_graph_nif/src/oxigraph_engine.rs` (`term.to_string()`,
-     oxigraph's own `Term` `Display` impl) together confirm: oxigraph returns
+  2. **Literal/IRI term ENCODING -- historically normalized here, now FIXED
+     at the source.** This property's `normalize_term/1` below was originally
+     written to paper over a real, confirmed bug: oxigraph used to return
      raw, N-Triples-style term strings (IRIs wrapped in `<...>`, literals
      wrapped in quotes and, for non-string datatypes, suffixed
      `^^<datatype-iri>` or `@lang`), while `GgenIgniter.Query.run/2` returns
      plain unwrapped Elixir values (`RDF.IRI.to_string/1`,
      `RDF.Literal.value/1` -- no angle brackets, no quotes, no datatype
-     suffix). This is a real, confirmed ENCODING difference between two
-     independent, spec-conformant engines -- not a bug in either one. This
-     test's `normalize_term/1` below strips that encoding down to the plain
-     value on BOTH sides (a no-op on the already-plain sparql-engine side)
-     before comparing, per the task's explicit instruction: normalize for it
-     honestly, do not weaken the property to dodge it.
+     suffix). That bug is now fixed AT THE SOURCE, in the Rust NIF itself
+     (`native/ggen_graph_nif/src/oxigraph_engine.rs`'s `normalize_term/1`,
+     using oxrdf's own typed accessors -- see
+     `GgenIgniter.Query.Oxigraph`'s own moduledoc, "Term normalization", and
+     `test/ggen_igniter_oxigraph_engine_test.exs`'s "term normalization"
+     describe block for the real, verified proof). This test's own
+     `normalize_term/1` below is kept as a real, harmless, idempotent no-op
+     on both sides now (oxigraph's values are already plain, so stripping
+     `<...>`/quotes/suffixes from an already-plain string matches nothing
+     and returns it unchanged) -- a defensive belt-and-suspenders layer and
+     a living record of the bug's old shape, not a required workaround for a
+     still-live divergence.
 
   ## The real property under test
 

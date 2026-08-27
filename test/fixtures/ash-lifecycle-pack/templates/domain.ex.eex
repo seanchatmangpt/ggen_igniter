@@ -1,17 +1,32 @@
 ---
-to: "lib/support_desk/support.ex"
+to: "lib/support_desk/<%= String.downcase(domain_name) %>.ex"
+for_each: domains
 mode: file
 ---
-<% domain_module = domain_resources |> List.first() |> Map.get("domain_module") %>
+<% resources_in_domain = Enum.filter(domain_resources, &(&1["domain_module"] == domain_module)) %>
 defmodule <%= domain_module %> do
   @moduledoc """
-  Ash.Domain registering every resource in the ash-lifecycle-pack fixture.
+  Ash.Domain registering every resource in the ash-lifecycle-pack fixture
+  whose ontology-declared `alp:resourceDomain` really resolves to THIS
+  domain module (`<%= domain_module %>`).
 
   Manufactured by ggen_igniter from the admitted alp: ontology -- do not
-  hand-edit; regenerate from the ontology instead. This template fully
-  regenerates the whole module from scratch on every run (mode: file, same
-  idempotent-regeneration convention as resource.ex.eex) rather than
-  injecting into an existing file: `GgenIgniter.Actuate.inject_content!/5`
+  hand-edit; regenerate from the ontology instead. FIXED (multi-domain
+  admission gap): this template used to assume a SINGLE domain module via
+  `domain_resources |> List.first() |> Map.get("domain_module")`, so any
+  resource whose real declared domain differed from the pack's one assumed
+  domain got silently misregistered under the wrong module. It now fans out
+  one real domain module PER distinct domain the ontology actually declares
+  (`for_each: domains`, driven by `gates/055_domains.rq`'s
+  `SELECT DISTINCT ?domain_name ?domain_module` over every resource's real
+  `alp:resourceDomain`), and each rendering filters the full
+  `gates/050_domain_resources.rq` result set (bound here as
+  `domain_resources`) down to only the rows whose own `domain_module` matches
+  THIS render's domain -- so a resource is registered under its real
+  declared domain, never folded under whichever row happened to sort first.
+  This template fully regenerates the whole module from scratch on every run
+  (mode: file, same idempotent-regeneration convention as resource.ex.eex)
+  rather than injecting into an existing file: `GgenIgniter.Actuate.inject_content!/5`
   exists in this codebase but `Mix.Tasks.GgenIgniter.Sync` never calls it for
   `mode: file` templates (only `Actuate.write_file!/3`), so AST-patch/inject
   wiring is not actually exercised on this path -- regenerating the whole
@@ -21,6 +36,6 @@ defmodule <%= domain_module %> do
   use Ash.Domain
 
   resources do
-<%= for d <- domain_resources do %>    resource(<%= d["resource_module"] %>)
+<%= for d <- resources_in_domain do %>    resource(<%= d["resource_module"] %>)
 <% end %>  end
 end

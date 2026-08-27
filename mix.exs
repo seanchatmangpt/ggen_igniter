@@ -55,7 +55,7 @@ defmodule GgenIgniter.MixProject do
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
       files:
-        ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/src mix.exs README.md LICENSE .formatter.exs)
+        ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/src mix.exs README.md LICENSE CHANGELOG.md .formatter.exs)
     ]
   end
 

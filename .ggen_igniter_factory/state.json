@@ -1,0 +1,8 @@
+{
+  "head_sha": "767bccea32d03790a1f4975596a06ecd16df365f",
+  "branch": "main",
+  "timestamp": "2026-08-27T21:25:36Z",
+  "requested_version": "v26.7.27",
+  "observed_version_at_start": "version:"26.8.27"",
+  "dirty_paths_at_start": 1
+}

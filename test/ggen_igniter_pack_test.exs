@@ -66,7 +66,9 @@ defmodule GgenIgniter.PackTest do
           "ggen_igniter_pack_test_empty_#{System.unique_integer([:positive])}"
         )
 
+      File.rm_rf!(tmp_dir)
       File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
       assert Pack.discover_queries(tmp_dir) == []
     end
@@ -85,6 +87,9 @@ defmodule GgenIgniter.PackTest do
           System.tmp_dir!(),
           "ggen_igniter_pack_test_#{System.unique_integer([:positive])}"
         )
+
+      File.rm_rf!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
       gates_dir = Path.join(tmp_dir, "gates")
       File.mkdir_p!(gates_dir)
@@ -110,6 +115,9 @@ defmodule GgenIgniter.PackTest do
           System.tmp_dir!(),
           "ggen_igniter_pack_test_#{System.unique_integer([:positive])}"
         )
+
+      File.rm_rf!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
       templates_dir = Path.join(tmp_dir, "templates")
       File.mkdir_p!(templates_dir)

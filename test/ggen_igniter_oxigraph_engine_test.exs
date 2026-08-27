@@ -175,6 +175,149 @@ defmodule GgenIgniter.OxigraphEngineTest do
     assert error.message =~ "Turtle scanner error"
   end
 
+  describe "term normalization" do
+    # Real, confirmed-fixed bug (see GgenIgniter.Query.Oxigraph's own
+    # moduledoc, "Term normalization"): this engine used to return every
+    # binding as oxigraph's raw N-Triples-style `Term::to_string()`
+    # serialization (IRIs angle-bracket-wrapped, literals quoted and
+    # datatype/language-tagged). Fixed AT THE SOURCE in
+    # `native/ggen_graph_nif/src/oxigraph_engine.rs`'s `normalize_term/1`,
+    # using oxrdf's own typed accessors (`Literal::value()`,
+    # `NamedNode::as_str()`) -- no string-parsing/regex anywhere in this
+    # path. These tests prove the four real cases the task requires: an IRI,
+    # a plain string literal, a language-tagged literal, and a
+    # datatype-tagged literal (xsd:boolean/xsd:integer) all come back clean
+    # and unwrapped by default -- and that `raw: true` is a real, working,
+    # explicit opt-in that still returns the original information in full.
+
+    defp normalization_graph do
+      RDF.Graph.new()
+      |> RDF.Graph.add(
+        {RDF.iri("https://example.org/term-norm/s"),
+         RDF.iri("https://example.org/term-norm/p/iri"),
+         RDF.iri("https://example.org/term-norm/object")}
+      )
+      |> RDF.Graph.add(
+        {RDF.iri("https://example.org/term-norm/s"),
+         RDF.iri("https://example.org/term-norm/p/plain"), "a plain string"}
+      )
+      |> RDF.Graph.add(
+        {RDF.iri("https://example.org/term-norm/s"),
+         RDF.iri("https://example.org/term-norm/p/lang"),
+         RDF.LangString.new("hola", language: "es")}
+      )
+      |> RDF.Graph.add(
+        {RDF.iri("https://example.org/term-norm/s"),
+         RDF.iri("https://example.org/term-norm/p/bool"), RDF.XSD.Boolean.new(true)}
+      )
+      |> RDF.Graph.add(
+        {RDF.iri("https://example.org/term-norm/s"),
+         RDF.iri("https://example.org/term-norm/p/int"), RDF.XSD.Integer.new(42)}
+      )
+    end
+
+    @normalization_query """
+    SELECT ?iri_obj ?plain_str ?lang_tagged ?xsd_bool ?xsd_int WHERE {
+      <https://example.org/term-norm/s> <https://example.org/term-norm/p/iri> ?iri_obj .
+      <https://example.org/term-norm/s> <https://example.org/term-norm/p/plain> ?plain_str .
+      <https://example.org/term-norm/s> <https://example.org/term-norm/p/lang> ?lang_tagged .
+      <https://example.org/term-norm/s> <https://example.org/term-norm/p/bool> ?xsd_bool .
+      <https://example.org/term-norm/s> <https://example.org/term-norm/p/int> ?xsd_int .
+    }
+    """
+
+    test "an IRI object comes back plain (no angle brackets) by default, matching the sparql-hex engine exactly" do
+      graph = normalization_graph()
+
+      [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
+      [sparql_row] = Query.run(graph, @normalization_query)
+
+      assert oxigraph_row["iri_obj"] == "https://example.org/term-norm/object"
+      refute oxigraph_row["iri_obj"] =~ "<"
+      refute oxigraph_row["iri_obj"] =~ ">"
+      assert oxigraph_row["iri_obj"] == sparql_row["iri_obj"]
+    end
+
+    test "a plain string literal comes back unwrapped (no quotes) by default, matching the sparql-hex engine exactly" do
+      graph = normalization_graph()
+
+      [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
+      [sparql_row] = Query.run(graph, @normalization_query)
+
+      assert oxigraph_row["plain_str"] == "a plain string"
+      refute oxigraph_row["plain_str"] =~ "\""
+      assert oxigraph_row["plain_str"] == sparql_row["plain_str"]
+    end
+
+    test "a language-tagged literal comes back as its plain value (language tag dropped) by default, matching the sparql-hex engine exactly" do
+      graph = normalization_graph()
+
+      [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
+      [sparql_row] = Query.run(graph, @normalization_query)
+
+      assert oxigraph_row["lang_tagged"] == "hola"
+      refute oxigraph_row["lang_tagged"] =~ "@"
+      refute oxigraph_row["lang_tagged"] =~ "\""
+      assert oxigraph_row["lang_tagged"] == sparql_row["lang_tagged"]
+    end
+
+    test "a datatype-tagged literal (xsd:boolean, xsd:integer) comes back as its clean lexical string (no ^^<datatype> suffix, no quotes) by default" do
+      graph = normalization_graph()
+
+      [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
+
+      assert oxigraph_row["xsd_bool"] == "true"
+      refute oxigraph_row["xsd_bool"] =~ "^^"
+      refute oxigraph_row["xsd_bool"] =~ "<"
+      refute oxigraph_row["xsd_bool"] =~ "\""
+
+      assert oxigraph_row["xsd_int"] == "42"
+      refute oxigraph_row["xsd_int"] =~ "^^"
+      refute oxigraph_row["xsd_int"] =~ "<"
+      refute oxigraph_row["xsd_int"] =~ "\""
+    end
+
+    test "honest, disclosed divergence: the plain default is each literal's lexical STRING, not RDF.ex's native Elixir type for xsd:boolean/xsd:integer" do
+      graph = normalization_graph()
+
+      [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
+      [sparql_row] = Query.run(graph, @normalization_query)
+
+      # sparql-hex (`RDF.Literal.value/1`, via RDF.ex's own per-datatype
+      # `elixir_mapping/2`) really does return native Elixir types here --
+      # confirmed, not assumed.
+      assert sparql_row["xsd_bool"] == true
+      assert sparql_row["xsd_int"] == 42
+
+      # oxigraph's plain default returns the clean lexical string instead --
+      # a real, documented divergence (see GgenIgniter.Query.Oxigraph's
+      # moduledoc), asserted honestly here rather than silently glossed over.
+      assert oxigraph_row["xsd_bool"] == "true"
+      assert oxigraph_row["xsd_int"] == "42"
+      refute oxigraph_row["xsd_bool"] == sparql_row["xsd_bool"]
+      refute oxigraph_row["xsd_int"] == sparql_row["xsd_int"]
+    end
+
+    test "raw: true is a real, explicit opt-in returning oxigraph's original N-Triples-style term strings -- datatype/language info is not discarded" do
+      graph = normalization_graph()
+
+      [row] = OxigraphQuery.run(graph, @normalization_query, raw: true)
+
+      assert row["iri_obj"] == "<https://example.org/term-norm/object>"
+      assert row["plain_str"] == ~s("a plain string")
+      assert row["lang_tagged"] == ~s("hola"@es)
+      assert row["xsd_bool"] == ~s("true"^^<http://www.w3.org/2001/XMLSchema#boolean>)
+      assert row["xsd_int"] == ~s("42"^^<http://www.w3.org/2001/XMLSchema#integer>)
+    end
+
+    test "run/2 and run/3 with opts: [] (raw defaulting to false) return identical, plain results" do
+      graph = normalization_graph()
+
+      assert OxigraphQuery.run(graph, @normalization_query) ==
+               OxigraphQuery.run(graph, @normalization_query, [])
+    end
+  end
+
   # --- the actual payoff: does oxigraph resolve the pinned sparql-hex bug? ---
 
   @ash_r2rml_root Path.expand("~/ash_r2rml")

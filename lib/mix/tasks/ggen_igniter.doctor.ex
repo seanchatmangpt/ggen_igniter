@@ -39,20 +39,32 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   16. (only with `--hex-check`, off by default) hex-publish readiness: shells out to a real
       `mix hex.build` and reports its real output, plus checks `mix.exs`'s `package[:description]`
       and `package[:licenses]` are both present and non-empty.
+  17. `check_version_policy`: `mix.exs`'s `version:` literal is a *projection* of this
+      project's real, observed versioning convention rather than an independently
+      maintained field. This repo has no `git tag`s at all (confirmed via
+      `git tag --list` returning empty), so `CHANGELOG.md`'s topmost `## vX` entry
+      heading is the only real, standing record of "what the current version is" -- a
+      calendar-ish `YY.M.D` string (e.g. `26.8.27` for 2026-08-27), matched verbatim
+      against `mix.exs`'s `version:`. Reports `MATCH` or a clearly-named `MISMATCH`;
+      never silently rewrites `mix.exs`. `--fix` corrects it for real only when the
+      derivation is unambiguous (a single topmost `## vX` heading found and `mix.exs`'s
+      `version:` is a simple string literal); an ambiguous shape (no CHANGELOG.md, no
+      `## v` heading, or a non-literal `version:`) is reported `✘` as informational-only,
+      never guessed at.
 
   Checks 9-12 only run when `--pack`/`--pack-dir` is given; without it, only checks 1-3
   and 4-7 (and 8, if `--engine qlever` was explicitly passed with a graph-free reachability
-  check is not possible, so 8 is skipped) run. Checks 4-7 and 13-15 always run. Check 16 only
-  runs with `--hex-check` (it shells out to `mix hex.build`, which is slow, so it stays
-  off by default to keep `mix ggen_igniter.doctor` fast).
+  check is not possible, so 8 is skipped) run. Checks 4-7, 13-15, and 17 always run. Check
+  16 only runs with `--hex-check` (it shells out to `mix hex.build`, which is slow, so it
+  stays off by default to keep `mix ggen_igniter.doctor` fast).
 
   ## `--fix`
 
-  Checks 4-7 are real fixes (`GgenIgniter.DoctorFixes`), not just diagnostics: passing
-  `--fix` applies each detected, safely-recognized fix directly to the CURRENT project
-  (`File.cwd!()`) -- the real consumer app `doctor` is running inside, never a
+  Checks 4-7 and 17 are real fixes (`GgenIgniter.DoctorFixes`), not just diagnostics:
+  passing `--fix` applies each detected, safely-recognized fix directly to the CURRENT
+  project (`File.cwd!()`) -- the real consumer app `doctor` is running inside, never a
   test-harness scaffold -- and the check line reports exactly what changed (prefixed
-  `FIXED:`), or that there was nothing to fix. Without `--fix`, these four checks are
+  `FIXED:`), or that there was nothing to fix. Without `--fix`, these checks are
   read-only: a real, fixable problem is reported as a `⚠` warning naming the exact fix to
   run; a real problem whose exact shape isn't safely automatable is reported as a `✘`
   error rather than silently skipped or guessed at.
@@ -94,12 +106,12 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       [
         check_elixir_otp_version(),
         check_deps(opts),
-        check_sparql_advisory(),
-        check_igniter_only_relaxation(opts),
-        check_sourceror_only_relaxation(opts),
-        check_dcatr_env_config(opts),
-        check_ash_domains_registered(opts)
+        check_sparql_advisory()
       ] ++
+        doctor_fix_rule_checks(opts) ++
+        [
+          check_version_policy(opts)
+        ] ++
         maybe_check_qlever(opts, pack_dir) ++
         if(pack_dir, do: pack_checks(pack_dir), else: []) ++
         [
@@ -200,33 +212,33 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   end
 
   # 4-7. Real project-hygiene fixes (GgenIgniter.DoctorFixes) -- diagnostic-only
-  # without --fix, applied for real to the CURRENT project (File.cwd!()) with it.
-  defp check_igniter_only_relaxation(opts) do
+  # without --fix, applied for real to the CURRENT project (File.cwd!()) with
+  # it. These four checks are now DATA (`DoctorFixes.default_rules/0`), run
+  # through the one generic `DoctorFixes.run_rule/3` engine -- adding a fifth
+  # Igniter/Ash wiring-gap class means appending a `%DoctorFixes.Rule{}` to
+  # `default_rules/0`, never adding another hand-written `check_*` function
+  # here.
+  defp doctor_fix_rule_checks(opts) do
+    Enum.map(DoctorFixes.default_rules(), &run_rule_check(opts, &1))
+  end
+
+  defp run_rule_check(opts, %DoctorFixes.Rule{} = rule) do
     fix_or_check(
       opts,
-      &DoctorFixes.check_dep_only(&1, :igniter),
-      &DoctorFixes.fix_dep_only!(&1, :igniter)
+      fn project_dir -> DoctorFixes.run_rule(rule, project_dir, false) end,
+      fn project_dir -> DoctorFixes.run_rule(rule, project_dir, true) end
     )
   end
 
-  defp check_sourceror_only_relaxation(opts) do
+  # 17. mix.exs version: literal is a projection of the real, observed
+  # versioning convention (CHANGELOG.md's topmost `## vX` entry heading --
+  # see the moduledoc for why that's the real source of truth, not a guess).
+  defp check_version_policy(opts) do
     fix_or_check(
       opts,
-      &DoctorFixes.check_dep_only(&1, :sourceror),
-      &DoctorFixes.fix_dep_only!(&1, :sourceror)
+      &DoctorFixes.check_version_policy/1,
+      &DoctorFixes.fix_version_policy!/1
     )
-  end
-
-  defp check_dcatr_env_config(opts) do
-    fix_or_check(
-      opts,
-      &DoctorFixes.check_dcatr_env_config/1,
-      &DoctorFixes.fix_dcatr_env_config!/1
-    )
-  end
-
-  defp check_ash_domains_registered(opts) do
-    fix_or_check(opts, &DoctorFixes.check_ash_domains/1, &DoctorFixes.fix_ash_domains!/1)
   end
 
   # Shared glue between a real `DoctorFixes` check/fix pair and doctor's
@@ -394,19 +406,60 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         end
 
       {output, _code} ->
-        {:error, "not a git repo (or git not on PATH): #{String.trim(output)}"}
+        # `:warn`, not `:error`: this module's own moduledoc (check 13)
+        # documents "clean vs dirty is reported, never fails the run by
+        # itself" -- `{:error, ...}` here contradicted that (an `:error`
+        # status fails the aggregate `mix ggen_igniter.doctor` run, per the
+        # `Enum.any?(checks, fn {status, _} -> status == :error end)` gate
+        # below). Confirmed as a real, reachable bug via Agent 8's real
+        # consumer-scenario audit (2026-08-27): a real, git-free fixture
+        # project (e.g. a fresh tmp-dir scaffold before `git init`) made the
+        # whole doctor run exit 1 solely because it had no `.git` yet, not
+        # because of any real project defect -- not a git repo is advisory
+        # information, the same as a dirty working tree, not a checklist
+        # failure.
+        {:warn, "not a git repo (or git not on PATH): #{String.trim(output)}"}
     end
   rescue
-    error -> {:error, "not a git repo (or git not on PATH): #{Exception.message(error)}"}
+    error -> {:warn, "not a git repo (or git not on PATH): #{Exception.message(error)}"}
   end
 
   # 14. native/ggen_graph_nif compiles / is up to date
   @nif_crate_dir "native/ggen_graph_nif"
   @nif_so_path "priv/native/ggen_graph_nif.so"
 
+  # The `native/ggen_graph_nif` crate only physically exists inside the
+  # `ggen_igniter` package's own directory tree. When this task runs as a
+  # *consumer's* Mix task (the real, common case: a consumer app that added
+  # `{:ggen_igniter, ...}` as a dependency runs `mix ggen_igniter.doctor`),
+  # `File.cwd!()` is the consumer's own project root, which never contains
+  # `native/ggen_graph_nif` -- verified directly via a real `mix igniter.new
+  # --install ash,ash_phoenix --with phx.new` consumer scaffold: this check
+  # unconditionally reported "native/ggen_graph_nif directory not found" and
+  # failed the whole doctor run (exit 1) for every such consumer, with no
+  # way to pass. `ggen_igniter_root/0` resolves the crate's real location:
+  # when this project itself IS `:ggen_igniter` (its own dev/test loop,
+  # dogfooding), `Mix.Project.deps_paths/0` won't list itself, so fall back
+  # to `File.cwd!()`; when running as a dependency, resolve
+  # `Mix.Project.deps_paths()[:ggen_igniter]` for the real on-disk path
+  # (works for both a Hex-fetched copy and a `path:`/`git:` dependency).
+  defp ggen_igniter_root do
+    case Mix.Project.config()[:app] do
+      :ggen_igniter ->
+        File.cwd!()
+
+      _ ->
+        case Mix.Project.deps_paths()[:ggen_igniter] do
+          nil -> File.cwd!()
+          path -> path
+        end
+    end
+  end
+
   defp check_nif_compiles do
-    crate_dir = Path.join(File.cwd!(), @nif_crate_dir)
-    so_path = Path.join(File.cwd!(), @nif_so_path)
+    root = ggen_igniter_root()
+    crate_dir = Path.join(root, @nif_crate_dir)
+    so_path = Path.join(root, @nif_so_path)
 
     cond do
       not File.dir?(crate_dir) ->

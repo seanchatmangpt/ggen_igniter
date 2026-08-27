@@ -22,6 +22,7 @@ defmodule GgenIgniter.PackFetchTest do
         "ggen_igniter_pack_fetch_test_#{System.unique_integer([:positive])}"
       )
 
+    File.rm_rf!(cache_dir)
     on_exit(fn -> File.rm_rf!(cache_dir) end)
     {:ok, cache_dir: cache_dir}
   end

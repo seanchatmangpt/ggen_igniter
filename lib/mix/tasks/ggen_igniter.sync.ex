@@ -171,7 +171,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   """
   use Igniter.Mix.Task
 
-  alias GgenIgniter.{Actuate, Engine, Frontmatter, Ontology, Render}
+  alias GgenIgniter.{Actuate, Controller, Engine, Frontmatter, Manifest, Ontology, Render}
   alias GgenIgniter.Frontmatter.MatchRule
 
   @impl Igniter.Mix.Task
@@ -194,7 +194,9 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         unless_exists: :boolean,
         for_each: :string,
         dry_run: :boolean,
-        mode: :string
+        mode: :string,
+        on_stale: :string,
+        manifest_dir: :string
       ],
       required: []
     }
@@ -319,10 +321,191 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   write stage is not implemented in this pass -- each named query's results
   and each eval's return value are independent of one another within a single
   `sync` run.
+
+  ## Reconciliation manifest (stale-output detection, `--on-stale`)
+
+  Every real, disk-written `mode: file` output (whole-file `write_file!/3`
+  writes; NOT `inject: true` splices, NOT `mode: eval`) is recorded in a
+  RECONCILIATION MANIFEST at `<manifest_dir>/.ggen_igniter/manifest.json`
+  (`manifest_dir` defaults to `File.cwd!()` -- the consumer project's own
+  directory, i.e. wherever `mix ggen_igniter.sync` is actually invoked from;
+  override with `--manifest-dir DIR`), keyed by the `(--template,
+  --out/to:)` "recipe" pair (`GgenIgniter.Manifest.recipe_key/2` -- see that
+  module's moduledoc for the full, grounded reasoning for why THIS pair, and
+  not ontology path or pack name alone, is the real reconciliation identity).
+
+  Before writing anything, the manifest's EXISTING entry for this run's
+  recipe (if any) is read; this run's own real output-path set is computed
+  (every row's rendered `--out`, whether from `--for-each` fan-out or the
+  single static case); `stale = old_paths - new_paths` -- paths a PRIOR run
+  of this exact recipe wrote that this run does NOT write (the mechanical
+  signature of a rename or removal upstream in the ontology).
+
+  `--on-stale` (default **`refuse`** -- the safest default; silent orphaning
+  is never the default, and silent deletion is never the default either)
+  decides what happens when `stale` is non-empty:
+
+    * `refuse` (default) -- if `stale` is non-empty, raises a clear
+      `ArgumentError` naming every exact stale path, BEFORE writing anything
+      at all this run (not even the non-stale outputs) -- complete
+      reconciliation or a refusal before any partial actuation, never a
+      silent orphan. Fix by re-running with `--on-stale prune` or
+      `--on-stale preserve`.
+    * `prune` -- proceeds with this run's writes, then really deletes
+      (`File.rm/1`) every stale path, reporting each real deletion
+      (`"pruned: PATH"`, or `"pruned (already absent): PATH"` if it was
+      already gone).
+    * `preserve` -- proceeds with this run's writes, leaves every stale path
+      untouched on disk, and prints a clear warning naming each one every
+      time (they are also dropped from the manifest's tracked output set for
+      this recipe -- this pack no longer claims ownership of a path it
+      isn't producing this run).
+
+  The manifest is only ever persisted AFTER this run's own writes (and, for
+  `prune`, the real deletions) fully succeed -- a raised exception mid-run
+  (a failed write, a `refuse` refusal) never touches the manifest file, so it
+  always reflects the last KNOWN-GOOD run, never a partial one. A run whose
+  real output-path-plus-content-hash set is IDENTICAL to what the manifest
+  already recorded (a true no-op re-run) does not rewrite the manifest file
+  at all -- not even its timestamp.
+
+  `--dry-run` previews reconciliation the same honest way it previews every
+  other actuation: a `refuse`-triggering `stale` set still raises (a dry run
+  is a real preview of what WOULD happen, and "this run would be refused" is
+  exactly that); `prune`/`preserve` print `"planned: prune PATH"` /
+  `"planned: preserve PATH"` lines instead of touching disk; the manifest
+  file itself is never written under `--dry-run`.
+
+      mix ggen_igniter.sync --pack-dir priv/ggen/ash-lifecycle-pack \\
+        --ontology priv/ggen/ash-lifecycle-pack/ontology.ttl \\
+        --template priv/ggen/ash-lifecycle-pack/templates/resource.ex.eex \\
+        --for-each resource \\
+        --out "lib/support_desk/support/<%= String.downcase(resource_name) %>.ex" \\
+        --on-stale prune
+
+  ## Controller delegation (opt-in, thin-adapter mode)
+
+  When a real `GgenIgniter.Controller` `GenServer` is already running,
+  registered under the name `GgenIgniter.Controller` (`Process.whereis/1` --
+  the same registration idiom this codebase's own `GgenIgniter.Engine.Qlever`
+  already uses for `GgenIgniter.Finch`), THIS run's reconciliation work is
+  delegated to it (`GgenIgniter.Controller.reconcile/3`, wrapping the shared
+  `GgenIgniter.Reconcile.run/1` pipeline) instead of running the pipeline
+  inline -- giving this one invocation access to the controller's real,
+  in-process reconciliation history (`reconciliation_count`, surfaced in the
+  notice line below) instead of a fresh, state-free OS process. When no such
+  process is registered (the common case today -- the controller is
+  opt-in and off by default), behavior is EXACTLY the pre-existing inline
+  pipeline, unchanged.
+
+  Delegation only ever applies to a call within `GgenIgniter.Reconcile.run/1`'s
+  own deliberately bounded scope (see that module's moduledoc): the resolved
+  template must have NO frontmatter header at all, and `--for-each` must not
+  be requested (by flag or by frontmatter -- moot here since frontmatter is
+  required absent). Any call using frontmatter, `--for-each`, `inject: true`,
+  or `mode: eval`'s frontmatter defaults, or a `Controller.reconcile/3` whose
+  real arity/behavior no longer matches what this module was written against
+  (`function_exported?/3`, checked every call -- a live defensive guard, not a
+  one-time check, since this integration point was wired against a
+  concurrently-developed module), transparently falls back to the exact same
+  inline pipeline used when no controller is running at all -- never a silent
+  behavior change for a feature the controller's bounded pipeline does not
+  yet implement.
+
+  One real, disclosed trade-off of controller-mode delegation specifically:
+  the RECONCILIATION MANIFEST (`--on-stale`/`manifest.json`, described above)
+  is a property of the inline pipeline's own bookkeeping and is NOT consulted
+  or updated on the delegated path -- the controller's own in-process state
+  (keyed on `{template_path, --out}`) is the reconciliation record for that
+  call instead. This is intentional: controller mode exists precisely to
+  replace disk-based manifest tracking with in-process tracking for whichever
+  recipes it is enabled for, not to duplicate both.
   """
   @impl Igniter.Mix.Task
   def igniter(igniter) do
     {opts, pack_template_stem} = split_pack_template_stem(igniter.args.options)
+
+    case Process.whereis(GgenIgniter.Controller) do
+      nil ->
+        run_pipeline!(igniter, opts, pack_template_stem)
+
+      controller ->
+        case delegate_to_controller(igniter, opts, pack_template_stem, controller) do
+          {:ok, result_igniter} -> result_igniter
+          :not_delegatable -> run_pipeline!(igniter, opts, pack_template_stem)
+        end
+    end
+  end
+
+  # Decides whether THIS invocation can be safely handed to a running
+  # controller, and does so when it can. Returns `{:ok, updated_igniter}` on a
+  # real, successful delegated reconciliation, or `:not_delegatable` when
+  # either the controller's real API no longer matches what this call site
+  # expects (`function_exported?/3`) or this invocation uses a feature outside
+  # `GgenIgniter.Reconcile.run/1`'s bounded scope (template frontmatter,
+  # `--for-each`) -- in both cases the caller falls back to
+  # `run_pipeline!/3`, the exact unchanged standalone pipeline.
+  #
+  # A real pipeline failure inside the controller (`{:error, reason}` from
+  # `Controller.reconcile/3` -- the controller itself already caught the
+  # underlying exception, per its own moduledoc's fault-isolation guarantee)
+  # is re-raised here rather than silently falling back to the inline
+  # pipeline: a real ontology/template/engine error is a real error either
+  # way, and silently re-running it inline would both mask which path
+  # actually failed and do real work (a second ontology load, a second query
+  # run) the controller had already attempted once.
+  defp delegate_to_controller(igniter, opts, pack_template_stem, controller) do
+    if function_exported?(Controller, :reconcile, 3) do
+      template_path = resolve_template!(opts, pack_template_stem)
+
+      {frontmatter, _frontmatter_mode, _template_string} =
+        Frontmatter.split_template(File.read!(template_path))
+
+      for_each = opts[:for_each] || frontmatter_field(frontmatter, :for_each)
+
+      if frontmatter == nil and for_each in [nil, ""] do
+        reconcile_opts = Keyword.put(opts, :pack_template_stem, pack_template_stem)
+        pack_key = {template_path, opts[:out]}
+
+        case Controller.reconcile(controller, pack_key, reconcile_opts) do
+          {:ok, record} ->
+            {:ok, Igniter.add_notice(igniter, controller_notice(pack_key, record))}
+
+          {:error, reason} ->
+            raise "ggen_igniter: controller reconciliation failed for #{inspect(pack_key)}: " <>
+                    inspect(reason)
+        end
+      else
+        :not_delegatable
+      end
+    else
+      :not_delegatable
+    end
+  end
+
+  # Mirrors the standalone pipeline's own notice shape ("engine: ..., N
+  # queries, M total row(s)") so controller-mode output stays recognizable,
+  # with a real, controller-only fact appended (`reconciliation_count`) that a
+  # fresh, state-free CLI process could never report on its own -- see
+  # `GgenIgniter.Controller`'s moduledoc for why that count is genuinely not
+  # derivable from disk alone.
+  defp controller_notice(pack_key, %{reconciliation_count: count, receipt: receipt}) do
+    query_word = if receipt.query_count == 1, do: "query", else: "queries"
+
+    "ggen_igniter: #{receipt.notice} (engine: #{receipt.engine}, #{receipt.query_count} " <>
+      "#{query_word}, #{receipt.total_rows} total row(s), via controller: reconciliation " <>
+      "##{count} for #{inspect(pack_key)})"
+  end
+
+  # The exact standalone pipeline, unchanged in behavior from before
+  # controller delegation existed -- this is the fallback path when no
+  # controller is running, and it is also literally what
+  # `test/ggen_igniter_sync_*.exs` all still exercise, since no controller
+  # runs in the normal test environment. `opts`/`pack_template_stem` arrive
+  # already split out of `igniter.args.options` by `igniter/1` above (the only
+  # change from before: this body used to compute that destructure itself as
+  # its own first line).
+  defp run_pipeline!(igniter, opts, pack_template_stem) do
     engine_name = opts[:engine] || "oxigraph"
     engine_module = Engine.fetch!(engine_name)
 
@@ -373,50 +556,110 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
     total_rows = named_results |> Enum.map(fn {_name, rows} -> length(rows) end) |> Enum.sum()
 
-    notices =
+    # One binding set per row (`--for-each`'s driver rows), or exactly one
+    # `nil` "row" for the ordinary static-output case -- `build_bindings/2`'s
+    # own `for_each_row \\ nil` default already treats those identically, so
+    # this single `rows` list replaces what used to be two near-duplicate
+    # `case for_each do nil -> ...; driver_name -> ... end` branches.
+    rows =
       case for_each do
-        nil ->
-          bindings = build_bindings(named_results)
-          content = Render.render(template_string, bindings)
-
-          line =
-            actuate!(
-              mode,
-              content,
-              bindings,
-              out_template,
-              template_path,
-              write_opts,
-              dry_run,
-              inject_spec
-            )
-
-          if dry_run, do: Mix.shell().info(line)
-          [line]
-
-        driver_name ->
-          rows = fetch_driver_rows!(named_results, driver_name)
-
-          Enum.map(rows, fn row ->
-            bindings = build_bindings(named_results, row)
-            content = Render.render(template_string, bindings)
-
-            line =
-              actuate!(
-                mode,
-                content,
-                bindings,
-                out_template,
-                template_path,
-                write_opts,
-                dry_run,
-                inject_spec
-              )
-
-            if dry_run, do: Mix.shell().info(line)
-            line
-          end)
+        nil -> [nil]
+        driver_name -> fetch_driver_rows!(named_results, driver_name)
       end
+
+    # Every row's content AND (when applicable) its real output path are
+    # rendered exactly ONCE, up front, before any actuation -- both are pure
+    # computations over `bindings` (no filesystem I/O), so precomputing them
+    # here is what lets the reconciliation manifest below compute this run's
+    # REAL new-path set and decide `--on-stale` policy BEFORE a single byte
+    # is written, without rendering `out_template` a second time later.
+    renders =
+      Enum.map(rows, fn row ->
+        bindings = build_bindings(named_results, row)
+        content = Render.render(template_string, bindings)
+        out_path = if out_template, do: Render.render(out_template, bindings)
+        {bindings, content, out_path}
+      end)
+
+    # Reconciliation applies ONLY to the actuation path where this pack fully
+    # OWNS the target file (creates it, and can safely recreate/delete it):
+    # `mode: file` writes via `Actuate.write_file!/3`. It deliberately
+    # excludes `mode: eval` (nothing is ever written to disk) and `inject:
+    # true` targets (`Actuate.inject_content!/5` requires and never creates a
+    # PRE-EXISTING file this pack does not own -- treating a splice target as
+    # "manufactured by this pack" would let `--on-stale prune` delete a file
+    # this pack never created). See `GgenIgniter.Manifest`'s moduledoc for the
+    # full reasoning.
+    reconcile? = mode == :file and inject_spec == nil
+
+    manifest_dir = opts[:manifest_dir] || File.cwd!()
+    on_stale = resolve_on_stale!(opts[:on_stale])
+
+    recipe_key = if reconcile?, do: Manifest.recipe_key(template_path, out_template)
+    manifest = if reconcile?, do: Manifest.load(manifest_dir)
+    old_entry = if reconcile?, do: Manifest.get_entry(manifest, recipe_key)
+
+    new_paths =
+      renders
+      |> Enum.map(fn {_bindings, _content, out_path} -> out_path end)
+      |> Enum.reject(&is_nil/1)
+      |> MapSet.new()
+
+    stale = if reconcile?, do: Manifest.stale_paths(old_entry, new_paths), else: MapSet.new()
+
+    if reconcile? and on_stale == :refuse and MapSet.size(stale) > 0 do
+      raise ArgumentError, refuse_stale_message(stale, recipe_key)
+    end
+
+    render_results =
+      Enum.map(renders, fn {bindings, content, out_path} ->
+        {line, outcome} =
+          actuate!(
+            mode,
+            content,
+            bindings,
+            out_path,
+            template_path,
+            write_opts,
+            dry_run,
+            inject_spec
+          )
+
+        if dry_run, do: Mix.shell().info(line)
+        {line, out_path, outcome}
+      end)
+
+    notices = Enum.map(render_results, fn {line, _out_path, _outcome} -> line end)
+
+    if reconcile? do
+      if dry_run do
+        preview_stale!(on_stale, stale)
+      else
+        apply_stale_policy!(on_stale, stale)
+
+        # Only a path THIS run actually wrote or reconfirmed byte-identical
+        # (`:written`/`:unchanged`) is manifest-owned. A path this run merely
+        # left alone (`:skipped_exists`/`:skipped_match`, from
+        # `--unless-exists`/`--skip-if`) is deliberately excluded -- see
+        # `actuate!/8`'s comments for why recording it would let a later
+        # rename's `--on-stale prune` delete a file this pack never wrote.
+        outputs =
+          for {_line, out_path, outcome} <- render_results,
+              outcome in [:written, :unchanged],
+              into: %{} do
+            {out_path, Manifest.hash_content(File.read!(out_path))}
+          end
+
+        unless Manifest.same_outputs?(old_entry, outputs) do
+          pack_dir = if pack_given?(opts), do: GgenIgniter.Pack.resolve_dir!(opts)
+          entry = Manifest.build_entry(template_path, out_template, pack_dir, outputs)
+
+          manifest
+          |> Manifest.put(recipe_key, entry)
+          |> Manifest.persist!(manifest_dir)
+        end
+      end
+    end
 
     Igniter.add_notice(
       igniter,
@@ -424,34 +667,132 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     )
   end
 
-  # `out_template` is always EEx-rendered before use, whether it came from
-  # explicit --out or from frontmatter's `to:` -- a static path with no
-  # `<%= %>` renders back to itself unchanged, so this is a no-op for the
-  # common static case and a real render for a templated `to:`/`--out`.
+  # Validates `--on-stale` up front (regardless of whether reconciliation
+  # actually applies to this run's mode -- cheap to check, and a typo here
+  # should never silently fall back to the default). `nil` (flag omitted)
+  # resolves to the safest default, `:refuse`, per this task's own design:
+  # silent orphaning must never be the default, and silent deletion must
+  # never be the default either.
+  @spec resolve_on_stale!(String.t() | nil) :: :refuse | :prune | :preserve
+  defp resolve_on_stale!(nil), do: :refuse
+  defp resolve_on_stale!("refuse"), do: :refuse
+  defp resolve_on_stale!("prune"), do: :prune
+  defp resolve_on_stale!("preserve"), do: :preserve
+
+  defp resolve_on_stale!(other) do
+    raise ArgumentError,
+          "--on-stale must be \"refuse\", \"prune\", or \"preserve\", got: #{inspect(other)}"
+  end
+
+  defp refuse_stale_message(stale, recipe_key) do
+    stale_list = stale |> Enum.sort() |> Enum.map_join("\n", &"  - #{&1}")
+
+    "ggen_igniter: refusing to sync -- #{MapSet.size(stale)} stale output path(s) from a " <>
+      "PRIOR run of this recipe (#{inspect(recipe_key)}) are not written by this run " <>
+      "(a rename or removal upstream in the ontology, most likely):\n\n#{stale_list}\n\n" <>
+      "Nothing was written this run (complete reconciliation or refusal before any " <>
+      "partial actuation -- never a silent orphan). Re-run with --on-stale prune to " <>
+      "really delete the stale path(s) above, or --on-stale preserve to leave them on " <>
+      "disk (with a warning) and proceed."
+  end
+
+  # Non-dry-run: really applies `on_stale`'s policy to a (possibly empty)
+  # `stale` set. `:refuse` is a no-op here -- by the time this runs, a
+  # non-empty `stale` under `:refuse` has already raised above, so `stale` is
+  # guaranteed empty whenever `:refuse` reaches this function.
+  defp apply_stale_policy!(:refuse, _stale), do: :ok
+
+  defp apply_stale_policy!(:preserve, stale) do
+    if MapSet.size(stale) > 0 do
+      Mix.shell().error(preserve_warning(stale))
+    end
+
+    :ok
+  end
+
+  defp apply_stale_policy!(:prune, stale) do
+    for {path, outcome} <- Manifest.prune!(MapSet.to_list(stale)) do
+      case outcome do
+        :pruned -> Mix.shell().info("pruned: #{path}")
+        :absent -> Mix.shell().info("pruned (already absent): #{path}")
+      end
+    end
+
+    :ok
+  end
+
+  # `--dry-run` preview: `:refuse` needs nothing further here (a non-empty
+  # `stale` under `:refuse` already raised above, dry-run or not -- a dry run
+  # previews a REAL decision, including a real refusal, it does not suppress
+  # one). `:prune`/`:preserve` print the same "planned: ..." convention every
+  # other dry-run notice in this task uses, without touching disk or the
+  # manifest file.
+  defp preview_stale!(:refuse, _stale), do: :ok
+
+  defp preview_stale!(:preserve, stale) do
+    if MapSet.size(stale) > 0 do
+      Mix.shell().info(
+        "planned: preserve #{MapSet.size(stale)} stale path(s) (see --on-stale preserve):\n" <>
+          (stale |> Enum.sort() |> Enum.map_join("\n", &"  - #{&1}"))
+      )
+    end
+
+    :ok
+  end
+
+  defp preview_stale!(:prune, stale) do
+    for path <- Enum.sort(stale), do: Mix.shell().info("planned: prune #{path}")
+    :ok
+  end
+
+  defp preserve_warning(stale) do
+    stale_list = stale |> Enum.sort() |> Enum.map_join("\n", &"  - #{&1}")
+
+    "ggen_igniter: WARNING -- #{MapSet.size(stale)} stale output path(s) from a prior run of " <>
+      "this recipe were NOT written this run and are being preserved untouched on disk " <>
+      "(--on-stale preserve):\n\n#{stale_list}\n"
+  end
+
+  # `out_path` arrives ALREADY EEx-rendered (computed once, up front, in
+  # `igniter/1`'s `renders` list -- see that function's comments for why:
+  # the reconciliation manifest needs every row's real output path BEFORE any
+  # actuation happens, and rendering it a second time here would both be
+  # redundant and -- since `--out`/`to:` is itself an arbitrary EEx template,
+  # same trust boundary as the template body -- a real behavior change for a
+  # pathological `--out` template with a side effect. Exactly one render per
+  # row, same as before this module existed.
+  #
+  # Returns `{notice_line, outcome_or_nil}` -- the raw `Actuate` outcome atom
+  # is threaded back to the caller so the reconciliation manifest can tell a
+  # path THIS run actually wrote/reconfirmed (`:written`/`:unchanged`) apart
+  # from one it deliberately left alone (`:skipped_exists`/`:skipped_match`,
+  # from `--unless-exists`/`--skip-if`). A path this run only ever SKIPPED
+  # must never be recorded as manifest-owned: if it were, a later rename that
+  # drops that row would flag it stale, and `--on-stale prune` would delete a
+  # file this pack never actually wrote a byte of -- exactly the same
+  # destructive-ownership mistake `inject: true` targets are excluded from
+  # for. `:eval` never writes to disk at all, so it always reports `nil`.
   #
   # `inject_spec` is `nil` for the ordinary (non-`inject:`) write path, or
   # `{marker, insert_mode, inject_opts}` (from `resolve_injection!/1`) when
   # the template's frontmatter has `inject: true` -- these are separate
   # clauses, not an `if` inside one clause, so each actuation path's real
   # behavior stays independently readable.
-  defp actuate!(:file, content, bindings, out_template, _template_path, write_opts, dry_run, nil) do
-    out_path = Render.render(out_template, bindings)
+  defp actuate!(:file, content, _bindings, out_path, _template_path, write_opts, dry_run, nil) do
     {:ok, outcome} = Actuate.write_file!(out_path, content, write_opts)
-    notice_line(outcome, out_path, dry_run)
+    {notice_line(outcome, out_path, dry_run), outcome}
   end
 
   defp actuate!(
          :file,
          content,
-         bindings,
-         out_template,
+         _bindings,
+         out_path,
          _template_path,
          _write_opts,
          dry_run,
          {marker, insert_mode, inject_opts}
        ) do
-    out_path = Render.render(out_template, bindings)
-
     {:ok, outcome} =
       Actuate.inject_content!(
         out_path,
@@ -461,33 +802,38 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         Keyword.put(inject_opts, :dry_run, dry_run)
       )
 
-    notice_line(outcome, out_path, dry_run)
+    # Never `outcome` here (always `nil`): an inject target is never
+    # manifest-tracked regardless of what `inject_content!/5` itself reports
+    # (`igniter/1` already gates reconciliation on `inject_spec == nil`, so
+    # this value is not even read in that case -- returned as `nil` anyway
+    # for a self-consistent, honest contract).
+    {notice_line(outcome, out_path, dry_run), nil}
   end
 
   defp actuate!(
          :eval,
          _content,
          _bindings,
-         _out_template,
+         _out_path,
          template_path,
          _write_opts,
          true,
          _inject_spec
        ),
-       do: "planned: evaluate #{template_path} (mode: eval)"
+       do: {"planned: evaluate #{template_path} (mode: eval)", nil}
 
   defp actuate!(
          :eval,
          content,
          bindings,
-         _out_template,
+         _out_path,
          template_path,
          _write_opts,
          false,
          _inject_spec
        ) do
     {:ok, value} = Actuate.eval_code!(content, bindings)
-    "evaluated #{template_path} -> #{inspect(value)}"
+    {"evaluated #{template_path} -> #{inspect(value)}", nil}
   end
 
   # A rendered template body ends in a trailing "\n" as a plain file-formatting

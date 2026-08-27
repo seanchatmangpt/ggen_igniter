@@ -21,11 +21,37 @@ mod atoms {
     }
 }
 
+/// Shared result-encoding step for both NIF query functions below: turns a
+/// `Result<Vec<Row>, String>` into the real `{:ok, [map()]} | {:error,
+/// String.t()}` term both `query_turtle` and `query_turtle_raw` return,
+/// exactly once, so the two functions differ only in which engine method
+/// they call.
+fn encode_query_outcome<'a>(
+    env: Env<'a>,
+    outcome: Result<Vec<query_engine::Row>, String>,
+) -> NifResult<Term<'a>> {
+    match outcome {
+        Ok(rows) => {
+            let row_maps: Vec<std::collections::HashMap<String, String>> =
+                rows.into_iter().map(|row| row.into_iter().collect()).collect();
+            Ok((atoms::ok(), row_maps).encode(env))
+        }
+        Err(reason) => Ok((atoms::error(), reason).encode(env)),
+    }
+}
+
 /// Loads `turtle` into a fresh in-memory oxigraph store and runs `sparql`
-/// against it, returning `{:ok, [%{binding_name => term_string}]}` or
+/// against it, returning `{:ok, [%{binding_name => plain_value}]}` or
 /// `{:error, reason_string}`. One-shot: no store is kept alive across calls
 /// (mirrors `ggen_igniter`'s existing engines, which are also given the
 /// whole graph per call rather than holding a long-lived connection).
+///
+/// Values are PLAIN and normalized (`oxigraph_engine::normalize_term`, via
+/// `OxigraphEngine::query_normalized`/the `QueryEngine` trait's `query`) --
+/// IRIs unwrapped (no `<...>`), literals unwrapped to their lexical value
+/// (no surrounding quotes, no `^^<datatype>`/`@lang` suffix). See
+/// `query_turtle_raw/2` below for the explicit opt-in that returns oxigraph's
+/// original, pre-fix raw term-string shape instead.
 #[rustler::nif]
 fn query_turtle<'a>(env: Env<'a>, turtle: String, sparql: String) -> NifResult<Term<'a>> {
     let outcome = OxigraphEngine::from_turtle(&turtle)
@@ -36,14 +62,29 @@ fn query_turtle<'a>(env: Env<'a>, turtle: String, sparql: String) -> NifResult<T
                 .map_err(|e| format!("oxigraph query failed: {e}"))
         });
 
-    match outcome {
-        Ok(rows) => {
-            let row_maps: Vec<std::collections::HashMap<String, String>> =
-                rows.into_iter().map(|row| row.into_iter().collect()).collect();
-            Ok((atoms::ok(), row_maps).encode(env))
-        }
-        Err(reason) => Ok((atoms::error(), reason).encode(env)),
-    }
+    encode_query_outcome(env, outcome)
+}
+
+/// Same contract as `query_turtle/2`, except every value is oxigraph's
+/// ORIGINAL, unprocessed N-Triples-style term string (IRIs angle-bracket-
+/// wrapped, literals quoted and datatype/language-tag-suffixed) -- this
+/// engine's behavior before the literal-quoting-bug fix, kept as a real,
+/// explicit, documented opt-in (`GgenIgniter.Query.Oxigraph.run/3`'s
+/// `raw: true`) for callers who genuinely need the datatype IRI or language
+/// tag `query_turtle/2`'s plain values no longer carry inline. Nothing is
+/// discarded -- this is the same real information, just no longer forced
+/// onto every consumer by default.
+#[rustler::nif]
+fn query_turtle_raw<'a>(env: Env<'a>, turtle: String, sparql: String) -> NifResult<Term<'a>> {
+    let outcome = OxigraphEngine::from_turtle(&turtle)
+        .map_err(|e| format!("oxigraph engine construction failed: {e}"))
+        .and_then(|engine| {
+            engine
+                .query_raw(&sparql)
+                .map_err(|e| format!("oxigraph query failed: {e}"))
+        });
+
+    encode_query_outcome(env, outcome)
 }
 
 rustler::init!("Elixir.GgenIgniter.Native.GraphNif");

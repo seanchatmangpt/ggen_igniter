@@ -30,6 +30,9 @@ defmodule GgenIgniter.SyncDryRunTest do
         "ggen_igniter_dry_run_new_test_#{System.unique_integer([:positive])}"
       )
 
+    File.rm_rf!(out_dir)
+    on_exit(fn -> File.rm_rf!(out_dir) end)
+
     out_path = Path.join(out_dir, "resource.ex")
 
     {output, exit_code} =
@@ -53,6 +56,9 @@ defmodule GgenIgniter.SyncDryRunTest do
         System.tmp_dir!(),
         "ggen_igniter_dry_run_unchanged_test_#{System.unique_integer([:positive])}"
       )
+
+    File.rm_rf!(out_dir)
+    on_exit(fn -> File.rm_rf!(out_dir) end)
 
     out_path = Path.join(out_dir, "resource.ex")
 
@@ -88,6 +94,9 @@ defmodule GgenIgniter.SyncDryRunTest do
         "ggen_igniter_dry_run_unless_exists_test_#{System.unique_integer([:positive])}"
       )
 
+    File.rm_rf!(out_dir)
+    on_exit(fn -> File.rm_rf!(out_dir) end)
+
     out_path = Path.join(out_dir, "resource.ex")
     File.mkdir_p!(out_dir)
     File.write!(out_path, "# pre-existing content, deliberately different from the render\n")
@@ -112,6 +121,9 @@ defmodule GgenIgniter.SyncDryRunTest do
         System.tmp_dir!(),
         "ggen_igniter_dry_run_for_each_test_#{System.unique_integer([:positive])}"
       )
+
+    File.rm_rf!(out_dir)
+    on_exit(fn -> File.rm_rf!(out_dir) end)
 
     out_template = Path.join(out_dir, "<%= module_name %>.ex")
 

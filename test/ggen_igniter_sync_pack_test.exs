@@ -16,6 +16,9 @@ defmodule GgenIgniter.SyncPackTaskTest do
         "ggen_igniter_sync_pack_test_#{System.unique_integer([:positive])}"
       )
 
+    File.rm_rf!(out_dir)
+    on_exit(fn -> File.rm_rf!(out_dir) end)
+
     out_path = Path.join(out_dir, "resource.ex")
 
     args = [
@@ -54,6 +57,9 @@ defmodule GgenIgniter.SyncPackTaskTest do
         System.tmp_dir!(),
         "ggen_igniter_sync_pack_name_test_#{System.unique_integer([:positive])}"
       )
+
+    File.rm_rf!(out_dir)
+    on_exit(fn -> File.rm_rf!(out_dir) end)
 
     out_path = Path.join(out_dir, "resource.ex")
     pack_root = Path.join(["priv", "ggen", "doctest-pack"])

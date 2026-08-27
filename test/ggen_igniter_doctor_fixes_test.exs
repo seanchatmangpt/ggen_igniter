@@ -31,6 +31,7 @@ defmodule GgenIgniter.DoctorFixesTest do
         "ggen_igniter_doctor_fixes_test_#{System.unique_integer([:positive])}"
       )
 
+    File.rm_rf!(dir)
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
     %{dir: dir}

@@ -7,6 +7,9 @@ defmodule GgenIgniter.SyncTaskTest do
     out_dir =
       Path.join(System.tmp_dir!(), "ggen_igniter_sync_test_#{System.unique_integer([:positive])}")
 
+    File.rm_rf!(out_dir)
+    on_exit(fn -> File.rm_rf!(out_dir) end)
+
     out_path = Path.join(out_dir, "resource.ex")
 
     args = [

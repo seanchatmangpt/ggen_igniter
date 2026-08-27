@@ -16,6 +16,7 @@ defmodule GgenIgniter.SyncForEachTest do
     # up -- real, observed flake (a stale directory from an earlier run made
     # this test see "unchanged" content instead of a fresh "wrote"). Clean up
     # for real, every run.
+    File.rm_rf!(out_dir)
     on_exit(fn -> File.rm_rf!(out_dir) end)
 
     out_template = Path.join(out_dir, "<%= module_name %>.ex")
@@ -87,6 +88,7 @@ defmodule GgenIgniter.SyncForEachTest do
     # Same real cross-run tmp-dir-collision flake as the --for-each test
     # above (`System.unique_integer/1` restarts every fresh BEAM instance) --
     # clean up for real, every run.
+    File.rm_rf!(out_dir)
     on_exit(fn -> File.rm_rf!(out_dir) end)
 
     out_path = Path.join(out_dir, "resource.ex")

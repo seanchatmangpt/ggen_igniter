@@ -1,0 +1,138 @@
+@prefix alp:  <http://seanchatmangpt.github.io/packs/ash-lifecycle-pack#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+#################################################################
+# Vocabulary (identical to ontology.ttl)
+#################################################################
+
+alp:Domain a rdfs:Class ;
+    rdfs:label "One Ash.Domain module that registers one or more alp:Resource individuals." .
+alp:domainName   a rdf:Property ; rdfs:domain alp:Domain ; rdfs:comment "short domain slug, e.g. \"Support\"" .
+alp:domainModule a rdf:Property ; rdfs:domain alp:Domain ; rdfs:comment "full Elixir module name, e.g. \"SupportDesk.Support\"" .
+
+alp:Resource a rdfs:Class ;
+    rdfs:label "One Ash.Resource this pack manufactures, driven by an 8-stage Ash+Phoenix lifecycle e2e test (creation, attribute add, relationship, custom action, AshPhoenix.Form, ash_phoenix.gen.live, attribute rename, removal)." .
+alp:resourceName     a rdf:Property ; rdfs:domain alp:Resource ; rdfs:comment "bare resource slug, e.g. \"Ticket\" -- used as the module basename and the join key every alp:Attribute/alp:Action/alp:Relationship row resolves back to." .
+alp:resourceModule   a rdf:Property ; rdfs:domain alp:Resource ; rdfs:comment "full Elixir module name, e.g. \"SupportDesk.Support.Ticket\"" .
+alp:dataLayer        a rdf:Property ; rdfs:domain alp:Resource ; rdfs:comment "literal Elixir module reference rendered verbatim after `data_layer:`, e.g. \"Ash.DataLayer.Ets\"" .
+alp:primaryKeyName   a rdf:Property ; rdfs:domain alp:Resource ; rdfs:comment "primary key attribute atom name (without leading colon), e.g. \"id\"" .
+alp:primaryKeyType   a rdf:Property ; rdfs:domain alp:Resource ; rdfs:comment "closed: \"uuid\" | \"integer\" -- selects uuid_primary_key/integer_primary_key in the rendered resource." .
+alp:resourceDomain   a rdf:Property ; rdfs:domain alp:Resource ; rdfs:range alp:Domain ; rdfs:comment "the alp:Domain this resource is registered under." .
+
+alp:Attribute a rdfs:Class ;
+    rdfs:label "One Ash.Resource attribute (beyond the primary key), scoped to a single alp:Resource via alp:attributeOf." .
+alp:attributeOf       a rdf:Property ; rdfs:domain alp:Attribute ; rdfs:range alp:Resource .
+alp:attributeOrder    a rdf:Property ; rdfs:domain alp:Attribute ; rdfs:comment "1-based declaration order within its resource's attributes block." .
+alp:attributeName     a rdf:Property ; rdfs:domain alp:Attribute ; rdfs:comment "atom name (without leading colon), e.g. \"subject\". Stage 7 (rename) changes this literal on the SAME subject IRI -- the identity that persists across ontology.ttl/_v2/_v3 is the alp:Attribute individual, not this name." .
+alp:attributeType     a rdf:Property ; rdfs:domain alp:Attribute ; rdfs:comment "Ash attribute type atom (without leading colon), e.g. \"string\" | \"atom\" | \"utc_datetime\"." .
+alp:attributeAllowNil a rdf:Property ; rdfs:domain alp:Attribute ; rdfs:comment "xsd:boolean -- rendered verbatim after `allow_nil?`." .
+alp:attributeDefault  a rdf:Property ; rdfs:domain alp:Attribute ;
+    rdfs:comment "optional literal Elixir default-value source rendered verbatim after `default`, e.g. \":open\" or \"\\\"unknown\\\"\". Absent means no `default` call is rendered at all (not rendered as `default(nil)`)." .
+
+alp:Action a rdfs:Class ;
+    rdfs:label "One Ash.Resource action, scoped to a single alp:Resource via alp:actionOf. A row whose alp:actionName equals its alp:actionType is one of the resource's bare CRUD defaults (folded into a single `defaults([...])` call); a row where they differ is a named custom action (e.g. Ticket's :archive, an :update action) rendered as its own explicit action block." .
+alp:actionOf    a rdf:Property ; rdfs:domain alp:Action ; rdfs:range alp:Resource .
+alp:actionOrder a rdf:Property ; rdfs:domain alp:Action ; rdfs:comment "1-based declaration order within its resource's actions block." .
+alp:actionName  a rdf:Property ; rdfs:domain alp:Action ; rdfs:comment "atom name (without leading colon), e.g. \"create\" or \"archive\"." .
+alp:actionType  a rdf:Property ; rdfs:domain alp:Action ; rdfs:comment "closed: \"create\" | \"read\" | \"update\" | \"destroy\" -- the underlying Ash action type this action compiles to." .
+
+alp:Relationship a rdfs:Class ;
+    rdfs:label "One Ash.Resource relationship DSL entry, declared on its alp:relationshipSource resource and pointing at its alp:relationshipTarget resource." .
+alp:relationshipName       a rdf:Property ; rdfs:domain alp:Relationship ; rdfs:comment "atom name (without leading colon), e.g. \"customer\" (belongs_to, on Ticket) or \"tickets\" (has_many, on Customer)." .
+alp:relationshipKind       a rdf:Property ; rdfs:domain alp:Relationship ; rdfs:comment "closed: \"belongs_to\" | \"has_many\"." .
+alp:relationshipSource     a rdf:Property ; rdfs:domain alp:Relationship ; rdfs:range alp:Resource ; rdfs:comment "the resource this relationship DSL entry is declared ON." .
+alp:relationshipTarget     a rdf:Property ; rdfs:domain alp:Relationship ; rdfs:range alp:Resource ; rdfs:comment "the resource this relationship points AT." .
+alp:relationshipForeignKey a rdf:Property ; rdfs:domain alp:Relationship ; rdfs:comment "foreign key atom name (without leading colon), e.g. \"customer_id\"; rendered after `destination_attribute:`." .
+
+#################################################################
+# Instance: SupportDesk -- Stage/Agent3 delta against ontology.ttl:
+# alp:TicketBelongsToCustomer (the belongs_to :customer relationship DSL
+# entry on Ticket) is REMOVED entirely. alp:CustomerHasManyTickets (the
+# has_many other half) is left untouched.
+#################################################################
+
+alp:SupportDeskDomain a alp:Domain ;
+    alp:domainName "Support" ;
+    alp:domainModule "SupportDesk.Support" .
+
+alp:TicketResource a alp:Resource ;
+    alp:resourceName "Ticket" ;
+    alp:resourceModule "SupportDesk.Support.Ticket" ;
+    alp:dataLayer "Ash.DataLayer.Ets" ;
+    alp:primaryKeyName "id" ;
+    alp:primaryKeyType "uuid" ;
+    alp:resourceDomain alp:SupportDeskDomain .
+
+alp:CustomerResource a alp:Resource ;
+    alp:resourceName "Customer" ;
+    alp:resourceModule "SupportDesk.Support.Customer" ;
+    alp:dataLayer "Ash.DataLayer.Ets" ;
+    alp:primaryKeyName "id" ;
+    alp:primaryKeyType "uuid" ;
+    alp:resourceDomain alp:SupportDeskDomain .
+
+# -- Ticket attributes ------------------------------------------------------
+
+alp:TicketSubjectAttribute a alp:Attribute ;
+    alp:attributeOf alp:TicketResource ;
+    alp:attributeOrder 1 ; alp:attributeName "subject" ; alp:attributeType "string" ;
+    alp:attributeAllowNil false .
+
+alp:TicketStatusAttribute a alp:Attribute ;
+    alp:attributeOf alp:TicketResource ;
+    alp:attributeOrder 2 ; alp:attributeName "status" ; alp:attributeType "atom" ;
+    alp:attributeAllowNil false ; alp:attributeDefault ":open" .
+
+alp:TicketAssigneeAttribute a alp:Attribute ;
+    alp:attributeOf alp:TicketResource ;
+    alp:attributeOrder 3 ; alp:attributeName "assignee" ; alp:attributeType "string" ;
+    alp:attributeAllowNil true .
+
+# -- Customer attributes -----------------------------------------------------
+
+alp:CustomerNameAttribute a alp:Attribute ;
+    alp:attributeOf alp:CustomerResource ;
+    alp:attributeOrder 1 ; alp:attributeName "name" ; alp:attributeType "string" ;
+    alp:attributeAllowNil false .
+
+alp:CustomerEmailAttribute a alp:Attribute ;
+    alp:attributeOf alp:CustomerResource ;
+    alp:attributeOrder 2 ; alp:attributeName "email" ; alp:attributeType "string" ;
+    alp:attributeAllowNil false .
+
+alp:CustomerPhoneAttribute a alp:Attribute ;
+    alp:attributeOf alp:CustomerResource ;
+    alp:attributeOrder 3 ; alp:attributeName "phone" ; alp:attributeType "string" ;
+    alp:attributeAllowNil true .
+
+# -- Ticket actions: default CRUD + one custom (:archive) --------------------
+
+alp:TicketCreateAction a alp:Action ;
+    alp:actionOf alp:TicketResource ; alp:actionOrder 1 ; alp:actionName "create" ; alp:actionType "create" .
+alp:TicketReadAction a alp:Action ;
+    alp:actionOf alp:TicketResource ; alp:actionOrder 2 ; alp:actionName "read" ; alp:actionType "read" .
+alp:TicketUpdateAction a alp:Action ;
+    alp:actionOf alp:TicketResource ; alp:actionOrder 3 ; alp:actionName "update" ; alp:actionType "update" .
+alp:TicketDestroyAction a alp:Action ;
+    alp:actionOf alp:TicketResource ; alp:actionOrder 4 ; alp:actionName "destroy" ; alp:actionType "destroy" .
+alp:TicketArchiveAction a alp:Action ;
+    alp:actionOf alp:TicketResource ; alp:actionOrder 5 ; alp:actionName "archive" ; alp:actionType "update" .
+
+# -- Customer actions: default CRUD only -------------------------------------
+
+alp:CustomerCreateAction a alp:Action ;
+    alp:actionOf alp:CustomerResource ; alp:actionOrder 1 ; alp:actionName "create" ; alp:actionType "create" .
+alp:CustomerReadAction a alp:Action ;
+    alp:actionOf alp:CustomerResource ; alp:actionOrder 2 ; alp:actionName "read" ; alp:actionType "read" .
+alp:CustomerUpdateAction a alp:Action ;
+    alp:actionOf alp:CustomerResource ; alp:actionOrder 3 ; alp:actionName "update" ; alp:actionType "update" .
+alp:CustomerDestroyAction a alp:Action ;
+    alp:actionOf alp:CustomerResource ; alp:actionOrder 4 ; alp:actionName "destroy" ; alp:actionType "destroy" .
+
+# -- Relationship: Ticket belongs_to Customer, Customer has_many Ticket -----
+
+alp:CustomerHasManyTickets a alp:Relationship ;
+    alp:relationshipName "tickets" ; alp:relationshipKind "has_many" ;
+    alp:relationshipSource alp:CustomerResource ; alp:relationshipTarget alp:TicketResource ;
+    alp:relationshipForeignKey "customer_id" .

@@ -14,6 +14,10 @@ defmodule GgenIgniter.ActuateInjectTest do
         "ggen_igniter_inject_test_#{System.unique_integer([:positive])}"
       )
 
+    # `System.unique_integer/1` resets per-BEAM-VM, so across separate `mix
+    # test` invocations this path can collide with a stale directory left
+    # over from a prior run. Force a clean slate and clean up after.
+    File.rm_rf!(tmp_dir)
     File.mkdir_p!(tmp_dir)
     on_exit(fn -> File.rm_rf!(tmp_dir) end)
     {:ok, tmp_dir: tmp_dir}
@@ -189,6 +193,144 @@ defmodule GgenIgniter.ActuateInjectTest do
       end
 
       refute File.exists?(path)
+    end
+  end
+
+  describe "inject_content!/5 - format preservation (real Elixir source parses before and after)" do
+    test "injecting a new function into a real module keeps the file valid Elixir", %{
+      tmp_dir: tmp_dir
+    } do
+      path = Path.join(tmp_dir, "sample.ex")
+
+      source = """
+      defmodule Sample do
+        # ggen:functions
+        def existing, do: :ok
+      end
+      """
+
+      File.write!(path, source)
+      assert {:ok, _quoted} = Code.string_to_quoted(source)
+
+      assert {:ok, :injected} =
+               Actuate.inject_content!(
+                 path,
+                 "# ggen:functions",
+                 "  def injected, do: :new",
+                 :after
+               )
+
+      new_source = File.read!(path)
+      assert {:ok, quoted} = Code.string_to_quoted(new_source)
+
+      # The injected function is really present in the parsed AST (not just
+      # in the raw text), and the pre-existing function survived untouched.
+      {_ast, defs} =
+        Macro.prewalk(quoted, [], fn
+          {:def, _, [{name, _, _} | _]} = node, acc -> {node, [name | acc]}
+          node, acc -> {node, acc}
+        end)
+
+      assert :injected in defs
+      assert :existing in defs
+    end
+
+    test "injecting before a module attribute anchor preserves surrounding real Elixir source", %{
+      tmp_dir: tmp_dir
+    } do
+      path = Path.join(tmp_dir, "sample2.ex")
+
+      source = """
+      defmodule Sample2 do
+        @moduledoc "hi"
+
+        def foo(x) do
+          x + 1
+        end
+      end
+      """
+
+      File.write!(path, source)
+      assert {:ok, _} = Code.string_to_quoted(source)
+
+      assert {:ok, :injected} =
+               Actuate.inject_content!(
+                 path,
+                 "def foo(x) do",
+                 "  def bar(y), do: y * 2\n",
+                 :before
+               )
+
+      new_source = File.read!(path)
+      assert {:ok, _} = Code.string_to_quoted(new_source)
+      assert new_source =~ "def bar(y), do: y * 2"
+      assert new_source =~ "def foo(x) do"
+      assert new_source =~ "x + 1"
+    end
+  end
+
+  describe "inject_content!/5 - idempotency composition: mu(mu(O)) = mu(O)" do
+    test "applying the same :after injection twice yields the identical real file content as applying it once",
+         %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "compose_after.ex")
+      File.write!(path, "# modules\npub mod a\n")
+
+      {:ok, :injected} = Actuate.inject_content!(path, "# modules", "pub mod b", :after)
+      once = File.read!(path)
+
+      {:ok, :unchanged} = Actuate.inject_content!(path, "# modules", "pub mod b", :after)
+      twice = File.read!(path)
+
+      assert once == twice
+      assert twice == "# modules\npub mod b\npub mod a\n"
+    end
+
+    test "applying the same :before injection twice yields the identical real file content as applying it once",
+         %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "compose_before.ex")
+      File.write!(path, "one\ntwo\n")
+
+      {:ok, :injected} = Actuate.inject_content!(path, "two", "middle", :before)
+      once = File.read!(path)
+
+      {:ok, :unchanged} = Actuate.inject_content!(path, "two", "middle", :before)
+      twice = File.read!(path)
+
+      assert once == twice
+      assert twice == "one\nmiddle\ntwo\n"
+    end
+
+    test "applying the same :at_line injection twice yields the identical real file content as applying it once",
+         %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "compose_at_line.ex")
+      File.write!(path, "one\ntwo\n")
+
+      {:ok, :injected} = Actuate.inject_content!(path, nil, "zero", :at_line, line: 1)
+      once = File.read!(path)
+
+      {:ok, :unchanged} = Actuate.inject_content!(path, nil, "zero", :at_line, line: 1)
+      twice = File.read!(path)
+
+      assert once == twice
+      assert twice == "zero\none\ntwo\n"
+    end
+
+    test "three consecutive applications remain fixed after the first (mu is a true idempotent projection)",
+         %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "compose_thrice.ex")
+      File.write!(path, "# modules\npub mod a\n")
+
+      {:ok, :injected} = Actuate.inject_content!(path, "# modules", "pub mod b", :after)
+      first = File.read!(path)
+
+      {:ok, :unchanged} = Actuate.inject_content!(path, "# modules", "pub mod b", :after)
+      second = File.read!(path)
+
+      {:ok, :unchanged} = Actuate.inject_content!(path, "# modules", "pub mod b", :after)
+      third = File.read!(path)
+
+      assert first == second
+      assert second == third
     end
   end
 end

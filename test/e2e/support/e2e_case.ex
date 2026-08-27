@@ -435,6 +435,40 @@ defmodule GgenIgniter.E2e.Case do
     File.write!(config_path, updated)
   end
 
+  @doc """
+  Installs a fixture pack into the scaffolded app's own `priv/ggen/<pack_name>/`
+  convention directory, copying `fixture_pack_dir`'s real contents (`gates/*.rq`,
+  `templates/*.eex`, `ontology.ttl`) so that a bare `mix ggen_igniter.sync --pack
+  <pack_name>[:TEMPLATE_STEM]` (no `--pack-dir` override) resolves for real.
+
+  ## Why this exists (real, verified requirement, 2026-08-27)
+
+  `GgenIgniter.Pack.resolve_dir!/1`'s plain `--pack NAME` branch only ever
+  evaluates `Path.join(["priv", "ggen", name])` -- a path relative to whatever
+  directory the `mix` subprocess itself runs in. Every `mix ggen_igniter.sync`
+  invocation in this e2e is run with `cd: app_dir` (the scaffolded consumer
+  app), not this repo's own working directory, because the task needs to write
+  generated files into `app_dir`'s own `lib/` tree. So `--pack NAME` alone can
+  only ever find a pack that actually lives at `app_dir/priv/ggen/<name>/` --
+  never directly against this repo's `test/fixtures/<pack>/` path, no matter
+  how that path is spelled. `--pack-dir DIR` exists specifically to point at an
+  arbitrary directory instead of that convention -- this function is the
+  alternative: put the real fixture pack where the plain `--pack NAME`
+  convention already expects to find it, once, so every stage's `sync!/3` call
+  can use the shorter `--pack NAME:TEMPLATE_STEM` form instead of a separate
+  `--pack-dir`/`--template` pair.
+
+  Idempotent to call more than once (`File.cp_r!/2` overwrites the destination
+  contents); this e2e calls it exactly once, right after scaffolding, before
+  any `sync!/3` call.
+  """
+  def install_pack!(app_dir, fixture_pack_dir, pack_name) do
+    dest = Path.join([app_dir, "priv", "ggen", pack_name])
+    File.mkdir_p!(dest)
+    File.cp_r!(fixture_pack_dir, dest)
+    dest
+  end
+
   @doc "Runs `mix compile --warnings-as-errors` in `app_dir`."
   def compile!(app_dir) do
     cmd!("mix", ["compile", "--warnings-as-errors"], cd: app_dir)

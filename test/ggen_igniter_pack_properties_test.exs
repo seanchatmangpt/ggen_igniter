@@ -62,6 +62,7 @@ defmodule GgenIgniter.PackPropertiesTest do
         "ggen_igniter_pack_properties_test_#{System.unique_integer([:positive])}"
       )
 
+    File.rm_rf!(tmp_root)
     File.mkdir_p!(tmp_root)
     on_exit(fn -> File.rm_rf!(tmp_root) end)
     {:ok, tmp_root: tmp_root}

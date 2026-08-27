@@ -20,6 +20,7 @@ defmodule GgenIgniter.SyncInjectTest do
         "ggen_igniter_sync_inject_test_#{System.unique_integer([:positive])}"
       )
 
+    File.rm_rf!(dir)
     File.mkdir_p!(dir)
     path = Path.join(dir, basename)
     on_exit(fn -> File.rm_rf!(dir) end)
@@ -319,6 +320,7 @@ defmodule GgenIgniter.SyncInjectTest do
       missing_path =
         Path.join(System.tmp_dir!(), "does_not_exist_#{System.unique_integer([:positive])}.ex")
 
+      File.rm(missing_path)
       refute File.exists?(missing_path)
 
       args = [

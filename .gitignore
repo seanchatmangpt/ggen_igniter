@@ -8,6 +8,13 @@ erl_crash.dump
 *.tar
 /tmp_out/
 
+# Reconciliation manifest (GgenIgniter.Manifest / `mix ggen_igniter.sync
+# --manifest-dir`) -- local, regenerable per-consumer-project state recording
+# what a prior sync run wrote; defaults to this checkout's own root when no
+# --manifest-dir is passed, so ignore it here the same way any consumer
+# project should ignore or commit it by its own choice.
+/.ggen_igniter/
+
 # Rust NIF build artifacts (native/ggen_graph_nif/target/ alone runs into the
 # GBs -- never commit compiled crate output or the platform-specific .so
 # Rustler copies into priv/native/).

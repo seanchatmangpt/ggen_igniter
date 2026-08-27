@@ -66,8 +66,7 @@ defmodule GgenIgniter.E2e.LifecycleTest do
   @moduletag timeout: :infinity
 
   @pack_dir Path.expand("../fixtures/ash-lifecycle-pack", __DIR__)
-  @resource_template Path.join(@pack_dir, "templates/resource.ex.eex")
-  @domain_template Path.join(@pack_dir, "templates/domain.ex.eex")
+  @pack_name "ash-lifecycle-pack"
   @ontology_v1 Path.join(@pack_dir, "ontology.ttl")
   @ontology_v2 Path.join(@pack_dir, "ontology_v2_add_attribute.ttl")
   @ontology_v3 Path.join(@pack_dir, "ontology_v3_rename.ttl")
@@ -90,6 +89,16 @@ defmodule GgenIgniter.E2e.LifecycleTest do
     on_exit(fn -> File.rm_rf!(Path.dirname(app_dir)) end)
 
     add_ggen_igniter_dep!(app_dir)
+
+    # Installs the real fixture pack (gates/*.rq, templates/*.eex,
+    # ontology.ttl) into app_dir's own `priv/ggen/ash-lifecycle-pack/`
+    # convention directory -- once, before any sync!/3 call -- so every stage
+    # below can use the shorter `--pack ash-lifecycle-pack:TEMPLATE_STEM` CLI
+    # form instead of a separate `--pack-dir`/`--template` pair (see
+    # install_pack!/3's moduledoc in e2e_case.ex for the full, verified
+    # reason a bare `--pack NAME` cannot resolve this fixture pack directly
+    # without this step).
+    install_pack!(app_dir, @pack_dir, @pack_name)
 
     # FIXED (2026-08-27, see add_ash_domains_config!/3's moduledoc in
     # e2e_case.ex for the full investigation): Ash's compile-time domain
@@ -116,11 +125,11 @@ defmodule GgenIgniter.E2e.LifecycleTest do
     domain_path = Path.join(app_dir, @domain_rel_path)
 
     # -- Stage 1: sync the resource + domain templates against ontology.ttl
-    #    (via --pack-dir, so the pack's gates/*.rq are auto-discovered as
+    #    (via --pack NAME:STEM, so the pack's gates/*.rq are auto-discovered as
     #    named queries: resource, attributes, actions, relationships,
     #    domain_resources -- see GgenIgniter.Pack.discover_queries/1). ------
-    sync!(app_dir, @resource_template, @ontology_v1)
-    sync!(app_dir, @domain_template, @ontology_v1)
+    sync!(app_dir, "resource", @ontology_v1)
+    sync!(app_dir, "domain", @ontology_v1)
 
     compile!(app_dir)
     test!(app_dir)
@@ -154,7 +163,7 @@ defmodule GgenIgniter.E2e.LifecycleTest do
     #    ontology_v2_add_attribute.ttl (same SAME individual IRIs as
     #    ontology.ttl, plus one new alp:TicketPriorityAttribute) -- a real
     #    delta re-sync against the same app, not a fresh ontology. ---------
-    sync!(app_dir, @resource_template, @ontology_v2)
+    sync!(app_dir, "resource", @ontology_v2)
 
     compile!(app_dir)
     test!(app_dir)
@@ -279,7 +288,7 @@ defmodule GgenIgniter.E2e.LifecycleTest do
     # -- Stage 7: re-sync against ontology_v3_rename.ttl -- the SAME
     #    alp:TicketAssigneeAttribute individual IRI, renamed via its
     #    alp:attributeName literal from "assignee" to "assigned_to". -------
-    sync!(app_dir, @resource_template, @ontology_v3)
+    sync!(app_dir, "resource", @ontology_v3)
 
     ticket_v3 = File.read!(ticket_path)
     Code.string_to_quoted!(ticket_v3)
@@ -317,12 +326,26 @@ defmodule GgenIgniter.E2e.LifecycleTest do
   end
 
   # -- Stage 1-3/7 helper: runs `mix ggen_igniter.sync` as a real subprocess
-  # against this one pack (via --pack-dir, so gates/*.rq are auto-discovered
-  # as named queries) with an explicit --ontology/--template pair -- explicit
-  # because the pack ships TWO templates (resource.ex.eex, domain.ex.eex), so
-  # GgenIgniter.Pack.discover_template/1's single-template auto-selection
-  # cannot apply here; --out/--for_each both come from each template's own
-  # frontmatter (`to:`/`for_each:`), not passed on the CLI.
+  # against this one pack via the shorter `--pack NAME:TEMPLATE_STEM` form
+  # (`GgenIgniter.Pack.discover_template/2`'s stem-based template selection --
+  # see that function's moduledoc and `Mix.Tasks.GgenIgniter.Sync`'s own
+  # "`--pack NAME:TEMPLATE`" moduledoc section), rather than a separate
+  # `--pack-dir`/`--template` pair -- real flag-count reduction from 4 to 3
+  # per call (`--pack-dir` + `--ontology` + `--template` + `--engine` ->
+  # `--pack` + `--ontology` + `--engine`), NOT to 1: `--ontology` still varies
+  # per lifecycle stage (v1/v2/v3, never the pack's own bundled
+  # `ontology.ttl`) so it must stay explicit, and `--engine sparql` stays
+  # pinned for the real, separate, already-tracked oxigraph-quoting bug
+  # described below -- it is a workaround flag, not decoration, so it is not
+  # dropped just because the flag count would look better without it.
+  #
+  # This bare `--pack NAME:STEM` form (no `--pack-dir`) only resolves because
+  # `install_pack!/3` (called once, right after scaffolding -- see this
+  # module's Stage 0) already copied this exact fixture pack into app_dir's
+  # own `priv/ggen/ash-lifecycle-pack/` convention directory; gates/*.rq are
+  # still auto-discovered as named queries the same way `--pack-dir` used to
+  # provide them. `--out`/`--for_each` both still come from each template's
+  # own frontmatter (`to:`/`for_each:`), not passed on the CLI.
   #
   # `--engine sparql` is pinned explicitly (not left to the CLI's own
   # default) -- real, verified requirement (2026-08-27): `Mix.Tasks.
@@ -347,17 +370,15 @@ defmodule GgenIgniter.E2e.LifecycleTest do
   # own default (which is legitimately still in flux from that unrelated,
   # concurrent oxigraph-engine workstream) rather than silently riding
   # whatever it resolves to next.
-  defp sync!(app_dir, template_path, ontology_path) do
+  defp sync!(app_dir, template_stem, ontology_path) do
     cmd!(
       "mix",
       [
         "ggen_igniter.sync",
-        "--pack-dir",
-        @pack_dir,
+        "--pack",
+        "#{@pack_name}:#{template_stem}",
         "--ontology",
         ontology_path,
-        "--template",
-        template_path,
         "--engine",
         "sparql"
       ],
