@@ -173,6 +173,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
   alias GgenIgniter.{Actuate, Controller, Engine, Frontmatter, Manifest, Ontology, Render}
   alias GgenIgniter.Frontmatter.MatchRule
+  alias GgenIgniter.Reactors.ReconcileReactor
 
   @impl Igniter.Mix.Task
   def info(_argv, _composing_task) do
@@ -425,6 +426,29 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   def igniter(igniter) do
     {opts, pack_template_stem} = split_pack_template_stem(igniter.args.options)
 
+    # Opt-in Reactor dispatch: `Application.get_env(:ggen_igniter, :use_reactor,
+    # false)` (default `false`) gates whether this run is coordinated by the
+    # real Reactor pipeline (`GgenIgniter.Reactors.ReconcileReactor`) instead
+    # of the pre-existing dispatch below. When the flag is left at its
+    # default, `use_reactor?/0` is false and `dispatch_pipeline/3` runs --
+    # BYTE-FOR-BYTE the same function body this task had before this pipeline
+    # existed, unconditionally reached, never touched by the branch above it.
+    if use_reactor?() do
+      case run_via_reactor(igniter, opts, pack_template_stem) do
+        {:ok, result_igniter} -> result_igniter
+        :not_delegatable -> dispatch_pipeline(igniter, opts, pack_template_stem)
+      end
+    else
+      dispatch_pipeline(igniter, opts, pack_template_stem)
+    end
+  end
+
+  defp use_reactor?, do: Application.get_env(:ggen_igniter, :use_reactor, false)
+
+  # The exact pre-Reactor entry-point body: delegate to a running Controller
+  # when possible, else run the standalone inline pipeline. Unchanged from
+  # before `use_reactor?/0` existed.
+  defp dispatch_pipeline(igniter, opts, pack_template_stem) do
     case Process.whereis(GgenIgniter.Controller) do
       nil ->
         run_pipeline!(igniter, opts, pack_template_stem)
@@ -434,6 +458,37 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
           {:ok, result_igniter} -> result_igniter
           :not_delegatable -> run_pipeline!(igniter, opts, pack_template_stem)
         end
+    end
+  end
+
+  # Runs the real Reactor pipeline directly (independent of whether a
+  # `GgenIgniter.Controller` happens to be registered -- the Reactor path
+  # does not need the Controller's in-process state). Only within
+  # `GgenIgniter.Reconcile.run/1`'s own bounded scope, exactly the same guard
+  # `delegate_to_controller/4` already applies: the resolved template must
+  # have no frontmatter header, and `--for-each` must not be requested.
+  # Outside that scope, falls back to `dispatch_pipeline/3` (today's exact
+  # behavior), never a silent behavior change for a feature the bounded
+  # Reactor pipeline does not implement.
+  defp run_via_reactor(igniter, opts, pack_template_stem) do
+    template_path = resolve_template!(opts, pack_template_stem)
+    {frontmatter, _frontmatter_mode, _template_string} = Frontmatter.split_template(File.read!(template_path))
+    for_each = opts[:for_each] || frontmatter_field(frontmatter, :for_each)
+
+    if frontmatter == nil and for_each in [nil, ""] do
+      reconcile_opts = Keyword.put(opts, :pack_template_stem, pack_template_stem)
+
+      case ReconcileReactor.run(reconcile_opts) do
+        {:ok, receipt} ->
+          notice = receipt.metadata["notice"] || "reconciled"
+          {:ok, Igniter.add_notice(igniter, "ggen_igniter: #{notice} (via reactor)")}
+
+        {:error, receipt} ->
+          raise "ggen_igniter: reactor reconciliation failed (#{receipt.standing}): " <>
+                  (receipt.reason || "no reason recorded")
+      end
+    else
+      :not_delegatable
     end
   end
 

@@ -65,6 +65,7 @@ defmodule GgenIgniter.Controller do
 
   use GenServer
 
+  alias GgenIgniter.Reactors.ReconcileReactor
   alias GgenIgniter.Reconcile
 
   @type pack_key :: term()
@@ -158,13 +159,61 @@ defmodule GgenIgniter.Controller do
   # (state bookkeeping in `handle_call/3` above) is left to crash loudly, on
   # purpose, if it is ever actually buggy -- only the real external pipeline
   # call gets this fault boundary.
+  #
+  # Opt-in Reactor dispatch: `Application.get_env(:ggen_igniter, :use_reactor,
+  # false)` (default `false`) gates whether this call runs the real Reactor
+  # coordination pipeline (`GgenIgniter.Reactors.ReconcileReactor`) instead of
+  # calling `GgenIgniter.Reconcile.run/1` directly. When the flag is left at
+  # its default, this function's behavior is BYTE-FOR-BYTE UNCHANGED from
+  # before this pipeline existed -- the branch below is skipped entirely.
   defp run_pipeline(reconcile_opts) do
-    Reconcile.run(reconcile_opts)
+    if Application.get_env(:ggen_igniter, :use_reactor, false) do
+      run_via_reactor(reconcile_opts)
+    else
+      Reconcile.run(reconcile_opts)
+    end
   rescue
     exception -> {:error, {exception.__struct__, Exception.message(exception)}}
   catch
     kind, reason -> {:error, {kind, reason}}
   end
+
+  # Runs `GgenIgniter.Reactors.ReconcileReactor.run/1` (its own recommended
+  # entry point -- guarantees a real, persisted `GgenIgniter.Receipt` on
+  # every path, not just success) and reshapes that receipt into the exact
+  # `{:ok, result()}` shape `Reconcile.run/1` returns (see this module's
+  # `build_record/3`, unchanged either way) using the receipt's own
+  # best-effort single-target compatibility fields in `receipt.metadata` --
+  # real for any run with exactly one target (the only shape `reconcile_opts`
+  # arrives in via this module's own public API, which has no `:targets`
+  # concept of its own).
+  defp run_via_reactor(reconcile_opts) do
+    case ReconcileReactor.run(reconcile_opts) do
+      {:ok, receipt} ->
+        {:ok, receipt_to_legacy_result(reconcile_opts, receipt)}
+
+      {:error, receipt} ->
+        {:error, receipt.reason || receipt.standing}
+    end
+  end
+
+  defp receipt_to_legacy_result(reconcile_opts, receipt) do
+    %{
+      engine: reconcile_opts[:engine] || "oxigraph",
+      ontology_path: nil,
+      template_path: reconcile_opts[:template],
+      query_count: length(Keyword.get_values(reconcile_opts, :query)),
+      total_rows: 0,
+      mode: metadata_atom(receipt.metadata["mode"]) || :file,
+      out_path: receipt.metadata["out_path"],
+      outcome: metadata_atom(receipt.metadata["outcome"]),
+      value: nil,
+      notice: receipt.metadata["notice"] || "ggen_igniter reactor: reconciled"
+    }
+  end
+
+  defp metadata_atom(nil), do: nil
+  defp metadata_atom(str) when is_binary(str), do: String.to_existing_atom(str)
 
   defp build_record(reconcile_opts, result, previous) do
     previous_count =

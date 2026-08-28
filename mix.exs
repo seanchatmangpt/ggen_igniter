@@ -79,6 +79,14 @@ defmodule GgenIgniter.MixProject do
       # pulls in `:igniter` transitively via its own ash/ash_phoenix install
       # chain.
       {:igniter, "~> 0.8"},
+      # NOT optional/only: `lib/ggen_igniter/reactors/reconcile_reactor.ex` uses
+      # `use Reactor` at compile time -- real production code (the Reactor-based
+      # coordination path), not test tooling, even though running it at runtime
+      # is opt-in (`config :ggen_igniter, use_reactor: true`, default false). The
+      # module must still compile unconditionally for every consumer, exactly
+      # like `:igniter` above -- same reasoning, same failure class if this were
+      # marked `only: [:dev, :test]` or `optional: true`.
+      {:reactor, "~> 1.0"},
       {:toml, "~> 0.7"},
       {:yaml_elixir, "~> 2.9"},
       {:rustler, "~> 0.36"},

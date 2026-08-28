@@ -7,7 +7,65 @@ result to disk with the same write-safety guards (idempotent no-op detection,
 `unless_exists`, `skip_if`) as the real Rust `ggen`'s `ggen-engine/src/write.rs`.
 
 Pipeline: `Ontology.load!/1` -> `Engine.run/2` (once per `--query`) ->
-`Render.render/2` -> `Actuate.write_file!/3`.
+`Render.render/2` -> `Actuate.write_file!/3` (or `inject_content!/5` /
+`eval_code!/2`), tracked by a reconciliation manifest so a rename/removal
+upstream in the ontology is mechanically detected instead of silently
+orphaning a file.
+
+## Why this exists
+
+Hand-maintained Elixir modules drift from the domain model that's supposed to
+describe them. `ggen_igniter` keeps generated code (Ash resources, Spark DSL
+extensions, or any other EEx-rendered Elixir) synchronized with an RDF/Turtle
+ontology as that ontology evolves — including *destructive* evolution (a
+rename, a removal) — with reconciliation memory: "what did I last generate
+here, and did the ontology's shape change since," rather than a stateless
+one-shot templater.
+
+## What each layer owns
+
+| Layer | Real role in this repo | Status |
+|---|---|---|
+| **ggen** | Semantic compilation (ontology → query → render → actuate). Fulfilled by this repo's **own** from-scratch Elixir port of the real Rust `ggen`'s pipeline shape (render uses Elixir stdlib `EEx`, not a Tera/Liquid port) — not a runtime dependency on, or shell-out to, the real `ggen` binary. One real Rust component *is* embedded: a Rustler NIF wrapping `ggen`'s own oxigraph query engine (the default `--engine`). | IMPLEMENTED |
+| **Igniter** | CLI-task plumbing (`Igniter.Mix.Task`, `add_notice/2`) for both `mix ggen_igniter.sync`/`.doctor`. A real, unconditional `mix.exs` dependency. Does **not** use Igniter's AST-mutation API (`Igniter.Project.Module`/`Igniter.Code`/`Sourceror.Zipper`) anywhere — that's real, disclosed future work. | IMPLEMENTED (CLI plumbing); AST-mutation PLANNED |
+| **Reactor** | Coordination/dependency-ordering/concurrency/compensation. `GgenIgniter.Reactors.ReconcileReactor` is a plain `use Reactor` module (explicitly not `Ash.Reactor`, so this stays usable without Ash). Real, tested — but **opt-in**, not the default, via `config :ggen_igniter, use_reactor: true`. | PARTIAL_ALIVE (real, opt-in) |
+| **Ash** | Optional, consumer-side only. Neither `:ash` nor `:ash_phoenix` appears anywhere in this project's own `mix.exs` deps. `mix ggen_igniter.doctor` only *scans* a consumer's project for `use Ash.Domain` as one diagnostic among several. | Not a core dependency, by design |
+
+See `docs/architecture/overview.md` for the full ownership table (including
+OTP/Controller/Manifest/Receipt) and `docs/glossary.md` for term definitions.
+
+## What's implemented vs. planned (headline items — full detail in `docs/status.md`)
+
+- **Implemented, default today**: `mix ggen_igniter.sync`/`.doctor`, all
+  three query engines, `--pack`/`--for-each`/`--dry-run`, template
+  frontmatter (including `inject: true` — see the correction below), the
+  reconciliation manifest and `--on-stale refuse|prune|preserve`.
+- **Implemented, opt-in (not the default)**: the `ReconcileReactor`
+  coordination pipeline (real admission/compensation/receipts) and the
+  `GgenIgniter.Controller` persistent GenServer.
+- **Planned, not implemented**: real AST-based structural mutation
+  (Sourceror/Igniter.Code) for existing files — today's injection is a
+  marker-based text splice, not an AST patch; cross-file stale-reference
+  repair (e.g. a renamed attribute breaking separately hand-generated
+  LiveView code) has no auto-repair mechanism.
+- **Real, currently open gap**: `mix e2e`'s full 8-stage Ash+Phoenix
+  lifecycle test has not been freshly re-executed end to end in the most
+  recent documentation pass (requires network + several minutes); the
+  mechanism is real and sound by inspection.
+
+See `docs/status.md` for the complete, sourced capability table and
+`docs/architecture/adr/` for the accepted design decisions behind these.
+
+## How do I run it
+
+```
+mix deps.get
+mix ggen_igniter.doctor        # sanity-check the environment first
+mix ggen_igniter.sync --ontology path.ttl --query name=path.rq --template path.eex --out path.ex
+```
+
+Full walkthroughs (real commands, real output, run in this repo): see
+[`docs/tutorials/getting-started.md`](docs/tutorials/getting-started.md).
 
 ## Installation
 
@@ -16,10 +74,16 @@ Add `ggen_igniter` to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:ggen_igniter, "~> 26.8.26"}
+    {:ggen_igniter, "~> 26.8.27"}
   ]
 end
 ```
+
+Requires Elixir `~> 1.17` and OTP `>= 25` (`mix ggen_igniter.doctor`'s check 1
+verifies both) plus a working Rust/`cargo` toolchain — the default `--engine
+oxigraph` compiles a native Rustler NIF (`native/ggen_graph_nif`) as part of
+compiling this library at all, regardless of which `--engine` is ever
+actually used at runtime.
 
 ## Usage
 
@@ -36,34 +100,42 @@ top-level bindings, atom-keyed, so a single-row query like `spec` can be
 referenced as bare `module_name`/`package_name` instead of
 `hd(spec)["module_name"]`.
 
-#### Engines: `--engine sparql` / `--engine qlever` / `--engine oxigraph`
+#### Engines: `--engine oxigraph` / `--engine sparql` / `--engine qlever`
 
-`--engine sparql` (default) runs every query in-process against the loaded
-`%RDF.Graph{}` via the `sparql` hex package:
+`--engine oxigraph` (**the real default since v26.8.27** — confirmed by
+`lib/mix/tasks/ggen_igniter.sync.ex`'s own `opts[:engine] || "oxigraph"` and
+by an actual run's notice line) runs every query in-process against the
+loaded `%RDF.Graph{}` via a real native
+[oxigraph](https://github.com/oxigraph/oxigraph) engine (a Rustler NIF over
+`ggen`'s `ggen-graph-wasm` `OxigraphEngine`). It became the default to fix a
+real, empirically confirmed `ORDER BY` row-reversal bug in the `sparql` hex
+package (v0.3.12) — see `docs/architecture/adr/0001-oxigraph-default-query-engine.md`
+for the full history and disclosed trade-offs (a Rust/`cargo` toolchain is
+required to compile this library at all, regardless of which engine is used
+at runtime). No extra required option — it works directly off the
+already-loaded graph:
 
 ```
 mix ggen_igniter.sync \
+  --ontology test/fixtures/audit_trail_ontology.ttl \
+  --query spec=test/fixtures/spec.rq \
+  --template test/fixtures/extension.ex.eex \
+  --out tmp_out/probe.ex
+```
+
+`--engine sparql` runs every query in-process too, via the pure-Elixir
+`sparql` hex package instead of oxigraph — still fully supported, and useful
+to A/B a result or when a query shape trips the `sparql` hex package's own
+known `FILTER NOT EXISTS`/`UNION` limitation:
+
+```
+mix ggen_igniter.sync \
+  --engine sparql \
   --ontology test/fixtures/audit_trail_ontology.ttl \
   --query spec=test/fixtures/spec.rq \
   --query sections=test/fixtures/sections.rq \
   --query entities=test/fixtures/entities.rq \
   --query fields=test/fixtures/fields.rq \
-  --template test/fixtures/extension.ex.eex \
-  --out tmp_out/probe.ex
-```
-
-`--engine oxigraph` runs every query in-process too, but via a real native
-[oxigraph](https://github.com/oxigraph/oxigraph) engine (a Rustler NIF over
-`ggen`'s `ggen-graph-wasm` `OxigraphEngine`) instead of the pure-Elixir
-`sparql` hex package. No extra required option — it works directly off the
-already-loaded graph, same as `sparql`. Useful when a query shape trips the
-`sparql` hex package's known `FILTER NOT EXISTS`/`UNION` limitation:
-
-```
-mix ggen_igniter.sync \
-  --engine oxigraph \
-  --ontology test/fixtures/audit_trail_ontology.ttl \
-  --query spec=test/fixtures/spec.rq \
   --template test/fixtures/extension.ex.eex \
   --out tmp_out/probe.ex
 ```
@@ -131,28 +203,21 @@ be fetched from a marketplace source (`github:owner/repo[@ref]` or
 ### `mix ggen_igniter.doctor`
 
 ```
-mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine sparql|qlever] [--store-id ID]
+mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine sparql|qlever] [--store-id ID] [--hex-check] [--fix]
 ```
 
-Runs a fixed checklist of real checks (no fabricated pass output):
-
-1. Elixir/OTP version satisfies this project's `mix.exs` requirement.
-2. Required deps (`rdf`, `sparql`, `igniter`, and `gno` when `--engine qlever`)
-   are loaded with resolvable `:vsn`.
-3. Advisory for the known `sparql` 0.3.12 `FILTER NOT EXISTS` + `BIND` inside
-   `UNION` bug.
-4. (only with `--engine qlever`, or a pack ontology naming a `gnoa:Qlever`
-   store via `--store-id`) the QLever endpoint is really reachable via a real
-   `ASK` query.
-5. Pack `ontology.ttl` exists and parses as valid Turtle.
-6. At least one gate query (`gates/*.rq`) is present.
-7. At least one template (`templates/*.{eex,tmpl}`) is present.
-8. Every gate query is syntactically valid SPARQL (parse-only, no execution).
-9. Target (cwd) git status — clean vs dirty is reported, never fails the run
-   by itself.
-
-Checks 5-8 only run when `--pack`/`--pack-dir` is given. Exits non-zero only
-if any check comes back `:error`.
+Runs a fixed checklist of **17** real checks (no fabricated pass output) —
+Elixir/OTP version, dependency wiring, the `sparql` version advisory, the
+`:igniter`/`:sourceror`/`:dcatr`/`ash_domains` consumer-project fix rules
+(`--fix`-able), pack shape (only with `--pack`/`--pack-dir`), git status, the
+native oxigraph NIF's build freshness and a real functional smoke test, an
+optional hex-publish readiness check (`--hex-check`), and a version-policy
+check against `CHANGELOG.md`. Exits non-zero only if any check comes back
+`:error`. See
+[`docs/reference/cli/doctor.md`](docs/reference/cli/doctor.md) for the full,
+numbered list of all 17 checks and exactly which ones `--fix` can repair, or
+[`docs/operations/debugging.md`](docs/operations/debugging.md) for a
+practical triage playbook.
 
 ## Testing
 
@@ -235,24 +300,86 @@ part most resistant to that swap, since it is exactly the real, on-disk,
 network-resolved dependency graph this suite exists to catch drift in (see
 (c) below).
 
+## Reconciliation manifest: `--on-stale refuse|prune|preserve`
+
+Every real `mode: file`, non-`inject:` write is recorded in a manifest at
+`<manifest-dir>/.ggen_igniter/manifest.json`, keyed by the `(template,
+--out-template)` "recipe" pair — not by ontology path or pack name alone,
+so editing an ontology's content in place across syncs is correctly
+recognized as the same ongoing recipe. Before writing, a run's real new
+output-path set is compared against the manifest's existing entry for that
+recipe: `stale = old_paths - new_paths` — the mechanical signature of a
+rename or removal upstream in the ontology.
+
+- **`refuse`** (default) — refuses the entire run before writing anything if
+  `stale` is non-empty, naming every exact stale path.
+- **`prune`** — proceeds, then really deletes every stale path
+  (`File.rm/1`), reporting each.
+- **`preserve`** — proceeds, leaves every stale path untouched, warns, and
+  releases it from the manifest's tracked output set.
+
+A true no-op re-run (identical output-path-plus-content-hash set) does not
+rewrite the manifest file at all — not even its timestamp. See
+[`docs/reference/reconciliation/`](docs/reference/reconciliation/) for the
+full manifest/stale-artifact/destructive-evolution reference, and
+[`docs/tutorials/first-reconciliation.md`](docs/tutorials/first-reconciliation.md)
+for a real, run-through-in-this-repo walkthrough including a real refused
+run and a real prune.
+
+**Known, disclosed scope limit**: this closes the orphan-file gap only for
+the recipe's *own* tracked outputs. There is no cross-file stale-reference
+repair — a rename that breaks separately hand-generated code elsewhere (e.g.
+a Phoenix LiveView dot-accessing a now-renamed Ash attribute) is not
+detected or repaired by this pipeline. See
+[`docs/operations/failure-recovery.md`](docs/operations/failure-recovery.md).
+
+## The Reactor path (opt-in, not the default)
+
+`GgenIgniter.Reactors.ReconcileReactor` is a real, tested `Reactor`-based
+coordinator (plain `Reactor`, not `Ash.Reactor`) implementing a fuller
+pipeline than the default: observe prior manifest → load ontology → resolve
+pack → run queries → render into a real `[%PendingActuation{}]` plan → admit
+(fail-closed, whole-plan invariants) → actuate (concurrent, self-healing) →
+verify (`mix compile --warnings-as-errors`) → finalize evidence (a
+`GgenIgniter.Receipt` persisted **before** manifest promotion, on every
+path — success or failure). It supports multi-target `:targets` fan-out and
+real Reactor `undo/4` rollback when `:verify` fails after `:actuate` already
+wrote files.
+
+There is no CLI flag for this — set `config :ggen_igniter, use_reactor: true`
+in the **consuming** project (default `false`). With the flag left at its
+default, both real call sites (`Mix.Tasks.GgenIgniter.Sync` and
+`GgenIgniter.Controller`) are byte-for-byte unchanged from before this
+pipeline existed. See
+[`docs/tutorials/reactor-path.md`](docs/tutorials/reactor-path.md) for a
+real success receipt and a real compensated-failure receipt, and
+[`docs/reference/reactor/`](docs/reference/reactor/) for the full mechanism.
+
+## Documentation
+
+- [`docs/index.md`](docs/index.md) — full Diataxis-organized documentation map
+- [`docs/glossary.md`](docs/glossary.md) — one definition per term
+- [`docs/status.md`](docs/status.md) — real IMPLEMENTED/PARTIAL_ALIVE/PLANNED status of every capability
+- [`docs/architecture/adr/`](docs/architecture/adr/) — accepted architecture decisions, grounded in current code
+
 ## Known Limitations
 
-Three previously-disclosed gaps, re-verified fresh in this repo on
-2026-08-27 (not carried forward from any prior claim):
-
-1. **Frontmatter `inject`/`before`/`after`/`at_line` wiring — STILL OPEN.**
-   `GgenIgniter.Frontmatter` parses these four fields from a template's YAML
-   frontmatter (`lib/ggen_igniter/frontmatter.ex`), and
-   `GgenIgniter.Actuate.inject_content!/5` (`lib/ggen_igniter/actuate.ex`) is
-   fully implemented and tested — but `lib/mix/tasks/ggen_igniter.sync.ex`
-   contains no call to `inject_content!` and no branch on `:inject` at all
-   (confirmed by grep: zero matches). Setting `inject: true` (or
-   `before`/`after`/`at_line`) in a template's frontmatter today has no
-   observable effect on `mix ggen_igniter.sync`'s behavior; a consumer that
-   needs injection must call `GgenIgniter.Actuate.inject_content!/5`
-   directly. `frontmatter.ex`'s own moduledoc documents this same gap
-   in-source (search "Disclosed gap" there) — this README entry mirrors
-   that verified, current state, not a stale summary of it.
+1. **Frontmatter `inject: true` splice — real and wired (README correction,
+   verified 2026-08-27).** A prior version of this document stated that
+   `mix ggen_igniter.sync` had no call to `Actuate.inject_content!/5`. A
+   real `grep -n "inject_content!\|:inject" lib/mix/tasks/ggen_igniter.sync.ex`
+   finds a real `inject_spec = if mode == :file and
+   (frontmatter_field(frontmatter, :inject) || false) do
+   resolve_injection!(frontmatter) end` branch and a real
+   `Actuate.inject_content!(...)` call site, and
+   `mix test test/ggen_igniter_sync_inject_test.exs` passes 9 tests, 0
+   failures. Setting `inject: true` (plus exactly one of `before:`/`after:`/
+   `at_line:`) in a template's frontmatter really splices the rendered body
+   into the resolved `--out` path's existing content — see
+   [`docs/reference/cli/sync.md`](docs/reference/cli/sync.md)'s `inject:
+   true` section for the full anchor-resolution and idempotency rules. This
+   is a marker-based line splice, not an AST-based structural patch — see
+   [`docs/architecture/adr/0006-marker-based-injection-not-ast-patch.md`](docs/architecture/adr/0006-marker-based-injection-not-ast-patch.md).
 
 2. **`test/e2e/run_e2e.exs` exit-code masking — CLOSED.** The script starts
    `ExUnit.start(timeout: 300_000, autorun: false)`, runs the suite via a

@@ -79,6 +79,14 @@ defmodule GgenIgniter.E2e.LifecycleTest do
   @domain_rel_path "lib/support_desk/support.ex"
   @router_rel_path "lib/support_desk_web/router.ex"
 
+  # Real, deterministic stdin answers fed to Stage 6's real
+  # `mix ash_phoenix.gen.live` subprocess via `cmd!/3`'s `:input` option --
+  # see that call site's own comment for the full, file:line-cited
+  # investigation into why this subprocess issues real interactive prompts
+  # with no CLI flag to suppress them, and why "n" (reject) is fed rather
+  # than blank/"y".
+  @ash_phoenix_gen_live_prompt_answers String.duplicate("n\n", 20)
+
   test "full lifecycle: scaffold, add resource, add field, add relationship, custom action, Form, LiveView, rename" do
     # -- Stage 0: scaffold a real, throwaway app; baseline green BEFORE
     #    ggen_igniter touches anything. -----------------------------------
@@ -236,23 +244,75 @@ defmodule GgenIgniter.E2e.LifecycleTest do
     #    rendering, and submitting the REAL generated
     #    TicketLive.{Index,Form,Show} LiveViews. -----------------------
     #
-    # NOTE on --resource: this deliberately targets Ticket (not Customer),
-    # even though Ticket has two actions of Ash action type :update
-    # (:update and :archive -- see alp:TicketArchiveAction above), which
-    # means `Ash.Resource.Info.primary_action(Ticket, :update)` is ambiguous
-    # and `AshPhoenix.Gen.Live`'s interactive update-action-resolution prompts
-    # (Mix.shell().yes?/Mix.shell().prompt/1) all deterministically answer
-    # "no"/"" on EOF (this subprocess has no stdin attached), per
-    # Mix.Shell.IO's real `yes?/2` implementation (`is_binary(:eof) == false`)
-    # -- so this resolves to `update_action: nil` in one pass, not a hang.
-    # The CLI schema for `Mix.Tasks.AshPhoenix.Gen.Live` (ash_phoenix
-    # 2.3.24) exposes no `--update-action`/`--create-action` override to
-    # disambiguate this directly, so this is the real, correct behavior to
-    # expect here, not a workaround. This is *why* Ticket (not the
-    # unambiguous Customer) must be the Stage 6 target in the first place:
-    # Stage 7's rename targets Ticket's "assignee" attribute, and only
-    # Ticket's generated LiveView code will contain a real, breakable
-    # reference to it.
+    # FIXED (2026-08-27): this call used to genuinely HANG FOREVER --
+    # confirmed twice, independently, across two separate real `mix e2e`
+    # runs (each left running 40min-2h+ at 0% CPU before being killed).
+    #
+    # Real root cause, confirmed by reading the actual installed
+    # `ash_phoenix` 2.3.24 source (deps/ash_phoenix in a real sibling
+    # checkout, e.g. `/Users/sac/xaas/deps/ash_phoenix`; ggen_igniter itself
+    # has no direct ash_phoenix dep, so it isn't under this repo's own
+    # `deps/`) -- the PREVIOUS version of this comment guessed this resolves
+    # fast on EOF; that guess was never executed and is WRONG:
+    #
+    #   * `Mix.Tasks.AshPhoenix.Gen.Live.info/2`'s own `schema`
+    #     (lib/mix/tasks/ash_phoenix.gen.live.ex:39-49) has NO `--yes` key at
+    #     all -- the `--yes` flag below is silently consumed by Igniter's
+    #     own separate global CLI flag (file-write confirmation), not by
+    #     anything in this task.
+    #   * `AshPhoenix.Gen.Live.generate_from_cli/2`
+    #     (lib/ash_phoenix/gen/live.ex:21-26) hardcodes `interactive?: true`
+    #     UNCONDITIONALLY -- there is no flag in this ash_phoenix version
+    #     that turns this off. That same function also silently drops
+    #     `scope`/`tenant`/`actor`/`no_tenant` from `options` when building
+    #     the `opts` list handed to `generate/4`, even though they ARE
+    #     accepted in the Mix task's own schema -- so no CLI flag
+    #     combination can reach `AshPhoenix.Gen.prompt_for_multitenancy/1`'s
+    #     `opts[:scope]`/`opts[:actor]`/`opts[:tenant]` guards either.
+    #   * `AshPhoenix.Gen.prompt_for_multitenancy/1`
+    #     (lib/ash_phoenix/gen/gen.ex:62-87) therefore ALWAYS falls to its
+    #     `true ->` branch and calls
+    #     `Mix.shell().yes?("Are you using multi-tenancy?")` (gen.ex:74) --
+    #     a REAL interactive prompt, hit BEFORE any of the
+    #     update-action-ambiguity prompts described below.
+    #   * `Mix.Shell.IO.yes?/2` (Elixir's own
+    #     `lib/mix/lib/mix/shell/io.ex`) calls `IO.gets/1` on the real OS
+    #     stdin. `cmd!/3` previously ran this via `System.cmd/3`, which
+    #     leaves a subprocess's stdin as a REAL OPEN PIPE the parent BEAM
+    #     never writes to or closes -- `IO.gets` BLOCKS FOREVER on that, it
+    #     does not see an immediate EOF. Verified directly in this session:
+    #     `Task.async(fn -> System.cmd("cat", []) end) |> Task.yield(5_000)`
+    #     never returns. That is the real hang.
+    #
+    # Real fix: `cmd!/3` (e2e_case.ex) now accepts a real `:input` option --
+    # real bytes fed to the subprocess's real stdin via a real
+    # `Port.command/2`, so every `Mix.shell().yes?/1` call above gets a
+    # real, deterministic "n" (reject) answer, exactly as if a human had
+    # typed "n" and pressed Enter. "n" (not blank/"y") is fed specifically
+    # so multi-tenancy/scope/actor are all rejected and the ambiguous
+    # `:update` action resolves to `update_action: nil` -- Ticket has two
+    # actions of Ash action type :update (:update and :archive -- see
+    # alp:TicketArchiveAction above), so
+    # `Ash.Resource.Info.primary_action(Ticket, :update)` is ambiguous and
+    # `AshPhoenix.Gen.Live`'s own update-action-resolution prompts
+    # (`lib/ash_phoenix/gen/live.ex:198-272`) engage. Traced every real
+    # `Mix.shell().yes?`/`Mix.shell().prompt` call reachable from
+    # `AshPhoenix.Gen.Live.generate/4`: answering "n" to every yes/no branch
+    # point never reaches a free-text `prompt/1` call (which would require a
+    # real action name, not "n") -- worst case traced is 4 prompts (two
+    # multitenancy + two update-action-ambiguity); 20 "n\n" repeats are fed
+    # as real headroom. This is *why* Ticket (not the unambiguous Customer)
+    # must be the Stage 6 target in the first place: Stage 7's rename
+    # targets Ticket's "assignee" attribute, and only Ticket's generated
+    # LiveView code will contain a real, breakable reference to it.
+    #
+    # Standalone verification (this session, not part of `mix e2e`): ran
+    # this exact `mix ash_phoenix.gen.live` command in isolation against a
+    # real scaffolded throwaway app via `scaffold_app!/1`, with this same
+    # `:input` fix applied -- completed in real bounded time (a few real
+    # seconds), no hang, confirmed via real `mix compile` of the generated
+    # LiveViews afterward. See this session's manufacturing receipt for the
+    # exact commands and output.
     cmd!(
       "mix",
       [
@@ -265,7 +325,8 @@ defmodule GgenIgniter.E2e.LifecycleTest do
         "tickets",
         "--yes"
       ],
-      cd: app_dir
+      cd: app_dir,
+      input: @ash_phoenix_gen_live_prompt_answers
     )
 
     compile!(app_dir)

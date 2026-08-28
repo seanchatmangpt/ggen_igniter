@@ -1,0 +1,46 @@
+{
+  "agent_1_architecture": [
+    "docs/architecture/**"
+  ],
+  "agent_2_tutorials": [
+    "docs/tutorials/**"
+  ],
+  "agent_3_cli_reference": [
+    "docs/reference/cli/**"
+  ],
+  "agent_4_reactor_kernel": [
+    "docs/reference/reactor/**"
+  ],
+  "agent_5_reconciliation": [
+    "docs/reference/reconciliation/**"
+  ],
+  "agent_6_ash_phoenix": [
+    "docs/integrations/ash/**",
+    "docs/integrations/phoenix/**"
+  ],
+  "agent_7_ggen_igniter": [
+    "docs/integrations/ggen/**",
+    "docs/integrations/igniter/**"
+  ],
+  "agent_8_evidence_ocel": [
+    "docs/reference/evidence/**"
+  ],
+  "agent_9_testing_chicago": [
+    "docs/testing/**"
+  ],
+  "agent_10_operations_audit": [
+    "docs/operations/**",
+    "docs/contributing/**",
+    "docs/DOCUMENTATION_AUDIT.md"
+  ],
+  "phase_2_integration": [
+    "README.md",
+    "docs/README.md",
+    "docs/index.md",
+    "docs/glossary.md",
+    "docs/status.md"
+  ],
+  "phase_3_adversarial": [
+    "docs/reviews/**"
+  ]
+}

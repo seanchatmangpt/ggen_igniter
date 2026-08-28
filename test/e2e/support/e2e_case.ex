@@ -20,24 +20,138 @@ defmodule GgenIgniter.E2e.Case do
 
   @ggen_igniter_path "/Users/sac/ggen_igniter"
 
+  # Real, verified default (2026-08-27) -- see cmd!/3's moduledoc below for
+  # the full root-cause investigation this hardens against.
+  @default_cmd_timeout_ms 120_000
+
   @doc """
-  Runs `System.cmd/3`, merging stderr into stdout and asserting a zero exit
-  status. Raises a `RuntimeError` with the full captured output on failure so
-  the real subprocess output is visible in the test failure, not swallowed.
+  Runs a real OS subprocess via a real `Port.open/2` (NOT `System.cmd/3` --
+  see the two real, verified reasons below), merging stderr into stdout and
+  asserting a zero exit status. Raises a `RuntimeError` with the full
+  captured output on a nonzero exit, exactly as the previous `System.cmd/3`-
+  based implementation did (same error message shape, verified against
+  `test/e2e_case_unit_test.exs`'s real assertions).
+
+  ## Real bug fixed 2026-08-27: `mix ash_phoenix.gen.live` hung forever here
+
+  Confirmed twice, independently, across two separate real `mix e2e` runs
+  (each left running 40min-2h+ at 0% CPU before being killed) hanging at the
+  real `mix ash_phoenix.gen.live ...` subprocess in
+  `test/e2e/lifecycle_test.ex`'s Stage 6 -- see that call site's own comment
+  for the full file:line-cited investigation into the real installed
+  `ash_phoenix` 2.3.24 source proving this is a real, unavoidable interactive
+  prompt (`Mix.shell().yes?/1`, no CLI flag suppresses it), not a
+  hypothetical one.
+
+  Root cause of *why* it hung forever rather than resolving fast, confirmed
+  directly in this session (`elixir -e 'Task.async(fn -> System.cmd("cat",
+  []) end) |> Task.yield(5_000)'` never returns): `System.cmd/3` leaves the
+  real OS subprocess's stdin as a REAL, OPEN pipe -- the parent BEAM never
+  writes to it and never closes it, so a subprocess doing a blocking
+  `IO.gets`/`read()` on stdin blocks FOREVER. It does NOT see an immediate
+  EOF, contrary to what this codebase previously assumed uninvestigated at
+  the Stage 6 call site (that assumption has since been corrected there,
+  with this real finding cited).
+
+  Real fix: the new `:input` option below writes real bytes to the real
+  subprocess's stdin via a real `Port.command/2`, then closes it, so any
+  interactive prompt gets a real, deterministic answer -- the same real pipe
+  a human's terminal would provide, not a black hole.
+
+  ## Real hardening added 2026-08-27: bounded `:timeout`, independent of the fix above
+
+  Every call now enforces a real wall-clock `:timeout` (default
+  `#{@default_cmd_timeout_ms}`ms / #{div(@default_cmd_timeout_ms, 1_000)}s).
+  If exceeded, the real subprocess is sent a real `SIGKILL` by its real OS
+  pid (`Port.info(port, :os_pid)` + `System.cmd("kill", ["-9", pid])`) and a
+  distinct, clear timeout `RuntimeError` is raised, instead of hanging
+  forever again on some future missed prompt this fix didn't anticipate.
+  Verified directly in this session that neither plain `Port.close/1` nor
+  `Task.shutdown(task, :brutal_kill)` around a `System.cmd/3` call actually
+  kills the real OS child process (both leak a real, orphaned OS process,
+  confirmed via real `ps aux` before/after) -- only an explicit SIGKILL by
+  the real OS pid does.
+
+  ## Options
+
+    * `:cd` - working directory for the subprocess (same meaning as
+      `System.cmd/3`'s `:cd`).
+    * `:input` - binary written to the real subprocess's real stdin
+      immediately after spawn, then the write end is closed. Omit (default
+      `nil`) for a subprocess that never reads stdin.
+    * `:timeout` - milliseconds before the real subprocess is SIGKILLed and
+      a timeout error raised. Defaults to `#{@default_cmd_timeout_ms}`.
+
+  Any other option is ignored: this helper no longer forwards raw opts
+  straight to `System.cmd/3` -- merging stderr into stdout is always on
+  (matching every real caller's actual usage; grepped, none override it).
   """
   def cmd!(command, args, opts \\ []) do
-    merged_opts = Keyword.merge([stderr_to_stdout: true], opts)
+    {timeout, opts} = Keyword.pop(opts, :timeout, @default_cmd_timeout_ms)
+    {input, opts} = Keyword.pop(opts, :input)
+    cd = Keyword.get(opts, :cd)
 
-    case System.cmd(command, args, merged_opts) do
-      {output, 0} ->
+    executable =
+      System.find_executable(command) ||
+        raise RuntimeError, "command not found on PATH: #{command}"
+
+    base_port_opts = [:binary, :exit_status, :stderr_to_stdout, :use_stdio, :hide, args: args]
+    port_opts = if cd, do: [{:cd, cd} | base_port_opts], else: base_port_opts
+
+    port = Port.open({:spawn_executable, executable}, port_opts)
+
+    if input, do: Port.command(port, input)
+
+    case collect_cmd_output(port, "", timeout) do
+      {:ok, output, 0} ->
         output
 
-      {output, exit_status} ->
+      {:ok, output, exit_status} ->
         raise RuntimeError, """
         command failed: #{command} #{Enum.join(args, " ")} (exit #{exit_status})
 
         #{output}
         """
+
+      {:timeout, output, os_pid} ->
+        raise RuntimeError, """
+        command timed out after #{timeout}ms and was killed \
+        (real SIGKILL, real OS pid #{inspect(os_pid)}): \
+        #{command} #{Enum.join(args, " ")}
+
+        real output captured before the kill:
+
+        #{output}
+        """
+    end
+  end
+
+  # Drains a real port's real stdout/stderr (merged) until real process exit
+  # or the real wall-clock timeout, whichever comes first. On timeout, kills
+  # the real OS process for real (see cmd!/3's moduledoc for why a plain
+  # `Port.close/1` is not enough -- verified to leak the real OS process).
+  defp collect_cmd_output(port, acc, timeout) do
+    receive do
+      {^port, {:data, data}} ->
+        collect_cmd_output(port, acc <> data, timeout)
+
+      {^port, {:exit_status, status}} ->
+        {:ok, acc, status}
+    after
+      timeout ->
+        os_pid =
+          case Port.info(port, :os_pid) do
+            {:os_pid, pid} -> pid
+            _ -> nil
+          end
+
+        Port.close(port)
+
+        if os_pid do
+          System.cmd("kill", ["-9", to_string(os_pid)], stderr_to_stdout: true)
+        end
+
+        {:timeout, acc, os_pid}
     end
   end
 
