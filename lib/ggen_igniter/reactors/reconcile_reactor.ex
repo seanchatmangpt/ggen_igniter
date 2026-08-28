@@ -774,7 +774,11 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   `{:error, {:unsupported_capability, reason}}` when the resolved template
   has a `---` frontmatter header -- this bounded pipeline (like `run/1`,
   via `Mix.Tasks.GgenIgniter.Sync`'s own `run_via_reactor/3` guard) does not
-  implement frontmatter parsing. `{:error, reason}` for any other
+  implement frontmatter parsing. `reason` names the concrete alternative
+  (`mix ggen_igniter.sync --dry-run`, whose inline pipeline previews
+  frontmatter-bearing templates -- including `inject: true` targets -- for
+  real, without writing anything) rather than only stating the limitation.
+  `{:error, reason}` for any other
   admission-time refusal (one of `admit_pending/2`'s own tagged reasons:
   `:refused_duplicate_output_path` / `:refused_path_escapes_root` /
   `:refused_unowned_delete` / `:refused_stale_outputs`).
@@ -805,7 +809,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       {:error,
        {:unsupported_capability,
         "template frontmatter (#{template_path} has a --- header -- " <>
-          "GgenIgniter.Reactors.ReconcileReactor.plan/1 does not implement frontmatter parsing)"}}
+          "GgenIgniter.Reactors.ReconcileReactor.plan/1 does not implement frontmatter parsing). " <>
+          "Use `mix ggen_igniter.sync --dry-run` instead -- its inline pipeline previews " <>
+          "frontmatter-bearing templates, including inject: true targets."}}
     else
       targets =
         reconcile_opts

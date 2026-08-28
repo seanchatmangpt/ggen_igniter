@@ -849,6 +849,49 @@ defmodule GgenIgniter.ReconcileReactorTest do
     path
   end
 
+  # -- Test: plan/1's frontmatter-unsupported error names the real alternative
+
+  defp write_frontmatter_template!(dir) do
+    path = Path.join(dir, "frontmatter.ex.eex")
+
+    File.write!(path, """
+    ---
+    to: "lib/<%= module_name %>.ex"
+    ---
+    defmodule <%= module_name %> do
+      def greeting, do: "<%= greeting %>"
+    end
+    """)
+
+    path
+  end
+
+  describe "plan/1 on a frontmatter-bearing template" do
+    test "refuses with :unsupported_capability whose message names mix ggen_igniter.sync --dry-run as the real alternative" do
+      fixtures = scratch_dir!()
+      ontology_path = write_ontology!(fixtures)
+      query_path = write_query!(fixtures, "spec_alpha", "Alpha")
+      template_path = write_frontmatter_template!(fixtures)
+
+      assert {:error, {:unsupported_capability, message}} =
+               ReconcileReactor.plan(
+                 engine: "sparql",
+                 ontology: ontology_path,
+                 query: "spec=#{query_path}",
+                 template: template_path
+               )
+
+      assert message =~ template_path
+      assert message =~ "does not implement frontmatter parsing"
+
+      assert message =~ "mix ggen_igniter.sync --dry-run",
+             "message should name the real, working alternative command, not just the limitation: #{inspect(message)}"
+
+      assert message =~ "inject: true",
+             "message should note --dry-run also previews inject: true targets: #{inspect(message)}"
+    end
+  end
+
   defp fetch_mark!(marks, index, event) do
     case Enum.find(marks, fn {{i, e}, _ts} -> i == index and e == event end) do
       {{^index, ^event}, ts} ->
