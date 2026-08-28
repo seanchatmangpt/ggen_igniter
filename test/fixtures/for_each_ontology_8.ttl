@@ -1,0 +1,14 @@
+@prefix mod: <http://seanchatmangpt.github.io/packs/multi-module8#> .
+
+# 8-row fixture for --for-each notice-output-readability testing (DX pass,
+# 2026-08-28): eight independent modules so a single sync run produces eight
+# separate output files.
+
+mod:M1 a mod:GeneratedModule ; mod:moduleName "Multi8.A" ; mod:fieldName "a_field" .
+mod:M2 a mod:GeneratedModule ; mod:moduleName "Multi8.B" ; mod:fieldName "b_field" .
+mod:M3 a mod:GeneratedModule ; mod:moduleName "Multi8.C" ; mod:fieldName "c_field" .
+mod:M4 a mod:GeneratedModule ; mod:moduleName "Multi8.D" ; mod:fieldName "d_field" .
+mod:M5 a mod:GeneratedModule ; mod:moduleName "Multi8.E" ; mod:fieldName "e_field" .
+mod:M6 a mod:GeneratedModule ; mod:moduleName "Multi8.F" ; mod:fieldName "f_field" .
+mod:M7 a mod:GeneratedModule ; mod:moduleName "Multi8.G" ; mod:fieldName "g_field" .
+mod:M8 a mod:GeneratedModule ; mod:moduleName "Multi8.H" ; mod:fieldName "h_field" .

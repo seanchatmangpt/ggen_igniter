@@ -119,6 +119,9 @@ already-loaded graph:
 mix ggen_igniter.sync \
   --ontology test/fixtures/audit_trail_ontology.ttl \
   --query spec=test/fixtures/spec.rq \
+  --query sections=test/fixtures/sections.rq \
+  --query entities=test/fixtures/entities.rq \
+  --query fields=test/fixtures/fields.rq \
   --template test/fixtures/extension.ex.eex \
   --out tmp_out/probe.ex
 ```
@@ -191,8 +194,12 @@ touching disk — each planned action is printed as `planned: write <path>` or
 Given `priv/ggen/<pack-name>/{ontology.ttl,gates/*.rq,templates/extension.ex.eex}`:
 
 ```
-mix ggen_igniter.sync --pack audit-trail-pack --out lib/generated.ex
+mix ggen_igniter.sync --pack adr-index-pack --out docs/architecture/adr/README.md
 ```
+
+(`adr-index-pack` is this repo's own real pack, at
+`priv/ggen/adr-index-pack/` — it's what regenerates
+[`docs/architecture/adr/README.md`](docs/architecture/adr/README.md) itself.)
 
 `--ontology`/`--query`/`--template` are all still overridable explicitly; an
 explicit flag always wins over the pack-derived default. `--pack-dir DIR`

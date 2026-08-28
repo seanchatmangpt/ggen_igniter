@@ -74,6 +74,12 @@ defmodule Mix.Tasks.GgenIgniter.Replay do
   as already present). `--json` prints the machine-readable report
   (`%{"drift" => [...], "categories" => %{...}, "receipt" => %{...}}`)
   instead of the human-readable lines.
+
+  ## Examples
+
+      mix ggen_igniter.replay .ggen_igniter/receipts/2026-08-27.jsonl
+
+      mix ggen_igniter.replay tmp/one_receipt.json --json --manifest-dir priv/ggen/audit-trail-pack
   """
   use Mix.Task
 
@@ -85,23 +91,37 @@ defmodule Mix.Tasks.GgenIgniter.Replay do
   def run(argv) do
     {opts, positional, invalid} =
       OptionParser.parse(argv,
-        strict: [verify_only: :boolean, json: :boolean, manifest_dir: :string],
-        aliases: []
+        strict: [
+          verify_only: :boolean,
+          json: :boolean,
+          manifest_dir: :string,
+          help: :boolean,
+          version: :boolean
+        ],
+        aliases: [h: :help, v: :version]
       )
 
+    json? = Keyword.get(opts, :json, false)
+
     cond do
+      opts[:help] ->
+        print_help_and_halt()
+
+      opts[:version] ->
+        print_version_and_halt()
+
       invalid != [] ->
-        invalid_invocation("unrecognized flag(s): #{inspect(invalid)}")
+        invalid_invocation("unrecognized flag(s): #{inspect(invalid)}", json?)
 
       positional == [] ->
         invalid_invocation(
-          "usage: mix ggen_igniter.replay <receipt_file> [--verify-only] [--json] [--manifest-dir DIR]"
+          "usage: mix ggen_igniter.replay <receipt_file> [--verify-only] [--json] [--manifest-dir DIR]",
+          json?
         )
 
       true ->
         [receipt_file | _rest] = positional
         manifest_dir = Keyword.get(opts, :manifest_dir, File.cwd!())
-        json? = Keyword.get(opts, :json, false)
 
         case load_receipt(receipt_file) do
           {:ok, receipt} ->
@@ -110,14 +130,71 @@ defmodule Mix.Tasks.GgenIgniter.Replay do
             halt(if report.categories == [], do: 0, else: 1)
 
           {:error, reason} ->
-            invalid_invocation(reason)
+            invalid_invocation(reason, json?)
         end
     end
   end
 
-  defp invalid_invocation(message) do
+  # `--json` mode must emit ONLY valid JSON to stdout on every real code
+  # path this task can take -- including invalid-invocation (missing/bad
+  # receipt file, unrecognized flag, no positional arg). Before this fix,
+  # every one of those cases went to `Mix.shell().error/1` (stderr) with
+  # NOTHING printed to stdout, so a `--json` caller piping stdout into a
+  # JSON parser got empty input instead of a parseable error object -- the
+  # same real defect class the success path had (see `print_report/2`'s
+  # JSON branch, which this mirrors), just on the invalid-invocation path
+  # instead of the drift-report path. The human-readable message still also
+  # goes to stderr (diagnostics/warnings belong on stderr, not stdout) so a
+  # human running this without `--json` sees the same message as before.
+  defp invalid_invocation(message, json?) do
     Mix.shell().error("ggen_igniter.replay: #{message}")
+
+    if json? do
+      Mix.shell().info(Jason.encode!(%{"error" => message}, pretty: true))
+    end
+
     halt(2)
+  end
+
+  defp print_help_and_halt do
+    IO.puts("""
+    mix ggen_igniter.replay -- replays a receipt and reports real drift since it was recorded
+
+    USAGE
+        mix ggen_igniter.replay <receipt_file> [--verify-only] [--json]
+                                 [--manifest-dir DIR] [--help] [--version]
+
+    FLAGS
+        <receipt_file>      A .jsonl receipt partition (last line replayed) or a single
+                             JSON receipt object file. Required.
+        --verify-only        Read-only comparison (the only mode implemented today).
+        --json                Emit the machine-readable report instead of human lines.
+        --manifest-dir DIR    Directory holding .ggen_igniter/manifest.json. Default: cwd.
+        --help, -h            Print this help and exit 0.
+        --version, -v         Print ggen_igniter's version and exit 0.
+
+    EXAMPLES
+        mix ggen_igniter.replay .ggen_igniter/receipts/2026-08-27.jsonl
+
+        mix ggen_igniter.replay tmp/one_receipt.json --json --manifest-dir priv/ggen/audit-trail-pack
+
+    EXIT CODES
+        0  receipt loaded and compared; no real drift detected
+        1  receipt loaded and compared; at least one real drift category found
+        2  invalid invocation (missing/unreadable/unparsable receipt file, or a bad flag)
+    """)
+
+    halt(0)
+  end
+
+  defp print_version_and_halt do
+    version = Application.spec(:ggen_igniter, :vsn) |> to_string()
+    IO.puts("ggen_igniter #{version}")
+    halt(0)
+  rescue
+    _ ->
+      IO.puts("ggen_igniter unknown")
+      halt(0)
   end
 
   # `System.halt/1` is real here (not `Mix.raise/1`) because this task's

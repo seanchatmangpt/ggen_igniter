@@ -114,6 +114,10 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
         query: [:string, :keep],
         engine: :string,
         store_id: :string,
+        out: :string,
+        mode: :string,
+        unless_exists: :boolean,
+        skip_if: :string,
         json: :boolean,
         help: :boolean,
         version: :boolean,
@@ -121,6 +125,7 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
         verbose: :boolean,
         no_color: :boolean
       ],
+      aliases: [h: :help, v: :version, q: :quiet],
       required: []
     }
   end
@@ -143,16 +148,38 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
     end
   end
 
-  defp run_plan(igniter, opts) do
+  defp run_plan(_igniter, opts) do
     plan_opts =
       opts
-      |> Keyword.take([:template, :pack, :pack_dir, :query, :engine, :store_id])
+      |> Keyword.take([
+        :template,
+        :pack,
+        :pack_dir,
+        :query,
+        :engine,
+        :store_id,
+        :out,
+        :mode,
+        :unless_exists,
+        :skip_if
+      ])
       |> validate_plan_opts!()
 
     case ReconcileReactor.plan(plan_opts) do
       {:ok, pending_actuations} when is_list(pending_actuations) ->
         report(opts, plan_opts, pending_actuations)
-        igniter
+        # This task never mutates the target project (see the "Read-only, no
+        # lock" moduledoc section) -- `igniter` here always carries zero
+        # proposed changes. Returning it to `Igniter.Mix.Task`'s runner would
+        # let Igniter print its own "No proposed content changes!" (or, with
+        # real changes somehow present, a diff) footer to stdout AFTER the
+        # report above, which corrupts `--json` output (the reader gets
+        # trailing non-JSON bytes after a validly-closed JSON document) and
+        # adds noise to human output. Halt directly with the same real exit
+        # code (0) `mix ggen_igniter.sync` documents for "plan computed
+        # successfully" instead, exactly as the two error branches below
+        # already halt directly rather than returning to the Igniter runner.
+        System.halt(0)
 
       {:error, {:unsupported_capability, reason}} ->
         report_error(opts, "unsupported capability: #{reason}")
@@ -223,28 +250,35 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
     Mix.shell().info("""
     mix ggen_igniter.plan -- read-only admission preview (no filesystem mutation)
 
-    Usage:
-      mix ggen_igniter.plan --template path.eex --query name=path.rq [opts]
-      mix ggen_igniter.plan --pack NAME[:template_stem] [--query name=path.rq] [opts]
+    USAGE
+        mix ggen_igniter.plan --template path.eex --query name=path.rq [opts]
+        mix ggen_igniter.plan --pack NAME[:template_stem] [--query name=path.rq] [opts]
 
-    Options:
-      --template PATH        Template file (or resolved via --pack/--pack-dir)
-      --pack NAME[:STEM]     Pack convention (priv/ggen/NAME/...)
-      --pack-dir DIR         Explicit pack directory (bypasses the priv/ggen/NAME convention)
-      --query NAME=PATH      Named query (repeatable)
-      --engine ENGINE        oxigraph (default) | sparql | qlever
-      --store-id ID          Required with --engine qlever
-      --json                 Emit the plan as JSON instead of human-readable text
-      --quiet                Suppress non-essential output
-      --verbose               Print additional diagnostic detail
-      --no-color              Disable ANSI color in human-readable output
-      --help                  Print this help and exit 0
-      --version                Print the tool version and exit 0
+    FLAGS
+        --template PATH    Template file (or resolved via --pack/--pack-dir).
+        --pack NAME[:STEM] Pack convention (priv/ggen/NAME/...).
+        --pack-dir DIR     Explicit pack directory (bypasses the priv/ggen/NAME convention).
+        --query NAME=PATH  Named query (repeatable).
+        --engine ENGINE    One of: oxigraph, sparql, qlever. Default: oxigraph.
+        --store-id ID      Required with --engine qlever.
+        --json             Emit the plan as JSON instead of human-readable text.
+        --quiet, -q        Suppress non-essential output.
+        --verbose          Print additional diagnostic detail.
+        --no-color         Disable ANSI color in human-readable output.
+        --help, -h         Print this help and exit 0.
+        --version, -v      Print the tool version and exit 0.
 
-    Exit codes:
-      0  plan computed successfully
-      2  invalid invocation
-      3  unsupported capability for the read-only plan path
+    EXAMPLES
+        mix ggen_igniter.plan --pack ash-lifecycle-pack:resource \\
+          --query resource=priv/ggen/ash-lifecycle-pack/gates/resource.rq
+
+        mix ggen_igniter.plan --template test/fixtures/extension.ex.eex \\
+          --query spec=test/fixtures/spec.rq --json
+
+    EXIT CODES
+        0  plan computed successfully
+        2  invalid invocation
+        3  unsupported capability for the read-only plan path
     """)
   end
 

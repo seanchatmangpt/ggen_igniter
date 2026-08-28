@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.GgenIgniter.Doctor do
   @moduledoc """
-  Diagnostic task: `mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine sparql|qlever] [--store-id ID] [--fix]`.
+  Diagnostic task: `mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine sparql|qlever] [--store-id ID] [--fix] [--strict]`.
 
   Runs a fixed checklist of real checks (no fabricated pass output):
 
@@ -51,12 +51,24 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       `version:` is a simple string literal); an ambiguous shape (no CHANGELOG.md, no
       `## v` heading, or a non-literal `version:`) is reported `✘` as informational-only,
       never guessed at.
+  18. `GgenIgniter.Lock`'s real cross-process `.ggen_igniter/.sync.lock` file (see
+      `GgenIgniter.Lock`'s moduledoc) is checked against the CURRENT project
+      (`File.cwd!()`): absent is `✔` (no lock held); present and younger than
+      `GgenIgniter.Lock`'s own 5-minute stale threshold is `✔` info naming the real
+      holder marker (`pid=... node=... at=...`) written by `GgenIgniter.Lock.acquire/2`
+      -- a live/recent lock held by a real, still-running `mix ggen_igniter.sync`/
+      `.replay` invocation is not a problem; present and older than 5 minutes is a real
+      `⚠` warning naming the exact real remedy (the next `acquire/2` call anywhere
+      against this project automatically deletes it -- `GgenIgniter.Lock` has no
+      `--force-unlock` flag, so this never invents one). Never `:error`: a held lock,
+      stale or not, is advisory information about another invocation, not a defect in
+      the current project.
 
   Checks 9-12 only run when `--pack`/`--pack-dir` is given; without it, only checks 1-3
   and 4-7 (and 8, if `--engine qlever` was explicitly passed with a graph-free reachability
-  check is not possible, so 8 is skipped) run. Checks 4-7, 13-15, and 17 always run. Check
-  16 only runs with `--hex-check` (it shells out to `mix hex.build`, which is slow, so it
-  stays off by default to keep `mix ggen_igniter.doctor` fast).
+  check is not possible, so 8 is skipped) run. Checks 4-7, 13-15, 17, and 18 always run.
+  Check 16 only runs with `--hex-check` (it shells out to `mix hex.build`, which is slow,
+  so it stays off by default to keep `mix ggen_igniter.doctor` fast).
 
   ## `--fix`
 
@@ -69,10 +81,27 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   run; a real problem whose exact shape isn't safely automatable is reported as a `✘`
   error rather than silently skipped or guessed at.
 
+  ## `--strict`
+
+  Without `--strict`, only `:error`-level checks fail the run (exit 1); `:warn`-level
+  checks (e.g. "git dirty", "not a git repo", a `--fix`-able hygiene gap reported
+  without `--fix`) are advisory only and never affect the exit code. With `--strict`,
+  any check currently reporting `:warn` also fails the run (exit 1) -- each such line
+  is suffixed `[STRICT]` in human output (and carries `"strict_failure": true` in
+  `--json` output) so it's clear which failures are strict-mode-only and would pass
+  under the default mode.
+
+  ## Examples
+
+      mix ggen_igniter.doctor
+
+      mix ggen_igniter.doctor --pack audit-trail-pack --json
+
   ## Exit codes
 
-  - `0` -- all checks passed.
-  - `1` -- ran the full checklist and at least one check came back `:error`.
+  - `0` -- all checks passed (under `--strict`, this also means no `:warn` findings).
+  - `1` -- ran the full checklist and at least one check came back `:error` (or, under
+    `--strict`, at least one came back `:warn`).
   - `2` -- invalid invocation/configuration: an unrecognized flag, `--engine` not one
     of `oxigraph`/`sparql`/`qlever`, or both `--pack` and `--pack-dir` given at once.
     The checklist never runs.
@@ -108,6 +137,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         store_id: :string,
         hex_check: :boolean,
         fix: :boolean,
+        strict: :boolean,
         json: :boolean,
         help: :boolean,
         version: :boolean,
@@ -132,7 +162,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   #   4 - blocked by authority/lock/environment (`--fix` needs exclusive
   #       write access to CURRENT project state and cannot get it).
   @known_flags ~w(--pack --pack-dir --engine --store-id --hex-check --no-hex-check
-                  --fix --no-fix --json --no-json --help --version --quiet
+                  --fix --no-fix --strict --no-strict --json --no-json --help --version --quiet
                   --no-quiet --verbose --no-verbose --no-color -h -v -q
                   --dry-run --no-dry-run --yes --no-yes --yes-to-deps --no-yes-to-deps
                   --only --check --no-check --scribe --from-igniter-new
@@ -214,34 +244,45 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
 
     checks =
       [
-        check_elixir_otp_version(),
-        check_deps(opts),
-        check_sparql_advisory()
+        tag("elixir_otp_version", check_elixir_otp_version()),
+        tag("deps", check_deps(opts)),
+        tag("sparql_advisory", check_sparql_advisory())
       ] ++
         doctor_fix_rule_checks(opts) ++
         [
-          check_version_policy(opts)
+          tag("version_policy", check_version_policy(opts))
         ] ++
         maybe_check_qlever(opts, pack_dir) ++
         if(pack_dir, do: pack_checks(pack_dir), else: []) ++
         [
-          check_git_status(),
-          check_nif_compiles(),
-          check_oxigraph_smoke_test()
+          tag("git_status", check_git_status()),
+          tag("nif_compiles", check_nif_compiles()),
+          tag("oxigraph_smoke_test", check_oxigraph_smoke_test())
         ] ++
         maybe_check_hex_publish(opts)
 
-    failed? = Enum.any?(checks, fn {status, _msg} -> status == :error end)
+    strict? = opts[:strict] == true
+    has_error? = Enum.any?(checks, fn {status, _id, _msg} -> status == :error end)
+    has_warn? = Enum.any?(checks, fn {status, _id, _msg} -> status == :warn end)
+    failed? = has_error? or (strict? and has_warn?)
 
     if opts[:json] do
-      print_json(checks, failed?)
+      print_json(checks, failed?, strict?)
     else
-      Enum.each(checks, &print_check(&1, opts))
+      Enum.each(checks, &print_check(&1, opts, strict?))
 
-      if failed? do
-        IO.puts("✘ ggen_igniter.doctor: one or more checks failed (see ✘ lines above)")
-      else
-        IO.puts("✔ ggen_igniter.doctor: all checks passed (see output above)")
+      cond do
+        failed? and strict? and not has_error? ->
+          IO.puts(
+            "✘ ggen_igniter.doctor: one or more checks failed under --strict " <>
+              "(warnings are treated as failures in --strict mode; see ⚠ [STRICT] lines above)"
+          )
+
+        failed? ->
+          IO.puts("✘ ggen_igniter.doctor: one or more checks failed (see ✘ lines above)")
+
+        true ->
+          IO.puts("✔ ggen_igniter.doctor: all checks passed (see output above)")
       end
     end
 
@@ -260,26 +301,45 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
     end
   end
 
-  defp print_check({status, message}, opts) do
-    # --quiet: only ✘ lines and the final summary line are shown; the
-    # summary line itself is always printed regardless of --quiet.
+  # Stable, machine-addressable identity for a check result, independent of
+  # its human-readable message (AR-10: "Doctor should become scriptable" --
+  # a CI script keys off `check_id`, never parses `message` prose). Applied
+  # at every call site in `run_checks/2` so every one of the (today) 17
+  # checks carries a real snake_case `check_id` into both the human and
+  # `--json` output paths.
+  defp tag(id, {status, message}), do: {status, id, message}
+
+  defp print_check({status, _id, message}, opts, strict?) do
+    # --quiet: only ✘ (and, under --strict, ⚠) lines and the final summary
+    # line are shown; the summary line itself is always printed regardless
+    # of --quiet.
     if status != :ok or opts[:quiet] != true do
-      IO.puts(check_line(status, message, opts))
+      IO.puts(check_line(status, message, strict?))
     end
   end
 
-  defp check_line(status, message, _opts) do
+  defp check_line(status, message, strict?) do
     prefix = %{ok: "✔", warn: "⚠", error: "✘"}[status]
-    "#{prefix} #{message}"
+    # Under --strict, a :warn check also fails the run -- label it so the
+    # human/JSON reader can tell "this warning is why exit code is 1" apart
+    # from an ordinary advisory warning that never fails anything.
+    suffix = if strict? and status == :warn, do: " [STRICT]", else: ""
+    "#{prefix} #{message}#{suffix}"
   end
 
-  defp print_json(checks, failed?) do
+  defp print_json(checks, failed?, strict?) do
     payload = %{
       "checks" =>
-        Enum.map(checks, fn {status, message} ->
-          %{"status" => Atom.to_string(status), "message" => message}
+        Enum.map(checks, fn {status, id, message} ->
+          %{
+            "check_id" => id,
+            "status" => Atom.to_string(status),
+            "message" => message,
+            "strict_failure" => strict? and status == :warn
+          }
         end),
       "ok" => not failed?,
+      "strict" => strict?,
       "exit_code" => if(failed?, do: 1, else: 0)
     }
 
@@ -292,7 +352,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
 
     USAGE
         mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine oxigraph|sparql|qlever]
-                                 [--store-id ID] [--fix] [--hex-check] [--json]
+                                 [--store-id ID] [--fix] [--strict] [--hex-check] [--json]
                                  [--quiet] [--verbose] [--no-color] [--help] [--version]
 
     FLAGS
@@ -301,6 +361,8 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         --engine ENGINE   One of: #{Enum.join(@known_engines, ", ")}. Default: oxigraph.
         --store-id ID     Named store to resolve for --engine qlever reachability checks.
         --fix             Apply real, safely-recognized fixes to the CURRENT project.
+        --strict          Treat WARN-level findings as failures too (exit 1), not just ERROR.
+                           Strict-mode-only failures are labeled "[STRICT]" in the output.
         --hex-check       Also run the (slow) hex-publish readiness check (mix hex.build).
         --json            Emit machine-readable JSON instead of the human checklist output.
         --quiet, -q       Suppress ✔ (passing) lines; ⚠/✘ lines and the summary still print.
@@ -310,8 +372,8 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         --version, -v     Print ggen_igniter's version and exit 0.
 
     EXIT CODES
-        0  all checks passed
-        1  one or more checks failed
+        0  all checks passed (under --strict, also means no WARN findings)
+        1  one or more checks failed (under --strict, WARN also counts)
         2  invalid invocation or configuration (unknown flag, bad --engine, etc.)
         3  unsupported capability requested on this platform/toolchain
         4  blocked by authority/lock/environment (e.g. a concurrent --fix)
@@ -479,11 +541,14 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
     Enum.map(DoctorFixes.default_rules(), &run_rule_check(opts, &1))
   end
 
-  defp run_rule_check(opts, %DoctorFixes.Rule{} = rule) do
-    fix_or_check(
-      opts,
-      fn project_dir -> DoctorFixes.run_rule(rule, project_dir, false) end,
-      fn project_dir -> DoctorFixes.run_rule(rule, project_dir, true) end
+  defp run_rule_check(opts, %DoctorFixes.Rule{name: name} = rule) do
+    tag(
+      name,
+      fix_or_check(
+        opts,
+        fn project_dir -> DoctorFixes.run_rule(rule, project_dir, false) end,
+        fn project_dir -> DoctorFixes.run_rule(rule, project_dir, true) end
+      )
     )
   end
 
@@ -529,7 +594,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   # 8. Qlever endpoint reachable (only if --engine qlever and a store can be resolved)
   defp maybe_check_qlever(opts, pack_dir) do
     if opts[:engine] == "qlever" do
-      [check_qlever_reachable(opts, pack_dir)]
+      [tag("qlever_reachable", check_qlever_reachable(opts, pack_dir))]
     else
       []
     end
@@ -568,10 +633,10 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   # 9-12: pack-scoped checks
   defp pack_checks(pack_dir) do
     [
-      check_ontology(pack_dir),
-      check_gate_queries_present(pack_dir),
-      check_template_present(pack_dir),
-      check_gate_queries_parse(pack_dir)
+      tag("ontology_valid", check_ontology(pack_dir)),
+      tag("gate_queries_present", check_gate_queries_present(pack_dir)),
+      tag("template_present", check_template_present(pack_dir)),
+      tag("gate_queries_parse", check_gate_queries_parse(pack_dir))
     ]
   end
 
@@ -779,28 +844,45 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   end
 
   # 16. hex-publish readiness (only with --hex-check)
+  #
+  # `--fix` first: `GgenIgniter.DoctorFixes.hex_publish_rules/0` (two real,
+  # bounded fixes -- wiring an existing `description/0` function into
+  # `package/0`, and wiring a `licenses:` entry from an exact, recognized
+  # LICENSE-file SPDX header) run through the same generic
+  # `run_rule_check/2` engine checks 4-7/17 use, against the CURRENT
+  # project's real `mix.exs`, before the metadata check below runs.
   defp maybe_check_hex_publish(opts) do
     if opts[:hex_check] do
-      [check_hex_publish_readiness()]
+      package_fix_checks = Enum.map(DoctorFixes.hex_publish_rules(), &run_rule_check(opts, &1))
+      package_fix_checks ++ [tag("hex_publish_readiness", check_hex_publish_readiness())]
     else
       []
     end
   end
 
   defp check_hex_publish_readiness do
-    package = Mix.Project.config()[:package] || []
-    description = package[:description]
-    licenses = package[:licenses]
+    # Reads `mix.exs`'s real, CURRENT text directly
+    # (`DoctorFixes.package_metadata_keys_present/1`) rather than the
+    # in-process `Mix.Project.config()[:package]`, which was loaded once at
+    # BEAM boot and does NOT reflect a `--fix` write made earlier in this
+    # same `mix ggen_igniter.doctor --hex-check --fix` invocation
+    # (`maybe_check_hex_publish/1` applies `package_description_rule`/
+    # `package_licenses_rule` before this check runs) -- confirmed as a
+    # real, reachable staleness bug via a real break/fix/verify run
+    # (2026-08-28): `Mix.Project.config()` still reported both keys
+    # missing immediately after their real `--fix` had already rewritten
+    # `mix.exs` to contain them.
+    keys_present = DoctorFixes.package_metadata_keys_present(File.cwd!())
 
     metadata_errors =
       []
       |> then(fn acc ->
-        if description in [nil, ""],
-          do: ["package[:description] is missing/empty" | acc],
-          else: acc
+        if keys_present.description,
+          do: acc,
+          else: ["package[:description] is missing/empty" | acc]
       end)
       |> then(fn acc ->
-        if licenses in [nil, []], do: ["package[:licenses] is missing/empty" | acc], else: acc
+        if keys_present.licenses, do: acc, else: ["package[:licenses] is missing/empty" | acc]
       end)
 
     case System.cmd("mix", ["hex.build"], cd: File.cwd!(), stderr_to_stdout: true) do

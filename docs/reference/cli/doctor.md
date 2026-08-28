@@ -5,7 +5,7 @@ Status: **IMPLEMENTED** — every flag and every one of the 17 checks below is
 verified against that module's `info/2` schema (lines 84–93) and the
 `igniter/1` implementation.
 
-`mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine sparql|qlever] [--store-id ID] [--hex-check] [--fix]`
+`mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine sparql|qlever] [--store-id ID] [--hex-check] [--fix] [--strict]`
 
 Runs a fixed checklist of real checks — no fabricated pass output; every
 check either executes a real command/read or reports a real fact. Exits
@@ -22,6 +22,7 @@ own `--check` halt mechanism) if and only if any check comes back `:error`.
 | `--store-id ID` | string | *(required for check #8 when `--engine qlever`)* | Same `gnoa:Qlever` store resource id as `sync`'s `--store-id`. |
 | `--hex-check` | boolean | `false` | Enables check #16 (`mix hex.build` + package metadata) — off by default because it shells out and is slow. |
 | `--fix` | boolean | `false` | Applies real, safely-recognized fixes for checks #4–#7 and #17 directly to the current project (`File.cwd!()`) instead of only reporting them. |
+| `--strict` | boolean | `false` | Treats `:warn`-level findings as failures too (exit `1`), not just `:error`. Each strict-mode-only failure line is suffixed `[STRICT]` in human output (`"strict_failure": true` in `--json` output). |
 
 ## The 17 checks
 
@@ -132,11 +133,22 @@ Without `--fix`, these checks are strictly read-only:
 A fix that raises (a shape it refuses to guess at) is caught and turned into
 a real `:error` check result rather than crashing the whole `doctor` run.
 
+## `--strict`
+
+Without `--strict`, only `:error`-level checks fail the run (exit `1`);
+`:warn`-level checks (e.g. "git dirty", "not a git repo", a `--fix`-able
+hygiene gap reported without `--fix`) are advisory only. With `--strict`,
+any check currently reporting `:warn` also fails the run (exit `1`) — each
+such line is suffixed `[STRICT]` in human output, and carries
+`"strict_failure": true` in `--json` output, so it's clear which failures
+are strict-mode-only and would pass under the default mode.
+
 ## Output format
 
 Each check prints one line: `✔ message` (`:ok`), `⚠ message` (`:warn`), or
-`✘ message` (`:error`). If any check is `:error`, doctor prints `"✘
-ggen_igniter.doctor: one or more checks failed (see ✘ lines above)"` and
+`✘ message` (`:error`) — under `--strict`, a `:warn` line gets a trailing
+`[STRICT]` marker. If any check is `:error` (or, under `--strict`, `:warn`),
+doctor prints `"✘ ggen_igniter.doctor: one or more checks failed ..."` and
 exits the OS process with code 1 (`System.halt(1)` — a real non-zero exit
 regardless of Igniter's own `--check` machinery). Otherwise it adds an
 Igniter notice: `"ggen_igniter.doctor: all checks passed (see output
@@ -150,4 +162,5 @@ mix ggen_igniter.doctor --pack audit-trail-pack
 mix ggen_igniter.doctor --pack audit-trail-pack --fix
 mix ggen_igniter.doctor --engine qlever --store-id http://example.com/Qlever --pack audit-trail-pack
 mix ggen_igniter.doctor --hex-check
+mix ggen_igniter.doctor --strict
 ```

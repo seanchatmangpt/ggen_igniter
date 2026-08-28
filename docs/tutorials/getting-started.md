@@ -74,11 +74,58 @@ During compilation, Rustler will compile the `ggen_graph_nif` crate and place th
 
 ## 3. Resolving Dependency Declarations
 
-GgenIgniter relies unconditionally on `igniter` and `rdf`. In some consumer applications (such as newly generated Phoenix or Ash projects), `mix.exs` may declare `igniter` with an environment restriction such as `only: [:dev, :test]`.
+GgenIgniter relies unconditionally on `igniter` and `rdf`. In some consumer applications (such as newly generated Phoenix or Ash projects, e.g. via `mix igniter.new --install ash,ash_phoenix --with phx.new`), `mix.exs` already declares `igniter` (and sometimes `sourceror`) with an environment restriction such as `only: [:dev, :test]` — a normal, idiomatic pattern for a *dev tool* dependency, but `ggen_igniter`'s own `lib/mix/tasks/ggen_igniter.sync.ex` and `.doctor.ex` are real `Mix.Task`s that must run in every `Mix.env()`, so `ggen_igniter`'s `mix.exs` declares `igniter` with no `:only` restriction at all. Mix requires every package's declared `:only` for a shared dependency to agree, so the mismatch is a hard resolver error — and it fires at `mix deps.get`, **before** any of this project's code (including `mix ggen_igniter.doctor`) has compiled or can run. `doctor` cannot rescue you from this one: you have to clear it before `doctor` is even reachable.
 
-Because Mix requires dependencies across all packages to have compatible environment scopes, an `only: [:dev, :test]` constraint on `igniter` in your consumer project will cause Mix to raise a dependency conflict.
+### Reproducing the real error
 
-Ensure your `mix.exs` declares `igniter` without environment restrictions, or let `mix ggen_igniter.doctor --fix` resolve it automatically.
+This is exactly what you see if you add `{:ggen_igniter, path: "..."}` to a fresh `mix new` project that also declares `{:igniter, "~> 0.5", only: [:dev, :test]}` directly (verified 2026-08-28 against a real scratch consumer):
+
+```text
+$ mix deps.get
+Dependencies have diverged:
+* igniter (Hex package)
+  the :only option for dependency igniter
+
+  > In mix.exs:
+    {:igniter, "~> 0.5", [env: :prod, hex: "igniter", only: [:dev, :test], repo: "hexpm"]}
+
+  does not match the :only option calculated for
+
+  > In /path/to/ggen_igniter/mix.exs:
+    {:igniter, "~> 0.8", [env: :prod, hex: "igniter", repo: "hexpm"]}
+
+  Remove the :only restriction from your dep
+** (Mix) Can't continue due to errors on dependencies
+```
+
+The same class of error appears for `sourceror` if your consumer's `mix.exs` declares it directly with an `:only` restriction too.
+
+### The exact one-line fix
+
+Open your consumer app's own `mix.exs` and drop the `only:` keyword from the affected tuple(s) in `deps/0`:
+
+```diff
+   defp deps do
+     [
+-      {:igniter, "~> 0.5", only: [:dev, :test]},
++      {:igniter, "~> 0.5"},
+       {:ggen_igniter, path: "../ggen_igniter"}
+     ]
+   end
+```
+
+Then re-run `mix deps.get` — it resolves cleanly (verified against the same scratch consumer):
+
+```text
+$ mix deps.get
+...
+* Getting igniter (Hex package)
+* Getting rdf (Hex package)
+* Getting sparql (Hex package)
+...
+```
+
+Once `deps.get`/`mix compile` succeed for the first time, `mix ggen_igniter.doctor --fix` will detect and relax this same `:only` restriction automatically on any *future* drift (e.g. if `igniter.new` regenerates the dep line, or a teammate reintroduces it) — see [Section 4](#4-verifying-your-setup-with-mix-ggen_igniterdoctor) below. But for this very first `deps.get`, the manual one-line edit above is the fix, because `doctor` is itself a `ggen_igniter` Mix task and can't run until this resolves.
 
 ---
 

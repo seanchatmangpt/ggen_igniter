@@ -29,7 +29,7 @@ Pipeline: `Ontology.load!/1` → `Query`/`Engine.run/2` (once per `--query`) →
 | `--unless-exists` | boolean | `false` | Skip the write unconditionally if the target already exists (any content). |
 | `--skip-if PATTERN` | string | `nil` | Skip the write if the existing target's content contains this substring (no regex from the CLI flag itself — see Notes). |
 | `--manifest-dir DIR` | string | `File.cwd!()` | Where `.ggen_igniter/manifest.json` is read/written, and (when `--verify-cwd` is absent) the authorized-project-root boundary `GgenIgniter.ArtifactIdentity.within_root?/2` enforces against every `--out` target. |
-| `--verify-cwd DIR` | string | `--manifest-dir` value, else `File.cwd!()` | Directory the Reactor pipeline's `:verify` step runs its real `mix compile --warnings-as-errors` subprocess in. Decouples verification from `--manifest-dir` for the case where the reconciliation-manifest/path-escape boundary and the actual Mix project root differ (e.g. a test writing to an isolated tmp dir outside the real project via `--manifest-dir`, while `--verify-cwd` still points at the real project so `:verify` compiles the right tree). Wired straight through to `GgenIgniter.Reactors.ReconcileReactor.run/1`'s own `:verify_cwd` opt — see that module's moduledoc, "`:verify` scope". |
+| `--verify-cwd DIR` | string | `--manifest-dir` value, else `File.cwd!()` | Directory the Reactor pipeline's `:verify` step runs its real `mix compile --warnings-as-errors` subprocess in. Decouples verification from `--manifest-dir` for the case where the reconciliation-manifest/path-escape boundary and the actual Mix project root differ (e.g. a test writing to an isolated tmp dir outside the real project via `--manifest-dir`, while `--verify-cwd` still points at the real project so `:verify` compiles the right tree). Wired straight through to `GgenIgniter.Reactors.ReconcileReactor.run/1`'s own `:verify_cwd` opt — see that module's moduledoc, "`:verify` scope". Full worked example (including the clear error message when it's omitted by mistake) below. |
 
 ## `--ontology`, `--query`, `--template`, `--out`
 
@@ -288,6 +288,61 @@ mix ggen_igniter.sync --pack-dir priv/ggen/ash-lifecycle-pack \
   --out "lib/support_desk/support/<%= String.downcase(resource_name) %>.ex" \
   --on-stale prune
 ```
+
+## `--verify-cwd DIR` (Reactor pipeline only)
+
+The Reactor pipeline's terminal `:verify` step (see below) runs a real `mix
+compile --warnings-as-errors` subprocess against `--verify-cwd ||
+--manifest-dir || File.cwd!()`. `--verify-cwd` only matters when
+`--manifest-dir` points OUTSIDE the real Mix project directory — the common
+case for a caller who wants the reconciliation manifest and the `--out`
+path-escape boundary scoped to an isolated tmp dir, while still wanting
+`:verify` to compile the actual project.
+
+Real, runnable example — generating into an isolated `/tmp` dir, verifying
+against this repo:
+
+```
+mkdir -p /tmp/ggen_verify_cwd_demo
+mix ggen_igniter.sync \
+  --pack-dir priv/ggen/adr-index-pack \
+  --out /tmp/ggen_verify_cwd_demo/out.md \
+  --manifest-dir /tmp/ggen_verify_cwd_demo \
+  --verify-cwd /Users/sac/ggen_igniter \
+  --engine oxigraph
+```
+
+Real output (`use_reactor: true`, run at HEAD `6c44916`):
+
+```
+Notices:
+
+* ggen_igniter: wrote /tmp/ggen_verify_cwd_demo/out.md (engine: oxigraph, 1 query, 6 total row(s)) (via reactor)
+```
+
+### The likely first-time mistake, and its error message
+
+Dropping `--verify-cwd` in this exact scenario (`--manifest-dir` outside any
+Mix project) makes `:verify`'s `mix compile` subprocess `cd:` into that same
+non-project directory. Real, reproduced output (same command, `--verify-cwd`
+flag removed):
+
+```
+** (RuntimeError) ggen_igniter: reactor reconciliation failed (build_broken): verification failed (mix compile): ggen_igniter: --verify-cwd was not set, so `:verify`'s `mix compile` ran in "/tmp/ggen_verify_cwd_demo_error" (from --manifest-dir/File.cwd!()), which is not a Mix project directory (no mix.exs found there). Pass --verify-cwd DIR pointing at the real Mix project root (the directory containing mix.exs) to fix this -- e.g. --verify-cwd "/Users/sac/ggen_igniter".
+
+Original mix compile output:
+** (Mix) Could not find a Mix.Project, please ensure you are running Mix in a directory with a mix.exs file
+```
+
+This is not a raw `Mix.Project` crash surfaced unchanged — `:verify`
+(`GgenIgniter.Reactors.ReconcileReactor`'s `maybe_add_verify_cwd_hint/3`)
+detects the `"Could not find a Mix.Project"` text specifically when
+`--verify-cwd` was never set, and prepends the actionable pointer above
+(naming the exact flag and a real fix command) before the original Mix
+error text, which is preserved unchanged underneath for full diagnostics. An
+explicit `--verify-cwd` that itself resolves to a non-project directory is a
+genuine caller mistake and gets the bare Mix error unchanged — the hint only
+fires for the "forgot to set it" case.
 
 ## Reactor dispatch (opt-in, `config :ggen_igniter, use_reactor`) — PARTIAL_ALIVE
 

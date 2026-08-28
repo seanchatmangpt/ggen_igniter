@@ -1,0 +1,5 @@
+PREFIX mod: <http://seanchatmangpt.github.io/packs/multi-module8#>
+SELECT DISTINCT ?module_name ?field_name WHERE {
+  ?s a mod:GeneratedModule ; mod:moduleName ?module_name ; mod:fieldName ?field_name .
+}
+ORDER BY ?module_name

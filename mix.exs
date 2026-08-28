@@ -11,7 +11,6 @@ defmodule GgenIgniter.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),
-      description: description(),
       aliases: aliases(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
@@ -51,8 +50,8 @@ defmodule GgenIgniter.MixProject do
 
   defp package do
     [
-      description: description(),
       licenses: ["MIT"],
+      description: description(),
       links: %{"GitHub" => @source_url},
       files:
         ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/src mix.exs README.md LICENSE CHANGELOG.md .formatter.exs)

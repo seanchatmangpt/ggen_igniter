@@ -207,8 +207,11 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         mode: :string,
         on_stale: :string,
         manifest_dir: :string,
-        verify_cwd: :string
+        verify_cwd: :string,
+        help: :boolean,
+        version: :boolean
       ],
+      aliases: [h: :help, v: :version],
       required: []
     }
   end
@@ -394,6 +397,43 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         --out "lib/support_desk/support/<%= String.downcase(resource_name) %>.ex" \\
         --on-stale prune
 
+  ## `--verify-cwd DIR` (Reactor pipeline only, `use_reactor: true`)
+
+  When the opt-in Reactor pipeline is active (see "Reactor dispatch" below),
+  its terminal `:verify` step runs a REAL `mix compile --warnings-as-errors`
+  subprocess to confirm the just-actuated project still builds
+  (`GgenIgniter.Reactors.ReconcileReactor`'s `:verify` step). That subprocess
+  needs a real Mix project directory (one containing `mix.exs`) to `cd:`
+  into. By default it uses `--manifest-dir` (falling back to `File.cwd!()`)
+  for this -- correct whenever the reconciliation manifest and the actual
+  Mix project live in the same directory, which is the common case.
+
+  `--verify-cwd DIR` overrides just this one directory, independently of
+  `--manifest-dir`, for the one real scenario where the two differ: writing
+  actuated output into an ISOLATED directory (e.g. a throwaway tmp dir used
+  as `--manifest-dir` so the reconciliation manifest and path-escape
+  boundary don't touch the real project at all) while still wanting
+  `:verify` to run its `mix compile` against the REAL project root. Concrete
+  worked example -- generating into an isolated tmp dir, verifying against
+  this repo itself:
+
+      mkdir -p /tmp/ggen_verify_cwd_demo
+      mix ggen_igniter.sync \\
+        --pack-dir priv/ggen/adr-index-pack \\
+        --out /tmp/ggen_verify_cwd_demo/out.md \\
+        --manifest-dir /tmp/ggen_verify_cwd_demo \\
+        --verify-cwd /Users/sac/ggen_igniter \\
+        --engine oxigraph
+
+  Without `--verify-cwd` in this exact scenario (`--manifest-dir` pointing
+  outside any Mix project), `:verify`'s `mix compile` subprocess runs `cd:`
+  into that same non-project tmp dir, Mix itself raises `** (Mix) Could not
+  find a Mix.Project...`, and this task's `:verify`-failure path
+  (`maybe_add_verify_cwd_hint/3` in `ReconcileReactor`) detects that exact
+  Mix error text and a nil `--verify-cwd` and prepends a concrete pointer at
+  this flag to the raised `RuntimeError`, rather than surfacing the bare Mix
+  crash text alone.
+
   ## Controller delegation (opt-in, thin-adapter mode)
 
   When a real `GgenIgniter.Controller` `GenServer` is already running,
@@ -490,6 +530,71 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   def igniter(igniter) do
     {opts, pack_template_stem} = split_pack_template_stem(igniter.args.options)
 
+    cond do
+      opts[:help] -> print_help_and_halt()
+      opts[:version] -> print_version_and_halt()
+      true -> run_sync(igniter, opts, pack_template_stem)
+    end
+  end
+
+  defp print_help_and_halt do
+    IO.puts("""
+    mix ggen_igniter.sync -- ontology -> query -> render -> actuate pipeline
+
+    USAGE
+        mix ggen_igniter.sync --ontology path.ttl --query name=path.rq (repeatable)
+                               --template path.eex --out path.ex
+                               [--engine oxigraph|sparql|qlever] [--store-id ID]
+                               [--pack NAME | --pack-dir DIR] [--for-each NAME]
+                               [--mode file|eval] [--on-stale refuse|prune|preserve]
+                               [--manifest-dir DIR] [--unless-exists] [--skip-if EXPR]
+                               [--dry-run] [--help] [--version]
+
+    FLAGS
+        --ontology PATH     Path to the RDF/Turtle ontology to load.
+        --query NAME=PATH   Named SPARQL query (repeatable).
+        --template PATH     EEx template to render (or resolved via --pack/--pack-dir).
+        --out PATH          Output path (or an EEx path template with --for-each).
+        --engine ENGINE     One of: oxigraph, sparql, qlever. Default: oxigraph.
+        --store-id ID       Named store to resolve for --engine qlever.
+        --pack NAME         Resolve a marketplace-convention pack by name (priv/ggen/NAME).
+        --pack-dir DIR      Use an explicit pack directory (bypasses the --pack convention).
+        --for-each NAME     Fan out one render per row of the named query result.
+        --mode MODE         file (default, writes to disk) or eval (evaluates in-process).
+        --on-stale POLICY   refuse (default) | prune | preserve stale manifest paths.
+        --manifest-dir DIR  Directory holding .ggen_igniter/manifest.json. Default: cwd.
+        --unless-exists     Skip writing if the output path already exists.
+        --skip-if EXPR      Skip writing if EXPR (literal string) matches.
+        --dry-run           Preview actuation without writing/deleting anything.
+        --help, -h          Print this help and exit 0.
+        --version, -v       Print ggen_igniter's version and exit 0.
+
+    EXAMPLES
+        mix ggen_igniter.sync \\
+          --ontology test/fixtures/audit_trail_ontology.ttl \\
+          --query spec=test/fixtures/spec.rq \\
+          --template test/fixtures/extension.ex.eex \\
+          --out tmp_out/probe.ex
+
+        mix ggen_igniter.sync --pack audit-trail-pack --out lib/generated.ex
+
+    See `mix help ggen_igniter.sync` for the full moduledoc (engines, --for-each
+    fan-out, frontmatter injection, mode: eval, reconciliation manifest, and
+    controller delegation).
+    """)
+
+    System.halt(0)
+  end
+
+  defp print_version_and_halt do
+    version = Application.spec(:ggen_igniter, :vsn) |> to_string()
+    IO.puts("ggen_igniter #{version}")
+    System.halt(0)
+  rescue
+    _ -> IO.puts("ggen_igniter unknown") && System.halt(0)
+  end
+
+  defp run_sync(igniter, opts, pack_template_stem) do
     lock_key = opts[:manifest_dir] || File.cwd!()
     {:ok, lock_ref} = GgenIgniter.Lock.acquire(lock_key, [])
 
@@ -876,6 +981,18 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
     notices = Enum.map(render_results, fn {line, _out_path, _outcome} -> line end)
 
+    # DX: with `--for-each` fanning out to many rows (a pack with 8+ queries,
+    # or many driver rows), the per-file notice line above becomes a wall of
+    # undifferentiated `"; "`-joined text -- real, observed on an 8-row fixture
+    # (`test/fixtures/for_each_ontology_8.ttl`/`modules_8.rq`): all 8 "wrote
+    # ..." lines joined onto one line with no differentiation at a glance.
+    # `outcome_summary_suffix/2` appends a real, counted-from-actual-outcomes
+    # summary ("wrote 8, skipped 2, unchanged 1" style) WITHOUT removing the
+    # per-file detail above -- both stay present; this is purely additive.
+    # Only appended when there's more than one row (a single-output run's
+    # existing notice is already exactly as readable as a summary would be).
+    summary_suffix = outcome_summary_suffix(render_results, dry_run)
+
     if reconcile? do
       if dry_run do
         preview_stale!(on_stale, stale)
@@ -908,9 +1025,64 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
     Igniter.add_notice(
       igniter,
-      "ggen_igniter: #{Enum.join(notices, "; ")} (engine: #{engine_name}, #{length(named_queries)} quer#{if length(named_queries) == 1, do: "y", else: "ies"}, #{total_rows} total row(s))"
+      "ggen_igniter: #{Enum.join(notices, "; ")} (engine: #{engine_name}, #{length(named_queries)} quer#{if length(named_queries) == 1, do: "y", else: "ies"}, #{total_rows} total row(s))#{summary_suffix}"
     )
   end
+
+  # Builds a real, counted-from-actual-outcomes summary suffix like
+  # `" -- summary: wrote 6, skipped 1, unchanged 1"`, or `""` when
+  # `render_results` has one or fewer entries (a single-output run's own
+  # per-file line is already the summary -- adding a second one would be
+  # noise, not clarity). Counts are grouped by real `Actuate`/`actuate!/8`
+  # outcome atoms (`:written`, `:injected`, `:unchanged`, `:skipped_exists`,
+  # `:skipped_match`) -- `:skipped_exists`/`:skipped_match` are folded into
+  # one `"skipped"` bucket since both mean the same thing to a human reading
+  # the summary (an `--unless-exists`/`--skip-if` guard fired), and `nil`
+  # (only ever returned for `mode: eval`, which never has a summary-worthy
+  # per-row outcome) is silently excluded from the count entirely. Order is
+  # fixed (`written`, `injected`, `unchanged`, `skipped`) rather than
+  # insertion order, so the summary reads the same shape run to run; a
+  # zero-count bucket is omitted rather than printed as "wrote 0". Under
+  # `--dry-run`, the label is "planned to ..." instead of the past-tense verb,
+  # matching every other dry-run notice in this module's own convention of
+  # never claiming a real action happened when nothing was written.
+  @spec outcome_summary_suffix([{String.t(), String.t() | nil, atom() | nil}], boolean()) ::
+          String.t()
+  defp outcome_summary_suffix(render_results, dry_run) when length(render_results) > 1 do
+    counts =
+      render_results
+      |> Enum.map(fn {_line, _out_path, outcome} -> summary_bucket(outcome) end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.frequencies()
+
+    parts =
+      for bucket <- [:written, :injected, :unchanged, :skipped],
+          count = Map.get(counts, bucket, 0),
+          count > 0 do
+        "#{summary_verb(bucket, dry_run)} #{count}"
+      end
+
+    case parts do
+      [] -> ""
+      _ -> " -- summary: " <> Enum.join(parts, ", ")
+    end
+  end
+
+  defp outcome_summary_suffix(_render_results, _dry_run), do: ""
+
+  defp summary_bucket(:written), do: :written
+  defp summary_bucket(:injected), do: :injected
+  defp summary_bucket(:unchanged), do: :unchanged
+  defp summary_bucket(:skipped_exists), do: :skipped
+  defp summary_bucket(:skipped_match), do: :skipped
+  defp summary_bucket(nil), do: nil
+
+  defp summary_verb(:written, false), do: "wrote"
+  defp summary_verb(:written, true), do: "planned to write"
+  defp summary_verb(:injected, false), do: "injected"
+  defp summary_verb(:injected, true), do: "planned to inject"
+  defp summary_verb(:unchanged, _dry_run), do: "unchanged"
+  defp summary_verb(:skipped, _dry_run), do: "skipped"
 
   # Validates `--on-stale` up front (regardless of whether reconciliation
   # actually applies to this run's mode -- cheap to check, and a typo here

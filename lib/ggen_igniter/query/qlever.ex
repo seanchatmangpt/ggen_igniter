@@ -75,8 +75,20 @@ if Code.ensure_loaded?(Gno.Store.Adapters.Qlever) do
     @spec load_store!(RDF.Graph.t(), RDF.IRI.t() | String.t()) :: Qlever.t()
     def load_store!(graph, store_id) do
       case Grax.load(graph, RDF.iri(store_id), Qlever) do
-        {:ok, store} -> store
-        {:error, error} -> raise error
+        {:ok, store} ->
+          store
+
+        {:error, error} ->
+          raise RuntimeError,
+            message:
+              "ggen_igniter: --engine qlever --store-id #{inspect(store_id)} could not be " <>
+                "loaded as a gnoa:Qlever store from the given --ontology graph: " <>
+                "#{Exception.format(:error, error)}. This is user-correctable: verify " <>
+                "--store-id names a resource typed gnoa:Qlever in your --ontology Turtle " <>
+                "file, with the fields Gno.Store.Adapters.Qlever expects (query endpoint " <>
+                "IRI, etc.) -- see config/gno/test/store.ttl for a real working example. " <>
+                "Next step: fix the store description in your ontology and re-run " <>
+                "`mix ggen_igniter.sync --engine qlever`."
       end
     end
 
@@ -95,10 +107,24 @@ if Code.ensure_loaded?(Gno.Store.Adapters.Qlever) do
           Enum.map(rows, &unwrap_row/1)
 
         {:error, %{__exception__: true} = error} ->
-          raise error
+          raise RuntimeError,
+            message:
+              "ggen_igniter: --engine qlever query failed against the live QLever endpoint: " <>
+                "#{Exception.format(:error, error)}. This is often user-correctable: check " <>
+                "the SPARQL query text passed via --query for syntax errors, or confirm the " <>
+                "QLever server at this --store-id's endpoint is actually running and indexed " <>
+                "(`qlever index && qlever start`). Next step: fix the query file or the " <>
+                "QLever server, then re-run `mix ggen_igniter.sync --engine qlever`."
 
         {:error, error} ->
-          raise RuntimeError, message: "SPARQL.Client.query failed: #{inspect(error)}"
+          raise RuntimeError,
+            message:
+              "ggen_igniter: --engine qlever SPARQL.Client.query failed with a non-exception " <>
+                "error value: #{inspect(error)}. This is user-correctable: check the SPARQL " <>
+                "query text passed via --query for syntax errors, or confirm the QLever " <>
+                "server at this --store-id's endpoint is running and reachable. Next step: " <>
+                "fix the query file or the QLever server, then re-run " <>
+                "`mix ggen_igniter.sync --engine qlever`."
       end
     end
 

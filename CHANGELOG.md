@@ -2,7 +2,50 @@
 
 ## v26.8.27
 
-Template frontmatter execution modes, plus a new opt-in end-to-end tier.
+Template frontmatter execution modes, a new opt-in end-to-end tier, and three
+new read-only/lock-safe CLI verbs (`plan`, `replay`) plus a real cross-process
+mutation lock (`GgenIgniter.Lock`).
+
+- **`mix ggen_igniter.plan`** (`lib/mix/tasks/ggen_igniter.plan.ex`,
+  `GgenIgniter.Reactors.ReconcileReactor.plan/1`) -- a read-only admission
+  preview: runs the SAME observe -> load ontology -> resolve pack -> run
+  queries -> render -> admit sequence a real `mix ggen_igniter.sync` (with
+  `use_reactor: true`) runs, but stops before `:actuate`. Reports every
+  `%GgenIgniter.PendingActuation{}` the admitted plan would write (operation,
+  target, `plan_unchanged?/1`, previous/desired hash) in human-readable or
+  `--json` form; nothing is ever written to disk. Per the PRD's FR-5, `plan`
+  does NOT acquire `GgenIgniter.Lock` -- it may run concurrently with an
+  in-flight `sync`/lock holder. A run that hits a capability outside
+  `GgenIgniter.Reconcile.run/1`'s bounded reactor scope (`inject: true`,
+  `--for-each`) exits 3 (`:unsupported_capability`) rather than silently
+  downgrading to a partial plan. See `test/ggen_igniter_plan_schema_test.exs`
+  and `docs/reference/cli/plan.md`.
+- **`mix ggen_igniter.replay <receipt_file>`** (`lib/mix/tasks/ggen_igniter.replay.ex`)
+  -- a diagnostic task that loads one real `GgenIgniter.Receipt` (either a
+  date-partitioned `.jsonl` partition's last line, or a single-object JSON
+  file) and recomputes real, current hashes of the same inputs the receipt
+  recorded, to answer "has anything this receipt depended on drifted since it
+  was written?" It reports two independently-checked categories: "output
+  state changed" (`GgenIgniter.Receipt.hash_files/1` re-run over the
+  receipt's own `files`, compared to the recorded `post_run_hash`) and
+  "ontology changed" (only when the receipt's `recipe_key` resolves to a
+  `GgenIgniter.Manifest` entry with a `pack_dir` AND the receipt recorded
+  `metadata["graph_hash"]` -- `<pack_dir>/ontology.ttl` is re-hashed with the
+  same `"sha256:" <> hex` algorithm and compared). Exits 2 on a missing/
+  unparseable receipt file rather than guessing at its content. See
+  `test/ggen_igniter_replay_test.exs` and `docs/reference/cli/replay.md`.
+- **`GgenIgniter.Lock`** (`lib/ggen_igniter/lock.ex`) -- a real, file-based
+  cross-process lock (`.ggen_igniter/.sync.lock`, `File.open/2`'s
+  `:exclusive` mode, so two separate `mix` invocations genuinely cannot both
+  win the race -- not an in-memory/`:global`/`GenServer` lock, which would
+  only serialize callers inside the same BEAM node) now serializes concurrent
+  mutating invocations of `mix ggen_igniter.sync`/`mix ggen_igniter.replay`
+  against the same target project (AR-9). A lock file older than 5 minutes is
+  treated as abandoned (crashed holder, killed process, machine restart) and
+  is removed automatically by the next `acquire/2` caller rather than
+  permanently wedging future runs. `mix ggen_igniter.doctor` and
+  `mix ggen_igniter.plan` remain read-only and never acquire this lock. See
+  `test/ggen_igniter_lock_contention_test.exs` and `docs/reference/cli/lock.md`.
 
 - **AR-10: `inject: true` now gets real Reactor admission-gate coverage via
   `mix ggen_igniter.sync`** -- `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3`

@@ -104,4 +104,48 @@ defmodule GgenIgniter.PackFetchTest do
       assert Pack.resolve_dir!(pack_dir: dest) == dest
     end
   end
+
+  describe "fetch_pack!/2 against a real nonexistent target (real 404, not a leaked raw HTTP/Tesla error)" do
+    @tag :requires_network
+    test "github: with a real nonexistent owner/repo names the spec, the URL tried, and next steps",
+         %{cache_dir: cache_dir} do
+      spec = "github:ggen-igniter-nonexistent-owner-f3a91c7d/nonexistent-repo-8e2b5a10"
+
+      message =
+        try do
+          Pack.fetch_pack!(spec, cache_dir: cache_dir)
+          flunk("expected fetch_pack!/2 to raise for a nonexistent github spec")
+        rescue
+          e -> Exception.message(e)
+        end
+
+      assert message =~ "HTTP 404"
+      assert message =~ spec |> String.replace("github:", "") |> String.split("@") |> hd()
+      assert message =~ "user-correctable"
+      refute message =~ "Tesla.Env"
+      refute message =~ "%HTTPoison"
+    end
+
+    @tag :requires_network
+    test "hex: with a real nonexistent package name names the package and next steps", %{
+      cache_dir: cache_dir
+    } do
+      name = "ggen-igniter-nonexistent-package-c9f2e6b4"
+      spec = "hex:#{name}"
+
+      message =
+        try do
+          Pack.fetch_pack!(spec, cache_dir: cache_dir)
+          flunk("expected fetch_pack!/2 to raise for a nonexistent hex package")
+        rescue
+          e -> Exception.message(e)
+        end
+
+      assert message =~ "HTTP 404"
+      assert message =~ name
+      assert message =~ "user-correctable"
+      refute message =~ "Tesla.Env"
+      refute message =~ "%HTTPoison"
+    end
+  end
 end

@@ -574,6 +574,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           {:ok, :verified}
 
         {output, _status} ->
+          output = maybe_add_verify_cwd_hint(output, opts, project_dir)
+
           OcelEmitter.emit(event_sink, "VERIFICATION_FAILED", [], %{
             "reason_type" => "build_broken",
             "message" => output
@@ -584,6 +586,32 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     end)
 
     max_retries(0)
+  end
+
+  # A first-time-mistake case: `--manifest-dir DIR` points at a directory
+  # outside any real Mix project (e.g. an isolated tmp dir), `--verify-cwd`
+  # was not given, so `:verify`'s `mix compile` subprocess ran with
+  # `cd: project_dir` against that same non-project directory and Mix's own
+  # bare `** (Mix) Could not find a Mix.Project...` crash text came back as
+  # this step's `output`. That raw Mix error names no fix -- a first-time
+  # caller has no way to connect it to `--verify-cwd` without already
+  # knowing this reactor's internals. Detected here (only when the caller
+  # did NOT already set `:verify_cwd` -- an explicit `--verify-cwd` that
+  # itself points at a non-project dir is a genuine caller mistake and gets
+  # the raw Mix text unchanged, not this hint) and prefixed with a concrete,
+  # actionable pointer at the real flag/opt that fixes it.
+  @spec maybe_add_verify_cwd_hint(String.t(), map(), String.t()) :: String.t()
+  defp maybe_add_verify_cwd_hint(output, opts, project_dir) do
+    if is_nil(opts[:verify_cwd]) and output =~ "Could not find a Mix.Project" do
+      "ggen_igniter: --verify-cwd was not set, so `:verify`'s `mix compile` ran in " <>
+        "#{inspect(project_dir)} (from --manifest-dir/File.cwd!()), which is not a Mix " <>
+        "project directory (no mix.exs found there). Pass --verify-cwd DIR pointing at " <>
+        "the real Mix project root (the directory containing mix.exs) to fix this -- " <>
+        "e.g. --verify-cwd #{inspect(File.cwd!())}.\n\n" <>
+        "Original mix compile output:\n" <> output
+    else
+      output
+    end
   end
 
   # side_effect: mutating -- real evidence writes (`Receipt.append!/2` FIRST,

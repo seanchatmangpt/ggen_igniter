@@ -264,7 +264,14 @@ defmodule GgenIgniter.Pack do
         fetch_hex!(name, version, cache_root)
 
       other ->
-        raise "could not determine the latest version for hex package #{inspect(name)}: #{inspect(other)}"
+        raise "ggen_igniter: --pack hex:#{name} (no version pinned) could not determine the " <>
+                "latest stable release -- hex.pm's package-listing API " <>
+                "(GET https://hex.pm/api/packages/#{name}) returned an unexpected shape: " <>
+                "#{inspect(other)}. This is user-correctable: either the package name " <>
+                "#{inspect(name)} is wrong/unpublished (check https://hex.pm/packages/#{name}), " <>
+                "or hex.pm's response shape changed. Next step: pin an explicit version " <>
+                "yourself with --pack hex:#{name}@<version> (see the Versions tab on the " <>
+                "hex.pm package page for a real version to pin)."
     end
   end
 
@@ -395,9 +402,24 @@ defmodule GgenIgniter.Pack do
       # map pattern anyway since it matches a `%Tesla.Env{}` struct's
       # `status`/`body` keys identically at runtime (structs are maps).
       case Tesla.get(http_client(), url) do
-        {:ok, %{status: 200, body: body}} -> body
-        {:ok, %{status: status}} -> raise "GET #{url} failed with HTTP #{status}"
-        {:error, reason} -> raise "GET #{url} failed: #{inspect(reason)}"
+        {:ok, %{status: 200, body: body}} ->
+          body
+
+        {:ok, %{status: status}} ->
+          raise "ggen_igniter: --pack fetch GET #{url} failed with HTTP #{status} (expected " <>
+                  "200). This is user-correctable: a 404 usually means the package/repo/ref " <>
+                  "name or version in your --pack spec is wrong or was never published/pushed " <>
+                  "-- verify the spec by opening #{url} in a browser. Next step: fix the " <>
+                  "--pack spec and retry `mix ggen_igniter.sync`/`.plan`, or if the URL is " <>
+                  "correct and this persists, hex.pm/GitHub may be temporarily unavailable --" <>
+                  " retry shortly."
+
+        {:error, reason} ->
+          raise "ggen_igniter: --pack fetch GET #{url} failed before a response was received: " <>
+                  "#{inspect(reason)}. This is typically a local network/DNS/proxy problem, " <>
+                  "not a bad --pack spec. Next step: check your network connectivity to " <>
+                  "#{URI.parse(url).host}, then retry `mix ggen_igniter.sync`/`.plan`; if you " <>
+                  "are behind a proxy, ensure HTTPS_PROXY is set for this shell."
       end
     end
   else

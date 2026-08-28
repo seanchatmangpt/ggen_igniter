@@ -184,6 +184,19 @@ defmodule GgenIgniter.DoctorFixes do
     ]
   end
 
+  @doc """
+  The two `package[...]` metadata rules `mix ggen_igniter.doctor`'s check 16
+  (`--hex-check`) runs through `run_rule/3`, applied to the CURRENT
+  project's `mix.exs` -- see `package_description_rule/0` and
+  `package_licenses_rule/0`. Kept separate from `default_rules/0` because
+  they only matter when `--hex-check` is passed (check 16 is off by
+  default; see `Mix.Tasks.GgenIgniter.Doctor`'s moduledoc).
+  """
+  @spec hex_publish_rules() :: [Rule.t()]
+  def hex_publish_rules do
+    [package_description_rule(), package_licenses_rule()]
+  end
+
   # ---------------------------------------------------------------------
   # Rule 1 & 2: relax an `:only`-restricted `igniter`/`sourceror` dependency
   # ---------------------------------------------------------------------
@@ -585,6 +598,197 @@ defmodule GgenIgniter.DoctorFixes do
       {:error, _} ->
         domains_config = "config :#{otp_app}, ash_domains: [#{Enum.join(missing, ", ")}]\n\n"
         write_config_insertion!(config_path, domains_config)
+    end
+  end
+
+  # ---------------------------------------------------------------------
+  # Rule 5: `mix.exs`'s `package/0` missing `description:` -- check 16
+  # (`--hex-check`)'s hex-publish-readiness metadata gap.
+  # ---------------------------------------------------------------------
+
+  @doc """
+  Builds the `Rule` that detects a `package/0` function in `project_dir`'s
+  `mix.exs` missing a `description:` entry, when the file already defines a
+  `description/0` function elsewhere (the common shape: a project-level
+  `description: description()` in `project/0`, with `package/0` simply
+  forgetting to also reference it -- this repo's own `mix.exs` shows the
+  intended pattern). Only fixable in that exact, unambiguous case: this
+  never invents description text, it only wires up a function this project
+  already declared. Any other shape (no `package/0` found, no
+  `description/0` function defined anywhere in the file) is
+  `{:unrecognized, ...}` -- refuses to guess prose.
+  """
+  @spec package_description_rule() :: Rule.t()
+  def package_description_rule do
+    %Rule{
+      name: "package_description",
+      predicate: &package_description_predicate/1,
+      transform: &package_description_transform!/1,
+      verify: fn project_dir -> match?({:ok, _}, package_description_predicate(project_dir)) end
+    }
+  end
+
+  @doc """
+  Reads `project_dir`'s real, CURRENT `mix.exs` source text directly (never
+  the possibly-stale in-process `Mix.Project.config()`, which is loaded
+  once and does not reflect a `mix.exs` write made later in the same BEAM
+  process) and reports whether `package/0`'s body textually contains a
+  `description:`/`licenses:` key. Used by check 16's hex-publish-readiness
+  metadata check so a `--fix` applied earlier in the SAME `mix
+  ggen_igniter.doctor --hex-check --fix` invocation is reflected
+  immediately, not only on the next separate invocation.
+  """
+  @spec package_metadata_keys_present(Path.t()) :: %{description: boolean(), licenses: boolean()}
+  def package_metadata_keys_present(project_dir) do
+    mix_exs_path = Path.join(project_dir, "mix.exs")
+    source = File.read!(mix_exs_path)
+
+    case locate_fn_body(source, "package") do
+      nil ->
+        %{description: false, licenses: false}
+
+      package_body ->
+        %{
+          description: Regex.match?(~r/\bdescription:/, package_body),
+          licenses: Regex.match?(~r/\blicenses:/, package_body)
+        }
+    end
+  end
+
+  defp package_description_predicate(project_dir) do
+    mix_exs_path = Path.join(project_dir, "mix.exs")
+    source = File.read!(mix_exs_path)
+
+    case locate_fn_body(source, "package") do
+      nil ->
+        {:unrecognized, "could not locate a package/0 function body in #{mix_exs_path}"}
+
+      package_body ->
+        cond do
+          Regex.match?(~r/\bdescription:/, package_body) ->
+            {:ok, "package[:description] already present in #{mix_exs_path}"}
+
+          Regex.match?(~r/def(?:p)?\s+description\s+do/, source) ->
+            {:fixable,
+             "package/0 in #{mix_exs_path} has no description:, but a description/0 " <>
+               "function is already defined in this file -- can wire it in"}
+
+          true ->
+            {:unrecognized,
+             "package/0 in #{mix_exs_path} has no description: and no description/0 " <>
+               "function is defined anywhere in this file to reuse -- refusing to invent text"}
+        end
+    end
+  end
+
+  # Assumes `package_description_predicate/1` has already confirmed
+  # `:fixable`: inserts `description: description(),` as the first entry of
+  # `package/0`'s keyword list, via a precise single-occurrence text
+  # replacement of the exact `package/0` body matched -- every other entry
+  # is preserved untouched.
+  defp package_description_transform!(project_dir) do
+    mix_exs_path = Path.join(project_dir, "mix.exs")
+    source = File.read!(mix_exs_path)
+    package_body = locate_fn_body(source, "package")
+
+    updated_body =
+      String.replace(package_body, "[", "[\n      description: description(),", global: false)
+
+    updated = String.replace(source, package_body, updated_body, global: false)
+    File.write!(mix_exs_path, updated)
+
+    {:fixed, "wired description: description() into package/0 in #{mix_exs_path}"}
+  end
+
+  # ---------------------------------------------------------------------
+  # Rule 6: `mix.exs`'s `package/0` missing `licenses:` -- check 16
+  # (`--hex-check`)'s hex-publish-readiness metadata gap.
+  # ---------------------------------------------------------------------
+
+  @doc """
+  Builds the `Rule` that detects a `package/0` function in `project_dir`'s
+  `mix.exs` missing a `licenses:` entry, when a real `LICENSE`/
+  `LICENSE.md`/`LICENSE.txt` file exists at the project root whose first
+  non-empty line is an EXACT, recognized SPDX license header (today: "MIT
+  License" -> `["MIT"]`). Never guesses a license from anything less than
+  an exact known header match -- an unrecognized or missing LICENSE file
+  text is `{:unrecognized, ...}`, not a guessed default.
+  """
+  @spec package_licenses_rule() :: Rule.t()
+  def package_licenses_rule do
+    %Rule{
+      name: "package_licenses",
+      predicate: &package_licenses_predicate/1,
+      transform: &package_licenses_transform!/1,
+      verify: fn project_dir -> match?({:ok, _}, package_licenses_predicate(project_dir)) end
+    }
+  end
+
+  @known_license_headers %{"MIT License" => "MIT"}
+
+  defp package_licenses_predicate(project_dir) do
+    mix_exs_path = Path.join(project_dir, "mix.exs")
+    source = File.read!(mix_exs_path)
+
+    case locate_fn_body(source, "package") do
+      nil ->
+        {:unrecognized, "could not locate a package/0 function body in #{mix_exs_path}"}
+
+      package_body ->
+        cond do
+          Regex.match?(~r/\blicenses:/, package_body) ->
+            {:ok, "package[:licenses] already present in #{mix_exs_path}"}
+
+          spdx = detect_known_license(project_dir) ->
+            {:fixable,
+             "package/0 in #{mix_exs_path} has no licenses:, but the project's LICENSE file " <>
+               "is an exact, recognized #{spdx} header -- can wire it in"}
+
+          true ->
+            {:unrecognized,
+             "package/0 in #{mix_exs_path} has no licenses: and no LICENSE file with an " <>
+               "exact, recognized SPDX header was found -- refusing to guess a license"}
+        end
+    end
+  end
+
+  defp package_licenses_transform!(project_dir) do
+    mix_exs_path = Path.join(project_dir, "mix.exs")
+    source = File.read!(mix_exs_path)
+    package_body = locate_fn_body(source, "package")
+    spdx = detect_known_license(project_dir)
+
+    updated_body =
+      String.replace(package_body, "[", "[\n      licenses: [#{inspect(spdx)}],", global: false)
+
+    updated = String.replace(source, package_body, updated_body, global: false)
+    File.write!(mix_exs_path, updated)
+
+    {:fixed, "wired licenses: [#{inspect(spdx)}] into package/0 in #{mix_exs_path}"}
+  end
+
+  defp detect_known_license(project_dir) do
+    ~w(LICENSE LICENSE.md LICENSE.txt)
+    |> Enum.map(&Path.join(project_dir, &1))
+    |> Enum.find_value(fn path ->
+      with true <- File.exists?(path),
+           {:ok, content} <- File.read(path),
+           [first_line | _] <- content |> String.split("\n", trim: true) do
+        Map.get(@known_license_headers, String.trim(first_line))
+      else
+        _ -> nil
+      end
+    end)
+  end
+
+  # Locates a top-level `defp <name> do ... end` / `def <name> do ... end`
+  # function body (the raw text between `do` and its matching `end`) in a
+  # real mix.exs source string. Shared by the package/0-editing rules
+  # above. Returns `nil` if no such function is found.
+  defp locate_fn_body(source, fn_name) do
+    case Regex.run(~r/def(?:p)?\s+#{fn_name}\s+do\s*\n(.*?)\n[ \t]*end/s, source) do
+      nil -> nil
+      [_, body] -> body
     end
   end
 

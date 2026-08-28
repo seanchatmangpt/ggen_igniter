@@ -154,6 +154,87 @@ defmodule GgenIgniter.SyncForEachTest do
     assert File.ls!(out_dir) == ["resource.ex"]
   end
 
+  test "mix ggen_igniter.sync --for-each with many rows appends a real outcome-count summary without dropping per-file detail" do
+    # DX regression test (2026-08-28): a `--for-each` fan-out with several
+    # rows used to produce one undifferentiated `"; "`-joined notice line
+    # with no summary at all -- real, observed with the 8-row
+    # `for_each_ontology_8.ttl`/`modules_8.rq` fixture pair. This asserts the
+    # real appended summary's counts against real, independently-observable
+    # outcomes (file mtimes/existence before and after a second run with
+    # `--unless-exists`), not a hardcoded expectation.
+    out_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_for_each_summary_test_#{System.unique_integer([:positive])}"
+      )
+
+    File.rm_rf!(out_dir)
+    on_exit(fn -> File.rm_rf!(out_dir) end)
+
+    out_template = Path.join(out_dir, "<%= module_name %>.ex")
+
+    base_args = [
+      "ggen_igniter.sync",
+      "--engine",
+      "sparql",
+      "--ontology",
+      "test/fixtures/for_each_ontology_8.ttl",
+      "--query",
+      "modules=test/fixtures/modules_8.rq",
+      "--for-each",
+      "modules",
+      "--template",
+      "test/fixtures/for_each_module.ex.eex",
+      "--out",
+      out_template
+    ]
+
+    # First run: every one of the 8 rows is a genuine fresh write.
+    {first_output, first_exit} =
+      System.cmd("mix", base_args, cd: File.cwd!(), stderr_to_stdout: true)
+
+    assert first_exit == 0, "first sync run failed:\n#{first_output}"
+    assert first_output =~ "-- summary: wrote 8"
+
+    # Real ground truth: exactly 8 files landed on disk.
+    written_files = File.ls!(out_dir)
+    assert length(written_files) == 8
+
+    # Delete two of the eight real files, so a second `--unless-exists` run
+    # has a REAL, independently-verifiable mix of outcomes: 2 real fresh
+    # writes (the deleted ones) and 6 real `--unless-exists` skips (the ones
+    # still present).
+    deleted = Enum.take(Enum.sort(written_files), 2)
+    for f <- deleted, do: File.rm!(Path.join(out_dir, f))
+    assert length(File.ls!(out_dir)) == 6
+
+    {second_output, second_exit} =
+      System.cmd("mix", base_args ++ ["--unless-exists"], cd: File.cwd!(), stderr_to_stdout: true)
+
+    assert second_exit == 0, "second sync run failed:\n#{second_output}"
+
+    # The real summary's counts must match the real, independently-observed
+    # outcome: 2 files genuinely re-written, 6 genuinely left alone.
+    assert second_output =~ "-- summary: wrote 2, skipped 6"
+
+    # Per-file detail must still be present alongside the summary -- the
+    # summary is additive, not a replacement.
+    for f <- deleted do
+      module = Path.rootname(f)
+      assert second_output =~ "wrote #{Path.join(out_dir, module)}.ex"
+    end
+
+    for f <- written_files -- deleted do
+      module = Path.rootname(f)
+
+      assert second_output =~
+               "skipped (unless_exists, already exists): #{Path.join(out_dir, module)}.ex"
+    end
+
+    # Real ground truth after the second run: all 8 files present again.
+    assert length(File.ls!(out_dir)) == 8
+  end
+
   test "mix ggen_igniter.sync --for-each with an undeclared query name fails closed" do
     args = [
       "ggen_igniter.sync",
