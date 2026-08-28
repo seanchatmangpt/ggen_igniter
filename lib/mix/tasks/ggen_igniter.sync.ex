@@ -526,6 +526,32 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   # write now genuinely routes "(via reactor)", and an `inject: true` write
   # targeting a path outside the authorized project root is refused the
   # same real way a `mode: file` write already was.
+  # AR-11 correction (2026-08-28): `Igniter.Mix.Task`'s generated `run/1` (the
+  # macro body in `Igniter.Mix.Task.__using__/1`) intercepts `--help`
+  # (long form only -- `Igniter.Mix.Task.help_requested?/1` literally checks
+  # `"--help" in argv`, never `-h`) BEFORE this module's own `igniter/1` ever
+  # runs, dispatching to `Mix.Task.run("help", [task_name])` instead -- which
+  # prints this module's full 184-line `@moduledoc` via Mix's own generic
+  # help renderer, not the concise USAGE block below. `-h` is unaffected
+  # (`help_requested?/1` doesn't match it), so it falls through to Igniter's
+  # normal `run/1` -> `configure_and_run/2` -> `igniter/1` pipeline, where
+  # `opts[:help]` (true via the `h: :help` alias) reaches `print_help_and_halt/0`
+  # exactly as intended -- this is the real, confirmed source of the
+  # `--help`-vs-`-h` output split. Fixed by overriding `run/1` (the generated
+  # one is `defoverridable run: 1`) to catch literal `"--help"` in `argv`
+  # ourselves, before Igniter's own `help_requested?/1` check ever runs, and
+  # dispatch to the exact same `print_help_and_halt/0` `-h` already uses.
+  # Every other argv (including `-h`, which still reaches `igniter/1` via the
+  # unchanged `super/1` path) is untouched.
+  @impl Mix.Task
+  def run(argv) do
+    if "--help" in argv do
+      print_help_and_halt()
+    else
+      super(argv)
+    end
+  end
+
   @impl Igniter.Mix.Task
   def igniter(igniter) do
     {opts, pack_template_stem} = split_pack_template_stem(igniter.args.options)

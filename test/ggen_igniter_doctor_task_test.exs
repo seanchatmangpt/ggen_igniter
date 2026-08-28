@@ -117,6 +117,85 @@ defmodule GgenIgniter.DoctorTaskTest do
     end
   end
 
+  test "mix ggen_igniter.doctor --json emits exactly one valid JSON document with nothing " <>
+         "trailing on the all-checks-passed path" do
+    # Deliberately NOT stderr_to_stdout here: strict single-document JSON
+    # parsing is a stdout-only contract, and this repo's mix.exs currently
+    # emits an unrelated `preferred_cli_env` deprecation warning on stderr
+    # that would otherwise corrupt this test's own stdout-line-count check
+    # without reflecting the real Igniter-footer-on-stdout bug under test.
+    {output, exit_code} =
+      System.cmd("mix", ["ggen_igniter.doctor", "--json"], cd: File.cwd!())
+
+    assert exit_code == 0, "mix ggen_igniter.doctor --json failed:\n#{output}"
+
+    lines = output |> String.split("\n", trim: true)
+    assert length(lines) == 1, "expected exactly one line of stdout, got:\n#{output}"
+
+    payload = Jason.decode!(hd(lines))
+    assert payload["ok"] == true
+    assert payload["exit_code"] == 0
+    assert is_list(payload["checks"])
+    assert payload["checks"] != []
+
+    # A real subprocess-level regression test for the specific bug this
+    # closes: Igniter's own "No proposed content changes!" footer must never
+    # follow the JSON document on stdout.
+    refute output =~ "No proposed content changes"
+    refute output =~ "Igniter:"
+  end
+
+  test "mix ggen_igniter.doctor --json emits exactly one valid JSON document with real " <>
+         "findings when checks fail" do
+    # See the all-pass test above for why stderr is not merged here.
+    {output, exit_code} =
+      System.cmd(
+        "mix",
+        ["ggen_igniter.doctor", "--pack-dir", "test/fixtures/broken-pack", "--json"],
+        cd: File.cwd!()
+      )
+
+    refute exit_code == 0, "expected a non-zero exit for the broken pack, got 0:\n#{output}"
+
+    lines = output |> String.split("\n", trim: true)
+    assert length(lines) == 1, "expected exactly one line of stdout, got:\n#{output}"
+
+    payload = Jason.decode!(hd(lines))
+    assert payload["ok"] == false
+    assert payload["exit_code"] == 1
+    assert Enum.any?(payload["checks"], fn c -> c["status"] == "error" end)
+
+    refute output =~ "No proposed content changes"
+    refute output =~ "Igniter:"
+  end
+
+  test "mix ggen_igniter.doctor --json output parses via a real external python3 json.tool " <>
+         "subprocess as exactly one document (all-pass path)" do
+    # See the all-pass test above for why stderr is not merged here.
+    {output, exit_code} =
+      System.cmd("mix", ["ggen_igniter.doctor", "--json"], cd: File.cwd!())
+
+    assert exit_code == 0, "mix ggen_igniter.doctor --json failed:\n#{output}"
+
+    tmp_path =
+      Path.join(System.tmp_dir!(), "doctor_json_#{System.unique_integer([:positive])}.json")
+
+    File.write!(tmp_path, output)
+    on_exit(fn -> File.rm(tmp_path) end)
+
+    case System.find_executable("python3") do
+      nil ->
+        :ok
+
+      python3 ->
+        {py_output, py_exit} =
+          System.cmd(python3, ["-m", "json.tool", tmp_path], stderr_to_stdout: true)
+
+        assert py_exit == 0,
+               "python3 -m json.tool rejected the --json output as invalid/extra-data JSON:\n#{py_output}"
+    end
+  end
+
   test "GgenIgniter.DoctorFixes.check_version_policy/1 matches this project's real current " <>
          "mix.exs/CHANGELOG.md state directly (no subprocess)" do
     project_dir = File.cwd!()

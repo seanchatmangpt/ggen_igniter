@@ -1,5 +1,67 @@
 # Changelog
 
+## v26.8.28
+
+DX/QoL swarm (16 parallel agents reconciled onto a shared working tree, commit
+`6c2f109`) plus a follow-up correctness pass on the two real gaps that swarm's own
+verification missed (`--help` output split, `doctor --json` footer corruption).
+
+- **`mix ggen_igniter.doctor --strict`** -- a new flag: WARN-level findings (not just
+  ERROR-level) now also fail the run (exit 1), and every WARN line printed under
+  `--strict` is suffixed `[STRICT]` so it's visible why a run that would otherwise
+  pass is failing. Plain (non-`--strict`) behavior is unchanged -- WARN findings still
+  print but don't affect the exit code.
+- **`check_id` tagging on all 17 doctor checks** -- both the human-readable and
+  `--json` output now carry a stable `check_id` per check, so a CI script or a
+  human diffing two runs can identify which specific check changed status without
+  parsing free-text messages.
+- **Fixed a real `--hex-check`/`--fix` staleness bug (check 16)** -- the check read
+  the once-loaded `Mix.Project.config()` for the package version instead of
+  `mix.exs`'s current-on-disk text, so a `--fix` applied earlier in the same
+  `doctor` invocation wasn't reflected by check 16's own re-evaluation later in
+  that same run.
+- **`mix ggen_igniter.sync --help`/`-h` and `--version`/`-v`** -- new flags on the
+  sync task itself.
+- **`--for-each` summary line** -- a `--for-each` run with more than one row now
+  appends a real, counted-from-actual-outcomes summary (e.g.
+  `-- summary: wrote 8` / `wrote 2, skipped 6`) after the existing per-file notice
+  lines, rather than only printing per-file notices with no aggregate.
+- **Five rewritten error messages** -- `GgenIgniter.Reactors.ReconcileReactor`
+  (a `:verify` failure caused by `--manifest-dir` pointing outside a Mix project
+  without `--verify-cwd` now prepends a concrete pointer at `--verify-cwd` to the
+  raw Mix crash text) and `GgenIgniter.Pack`/`GgenIgniter.Query.Qlever`
+  (pack-fetch 404/network failures and QLever query/store-load failures now raise
+  actionable messages naming the spec/URL, likely cause, and a concrete next step,
+  instead of a bare HTTP status or an `inspect()`'d raw error).
+- **`mix.exs` cleanup** -- removed a duplicate `description: description()` at the
+  project-level (only `package/0`'s copy was meaningful).
+- **AR-11: `--help` output split fixed on `sync`, `plan`, and `doctor`** --
+  `Igniter.Mix.Task`'s generated `run/1` intercepts literal `"--help"` in `argv`
+  before this project's own `igniter/1` ever runs (`Igniter.Mix.Task.
+  help_requested?/1` checks `"--help" in argv` but never matches `-h`), dispatching
+  to `Mix.Task.run("help", [task_name])` -- Mix's own generic renderer of the
+  module's full `@moduledoc` -- instead of each task's own concise
+  `print_help`/`print_help_and_halt`. `-h` was unaffected (it already reached the
+  concise help via `igniter/1`'s own `opts[:help]` branch), so this was a real,
+  confirmed `--help`-vs-`-h` output split. Fixed by overriding `run/1` on all
+  three tasks (`Mix.Tasks.GgenIgniter.Sync`, `.Plan`, `.Doctor`) to catch literal
+  `"--help"` before Igniter's own check runs and dispatch to the same concise help
+  path `-h` already used; every other `argv`, including `-h` itself, is untouched
+  and still flows through the unchanged `super/1` path.
+- **`mix ggen_igniter.doctor --json` footer corruption fixed** -- the
+  all-checks-passed path returned `igniter` (with zero proposed changes, since
+  `doctor` never mutates the target project) back to `Igniter.Mix.Task`'s
+  generated runner, which then printed its own "No proposed content changes!"
+  footer to stdout AFTER `print_json/3` had already written a validly-closed JSON
+  document -- corrupting `--json` output with trailing non-JSON bytes a strict
+  single-document JSON parser rejects. Fixed by halting directly with
+  `System.halt(0)` on that path (mirroring `mix ggen_igniter.plan`'s existing
+  identical fix for the same Igniter-runner behavior) instead of returning to the
+  runner. See `test/ggen_igniter_doctor_task_test.exs`'s three new subprocess-level
+  regression tests, including one that round-trips real `--json` output through an
+  external `python3 -m json.tool` process to prove it parses as exactly one
+  document.
+
 ## v26.8.27
 
 Template frontmatter execution modes, a new opt-in end-to-end tier, and three

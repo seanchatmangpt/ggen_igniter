@@ -130,6 +130,24 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
     }
   end
 
+  # AR-11 (2026-08-28, mirrors the same fix in `Mix.Tasks.GgenIgniter.Sync`):
+  # `Igniter.Mix.Task`'s generated `run/1` intercepts literal `"--help"` in
+  # `argv` before `igniter/1` ever runs (`Igniter.Mix.Task.help_requested?/1`
+  # never matches `-h`), dispatching to `Mix.Task.run("help", [...])` instead
+  # of this task's own concise `print_help/0`. Overriding `run/1` here (the
+  # generated one is `defoverridable run: 1`) catches `--help` ourselves,
+  # before Igniter's own check runs; `-h` is unaffected and still reaches
+  # `igniter/1` via the unchanged `super/1` path.
+  @impl Mix.Task
+  def run(argv) do
+    if "--help" in argv do
+      print_help()
+      System.halt(0)
+    else
+      super(argv)
+    end
+  end
+
   @impl Igniter.Mix.Task
   def igniter(igniter) do
     opts = igniter.args.options
@@ -137,11 +155,11 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
     cond do
       opts[:help] ->
         print_help()
-        igniter
+        System.halt(0)
 
       opts[:version] ->
         Mix.shell().info(tool_version())
-        igniter
+        System.halt(0)
 
       true ->
         run_plan(igniter, opts)

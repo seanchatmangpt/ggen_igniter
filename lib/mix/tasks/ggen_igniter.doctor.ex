@@ -182,11 +182,27 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   # flag before Igniter's own validation ever runs and reports it with the
   # correct exit code -- every other flag is untouched and still flows
   # through Igniter's normal `run/1` -> `igniter/1` pipeline.
+  # AR-11 (2026-08-28, mirrors the same fix in `Mix.Tasks.GgenIgniter.Sync`/
+  # `.Plan`): `Igniter.Mix.Task`'s generated `run/1` intercepts literal
+  # `"--help"` in `argv` before `igniter/1` ever runs
+  # (`Igniter.Mix.Task.help_requested?/1` never matches `-h`), dispatching to
+  # `Mix.Task.run("help", [...])` instead of this task's own concise
+  # `print_help_and_halt/0`. Checked here, BEFORE the pre-existing
+  # unknown-flag validation below (a bad flag alongside `--help` should still
+  # print help and exit 0, matching how `-h` already behaves regardless of
+  # other flags via `igniter/1`'s own `cond`), and before falling through to
+  # `super/1`.
   @impl Mix.Task
   def run(argv) do
-    case first_unknown_flag(argv) do
-      nil -> super(argv)
-      bad -> invalid_invocation_and_halt(bad, [])
+    cond do
+      "--help" in argv ->
+        print_help_and_halt()
+
+      first_unknown_flag(argv) ->
+        invalid_invocation_and_halt(first_unknown_flag(argv), [])
+
+      true ->
+        super(argv)
     end
   end
 
@@ -286,18 +302,30 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       end
     end
 
-    if failed? do
-      # `Igniter.add_issue/2` only halts the real OS process under `--check`
-      # (see `Igniter.halt_if_fails_check!/2`); a doctor task needs a real
-      # non-zero exit code unconditionally, so halt directly here. Exit 1 =
-      # diagnostic failures found (per the PRD exit-code contract above).
-      System.halt(1)
-    else
-      if opts[:json] do
-        igniter
-      else
+    cond do
+      failed? ->
+        # `Igniter.add_issue/2` only halts the real OS process under `--check`
+        # (see `Igniter.halt_if_fails_check!/2`); a doctor task needs a real
+        # non-zero exit code unconditionally, so halt directly here. Exit 1 =
+        # diagnostic failures found (per the PRD exit-code contract above).
+        System.halt(1)
+
+      opts[:json] ->
+        # Same rationale as `ggen_igniter.plan`'s identical `System.halt(0)`
+        # on its success path: returning `igniter` here to `Igniter.Mix.
+        # Task`'s generated runner lets Igniter print its own "No proposed
+        # content changes!" footer to stdout AFTER `print_json/3` already
+        # wrote a validly-closed JSON document above, corrupting `--json`
+        # output with trailing non-JSON bytes a strict single-document JSON
+        # parser rejects. This task never mutates the target project, so
+        # `igniter` always carries zero proposed changes -- halt directly
+        # with the same real exit code (0) the non-JSON branch below would
+        # have produced via `Igniter.add_notice/2`, instead of returning to
+        # the Igniter runner.
+        System.halt(0)
+
+      true ->
         Igniter.add_notice(igniter, "ggen_igniter.doctor: all checks passed (see output above)")
-      end
     end
   end
 
