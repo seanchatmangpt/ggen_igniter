@@ -390,6 +390,14 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
         ],
         else: ["--out", Path.join(case_dir, "Agent6.Single.ex")]
 
+    # `case_dir` lives outside the repo root (a real, unique tmp dir
+    # this property test creates and removes per-case) --
+    # `--manifest-dir` scopes
+    # `GgenIgniter.ArtifactIdentity.within_root?/2`'s
+    # authorized-project-root check to that same tmp dir instead of the
+    # default `File.cwd!()`, and `--verify-cwd` keeps `:verify`'s real
+    # `mix compile` pointed at the real repo root instead of the bare
+    # (no `mix.exs`) tmp dir.
     args =
       [
         "--engine",
@@ -398,7 +406,11 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
         fixtures.ontology,
         "--template",
         fixtures.file_inject
-      ] ++ query_args ++ out_arg ++ if(combo.dry_run, do: ["--dry-run"], else: [])
+      ] ++
+        query_args ++
+        out_arg ++
+        ["--manifest-dir", case_dir, "--verify-cwd", File.cwd!()] ++
+        if(combo.dry_run, do: ["--dry-run"], else: [])
 
     {output, exit_code} = run_sync!(args)
 
@@ -486,6 +498,8 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
         :skip_if -> ["--skip-if", "AGENT6_SKIP_MARKER"]
       end
 
+    # `case_dir` lives outside the repo root -- see the `inject: true`
+    # clause above.
     args =
       [
         "--engine",
@@ -494,7 +508,12 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
         fixtures.ontology,
         "--template",
         fixtures.file_plain
-      ] ++ query_args ++ out_arg ++ guard_args ++ if(combo.dry_run, do: ["--dry-run"], else: [])
+      ] ++
+        query_args ++
+        out_arg ++
+        guard_args ++
+        ["--manifest-dir", case_dir, "--verify-cwd", File.cwd!()] ++
+        if(combo.dry_run, do: ["--dry-run"], else: [])
 
     {output, exit_code} = run_sync!(args)
 

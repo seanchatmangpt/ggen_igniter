@@ -37,7 +37,17 @@ defmodule GgenIgniter.SyncTaskTest do
       "--template",
       "test/fixtures/extension.ex.eex",
       "--out",
-      out_path
+      out_path,
+      # `out_path` lives outside the repo root (a real, unique tmp dir this
+      # test creates and removes itself) -- `--manifest-dir` scopes
+      # `GgenIgniter.ArtifactIdentity.within_root?/2`'s authorized-project-root
+      # check to that same tmp dir instead of the default `File.cwd!()`, and
+      # `--verify-cwd` keeps `:verify`'s real `mix compile` pointed at the
+      # real repo root instead of the bare (no `mix.exs`) tmp dir.
+      "--manifest-dir",
+      out_dir,
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     {output, exit_code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)

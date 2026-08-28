@@ -110,10 +110,16 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
   # ---------------------------------------------------------------------
 
   test "--dry-run on a not-yet-existing target prints 'planned: write' and writes nothing, in-process" do
-    out_dir = tmp_dir!("dry_run")
+    # `root_dir` (passed as `--manifest-dir`) wraps `out_dir` as its own
+    # subdirectory -- kept DISTINCT from `out_dir` itself so real,
+    # independent bookkeeping this run performs regardless of `--dry-run`
+    # (`GgenIgniter.Lock.acquire/2`'s own lock directory, keyed by
+    # `--manifest-dir`) lands alongside `out_dir`, never INSIDE it, which
+    # would otherwise break this test's own "the target's parent directory
+    # was never created" assertion below.
+    root_dir = tmp_dir!("dry_run")
+    out_dir = Path.join(root_dir, "output")
     out_path = Path.join(out_dir, "resource.ex")
-    File.rm_rf!(out_dir)
-    on_exit(fn -> File.rm_rf!(out_dir) end)
 
     {igniter, output} =
       with_io(fn ->
@@ -132,6 +138,20 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
           "test/fixtures/extension.ex.eex",
           "--out",
           out_path,
+          # `out_path` lives outside the repo root (a real, unique tmp dir
+          # this test creates and removes itself) -- `--manifest-dir` scopes
+          # `GgenIgniter.ArtifactIdentity.within_root?/2`'s
+          # authorized-project-root check to `root_dir` (which contains
+          # `out_dir`) instead of the default `File.cwd!()`. The `:admit`
+          # guard runs even under `--dry-run` (nothing is ever actually
+          # written outside the authorized root, planned or not).
+          # `--verify-cwd` keeps `:verify`'s real `mix compile` (also run
+          # under `--dry-run`) pointed at the real repo root instead of the
+          # bare (no `mix.exs`) tmp dir.
+          "--manifest-dir",
+          root_dir,
+          "--verify-cwd",
+          File.cwd!(),
           "--dry-run"
         ])
       end)

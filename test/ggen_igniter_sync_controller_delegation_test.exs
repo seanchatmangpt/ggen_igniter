@@ -1,14 +1,31 @@
 defmodule GgenIgniter.SyncControllerDelegationTest do
   @moduledoc """
-  Chicago-style, no-mocks proof that `Mix.Tasks.GgenIgniter.Sync.igniter/1`
-  actually delegates real reconciliation work to a running
-  `GgenIgniter.Controller` (registered under the name `GgenIgniter.Controller`,
-  `Process.whereis/1`-discoverable -- the same registration idiom this
-  codebase's own `GgenIgniter.Engine.Qlever` already uses for
-  `GgenIgniter.Finch`) instead of running the standalone pipeline inline, and
-  that the standalone pipeline is the exact fallback when no controller is
-  registered (the common case, exercised by every other
-  `test/ggen_igniter_sync_*.exs` file, none of which registers one).
+  Chicago-style, no-mocks proof of `Mix.Tasks.GgenIgniter.Sync.igniter/1`'s
+  REAL current dispatch order: `run_via_reactor/3` (the Reactor pipeline) is
+  tried FIRST, unconditionally, for any bounded call (no template
+  frontmatter, no `--for-each`) -- see that function's own doc comment
+  ("Runs the real Reactor pipeline directly (independent of whether a
+  `GgenIgniter.Controller` happens to be registered -- the Reactor path does
+  not need the Controller's in-process state)"). `dispatch_pipeline/3`
+  (which is what actually checks `Process.whereis(GgenIgniter.Controller)`
+  and calls `delegate_to_controller/4`) is reached ONLY when
+  `run_via_reactor/3` itself returns `{:not_delegatable, reason}` -- template
+  frontmatter or `--for-each`, neither of which `delegate_to_controller/4`
+  supports either. The real, disclosed, empirically-confirmed consequence:
+  for the bounded case both paths cover, a registered `GgenIgniter.Controller`
+  is NEVER actually consulted by a plain `mix ggen_igniter.sync` call today
+  -- this file proves that real fact directly (a registered controller's own
+  `status/2` never gains a record for the call's `pack_key`), rather than
+  merely asserting on notice text and treating a matching string as proof of
+  the underlying mechanism.
+
+  Originally written (before this repo's "sync always routes through the
+  Reactor pipeline" change) to prove the OPPOSITE -- that a registered
+  controller's real, persistent, same-BEAM-process `reconciliation_count`
+  DID drive a plain call. Verified fresh this session: it no longer does,
+  by design, per `run_via_reactor/3`'s own comment above -- this is a
+  disclosed architecture decision already stated in the production code,
+  not a regression this test exists to catch.
 
   Every collaborator is real: a real `GgenIgniter.Controller` `GenServer`
   (`start_link/1`, registered under its real expected name), the real
@@ -20,14 +37,9 @@ defmodule GgenIgniter.SyncControllerDelegationTest do
   Invoked fully IN-PROCESS (same BEAM, same test process) via
   `Igniter.Mix.Task.configure_and_run/3` -- the exact real function
   `use Igniter.Mix.Task`'s generated `run/1` itself calls right after parsing
-  argv -- rather than a `System.cmd("mix", ...)` subprocess. This is
-  deliberate: the whole point of this test is proving that IN-PROCESS
-  controller state (a real GenServer's `reconciliation_count`) persists
-  across two calls in the SAME BEAM process without a fresh disk read. A
-  subprocess-per-invocation test could never observe that -- a fresh `mix`
-  invocation is a fresh, state-free OS process every time, which is exactly
-  the CLI-only behavior `GgenIgniter.Controller`'s own moduledoc contrasts
-  itself against.
+  argv -- rather than a `System.cmd("mix", ...)` subprocess, so a registered
+  controller GenServer in THIS test process is actually reachable by the code
+  under test.
   """
   use ExUnit.Case, async: false
 
@@ -58,7 +70,7 @@ defmodule GgenIgniter.SyncControllerDelegationTest do
     %{out_dir: out_dir}
   end
 
-  test "igniter/1 delegates to a real running controller: notice reflects real in-process state",
+  test "igniter/1 uses the real Reactor pipeline even with a controller running -- delegation never engages",
        %{out_dir: out_dir} do
     refute Process.whereis(GgenIgniter.Controller)
 
@@ -85,49 +97,60 @@ defmodule GgenIgniter.SyncControllerDelegationTest do
       "--template",
       @template,
       "--out",
-      out_path
+      out_path,
+      # `out_path` lives outside the repo root (a real, unique tmp dir this
+      # test's own `setup` block creates and removes) -- `--manifest-dir`
+      # scopes `GgenIgniter.ArtifactIdentity.within_root?/2`'s
+      # authorized-project-root check to that same tmp dir instead of the
+      # default `File.cwd!()`, and `--verify-cwd` keeps `:verify`'s real
+      # `mix compile` pointed at the real repo root instead of the bare (no
+      # `mix.exs`) tmp dir.
+      "--manifest-dir",
+      out_dir,
+      "--verify-cwd",
+      File.cwd!()
     ]
 
-    # -- First call: real reconciliation, real file write, controller's first
-    # -- ever record for this pack_key (`{template_path, out_path}`).
+    # -- First call: real reconciliation, real file write, via the Reactor
+    # -- pipeline -- NOT via the running controller (see moduledoc).
     igniter1 = run_sync!(argv)
     assert [notice1] = igniter1.notices
 
-    assert notice1 =~ "via controller: reconciliation #1 for"
+    refute notice1 =~ "via controller"
+    assert notice1 =~ "(via reactor)"
     assert notice1 =~ "wrote #{out_path}"
     assert File.exists?(out_path)
 
     content_after_first = File.read!(out_path)
     assert {:defmodule, _, _} = Code.string_to_quoted!(content_after_first)
 
-    # The manifest.json reconciliation file (the standalone pipeline's own
-    # bookkeeping) is deliberately NOT written on the delegated path -- the
-    # controller's in-process state is this call's reconciliation record
-    # instead. Real, disclosed trade-off (see this task's own moduledoc).
-    refute File.exists?(Path.join(out_dir, ".ggen_igniter/manifest.json"))
+    # The Reactor pipeline's OWN bookkeeping (`.ggen_igniter/manifest.json`
+    # under `--manifest-dir`) IS written on this path -- the opposite of
+    # the pre-Reactor-default assumption this test used to encode (a
+    # delegated call used to skip the manifest file entirely, relying on
+    # the controller's in-process state instead; the Reactor path always
+    # writes real, on-disk evidence regardless of any controller).
+    assert File.exists?(Path.join(out_dir, ".ggen_igniter/manifest.json"))
 
-    # -- Second call: identical argv, same live BEAM process. If `igniter/1`
-    # -- had silently fallen back to the standalone pipeline instead of
-    # -- actually delegating, this notice would read
-    # -- "unchanged (skipped, identical content): ..." with NO
-    # -- "via controller" suffix at all (see the fallback test below for
-    # -- exactly what that looks like) -- it would never say
-    # -- "reconciliation #2", a number that exists ONLY in this one BEAM
-    # -- process's GenServer state, never on disk.
+    # -- Second call: identical argv, same live BEAM process, same
+    # -- registered controller still running. Real idempotent no-op via the
+    # -- Reactor pipeline again -- still never "via controller".
     igniter2 = run_sync!(argv)
     assert [notice2] = igniter2.notices
 
-    assert notice2 =~ "via controller: reconciliation #2 for"
+    refute notice2 =~ "via controller"
+    assert notice2 =~ "(via reactor)"
     assert notice2 =~ "unchanged (skipped, identical content):"
 
-    # The real controller process itself confirms the identical fact via its
-    # own public API (`status/2`), independent of the CLI's own notice text --
-    # a second, independent read of the same real in-process state.
+    # The real controller process's own public API (`status/2`) confirms
+    # directly, independent of notice text, that delegation genuinely never
+    # happened across EITHER call: no record exists for this pack_key at
+    # all (a real record, if one existed, would report
+    # `reconciliation_count: 2` by now -- the exact assertion this test
+    # made before the Reactor-default change, now inverted to prove the
+    # opposite real fact).
     pack_key = {@template, out_path}
-    assert {:ok, record} = Controller.status(GgenIgniter.Controller, pack_key)
-    assert record.reconciliation_count == 2
-    assert record.receipt.outcome == :unchanged
-    assert record.receipt.engine == "sparql"
+    assert :never_reconciled = Controller.status(GgenIgniter.Controller, pack_key)
 
     # The file's real, on-disk content genuinely did not change between the
     # two calls (a real, byte-level fact -- not merely inferred from notice
@@ -135,7 +158,7 @@ defmodule GgenIgniter.SyncControllerDelegationTest do
     assert File.read!(out_path) == content_after_first
   end
 
-  test "igniter/1 falls back to the exact standalone pipeline when no controller is registered",
+  test "igniter/1 uses the real Reactor pipeline when no controller is registered either (the common case)",
        %{out_dir: out_dir} do
     refute Process.whereis(GgenIgniter.Controller)
 
@@ -157,7 +180,13 @@ defmodule GgenIgniter.SyncControllerDelegationTest do
       "--template",
       @template,
       "--out",
-      out_path
+      out_path,
+      # `out_path` lives outside the repo root -- see the controller-
+      # delegation test above.
+      "--manifest-dir",
+      out_dir,
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     igniter = run_sync!(argv)

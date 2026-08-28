@@ -206,7 +206,8 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         dry_run: :boolean,
         mode: :string,
         on_stale: :string,
-        manifest_dir: :string
+        manifest_dir: :string,
+        verify_cwd: :string
       ],
       required: []
     }
@@ -517,7 +518,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   defp run_via_reactor(igniter, opts, pack_template_stem) do
     template_path = resolve_template!(opts, pack_template_stem)
 
-    {frontmatter, _frontmatter_mode, _template_string} =
+    {frontmatter, frontmatter_mode, _template_string} =
       Frontmatter.split_template(File.read!(template_path))
 
     for_each = opts[:for_each] || frontmatter_field(frontmatter, :for_each)
@@ -534,11 +535,40 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
            "not implement multi-row fan-out)"}
 
       true ->
+        # Same early, clear `--out`-required validation `run_pipeline!/3` has
+        # always done -- BEFORE any query/render work -- restored here for
+        # parity now that this bounded path is reached unconditionally
+        # (rather than only as a fallback). Without this, a `mode: file`
+        # template missing `--out` would instead fail deep inside
+        # `ReconcileReactor.build_plan/3`'s real body-render step (a
+        # confusing `Render.render/2` error about an undefined template
+        # binding, or a differently-worded internal `ArgumentError`) --
+        # never this task's own documented, tested "--out is required"
+        # message. Mirrors `run_pipeline!/3`'s `nil -> mode defaults to
+        # :file` convention exactly (`resolve_mode!/2` itself returns `nil`
+        # when neither `--mode` nor frontmatter set one, same as here).
+        mode = resolve_mode!(opts, frontmatter_mode)
+
+        if (mode || :file) == :file and opts[:out] == nil and
+             frontmatter_field(frontmatter, :to) == nil do
+          raise ArgumentError,
+                "--out is required (directly, or via the template's own frontmatter \"to:\" field)"
+        end
+
         reconcile_opts = Keyword.put(opts, :pack_template_stem, pack_template_stem)
 
         case ReconcileReactor.run(reconcile_opts) do
           {:ok, receipt} ->
             notice = receipt.metadata["notice"] || "reconciled"
+
+            # Mirrors `run_pipeline!/3`'s own `if dry_run, do:
+            # Mix.shell().info(line)` -- printed DURING the run (not just
+            # returned as an `Igniter.add_notice/2` notice, which an
+            # in-process caller invoking `igniter/1` directly -- never
+            # through the outer Mix-task/`Igniter.do_or_dry_run/2`
+            # printing machinery -- would otherwise never see at all).
+            for line <- receipt.metadata["dry_run_lines"] || [], do: Mix.shell().info(line)
+
             {:ok, Igniter.add_notice(igniter, "ggen_igniter: #{notice} (via reactor)")}
 
           {:error, receipt} ->

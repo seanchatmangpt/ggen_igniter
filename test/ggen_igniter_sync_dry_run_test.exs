@@ -3,7 +3,12 @@ defmodule GgenIgniter.SyncDryRunTest do
 
   @moduletag :integration
 
-  defp base_args(out_path) do
+  # `out_path` lives outside the repo root (a real, unique tmp dir every
+  # caller here creates and removes itself) -- `--manifest-dir manifest_dir`
+  # scopes `GgenIgniter.ArtifactIdentity.within_root?/2`'s
+  # authorized-project-root check to that same tmp dir instead of the
+  # default `File.cwd!()`.
+  defp base_args(out_path, manifest_dir) do
     [
       "ggen_igniter.sync",
       "--ontology",
@@ -19,24 +24,44 @@ defmodule GgenIgniter.SyncDryRunTest do
       "--template",
       "test/fixtures/extension.ex.eex",
       "--out",
-      out_path
+      out_path,
+      "--manifest-dir",
+      manifest_dir,
+      # `:verify`'s real `mix compile --warnings-as-errors` subprocess
+      # (run even under `--dry-run`) would otherwise inherit
+      # `--manifest-dir` (a bare tmp dir with no `mix.exs`) and fail with
+      # "Could not find a Mix.Project" -- point it back at this repo's own
+      # real root.
+      "--verify-cwd",
+      File.cwd!()
     ]
   end
 
   test "--dry-run on a not-yet-existing target prints 'planned: write' and writes nothing" do
-    out_dir =
+    # `root_dir` (passed as `--manifest-dir`) wraps `out_dir` as its own
+    # subdirectory -- kept DISTINCT from `out_dir` itself so real,
+    # independent bookkeeping this run performs regardless of `--dry-run`
+    # (`GgenIgniter.Lock.acquire/2`'s own lock directory, keyed by
+    # `--manifest-dir`) lands alongside `out_dir`, never INSIDE it, which
+    # would otherwise break this test's own "the target's parent directory
+    # was never created" assertion below -- that assertion is about the
+    # WRITE TARGET's own directory never being `mkdir_p`'d under
+    # `--dry-run`, not about every directory anywhere being untouched.
+    root_dir =
       Path.join(
         System.tmp_dir!(),
-        "ggen_igniter_dry_run_new_test_#{System.unique_integer([:positive])}"
+        "ggen_igniter_dry_run_new_test_root_#{System.unique_integer([:positive])}"
       )
 
-    File.rm_rf!(out_dir)
-    on_exit(fn -> File.rm_rf!(out_dir) end)
+    out_dir = Path.join(root_dir, "output")
+
+    File.rm_rf!(root_dir)
+    on_exit(fn -> File.rm_rf!(root_dir) end)
 
     out_path = Path.join(out_dir, "resource.ex")
 
     {output, exit_code} =
-      System.cmd("mix", base_args(out_path) ++ ["--dry-run"],
+      System.cmd("mix", base_args(out_path, root_dir) ++ ["--dry-run"],
         cd: File.cwd!(),
         stderr_to_stdout: true
       )
@@ -64,7 +89,7 @@ defmodule GgenIgniter.SyncDryRunTest do
 
     # First, a real (non-dry-run) run to create the file for real.
     {setup_output, setup_exit} =
-      System.cmd("mix", base_args(out_path), cd: File.cwd!(), stderr_to_stdout: true)
+      System.cmd("mix", base_args(out_path, out_dir), cd: File.cwd!(), stderr_to_stdout: true)
 
     assert setup_exit == 0, "setup real sync failed:\n#{setup_output}"
     assert File.exists?(out_path)
@@ -73,7 +98,7 @@ defmodule GgenIgniter.SyncDryRunTest do
 
     # Now dry-run against the now-identical target.
     {output, exit_code} =
-      System.cmd("mix", base_args(out_path) ++ ["--dry-run"],
+      System.cmd("mix", base_args(out_path, out_dir) ++ ["--dry-run"],
         cd: File.cwd!(),
         stderr_to_stdout: true
       )
@@ -103,7 +128,7 @@ defmodule GgenIgniter.SyncDryRunTest do
     original_content = File.read!(out_path)
 
     {output, exit_code} =
-      System.cmd("mix", base_args(out_path) ++ ["--dry-run", "--unless-exists"],
+      System.cmd("mix", base_args(out_path, out_dir) ++ ["--dry-run", "--unless-exists"],
         cd: File.cwd!(),
         stderr_to_stdout: true
       )

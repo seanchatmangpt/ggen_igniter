@@ -79,17 +79,24 @@ defmodule GgenIgniter.SyncForEachTest do
   end
 
   test "mix ggen_igniter.sync without --for-each still writes exactly one static file (unchanged behavior)" do
-    out_dir =
+    # `root_dir` (passed as `--manifest-dir`) wraps `out_dir` as its own
+    # subdirectory -- kept DISTINCT from `out_dir` itself so this run's
+    # `<manifest-dir>/.ggen_igniter/manifest.json` bookkeeping lands
+    # alongside `out_dir`, never INSIDE it, which would otherwise break this
+    # test's own "exactly one file" `File.ls!(out_dir)` assertion below.
+    root_dir =
       Path.join(
         System.tmp_dir!(),
-        "ggen_igniter_no_for_each_test_#{System.unique_integer([:positive])}"
+        "ggen_igniter_no_for_each_test_root_#{System.unique_integer([:positive])}"
       )
+
+    out_dir = Path.join(root_dir, "output")
 
     # Same real cross-run tmp-dir-collision flake as the --for-each test
     # above (`System.unique_integer/1` restarts every fresh BEAM instance) --
     # clean up for real, every run.
-    File.rm_rf!(out_dir)
-    on_exit(fn -> File.rm_rf!(out_dir) end)
+    File.rm_rf!(root_dir)
+    on_exit(fn -> File.rm_rf!(root_dir) end)
 
     out_path = Path.join(out_dir, "resource.ex")
 
@@ -119,7 +126,18 @@ defmodule GgenIgniter.SyncForEachTest do
       "--template",
       "test/fixtures/extension.ex.eex",
       "--out",
-      out_path
+      out_path,
+      # `out_path` lives outside the repo root (a real, unique tmp dir this
+      # test creates and removes itself) -- `--manifest-dir` scopes
+      # `GgenIgniter.ArtifactIdentity.within_root?/2`'s authorized-project-root
+      # check to `root_dir` (which contains `out_dir`) instead of the
+      # default `File.cwd!()`, and `--verify-cwd` keeps `:verify`'s real
+      # `mix compile` pointed at the real repo root instead of the bare (no
+      # `mix.exs`) tmp dir.
+      "--manifest-dir",
+      root_dir,
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     {output, exit_code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)

@@ -34,7 +34,21 @@ defmodule GgenIgniter.SyncPackTaskTest do
       "--pack-dir",
       "test/fixtures/sample-pack",
       "--out",
-      out_path
+      out_path,
+      # `out_path` lives outside the repo root (a real, unique tmp dir this
+      # test creates and removes itself) -- `--manifest-dir` scopes
+      # `GgenIgniter.ArtifactIdentity.within_root?/2`'s authorized-project-root
+      # check to that same tmp dir instead of the default `File.cwd!()`, so
+      # this legitimately-outside-cwd-but-test-owned target isn't refused as
+      # a path escape. See `docs/architecture/adr/` for the guard itself.
+      "--manifest-dir",
+      out_dir,
+      # `:verify`'s real `mix compile --warnings-as-errors` subprocess would
+      # otherwise inherit `--manifest-dir` (a bare tmp dir with no
+      # `mix.exs`) and fail with "Could not find a Mix.Project" -- point it
+      # back at this repo's own real root.
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     {output, exit_code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
@@ -104,7 +118,15 @@ defmodule GgenIgniter.SyncPackTaskTest do
       "--query",
       "fields=test/fixtures/sample-pack/gates/040_fields.rq",
       "--out",
-      out_path
+      out_path,
+      # See the `--pack-dir` test above: `out_path` is outside the repo
+      # root, so `--manifest-dir` scopes the within-root guard to this
+      # test's own tmp dir, and `--verify-cwd` keeps `:verify`'s real `mix
+      # compile` pointed at the real repo root instead.
+      "--manifest-dir",
+      out_dir,
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     {output, exit_code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
@@ -128,6 +150,15 @@ defmodule GgenIgniter.SyncPackTaskTest do
       )
 
     refute exit_code == 0
-    assert output =~ "--ontology is required"
+    # `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3` (the path this repo
+    # always routes through since sync started defaulting to the Reactor
+    # pipeline) resolves `--template` before `--ontology` -- it needs the
+    # template up front to check for frontmatter/`for_each` and decide
+    # delegability -- so with NEITHER flag present, "--template is
+    # required" is the real first error now, not "--ontology is required"
+    # (the old direct `run_pipeline!/3`'s ontology-first order). Both are
+    # equally "a clear error"; this test's job is proving *a* clear error
+    # occurs with zero flags, not asserting a specific validation order.
+    assert output =~ "--template is required"
   end
 end

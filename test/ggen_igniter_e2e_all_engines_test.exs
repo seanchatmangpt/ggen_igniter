@@ -62,7 +62,17 @@ defmodule GgenIgniter.E2eAllEnginesTest do
         "--pack-dir",
         @pack_dir,
         "--out",
-        out_path
+        out_path,
+        # `out_path` lives outside the repo root (a real, unique tmp dir this
+        # test creates and removes itself) -- `--manifest-dir` scopes
+        # `GgenIgniter.ArtifactIdentity.within_root?/2`'s authorized-project-root
+        # check to that same tmp dir instead of the default `File.cwd!()`,
+        # and `--verify-cwd` keeps `:verify`'s real `mix compile` pointed at
+        # the real repo root instead of the bare (no `mix.exs`) tmp dir.
+        "--manifest-dir",
+        out_dir,
+        "--verify-cwd",
+        File.cwd!()
       ]
 
       {output1, exit_code1} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
@@ -123,7 +133,15 @@ defmodule GgenIgniter.E2eAllEnginesTest do
         "--pack-dir",
         @pack_dir,
         "--out",
-        out_path
+        out_path,
+        # See the `--engine sparql` test above: `out_path` is outside the
+        # repo root, so `--manifest-dir` scopes the within-root guard to
+        # this test's own tmp dir, and `--verify-cwd` keeps `:verify`
+        # pointed at the real repo root.
+        "--manifest-dir",
+        out_dir,
+        "--verify-cwd",
+        File.cwd!()
       ]
 
       {output1, exit_code1} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
@@ -216,7 +234,13 @@ defmodule GgenIgniter.E2eAllEnginesTest do
         "--template",
         template_path,
         "--out",
-        out_path
+        out_path,
+        # `out_path`/`template_path` live outside the repo root -- see the
+        # `--engine sparql` test above.
+        "--manifest-dir",
+        out_dir,
+        "--verify-cwd",
+        File.cwd!()
       ]
 
       {output1, exit_code1} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)

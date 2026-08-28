@@ -28,7 +28,8 @@ Pipeline: `Ontology.load!/1` → `Query`/`Engine.run/2` (once per `--query`) →
 | `--on-stale refuse\|prune\|preserve` | string | `"refuse"` | Reconciliation-manifest stale-path policy; see below. |
 | `--unless-exists` | boolean | `false` | Skip the write unconditionally if the target already exists (any content). |
 | `--skip-if PATTERN` | string | `nil` | Skip the write if the existing target's content contains this substring (no regex from the CLI flag itself — see Notes). |
-| `--manifest-dir DIR` | string | `File.cwd!()` | Where `.ggen_igniter/manifest.json` is read/written. |
+| `--manifest-dir DIR` | string | `File.cwd!()` | Where `.ggen_igniter/manifest.json` is read/written, and (when `--verify-cwd` is absent) the authorized-project-root boundary `GgenIgniter.ArtifactIdentity.within_root?/2` enforces against every `--out` target. |
+| `--verify-cwd DIR` | string | `--manifest-dir` value, else `File.cwd!()` | Directory the Reactor pipeline's `:verify` step runs its real `mix compile --warnings-as-errors` subprocess in. Decouples verification from `--manifest-dir` for the case where the reconciliation-manifest/path-escape boundary and the actual Mix project root differ (e.g. a test writing to an isolated tmp dir outside the real project via `--manifest-dir`, while `--verify-cwd` still points at the real project so `:verify` compiles the right tree). Wired straight through to `GgenIgniter.Reactors.ReconcileReactor.run/1`'s own `:verify_cwd` opt — see that module's moduledoc, "`:verify` scope". |
 
 ## `--ontology`, `--query`, `--template`, `--out`
 

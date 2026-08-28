@@ -1039,7 +1039,16 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       ],
       test_delay_ms: target_opts[:test_delay_ms],
       test_probe: target_opts[:test_probe],
-      test_chmod_after_write: target_opts[:test_chmod_after_write]
+      test_chmod_after_write: target_opts[:test_chmod_after_write],
+      # Carried all the way through to `finalize_evidence/1`'s notice text
+      # (never used for admission/actuation logic itself) so the reactor
+      # pipeline's own real notice can quote the same "(engine: X, N
+      # queries, M total row(s))" suffix `Mix.Tasks.GgenIgniter.Sync`'s
+      # direct pipeline always has -- real parity with `GgenIgniter.
+      # Reconcile.run/1`'s claimed single-target shape (this module's own
+      # moduledoc), not a re-derived or approximated count.
+      query_count: length(named_queries),
+      total_rows: named_results |> Enum.map(fn {_name, rows} -> length(rows) end) |> Enum.sum()
     }
   end
 
@@ -1078,7 +1087,13 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       write_opts: t.write_opts,
       test_delay_ms: t.test_delay_ms,
       test_probe: t.test_probe,
-      test_chmod_after_write: t.test_chmod_after_write
+      test_chmod_after_write: t.test_chmod_after_write,
+      # See `run_target_queries/3` -- carried through only for
+      # `finalize_evidence/1`'s notice text.
+      engine_name: t.engine_name,
+      query_count: t.query_count,
+      total_rows: t.total_rows,
+      template_path: t.template_path
     }
 
     case t.mode do
@@ -1527,9 +1542,25 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     end
   end
 
+  # `:dry_run` short-circuits BEFORE `Actuate.eval_code!/2` ever runs --
+  # mirrors `Mix.Tasks.GgenIgniter.Sync`'s own `actuate!/8` `mode: :eval,
+  # dry_run: true` clause exactly (see that module). Without this check,
+  # `mode: eval` under `--dry-run` would actually execute the rendered
+  # body's real side effects (this pipeline's own adversarial-property
+  # coverage -- `test/ggen_igniter_actuation_dispatch_matrix_properties_test.exs`'s
+  # `%{mode: :eval, dry_run: true}` cases -- exists specifically to catch
+  # exactly that class of bug), defeating `--dry-run`'s entire documented
+  # "zero real side effects" contract.
   defp actuate_one(%PendingActuation{operation: :eval} = pa, exec) do
-    bindings = Map.get(pa.semantic_source, :bindings, [])
-    {:ok, value} = Actuate.eval_code!(pa.desired_content, bindings)
+    dry_run = exec.write_opts[:dry_run] || false
+
+    {value, notice_value} =
+      if dry_run do
+        {nil, nil}
+      else
+        {:ok, value} = Actuate.eval_code!(pa.desired_content, bindings(pa))
+        {value, value}
+      end
 
     {:ok,
      %{
@@ -1539,7 +1570,17 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
        canonical_target: nil,
        outcome: nil,
        value: value,
-       tracked: nil
+       tracked: nil,
+       dry_run: dry_run,
+       template_path: exec.template_path,
+       engine_name: exec.engine_name,
+       query_count: exec.query_count,
+       total_rows: exec.total_rows,
+       notice_line:
+         if(dry_run,
+           do: "planned: evaluate #{exec.template_path} (mode: eval)",
+           else: "evaluated #{exec.template_path} -> #{inspect(notice_value)}"
+         )
      }}
   rescue
     e -> {:error, %{index: exec.index, mode: :eval, reason: {e.__struct__, Exception.message(e)}}}
@@ -1578,7 +1619,13 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
        out_path: pa.target,
        canonical_target: pa.canonical_target,
        outcome: outcome,
-       tracked: tracked
+       tracked: tracked,
+       dry_run: exec.write_opts[:dry_run] || false,
+       template_path: exec.template_path,
+       engine_name: exec.engine_name,
+       query_count: exec.query_count,
+       total_rows: exec.total_rows,
+       notice_line: notice_line(outcome, pa.target, exec.write_opts[:dry_run] || false)
      }}
   rescue
     e ->
@@ -1650,7 +1697,13 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
        out_path: pa.target,
        canonical_target: pa.canonical_target,
        outcome: outcome,
-       tracked: tracked
+       tracked: tracked,
+       dry_run: dry_run,
+       template_path: exec.template_path,
+       engine_name: exec.engine_name,
+       query_count: exec.query_count,
+       total_rows: exec.total_rows,
+       notice_line: notice_line(outcome, pa.target, dry_run)
      }}
   rescue
     e ->
@@ -1662,6 +1715,36 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
          reason: {e.__struct__, Exception.message(e)}
        }}
   end
+
+  defp bindings(pa), do: Map.get(pa.semantic_source, :bindings, [])
+
+  # Byte-for-byte the same real per-target notice wording
+  # `Mix.Tasks.GgenIgniter.Sync`'s own private `notice_line/3`/`outcome_verb/1`
+  # produce (that module's exact `"--dry-run" -> "planned: X"` /
+  # `"wrote"`/`"injected"`/`"unchanged (skipped, identical content):"`/
+  # `"skipped (unless_exists, already exists):"`/`"skipped (skip_if
+  # matched):"` conventions) -- this pipeline's own moduledoc claims real
+  # "byte-for-byte parity against `Reconcile.run/1`" for the single-target
+  # case; duplicated here (rather than shared via a new common module)
+  # because `Mix.Tasks.GgenIgniter.Sync`'s version is `defp` and this
+  # pipeline must never depend on a Mix task module at runtime.
+  defp notice_line(:written, path, true), do: "planned: write #{path}"
+  defp notice_line(:injected, path, true), do: "planned: inject #{path}"
+  defp notice_line(:unchanged, path, true), do: "planned: skip #{path} (unchanged)"
+
+  defp notice_line(:skipped_exists, path, true),
+    do: "planned: skip #{path} (unless_exists/skip_if match)"
+
+  defp notice_line(:skipped_match, path, true),
+    do: "planned: skip #{path} (unless_exists/skip_if match)"
+
+  defp notice_line(outcome, path, false), do: "#{outcome_verb(outcome)} #{path}"
+
+  defp outcome_verb(:written), do: "wrote"
+  defp outcome_verb(:injected), do: "injected"
+  defp outcome_verb(:unchanged), do: "unchanged (skipped, identical content):"
+  defp outcome_verb(:skipped_exists), do: "skipped (unless_exists, already exists):"
+  defp outcome_verb(:skipped_match), do: "skipped (skip_if matched):"
 
   # Test-only instrumentation -- see moduledoc "Testing hooks". Inert unless
   # a caller explicitly sets `:test_probe` on a target.
@@ -1789,12 +1872,36 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     # "Receipt's output identity"). `File.read!/1` still reads the real,
     # literal `path` -- canonical identity is an identity/comparison value
     # only, never substituted for the actual I/O path.
+    # `not (dry_run || false)` -- see `commit_recipe/5`'s identical guard,
+    # same real ENOENT-on-a-never-created-target bug, same fix.
     outputs =
-      for %{mode: :file, out_path: path, canonical_target: canonical, outcome: outcome} <-
-            results,
+      for %{
+            mode: :file,
+            out_path: path,
+            canonical_target: canonical,
+            outcome: outcome,
+            dry_run: dry_run
+          } <- results,
           outcome in [:written, :unchanged],
+          not (dry_run || false),
           into: %{},
           do: {canonical, Manifest.hash_content(File.read!(path))}
+
+    # Every target in THIS run was a `--dry-run` preview -- real, per-target
+    # `Actuate.write_file!/3`/`Actuate.eval_code!/2`/`Actuate.inject_content!/5`
+    # calls already correctly skipped their own real filesystem/eval side
+    # effects (see `actuate_one/2`), but this step's own durable writes
+    # (`Receipt.append!/2`, `Manifest.persist!/2`, `Manifest.prune!/1`) do
+    # NOT self-guard on `dry_run` the way `Actuate` does -- without this
+    # check, a dry-run would still append a real receipt line and (when a
+    # target's rendered path differs from any prior manifest entry) persist
+    # a real manifest change, silently breaking `--dry-run`'s documented
+    # "zero real side effects" contract at this pipeline's own bookkeeping
+    # layer (a real, confirmed bug this guard closes). `Enum.all?/2` (not
+    # `opts[:dry_run]` alone): correct even for a hypothetical mixed
+    # `:targets` run where only SOME targets are dry-run -- any real target
+    # present still gets real evidence persisted.
+    dry_run_run? = results != [] and Enum.all?(results, &(&1[:dry_run] || false))
 
     graph_hash =
       "sha256:" <>
@@ -1828,6 +1935,35 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
     events = OcelEmitter.peek_sink(event_sink)
 
+    # Byte-for-byte the same real "VERB PATH; VERB PATH (engine: X, N
+    # queries, M total row(s))" convention `Mix.Tasks.GgenIgniter.Sync`'s
+    # own `run_pipeline!/3` builds (each target's own `notice_line`, joined
+    # with "; ", suffixed with the SAME `(engine: ..., N quer(y|ies), M
+    # total row(s))` this pipeline's own moduledoc claims real parity with
+    # `Reconcile.run/1` for) -- `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3`
+    # prepends `"ggen_igniter: "` and appends `" (via reactor)"` around
+    # whatever this builds, so this string itself matches exactly what the
+    # OLD (non-reactor) pipeline's own notice body would have read for the
+    # same real outcome -- real fix for a real, confirmed gap (this
+    # pipeline previously always emitted a generic "N target(s) actuated"
+    # notice regardless of what actually happened to which path).
+    notice_body =
+      results
+      |> Enum.map(& &1[:notice_line])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join("; ")
+
+    query_suffix =
+      if single_result do
+        query_count = single_result[:query_count] || 0
+        total_rows = single_result[:total_rows] || 0
+
+        " (engine: #{single_result[:engine_name]}, #{query_count} " <>
+          "quer#{if query_count == 1, do: "y", else: "ies"}, #{total_rows} total row(s))"
+      else
+        ""
+      end
+
     receipt =
       Receipt.new(%{
         standing: :alive,
@@ -1847,25 +1983,53 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           "outcome" =>
             single_result && single_result[:outcome] && Atom.to_string(single_result[:outcome]),
           "mode" => single_result && single_result[:mode] && Atom.to_string(single_result[:mode]),
-          "notice" => "ggen_igniter reactor: #{length(results)} target(s) actuated"
+          "notice" => notice_body <> query_suffix,
+          # Per-target bare notice lines (no "ggen_igniter: " prefix, no
+          # "(engine: ...)" suffix) for a `--dry-run` caller to print
+          # DURING the run via `Mix.shell().info/1` -- mirrors
+          # `Mix.Tasks.GgenIgniter.Sync`'s own `run_pipeline!/3`
+          # (`if dry_run, do: Mix.shell().info(line)`, per target, as it
+          # goes) -- see `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3`'s
+          # own call site. `[]` for a real (non-dry-run) run: nothing to
+          # preview-print, the real notice above already covers it.
+          "dry_run_lines" =>
+            if(dry_run_run?,
+              do: results |> Enum.map(& &1[:notice_line]) |> Enum.reject(&is_nil/1),
+              else: []
+            )
         }
       })
 
-    # -- 2. Persist the receipt FIRST (real append-only write). If this
-    # itself raises, this step fails like any other -- Reactor's own undo
-    # then rolls back `:actuate`'s real writes (a real, if unusual,
-    # `:compensated` outcome via `run/1`'s failure path, since this step
-    # never gets to build a receipt of its own in that case).
-    :ok = Receipt.append!(manifest_dir, receipt)
+    # -- 2. Persist the receipt FIRST (real append-only write) -- but ONLY
+    # for a real (non-dry-run) run. `--dry-run`'s documented contract
+    # (`GgenIgniter.Actuate`'s own moduledoc: "compute and return the same
+    # outcome... but never touch the filesystem") applies to this
+    # pipeline's OWN bookkeeping writes too, not just the per-target
+    # `Actuate` calls `actuate_one/2` already correctly skips real I/O for
+    # -- see `dry_run_run?` above for the real, confirmed bug this closes
+    # (a dry-run previously still appended a real receipt line and could
+    # persist a real manifest change). If a REAL append itself raises, this
+    # step fails like any other -- Reactor's own undo then rolls back
+    # `:actuate`'s real writes (a real, if unusual, `:compensated` outcome
+    # via `run/1`'s failure path, since this step never gets to build a
+    # receipt of its own in that case).
+    unless dry_run_run? do
+      :ok = Receipt.append!(manifest_dir, receipt)
+    end
 
     # -- 3. Only now attempt to promote the manifest, atomically
     # (`Manifest.persist!/2`'s own temp-file-then-`File.rename!/2` protocol,
     # unchanged). A failure HERE is caught locally, NOT re-raised: the files
     # were genuinely written and verified, so rolling them back because the
     # manifest CACHE could not be updated would be wrong -- the already-
-    # durable receipt above is the real recovery anchor for a retry.
+    # durable receipt above is the real recovery anchor for a retry. Never
+    # reached for a real dry-run: `manifest_changed?` is always `false` in
+    # that case too, since `commit_recipe/5` excludes every dry-run result
+    # from ever changing `new_manifest` in the first place -- this `unless`
+    # is defense-in-depth stated explicitly rather than relied on
+    # implicitly.
     manifest_promotion =
-      if manifest_changed? do
+      if manifest_changed? and not dry_run_run? do
         try do
           Manifest.persist!(new_manifest, manifest_dir)
           :promoted
@@ -1894,9 +2058,14 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     # a prune failure is real evidence, but not a reason to contradict an
     # already-durable, correct `:alive` receipt or roll back files that were
     # genuinely written and verified. `metadata["prune_outcome"]` records
-    # the real outcome either way.
+    # the real outcome either way. `not dry_run_run?`: a real `--on-stale
+    # prune` deletion is exactly the kind of real filesystem side effect
+    # `--dry-run` must never perform -- `Mix.Tasks.GgenIgniter.Sync`'s own
+    # `preview_stale!(:prune, stale)` only ever PRINTS "planned: prune
+    # PATH" lines, it never calls `Manifest.prune!/1` for real.
     prune_outcome =
-      if admitted.on_stale == :prune and MapSet.size(admitted.stale_paths) > 0 do
+      if admitted.on_stale == :prune and MapSet.size(admitted.stale_paths) > 0 and
+           not dry_run_run? do
         try do
           {:pruned, Manifest.prune!(MapSet.to_list(admitted.stale_paths))}
         rescue
@@ -1926,7 +2095,15 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   defp commit_recipe(recipe, results, manifest_acc, changed_acc, pack_dir) do
     result = Enum.find(results, &(&1.index == recipe.index))
 
-    if result && result.outcome in [:written, :unchanged] do
+    # `result.outcome == :written` is `Actuate.write_file!/3`'s "would
+    # write" answer for `--dry-run` too (see that module's own moduledoc) --
+    # `not result[:dry_run]` is required alongside the outcome check, or a
+    # dry-run's `File.read!(recipe.out_path)` two lines below crashes with a
+    # real `File.Error{reason: :enoent}` for a target `--dry-run` never
+    # actually created (real, confirmed bug this guard closes -- see
+    # `actuate_one/2`'s `dry_run:` field, threaded through for exactly this
+    # check).
+    if result && result.outcome in [:written, :unchanged] && not (result[:dry_run] || false) do
       # `GgenIgniter.Manifest`'s `outputs` map is keyed by real canonical
       # identity (`recipe.canonical_out_path`, from `GgenIgniter.
       # ArtifactIdentity`), never the raw `recipe.out_path` string (ticket

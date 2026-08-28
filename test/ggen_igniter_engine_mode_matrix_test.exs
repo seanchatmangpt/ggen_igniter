@@ -86,7 +86,8 @@ defmodule GgenIgniter.EngineModeMatrixTest do
 
   describe "engine: sparql" do
     test "mode: file, for_each: absent -- writes one real compiling file from the audit_trail fixtures" do
-      out_path = Path.join(unique_tmp_dir("matrix_sparql_file"), "resource.ex")
+      out_dir = unique_tmp_dir("matrix_sparql_file")
+      out_path = Path.join(out_dir, "resource.ex")
 
       {output, exit_code} =
         run_sync([
@@ -105,7 +106,18 @@ defmodule GgenIgniter.EngineModeMatrixTest do
           "--template",
           "test/fixtures/extension.ex.eex",
           "--out",
-          out_path
+          out_path,
+          # `out_path` lives outside the repo root (a real, unique tmp dir
+          # `unique_tmp_dir/1` creates and removes itself) -- `--manifest-dir`
+          # scopes `GgenIgniter.ArtifactIdentity.within_root?/2`'s
+          # authorized-project-root check to that same tmp dir instead of
+          # the default `File.cwd!()`, and `--verify-cwd` keeps `:verify`'s
+          # real `mix compile` pointed at the real repo root instead of the
+          # bare (no `mix.exs`) tmp dir.
+          "--manifest-dir",
+          out_dir,
+          "--verify-cwd",
+          File.cwd!()
         ])
 
       assert exit_code == 0, "sparql/file/absent sync failed:\n#{output}"
@@ -239,7 +251,8 @@ defmodule GgenIgniter.EngineModeMatrixTest do
 
   describe "engine: oxigraph" do
     test "mode: file, for_each: absent -- writes one real, compiling file (clean, unwrapped values)" do
-      out_path = Path.join(unique_tmp_dir("matrix_oxigraph_file"), "resource.ex")
+      out_dir = unique_tmp_dir("matrix_oxigraph_file")
+      out_path = Path.join(out_dir, "resource.ex")
 
       {output, exit_code} =
         run_sync([
@@ -258,7 +271,13 @@ defmodule GgenIgniter.EngineModeMatrixTest do
           "--template",
           "test/fixtures/extension.ex.eex",
           "--out",
-          out_path
+          out_path,
+          # `out_path` lives outside the repo root -- see the sparql matrix
+          # test above.
+          "--manifest-dir",
+          out_dir,
+          "--verify-cwd",
+          File.cwd!()
         ])
 
       assert exit_code == 0, "oxigraph/file/absent sync failed:\n#{output}"
