@@ -186,15 +186,39 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   `:actuate` runs independent targets' real writes concurrently
   (`Task.async_stream/3`) for real throughput on independent files. Two
-  DIFFERENT targets resolving to the SAME real `out_path` in the SAME run
-  would otherwise race -- there is no principled dependency order the
+  DIFFERENT targets resolving to the SAME real output location in the SAME
+  run would otherwise race -- there is no principled dependency order the
   ontology itself expresses for two unrelated queries that happen to render
   the same path. `:admit` detects this structurally (grouping this run's own
-  pending file-mode writes by their real `out_path`) and refuses the ENTIRE
-  run with `{:error, {:refused_duplicate_output_path, [...]}}` before any
-  actuation happens at all -- chosen deliberately over inventing an implicit
-  dependency-ordering mechanism the ontology has no way to express; see the
-  test suite's concurrency proof for the real, asserted behavior.
+  pending file-mode writes by each item's real `canonical_target` --
+  `GgenIgniter.ArtifactIdentity.canonicalize/2`'s result, NEVER the raw
+  `target` string) and refuses the ENTIRE run with `{:error,
+  {:refused_duplicate_output_path, [...]}}` before any actuation happens at
+  all -- chosen deliberately over inventing an implicit dependency-ordering
+  mechanism the ontology has no way to express; see the test suite's
+  concurrency proof for the real, asserted behavior.
+
+  ### Correction (2026-08-27): grouping by raw string was a real, confirmed gap
+
+  `.ggen_igniter_factory/redteam-concurrency-nondeterminism.md` (an
+  independent adversarial review, its real reproducer re-run against this
+  fix in `test/ggen_igniter_artifact_identity_test.exs`) found that this
+  guard used to group by the raw `target` STRING
+  (`Enum.group_by(& &1.target)`) -- so two targets whose `--out`/`to:`
+  strings differed only by a redundant `/./` segment (the same root cause
+  covers `//`, `..`-traversal, and symlink-based aliases) resolved to the
+  SAME real inode while comparing as different Elixir strings, silently
+  bypassing this guard entirely. `:actuate`'s real `Task.async_stream/3`
+  then genuinely raced both writes against the identical real file --
+  confirmed, empirically, as real nondeterministic last-writer-wins (both
+  possible targets independently observed as the real surviving winner
+  across repeated real runs), with the pipeline reporting `standing:
+  :alive` (full, false success) regardless of which target's content was
+  actually discarded. Fixed by grouping on `GgenIgniter.PendingActuation`'s
+  real `canonical_target` field instead -- see `GgenIgniter.ArtifactIdentity`
+  for the real canonicalization primitive this and `within_root?/2`'s
+  real path-escape guard (also enforced in `:admit`, alongside this check)
+  are built on.
 
   ## `compensate/4` vs `undo/4` -- real Reactor semantics, not folklore
 
@@ -318,7 +342,10 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   alias GgenIgniter.{
     Actuate,
+    ArtifactIdentity,
     Engine,
+    Frontmatter,
+    Injection,
     Manifest,
     Ontology,
     Pack,
@@ -397,7 +424,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
     run(fn %{queried: %{targets: targets}, observed: %{manifest: manifest}, reconcile_opts: opts},
            _context ->
-      plan = build_plan(targets, manifest)
+      base_dir = opts[:manifest_dir] || File.cwd!()
+      plan = build_plan(targets, manifest, base_dir)
 
       OcelEmitter.emit(
         opts[:event_sink],
@@ -605,6 +633,21 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   """
   @spec run(keyword()) :: {:ok, Receipt.t()} | {:error, Receipt.t()}
   def run(reconcile_opts) when is_list(reconcile_opts) do
+    # `Reactor.run/4` requires the real `:reactor` OTP application to be
+    # STARTED (not merely loaded/compiled): `Reactor.Application.start/2`
+    # supervises `Reactor.Executor.ConcurrencyTracker`, the named ETS table
+    # `Reactor.Executor.State.maybe_allocate_concurrency_pool/1` writes into
+    # on every run -- confirmed by reading `deps/reactor/lib/reactor/
+    # application.ex` directly. `mix ggen_igniter.sync` (this module's real
+    # AR-9 caller, `Mix.Tasks.GgenIgniter.Sync.igniter/1`) is an
+    # `Igniter.Mix.Task`, which does not itself guarantee `:reactor` was
+    # started before `igniter/1` runs (unlike a full OTP release boot).
+    # `Application.ensure_all_started/1` is idempotent and cheap when
+    # `:reactor` is already running (the common case inside a real
+    # `GgenIgniter.Application`-booted BEAM), so this is a safe, defensive
+    # guarantee rather than a redundant no-op removed later.
+    {:ok, _} = Application.ensure_all_started(:reactor)
+
     event_sink = OcelEmitter.new_sink()
     opts = Keyword.put(reconcile_opts, :event_sink, event_sink)
     manifest_dir = opts[:manifest_dir] || File.cwd!()
@@ -704,6 +747,78 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
         Receipt.append!(manifest_dir, receipt)
         {:error, receipt}
+    end
+  end
+
+  # -- Public entry point (read-only admission preview) --------------------
+
+  @doc """
+  Read-only admission preview backing `mix ggen_igniter.plan`
+  (`Mix.Tasks.GgenIgniter.Plan` -- see that module's moduledoc for the full
+  CLI contract). Runs the SAME observe-prior-manifest -> load-ontology ->
+  resolve-pack -> run-queries -> render -> admit sequence `run/1` runs for a
+  real reconciliation -- reusing the exact same private helpers
+  (`normalize_targets/1`, `run_target_queries/3`, `build_plan/3`,
+  `admit_pending/2`) rather than a parallel plan-only implementation -- but
+  STOPS before `:actuate`/`:verify`/`:finalize_evidence` ever run: nothing is
+  written to disk, no `GgenIgniter.Receipt` is persisted, and no manifest is
+  promoted. This is a plain function, not a `Reactor.run/4` invocation --
+  there is nothing here for Reactor's compensation/undo machinery to protect
+  against, since no mutation ever happens on this path.
+
+  Returns `{:ok, [%PendingActuation{}]}` -- the exact admitted plan `:admit`
+  would hand to `:actuate`, unwrapped from `admit_pending/2`'s own
+  `%{pending: pending, ...}` map since callers of `plan/1` (today, only
+  `Mix.Tasks.GgenIgniter.Plan.report/3`) only need the list itself.
+
+  `{:error, {:unsupported_capability, reason}}` when the resolved template
+  has a `---` frontmatter header -- this bounded pipeline (like `run/1`,
+  via `Mix.Tasks.GgenIgniter.Sync`'s own `run_via_reactor/3` guard) does not
+  implement frontmatter parsing. `{:error, reason}` for any other
+  admission-time refusal (one of `admit_pending/2`'s own tagged reasons:
+  `:refused_duplicate_output_path` / `:refused_path_escapes_root` /
+  `:refused_unowned_delete` / `:refused_stale_outputs`).
+
+  Raises `ArgumentError` for an unresolvable input (missing/ambiguous
+  template, ontology, or query) -- the same vocabulary `resolve_ontology_path!/1`
+  and `resolve_template_path!/1` already raise for `run/1`; `Mix.Tasks.GgenIgniter.Plan`
+  rescues this itself and turns it into exit code 2, this function does not
+  catch its own raises.
+  """
+  @spec plan(keyword()) ::
+          {:ok, [PendingActuation.t()]}
+          | {:error, {:unsupported_capability, String.t()}}
+          | {:error, term()}
+  def plan(reconcile_opts) when is_list(reconcile_opts) do
+    manifest_dir = reconcile_opts[:manifest_dir] || File.cwd!()
+    manifest = Manifest.load(manifest_dir)
+
+    ontology_path = resolve_ontology_path!(reconcile_opts)
+    graph = Ontology.load!(ontology_path)
+
+    template_path = resolve_template_path!(reconcile_opts)
+
+    {frontmatter, _frontmatter_mode, _template_string} =
+      Frontmatter.split_template(File.read!(template_path))
+
+    if frontmatter != nil do
+      {:error,
+       {:unsupported_capability,
+        "template frontmatter (#{template_path} has a --- header -- " <>
+          "GgenIgniter.Reactors.ReconcileReactor.plan/1 does not implement frontmatter parsing)"}}
+    else
+      targets =
+        reconcile_opts
+        |> normalize_targets()
+        |> Enum.with_index()
+        |> Enum.map(fn {target_opts, index} -> run_target_queries(target_opts, graph, index) end)
+
+      built_plan = build_plan(targets, manifest, manifest_dir)
+
+      case admit_pending(built_plan, reconcile_opts) do
+        {:ok, %{pending: pending}} -> {:ok, pending}
+        {:error, reason} -> {:error, reason}
+      end
     end
   end
 
@@ -823,6 +938,10 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   defp describe_failure({:refused_duplicate_output_path, collisions}),
     do: "refused: duplicate output path(s): #{inspect(collisions)}"
 
+  defp describe_failure({:refused_path_escapes_root, canonical_target}),
+    do:
+      "refused: target #{inspect(canonical_target)} resolves outside the authorized project root"
+
   defp describe_failure({:refused_unowned_delete, target}),
     do: "refused: stale-prune candidate #{inspect(target)} is not owned by this recipe"
 
@@ -938,8 +1057,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # item's own `logical_id` -- neither is part of the admission-relevant
   # IR itself, same real distinction `GgenIgniter.PendingActuation`'s
   # moduledoc draws for its own `desired_content` field.
-  defp build_plan(targets, manifest) do
-    built = Enum.map(targets, &render_target(&1, manifest))
+  defp build_plan(targets, manifest, base_dir) do
+    built = Enum.map(targets, &render_target(&1, manifest, base_dir))
 
     write_pending = Enum.map(built, & &1.pending_actuation)
     delete_pending = Enum.flat_map(built, & &1.stale_pending)
@@ -949,9 +1068,18 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     %{pending: write_pending ++ delete_pending, recipes: recipes, exec: exec}
   end
 
-  defp render_target(t, manifest) do
-    template_string = File.read!(t.template_path)
-    content = Render.render(template_string, t.bindings)
+  defp render_target(t, manifest, base_dir) do
+    raw_template = File.read!(t.template_path)
+    {frontmatter, _frontmatter_mode, body} = Frontmatter.split_template(raw_template)
+    content = Render.render(body, t.bindings)
+
+    exec = %{
+      index: t.index,
+      write_opts: t.write_opts,
+      test_delay_ms: t.test_delay_ms,
+      test_probe: t.test_probe,
+      test_chmod_after_write: t.test_chmod_after_write
+    }
 
     case t.mode do
       :file ->
@@ -970,67 +1098,130 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           out_template: out_template
         }
 
-        pending_actuation =
-          PendingActuation.for_file(
+        inject? = frontmatter != nil and (frontmatter.inject || false)
+
+        if inject? do
+          render_inject_target(
+            t,
+            base_dir,
             out_path,
             content,
-            t.template_path,
-            out_template,
             old_entry,
-            semantic_source
+            semantic_source,
+            frontmatter,
+            exec
           )
-
-        stale = Manifest.stale_paths(old_entry, [out_path])
-
-        stale_pending =
-          for path <- Enum.sort(MapSet.to_list(stale)) do
-            PendingActuation.for_delete(
-              path,
-              t.template_path,
-              out_template,
-              Map.put(semantic_source, :reason, :stale)
-            )
-          end
-
-        recipe = %{
-          index: t.index,
-          recipe_key: recipe_key,
-          template_path: t.template_path,
-          out_template: out_template,
-          out_path: out_path,
-          old_entry: old_entry
-        }
-
-        %{
-          pending_actuation: pending_actuation,
-          stale_pending: stale_pending,
-          recipe: recipe,
-          exec: %{
-            index: t.index,
-            write_opts: t.write_opts,
-            test_delay_ms: t.test_delay_ms,
-            test_probe: t.test_probe,
-            test_chmod_after_write: t.test_chmod_after_write
-          }
-        }
+        else
+          render_file_target(t, base_dir, out_path, content, old_entry, semantic_source, exec)
+        end
 
       :eval ->
         semantic_source = %{index: t.index, engine_name: t.engine_name, bindings: t.bindings}
         pending_actuation = PendingActuation.for_eval(content, t.template_path, semantic_source)
 
-        %{
-          pending_actuation: pending_actuation,
-          stale_pending: [],
-          recipe: nil,
-          exec: %{
-            index: t.index,
-            write_opts: t.write_opts,
-            test_delay_ms: t.test_delay_ms,
-            test_probe: t.test_probe,
-            test_chmod_after_write: t.test_chmod_after_write
-          }
-        }
+        %{pending_actuation: pending_actuation, stale_pending: [], recipe: nil, exec: exec}
     end
+  end
+
+  # `mode: file`, no `inject:` -- this function's body is the exact former
+  # `:file` clause of `render_target/3`, extracted so `render_target/3` can
+  # branch on `inject?` without duplicating the whole `:file` case.
+  defp render_file_target(t, base_dir, out_path, content, old_entry, semantic_source, exec) do
+    out_template = semantic_source.out_template
+    recipe_key = semantic_source.recipe_key
+
+    pending_actuation =
+      PendingActuation.for_file(
+        base_dir,
+        out_path,
+        content,
+        t.template_path,
+        out_template,
+        old_entry,
+        semantic_source
+      )
+
+    # Stale-prune detection now diffs by REAL canonical identity (never
+    # the raw `out_path` string) -- see `GgenIgniter.PendingActuation`'s
+    # `canonical_target` and this module's own moduledoc/red-team
+    # citation: `GgenIgniter.Manifest`'s `outputs` keys are themselves
+    # canonical identities (built the same way in `commit_recipe/5` /
+    # `finalize_evidence/1` below), so comparing them against anything
+    # OTHER than this run's own canonical identity would silently
+    # reintroduce the exact alias-blindness this whole primitive exists
+    # to close.
+    stale = Manifest.stale_paths(old_entry, [pending_actuation.canonical_target])
+
+    stale_pending =
+      for path <- Enum.sort(MapSet.to_list(stale)) do
+        PendingActuation.for_delete(
+          base_dir,
+          path,
+          t.template_path,
+          out_template,
+          Map.put(semantic_source, :reason, :stale)
+        )
+      end
+
+    recipe = %{
+      index: t.index,
+      recipe_key: recipe_key,
+      template_path: t.template_path,
+      out_template: out_template,
+      out_path: out_path,
+      canonical_out_path: pending_actuation.canonical_target,
+      old_entry: old_entry
+    }
+
+    %{
+      pending_actuation: pending_actuation,
+      stale_pending: stale_pending,
+      recipe: recipe,
+      exec: exec
+    }
+  end
+
+  # `mode: file`, frontmatter `inject: true` -- reuses
+  # `GgenIgniter.Injection.resolve_injection!/1` (the SAME real
+  # frontmatter-to-`inject_content!/5`-args conversion
+  # `Mix.Tasks.GgenIgniter.Sync` uses, extracted to a shared module -- see
+  # `GgenIgniter.Injection`'s moduledoc) to turn `before:`/`after:`/`at_line:`
+  # into `marker`/`insert_mode`/`insert_opts`, then builds a real
+  # `operation: :inject` `%PendingActuation{}` via `for_inject/9`.
+  #
+  # Deliberately no `recipe` (`recipe: nil`) and no `stale_pending`: an
+  # inject target is never reconciliation-owned by this pack (mirrors
+  # `Mix.Tasks.GgenIgniter.Sync`'s own `reconcile? = mode == :file and
+  # inject_spec == nil` rule -- `inject_content!/5` requires and never
+  # creates a PRE-EXISTING file this pack does not own, so treating a splice
+  # target as "manufactured by this pack" would let `--on-stale prune`
+  # delete a file this pack never created).
+  defp render_inject_target(
+         t,
+         base_dir,
+         out_path,
+         content,
+         old_entry,
+         semantic_source,
+         frontmatter,
+         exec
+       ) do
+    {marker, insert_mode, insert_opts} = Injection.resolve_injection!(frontmatter)
+
+    pending_actuation =
+      PendingActuation.for_inject(
+        base_dir,
+        out_path,
+        content,
+        t.template_path,
+        semantic_source.out_template,
+        old_entry,
+        Map.put(semantic_source, :insert_opts, insert_opts),
+        marker,
+        insert_mode
+      )
+
+    %{pending_actuation: pending_actuation, stale_pending: [], recipe: nil, exec: exec}
   end
 
   defp resolve_mode!(nil), do: :file
@@ -1142,25 +1333,49 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # invariants no single-item view could catch:
   #
   #   * no two admitted `:create`/`:replace` items may share the same real
-  #     `target` -- a genuine whole-plan conflict.
+  #     ARTIFACT IDENTITY (`canonical_target`, from
+  #     `GgenIgniter.ArtifactIdentity.canonicalize/2` -- NEVER the raw
+  #     `target` string) -- a genuine whole-plan conflict. This is the
+  #     direct, real fix for the confirmed adversarial finding in
+  #     `.ggen_igniter_factory/redteam-concurrency-nondeterminism.md`: two
+  #     `target` strings that differ only by a redundant `/./` segment (or
+  #     `..`-traversal, or a symlinked alias) used to group into two
+  #     separate `Enum.group_by(& &1.target)` buckets and sail past this
+  #     guard entirely, letting `:actuate`'s real `Task.async_stream/3`
+  #     race unprotected on the shared real file. Grouping by
+  #     `canonical_target` instead means the exact alias construction that
+  #     report reproduces is refused here, before `:actuate` ever runs --
+  #     see `test/ggen_igniter_artifact_identity_test.exs`'s real, re-run
+  #     11-iteration reproducer for the empirical proof against this fix.
+  #   * no admitted item's `canonical_target` may escape the authorized
+  #     project root (`GgenIgniter.ArtifactIdentity.within_root?/2`) -- a
+  #     real path-traversal refusal, defense-in-depth alongside the
+  #     duplicate check above (both are real artifact-identity invariants,
+  #     checked the same way).
   #   * every `operation: :delete` item must carry `ownership: true` -- this
   #     pipeline refuses to ever plan deleting a path it does not itself
   #     own (mirrors `GgenIgniter.Manifest`'s own documented rule for
   #     `--on-stale prune`; real by construction via
-  #     `GgenIgniter.PendingActuation.for_delete/4`, asserted here as a
+  #     `GgenIgniter.PendingActuation.for_delete/5`, asserted here as a
   #     genuine admission-time invariant rather than trusted blindly).
   #   * `--on-stale refuse` (the default): any real stale `:delete`
   #     candidate refuses the ENTIRE run before anything is actuated.
   defp admit_pending(%{pending: pending, recipes: recipes, exec: exec}, opts) do
     on_stale = resolve_on_stale!(opts[:on_stale])
+    base_dir = opts[:manifest_dir] || File.cwd!()
 
-    write_pending = Enum.filter(pending, &(&1.operation in [:create, :replace]))
+    write_pending = Enum.filter(pending, &(&1.operation in [:create, :replace, :inject]))
     delete_pending = Enum.filter(pending, &(&1.operation == :delete))
 
     duplicates =
       write_pending
-      |> Enum.group_by(& &1.target)
-      |> Enum.filter(fn {_path, group} -> length(group) > 1 end)
+      |> Enum.group_by(& &1.canonical_target)
+      |> Enum.filter(fn {_identity, group} -> length(group) > 1 end)
+
+    escaping_root =
+      Enum.find(write_pending ++ delete_pending, fn item ->
+        not ArtifactIdentity.within_root?(base_dir, item.target)
+      end)
 
     unowned_delete = Enum.find(delete_pending, &(&1.ownership != true))
     stale_paths = delete_pending |> Enum.map(& &1.target) |> MapSet.new()
@@ -1168,9 +1383,14 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     cond do
       duplicates != [] ->
         collisions =
-          Enum.map(duplicates, fn {path, group} -> {path, Enum.map(group, & &1.logical_id)} end)
+          Enum.map(duplicates, fn {identity, group} ->
+            {identity, Enum.map(group, & &1.logical_id)}
+          end)
 
         {:error, {:refused_duplicate_output_path, collisions}}
+
+      escaping_root != nil ->
+        {:error, {:refused_path_escapes_root, escaping_root.canonical_target}}
 
       unowned_delete != nil ->
         {:error, {:refused_unowned_delete, unowned_delete.target}}
@@ -1218,7 +1438,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # `operation` field (`:create`/`:replace`/`:eval`) tells `actuate_one/2`
   # exactly what to do -- never re-derived from scratch here.
   defp actuate_pending(%{pending: pending, exec: exec}, event_sink) do
-    actionable = Enum.filter(pending, &(&1.operation in [:create, :replace, :eval]))
+    actionable = Enum.filter(pending, &(&1.operation in [:create, :replace, :inject, :eval]))
     file_actionable = Enum.filter(actionable, &(&1.target != nil))
     max_concurrency = max(System.schedulers_online(), 1)
 
@@ -1312,7 +1532,15 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     {:ok, value} = Actuate.eval_code!(pa.desired_content, bindings)
 
     {:ok,
-     %{index: exec.index, mode: :eval, out_path: nil, outcome: nil, value: value, tracked: nil}}
+     %{
+       index: exec.index,
+       mode: :eval,
+       out_path: nil,
+       canonical_target: nil,
+       outcome: nil,
+       value: value,
+       tracked: nil
+     }}
   rescue
     e -> {:error, %{index: exec.index, mode: :eval, reason: {e.__struct__, Exception.message(e)}}}
   end
@@ -1344,13 +1572,92 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       end
 
     {:ok,
-     %{index: exec.index, mode: :file, out_path: pa.target, outcome: outcome, tracked: tracked}}
+     %{
+       index: exec.index,
+       mode: :file,
+       out_path: pa.target,
+       canonical_target: pa.canonical_target,
+       outcome: outcome,
+       tracked: tracked
+     }}
   rescue
     e ->
       {:error,
        %{
          index: exec.index,
          mode: :file,
+         out_path: pa.target,
+         reason: {e.__struct__, Exception.message(e)}
+       }}
+  end
+
+  # `operation: :inject` dispatch -- calls `Actuate.inject_content!/5`
+  # directly (never `write_file!/3`), reusing the SAME real
+  # `marker`/`insert_mode`/`insert_opts` `render_inject_target/8` already
+  # resolved via `GgenIgniter.Injection.resolve_injection!/1` and stashed on
+  # `pa.semantic_source` -- never re-derived here. `Actuate.inject_content!/5`
+  # itself is the real fail-closed gate this clause relies on: a missing
+  # target file, a missing anchor (marker matches zero lines), or an
+  # ambiguous anchor (marker matches more than one line) all raise a real
+  # `ArgumentError` from inside `inject_content!/5` -- rescued below into the
+  # same `{:error, %{index:, mode:, out_path:, reason:}}` shape the
+  # `:create`/`:replace` clause already produces, so a bad anchor on one
+  # target self-heals (reverts any OTHER targets this same `:actuate`
+  # invocation already wrote) exactly like any other actuation failure,
+  # never leaving a half-migrated project on disk.
+  defp actuate_one(%PendingActuation{operation: :inject} = pa, exec) do
+    probe_mark(exec, :start)
+    if exec.test_delay_ms && exec.test_delay_ms > 0, do: Process.sleep(exec.test_delay_ms)
+
+    prior = if File.exists?(pa.target), do: {:existed, File.read!(pa.target)}, else: :new
+    marker = pa.semantic_source[:marker]
+    insert_mode = pa.semantic_source[:insert_mode]
+    dry_run = exec.write_opts[:dry_run] || false
+
+    inject_opts =
+      (pa.semantic_source[:insert_opts] || [])
+      |> Keyword.put(:dry_run, dry_run)
+
+    {:ok, outcome} =
+      Actuate.inject_content!(
+        pa.target,
+        marker,
+        Injection.strip_single_trailing_newline(pa.desired_content),
+        insert_mode,
+        inject_opts
+      )
+
+    maybe_test_chmod!(pa.target, exec, outcome)
+    probe_mark(exec, :stop)
+
+    # `:injected` -- a real splice happened, this run's own responsibility
+    # to revert on a later failure. `:unchanged` -- the body was already
+    # present exactly where this exact injection would place it (idempotent
+    # re-run); a `:dry_run` inject never touches the filesystem either.
+    # Neither is tracked for reversion, mirroring the `:create`/`:replace`
+    # clause's own `:unchanged`/`:dry_run` exclusion.
+    tracked =
+      if dry_run or outcome == :unchanged do
+        nil
+      else
+        %{path: pa.target, prior: prior}
+      end
+
+    {:ok,
+     %{
+       index: exec.index,
+       mode: :inject,
+       out_path: pa.target,
+       canonical_target: pa.canonical_target,
+       outcome: outcome,
+       tracked: tracked
+     }}
+  rescue
+    e ->
+      {:error,
+       %{
+         index: exec.index,
+         mode: :inject,
          out_path: pa.target,
          reason: {e.__struct__, Exception.message(e)}
        }}
@@ -1475,11 +1782,19 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         commit_recipe(recipe, results, manifest_acc, changed_acc, pack_dir)
       end)
 
+    # Keyed by real canonical identity (`GgenIgniter.ArtifactIdentity`),
+    # never the raw `out_path` string -- this is what makes `GgenIgniter.
+    # Receipt`'s `files` field (below, via `Map.keys(outputs)`) a real
+    # artifact-identity list rather than a raw-path list (ticket item 4:
+    # "Receipt's output identity"). `File.read!/1` still reads the real,
+    # literal `path` -- canonical identity is an identity/comparison value
+    # only, never substituted for the actual I/O path.
     outputs =
-      for %{mode: :file, out_path: path, outcome: outcome} <- results,
+      for %{mode: :file, out_path: path, canonical_target: canonical, outcome: outcome} <-
+            results,
           outcome in [:written, :unchanged],
           into: %{},
-          do: {path, Manifest.hash_content(File.read!(path))}
+          do: {canonical, Manifest.hash_content(File.read!(path))}
 
     graph_hash =
       "sha256:" <>
@@ -1612,7 +1927,14 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     result = Enum.find(results, &(&1.index == recipe.index))
 
     if result && result.outcome in [:written, :unchanged] do
-      outputs = %{recipe.out_path => Manifest.hash_content(File.read!(recipe.out_path))}
+      # `GgenIgniter.Manifest`'s `outputs` map is keyed by real canonical
+      # identity (`recipe.canonical_out_path`, from `GgenIgniter.
+      # ArtifactIdentity`), never the raw `recipe.out_path` string (ticket
+      # item 3: "Manifest's keys"). `File.read!/1` still reads the real,
+      # literal `out_path`.
+      outputs = %{
+        recipe.canonical_out_path => Manifest.hash_content(File.read!(recipe.out_path))
+      }
 
       if Manifest.same_outputs?(recipe.old_entry, outputs) do
         {manifest_acc, changed_acc}

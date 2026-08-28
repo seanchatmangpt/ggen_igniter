@@ -1,0 +1,235 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/seanchatmangpt/ggen_igniter/priv/schema/plan.schema.json",
+  "title": "GgenIgniter Reconciliation Plan",
+  "description": "The real, pre-actuation plan document a `mix ggen_igniter.sync` (or GgenIgniter.Reactors.ReconcileReactor's :admit-bound plan) run produces BEFORE any byte is written to disk. This is the serialized shape of what admission reasons about: which inputs were loaded and their hashes, which queries ran against which engine and what bindings they discovered, what output each recipe intends to produce (and, for an already-existing target, what decision was made about it), which requested features this run could not honor, and a summed count of the mutations this plan intends to perform. Mirrors GgenIgniter.PendingActuation's real fields (logical_id/target/previous_hash/desired_hash/operation/ownership/semantic_source/compensation_data) at the plan-document level, not the in-process struct level.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "inputs", "engine", "queries", "outputs", "mutations_intended"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "The version of THIS schema the plan document conforms to, e.g. \"1.0\". Not the ggen_igniter package version.",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "generated_at": {
+      "type": "string",
+      "description": "ISO8601 UTC timestamp this plan was computed.",
+      "format": "date-time"
+    },
+    "inputs": {
+      "type": "object",
+      "description": "The real source inputs this plan was computed from, and their content hashes -- so a plan document is independently checkable against the exact ontology/pack bytes that produced it, the same discipline GgenIgniter.Receipt uses for pre_run_hash/post_run_hash.",
+      "additionalProperties": false,
+      "required": ["ontology_path", "ontology_hash"],
+      "properties": {
+        "ontology_path": {
+          "type": "string",
+          "description": "Path to the loaded ontology (.ttl) file, real and resolved, as passed to GgenIgniter.Ontology.load!/1."
+        },
+        "ontology_hash": {
+          "type": "string",
+          "description": "sha256:<hex> digest of the ontology file's real on-disk bytes at load time -- same \"sha256:\" prefix convention as GgenIgniter.Receipt.hash_entries/1.",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "pack": {
+          "type": ["string", "null"],
+          "description": "The --pack name this run resolved against, or null when --ontology/--query/--template were passed explicitly (bypassing the priv/ggen/<pack> convention)."
+        },
+        "pack_dir": {
+          "type": ["string", "null"],
+          "description": "The real resolved pack directory used, or null when no pack convention applied."
+        }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "description": "Which --engine this plan's queries actually ran against, and why -- so a divergence between engines (a real, documented risk in this repo's ORDER BY history) is traceable from the plan document alone.",
+      "additionalProperties": false,
+      "required": ["name", "selection_reason"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The real engine identity that ran the queries.",
+          "enum": ["oxigraph", "sparql", "qlever"]
+        },
+        "selection_reason": {
+          "type": "string",
+          "description": "Why this engine was selected: \"default\", \"--engine flag\", or a config-derived reason.",
+          "enum": ["default", "--engine flag", "config"]
+        },
+        "store_id": {
+          "type": ["string", "null"],
+          "description": "The gnoa:Qlever-typed store id resolved for engine \"qlever\" (required whenever engine.name == \"qlever\"); null for in-process engines."
+        }
+      }
+    },
+    "queries": {
+      "type": "array",
+      "description": "One entry per --query run this plan executed (or attempted), in run order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "source", "bindings_discovered"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The query's logical name, e.g. the left-hand side of --query name=path.rq."
+          },
+          "source": {
+            "type": "string",
+            "description": "Where the query text came from: a real file path (path.rq) or the literal string \"inline\" when supplied directly on the command line."
+          },
+          "source_hash": {
+            "type": ["string", "null"],
+            "description": "sha256:<hex> of the query text, when source is a file path; null for inline queries or when hashing was not performed."
+          },
+          "bindings_discovered": {
+            "type": "array",
+            "description": "The real SPARQL result variables this query's rows bound, one entry per distinct variable name -- what the render phase actually had available as EEx assigns.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["var", "row_count"],
+              "properties": {
+                "var": {
+                  "type": "string",
+                  "description": "The SPARQL result variable name (without the leading '?')."
+                },
+                "row_count": {
+                  "type": "integer",
+                  "description": "How many result rows bound this variable to a non-null value.",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "description": "One entry per intended output this plan produced -- the plan-document mirror of GgenIgniter.PendingActuation, one row per (template_path, out_template) resolution.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "logical_id",
+          "template_path",
+          "out_template",
+          "recipe_key",
+          "operation",
+          "existing_file_decision",
+          "previous_hash",
+          "desired_hash"
+        ],
+        "properties": {
+          "logical_id": {
+            "type": "string",
+            "description": "Stable identity for this one intended output, matching GgenIgniter.PendingActuation.logical_id/3's (recipe_key <> \"::\" <> target) format for a real target, or \"<template_path>=>eval\" for operation \"eval\"."
+          },
+          "target": {
+            "type": ["string", "null"],
+            "description": "The real resolved output path, or null only for operation \"eval\" (nothing is ever written to disk under mode: eval)."
+          },
+          "template_path": {
+            "type": "string",
+            "description": "The EEx template that produced this output."
+          },
+          "out_template": {
+            "type": "string",
+            "description": "The --out-template pattern this target path was resolved from."
+          },
+          "recipe_key": {
+            "type": "string",
+            "description": "GgenIgniter.Manifest.recipe_key/2's (template_path, out_template) identity, verbatim."
+          },
+          "operation": {
+            "type": "string",
+            "description": "The derived operation for this output -- never guessed, always derived from real existence + frontmatter/mode, per GgenIgniter.PendingActuation's own documented derivation.",
+            "enum": ["create", "replace", "inject", "delete", "eval"]
+          },
+          "existing_file_decision": {
+            "type": "string",
+            "description": "What this plan decided to do about target's CURRENT on-disk state (if any) -- the plan-document analogue of GgenIgniter.Actuate's real outcome() values.",
+            "enum": ["create", "overwrite", "skip_exists", "skip_match", "inject", "delete", "not_applicable"]
+          },
+          "skip_condition": {
+            "type": ["string", "null"],
+            "description": "When existing_file_decision is skip_exists or skip_match, the concrete reason this output was skipped (e.g. \"target exists and --on-collision skip\", \"desired content matches on-disk content\"); null when no skip occurred."
+          },
+          "previous_hash": {
+            "type": ["string", "null"],
+            "description": "sha256:<hex> of target's real on-disk content before this run, or null if target did not exist (or is null, i.e. eval).",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "desired_hash": {
+            "type": ["string", "null"],
+            "description": "sha256:<hex> of the content this run wants at target, or null for operation \"delete\" (nothing desired there any more).",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "ownership": {
+            "type": "boolean",
+            "description": "Whether this recipe's manifest entry already listed target as one of its own outputs BEFORE this run, straight from GgenIgniter.Manifest.output_paths/1."
+          }
+        }
+      }
+    },
+    "unsupported_features": {
+      "type": "array",
+      "description": "Requested frontmatter/flag features this plan could NOT honor for this run -- an explicit, honest list rather than a silent no-op, matching this repo's IMPLEMENTED/PARTIAL_ALIVE/PLANNED discipline (docs/status.md).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["feature", "reason"],
+        "properties": {
+          "feature": {
+            "type": "string",
+            "description": "The requested feature's name, e.g. \"for_each\", \"inject\", \"eval\"."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why this run could not honor it, e.g. \"GgenIgniter.Reconcile.run/1 does not yet implement --for-each (see moduledoc)\"."
+          },
+          "recipe_key": {
+            "type": ["string", "null"],
+            "description": "The specific recipe this unsupported-feature note applies to, or null when it applies to the whole run."
+          }
+        }
+      }
+    },
+    "mutations_intended": {
+      "type": "object",
+      "description": "A summed count of the real disk mutations this plan intends to perform, if admitted and actuated -- outputs.length always equals the sum of writes+deletes+injects+evals+skipped.",
+      "additionalProperties": false,
+      "required": ["writes", "deletes", "injects", "evals", "skipped"],
+      "properties": {
+        "writes": {
+          "type": "integer",
+          "description": "Count of outputs with operation create or replace (existing_file_decision not skip_exists/skip_match).",
+          "minimum": 0
+        },
+        "deletes": {
+          "type": "integer",
+          "description": "Count of outputs with operation delete.",
+          "minimum": 0
+        },
+        "injects": {
+          "type": "integer",
+          "description": "Count of outputs with operation inject.",
+          "minimum": 0
+        },
+        "evals": {
+          "type": "integer",
+          "description": "Count of outputs with operation eval.",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "description": "Count of outputs whose existing_file_decision is skip_exists or skip_match (no real write occurs).",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

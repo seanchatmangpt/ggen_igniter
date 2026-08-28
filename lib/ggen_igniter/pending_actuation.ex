@@ -19,6 +19,27 @@ defmodule GgenIgniter.PendingActuation do
   `GgenIgniter.Manifest`'s real `(template, out_template)` recipe/ownership
   model).
 
+  ## `canonical_target` -- the real artifact identity, not just the raw string
+
+  `GgenIgniter.ArtifactIdentity.canonicalize/2` (`base_dir` + the raw
+  `target` string) is what this module's own real, confirmed adversarial
+  finding (`.ggen_igniter_factory/redteam-concurrency-nondeterminism.md`)
+  requires: two `target` strings that are lexically different (a redundant
+  `/./` segment, `..`-traversal, a relative-vs-absolute spelling, a
+  symlinked alias) but resolve to the SAME real on-disk location used to
+  silently defeat `:admit`'s duplicate-output-path guard, which used to
+  group pending writes by the raw `target` STRING alone. Every real
+  planned actuation now carries its OWN real canonical identity alongside
+  the raw `target` it was built from -- `:admit`'s guard
+  (`GgenIgniter.Reactors.ReconcileReactor.admit_pending/2`) groups by
+  `canonical_target`, never `target`, and this same identity is what
+  `GgenIgniter.Manifest`'s `outputs` keys and `GgenIgniter.Receipt`'s
+  `files` entries are built from downstream (see those modules' call
+  sites in `ReconcileReactor`). `target` itself is UNCHANGED and remains
+  the literal string every real `File.read!/write!/exists?` call actually
+  uses -- `canonical_target` is purely an identity/comparison value,
+  never substituted for `target` in real I/O.
+
   ## Fields (conceptual IR -- what `:admit` reasons about)
 
     * `logical_id` -- a stable identity for this ONE intended output across
@@ -35,6 +56,10 @@ defmodule GgenIgniter.PendingActuation do
       create/replace/inject/delete. `nil` only for `operation: :eval` (per
       `GgenIgniter.Manifest`'s own moduledoc: nothing is ever written to
       disk under `mode: eval`, so there is no path to reconcile).
+    * `canonical_target` -- `GgenIgniter.ArtifactIdentity.canonicalize/2`'s
+      real result for `target` (resolved against this plan's `base_dir`),
+      or `nil` under the exact same condition `target` is `nil`
+      (`operation: :eval`). See "`canonical_target`" above.
     * `previous_hash` -- `GgenIgniter.Manifest.hash_content/1` of `target`'s
       CURRENT real on-disk content, or `nil` if `target` does not exist (or
       is `nil`, i.e. `:eval`).
@@ -43,21 +68,25 @@ defmodule GgenIgniter.PendingActuation do
       `nil` for `operation: :delete` (nothing is desired there any more).
     * `operation` -- one of `:create | :replace | :inject | :delete | :eval`,
       DERIVED (never guessed) from real existence + the frontmatter/mode
-      that produced this item -- see `for_file/6` and `for_delete/3`.
-      `:inject` is declared in this type for forward compatibility with a
-      future `inject: true` frontmatter pass through this Reactor pipeline,
-      the same honest "not yet produced by this bounded slice" disclosure
-      `GgenIgniter.Reconcile`'s own moduledoc already uses for its own
-      deliberately-bounded scope -- `GgenIgniter.Reactors.ReconcileReactor`
-      never constructs an `:inject` pending item today.
+      that produced this item -- see `for_file/7`, `for_inject/9`, and
+      `for_delete/5`. `:inject` is built by `for_inject/9` when a `mode:
+      file` target's frontmatter has `inject: true`;
+      `GgenIgniter.Reactors.ReconcileReactor`'s render step constructs one
+      per such target, and its `:actuate` step dispatches it to
+      `GgenIgniter.Actuate.inject_content!/5` (never `write_file!/3`).
     * `ownership` -- whether THIS pack's manifest entry currently (i.e.
-      BEFORE this run's actuation) already lists `target` as one of its own
-      outputs, straight from `GgenIgniter.Manifest.output_paths/1` -- never
-      re-derived by guesswork. Always `false` for `operation: :eval` (never
-      tracked, per Manifest's own documented exclusion) and always `true`
-      for a real `operation: :delete` stale-prune candidate (only paths a
-      recipe's OWN manifest entry previously recorded are ever stale-prune
-      candidates -- see `GgenIgniter.Manifest.stale_paths/2`).
+      BEFORE this run's actuation) already lists `target`'s real
+      `canonical_target` identity as one of its own outputs, straight from
+      `GgenIgniter.Manifest.output_paths/1` -- never re-derived by
+      guesswork, and compared by real canonical identity (never the raw
+      `target` string -- see "`canonical_target`" above) so a prior run's
+      recorded output is recognized even when THIS run's `target` reaches
+      the same real file via a differently-spelled alias. Always `false`
+      for `operation: :eval` (never tracked, per Manifest's own documented
+      exclusion) and always `true` for a real `operation: :delete`
+      stale-prune candidate (only paths a recipe's OWN manifest entry
+      previously recorded are ever stale-prune candidates -- see
+      `GgenIgniter.Manifest.stale_paths/2`).
     * `semantic_source` -- a plain map naming the real ontology/query/
       template identity that produced this item (`ontology_path`,
       `template_path`, `out_template`, `recipe_key`, and, for `:eval`, the
@@ -82,6 +111,7 @@ defmodule GgenIgniter.PendingActuation do
   it belongs to, same struct, same plan, admitted as one unit.
   """
 
+  alias GgenIgniter.ArtifactIdentity
   alias GgenIgniter.Manifest
 
   @type operation :: :create | :replace | :inject | :delete | :eval
@@ -90,6 +120,7 @@ defmodule GgenIgniter.PendingActuation do
   @type t :: %__MODULE__{
           logical_id: String.t(),
           target: String.t() | nil,
+          canonical_target: String.t() | nil,
           previous_hash: String.t() | nil,
           desired_hash: String.t() | nil,
           desired_content: binary() | nil,
@@ -102,6 +133,7 @@ defmodule GgenIgniter.PendingActuation do
   @enforce_keys [:logical_id, :operation, :ownership, :semantic_source, :compensation_data]
   defstruct logical_id: nil,
             target: nil,
+            canonical_target: nil,
             previous_hash: nil,
             desired_hash: nil,
             desired_content: nil,
@@ -132,10 +164,20 @@ defmodule GgenIgniter.PendingActuation do
   lets an unchanged re-run still carry the intended `:create`/`:replace`
   operation type while `:actuate`'s real outcome comes back `:unchanged`).
 
+  `base_dir` is the authorized project root this plan is running against
+  (the same `base_dir` `GgenIgniter.Manifest.load/1`/`persist!/2` use) --
+  passed straight to `GgenIgniter.ArtifactIdentity.canonicalize/2` to build
+  the real `canonical_target` identity (see this module's moduledoc).
+  `target` itself is untouched by this and remains the literal string real
+  I/O below (`File.exists?/1`/`File.read!/1`) actually uses.
+
   `ownership` is read straight from `old_entry` (the recipe's manifest entry
-  as it stood BEFORE this run), via `GgenIgniter.Manifest.output_paths/1`.
+  as it stood BEFORE this run), via `GgenIgniter.Manifest.output_paths/1`,
+  compared against the real `canonical_target` identity -- never the raw
+  `target` string.
   """
   @spec for_file(
+          String.t(),
           String.t(),
           binary(),
           String.t(),
@@ -143,19 +185,29 @@ defmodule GgenIgniter.PendingActuation do
           Manifest.entry() | nil,
           map()
         ) :: t()
-  def for_file(target, desired_content, template_path, out_template, old_entry, semantic_source)
-      when is_binary(target) and is_binary(desired_content) do
+  def for_file(
+        base_dir,
+        target,
+        desired_content,
+        template_path,
+        out_template,
+        old_entry,
+        semantic_source
+      )
+      when is_binary(base_dir) and is_binary(target) and is_binary(desired_content) do
     exists? = File.exists?(target)
     previous_content = if exists?, do: File.read!(target), else: nil
+    canonical_target = ArtifactIdentity.canonicalize(base_dir, target)
 
     %__MODULE__{
       logical_id: logical_id(template_path, out_template, target),
       target: target,
+      canonical_target: canonical_target,
       previous_hash: previous_content && Manifest.hash_content(previous_content),
       desired_hash: Manifest.hash_content(desired_content),
       desired_content: desired_content,
       operation: if(exists?, do: :replace, else: :create),
-      ownership: MapSet.member?(Manifest.output_paths(old_entry), target),
+      ownership: MapSet.member?(Manifest.output_paths(old_entry), canonical_target),
       semantic_source: semantic_source,
       compensation_data: compensation_for(previous_content)
     }
@@ -175,6 +227,7 @@ defmodule GgenIgniter.PendingActuation do
     %__MODULE__{
       logical_id: template_path <> "=>eval",
       target: nil,
+      canonical_target: nil,
       previous_hash: nil,
       desired_hash: Manifest.hash_content(code),
       desired_content: code,
@@ -193,21 +246,98 @@ defmodule GgenIgniter.PendingActuation do
   `true` (only previously-owned paths are ever stale-prune candidates) and
   `desired_hash` is `nil` (nothing is desired there any more).
   `previous_hash`/`compensation_data` are read from `target`'s REAL current
-  content, same as `for_file/6`.
+  content, same as `for_file/7`.
+
+  `base_dir` is passed straight to `GgenIgniter.ArtifactIdentity.canonicalize/2`
+  to build the real `canonical_target` identity, same real primitive
+  `for_file/7` uses -- re-canonicalized here rather than trusted verbatim,
+  so a `target` sourced from an OLDER manifest entry (written before this
+  identity primitive existed, potentially still a raw, non-canonical
+  string) is still resolved to a genuine canonical identity now.
   """
-  @spec for_delete(String.t(), String.t(), String.t(), map()) :: t()
-  def for_delete(target, template_path, out_template, semantic_source) when is_binary(target) do
+  @spec for_delete(String.t(), String.t(), String.t(), String.t(), map()) :: t()
+  def for_delete(base_dir, target, template_path, out_template, semantic_source)
+      when is_binary(base_dir) and is_binary(target) do
     previous_content = if File.exists?(target), do: File.read!(target), else: nil
 
     %__MODULE__{
       logical_id: logical_id(template_path, out_template, target),
       target: target,
+      canonical_target: ArtifactIdentity.canonicalize(base_dir, target),
       previous_hash: previous_content && Manifest.hash_content(previous_content),
       desired_hash: nil,
       desired_content: nil,
       operation: :delete,
       ownership: true,
       semantic_source: semantic_source,
+      compensation_data: compensation_for(previous_content)
+    }
+  end
+
+  @doc """
+  Builds the real `%PendingActuation{}` for a `mode: file` target whose
+  frontmatter has `inject: true`: mirrors `for_file/7`'s shape (reads
+  `target`'s REAL current content for `previous_hash`/`compensation_data`,
+  hashes `desired_content`, canonicalizes `target` against `base_dir`), but
+  `desired_content` here is the real rendered INJECTION BODY (the snippet to
+  be spliced in), never the whole intended file -- `:actuate`'s `:inject`-
+  typed dispatch calls `GgenIgniter.Actuate.inject_content!/5` with this
+  exact body, `marker`, and `insert_mode`, which computes the real final
+  on-disk content itself (anchor resolution + splice), not this constructor.
+
+  `operation` is always `:inject` (never derived from existence the way
+  `for_file/7` derives `:create`/`:replace` -- `inject_content!/5` itself is
+  the real fail-closed gate for "target must already exist", enforced at
+  `:actuate` time so this constructor never duplicates that check).
+
+  `marker`/`insert_mode` -- `Actuate.inject_content!/5`'s own real
+  `marker`/`insert_mode` args, produced by
+  `GgenIgniter.Injection.resolve_injection!/1` from the template's
+  `before:`/`after:`/`at_line:` frontmatter -- ride on `semantic_source`
+  (merged in here under `:marker`/`:insert_mode`) rather than as new struct
+  fields, so `:actuate` can dispatch `Actuate.inject_content!/5` directly
+  without re-deriving them. Callers that also need `at_line:`'s numeric
+  line argument should put it under `semantic_source[:insert_opts]`
+  (`Actuate.inject_content!/5`'s own `opts` keyword list) before calling.
+  """
+  @spec for_inject(
+          String.t(),
+          String.t(),
+          binary(),
+          String.t(),
+          String.t(),
+          Manifest.entry() | nil,
+          map(),
+          String.t() | Regex.t() | nil,
+          :before | :after | :at_line
+        ) :: t()
+  def for_inject(
+        base_dir,
+        target,
+        desired_content,
+        template_path,
+        out_template,
+        old_entry,
+        semantic_source,
+        marker,
+        insert_mode
+      )
+      when is_binary(base_dir) and is_binary(target) and is_binary(desired_content) and
+             insert_mode in [:before, :after, :at_line] do
+    exists? = File.exists?(target)
+    previous_content = if exists?, do: File.read!(target), else: nil
+    canonical_target = ArtifactIdentity.canonicalize(base_dir, target)
+
+    %__MODULE__{
+      logical_id: logical_id(template_path, out_template, target),
+      target: target,
+      canonical_target: canonical_target,
+      previous_hash: previous_content && Manifest.hash_content(previous_content),
+      desired_hash: Manifest.hash_content(desired_content),
+      desired_content: desired_content,
+      operation: :inject,
+      ownership: MapSet.member?(Manifest.output_paths(old_entry), canonical_target),
+      semantic_source: Map.merge(semantic_source, %{marker: marker, insert_mode: insert_mode}),
       compensation_data: compensation_for(previous_content)
     }
   end

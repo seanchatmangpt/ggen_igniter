@@ -1,0 +1,105 @@
+# ADR-0007: `mix ggen_igniter.sync` Always Attempts the Reactor Pipeline (Receipts on Every Run), Gated Only by Delegatability
+
+## Status
+
+**Accepted for the code shape; UNVERIFIABLE-pending-integration for
+end-to-end runtime behavior**, as of this pass (2026-08-27). The decision
+described below is real and landed in `lib/mix/tasks/ggen_igniter.sync.ex`
+(confirmed by direct reading and `git diff` against the prior
+`use_reactor?/0`-gated code this pass). A real invocation of the resulting
+pipeline currently fails downstream of this decision's own code, in
+`Reactor.Executor`'s concurrency-pool initialization (see "Known open
+issue" below) — this ADR records the decision itself as Accepted; it does
+not claim the pipeline it enables is currently runnable end to end. This
+repo is being edited concurrently by other agents on this same working
+tree; re-verify this status once the `Reactor.Executor` issue and
+`GgenIgniter.Lock`'s test coverage (see `docs/reference/cli/lock.md`) are
+both resolved.
+
+## Context
+
+Prior to this decision, `mix ggen_igniter.sync` chose between two real,
+independently-maintained pipelines at runtime based on
+`Application.get_env(:ggen_igniter, :use_reactor, false)`:
+
+- **Default (`false`)**: `dispatch_pipeline/3`, the bounded inline pipeline
+  — no receipt, no `GgenIgniter.Manifest`-aware admission invariants beyond
+  what `sync.ex` itself implements inline, no rollback on a downstream
+  failure.
+- **Opt-in (`true`)**: `GgenIgniter.Reactors.ReconcileReactor.run/1` — the
+  full 9-step admission/actuate/verify/finalize-evidence pipeline (see
+  `docs/reference/reactor/overview.md`), which is the only path that ever
+  writes a `GgenIgniter.Receipt` (ADR-0005) or exercises `undo/4`
+  compensation.
+
+This meant the evidence guarantees ADR-0005 establishes — "if files were
+actually changed, even temporarily, a receipt records it" — only held for
+users who explicitly opted in. The overwhelming majority of real
+`mix ggen_igniter.sync` invocations (the default config) produced **no
+durable evidence at all** on failure, defeating the purpose of building the
+Reactor pipeline's evidence subsystem in the first place.
+
+## Decision
+
+Delete `use_reactor?/0` and the `Application.get_env/3` branch entirely.
+`mix ggen_igniter.sync`'s `igniter/1` now calls `run_via_reactor/3`
+**unconditionally, on every invocation** — falling back to the pre-existing
+`dispatch_pipeline/3` only when `run_via_reactor/3` itself returns
+`{:not_delegatable, reason}` for a real, bounded-scope reason:
+frontmatter-bearing templates, or `--for-each` fan-out — both real,
+disclosed exclusions `GgenIgniter.Reconcile.run/1`'s Reactor path does not
+yet implement (see the root `CLAUDE.md`'s "Two parallel pipelines" table).
+A one-time migration notice is logged via a `:persistent_term`-tracked
+`migration_notice_once/1` so a consumer who was relying on the old default
+silently skipping receipt evidence is told, once, that behavior changed.
+
+The reactor-path invocation is wrapped, for the first time on this
+previously-default-off path, in a real cross-process
+`GgenIgniter.Lock.acquire/2`/`.release/1` pair (`try/after`) — see
+`docs/reference/cli/lock.md` — because making the Reactor pipeline the
+default path for every invocation means concurrent `sync` invocations
+against the same project are now a real, everyday scenario this pipeline
+must serialize against, not an edge case only opt-in users hit.
+
+## Consequences
+
+- Every `mix ggen_igniter.sync` invocation now attempts to produce a real
+  `GgenIgniter.Receipt` (ADR-0005's guarantee), not just opt-in ones — this
+  is the intended, disclosed behavior change, not a regression.
+- `dispatch_pipeline/3` (the old default) is not deleted — it remains the
+  real fallback for frontmatter/`--for-each` cases the Reactor path cannot
+  yet delegate to, and continues to write no receipt on that fallback path.
+  This is a disclosed, bounded-scope gap (see `docs/status.md`'s "Two
+  parallel pipelines" framing), not something this decision closes.
+- `config :ggen_igniter, use_reactor: true/false` no longer has any effect
+  on `mix ggen_igniter.sync`'s pipeline choice — that config key is now
+  dead for this call site specifically. (`GgenIgniter.Controller`, a
+  separate call site, is untouched by this ADR and was not re-verified for
+  its own `use_reactor` dependency this pass.)
+- **Known open issue (this pass):** a real invocation of the now-default
+  Reactor path raises `** (ArgumentError) ... the table identifier does not
+  refer to an existing ETS table` from
+  `Reactor.Executor.ConcurrencyTracker.allocate_pool/1`, reproduced fresh
+  this pass via `mix ggen_igniter.sync --ontology
+  test/fixtures/audit_trail_ontology.ttl --query
+  spec=test/fixtures/spec.rq --template test/fixtures/extension.ex.eex
+  --out /tmp/probe.ex`. This is a **different** failure than the
+  `GgenIgniter.Lock` `UndefinedFunctionError` a prior pass recorded (that
+  module now exists — see `docs/reference/cli/lock.md`) and appears to be a
+  missing `:reactor` OTP-application-supervision-tree start when `sync` is
+  invoked as a bare CLI task outside `mix test`'s already-running
+  application tree, rather than a defect in this ADR's own code. Not
+  independently root-caused or fixed this pass — flagged here as the
+  concrete blocker standing between "the decision landed" and "the decision
+  is runnable."
+
+## See also
+
+- `docs/architecture/adr/0005-receipt-independent-of-manifest.md` — the
+  evidence guarantee this decision extends to the default pipeline
+- `docs/architecture/adr/0003-plain-reactor-for-coordination.md` — why the
+  Reactor pipeline exists as a plain `Reactor` module in the first place
+- `docs/reference/cli/lock.md` — the new cross-process lock this decision
+  requires and wraps around every `sync` invocation
+- `docs/status.md` — `sync`-always-attempts-receipts row, kept in sync with
+  this ADR's status

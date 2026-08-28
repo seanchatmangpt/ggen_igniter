@@ -347,7 +347,7 @@ defmodule GgenIgniter.ReconcileReactorTest do
       # plain FILE (not a directory). `File.exists?/1` on the target itself
       # is genuinely false (the path can't be traversed -- its parent isn't
       # a directory), so BOTH the real `:render` step
-      # (`PendingActuation.for_file/6`) and `actuate_one/2`'s own prior-read
+      # (`PendingActuation.for_file/7`) and `actuate_one/2`'s own prior-read
       # check pass cleanly with no raise at all -- this is deliberately NOT
       # the same shape as a directory-at-target conflict, which genuinely
       # DOES raise during `:render`'s own planning read and was confirmed
@@ -585,6 +585,268 @@ defmodule GgenIgniter.ReconcileReactorTest do
       assert File.read!(out_path) =~ "hello_from_alpha"
       assert record.receipt.out_path == out_path
     end
+  end
+
+  # -- Falsifier: real, per-operation-type compensation-completeness proof ---
+  #
+  # `:create`/`:replace` are already proven above ("a real failure at
+  # :verify reverts every file :actuate wrote": one existing-file :replace
+  # target and one new-file :create target both restored to their exact
+  # real pre-run content, with real `pre_run_hash == post_run_hash`). The
+  # two blocks below extend that same real, disk-verified proof to the two
+  # remaining `PendingActuation.operation()` values `ReconcileReactor`
+  # actually constructs today. `:inject` is NOT included: as of this test,
+  # `GgenIgniter.PendingActuation` only defines `for_file/7` (:create/
+  # :replace), `for_eval/3` (:eval), and `for_delete/5` (:delete) -- there is
+  # no real `for_inject`/equivalent builder in this module, so `:inject`
+  # compensation is genuinely untested here, not silently assumed to work.
+
+  describe ":eval compensation-completeness: REAL FINDING -- unreachable, not just untested" do
+    test "an :eval target crashes at :render before :admit/:actuate ever run" do
+      fixtures = scratch_dir!()
+      ontology_path = write_ontology!(fixtures)
+      query_alpha = write_query!(fixtures, "spec_alpha", "Alpha")
+      project_dir = new_mix_project!()
+
+      eval_template_path = Path.join(fixtures, "eval.exs.eex")
+      File.write!(eval_template_path, "1 + 1\n")
+
+      reconcile_opts = [
+        engine: "sparql",
+        ontology: ontology_path,
+        manifest_dir: project_dir,
+        verify_cwd: project_dir,
+        targets: [
+          [template: eval_template_path, mode: "eval", query: "spec=#{query_alpha}"]
+        ]
+      ]
+
+      # -- REAL, REPRODUCIBLE FINDING (discovered while building this
+      # falsifier, not asserted from reading code alone): a batch with an
+      # `:eval` target -- even the ONLY target, no `:file` target involved
+      # at all -- never reaches `:admit` or `:actuate`. It crashes inside
+      # `:render`'s own `PLAN_CONSTRUCTED` telemetry emission:
+      # `file_objects/1` (`Enum.map(pending, &OcelEmitter.file_object(&1.target))`)
+      # calls `OcelEmitter.file_object/1` with `&1.target`, which is
+      # ALWAYS `nil` for a real `PendingActuation.for_eval/3` item (see its
+      # own moduledoc: "`target`/`previous_hash` are `nil`") --
+      # `OcelEmitter.file_object/1` only defines a clause for
+      # `is_binary(path)`, so this is a real, unconditional
+      # `FunctionClauseError`, not a hypothetical edge case.
+      #
+      # Consequence for the compensation-completeness question this test
+      # module exists to answer: `:eval` compensation is not "not needed"
+      # (which would itself be a real, checkable claim about
+      # `actuate_one/2`'s `tracked: nil` clause) -- it is UNREACHABLE. No
+      # `:eval` item can ever reach `:actuate`, so `:actuate`'s
+      # `undo/4`/`compensate/4` never gets a chance to prove or disprove
+      # anything about it. `:eval` is not `:alive`, `:refused`, or any of
+      # this pipeline's own vocabulary in the working sense -- it is a real,
+      # standing production bug independent of compensation.
+      result = ReconcileReactor.run(reconcile_opts)
+
+      assert {:error, receipt} = result
+      assert receipt.standing == :refused
+      assert receipt.reason =~ "FunctionClauseError"
+      assert receipt.reason =~ "OcelEmitter"
+      assert receipt.metadata["failed_step"] == ":render"
+
+      # -- :actuate never ran (real, checkable non-event -- not an inference
+      # from the crash's step name alone).
+      refute Enum.any?(receipt.events, &(&1["activity"] == "ACTUATION_STARTED")),
+             "expected :actuate to never run -- the crash happens one step earlier, at :render"
+    end
+  end
+
+  # -- :delete has NO real compensation path in this reactor -- proven, not
+  # -- assumed -----------------------------------------------------------
+
+  describe ":delete compensation-completeness: real proof there is none" do
+    test "a real, successful stale-prune deletion is NEVER reverted, even when a later item in the SAME prune batch genuinely fails" do
+      fixtures = scratch_dir!()
+      project_dir = new_mix_project!()
+
+      # Two DIFFERENT template files with identical bodies -- this, not the
+      # (identical, on purpose) `out_template` text, is what keeps
+      # `Manifest.recipe_key/2` (built from `{template_path, out_template}`)
+      # distinct per recipe below, since both recipes render their real
+      # output path entirely from the `slug` binding (see moduledoc "The
+      # `--pack` convention"'s sibling discussion of recipe identity).
+      template_a = write_delete_template!(fixtures, "template_a")
+      template_z = write_delete_template!(fixtures, "template_z")
+
+      # Two independent, independently-renamable recipes (same real pattern
+      # as ggen_igniter_admission_atomicity_test.exs's Gamma): each recipe's
+      # `(template_path, out_template)` pair stays fixed across the two runs
+      # below, but the RENDERED path moves because the `slug` binding
+      # changes -- the real "resource renamed" event `--on-stale prune`
+      # exists to clean up after.
+      write_delete_ontology!(fixtures, "keep/a_old", "RecipeAOld", "lock/z_old", "RecipeZOld")
+
+      query_a = write_delete_query!(fixtures, "spec_a", "RecipeA")
+      query_z = write_delete_query!(fixtures, "spec_z", "RecipeZ")
+
+      a_out_template = Path.join([project_dir, "lib", "<%= slug %>.ex"])
+      z_out_template = Path.join([project_dir, "lib", "<%= slug %>.ex"])
+
+      a_old_path = Path.join([project_dir, "lib", "keep", "a_old.ex"])
+      z_old_path = Path.join([project_dir, "lib", "lock", "z_old.ex"])
+
+      # -- Seed run: establishes real prior manifest entries recording
+      # a_old_path/z_old_path as each recipe's only known output.
+      seed_opts = [
+        engine: "sparql",
+        ontology: Path.join(fixtures, "ontology.ttl"),
+        manifest_dir: project_dir,
+        verify_cwd: project_dir,
+        targets: [
+          [template: template_a, query: "spec=#{query_a}", out: a_out_template],
+          [template: template_z, query: "spec=#{query_z}", out: z_out_template]
+        ]
+      ]
+
+      assert {:ok, seed_receipt} = ReconcileReactor.run(seed_opts)
+      assert seed_receipt.standing == :alive
+      assert File.exists?(a_old_path)
+      assert File.exists?(z_old_path)
+
+      # -- Lock lib/lock/ (no write permission) AFTER the seed write already
+      # succeeded there -- this is what forces the SECOND stale delete
+      # (z_old_path, alphabetically after a_old_path -- `Manifest.prune!/1`
+      # sorts) to genuinely fail with a real `File.rm/1` permission error,
+      # while the FIRST (a_old_path) has already, for real, been deleted.
+      lock_dir = Path.join([project_dir, "lib", "lock"])
+      File.chmod!(lock_dir, 0o500)
+      on_exit(fn -> File.chmod(lock_dir, 0o700) end)
+
+      # -- Rename both recipes' targets (real ontology mutation): the SAME
+      # two recipes now render to NEW paths, leaving BOTH old paths stale
+      # under `--on-stale prune`.
+      # Module names change too (RecipeAOld/RecipeZOld -> RecipeANew/
+      # RecipeZNew) -- otherwise the stale compiled `.beam` artifacts from
+      # the seed run's `mix compile` (in `_build/`, untouched by
+      # `Manifest.prune!/1`, which only ever deletes the real SOURCE files
+      # this recipe tracks) would make the real `mix compile
+      # --warnings-as-errors` in :verify below fail on an unrelated
+      # "redefining module" warning -- irrelevant noise this test's real
+      # point (delete compensation-completeness) has nothing to do with.
+      write_delete_ontology!(fixtures, "fresh/a_new", "RecipeANew", "fresh/z_new", "RecipeZNew")
+
+      a_new_path = Path.join([project_dir, "lib", "fresh", "a_new.ex"])
+      z_new_path = Path.join([project_dir, "lib", "fresh", "z_new.ex"])
+
+      batch_opts = [
+        engine: "sparql",
+        ontology: Path.join(fixtures, "ontology.ttl"),
+        manifest_dir: project_dir,
+        verify_cwd: project_dir,
+        on_stale: "prune",
+        targets: [
+          [template: template_a, query: "spec=#{query_a}", out: a_out_template],
+          [template: template_z, query: "spec=#{query_z}", out: z_out_template]
+        ]
+      ]
+
+      result = ReconcileReactor.run(batch_opts)
+
+      # -- THE KEY, COUNTERINTUITIVE, REAL PROOF: this run is reported
+      # `:alive`, NOT `:compensated`/`:build_broken`/`:compensation_failed`.
+      # `finalize_evidence/1`'s prune step deliberately rescues its own
+      # `Manifest.prune!/1` failure LOCALLY (see the module's own
+      # "2026-08-27" hardening comment) rather than letting it fail the
+      # step -- so Reactor's `undo/4` is NEVER triggered by a prune failure,
+      # by design.
+      assert {:ok, receipt} = result
+      assert receipt.standing == :alive
+
+      # -- Both new files were written successfully.
+      assert File.exists?(a_new_path)
+      assert File.exists?(z_new_path)
+
+      # -- a_old_path: a REAL `operation: :delete` item that REALLY
+      # actuated (File.rm/1 genuinely succeeded, sorted first). It is
+      # PERMANENTLY GONE -- never restored, never even attempted to be
+      # restored: no COMPENSATION_STARTED/FILES_RESTORED event exists
+      # anywhere in this run's real event log for it, because nothing in
+      # this reactor ever calls `revert_all/1` (the only real restoration
+      # path this module has) against prune deletions -- `:finalize_evidence`
+      # has no `compensate/4`/`undo/4` of its own (see the step's own
+      # moduledoc comment: "No compensate/4/undo/4 of its own").
+      refute File.exists?(a_old_path),
+             "expected a_old_path's real stale-prune deletion to have genuinely happened"
+
+      compensation_activities = [
+        "COMPENSATION_STARTED",
+        "FILES_RESTORED",
+        "COMPENSATION_COMPLETED",
+        "COMPENSATION_FAILED"
+      ]
+
+      refute Enum.any?(receipt.events, &(&1["activity"] in compensation_activities)),
+             "expected ZERO compensation events for this run -- proving :delete's real " <>
+               "deletion of a_old_path was never even considered for reversion, the real " <>
+               "gap this test exists to name explicitly"
+
+      # -- z_old_path: the SECOND stale target, whose real `File.rm/1` call
+      # genuinely failed (locked parent dir) -- left exactly as it was,
+      # NOT because anything reverted it, but simply because the deletion
+      # attempt itself never succeeded.
+      assert File.exists?(z_old_path),
+             "expected z_old_path's real File.rm/1 failure to have left it untouched"
+
+      # -- The real, persisted receipt records this genuine partial-prune
+      # inconsistency in its metadata (never hidden), while still reporting
+      # the run overall as :alive -- the real, load-bearing proof that
+      # `:delete` compensation is not merely "untested" but by-construction
+      # ABSENT: a partial deletion inside a batch that is itself reported
+      # successful, with the deleted path gone for good.
+      assert receipt.metadata["prune_outcome"] =~ "prune_failed"
+    end
+  end
+
+  defp write_delete_ontology!(fixtures, a_slug, a_module_suffix, z_slug, z_module_suffix) do
+    path = Path.join(fixtures, "ontology.ttl")
+
+    File.write!(path, """
+    @prefix ex: <http://example.org/del#> .
+    ex:RecipeA a ex:Module ;
+      ex:moduleName "GgenIgniterDeleteFixture.#{a_module_suffix}" ;
+      ex:slug "#{a_slug}" .
+    ex:RecipeZ a ex:Module ;
+      ex:moduleName "GgenIgniterDeleteFixture.#{z_module_suffix}" ;
+      ex:slug "#{z_slug}" .
+    """)
+
+    path
+  end
+
+  defp write_delete_query!(fixtures, name, subject) do
+    path = Path.join(fixtures, "#{name}.rq")
+
+    File.write!(path, """
+    PREFIX ex: <http://example.org/del#>
+    SELECT ?module_name ?slug WHERE {
+      ex:#{subject} ex:moduleName ?module_name ; ex:slug ?slug .
+    }
+    """)
+
+    path
+  end
+
+  # Only `module_name` is used in the body -- `slug` is real, query-bound
+  # data used exclusively to render the real `out_template` path (see
+  # `render_target/3`'s `Render.render(out_template, t.bindings)`), not
+  # required inside the generated file's own content.
+  defp write_delete_template!(fixtures, name) do
+    path = Path.join(fixtures, "#{name}.ex.eex")
+
+    File.write!(path, """
+    defmodule <%= module_name %> do
+      def value, do: :ok
+    end
+    """)
+
+    path
   end
 
   defp fetch_mark!(marks, index, event) do

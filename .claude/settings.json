@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_FILE_PATH\"; case \"$f\" in *.ex|*.exs) mix format \"$f\" 2>/dev/null;; *.rs) rustfmt \"$f\" 2>/dev/null;; esac; exit 0"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$CLAUDE_TOOL_INPUT\" | grep -qE 'rm -rf|git reset --hard|git push .*--force' && echo 'BLOCKED: destructive command — enumerate exact resolved paths/refs and get explicit user confirmation first' >&2 && exit 2 || exit 0"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null || exit 0; [ -f mix.exs ] || exit 0; out=$(mix compile --warnings-as-errors 2>&1); if [ $? -ne 0 ]; then echo \"BLOCKED: mix compile --warnings-as-errors is failing — fix it or explain why before stopping (run the 'gate' skill for the full protocol):\" >&2; echo \"$out\" | tail -40 >&2; exit 2; fi; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}

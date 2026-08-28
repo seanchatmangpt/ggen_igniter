@@ -79,10 +79,46 @@ defmodule GgenIgniter.Manifest do
       action risk this module refuses to take on. `Mix.Tasks.GgenIgniter.Sync`
       gates reconciliation to `inject_spec == nil` for exactly this reason.
 
+  ## Schema versioning (`schema_version`) and corruption handling
+
+  Alongside the pre-existing integer `"version"` field (kept, unchanged, for
+  backward compat with every prior manifest.json and every existing reader
+  of it -- see `test/ggen_igniter_reconciliation_manifest_test.exs`'s
+  `manifest["version"] == 1` assertion), every manifest this module WRITES
+  now also carries a string `"schema_version"` field (currently `"1"`),
+  the real migration/compatibility signal this module checks on `load/1`:
+
+    * **Absent `schema_version`** (every manifest.json written before this
+      change) is treated as `"1"` for backward compatibility -- AR-9: an
+      old manifest with no `schema_version` key is NOT a corrupt manifest
+      and is NOT silently reinterpreted as some other version; it is
+      explicitly the same schema `"1"` this module already understands, so
+      it loads and reconciles exactly as before.
+    * **`schema_version == "1"`** (present or defaulted) loads normally.
+    * **Any other `schema_version`** (e.g. `"2"`, written by some future
+      version of this module this code has never been taught to read) is
+      refused outright with a clear, named error rather than being loaded
+      and silently misread as schema `"1"` -- a manifest written by
+      newer code may have added/renamed/repurposed fields this code has no
+      knowledge of, and guessing would risk corrupting real reconciliation
+      state.
+    * **Invalid JSON, or valid JSON missing the required `"entries"` map**
+      is refused as a corrupt manifest -- same refusal class as an unknown
+      future schema version, distinguished only by `detail`.
+
+  `load_safe/1` exposes this as a real `{:ok, manifest} | {:error,
+  :corrupt_manifest, detail}` result for callers that want to handle a bad
+  manifest without an exception; `load/1` (unchanged call signature, used
+  by every existing caller in this codebase) is a thin wrapper that raises
+  `ArgumentError` with `detail` as the message on the error branch --
+  preserving every existing caller's raise-on-corruption contract while
+  giving new callers a non-raising path.
+
   ## Format
 
       {
         "version": 1,
+        "schema_version": "1",
         "entries": {
           "<template_path>=><out_template>": {
             "template": "test/fixtures/ash-lifecycle-pack/templates/resource.ex.eex",
@@ -102,9 +138,31 @@ defmodule GgenIgniter.Manifest do
   `Actuate.write_file!/3` wrote there (computed by re-reading the file back
   off disk after the write, not derived from the in-memory rendered string --
   a real content hash of what is actually on disk).
+
+  ## `outputs`' keys: real canonical identity, not a raw path string
+
+  This module's own functions (`output_paths/1`, `stale_paths/2`,
+  `build_entry/4`) treat `outputs`' keys as opaque strings -- they never
+  parse, expand, or otherwise interpret a path themselves. The CALLER
+  decides what identity those keys represent. `GgenIgniter.Reactors.
+  ReconcileReactor` (`commit_recipe/5`, `finalize_evidence/1`) builds every
+  `outputs` map it persists from `GgenIgniter.ArtifactIdentity.canonicalize/2`'s
+  real result for each output (via `GgenIgniter.PendingActuation`'s
+  `canonical_target` field), NEVER the raw, un-normalized path string --
+  closing the real, confirmed adversarial finding in
+  `.ggen_igniter_factory/redteam-concurrency-nondeterminism.md` (two
+  differently-spelled aliases of the SAME real output previously compared
+  as different manifest keys). `stale_paths/2`'s `new_paths` argument is
+  likewise always the current run's own canonical identities from that same
+  caller, so old-vs-new comparisons stay apples-to-apples.
   """
 
   @manifest_relpath ".ggen_igniter/manifest.json"
+  @current_schema_version "1"
+
+  @doc "The current schema version this module writes and understands. See moduledoc's \"Schema versioning\" section."
+  @spec current_schema_version() :: String.t()
+  def current_schema_version, do: @current_schema_version
 
   @typedoc "One recipe's manifest entry, JSON-decoded (string keys, matching Jason's default map shape)."
   @type entry :: %{
@@ -122,46 +180,89 @@ defmodule GgenIgniter.Manifest do
   @doc """
   Loads the manifest at `path(base_dir)`.
 
-  Returns a fresh `%{"version" => 1, "entries" => %{}}` when no manifest file
-  exists yet (the real, honest "first run" state -- not an error). Raises a
-  clear `ArgumentError` if the file exists but is not valid JSON, or is valid
-  JSON with an unexpected shape (missing/non-map `"entries"`) -- a corrupt
-  manifest is a real data-integrity problem this module refuses to silently
-  paper over by pretending there is no prior state (that would silently
-  defeat reconciliation for exactly the runs that need it most).
+  Returns a fresh `%{"version" => 1, "schema_version" => "1", "entries" =>
+  %{}}` when no manifest file exists yet (the real, honest "first run" state
+  -- not an error). Raises a clear `ArgumentError` (message == `detail` from
+  `load_safe/1`'s `{:error, :corrupt_manifest, detail}`) if the file exists
+  but is not valid JSON, is valid JSON with an unexpected shape (missing/
+  non-map `"entries"`), or carries an unsupported future `"schema_version"`
+  -- a corrupt or unrecognized-future manifest is a real data-integrity
+  problem this module refuses to silently paper over by pretending there is
+  no prior state, or by guessing at an unknown future shape (that would
+  silently defeat reconciliation for exactly the runs that need it most).
+
+  See `load_safe/1` for the non-raising equivalent.
   """
   @spec load(String.t()) :: t()
   def load(base_dir) do
+    case load_safe(base_dir) do
+      {:ok, manifest} ->
+        manifest
+
+      {:error, :corrupt_manifest, detail} ->
+        raise ArgumentError, detail
+    end
+  end
+
+  @doc """
+  Non-raising equivalent of `load/1`: `{:ok, manifest}` on success (including
+  the honest "no manifest file yet" first-run state), or `{:error,
+  :corrupt_manifest, detail}` (a human-readable binary) when the file exists
+  but is invalid JSON, has an unexpected shape (missing/non-map `"entries"`),
+  or declares an unsupported future `"schema_version"`.
+
+  An ABSENT `"schema_version"` key (every manifest.json written before this
+  field existed) is treated as `"1"` -- not an error, not a guess at some
+  other version -- per this module's moduledoc "Schema versioning" section
+  (AR-9 backward-compat rule).
+  """
+  @spec load_safe(String.t()) :: {:ok, t()} | {:error, :corrupt_manifest, String.t()}
+  def load_safe(base_dir) do
     manifest_path = path(base_dir)
 
     case File.read(manifest_path) do
       {:ok, content} ->
-        decode!(content, manifest_path)
+        decode(content, manifest_path)
 
       {:error, :enoent} ->
-        %{"version" => 1, "entries" => %{}}
+        {:ok, %{"version" => 1, "schema_version" => @current_schema_version, "entries" => %{}}}
 
       {:error, reason} ->
-        raise ArgumentError,
-              "could not read ggen_igniter manifest at #{manifest_path}: #{inspect(reason)}"
+        {:error, :corrupt_manifest,
+         "could not read ggen_igniter manifest at #{manifest_path}: #{inspect(reason)}"}
     end
   end
 
-  defp decode!(content, manifest_path) do
+  defp decode(content, manifest_path) do
     case Jason.decode(content) do
       {:ok, %{"entries" => entries} = manifest} when is_map(entries) ->
-        manifest
+        check_schema_version(manifest, manifest_path)
 
       {:ok, other} ->
-        raise ArgumentError,
-              "ggen_igniter manifest at #{manifest_path} has an unexpected shape " <>
-                "(expected a JSON object with an \"entries\" object) -- refusing to guess " <>
-                "its prior state; fix or remove the file. Got: #{inspect(other)}"
+        {:error, :corrupt_manifest,
+         "ggen_igniter manifest at #{manifest_path} has an unexpected shape " <>
+           "(expected a JSON object with an \"entries\" object) -- refusing to guess " <>
+           "its prior state; fix or remove the file. Got: #{inspect(other)}"}
 
       {:error, reason} ->
-        raise ArgumentError,
-              "ggen_igniter manifest at #{manifest_path} is not valid JSON (#{inspect(reason)}) " <>
-                "-- refusing to guess its prior state; fix or remove the file"
+        {:error, :corrupt_manifest,
+         "ggen_igniter manifest at #{manifest_path} is not valid JSON (#{inspect(reason)}) " <>
+           "-- refusing to guess its prior state; fix or remove the file"}
+    end
+  end
+
+  defp check_schema_version(manifest, manifest_path) do
+    case Map.get(manifest, "schema_version", @current_schema_version) do
+      version when version == @current_schema_version ->
+        {:ok, manifest}
+
+      other_version ->
+        {:error, :corrupt_manifest,
+         "ggen_igniter manifest at #{manifest_path} declares schema_version " <>
+           "#{inspect(other_version)}, but this version of ggen_igniter only " <>
+           "understands schema_version #{inspect(@current_schema_version)} -- " <>
+           "refusing to silently misread a manifest written by a newer/incompatible " <>
+           "version; upgrade ggen_igniter, or fix/remove the file"}
     end
   end
 
@@ -240,6 +341,7 @@ defmodule GgenIgniter.Manifest do
   def put(manifest, key, entry) do
     manifest
     |> Map.put_new("version", 1)
+    |> Map.put_new("schema_version", @current_schema_version)
     |> Map.update("entries", %{key => entry}, &Map.put(&1, key, entry))
   end
 

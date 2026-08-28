@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-08-27T12:00:00Z",
+  "inputs": {
+    "ontology_path": "priv/ggen/ash-resource/ontology.ttl",
+    "ontology_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pack": "ash-resource",
+    "pack_dir": "priv/ggen/ash-resource"
+  },
+  "engine": {
+    "name": "oxigraph",
+    "selection_reason": "default",
+    "store_id": null
+  },
+  "queries": [
+    {
+      "name": "resources",
+      "source": "priv/ggen/ash-resource/gates/resources.rq",
+      "source_hash": "sha256:d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2",
+      "bindings_discovered": [
+        {
+          "var": "name",
+          "row_count": 3
+        },
+        {
+          "var": "module",
+          "row_count": 3
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "logical_id": "priv/ggen/ash-resource/templates/resource.ex.eex=>lib/<%= module %>.ex::lib/support_desk/support/ticket.ex",
+      "target": "lib/support_desk/support/ticket.ex",
+      "template_path": "priv/ggen/ash-resource/templates/resource.ex.eex",
+      "out_template": "lib/<%= module %>.ex",
+      "recipe_key": "priv/ggen/ash-resource/templates/resource.ex.eex=>lib/<%= module %>.ex",
+      "operation": "create",
+      "existing_file_decision": "create",
+      "skip_condition": null,
+      "previous_hash": null,
+      "desired_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "ownership": false
+    },
+    {
+      "logical_id": "priv/ggen/ash-resource/templates/resource.ex.eex=>lib/<%= module %>.ex::lib/support_desk/support/comment.ex",
+      "target": "lib/support_desk/support/comment.ex",
+      "template_path": "priv/ggen/ash-resource/templates/resource.ex.eex",
+      "out_template": "lib/<%= module %>.ex",
+      "recipe_key": "priv/ggen/ash-resource/templates/resource.ex.eex=>lib/<%= module %>.ex",
+      "operation": "replace",
+      "existing_file_decision": "skip_match",
+      "skip_condition": "desired content matches on-disk content",
+      "previous_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "desired_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "ownership": true
+    }
+  ],
+  "unsupported_features": [
+    {
+      "feature": "for_each",
+      "reason": "GgenIgniter.Reconcile.run/1 does not yet implement --for-each (see moduledoc)",
+      "recipe_key": null
+    }
+  ],
+  "mutations_intended": {
+    "writes": 1,
+    "deletes": 0,
+    "injects": 0,
+    "evals": 0,
+    "skipped": 1
+  }
+}

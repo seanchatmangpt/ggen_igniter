@@ -25,6 +25,65 @@ defmodule GgenIgniter.Actuate do
   structural patch, as opposed to this module's line-anchored text splice) for
   incremental changes to an EXISTING file remains an explicit, disclosed
   follow-on -- not implemented this pass (see pack.toml).
+
+  ## Atomic-write guarantee (`write_file!/3`'s `:written` outcome only)
+
+  When `write_file!/3` actually writes (the `:written` outcome, real -- not
+  `:dry_run`), it does so via a real write-to-temp-then-`File.rename!/2`
+  sequence, not a direct `File.write!/2` to the final path:
+
+    1. Render the content to a sibling temp file in the SAME directory as the
+       final path (e.g. `path <> ".ggen_igniter.tmp.<unique_integer>"`) --
+       same directory, so the subsequent rename is guaranteed to stay on the
+       same filesystem/mount (a cross-filesystem rename is not atomic and, on
+       most platforms, simply fails rather than silently copying).
+    2. `File.write!/2` the full content to that temp file.
+    3. Best-effort `fsync` the temp file's file descriptor via `:file.sync/1`
+       (when the OS/filesystem honors fsync -- see caveats below) before the
+       rename, so the temp file's bytes are durable before it becomes visible
+       under the final name.
+    4. `File.rename!/2` the temp file onto the final `path`.
+
+  **What this actually guarantees, precisely:** on POSIX filesystems (Linux
+  ext4/xfs, macOS APFS/HFS+) where `rename(2)` is atomic per the POSIX
+  standard, an observer of `path` NEVER sees a partially-written file --
+  `path` either still holds its old content (rename hasn't happened yet) or
+  the new content (rename has happened), never a half-written intermediate
+  state, even if this process is killed mid-write. This holds because the
+  temp file is invisible under `path`'s name until the single atomic rename
+  syscall completes.
+
+  **What this does NOT guarantee, stated honestly rather than implied:**
+
+    * **Windows**: `File.rename!/2` on Windows (`MoveFileEx`-backed) is not
+      guaranteed atomic when the destination already exists on all Windows
+      filesystem/OS version combinations the way POSIX `rename(2)` is --
+      Erlang/OTP's underlying implementation has evolved across versions and
+      is not something this module independently verifies here. Treat the
+      atomicity guarantee above as POSIX-only.
+    * **NFS and other network filesystems**: `rename(2)` atomicity is a
+      LOCAL-filesystem POSIX guarantee. NFS (especially NFSv3) has documented
+      non-atomic-rename edge cases under concurrent access from multiple
+      clients. If `path` lives on an NFS mount, this guarantee weakens to
+      "best effort," not "atomic."
+    * **fsync durability**: step 3's `:file.sync/1` call is best-effort --
+      it's issued when available, but this module does not verify the
+      underlying storage/OS actually honors the fsync barrier (e.g. some
+      virtualized/network storage acknowledges fsync without a real durable
+      flush). Treat fsync here as "reduces the durability window," not as an
+      unconditional crash-safety proof.
+    * **Directory-entry durability**: this implementation does not fsync the
+      containing DIRECTORY's file descriptor after the rename, which a
+      maximally paranoid crash-safety design would also do (to guarantee the
+      renamed directory entry itself survives a concurrent power loss, not
+      just the file's data). That refinement is out of scope for this pass.
+    * **Scope**: this guarantee applies ONLY to `write_file!/3`'s real
+      `:written` outcome. `:dry_run` still performs zero I/O (unchanged).
+      `:unchanged`/`:skipped_exists`/`:skipped_match` never write, so there is
+      nothing to make atomic. `inject_content!/5` (existing-file splice) and
+      `eval_code!/2` (in-memory eval, no disk write) are explicitly OUT OF
+      SCOPE for this guarantee -- they still use a direct `File.write!/2` (or,
+      for eval, no write at all).
   """
 
   @doc "Writes `content` to `path`, creating parent directories as needed."
@@ -95,8 +154,48 @@ defmodule GgenIgniter.Actuate do
 
       true ->
         File.mkdir_p!(Path.dirname(path))
-        File.write!(path, content)
+        atomic_write!(path, content)
         {:ok, :written}
+    end
+  end
+
+  # Writes `content` to a sibling temp file in the SAME directory as `path`
+  # (guaranteeing the subsequent rename stays on the same filesystem/mount),
+  # best-effort fsyncs it, then atomically renames it onto `path`. See this
+  # module's moduledoc "Atomic-write guarantee" section for exactly what this
+  # does and does not guarantee (POSIX-only atomicity, Windows/NFS caveats,
+  # best-effort fsync).
+  defp atomic_write!(path, content) do
+    tmp_path = path <> ".ggen_igniter.tmp.#{System.unique_integer([:positive])}"
+
+    try do
+      File.write!(tmp_path, content)
+      fsync_best_effort(tmp_path)
+      File.rename!(tmp_path, path)
+    rescue
+      e ->
+        File.rm(tmp_path)
+        reraise e, __STACKTRACE__
+    end
+  end
+
+  # Best-effort fsync of the temp file's data before the rename that makes it
+  # visible under the final name. `:file.open/2` + `:file.sync/1` is used
+  # (rather than anything in `File`, which does not expose fsync) because the
+  # low-level `:file` Erlang module is what actually wraps the POSIX fsync(2)
+  # syscall on platforms/filesystems that honor it. Never raises -- a
+  # filesystem that doesn't support fsync (or where opening a second handle
+  # to the just-written temp file fails) does not block the write; it just
+  # loses the extra durability margin, which the moduledoc discloses as
+  # best-effort, not an unconditional guarantee.
+  defp fsync_best_effort(path) do
+    case :file.open(path, [:read, :binary]) do
+      {:ok, fd} ->
+        _ = :file.sync(fd)
+        :file.close(fd)
+
+      {:error, _reason} ->
+        :ok
     end
   end
 

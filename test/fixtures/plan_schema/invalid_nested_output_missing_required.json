@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-08-27T12:00:00Z",
+  "inputs": {
+    "ontology_path": "priv/ggen/ash-resource/ontology.ttl",
+    "ontology_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85"
+  },
+  "engine": {
+    "name": "oxigraph",
+    "selection_reason": "default"
+  },
+  "queries": [],
+  "outputs": [
+    {
+      "logical_id": "some-id",
+      "target": "lib/foo.ex",
+      "template_path": "priv/ggen/ash-resource/templates/resource.ex.eex",
+      "out_template": "lib/<%= module %>.ex",
+      "recipe_key": "priv/ggen/ash-resource/templates/resource.ex.eex=>lib/<%= module %>.ex",
+      "operation": "create"
+    }
+  ],
+  "mutations_intended": {
+    "writes": 1,
+    "deletes": 0,
+    "injects": 0,
+    "evals": 0,
+    "skipped": 0
+  }
+}

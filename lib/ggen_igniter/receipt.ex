@@ -108,6 +108,18 @@ defmodule GgenIgniter.Receipt do
   `:build_broken` receipt, `pre_run_hash == post_run_hash` is the real,
   checkable claim that compensation genuinely restored prior state -- see
   `test/ggen_igniter_receipt_compensated_test.exs`.
+
+  ## `files`' entries: real canonical identity, not a raw path string
+
+  On a real `:alive` receipt, `files` (this module's own moduledoc example
+  above) is built by the caller (`GgenIgniter.Reactors.ReconcileReactor.
+  finalize_evidence/1`) from `GgenIgniter.ArtifactIdentity.canonicalize/2`'s
+  real result for each admitted output -- via `GgenIgniter.PendingActuation`'s
+  `canonical_target` field -- never the raw, un-normalized target string,
+  same real identity `GgenIgniter.Manifest`'s own `outputs` keys are built
+  from (see that module's moduledoc). This module itself never parses or
+  interprets a path; it is the caller's job to decide, and pass in, a real
+  identity.
   """
 
   @receipts_reldir ".ggen_igniter/receipts"
@@ -129,7 +141,23 @@ defmodule GgenIgniter.Receipt do
           files: [String.t()],
           events: [map()],
           reason: String.t() | nil,
-          metadata: map()
+          metadata: map(),
+          schema_version: String.t(),
+          tool_version: String.t() | nil,
+          operation: String.t() | nil,
+          inputs: list(),
+          queries: list(),
+          engine: String.t() | nil,
+          outputs: list(),
+          skipped_outputs: list(),
+          commands: list(),
+          source_hash: String.t() | nil,
+          plan_hash: String.t() | nil,
+          pre_state_hash: String.t() | nil,
+          result_hash: String.t() | nil,
+          parent_hash: String.t() | nil,
+          receipt_hash: String.t() | nil,
+          completed_at: String.t() | nil
         }
 
   @enforce_keys [:id, :standing, :started_at, :finished_at]
@@ -143,7 +171,30 @@ defmodule GgenIgniter.Receipt do
             files: [],
             events: [],
             reason: nil,
-            metadata: %{}
+            metadata: %{},
+            # -- PRD v2 additive fields (2026-08-27) --------------------------
+            # Everything below is additive: existing callers of `new/1` that
+            # never mention these keys get the same defaults they always
+            # implicitly had (nil / []), and every pre-existing field/function
+            # above is unchanged. See the doc comments on `new/2`,
+            # `compute_receipt_hash/1`, and `to_prd_status/1` for what each is
+            # for.
+            schema_version: "1",
+            tool_version: nil,
+            operation: nil,
+            inputs: [],
+            queries: [],
+            engine: nil,
+            outputs: [],
+            skipped_outputs: [],
+            commands: [],
+            source_hash: nil,
+            plan_hash: nil,
+            pre_state_hash: nil,
+            result_hash: nil,
+            parent_hash: nil,
+            receipt_hash: nil,
+            completed_at: nil
 
   @doc "The five real, closed-set standing atoms a receipt may carry."
   @spec standings() :: [standing(), ...]
@@ -174,7 +225,35 @@ defmodule GgenIgniter.Receipt do
   (ISO8601-encoded) if not given.
   """
   @spec new(map() | keyword()) :: t()
-  def new(attrs) do
+  def new(attrs), do: new(attrs, [])
+
+  @doc """
+  Same as `new/1`, plus an `opts` keyword list for PRD v2 chain-linking.
+
+  `opts[:base_dir]`, when given together with a `:recipe_key` in `attrs` and
+  no explicit `:parent_hash` in `attrs`, auto-derives `parent_hash` by
+  reusing `reconstruct_standing/2`'s own on-disk chain walk: the LAST
+  receipt already persisted for this `recipe_key` (if any) has its
+  `receipt_hash` copied into the new receipt's `parent_hash`, giving the
+  same append-only, disk-verified chain-of-custody `reconstruct_standing/2`
+  already checks for `pre_run_hash`/`post_run_hash`, extended to the whole
+  receipt content. No prior receipt (`{:error, :no_receipts}`, or the chain
+  itself is broken) leaves `parent_hash` `nil` -- the honest "first/rootless
+  receipt in this chain" state, never a raised error, since `new/2` builds a
+  struct and must not fail just because history-lookup found nothing.
+
+  `tool_version` defaults to this application's own `Mix.Project` version
+  (`tool_version/0`) unless explicitly given. `schema_version` defaults to
+  `"1"` (already the struct default) unless explicitly given.
+
+  `receipt_hash` is always (re)computed by `compute_receipt_hash/1` over the
+  fully-built struct UNLESS the caller explicitly supplied `:receipt_hash`
+  in `attrs` (e.g. a receipt round-tripped from JSON that already carries
+  its original hash) -- see `compute_receipt_hash/1` for exactly what the
+  hash covers.
+  """
+  @spec new(map() | keyword(), keyword()) :: t()
+  def new(attrs, opts) when is_list(opts) do
     attrs = Map.new(attrs)
     standing = Map.fetch!(attrs, :standing)
 
@@ -185,15 +264,47 @@ defmodule GgenIgniter.Receipt do
 
     now = DateTime.utc_now() |> DateTime.to_iso8601()
 
-    attrs
-    |> Map.put_new_lazy(:id, &generate_id/0)
-    |> Map.put_new(:started_at, now)
-    |> Map.put_new(:finished_at, now)
-    |> then(&struct!(__MODULE__, &1))
+    attrs =
+      attrs
+      |> Map.put_new_lazy(:id, &generate_id/0)
+      |> Map.put_new(:started_at, now)
+      |> Map.put_new(:finished_at, now)
+      |> Map.put_new(:schema_version, "1")
+      |> Map.put_new_lazy(:tool_version, &tool_version/0)
+      |> put_new_parent_hash(opts)
+
+    explicit_receipt_hash = Map.get(attrs, :receipt_hash)
+
+    receipt = struct!(__MODULE__, attrs)
+
+    receipt_hash = explicit_receipt_hash || compute_receipt_hash(receipt)
+
+    %{receipt | receipt_hash: receipt_hash}
+  end
+
+  defp put_new_parent_hash(attrs, opts) do
+    with nil <- Map.get(attrs, :parent_hash),
+         base_dir when is_binary(base_dir) <- Keyword.get(opts, :base_dir),
+         recipe_key when is_binary(recipe_key) <- Map.get(attrs, :recipe_key),
+         {:ok, %{receipt: last}} <- reconstruct_standing(base_dir, recipe_key) do
+      Map.put(attrs, :parent_hash, last["receipt_hash"])
+    else
+      _ -> attrs
+    end
   end
 
   defp generate_id do
     "rcpt_" <> (:crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower))
+  end
+
+  @doc """
+  This application's own release version (`Mix.Project.config()[:version]`),
+  used as `t:t/0`'s `tool_version` default so every receipt records exactly
+  which build of `ggen_igniter` produced it.
+  """
+  @spec tool_version() :: String.t()
+  def tool_version do
+    Mix.Project.config()[:version]
   end
 
   @doc """
@@ -255,9 +366,95 @@ defmodule GgenIgniter.Receipt do
       "files" => receipt.files,
       "events" => receipt.events,
       "reason" => receipt.reason,
-      "metadata" => receipt.metadata
+      "metadata" => receipt.metadata,
+      "schema_version" => receipt.schema_version,
+      "tool_version" => receipt.tool_version,
+      "operation" => receipt.operation,
+      "inputs" => receipt.inputs,
+      "queries" => receipt.queries,
+      "engine" => receipt.engine,
+      "outputs" => receipt.outputs,
+      "skipped_outputs" => receipt.skipped_outputs,
+      "commands" => receipt.commands,
+      "source_hash" => receipt.source_hash,
+      "plan_hash" => receipt.plan_hash,
+      "pre_state_hash" => receipt.pre_state_hash,
+      "result_hash" => receipt.result_hash,
+      "parent_hash" => receipt.parent_hash,
+      "receipt_hash" => receipt.receipt_hash,
+      "completed_at" => receipt.completed_at
     }
   end
+
+  @doc """
+  A `"sha256:" <> hex` digest over `receipt`'s own content (its
+  `to_json_map/1` form, MINUS the `"receipt_hash"` key itself -- a hash
+  cannot cover its own output without being circular). This is what proves
+  chain integrity at the single-receipt level: any bit of a persisted
+  receipt (its `standing`, its `files`, its `metadata`, any PRD v2 field)
+  changing after the fact changes this digest, exactly the same
+  tamper-evidence property `hash_entries/1`/`hash_files/1` already give the
+  FILES a receipt describes, now given to the RECEIPT RECORD describing
+  them.
+
+  `new/2` calls this automatically to populate `receipt_hash` unless the
+  caller explicitly supplied one (see `new/2`). Deterministic and
+  order-independent: `Jason.encode!/1` is called on the map sorted by key,
+  so field-insertion order in the caller never affects the digest.
+  """
+  @spec compute_receipt_hash(t()) :: String.t()
+  def compute_receipt_hash(%__MODULE__{} = receipt) do
+    receipt
+    |> to_json_map()
+    |> Map.delete("receipt_hash")
+    |> then(fn map -> map |> Enum.sort_by(&elem(&1, 0)) |> Map.new() end)
+    |> Jason.encode!()
+    |> then(&("sha256:" <> hex_sha256(&1)))
+  end
+
+  @doc """
+  Maps a receipt's real `standing` (`t:standing/0`) onto the PRD's status
+  vocabulary (this repo's own `no-overclaiming` floor:
+  ALIVE/PARTIAL_ALIVE/BLOCKED/BUILD_BROKEN/UNSUPPORTED/UNKNOWN), so a
+  PRD-facing report can cite one receipt's `standing` without re-deriving
+  the mapping ad hoc at every call site.
+
+    * `:alive` -> `"ALIVE"` -- the attempt fully succeeded.
+    * `:refused` -> `"BLOCKED"` -- nothing was actuated; a real precondition
+      or guard is what's blocking, not a code defect.
+    * `:compensated` -> `"PARTIAL_ALIVE"` -- files were written, then
+      restored after a (non-build) verification failure; the recipe
+      partially executed before self-healing.
+    * `:build_broken` -> `"BUILD_BROKEN"` -- generated content itself did
+      not compile/parse.
+    * `:compensation_failed` -> `"PARTIAL_ALIVE"` -- like `:compensated`,
+      real actuation partially occurred before failing; PRD status
+      vocabulary has no distinct "compensation itself also failed"
+      category, so this maps to the same PARTIAL_ALIVE bucket as
+      `:compensated` (both are "some real, incomplete progress occurred"),
+      while `receipt.metadata`/`receipt.reason` retain the actual
+      catastrophic detail this collapsed status label does not carry.
+    * Any other value (should be impossible given `new/1`'s closed-set
+      guard, but `to_prd_status/1` accepts a bare atom, not just a `t()`, so
+      a hand-built/decoded atom outside `standings/0` is possible) ->
+      `"UNKNOWN"` -- the honest fallback, never a raised error and never a
+      silently wrong guess.
+
+  `"UNSUPPORTED"` is a real PRD status value with no `t:standing/0`
+  equivalent in this module today (no receipt is ever produced for an
+  operation this pipeline doesn't support at all -- that's refused earlier,
+  before any receipt-worthy attempt exists) and is therefore never returned
+  by this mapping; it is listed above only because the PRD names it as part
+  of the shared vocabulary this function's return values are drawn from.
+  """
+  @spec to_prd_status(t() | standing()) :: String.t()
+  def to_prd_status(%__MODULE__{standing: standing}), do: to_prd_status(standing)
+  def to_prd_status(:alive), do: "ALIVE"
+  def to_prd_status(:refused), do: "BLOCKED"
+  def to_prd_status(:compensated), do: "PARTIAL_ALIVE"
+  def to_prd_status(:build_broken), do: "BUILD_BROKEN"
+  def to_prd_status(:compensation_failed), do: "PARTIAL_ALIVE"
+  def to_prd_status(_other), do: "UNKNOWN"
 
   @doc """
   REAL append-only persistence: encodes `receipt` as one JSON line and

@@ -1,0 +1,13 @@
+{
+  "id": "rcpt_0123456789abcdef",
+  "recipe_key": null,
+  "standing": "invented_standing",
+  "started_at": "2026-08-27T12:00:00.000000Z",
+  "finished_at": "2026-08-27T12:00:00.050000Z",
+  "pre_run_hash": null,
+  "post_run_hash": null,
+  "files": [],
+  "events": [],
+  "reason": null,
+  "metadata": {}
+}

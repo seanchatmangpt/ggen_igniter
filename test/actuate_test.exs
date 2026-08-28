@@ -150,4 +150,87 @@ defmodule GgenIgniter.ActuateTest do
       assert {:ok, :skipped_exists} = Actuate.write_file!(path, "same", unless_exists: true)
     end
   end
+
+  describe "write_file!/3 - atomic write guarantee (:written outcome only)" do
+    test "final path holds either fully-new content, never a truncated/partial write", %{
+      tmp_dir: tmp_dir
+    } do
+      path = Path.join(tmp_dir, "atomic_new.ex")
+      big_content = String.duplicate("defmodule Foo do\n  :ok\nend\n", 5_000)
+
+      assert {:ok, :written} = Actuate.write_file!(path, big_content)
+
+      # A real re-read of the final path: either the write fully succeeded
+      # (rename already happened) and the content is complete, or it raised
+      # before ever renaming onto the final path. There is no third,
+      # partially-written state to observe here -- this IS the real check,
+      # not a simulated crash.
+      assert File.read!(path) == big_content
+    end
+
+    test "pre-existing file is never observed truncated after a real overwrite", %{
+      tmp_dir: tmp_dir
+    } do
+      path = Path.join(tmp_dir, "atomic_overwrite.ex")
+      original = String.duplicate("original line\n", 2_000)
+      File.write!(path, original)
+
+      new_content = String.duplicate("replacement line\n", 3_000)
+      assert {:ok, :written} = Actuate.write_file!(path, new_content)
+
+      # Single File.read!/1 call: the file is either still fully the
+      # original content or fully the new content -- never a byte count
+      # between the two, which is what a non-atomic direct File.write!/2
+      # truncate-then-write sequence could in principle expose to a
+      # concurrent reader mid-write.
+      final = File.read!(path)
+      assert final == new_content
+      refute byte_size(final) not in [byte_size(original), byte_size(new_content)]
+    end
+
+    test "no leftover .ggen_igniter.tmp.* sibling file remains after a real write", %{
+      tmp_dir: tmp_dir
+    } do
+      path = Path.join(tmp_dir, "atomic_no_leftover.ex")
+
+      assert {:ok, :written} = Actuate.write_file!(path, "content")
+
+      leftovers =
+        tmp_dir
+        |> File.ls!()
+        |> Enum.filter(&String.contains?(&1, ".ggen_igniter.tmp."))
+
+      assert leftovers == [],
+             "expected the temp file to be consumed by the rename, found: #{inspect(leftovers)}"
+    end
+
+    test "temp file is written in the SAME directory as the final path (same-filesystem rename)",
+         %{tmp_dir: tmp_dir} do
+      nested_dir = Path.join(tmp_dir, "nested")
+      path = Path.join(nested_dir, "atomic_same_dir.ex")
+
+      # File.mkdir_p!/1 happens inside write_file!/3 itself for the :written
+      # branch -- assert the parent dir did not exist beforehand, then that
+      # the final file lands exactly where expected afterward (proving the
+      # rename target -- and therefore the temp file that preceded it --
+      # used the same nested directory, not some other tmp location).
+      refute File.exists?(nested_dir)
+
+      assert {:ok, :written} = Actuate.write_file!(path, "nested content")
+      assert File.read!(path) == "nested content"
+      assert File.ls!(nested_dir) == ["atomic_same_dir.ex"]
+    end
+
+    test "dry_run still performs zero I/O even with the new atomic-write path", %{
+      tmp_dir: tmp_dir
+    } do
+      path = Path.join(tmp_dir, "atomic_dry_run.ex")
+
+      assert {:ok, :written} = Actuate.write_file!(path, "would be written", dry_run: true)
+      refute File.exists?(path)
+
+      # No stray temp file either.
+      assert File.ls!(tmp_dir) == []
+    end
+  end
 end

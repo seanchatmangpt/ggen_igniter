@@ -171,8 +171,17 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   """
   use Igniter.Mix.Task
 
-  alias GgenIgniter.{Actuate, Controller, Engine, Frontmatter, Manifest, Ontology, Render}
-  alias GgenIgniter.Frontmatter.MatchRule
+  alias GgenIgniter.{
+    Actuate,
+    Controller,
+    Engine,
+    Frontmatter,
+    Injection,
+    Manifest,
+    Ontology,
+    Render
+  }
+
   alias GgenIgniter.Reactors.ReconcileReactor
 
   @impl Igniter.Mix.Task
@@ -422,28 +431,63 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   replace disk-based manifest tracking with in-process tracking for whichever
   recipes it is enabled for, not to duplicate both.
   """
+  # AR-9 correction (2026-08-27): every `mix ggen_igniter.sync` invocation now
+  # ALWAYS acquires a real cross-process lock (`GgenIgniter.Lock.acquire/2`)
+  # before doing any work, and ALWAYS attempts the receipt-writing Reactor
+  # pipeline (`GgenIgniter.Reactors.ReconcileReactor.run/1`) FIRST, instead of
+  # this being gated behind `Application.get_env(:ggen_igniter, :use_reactor,
+  # false)` -- that config flag is no longer read here. The lock is released
+  # in a `try/after` around the WHOLE plan+actuate sequence, so it is
+  # released on a normal return, a raised exception, or a `dispatch_pipeline`
+  # fallback alike -- never left held.
+  #
+  # `run_via_reactor/3` only ever returns `{:not_delegatable, reason}` for a
+  # request outside `GgenIgniter.Reactors.ReconcileReactor.run/1`'s own
+  # documented bounded scope (a template with frontmatter, or `--for-each` --
+  # neither has a Reactor-pipeline equivalent yet). For THOSE requests only,
+  # this task keeps the exact pre-existing `dispatch_pipeline/3` behavior
+  # (controller delegation when running, else the plain inline pipeline) --
+  # never a silent reinterpretation of what an unsupported flag does -- and
+  # logs a one-time migration notice naming exactly which flag/feature has no
+  # Reactor-pipeline equivalent yet.
   @impl Igniter.Mix.Task
   def igniter(igniter) do
     {opts, pack_template_stem} = split_pack_template_stem(igniter.args.options)
 
-    # Opt-in Reactor dispatch: `Application.get_env(:ggen_igniter, :use_reactor,
-    # false)` (default `false`) gates whether this run is coordinated by the
-    # real Reactor pipeline (`GgenIgniter.Reactors.ReconcileReactor`) instead
-    # of the pre-existing dispatch below. When the flag is left at its
-    # default, `use_reactor?/0` is false and `dispatch_pipeline/3` runs --
-    # BYTE-FOR-BYTE the same function body this task had before this pipeline
-    # existed, unconditionally reached, never touched by the branch above it.
-    if use_reactor?() do
+    lock_key = opts[:manifest_dir] || File.cwd!()
+    {:ok, lock_ref} = GgenIgniter.Lock.acquire(lock_key, [])
+
+    try do
       case run_via_reactor(igniter, opts, pack_template_stem) do
-        {:ok, result_igniter} -> result_igniter
-        :not_delegatable -> dispatch_pipeline(igniter, opts, pack_template_stem)
+        {:ok, result_igniter} ->
+          result_igniter
+
+        {:not_delegatable, reason} ->
+          migration_notice_once(
+            "ggen_igniter: #{reason} has no GgenIgniter.Reactors.ReconcileReactor " <>
+              "equivalent yet (AR-9) -- falling back to the pre-existing plain/controller " <>
+              "pipeline for this run only"
+          )
+
+          dispatch_pipeline(igniter, opts, pack_template_stem)
       end
-    else
-      dispatch_pipeline(igniter, opts, pack_template_stem)
+    after
+      GgenIgniter.Lock.release(lock_ref)
     end
   end
 
-  defp use_reactor?, do: Application.get_env(:ggen_igniter, :use_reactor, false)
+  # Logs `message` via `Mix.shell().info/1` at most once per BEAM process
+  # (tracked with `:persistent_term`, cheap read-mostly global state) -- a
+  # migration notice about an unsupported flag should be seen once per run,
+  # not once per `--for-each` row or per test-suite invocation flooding
+  # output.
+  @migration_notice_key {__MODULE__, :ar9_migration_notice_logged}
+  defp migration_notice_once(message) do
+    unless :persistent_term.get(@migration_notice_key, false) do
+      Mix.shell().info(message)
+      :persistent_term.put(@migration_notice_key, true)
+    end
+  end
 
   # The exact pre-Reactor entry-point body: delegate to a running Controller
   # when possible, else run the standalone inline pipeline. Unchanged from
@@ -478,20 +522,29 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
     for_each = opts[:for_each] || frontmatter_field(frontmatter, :for_each)
 
-    if frontmatter == nil and for_each in [nil, ""] do
-      reconcile_opts = Keyword.put(opts, :pack_template_stem, pack_template_stem)
+    cond do
+      frontmatter != nil ->
+        {:not_delegatable,
+         "template frontmatter (#{template_path} has a --- header -- " <>
+           "GgenIgniter.Reactors.ReconcileReactor.run/1 does not implement frontmatter parsing)"}
 
-      case ReconcileReactor.run(reconcile_opts) do
-        {:ok, receipt} ->
-          notice = receipt.metadata["notice"] || "reconciled"
-          {:ok, Igniter.add_notice(igniter, "ggen_igniter: #{notice} (via reactor)")}
+      for_each not in [nil, ""] ->
+        {:not_delegatable,
+         "--for-each #{inspect(for_each)} (GgenIgniter.Reactors.ReconcileReactor.run/1 does " <>
+           "not implement multi-row fan-out)"}
 
-        {:error, receipt} ->
-          raise "ggen_igniter: reactor reconciliation failed (#{receipt.standing}): " <>
-                  (receipt.reason || "no reason recorded")
-      end
-    else
-      :not_delegatable
+      true ->
+        reconcile_opts = Keyword.put(opts, :pack_template_stem, pack_template_stem)
+
+        case ReconcileReactor.run(reconcile_opts) do
+          {:ok, receipt} ->
+            notice = receipt.metadata["notice"] || "reconciled"
+            {:ok, Igniter.add_notice(igniter, "ggen_igniter: #{notice} (via reactor)")}
+
+          {:error, receipt} ->
+            raise "ggen_igniter: reactor reconciliation failed (#{receipt.standing}): " <>
+                    (receipt.reason || "no reason recorded")
+        end
     end
   end
 
@@ -609,7 +662,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     # one query result row.
     inject_spec =
       if mode == :file and (frontmatter_field(frontmatter, :inject) || false) do
-        resolve_injection!(frontmatter)
+        Injection.resolve_injection!(frontmatter)
       end
 
     total_rows = named_results |> Enum.map(fn {_name, rows} -> length(rows) end) |> Enum.sum()
@@ -855,7 +908,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       Actuate.inject_content!(
         out_path,
         marker,
-        strip_single_trailing_newline(content),
+        Injection.strip_single_trailing_newline(content),
         insert_mode,
         Keyword.put(inject_opts, :dry_run, dry_run)
       )
@@ -894,165 +947,10 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     {"evaluated #{template_path} -> #{inspect(value)}", nil}
   end
 
-  # A rendered template body ends in a trailing "\n" as a plain file-formatting
-  # convention -- the same convention every fixture `.eex` file in this
-  # project's `write_file!/3` path already relies on (the rendered body is
-  # written byte-for-byte, trailing newline included). `Actuate.inject_content!/5`
-  # itself has no opinion on this: it does `String.split(content, "\n")`
-  # un-trimmed, so an un-stripped trailing "\n" would splice in one real extra
-  # blank line at the end of the injected block. Stripping exactly one
-  # trailing "\n" here (mirroring `Actuate`'s own `drop_trailing_empty/1` for
-  # the TARGET file's lines) keeps an injected block's line count matching
-  # what the template body actually says, without guessing at or discarding
-  # any blank lines the template author put there deliberately (a second
-  # trailing blank line in the template body is left fully intact).
-  defp strip_single_trailing_newline(content) do
-    case String.split(content, "\n") do
-      [_single] ->
-        content
-
-      parts ->
-        case List.last(parts) do
-          "" -> parts |> List.delete_at(-1) |> Enum.join("\n")
-          _ -> content
-        end
-    end
-  end
-
-  # Converts a template's `inject:`/`before:`/`after:`/`at_line:` frontmatter
-  # fields into `Actuate.inject_content!/5`'s real args. Exactly one anchor is
-  # required -- `before` OR `after` OR `at_line`, never zero, never more than
-  # one. There is no real "inject relative to both before AND after" mode in
-  # the Rust `ggen::Frontmatter` shape this mirrors, so more than one anchor
-  # set is always a template-authoring error, resolved here rather than left
-  # for `inject_content!/5` to reject less clearly downstream.
-  defp resolve_injection!(%Frontmatter{} = frontmatter) do
-    anchors =
-      [before: frontmatter.before, after: frontmatter.after, at_line: frontmatter.at_line]
-      |> Enum.filter(fn {_k, v} -> v != nil end)
-
-    case anchors do
-      [] ->
-        raise ArgumentError,
-              "template frontmatter has \"inject: true\" but none of before:/after:/at_line: " <>
-                "is set -- injection requires exactly one anchor"
-
-      [{:before, spec}] ->
-        {match_spec_to_marker!(spec, "before"), :before, []}
-
-      [{:after, spec}] ->
-        {match_spec_to_marker!(spec, "after"), :after, []}
-
-      [{:at_line, at_line}] ->
-        {nil, :at_line, [line: at_line]}
-
-      many ->
-        names = Enum.map_join(many, ", ", fn {k, _v} -> "#{k}:" end)
-
-        raise ArgumentError,
-              "template frontmatter has \"inject: true\" but more than one anchor is set " <>
-                "(#{names}) -- injection requires exactly one of before:/after:/at_line:"
-    end
-  end
-
-  # Converts a `GgenIgniter.Frontmatter.MatchSpec.t()` into whatever
-  # `Actuate.inject_content!/5`'s real `marker` arg expects
-  # (`String.t() | Regex.t()`).
-  #
-  # `{:literal, s}` maps directly onto a plain string marker --
-  # `inject_content!/5` already treats a string marker as a same-line-or-
-  # substring "contains" match, exactly what a literal frontmatter marker
-  # means.
-  #
-  # `{:structured, %MatchRule{}}` is translated field-by-field (see this
-  # task's `## Injection mode` moduledoc section above for the full mapping
-  # table); what is genuinely NOT implemented against `inject_content!/5`'s
-  # real anchor-resolution behavior raises a clear, honest error naming the
-  # exact unsupported combination, rather than silently proceeding as if it
-  # had been honored:
-  #
-  #   * `scope: :file` -- `inject_content!/5` only ever matches a marker
-  #     against individual lines (`marker_matches?/2`, one line at a time);
-  #     it has no whole-file/multi-line matching mode.
-  #   * `occurrence:` other than the default `:first` -- `inject_content!/5`'s
-  #     anchor resolution always requires the marker to match EXACTLY one
-  #     line (raising on zero or on more-than-one match); it has no concept
-  #     of picking a specific occurrence (last/unique/nth) among several
-  #     matches, so `index:` has no meaningful effect either.
-  #   * `trim: true` paired with any `matcher` other than `:exact` -- there is
-  #     no "trim before comparing" hook to honor for a `:contains` (substring
-  #     matching is already trim-insensitive) or `:regex` (a user-supplied
-  #     pattern; trimming it would silently change its meaning) marker.
-  @spec match_spec_to_marker!(GgenIgniter.Frontmatter.MatchSpec.t(), String.t()) ::
-          String.t() | Regex.t()
-  defp match_spec_to_marker!({:literal, s}, _label), do: s
-
-  defp match_spec_to_marker!({:structured, %MatchRule{} = rule}, label) do
-    if rule.scope == :file do
-      unsupported_match_rule!(
-        label,
-        "scope: :file",
-        "inject_content!/5 only matches a marker against individual lines, never across " <>
-          "the whole file"
-      )
-    end
-
-    if rule.occurrence != :first do
-      unsupported_match_rule!(
-        label,
-        "occurrence: #{inspect(rule.occurrence)}",
-        "inject_content!/5 always requires the marker to match exactly one line (raising on " <>
-          "zero or on more than one match) -- it has no concept of selecting a specific " <>
-          "occurrence (last/unique/nth) among several matches; only occurrence: :first " <>
-          "(the default) maps onto that real behavior"
-      )
-    end
-
-    if rule.trim and rule.matcher != :exact do
-      unsupported_match_rule!(
-        label,
-        "trim: true with matcher: #{inspect(rule.matcher)}",
-        "trim is only implemented for matcher: :exact"
-      )
-    end
-
-    build_regex_marker(rule)
-  end
-
-  defp unsupported_match_rule!(label, option, reason) do
-    raise ArgumentError,
-          "template frontmatter's structured #{label}: rule sets #{option}, which is not yet " <>
-            "supported by ggen_igniter's injection engine (Actuate.inject_content!/5): #{reason}"
-  end
-
-  defp build_regex_marker(%MatchRule{matcher: :contains, pattern: pattern, case_sensitive: true}),
-    do: pattern
-
-  defp build_regex_marker(%MatchRule{
-         matcher: :contains,
-         pattern: pattern,
-         case_sensitive: false
-       }),
-       do: compile_regex!(Regex.escape(pattern), false)
-
-  defp build_regex_marker(%MatchRule{
-         matcher: :exact,
-         pattern: pattern,
-         case_sensitive: case_sensitive,
-         trim: trim
-       }) do
-    escaped = Regex.escape(pattern)
-    source = if trim, do: "^\\s*#{escaped}\\s*$", else: "^#{escaped}$"
-    compile_regex!(source, case_sensitive)
-  end
-
-  defp build_regex_marker(%MatchRule{matcher: :regex, pattern: pattern, case_sensitive: cs}),
-    do: compile_regex!(pattern, cs)
-
-  defp compile_regex!(source, case_sensitive?) do
-    flags = if case_sensitive?, do: "", else: "i"
-    Regex.compile!(source, flags)
-  end
+  # `strip_single_trailing_newline/1` and `resolve_injection!/1` (plus the
+  # `match_spec_to_marker!/2`/`build_regex_marker/1` conversion they depend
+  # on) now live in `GgenIgniter.Injection`, shared verbatim with
+  # `GgenIgniter.Reactors.ReconcileReactor` -- see that module's moduledoc.
 
   defp resolve_mode!(opts, frontmatter_mode) do
     case opts[:mode] do

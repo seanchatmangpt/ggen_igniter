@@ -1,0 +1,13 @@
+{
+  "id": "rcpt_0123456789abcdef",
+  "recipe_key": "templates/resource.ex.eex=>lib/foo.ex",
+  "standing": "alive",
+  "started_at": "2026-08-27T12:00:00.000000Z",
+  "finished_at": "2026-08-27T12:00:00.050000Z",
+  "pre_run_hash": "not-a-real-hash",
+  "post_run_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "files": ["lib/foo.ex"],
+  "events": [],
+  "reason": null,
+  "metadata": {}
+}

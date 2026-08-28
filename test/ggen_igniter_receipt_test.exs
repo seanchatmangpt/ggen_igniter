@@ -149,4 +149,179 @@ defmodule GgenIgniter.ReceiptTest do
       assert Enum.map(persisted, & &1["reason"]) == ["first", "second", "third"]
     end
   end
+
+  describe "PRD v2 fields -- new/1 defaults" do
+    test "new/1 (unchanged arity) defaults every PRD v2 field to its real, honest default" do
+      receipt = Receipt.new(%{standing: :alive})
+
+      assert receipt.schema_version == "1"
+      assert receipt.tool_version == Mix.Project.config()[:version]
+      assert receipt.operation == nil
+      assert receipt.inputs == []
+      assert receipt.queries == []
+      assert receipt.engine == nil
+      assert receipt.outputs == []
+      assert receipt.skipped_outputs == []
+      assert receipt.commands == []
+      assert receipt.source_hash == nil
+      assert receipt.plan_hash == nil
+      assert receipt.pre_state_hash == nil
+      assert receipt.result_hash == nil
+      assert receipt.parent_hash == nil
+      assert receipt.completed_at == nil
+      assert is_binary(receipt.receipt_hash)
+      assert String.starts_with?(receipt.receipt_hash, "sha256:")
+    end
+
+    test "new/1 preserves caller-supplied PRD v2 field values" do
+      receipt =
+        Receipt.new(%{
+          standing: :alive,
+          operation: "sync",
+          inputs: ["ontology.ttl"],
+          queries: ["spec=alpha.rq"],
+          engine: "oxigraph",
+          outputs: ["lib/alpha.ex"],
+          skipped_outputs: ["lib/skip.ex"],
+          commands: ["mix compile --warnings-as-errors"],
+          source_hash: "sha256:src",
+          plan_hash: "sha256:plan",
+          pre_state_hash: "sha256:pre",
+          result_hash: "sha256:result",
+          completed_at: "2026-08-27T12:00:00Z"
+        })
+
+      assert receipt.operation == "sync"
+      assert receipt.inputs == ["ontology.ttl"]
+      assert receipt.queries == ["spec=alpha.rq"]
+      assert receipt.engine == "oxigraph"
+      assert receipt.outputs == ["lib/alpha.ex"]
+      assert receipt.skipped_outputs == ["lib/skip.ex"]
+      assert receipt.commands == ["mix compile --warnings-as-errors"]
+      assert receipt.source_hash == "sha256:src"
+      assert receipt.plan_hash == "sha256:plan"
+      assert receipt.pre_state_hash == "sha256:pre"
+      assert receipt.result_hash == "sha256:result"
+      assert receipt.completed_at == "2026-08-27T12:00:00Z"
+    end
+
+    test "to_json_map/1 round-trips every PRD v2 field through real Jason encode/decode" do
+      receipt =
+        Receipt.new(%{
+          standing: :alive,
+          operation: "sync",
+          engine: "oxigraph",
+          outputs: ["lib/alpha.ex"]
+        })
+
+      json = receipt |> Receipt.to_json_map() |> Jason.encode!() |> Jason.decode!()
+
+      assert json["schema_version"] == "1"
+      assert json["tool_version"] == receipt.tool_version
+      assert json["operation"] == "sync"
+      assert json["engine"] == "oxigraph"
+      assert json["outputs"] == ["lib/alpha.ex"]
+      assert json["receipt_hash"] == receipt.receipt_hash
+    end
+  end
+
+  describe "compute_receipt_hash/1 -- real chain-integrity digest" do
+    test "is deterministic for the same real receipt content" do
+      receipt = Receipt.new(%{standing: :alive, files: ["a.ex"]})
+      assert Receipt.compute_receipt_hash(receipt) == Receipt.compute_receipt_hash(receipt)
+    end
+
+    test "changes when any real field of the receipt changes" do
+      receipt = Receipt.new(%{standing: :alive, reason: "one"})
+      changed = %{receipt | reason: "two"}
+
+      assert Receipt.compute_receipt_hash(receipt) != Receipt.compute_receipt_hash(changed)
+    end
+
+    test "new/1 populates receipt_hash with the real digest of its own content" do
+      receipt = Receipt.new(%{standing: :alive, files: ["a.ex"]})
+      assert receipt.receipt_hash == Receipt.compute_receipt_hash(receipt)
+    end
+
+    test "an explicitly-supplied receipt_hash is preserved verbatim (round-trip case)" do
+      receipt = Receipt.new(%{standing: :alive, receipt_hash: "sha256:preserved"})
+      assert receipt.receipt_hash == "sha256:preserved"
+    end
+  end
+
+  describe "new/2 -- real parent_hash chain-linking via reconstruct_standing/2" do
+    test "the first receipt for a recipe_key has a nil parent_hash (honest rootless case)" do
+      dir = scratch_dir!()
+
+      receipt =
+        Receipt.new(%{standing: :alive, recipe_key: "t.eex=>out.ex"}, base_dir: dir)
+
+      assert receipt.parent_hash == nil
+    end
+
+    test "a second real receipt for the same recipe_key chains parent_hash to the first's real receipt_hash" do
+      dir = scratch_dir!()
+
+      first =
+        Receipt.new(
+          %{
+            standing: :alive,
+            recipe_key: "t.eex=>out.ex",
+            pre_run_hash: "sha256:p0",
+            post_run_hash: "sha256:p1"
+          },
+          base_dir: dir
+        )
+
+      :ok = Receipt.append!(dir, first)
+
+      second =
+        Receipt.new(
+          %{
+            standing: :alive,
+            recipe_key: "t.eex=>out.ex",
+            pre_run_hash: "sha256:p1",
+            post_run_hash: "sha256:p2"
+          },
+          base_dir: dir
+        )
+
+      assert second.parent_hash == first.receipt_hash
+      assert is_binary(second.parent_hash)
+    end
+
+    test "an explicit parent_hash in attrs is never overridden by the base_dir lookup" do
+      dir = scratch_dir!()
+
+      first = Receipt.new(%{standing: :alive, recipe_key: "t.eex=>out.ex"}, base_dir: dir)
+      :ok = Receipt.append!(dir, first)
+
+      second =
+        Receipt.new(
+          %{standing: :alive, recipe_key: "t.eex=>out.ex", parent_hash: "sha256:explicit"},
+          base_dir: dir
+        )
+
+      assert second.parent_hash == "sha256:explicit"
+    end
+  end
+
+  describe "to_prd_status/1" do
+    test "maps every real standing (struct and bare atom) to its PRD status" do
+      assert Receipt.to_prd_status(:alive) == "ALIVE"
+      assert Receipt.to_prd_status(:refused) == "BLOCKED"
+      assert Receipt.to_prd_status(:compensated) == "PARTIAL_ALIVE"
+      assert Receipt.to_prd_status(:build_broken) == "BUILD_BROKEN"
+      assert Receipt.to_prd_status(:compensation_failed) == "PARTIAL_ALIVE"
+
+      for standing <- Receipt.standings() do
+        receipt = Receipt.new(%{standing: standing})
+        assert Receipt.to_prd_status(receipt) == Receipt.to_prd_status(standing)
+      end
+    end
+
+    test "an unrecognized standing atom maps to the honest UNKNOWN fallback" do
+      assert Receipt.to_prd_status(:something_invented) == "UNKNOWN"
+    end
+  end
 end

@@ -1,0 +1,13 @@
+{
+  "id": "rcpt_0123456789abcdef",
+  "recipe_key": "templates/resource.ex.eex=>lib/support_desk/support/<%= name %>.ex",
+  "standing": "compensated",
+  "started_at": "2026-08-27T12:00:00.000000Z",
+  "finished_at": "2026-08-27T12:00:00.050000Z",
+  "pre_run_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "post_run_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "files": ["lib/support_desk/support/ticket.ex"],
+  "events": [{"id": "ev_1", "activity": "ACTUATION_STARTED"}],
+  "reason": "verification failed: undefined function",
+  "metadata": {}
+}

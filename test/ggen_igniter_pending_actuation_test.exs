@@ -9,7 +9,7 @@ defmodule GgenIgniter.PendingActuationTest do
   Every collaborator here is real and is the ACTUAL production code path,
   never a reimplementation or a stub:
 
-    * `GgenIgniter.PendingActuation.for_file/6` -- the exact function
+    * `GgenIgniter.PendingActuation.for_file/7` -- the exact function
       `GgenIgniter.Reactors.ReconcileReactor`'s private `render_target/2`
       calls to build each item's real plan.
     * `GgenIgniter.Manifest.load/1`/`get_entry/2`/`hash_content/1` -- the
@@ -169,6 +169,7 @@ defmodule GgenIgniter.PendingActuationTest do
 
     pa =
       PendingActuation.for_file(
+        project_dir,
         out_path,
         next_content,
         template_path,
@@ -179,6 +180,12 @@ defmodule GgenIgniter.PendingActuationTest do
 
     assert %PendingActuation{} = pa
     assert pa.target == out_path
+    # `out_path` here is already a clean, alias-free absolute path (built
+    # via `Path.join/2`, no `.`/`..`/symlink involved) -- its real canonical
+    # identity is therefore identical to the raw string, the common case
+    # `GgenIgniter.ArtifactIdentity`'s own test suite exercises the alias
+    # cases for separately.
+    assert pa.canonical_target == out_path
     assert pa.operation == :replace, "expected :replace (target already exists after run 1)"
     assert pa.previous_hash != nil
     assert pa.desired_hash != nil
@@ -244,6 +251,7 @@ defmodule GgenIgniter.PendingActuationTest do
 
     pa =
       PendingActuation.for_file(
+        project_dir,
         out_path,
         new_content,
         template_path,
@@ -252,6 +260,7 @@ defmodule GgenIgniter.PendingActuationTest do
         %{}
       )
 
+    assert pa.canonical_target == out_path
     assert pa.operation == :replace
     assert pa.previous_hash == Manifest.hash_content(previous_content)
     assert pa.desired_hash == Manifest.hash_content(new_content)

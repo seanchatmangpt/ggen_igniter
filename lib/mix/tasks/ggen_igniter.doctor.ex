@@ -69,7 +69,27 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   run; a real problem whose exact shape isn't safely automatable is reported as a `✘`
   error rather than silently skipped or guessed at.
 
-  Exits non-zero (via `Igniter.add_issue/2`) only if any check comes back `:error`.
+  ## Exit codes
+
+  - `0` -- all checks passed.
+  - `1` -- ran the full checklist and at least one check came back `:error`.
+  - `2` -- invalid invocation/configuration: an unrecognized flag, `--engine` not one
+    of `oxigraph`/`sparql`/`qlever`, or both `--pack` and `--pack-dir` given at once.
+    The checklist never runs.
+  - `3` -- an explicitly requested capability isn't available on this toolchain (today:
+    `--hex-check` without the `hex` Mix archive installed). The checklist never runs.
+  - `4` -- blocked by authority/lock/environment (today: `--fix` unable to get
+    exclusive access to the current project directory). The checklist never runs.
+
+  ## DX flags
+
+  `--help`/`-h` and `--version`/`-v` print and exit `0` immediately, before any checks
+  run. `--json` emits a single JSON object (`checks`, `ok`, `exit_code`) instead of the
+  human checklist -- exit code semantics above are unchanged either way. `--quiet`/`-q`
+  suppresses passing (`✔`) lines; warnings/errors and the summary line still print.
+  `--verbose` and `--no-color` are accepted for consistency with other `mix
+  ggen_igniter.*` tasks; this task's output is always plain `✔`/`⚠`/`✘` glyphs with no
+  ANSI color and no currently-defined extra verbose detail, so both are no-ops today.
   """
   use Igniter.Mix.Task
 
@@ -87,16 +107,106 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         engine: :string,
         store_id: :string,
         hex_check: :boolean,
-        fix: :boolean
+        fix: :boolean,
+        json: :boolean,
+        help: :boolean,
+        version: :boolean,
+        quiet: :boolean,
+        verbose: :boolean,
+        no_color: :boolean
       ],
+      aliases: [h: :help, v: :version, q: :quiet],
       required: []
     }
   end
 
+  # Exit-code contract (PRD):
+  #   0 - all checks pass
+  #   1 - diagnostic failures found (at least one check returned :error)
+  #   2 - invalid invocation/configuration (unknown flag, --engine not in the
+  #       real engine registry, --pack and --pack-dir both given, etc.) --
+  #       these never even attempt to run the checklist.
+  #   3 - unsupported capability requested (a capability that cannot be
+  #       provided on this platform/toolchain, distinct from a plain
+  #       configuration mistake -- see `unsupported_capability_error/2`).
+  #   4 - blocked by authority/lock/environment (`--fix` needs exclusive
+  #       write access to CURRENT project state and cannot get it).
+  @known_flags ~w(--pack --pack-dir --engine --store-id --hex-check --no-hex-check
+                  --fix --no-fix --json --no-json --help --version --quiet
+                  --no-quiet --verbose --no-verbose --no-color -h -v -q
+                  --dry-run --no-dry-run --yes --no-yes --yes-to-deps --no-yes-to-deps
+                  --only --check --no-check --scribe --from-igniter-new
+                  --no-from-igniter-new --igniter-repeat --no-igniter-repeat
+                  --no-no-color)
+  @known_engines ["oxigraph", "sparql", "qlever"]
+
+  # `use Igniter.Mix.Task`'s generated `run/1` (see `deps/igniter/lib/mix/
+  # task.ex`) validates argv against `info/2`'s schema via
+  # `Igniter.Util.Info.validate!/3`, which raises a `Mix.Error` on an
+  # unrecognized flag -- Mix's own top-level error handler then reports
+  # "Could not invoke task" and exits with **1**, indistinguishable from a
+  # real diagnostic failure (per the moduledoc's exit-code contract, an
+  # unrecognized flag must be **2**: invalid invocation, distinct from 1:
+  # ran the checklist and something failed). Pre-validating here, before
+  # calling through to the generated `run/1` via `super/1`, catches the bad
+  # flag before Igniter's own validation ever runs and reports it with the
+  # correct exit code -- every other flag is untouched and still flows
+  # through Igniter's normal `run/1` -> `igniter/1` pipeline.
+  @impl Mix.Task
+  def run(argv) do
+    case first_unknown_flag(argv) do
+      nil -> super(argv)
+      bad -> invalid_invocation_and_halt(bad, [])
+    end
+  end
+
   @impl Igniter.Mix.Task
   def igniter(igniter) do
+    argv = igniter.args.argv
     opts = igniter.args.options
 
+    cond do
+      opts[:help] ->
+        print_help_and_halt()
+
+      opts[:version] ->
+        print_version_and_halt()
+
+      (bad = first_unknown_flag(argv)) != nil ->
+        invalid_invocation_and_halt(bad, opts)
+
+      opts[:pack] not in [nil, ""] and opts[:pack_dir] not in [nil, ""] ->
+        invalid_invocation_and_halt(
+          "--pack and --pack-dir are mutually exclusive",
+          opts
+        )
+
+      opts[:engine] not in [nil | @known_engines] ->
+        invalid_invocation_and_halt(
+          "--engine #{inspect(opts[:engine])} is not a known engine (must be one of #{Enum.join(@known_engines, ", ")})",
+          opts
+        )
+
+      opts[:hex_check] == true and not hex_build_available?() ->
+        unsupported_capability_and_halt(
+          "--hex-check requires the `hex` Mix archive (mix hex.build) but it is not " <>
+            "installed on this toolchain -- run `mix local.hex` or drop --hex-check",
+          opts
+        )
+
+      opts[:fix] == true and not fix_lock_available?() ->
+        blocked_and_halt(
+          "--fix could not acquire exclusive access to the current project directory " <>
+            "(#{File.cwd!()}) -- another --fix run appears to be in progress",
+          opts
+        )
+
+      true ->
+        run_checks(igniter, opts)
+    end
+  end
+
+  defp run_checks(igniter, opts) do
     pack_dir =
       if opts[:pack] not in [nil, ""] or opts[:pack_dir] not in [nil, ""] do
         Pack.resolve_dir!(opts)
@@ -121,24 +231,171 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         ] ++
         maybe_check_hex_publish(opts)
 
-    igniter = Enum.reduce(checks, igniter, &print_and_collect/2)
+    failed? = Enum.any?(checks, fn {status, _msg} -> status == :error end)
 
-    if Enum.any?(checks, fn {status, _msg} -> status == :error end) do
-      IO.puts("✘ ggen_igniter.doctor: one or more checks failed (see ✘ lines above)")
+    if opts[:json] do
+      print_json(checks, failed?)
+    else
+      Enum.each(checks, &print_check(&1, opts))
+
+      if failed? do
+        IO.puts("✘ ggen_igniter.doctor: one or more checks failed (see ✘ lines above)")
+      else
+        IO.puts("✔ ggen_igniter.doctor: all checks passed (see output above)")
+      end
+    end
+
+    if failed? do
       # `Igniter.add_issue/2` only halts the real OS process under `--check`
       # (see `Igniter.halt_if_fails_check!/2`); a doctor task needs a real
-      # non-zero exit code unconditionally, so halt directly here.
+      # non-zero exit code unconditionally, so halt directly here. Exit 1 =
+      # diagnostic failures found (per the PRD exit-code contract above).
       System.halt(1)
     else
-      Igniter.add_notice(igniter, "ggen_igniter.doctor: all checks passed (see output above)")
+      if opts[:json] do
+        igniter
+      else
+        Igniter.add_notice(igniter, "ggen_igniter.doctor: all checks passed (see output above)")
+      end
     end
   end
 
-  defp print_and_collect({status, message}, igniter) do
-    prefix = %{ok: "✔", warn: "⚠", error: "✘"}[status]
-    IO.puts("#{prefix} #{message}")
-    igniter
+  defp print_check({status, message}, opts) do
+    # --quiet: only ✘ lines and the final summary line are shown; the
+    # summary line itself is always printed regardless of --quiet.
+    if status != :ok or opts[:quiet] != true do
+      IO.puts(check_line(status, message, opts))
+    end
   end
+
+  defp check_line(status, message, _opts) do
+    prefix = %{ok: "✔", warn: "⚠", error: "✘"}[status]
+    "#{prefix} #{message}"
+  end
+
+  defp print_json(checks, failed?) do
+    payload = %{
+      "checks" =>
+        Enum.map(checks, fn {status, message} ->
+          %{"status" => Atom.to_string(status), "message" => message}
+        end),
+      "ok" => not failed?,
+      "exit_code" => if(failed?, do: 1, else: 0)
+    }
+
+    IO.puts(Jason.encode!(payload))
+  end
+
+  defp print_help_and_halt do
+    IO.puts("""
+    mix ggen_igniter.doctor -- diagnostic checklist for ggen_igniter
+
+    USAGE
+        mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine oxigraph|sparql|qlever]
+                                 [--store-id ID] [--fix] [--hex-check] [--json]
+                                 [--quiet] [--verbose] [--no-color] [--help] [--version]
+
+    FLAGS
+        --pack NAME       Resolve a marketplace-convention pack by name (priv/ggen/NAME).
+        --pack-dir DIR    Use an explicit pack directory (bypasses the --pack convention).
+        --engine ENGINE   One of: #{Enum.join(@known_engines, ", ")}. Default: oxigraph.
+        --store-id ID     Named store to resolve for --engine qlever reachability checks.
+        --fix             Apply real, safely-recognized fixes to the CURRENT project.
+        --hex-check       Also run the (slow) hex-publish readiness check (mix hex.build).
+        --json            Emit machine-readable JSON instead of the human checklist output.
+        --quiet, -q       Suppress ✔ (passing) lines; ⚠/✘ lines and the summary still print.
+        --verbose         Reserved for future additional diagnostic detail; accepted, no-op today.
+        --no-color        Reserved: this task's output uses plain ✔/⚠/✘ glyphs, never ANSI color.
+        --help, -h        Print this help and exit 0.
+        --version, -v     Print ggen_igniter's version and exit 0.
+
+    EXIT CODES
+        0  all checks passed
+        1  one or more checks failed
+        2  invalid invocation or configuration (unknown flag, bad --engine, etc.)
+        3  unsupported capability requested on this platform/toolchain
+        4  blocked by authority/lock/environment (e.g. a concurrent --fix)
+    """)
+
+    System.halt(0)
+  end
+
+  defp print_version_and_halt do
+    version = Mix.Project.config()[:version] || "unknown"
+    IO.puts("ggen_igniter #{version}")
+    System.halt(0)
+  end
+
+  defp first_unknown_flag(argv) do
+    Enum.find(argv, fn
+      "--" <> _ = flag ->
+        # strip a trailing `=value` (e.g. `--engine=qlever`) before matching
+        flag |> String.split("=", parts: 2) |> hd() |> then(&(&1 not in @known_flags))
+
+      "-" <> _ = flag when byte_size(flag) == 2 ->
+        flag not in @known_flags
+
+      _ ->
+        false
+    end)
+  end
+
+  defp invalid_invocation_and_halt(reason, opts) do
+    if opts[:json] do
+      IO.puts(Jason.encode!(%{"ok" => false, "exit_code" => 2, "error" => reason}))
+    else
+      IO.puts("✘ ggen_igniter.doctor: invalid invocation -- #{reason}")
+    end
+
+    System.halt(2)
+  end
+
+  defp blocked_and_halt(reason, opts) do
+    if opts[:json] do
+      IO.puts(Jason.encode!(%{"ok" => false, "exit_code" => 4, "error" => reason}))
+    else
+      IO.puts("✘ ggen_igniter.doctor: blocked -- #{reason}")
+    end
+
+    System.halt(4)
+  end
+
+  defp unsupported_capability_and_halt(reason, opts) do
+    if opts[:json] do
+      IO.puts(Jason.encode!(%{"ok" => false, "exit_code" => 3, "error" => reason}))
+    else
+      IO.puts("✘ ggen_igniter.doctor: unsupported -- #{reason}")
+    end
+
+    System.halt(3)
+  end
+
+  # `mix hex.build` (check 16, --hex-check) is provided by the `:hex`
+  # archive, which is installed separately from the language/OTP toolchain
+  # (`mix local.hex`) and is genuinely absent on some real CI/container
+  # images. Requesting `--hex-check` where it's absent is not a
+  # configuration mistake (the flag itself is valid) -- it's a capability
+  # this environment cannot provide, which is exit code 3 per the PRD, not
+  # exit code 1 (that's reserved for a real diagnostic failure once the
+  # checklist actually ran).
+  defp hex_build_available? do
+    Code.ensure_loaded?(Hex)
+  rescue
+    _ -> false
+  end
+
+  # `--fix` writes directly to the CURRENT project's real files
+  # (`GgenIgniter.DoctorFixes.run_rule/3` and `fix_version_policy!/1`, called
+  # from `fix_or_check/3` below). There is no long-lived lock/daemon today,
+  # but a concurrent `--fix` run (this same task, invoked twice against the
+  # same project) is a real, reachable race, so a real (currently-absent-by-
+  # default) marker file is the exclusivity signal: if a previous `--fix`
+  # run left `.ggen_igniter/.fix.lock` behind (e.g. it was killed mid-write
+  # and never reached its cleanup), a second `--fix` refuses to start rather
+  # than racing it -- exit code 4 (blocked by authority/lock/environment)
+  # per the PRD, checked BEFORE the checklist runs.
+  @fix_lock_path ".ggen_igniter/.fix.lock"
+  defp fix_lock_available?, do: not File.exists?(Path.join(File.cwd!(), @fix_lock_path))
 
   # 1. Elixir/OTP version
   defp check_elixir_otp_version do
