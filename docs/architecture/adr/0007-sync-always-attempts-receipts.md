@@ -93,6 +93,42 @@ must serialize against, not an edge case only opt-in users hit.
   concrete blocker standing between "the decision landed" and "the decision
   is runnable."
 
+## Correction (AR-10, 2026-08-27): the frontmatter fallback was broader than the Reactor pipeline's real scope
+
+This ADR's original "Decision" section named "frontmatter-bearing templates,
+or `--for-each` fan-out" as the two real, bounded-scope exclusions from
+Reactor delegation. Re-verified this pass: that framing was itself broader
+than necessary. `GgenIgniter.Reactors.ReconcileReactor`'s `:render`/`:admit`/
+`:actuate` steps already fully implement `operation: :inject`
+`%PendingActuation{}` construction and dispatch (`render_inject_target/8`,
+reusing `GgenIgniter.Frontmatter.split_template/1` + `GgenIgniter.Injection`)
+-- proven by `test/ggen_igniter_reconcile_reactor_inject_test.exs`, which
+calls `ReconcileReactor.run/1` directly. The real, narrower gap:
+`run_via_reactor/3`'s own dispatch guard refused delegation for ANY
+frontmatter at all, not just the one frontmatter feature the Reactor path
+genuinely does not resolve (inline `sparql:` query text -- `ReconcileReactor.
+run_target_queries/3` only ever resolves explicit `--query`/pack-discovered
+`.rq` files). Since `inject: true` can only be expressed via frontmatter,
+this meant no `inject: true` write via `mix ggen_igniter.sync` ever got this
+pipeline's real admission-gate coverage (duplicate-output-path refusal,
+path-escape refusal) or a persisted receipt.
+
+Fixed: `run_via_reactor/3`'s guard now only refuses delegation for (a)
+`--for-each` fan-out (unchanged), (b) frontmatter with a non-empty inline
+`sparql:` block, and (c) frontmatter combined with `mode: eval` specifically
+(a real, separate, pre-existing `ReconcileReactor` `:render`-step crash for
+`:eval` targets, unrelated to this correction -- see `docs/status.md`'s
+`inject: true` closure row and `test/ggen_igniter_reconcile_reactor_test.exs`'s
+`":eval compensation-completeness"` finding). Frontmatter's `to:`/
+`unless_exists:`/`skip_if:` fields are now resolved into concrete
+`reconcile_opts` values before delegating, since `ReconcileReactor`'s own
+target-resolution reads those ONLY from the flat opts/`:targets` list, never
+re-reading the template's frontmatter directly (unlike its `:render` step's
+own re-read for `inject`/`before`/`after`/`at_line`). See
+`test/ggen_igniter_sync_inject_reactor_admission_test.exs` for the real,
+CLI-subprocess proof, including a path-escape refusal compared side by side
+against an ordinary `mode: file` write refused the identical real way.
+
 ## See also
 
 - `docs/architecture/adr/0005-receipt-independent-of-manifest.md` — the

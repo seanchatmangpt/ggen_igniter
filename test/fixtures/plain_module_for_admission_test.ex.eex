@@ -1,0 +1,3 @@
+defmodule <%= module_name %> do
+  def package_name, do: "<%= package_name %>"
+end

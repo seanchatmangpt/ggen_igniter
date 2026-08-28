@@ -1,0 +1,6 @@
+---
+to: "unused_since_--out_is_always_passed_explicitly.ex"
+inject: true
+before: "# GGEN:INJECT:BEFORE"
+---
+  def injected_<%= extension_target %>, do: "<%= package_name %>"

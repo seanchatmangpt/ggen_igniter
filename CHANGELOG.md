@@ -4,6 +4,30 @@
 
 Template frontmatter execution modes, plus a new opt-in end-to-end tier.
 
+- **AR-10: `inject: true` now gets real Reactor admission-gate coverage via
+  `mix ggen_igniter.sync`** -- `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3`
+  used to refuse delegating ANY frontmatter-bearing template to
+  `GgenIgniter.Reactors.ReconcileReactor.run/1`, falling back to the
+  pre-Reactor inline pipeline -- which has no duplicate-output-path or
+  path-escape admission checks at all. Since `inject: true` can only be
+  expressed via frontmatter, every `inject: true` write was silently
+  exempt from those real checks. `ReconcileReactor` itself already fully
+  implements `operation: :inject` construction/dispatch (real, tested by
+  `test/ggen_igniter_reconcile_reactor_inject_test.exs`); the gap was only
+  the CLI's own dispatch guard being broader than the pipeline's real
+  capability. Fixed by narrowing that guard to the one frontmatter feature
+  `ReconcileReactor` genuinely does not resolve (inline `sparql:` query
+  text) and threading frontmatter `to:`/`unless_exists:`/`skip_if:` into
+  the resolved reconcile options explicitly. `mode: eval` frontmatter
+  templates are deliberately excluded from this widening (a real,
+  separately-tracked `ReconcileReactor` `:render` crash for `:eval`
+  targets, independent of this change -- see `docs/status.md`). See
+  `test/ggen_igniter_sync_inject_reactor_admission_test.exs` for the real,
+  CLI-subprocess proof: an `inject: true` write now genuinely routes
+  `"(via reactor)"`, and an `inject: true` write escaping the authorized
+  project root is refused the exact same real way an ordinary `mode: file`
+  write already was.
+
 - **`mode: eval` frontmatter execution mode** (`GgenIgniter.Frontmatter.split_template/1`,
   `GgenIgniter.Actuate.eval_code!/2`) -- a template's `---`-fenced YAML header
   can now carry `mode: eval` (or `--mode eval` on the CLI, which always wins

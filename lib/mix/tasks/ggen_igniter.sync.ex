@@ -444,13 +444,48 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   #
   # `run_via_reactor/3` only ever returns `{:not_delegatable, reason}` for a
   # request outside `GgenIgniter.Reactors.ReconcileReactor.run/1`'s own
-  # documented bounded scope (a template with frontmatter, or `--for-each` --
-  # neither has a Reactor-pipeline equivalent yet). For THOSE requests only,
-  # this task keeps the exact pre-existing `dispatch_pipeline/3` behavior
-  # (controller delegation when running, else the plain inline pipeline) --
-  # never a silent reinterpretation of what an unsupported flag does -- and
-  # logs a one-time migration notice naming exactly which flag/feature has no
-  # Reactor-pipeline equivalent yet.
+  # documented bounded scope: `--for-each` fan-out, or a template whose
+  # frontmatter declares INLINE `sparql:` query text -- neither has a
+  # Reactor-pipeline equivalent yet (`ReconcileReactor`'s own
+  # `resolve_named_queries!/1` only ever resolves explicit `--query`/
+  # pack-discovered `.rq` files, never a frontmatter `sparql:` block). A
+  # template with ANY OTHER frontmatter -- including `inject: true` --
+  # DOES route through the Reactor pipeline as of the correction below; see
+  # `run_via_reactor/3`'s own doc comment. For the two requests still outside
+  # scope, this task keeps the exact pre-existing `dispatch_pipeline/3`
+  # behavior (controller delegation when running, else the plain inline
+  # pipeline) -- never a silent reinterpretation of what an unsupported
+  # flag does -- and logs a one-time migration notice naming exactly which
+  # flag/feature has no Reactor-pipeline equivalent yet.
+  #
+  # Correction (2026-08-27, AR-10): before this correction, `run_via_reactor/3`
+  # refused delegation for ANY frontmatter-bearing template, including
+  # `inject: true` ones -- meaning a `mode: file`/`inject: true` write NEVER
+  # got `ReconcileReactor`'s real admission-gate coverage (duplicate-
+  # output-path refusal, path-escape refusal, a persisted `GgenIgniter.Receipt`)
+  # via the actual `mix ggen_igniter.sync` CLI, even though
+  # `ReconcileReactor`'s own `:render`/`:admit`/`:actuate` steps already
+  # fully implement `operation: :inject` `%PendingActuation{}` construction
+  # and dispatch (`render_inject_target/8`, reusing the SAME
+  # `GgenIgniter.Frontmatter.split_template/1` + `GgenIgniter.Injection`
+  # this task's own inline pipeline uses) -- proven directly, with no
+  # frontmatter parsing reinvented, by
+  # `test/ggen_igniter_reconcile_reactor_inject_test.exs`, which calls
+  # `ReconcileReactor.run/1` itself. The real gap was ONLY this dispatch
+  # guard being broader than the Reactor pipeline's real capability. Fixed
+  # by narrowing the guard to the one frontmatter feature the Reactor path
+  # genuinely does not implement (inline `sparql:` queries -- see above),
+  # and by resolving frontmatter's `to:`/`unless_exists:`/`skip_if:` (mode
+  # was already resolved) into concrete `reconcile_opts` values before
+  # delegating, since `ReconcileReactor.run_target_queries/3` reads ONLY the
+  # flat opts/`:targets` keyword list for those fields, never the
+  # template's own frontmatter directly (unlike its `:render` step, which
+  # DOES re-read frontmatter for `inject`/`before`/`after`/`at_line`
+  # specifically). See `test/ggen_igniter_sync_inject_reactor_admission_test.exs`
+  # for the real, CLI-level proof this correction closes: an `inject: true`
+  # write now genuinely routes "(via reactor)", and an `inject: true` write
+  # targeting a path outside the authorized project root is refused the
+  # same real way a `mode: file` write already was.
   @impl Igniter.Mix.Task
   def igniter(igniter) do
     {opts, pack_template_stem} = split_pack_template_stem(igniter.args.options)
@@ -509,12 +544,16 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   # Runs the real Reactor pipeline directly (independent of whether a
   # `GgenIgniter.Controller` happens to be registered -- the Reactor path
   # does not need the Controller's in-process state). Only within
-  # `GgenIgniter.Reconcile.run/1`'s own bounded scope, exactly the same guard
-  # `delegate_to_controller/4` already applies: the resolved template must
-  # have no frontmatter header, and `--for-each` must not be requested.
-  # Outside that scope, falls back to `dispatch_pipeline/3` (today's exact
-  # behavior), never a silent behavior change for a feature the bounded
-  # Reactor pipeline does not implement.
+  # `ReconcileReactor.run/1`'s own bounded scope: `--for-each` fan-out must
+  # not be requested, and the resolved template's frontmatter must not
+  # declare INLINE `sparql:` query text (the one frontmatter feature
+  # `ReconcileReactor.run_target_queries/3` genuinely does not resolve --
+  # see the AR-10 correction above). A template with `inject: true` (or any
+  # other frontmatter field `ReconcileReactor`'s own `:render` step already
+  # handles or that is resolved into `reconcile_opts` below) DOES route
+  # through here. Outside this scope, falls back to `dispatch_pipeline/3`,
+  # never a silent behavior change for a feature the bounded Reactor
+  # pipeline does not implement.
   defp run_via_reactor(igniter, opts, pack_template_stem) do
     template_path = resolve_template!(opts, pack_template_stem)
 
@@ -522,19 +561,65 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       Frontmatter.split_template(File.read!(template_path))
 
     for_each = opts[:for_each] || frontmatter_field(frontmatter, :for_each)
+    inline_sparql = frontmatter_field(frontmatter, :sparql)
+
+    # `mode` is always `:file` or `:eval` -- `resolve_mode!/2` returns
+    # `frontmatter_mode` (never `nil`; `Frontmatter.split_template/1` itself
+    # always returns `:file` or `:eval`, even for a header-less template)
+    # whenever `--mode` is not given.
+    mode = resolve_mode!(opts, frontmatter_mode)
 
     cond do
-      frontmatter != nil ->
+      inline_sparql not in [nil, %{}] ->
         {:not_delegatable,
-         "template frontmatter (#{template_path} has a --- header -- " <>
-           "GgenIgniter.Reactors.ReconcileReactor.run/1 does not implement frontmatter parsing)"}
+         "template frontmatter's inline \"sparql:\" query text (#{template_path} -- " <>
+           "GgenIgniter.Reactors.ReconcileReactor.run/1 only resolves explicit --query/" <>
+           "pack-discovered queries, never a frontmatter sparql: block)"}
 
       for_each not in [nil, ""] ->
         {:not_delegatable,
          "--for-each #{inspect(for_each)} (GgenIgniter.Reactors.ReconcileReactor.run/1 does " <>
            "not implement multi-row fan-out)"}
 
+      # `mode: eval` (frontmatter-driven or `--mode eval`) is deliberately
+      # EXCLUDED from this AR-10 widening, independent of frontmatter/inject
+      # at all: `ReconcileReactor`'s `:render` step has a real, separately
+      # documented, unconditional crash for ANY `:eval` target --
+      # `PendingActuation.for_eval/3`'s `target` is always `nil`, and
+      # `:render`'s own `PLAN_CONSTRUCTED` telemetry emission
+      # (`file_objects/1` -> `OcelEmitter.file_object/1`) has no clause for
+      # a `nil` path, so it raises `FunctionClauseError` before `:admit` or
+      # `:actuate` ever run -- see
+      # `test/ggen_igniter_reconcile_reactor_test.exs`'s ":eval
+      # compensation-completeness: REAL FINDING -- unreachable, not just
+      # untested" test for the direct, reproduced proof. That is a
+      # pre-existing `ReconcileReactor` defect, entirely independent of the
+      # `inject: true` gap AR-10 closes, and out of THIS correction's scope
+      # to fix. Before AR-10, a `mode: eval` template with frontmatter (the
+      # only way to express `mode: eval` at all -- there is no CLI
+      # equivalent to the frontmatter fields other than `--mode` itself) was
+      # incidentally shielded from this crash by the old blanket
+      # `frontmatter != nil` guard; this clause preserves that same
+      # shielding specifically for `mode: eval`, so AR-10 cannot regress
+      # `test/ggen_igniter_sync_eval_mode_test.exs` while still opening the
+      # gate for `mode: file`/`inject: true`, which is real, tested, and
+      # crash-free (see `test/ggen_igniter_reconcile_reactor_inject_test.exs`).
+      # A header-less `mode: eval` template (`frontmatter == nil`, `--mode
+      # eval` on the CLI) is UNCHANGED by this clause -- it already routed
+      # through the Reactor pipeline before AR-10 and still does; the same
+      # pre-existing `:render` crash would already apply to it today,
+      # independent of this correction.
+      frontmatter != nil and mode == :eval ->
+        {:not_delegatable,
+         "template frontmatter combined with mode: eval (#{template_path} -- " <>
+           "GgenIgniter.Reactors.ReconcileReactor.run/1's :render step has a real, " <>
+           "pre-existing, documented crash for :eval targets independent of frontmatter; " <>
+           "see test/ggen_igniter_reconcile_reactor_test.exs's \":eval " <>
+           "compensation-completeness\" finding)"}
+
       true ->
+        resolved_out = opts[:out] || frontmatter_field(frontmatter, :to)
+
         # Same early, clear `--out`-required validation `run_pipeline!/3` has
         # always done -- BEFORE any query/render work -- restored here for
         # parity now that this bounded path is reached unconditionally
@@ -544,18 +629,37 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         # confusing `Render.render/2` error about an undefined template
         # binding, or a differently-worded internal `ArgumentError`) --
         # never this task's own documented, tested "--out is required"
-        # message. Mirrors `run_pipeline!/3`'s `nil -> mode defaults to
-        # :file` convention exactly (`resolve_mode!/2` itself returns `nil`
-        # when neither `--mode` nor frontmatter set one, same as here).
-        mode = resolve_mode!(opts, frontmatter_mode)
-
-        if (mode || :file) == :file and opts[:out] == nil and
-             frontmatter_field(frontmatter, :to) == nil do
+        # message.
+        if mode == :file and resolved_out == nil do
           raise ArgumentError,
                 "--out is required (directly, or via the template's own frontmatter \"to:\" field)"
         end
 
-        reconcile_opts = Keyword.put(opts, :pack_template_stem, pack_template_stem)
+        # AR-10: `ReconcileReactor.run_target_queries/3` reads `:mode`/
+        # `:out`/`:unless_exists`/`:skip_if` ONLY from this flat keyword
+        # list (or a `:targets` entry) -- it never re-reads the template's
+        # own frontmatter for these (unlike `:render`'s own inject-specific
+        # re-read of `frontmatter.inject`/`before`/`after`/`at_line`, via
+        # `render_target/1`). A header-less template never needed this
+        # resolution step (every routing value always came from an explicit
+        # CLI flag in that case, so `opts` alone was already correct) --
+        # resolving these four fields here, with the CLI flag always
+        # winning over the same-named frontmatter field (`||`, matching
+        # every other frontmatter/CLI precedence rule in this module), is
+        # what makes a frontmatter-only template (no explicit --out/--mode/
+        # --unless-exists/--skip-if) route through the Reactor pipeline
+        # with the exact same resolved routing `run_pipeline!/3`'s inline
+        # fallback would have used.
+        reconcile_opts =
+          opts
+          |> Keyword.put(:pack_template_stem, pack_template_stem)
+          |> Keyword.put(:out, resolved_out)
+          |> Keyword.put(:mode, mode)
+          |> Keyword.put(
+            :unless_exists,
+            opts[:unless_exists] || frontmatter_field(frontmatter, :unless_exists) || false
+          )
+          |> Keyword.put(:skip_if, opts[:skip_if] || frontmatter_skip_if!(frontmatter))
 
         case ReconcileReactor.run(reconcile_opts) do
           {:ok, receipt} ->
