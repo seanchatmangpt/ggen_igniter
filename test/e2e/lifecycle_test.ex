@@ -329,16 +329,35 @@ defmodule GgenIgniter.E2e.LifecycleTest do
       input: @ash_phoenix_gen_live_prompt_answers
     )
 
+    # FIXED (2026-08-27, real finding from this session's standalone
+    # verification of the hang fix above): the previous version of this
+    # comment assumed `update_action: nil` (Ticket's :update/:archive pair
+    # being ambiguous), so router wiring was deferred until AFTER the first
+    # post-gen-live `compile!/1`, on the theory the generated code had no
+    # `:edit` route to be missing yet. That assumption was never actually
+    # executed and is WRONG: confirmed directly by running this exact real
+    # `ash_phoenix.gen.live` command against a real scaffolded app (this
+    # session) -- `Ash.Resource.Info.primary_action(Ticket, :update)`
+    # resolves DETERMINISTICALLY to the plain `:update` action (Ash only
+    # auto-marks the `defaults([...])`-declared actions `primary?: true`;
+    # the separately-declared `:archive` action is not primary despite
+    # sharing Ash action type `:update`, so there is no real ambiguity and
+    # no interactive update-action prompt ever fires). `update_action` is
+    # therefore real and non-nil, and the real printed Igniter notice
+    # (captured verbatim this session) confirms the generated
+    # `TicketLive.{Index,Form,Show}` DO reference real `:edit` routes
+    # (`/tickets/:id/edit` and `/tickets/:id/show/edit`) via the `~p` sigil.
+    # `mix compile --warnings-as-errors` therefore really fails here with
+    # "no route path ... matches" for those two routes if router wiring is
+    # deferred past this point -- reproduced directly this session. Router
+    # wiring is now performed immediately, before the first post-gen-live
+    # compile, and `add_ticket_live_routes!/1` (below) now adds the real,
+    # complete 5-route set the real notice prints, not the previously
+    # assumed (incomplete, `:edit`-omitting) 3-route set.
+    add_ticket_live_routes!(app_dir)
+
     compile!(app_dir)
     test!(app_dir)
-
-    # `ash_phoenix.gen.live` only PRINTS the router wiring instructions (an
-    # Igniter notice) -- it does not patch router.ex itself. Add the real
-    # routes ourselves, the same way a developer following those printed
-    # instructions would (no `:edit` route: update_action is nil, per the
-    # note above, so TicketLive.Form's :edit branch is not reachable/wired).
-    add_ticket_live_routes!(app_dir)
-    compile!(app_dir)
 
     liveview_test_rel_path = "test/ggen_igniter_liveview_lifecycle_test.exs"
     liveview_test_path = Path.join(app_dir, liveview_test_rel_path)
@@ -453,6 +472,12 @@ defmodule GgenIgniter.E2e.LifecycleTest do
   # convention of a precise marker string + `String.replace/3` with
   # `global: false`, raising loudly rather than guessing/regexing broadly if
   # the scaffolded router's real content does not match what's expected.
+  #
+  # All 5 routes below (not just index/new/show) are the real, complete set
+  # from `ash_phoenix.gen.live`'s own real printed notice, captured verbatim
+  # this session -- see the real, verified correction in this module's
+  # Stage 6 call site (`update_action` is real/non-nil, so the `:edit`
+  # routes are really referenced by the generated code, not dead weight).
   defp add_ticket_live_routes!(app_dir) do
     router_path = Path.join(app_dir, @router_rel_path)
     original = File.read!(router_path)
@@ -474,7 +499,9 @@ defmodule GgenIgniter.E2e.LifecycleTest do
       marker <>
         "\n\n    live \"/tickets\", TicketLive.Index, :index" <>
         "\n    live \"/tickets/new\", TicketLive.Form, :new" <>
-        "\n    live \"/tickets/:id\", TicketLive.Show, :show"
+        "\n    live \"/tickets/:id/edit\", TicketLive.Form, :edit" <>
+        "\n    live \"/tickets/:id\", TicketLive.Show, :show" <>
+        "\n    live \"/tickets/:id/show/edit\", TicketLive.Show, :edit"
 
     updated = String.replace(original, marker, live_routes, global: false)
     File.write!(router_path, updated)

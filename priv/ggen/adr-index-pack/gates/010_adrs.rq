@@ -1,0 +1,8 @@
+PREFIX adr: <https://ggen-igniter.dev/ontology/adr-index#>
+SELECT DISTINCT ?number ?filename ?title ?status WHERE {
+  ?d a adr:Decision ;
+     adr:number ?number ;
+     adr:filename ?filename ;
+     adr:title ?title ;
+     adr:status ?status .
+}

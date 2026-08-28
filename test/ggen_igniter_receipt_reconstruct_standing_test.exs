@@ -111,7 +111,15 @@ defmodule GgenIgniter.ReceiptReconstructStandingTest do
 
   # Runs the REAL Reactor reconciliation pipeline once, against `out_path`,
   # with the ontology's greeting set to `greeting` for THIS run.
-  defp run_real_reconciliation!(fixtures, ontology_path, query_path, template_path, project_dir, out_path, greeting) do
+  defp run_real_reconciliation!(
+         fixtures,
+         ontology_path,
+         query_path,
+         template_path,
+         project_dir,
+         out_path,
+         greeting
+       ) do
     write_ontology!(fixtures, greeting)
     _ = ontology_path
 

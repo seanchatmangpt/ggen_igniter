@@ -264,6 +264,7 @@ defmodule GgenIgniter.ReactorConcurrencyTest do
 
       assert receipt_1.standing == :refused
       assert receipt_1.files == []
+
       refute Enum.any?(receipt_1.events, &(&1["activity"] == "ACTUATION_STARTED")),
              "a fail-closed refusal at :admit must happen BEFORE :actuate ever runs -- no " <>
                "ACTUATION_STARTED event should exist for this attempt"

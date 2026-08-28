@@ -72,6 +72,27 @@ defmodule GgenIgniter.E2e.Case do
   confirmed via real `ps aux` before/after) -- only an explicit SIGKILL by
   the real OS pid does.
 
+  ## Real gap found and closed 2026-08-27: killing only the immediate pid can orphan grandchildren
+
+  Adversarially tested directly in this session with a real `/bin/sh` script
+  that forks (not `exec`s) a real `sleep 300` child: SIGKILLing only the
+  immediate `Port.info(port, :os_pid)` (the shell script's own pid) reliably
+  killed *that* process but left the real `sleep 300` grandchild running as
+  a real orphan (confirmed via real `ps aux` after the kill) -- the previous
+  single-pid kill's "so this can never hang forever again" claim was true
+  for `mix` specifically (confirmed separately: `/opt/homebrew/bin/mix`'s
+  `#!/usr/bin/env elixir` shebang and `elixir`'s own launcher script's
+  trailing `exec "$@"` mean the real OS pid stays constant end-to-end through
+  `env` -> `elixir` -> the final real `erl`/beam process, with no
+  intermediate fork), but not as a general guarantee for every possible
+  future subprocess this helper might run. Fixed by walking the real process
+  tree via real `pgrep -P <pid>` (verified available and correct on this
+  real macOS sandbox) before killing: every real descendant pid, deepest
+  first, is sent a real SIGKILL, then the immediate pid itself. Re-ran the
+  identical fork-a-grandchild adversarial probe after this fix: zero
+  orphaned processes remained (confirmed via real `ps aux`), where the same
+  probe before this fix left one.
+
   ## Options
 
     * `:cd` - working directory for the subprocess (same meaning as
@@ -128,8 +149,10 @@ defmodule GgenIgniter.E2e.Case do
 
   # Drains a real port's real stdout/stderr (merged) until real process exit
   # or the real wall-clock timeout, whichever comes first. On timeout, kills
-  # the real OS process for real (see cmd!/3's moduledoc for why a plain
-  # `Port.close/1` is not enough -- verified to leak the real OS process).
+  # the real OS process tree for real (see cmd!/3's moduledoc for why a plain
+  # `Port.close/1` is not enough -- verified to leak the real OS process --
+  # and for why the immediate pid alone is not always enough either --
+  # verified to leak a real grandchild in the general case).
   defp collect_cmd_output(port, acc, timeout) do
     receive do
       {^port, {:data, data}} ->
@@ -147,12 +170,30 @@ defmodule GgenIgniter.E2e.Case do
 
         Port.close(port)
 
-        if os_pid do
-          System.cmd("kill", ["-9", to_string(os_pid)], stderr_to_stdout: true)
-        end
+        if os_pid, do: kill_process_tree!(os_pid)
 
         {:timeout, acc, os_pid}
     end
+  end
+
+  # Real SIGKILL of `pid` AND every real descendant of `pid` (recursively,
+  # deepest first), so a subprocess that forks children without `exec`ing
+  # into them (unlike `mix` itself -- see cmd!/3's moduledoc for the real,
+  # verified reason a single-pid kill happens to already be sufficient for
+  # every real `mix` invocation this module makes) cannot leak an orphan just
+  # because only its immediate pid was targeted. Uses the real `pgrep -P`
+  # (parent-pid filter), verified present and correct on this real macOS
+  # sandbox; `pgrep` returning a nonzero exit status (no children found) is
+  # the normal, expected case at the bottom of the tree, not an error.
+  defp kill_process_tree!(pid) do
+    {children_out, _status} =
+      System.cmd("pgrep", ["-P", to_string(pid)], stderr_to_stdout: true)
+
+    children_out
+    |> String.split("\n", trim: true)
+    |> Enum.each(&kill_process_tree!/1)
+
+    System.cmd("kill", ["-9", to_string(pid)], stderr_to_stdout: true)
   end
 
   @doc """

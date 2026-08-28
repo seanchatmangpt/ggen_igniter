@@ -1,0 +1,133 @@
+{
+  "_meta": {
+    "generated_at": "2026-08-27",
+    "method": "field-for-field read of real source, no invented fields",
+    "ggen_source": {
+      "PendingWrite": "~/ggen/crates/ggen-engine/src/sync.rs (private struct, ~line 168)",
+      "SyncReport": "~/ggen/crates/ggen-engine/src/sync.rs (pub struct, ~line 140)",
+      "SyncReceipt_and_ReceiptPayload": "~/ggen/crates/ggen-engine/src/sync.rs (~line 197, ~line 210)",
+      "ReceiptRecord_chain": "~/ggen/crates/praxis-core/src/receipt_record.rs"
+    },
+    "ggen_igniter_source": {
+      "PendingActuation": "lib/ggen_igniter/pending_actuation.ex",
+      "Receipt": "lib/ggen_igniter/receipt.ex",
+      "ReconcileReactor_finalize_evidence": "lib/ggen_igniter/reactors/reconcile_reactor.ex (~line 1415-1500)"
+    }
+  },
+
+  "PendingWrite_vs_PendingActuation": {
+    "ggen_struct": "PendingWrite (render-phase IR, sync.rs)",
+    "ggen_igniter_struct": "GgenIgniter.PendingActuation (pending_actuation.ex) -- explicitly documents itself as mirroring this ggen IR",
+    "fields": [
+      {
+        "ggen_field": "to: String (resolved output path)",
+        "igniter_equivalent": "target: String.t() | nil",
+        "status": "yes",
+        "note": "igniter's is nilable for :eval; ggen's PendingWrite has no eval-mode concept at this layer"
+      },
+      {
+        "ggen_field": "body: String (rendered content)",
+        "igniter_equivalent": "desired_content: binary()",
+        "status": "yes"
+      },
+      {
+        "ggen_field": "frontmatter: Frontmatter (mode/injection directives, match specs, etc.)",
+        "igniter_equivalent": "semantic_source: map() (ontology_path/template_path/out_template/recipe_key/bindings)",
+        "status": "partial",
+        "recommendation": "igniter's semantic_source is a plain untyped map carrying provenance identity; ggen's Frontmatter also carries write-mode directives (inject/match specs) that PendingActuation only expresses indirectly via the operation atom. Low-risk: no action needed unless inject-mode support is added (already disclosed as future work in the moduledoc)."
+      },
+      {
+        "ggen_field": "(none -- PendingWrite has no identity/hash/ownership fields; those live in SyncReport/write.rs's plan_write, not on the struct itself)",
+        "igniter_equivalent": "logical_id, previous_hash, desired_hash, operation, ownership, compensation_data",
+        "status": "partial",
+        "note": "igniter's PendingActuation is intentionally RICHER than ggen's PendingWrite -- it fuses PendingWrite + ggen's write.rs plan_write decision logic + ggen_igniter's own compensation/undo need into one struct. This is a genuine, deliberate divergence, not a gap."
+      }
+    ]
+  },
+
+  "SyncReport_vs_igniter_aggregate": {
+    "ggen_struct": "SyncReport (pub struct, sync.rs ~line 140-155)",
+    "igniter_equivalent": "No single named struct -- aggregated ad hoc inside ReconcileReactor.finalize_evidence/1 (results/tracked/outputs local vars) and returned via Reactor.run's generic result map",
+    "fields": [
+      {
+        "ggen_field": "written: Vec<PathBuf>",
+        "igniter_equivalent": "outputs map keys (results filtered to outcome in [:written, :unchanged])",
+        "status": "partial",
+        "note": "igniter conflates :written and :unchanged into one 'outputs' set at line 1433-1437; ggen's `written` is real writes-or-injects only, tracked separately from `skipped`."
+      },
+      {
+        "ggen_field": "skipped: Vec<(PathBuf, String)> (path + reason)",
+        "igniter_equivalent": "no equivalent persisted collection -- individual outcome atoms (:skipped_exists/:skipped_match) exist per-result but are never aggregated into a named 'skipped' list on the final receipt/report",
+        "status": "no",
+        "recommendation": "add a 'skipped' list (path + reason) to the receipt metadata in finalize_evidence/1, mirroring ggen's SyncReport.skipped -- cheap, and closes an observability gap (why N targets were skipped is currently only inferable by re-reading the events list)."
+      },
+      {
+        "ggen_field": "graph_hash_hex: BLAKE3 of the post-Enrich canonical GRAPH STATE (after ontology parse + construct queries run)",
+        "igniter_equivalent": "graph_hash: sha256 of the raw ontology FILE BYTES only (line 1439-1440)",
+        "status": "partial",
+        "recommendation": "REAL DIVERGENCE, not cosmetic: ggen's graph_hash reflects the graph after construct-query enrichment, so two ontologies producing the same enriched facts via different surface syntax can still differ, and a construct-query change alone changes the receipt even if ontology bytes don't. igniter's graph_hash is purely a file-content hash and cannot detect a change in derived facts (there is no construct/enrich stage in igniter today to hash the output of). Recommendation: rename igniter's field to something honest like 'ontology_file_hash' rather than 'graph_hash' until/unless an enrichment stage exists -- low-risk, one-line rename + doc note, avoids a misleading parity claim."
+      },
+      {
+        "ggen_field": "decisions: BTreeMap<String,String> (root-relative path -> \"written\"/\"injected\"/\"skipped: <reason>\")",
+        "igniter_equivalent": "no equivalent map -- individual `outcome` atoms exist per-result but are not persisted as a path->decision map anywhere durable",
+        "status": "no",
+        "recommendation": "fold this into the same fix as `skipped` above: a decisions map keyed by path is cheap to build from the existing `results` list already in scope in finalize_evidence/1."
+      },
+      {
+        "ggen_field": "packs: BTreeMap<String,String> (pack name -> BLAKE3 of pack content hash)",
+        "igniter_equivalent": "pack_dir is recorded per-manifest-entry as informational metadata only (Manifest moduledoc); no content-hash-per-pack tracking anywhere",
+        "status": "no",
+        "recommendation": "not a one-line fix -- would require a real pack content-hashing pass. Record as a recommendation only, not implemented here (out of the low-risk bar for this task)."
+      },
+      {
+        "ggen_field": "closure: BTreeMap<String,String> (every governing input -- manifest/ontology/templates/rule files/gate files/from:-bodies -- hashed, MISSING if unreadable)",
+        "igniter_equivalent": "no equivalent input-closure map exists anywhere in igniter",
+        "status": "no",
+        "recommendation": "REAL, VALUABLE GAP: igniter's receipt currently cannot prove which template/ontology/config files actually governed a given run -- only the ontology's own hash is captured (as graph_hash, itself only a file hash, see above). A future receipt hardening pass should add a closure-style map (template path, ontology path, manifest/config path -> hash-or-MISSING) to `Receipt.metadata`. Not implemented here -- this is a structural addition beyond a low-risk one-liner."
+      }
+    ]
+  },
+
+  "SyncReceipt_ReceiptPayload_vs_igniter_Receipt": {
+    "ggen_struct": "SyncReceipt { record: ReceiptRecord, payload: ReceiptPayload }",
+    "igniter_struct": "GgenIgniter.Receipt (single flat struct, no separate chain-record/payload split)",
+    "payload_fields": [
+      {"ggen_field": "graph_hash", "igniter_equivalent": "metadata[\"graph_hash\"]", "status": "partial", "note": "same divergence as above -- file hash, not enriched-graph hash; also igniter's version is untyped free-form metadata, not a first-class struct field"},
+      {"ggen_field": "outputs: BTreeMap<path,hash>", "igniter_equivalent": "files: [String.t()] (paths only, NO per-file content hash retained on the receipt)", "status": "partial", "recommendation": "igniter's `files` list drops the per-file hash ggen keeps in `outputs`; the per-file hash is recoverable indirectly only via pre_run_hash/post_run_hash's combined digest, not per-file. Cheap, valuable, low-risk fix: change `files` to a path->hash map (or add a sibling `file_hashes` map) in Receipt.new/append! -- the hashes are already computed in `outputs` locally in finalize_evidence/1 and simply not threaded into the receipt struct."},
+      {"ggen_field": "packs: BTreeMap<name,hash>", "igniter_equivalent": "none", "status": "no"},
+      {"ggen_field": "decisions: BTreeMap<path,decision>", "igniter_equivalent": "none (see above)", "status": "no"},
+      {"ggen_field": "closure: BTreeMap<input,hash>", "igniter_equivalent": "none (see above)", "status": "no"}
+    ],
+    "chain_record_fields (ReceiptRecord, praxis-core)": [
+      {"ggen_field": "version: u32", "igniter_equivalent": "none (no schema version on Receipt)", "status": "no", "recommendation": "trivial one-line add: a `schema_version` field defaulting to 1, guards future format changes the same way ggen's does."},
+      {"ggen_field": "instruction_id / activity_idx / activity / node_kind", "igniter_equivalent": "none -- igniter has no notion of an instruction/activity index within a run", "status": "no", "note": "not clearly applicable -- ggen's is for a multi-instruction law-engine trace; igniter's reconciliation is single-recipe-per-receipt today. Low relevance, not recommended to port."},
+      {"ggen_field": "ts_ns (fixed 0 by design, see sync.rs module doc)", "igniter_equivalent": "started_at / finished_at (real DateTime.utc_now() ISO8601 strings)", "status": "partial", "note": "genuinely different design choice: ggen deliberately avoids wall-clock in the chain hash (determinism); igniter's receipt is explicitly a wall-clock HISTORY log, not a hash-chained deterministic record. Not a gap -- different, intentional designs for different purposes."},
+      {"ggen_field": "duration_ms: Option<u64>", "igniter_equivalent": "derivable from finished_at - started_at but NOT stored as a field", "status": "no", "recommendation": "cheap one-line add: store `finished_at - started_at` (ms) directly on the receipt at append time rather than requiring every reader to re-parse both timestamps and subtract."},
+      {"ggen_field": "origin: Option<String> (provenance tag, e.g. \"unattended-dispatch\")", "igniter_equivalent": "none", "status": "no", "recommendation": "if/when igniter grows an unattended-dispatch caller (mirroring ggen-mcp's), add an `origin` field to Receipt the same way -- not needed today, no current caller to tag."},
+      {"ggen_field": "payload_hash_hex / prev_chain_hash_hex / chain_hash_hex (real cryptographic hash chain over the payload)", "igniter_equivalent": "NONE as a chain hash -- reconstruct_standing/2 instead re-derives continuity by checking receipt[N].pre_run_hash == receipt[N-1].post_run_hash, a weaker, content-hash-based continuity check, not a hash-chain over the receipt record itself", "status": "no", "recommendation": "REAL, notable divergence: ggen's chain_hash_hex covers (payload_hash, prev_chain_hash) so tampering with an OLD receipt line is detectable even if pre/post file hashes still happen to line up; igniter's continuity check only verifies FILE STATE continuity, not RECEIPT-RECORD integrity -- a hand-edited receipt line with correct pre/post hashes but altered `standing`/`reason`/`metadata` would pass reconstruct_standing/2 undetected. Recommend (not implemented here, more than one line): add a chain_hash field to Receipt = sha256(receipt_fields_except_chain_hash <> prev_chain_hash), verified alongside the existing pre/post hash check."},
+      {"ggen_field": "andon: Andon (enum: severity/gate level)", "igniter_equivalent": "standing: :alive|:refused|:compensated|:build_broken|:compensation_failed (closed 5-atom set)", "status": "yes", "note": "different vocabulary, same role (a closed-set outcome classification gating what happened). igniter's is arguably MORE specific for its domain (distinguishes compensation_failed as an operator-facing incident) -- a real strength, not a gap."},
+      {"ggen_field": "obligation_count: u32", "igniter_equivalent": "none (no obligation/law-engine concept in igniter's receipt)", "status": "no", "note": "not applicable -- igniter has no law/obligation engine equivalent to praxis-core's; not recommended to port without that subsystem existing first."},
+      {"ggen_field": "object_ids: Vec<String>", "igniter_equivalent": "files: [String.t()] (closest analog -- the paths this attempt touched) PLUS events (OCEL events which do carry object references, see OcelEmitter.file_object/1)", "status": "partial", "note": "OCEL event objects (via OcelEmitter, see reconcile_reactor.ex lines 1410-1411) already carry a richer object-reference model than a flat object_ids list -- igniter's design routes this through OCEL instead of a flat receipt field. Reasonable parity via a different mechanism, not a gap."},
+      {"ggen_field": "signature_hex: Option<String> (cryptographic signature over the record)", "igniter_equivalent": "none", "status": "no", "note": "no signing capability anywhere in igniter's receipt chain. Real gap if receipts are ever meant to be non-repudiable across trust boundaries; not recommended as a one-liner (needs key management)."},
+      {"ggen_field": "schema: String", "igniter_equivalent": "none (implicit via to_json_map/1's fixed key set)", "status": "no"},
+      {"ggen_field": "v2: Option<ReceiptEpochV2> (admission-ledger/andon-level extension point)", "igniter_equivalent": "none", "status": "no", "note": "not applicable without a corresponding admission-ledger concept in igniter"}
+    ]
+  },
+
+  "summary": {
+    "yes": 3,
+    "partial": 8,
+    "no": 12,
+    "highest_value_low_risk_recommendations": [
+      "Rename igniter's metadata[\"graph_hash\"] to metadata[\"ontology_file_hash\"] (or equivalent) -- it is a raw ontology-file hash, not an enriched-graph hash, and the current name overclaims parity with ggen's graph_hash_hex.",
+      "Add a `skipped` list and a `decisions` path->outcome map to Receipt.metadata in ReconcileReactor.finalize_evidence/1 -- the underlying `results` data already exists in scope, this is aggregation only, no new computation.",
+      "Thread the already-computed per-file hashes (local `outputs` map, reconcile_reactor.ex line 1433-1437) into the receipt as a path->hash map instead of dropping them down to a bare `files` path list.",
+      "Add a `duration_ms` field to Receipt, computed once at append! time from started_at/finished_at, instead of leaving every reader to re-derive it."
+    ],
+    "not_recommended_to_implement_now": [
+      "A full cryptographic chain_hash_hex + payload_hash_hex chain (real design work, not a one-liner, though it is the most consequential integrity gap found: today a hand-edited receipt line can pass reconstruct_standing/2 undetected as long as pre/post file hashes still line up).",
+      "Per-pack content hashing (packs map) and a full input-closure map -- both require new tracking passes, not available as low-risk edits.",
+      "Signature_hex-equivalent signing -- needs key management infrastructure not present in igniter."
+    ]
+  }
+}

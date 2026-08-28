@@ -316,17 +316,28 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   use Reactor
 
-  alias GgenIgniter.{Actuate, Engine, Manifest, Ontology, Pack, PendingActuation, Receipt, Reconcile, Render}
+  alias GgenIgniter.{
+    Actuate,
+    Engine,
+    Manifest,
+    Ontology,
+    Pack,
+    PendingActuation,
+    Receipt,
+    Reconcile,
+    Render
+  }
+
   alias GgenIgniter.Telemetry.OcelEmitter
 
-  input :reconcile_opts
+  input(:reconcile_opts)
 
   # side_effect: pure -- real disk read (`Manifest.load/1`), no mutation;
   # safe to retry/rerun with Reactor's default retry policy.
   step :observe_prior_manifest do
-    argument :reconcile_opts, input(:reconcile_opts)
+    argument(:reconcile_opts, input(:reconcile_opts))
 
-    run fn %{reconcile_opts: opts}, _context ->
+    run(fn %{reconcile_opts: opts}, _context ->
       OcelEmitter.emit(opts[:event_sink], "RECONCILIATION_STARTED", [], %{
         "manifest_dir" => opts[:manifest_dir] || File.cwd!()
       })
@@ -334,38 +345,38 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       manifest_dir = opts[:manifest_dir] || File.cwd!()
       manifest = Manifest.load(manifest_dir)
       {:ok, %{manifest_dir: manifest_dir, manifest: manifest}}
-    end
+    end)
   end
 
   # side_effect: pure -- real disk read (`Ontology.load!/1`), no mutation.
   step :load_ontology do
-    argument :reconcile_opts, input(:reconcile_opts)
+    argument(:reconcile_opts, input(:reconcile_opts))
 
-    run fn %{reconcile_opts: opts}, _context ->
+    run(fn %{reconcile_opts: opts}, _context ->
       ontology_path = resolve_ontology_path!(opts)
       graph = Ontology.load!(ontology_path)
       {:ok, %{ontology_path: ontology_path, graph: graph}}
-    end
+    end)
   end
 
   # side_effect: pure -- real disk read (`Pack.resolve_dir!/1`), no mutation.
   step :resolve_pack do
-    argument :reconcile_opts, input(:reconcile_opts)
+    argument(:reconcile_opts, input(:reconcile_opts))
 
-    run fn %{reconcile_opts: opts}, _context ->
+    run(fn %{reconcile_opts: opts}, _context ->
       pack_dir = if pack_given?(opts), do: Pack.resolve_dir!(opts)
       {:ok, %{pack_dir: pack_dir}}
-    end
+    end)
   end
 
   # side_effect: pure -- runs `Engine.prepare!/run` against the already-loaded
   # in-memory `graph`; no disk/network write, deterministic given the same
   # graph + query text.
   step :run_queries do
-    argument :reconcile_opts, input(:reconcile_opts)
-    argument :ontology, result(:load_ontology)
+    argument(:reconcile_opts, input(:reconcile_opts))
+    argument(:ontology, result(:load_ontology))
 
-    run fn %{reconcile_opts: opts, ontology: %{graph: graph}}, _context ->
+    run(fn %{reconcile_opts: opts, ontology: %{graph: graph}}, _context ->
       queried =
         opts
         |> normalize_targets()
@@ -373,18 +384,18 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         |> Enum.map(fn {target_opts, index} -> run_target_queries(target_opts, graph, index) end)
 
       {:ok, %{targets: queried}}
-    end
+    end)
   end
 
   # side_effect: pure -- real template-file reads (`File.read!/1` in
   # `render_target/2`) plus in-memory rendering/manifest lookups; produces a
   # plan (`[%PendingActuation{}]`) but writes nothing to the filesystem.
   step :render do
-    argument :queried, result(:run_queries)
-    argument :observed, result(:observe_prior_manifest)
-    argument :reconcile_opts, input(:reconcile_opts)
+    argument(:queried, result(:run_queries))
+    argument(:observed, result(:observe_prior_manifest))
+    argument(:reconcile_opts, input(:reconcile_opts))
 
-    run fn %{queried: %{targets: targets}, observed: %{manifest: manifest}, reconcile_opts: opts},
+    run(fn %{queried: %{targets: targets}, observed: %{manifest: manifest}, reconcile_opts: opts},
            _context ->
       plan = build_plan(targets, manifest)
 
@@ -399,24 +410,27 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       )
 
       {:ok, plan}
-    end
+    end)
   end
 
   # side_effect: observing -- no filesystem mutation; emits real
   # `OcelEmitter` telemetry (`ADMISSION_ACCEPTED` / `GUARD_REFUSED`) as its
   # only real-world effect. Fail-closed gate over the full plan.
   step :admit do
-    argument :render, result(:render)
-    argument :reconcile_opts, input(:reconcile_opts)
+    argument(:render, result(:render))
+    argument(:reconcile_opts, input(:reconcile_opts))
 
-    run fn %{render: render_out, reconcile_opts: opts}, _context ->
+    run(fn %{render: render_out, reconcile_opts: opts}, _context ->
       case admit_pending(render_out, opts) do
         {:ok, result} ->
           OcelEmitter.emit(
             opts[:event_sink],
             "ADMISSION_ACCEPTED",
             file_objects(result.pending),
-            %{"pending_count" => length(result.pending), "on_stale" => Atom.to_string(result.on_stale)}
+            %{
+              "pending_count" => length(result.pending),
+              "on_stale" => Atom.to_string(result.on_stale)
+            }
           )
 
           {:ok, result}
@@ -425,7 +439,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           OcelEmitter.emit(opts[:event_sink], "GUARD_REFUSED", [], %{"reason" => inspect(reason)})
           error
       end
-    end
+    end)
   end
 
   # side_effect: mutating -- the ONLY step that writes real files
@@ -436,14 +450,14 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # path is `undo/4` below, not a Reactor-driven re-run of `run/3`). Real
   # `compensate/4` + `undo/4` both defined (see below).
   step :actuate do
-    argument :admitted, result(:admit)
-    argument :reconcile_opts, input(:reconcile_opts)
+    argument(:admitted, result(:admit))
+    argument(:reconcile_opts, input(:reconcile_opts))
 
-    run fn %{admitted: admitted, reconcile_opts: opts}, _context ->
+    run(fn %{admitted: admitted, reconcile_opts: opts}, _context ->
       actuate_pending(admitted, opts[:event_sink])
-    end
+    end)
 
-    compensate fn _reason ->
+    compensate(fn _reason ->
       # `run/3` above already self-heals any partial writes from ITS OWN
       # failure (see `actuate_pending/2`'s `revert_all/1` call on the error
       # path) before ever returning `{:error, ...}` -- so there is nothing
@@ -452,9 +466,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       # actual mechanism for "a downstream step failed, roll back this
       # already-successful step" -- see this module's moduledoc).
       :ok
-    end
+    end)
 
-    undo fn %{tracked: tracked}, %{reconcile_opts: opts} ->
+    undo(fn %{tracked: tracked}, %{reconcile_opts: opts} ->
       event_sink = opts[:event_sink]
       paths = Map.keys(tracked)
       pre_hash = Receipt.hash_entries(prior_entries(tracked))
@@ -494,15 +508,18 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           OcelEmitter.emit(event_sink, "COMPENSATION_FAILED", file_objects_for_paths(paths), %{
             "paths" => paths,
             "restored" => restored,
-            "failed" => Enum.map(failed, fn {path, reason} -> %{"path" => path, "reason" => inspect(reason)} end),
+            "failed" =>
+              Enum.map(failed, fn {path, reason} ->
+                %{"path" => path, "reason" => inspect(reason)}
+              end),
             "pre_run_hash" => pre_hash
           })
 
           {:error, {:compensation_failed, details}}
       end
-    end
+    end)
 
-    max_retries 0
+    max_retries(0)
   end
 
   # side_effect: observing -- real `mix compile` subprocess against the
@@ -513,10 +530,10 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # (`:build_broken`) this pipeline's compensation exists to protect
   # against -- it must never be silently retried by Reactor.
   step :verify do
-    argument :actuated, result(:actuate)
-    argument :reconcile_opts, input(:reconcile_opts)
+    argument(:actuated, result(:actuate))
+    argument(:reconcile_opts, input(:reconcile_opts))
 
-    run fn %{reconcile_opts: opts}, _context ->
+    run(fn %{reconcile_opts: opts}, _context ->
       event_sink = opts[:event_sink]
       project_dir = opts[:verify_cwd] || opts[:manifest_dir] || File.cwd!()
 
@@ -536,9 +553,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
           {:error, {:compile_failed, output}}
       end
-    end
+    end)
 
-    max_retries 0
+    max_retries(0)
   end
 
   # side_effect: mutating -- real evidence writes (`Receipt.append!/2` FIRST,
@@ -556,20 +573,20 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # pipeline's terminal step, so no later step's failure can ever trigger an
   # `undo/4` against it.
   step :finalize_evidence do
-    argument :verify, result(:verify)
-    argument :admitted, result(:admit)
-    argument :actuated, result(:actuate)
-    argument :observed, result(:observe_prior_manifest)
-    argument :pack, result(:resolve_pack)
-    argument :ontology, result(:load_ontology)
-    argument :reconcile_opts, input(:reconcile_opts)
+    argument(:verify, result(:verify))
+    argument(:admitted, result(:admit))
+    argument(:actuated, result(:actuate))
+    argument(:observed, result(:observe_prior_manifest))
+    argument(:pack, result(:resolve_pack))
+    argument(:ontology, result(:load_ontology))
+    argument(:reconcile_opts, input(:reconcile_opts))
 
-    run fn args, _context -> finalize_evidence(args) end
+    run(fn args, _context -> finalize_evidence(args) end)
 
-    max_retries 0
+    max_retries(0)
   end
 
-  return :finalize_evidence
+  return(:finalize_evidence)
 
   # -- Public entry point (correction A) -------------------------------------
 
@@ -614,6 +631,25 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
               # `:refused` (implying nothing was touched -- false) or
               # `:alive`/`:compensated` (implying restoration succeeded --
               # also false).
+              #
+              # `original_reason` above (from `failed_step_info/1`'s single
+              # "first match" search) can genuinely BE the very same
+              # `{:compensation_failed, _}` tuple -- Reactor's own
+              # `state.errors` accumulates the compensation-tagged error
+              # (prepended, since it is discovered LATER than the ORIGINAL
+              # failure that triggered undo/self-heal in the first place)
+              # ahead of the original one, so a naive "first match" grabs
+              # the wrong one. `find_step_error/2` below searches
+              # specifically for a DIFFERENT, non-compensation-tagged
+              # reason (the real "why did verification/actuation fail in
+              # the first place"), so the reason string never nonsensically
+              # quotes the compensation failure as its own cause.
+              {orig_step_name, orig_reason} =
+                case find_step_error(error, &(not match?({:compensation_failed, _}, &1))) do
+                  {:ok, name, reason} -> {name, reason}
+                  :error -> {step_name, original_reason}
+                end
+
               Receipt.new(%{
                 standing: :compensation_failed,
                 recipe_key: nil,
@@ -627,18 +663,22 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
                 post_run_hash: nil,
                 files: details.paths,
                 events: events,
-                reason: describe_compensation_failure(details, original_reason),
+                reason: describe_compensation_failure(details, orig_reason),
                 metadata: %{
                   "failed_step" => inspect(step_name),
-                  "raw_error" => inspect(original_reason),
+                  "triggering_step" => inspect(orig_step_name),
+                  "raw_error" => inspect(orig_reason),
                   "mutation_occurred" => true,
                   "verification_failed" => true,
                   "restoration_failed" => true,
                   "manual_repair_required" => true,
                   "compensation_restored_paths" => details.restored,
-                  "compensation_failed_paths" => Enum.map(details.failed, fn {path, _reason} -> path end),
+                  "compensation_failed_paths" =>
+                    Enum.map(details.failed, fn {path, _reason} -> path end),
                   "compensation_failed_details" =>
-                    Enum.map(details.failed, fn {path, reason} -> %{"path" => path, "reason" => inspect(reason)} end),
+                    Enum.map(details.failed, fn {path, reason} ->
+                      %{"path" => path, "reason" => inspect(reason)}
+                    end),
                   "post_run_state_hash" => Receipt.hash_files(details.paths)
                 }
               })
@@ -711,6 +751,36 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   def find_compensation_failure(%{error: nested}), do: find_compensation_failure(nested)
   def find_compensation_failure(_other), do: :error
 
+  # General-purpose sibling of `find_compensation_failure/1`: recursively
+  # searches the same real nested `Splode` error shape for the FIRST leaf
+  # `{step_name, reason}` pair whose `reason` satisfies `pred`. Used by
+  # `run/1` to find the genuine ORIGINAL failure reason (e.g. `:verify`'s
+  # real `{:compile_failed, output}`) specifically EXCLUDING any
+  # `{:compensation_failed, _}`-tagged reason, since `state.errors`
+  # accumulates the compensation error ahead of the original one (it is
+  # discovered later, and Reactor prepends) -- a naive single "first match"
+  # (like `failed_step_info/1`'s) can otherwise pick the wrong one.
+  @doc false
+  @spec find_step_error(term(), (term() -> boolean())) :: {:ok, atom(), term()} | :error
+  def find_step_error(%{errors: errors}, pred) when is_list(errors) do
+    Enum.reduce_while(errors, :error, fn e, :error ->
+      case find_step_error(e, pred) do
+        {:ok, _name, _reason} = found -> {:halt, found}
+        :error -> {:cont, :error}
+      end
+    end)
+  end
+
+  def find_step_error(%{step: %{name: name}, error: reason}, pred) do
+    cond do
+      pred.(reason) -> {:ok, name, reason}
+      match?(%{errors: _}, reason) -> find_step_error(reason, pred)
+      true -> :error
+    end
+  end
+
+  def find_step_error(_other, _pred), do: :error
+
   # Derives this attempt's real `GgenIgniter.Receipt.standing/0` from WHICH
   # step failed and WHY -- every pre-`:actuate` step failing means no file
   # was ever touched (`:refused`); `:verify` failing specifically because
@@ -747,7 +817,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     end
   end
 
-  defp describe_failure({:compile_failed, output}), do: "verification failed (mix compile): #{output}"
+  defp describe_failure({:compile_failed, output}),
+    do: "verification failed (mix compile): #{output}"
 
   defp describe_failure({:refused_duplicate_output_path, collisions}),
     do: "refused: duplicate output path(s): #{inspect(collisions)}"
@@ -770,8 +841,12 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # which paths (if any) WERE genuinely restored, and that manual repair may
   # be required. See `GgenIgniter.Receipt`'s moduledoc for the full contract
   # this string is proving.
-  defp describe_compensation_failure(%{paths: paths, restored: restored, failed: failed}, original_reason) do
-    failed_desc = Enum.map_join(failed, "; ", fn {path, reason} -> "#{path} (#{inspect(reason)})" end)
+  defp describe_compensation_failure(
+         %{paths: paths, restored: restored, failed: failed},
+         original_reason
+       ) do
+    failed_desc =
+      Enum.map_join(failed, "; ", fn {path, reason} -> "#{path} (#{inspect(reason)})" end)
 
     restored_clause =
       if restored != [] do
@@ -781,7 +856,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       end
 
     "CATASTROPHIC (:compensation_failed): a real mutation occurred (files actuated: " <>
-      "#{inspect(paths)}); verification failed (#{describe_failure(original_reason)}); " <>
+      "#{inspect(paths)}); #{describe_failure(original_reason)}; " <>
       "restoration (compensation) of the pre-run state ALSO failed for: #{failed_desc}. " <>
       restored_clause <>
       "MANUAL REPAIR MAY BE REQUIRED -- the listed failed path(s) are left holding POST-run " <>
@@ -827,7 +902,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     query_context = engine_module.prepare!(graph, target_opts)
 
     named_results =
-      Enum.map(named_queries, fn {name, text} -> {name, engine_module.run(query_context, text)} end)
+      Enum.map(named_queries, fn {name, text} ->
+        {name, engine_module.run(query_context, text)}
+      end)
 
     %{
       index: index,
@@ -1125,7 +1202,11 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   defp resolve_on_stale!("preserve"), do: :preserve
 
   defp resolve_on_stale!(other),
-    do: raise(ArgumentError, "on_stale must be \"refuse\", \"prune\", or \"preserve\", got: #{inspect(other)}")
+    do:
+      raise(
+        ArgumentError,
+        "on_stale must be \"refuse\", \"prune\", or \"preserve\", got: #{inspect(other)}"
+      )
 
   # -- :actuate ---------------------------------------------------------------
 
@@ -1174,7 +1255,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       paths = Map.keys(tracked)
       pre_hash = Receipt.hash_entries(prior_entries(tracked))
 
-      OcelEmitter.emit(event_sink, "FILES_CHANGED", file_objects_for_paths(paths), %{"paths" => paths})
+      OcelEmitter.emit(event_sink, "FILES_CHANGED", file_objects_for_paths(paths), %{
+        "paths" => paths
+      })
 
       OcelEmitter.emit(event_sink, "COMPENSATION_STARTED", file_objects_for_paths(paths), %{
         "paths" => paths
@@ -1211,7 +1294,10 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           OcelEmitter.emit(event_sink, "COMPENSATION_FAILED", file_objects_for_paths(paths), %{
             "paths" => paths,
             "restored" => restored,
-            "failed" => Enum.map(failed, fn {path, reason} -> %{"path" => path, "reason" => inspect(reason)} end),
+            "failed" =>
+              Enum.map(failed, fn {path, reason} ->
+                %{"path" => path, "reason" => inspect(reason)}
+              end),
             "pre_run_hash" => pre_hash,
             "actuate_reasons" => inspect(reasons)
           })
@@ -1257,7 +1343,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         %{path: pa.target, prior: prior}
       end
 
-    {:ok, %{index: exec.index, mode: :file, out_path: pa.target, outcome: outcome, tracked: tracked}}
+    {:ok,
+     %{index: exec.index, mode: :file, out_path: pa.target, outcome: outcome, tracked: tracked}}
   rescue
     e ->
       {:error,
@@ -1304,7 +1391,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # swallowed and never left to raise uncaught into Reactor's own
   # undo-callback boundary (which has no rescue of its own -- see moduledoc).
   @spec revert_all(map()) ::
-          {:ok, [String.t()]} | {:error, %{paths: [String.t()], restored: [String.t()], failed: [{String.t(), term()}]}}
+          {:ok, [String.t()]}
+          | {:error,
+             %{paths: [String.t()], restored: [String.t()], failed: [{String.t(), term()}]}}
   defp revert_all(tracked) when is_map(tracked) do
     paths = Map.keys(tracked)
 
@@ -1340,9 +1429,14 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   defp revert_one(path, :new) do
     case File.rm(path) do
-      :ok -> :ok
-      {:error, :enoent} -> :ok
-      {:error, reason} -> raise RuntimeError, "failed to revert (delete) #{path}: #{inspect(reason)}"
+      :ok ->
+        :ok
+
+      {:error, :enoent} ->
+        :ok
+
+      {:error, reason} ->
+        raise RuntimeError, "failed to revert (delete) #{path}: #{inspect(reason)}"
     end
   end
 
@@ -1376,7 +1470,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     # -- 1. Prepare BOTH the next manifest content and the new receipt
     # payload, in memory -- nothing durable written yet.
     {new_manifest, manifest_changed?} =
-      Enum.reduce(admitted.recipes, {observed.manifest, false}, fn recipe, {manifest_acc, changed_acc} ->
+      Enum.reduce(admitted.recipes, {observed.manifest, false}, fn recipe,
+                                                                   {manifest_acc, changed_acc} ->
         commit_recipe(recipe, results, manifest_acc, changed_acc, pack_dir)
       end)
 
@@ -1387,7 +1482,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           do: {path, Manifest.hash_content(File.read!(path))}
 
     graph_hash =
-      "sha256:" <> (:crypto.hash(:sha256, File.read!(ontology_path)) |> Base.encode16(case: :lower))
+      "sha256:" <>
+        (:crypto.hash(:sha256, File.read!(ontology_path)) |> Base.encode16(case: :lower))
 
     single_recipe = if length(admitted.recipes) == 1, do: List.first(admitted.recipes), else: nil
     single_result = List.first(results)
@@ -1399,11 +1495,16 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       "paths" => Map.keys(outputs)
     })
 
-    OcelEmitter.emit(event_sink, "EVIDENCE_FINALIZED", file_objects_for_paths(Map.keys(outputs)), %{
-      "paths" => Map.keys(outputs),
-      "pre_run_hash" => pre_run_hash,
-      "post_run_hash" => post_run_hash
-    })
+    OcelEmitter.emit(
+      event_sink,
+      "EVIDENCE_FINALIZED",
+      file_objects_for_paths(Map.keys(outputs)),
+      %{
+        "paths" => Map.keys(outputs),
+        "pre_run_hash" => pre_run_hash,
+        "post_run_hash" => post_run_hash
+      }
+    )
 
     OcelEmitter.emit(event_sink, "RECONCILIATION_ALIVE", [], %{
       "standing" => "alive",
@@ -1428,7 +1529,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           # whenever this run had exactly one target, i.e. the
           # `Reconcile.run/1`-parity shape).
           "out_path" => single_result && single_result[:out_path],
-          "outcome" => single_result && single_result[:outcome] && Atom.to_string(single_result[:outcome]),
+          "outcome" =>
+            single_result && single_result[:outcome] && Atom.to_string(single_result[:outcome]),
           "mode" => single_result && single_result[:mode] && Atom.to_string(single_result[:mode]),
           "notice" => "ggen_igniter reactor: #{length(results)} target(s) actuated"
         }

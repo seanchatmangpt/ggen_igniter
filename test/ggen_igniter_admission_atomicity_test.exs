@@ -181,7 +181,10 @@ defmodule GgenIgniter.AdmissionAtomicityTest do
 
       gamma_recipe_key = Manifest.recipe_key(template_path, gamma_out_template)
       seed_manifest = Manifest.load(project_dir)
-      assert %{"outputs" => %{}} = seed_entry = Manifest.get_entry(seed_manifest, gamma_recipe_key)
+
+      assert %{"outputs" => %{}} =
+               seed_entry = Manifest.get_entry(seed_manifest, gamma_recipe_key)
+
       assert Map.has_key?(seed_entry["outputs"], gamma_old_path)
 
       # -- Really change the ontology in place: Gamma's slug moves from

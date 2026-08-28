@@ -1,0 +1,53 @@
+@prefix adr: <https://ggen-igniter.dev/ontology/adr-index#> .
+
+# Semantic source of truth for docs/architecture/adr/README.md's index
+# table. One adr:Decision individual per real ADR file under
+# docs/architecture/adr/. Adding a new ADR to the index means adding one
+# individual here (data: number/filename/title/status), then re-running
+#
+#   mix ggen_igniter.sync --pack adr-index-pack --engine sparql \
+#     --out docs/architecture/adr/README.md
+#
+# -- never hand-editing README.md's markdown table directly. `number` and
+# `filename` are copied verbatim from the real files on disk
+# (docs/architecture/adr/000N-*.md); `title`/`status` are copied verbatim
+# from README.md's own table as it existed before this pack took over
+# ownership of it (confirmed against each ADR's own "# ADR-000N: ..." H1 and
+# "## Status" section, all six real files, 2026-08-27) -- this is the same
+# real content, now expressed as data instead of hand-maintained markdown.
+
+adr:d0001 a adr:Decision ;
+    adr:number "0001" ;
+    adr:filename "0001-oxigraph-default-query-engine.md" ;
+    adr:title "Oxigraph as the default SPARQL query engine" ;
+    adr:status "Accepted" .
+
+adr:d0002 a adr:Decision ;
+    adr:number "0002" ;
+    adr:filename "0002-ash-phoenix-optional-consumer-side.md" ;
+    adr:title "Ash and Phoenix remain optional, consumer-side integrations" ;
+    adr:status "Accepted" .
+
+adr:d0003 a adr:Decision ;
+    adr:number "0003" ;
+    adr:filename "0003-plain-reactor-for-coordination.md" ;
+    adr:title "Plain Reactor (not Ash.Reactor) for the target coordination pipeline" ;
+    adr:status "Accepted" .
+
+adr:d0004 a adr:Decision ;
+    adr:number "0004" ;
+    adr:filename "0004-manifest-keyed-by-recipe-identity.md" ;
+    adr:title "Reconciliation manifest keyed by `(template_path, out_template)` recipe identity" ;
+    adr:status "Accepted" .
+
+adr:d0005 a adr:Decision ;
+    adr:number "0005" ;
+    adr:filename "0005-receipt-independent-of-manifest.md" ;
+    adr:title "Receipt as an independent, append-only attempt history distinct from the Manifest" ;
+    adr:status "Accepted" .
+
+adr:d0006 a adr:Decision ;
+    adr:number "0006" ;
+    adr:filename "0006-marker-based-injection-not-ast-patch.md" ;
+    adr:title "Marker-based line splice for injection, deferring real AST-based mutation" ;
+    adr:status "Accepted" .

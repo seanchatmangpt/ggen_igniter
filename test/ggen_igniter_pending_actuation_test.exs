@@ -168,13 +168,21 @@ defmodule GgenIgniter.PendingActuationTest do
     assert next_content == content1
 
     pa =
-      PendingActuation.for_file(out_path, next_content, template_path, out_template, old_entry, %{})
+      PendingActuation.for_file(
+        out_path,
+        next_content,
+        template_path,
+        out_template,
+        old_entry,
+        %{}
+      )
 
     assert %PendingActuation{} = pa
     assert pa.target == out_path
     assert pa.operation == :replace, "expected :replace (target already exists after run 1)"
     assert pa.previous_hash != nil
     assert pa.desired_hash != nil
+
     assert pa.previous_hash == pa.desired_hash,
            "expected previous_hash == desired_hash for a real unchanged re-run"
 
@@ -235,11 +243,19 @@ defmodule GgenIgniter.PendingActuationTest do
     old_entry = Manifest.get_entry(manifest, recipe_key)
 
     pa =
-      PendingActuation.for_file(out_path, new_content, template_path, out_template, old_entry, %{})
+      PendingActuation.for_file(
+        out_path,
+        new_content,
+        template_path,
+        out_template,
+        old_entry,
+        %{}
+      )
 
     assert pa.operation == :replace
     assert pa.previous_hash == Manifest.hash_content(previous_content)
     assert pa.desired_hash == Manifest.hash_content(new_content)
+
     assert pa.previous_hash != pa.desired_hash,
            "expected previous_hash != desired_hash for a real changed run"
 

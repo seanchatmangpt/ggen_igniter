@@ -47,7 +47,10 @@ defmodule GgenIgniter.ReconcileReactorTest do
   # A fresh scratch directory this test owns exclusively, removed on exit.
   defp scratch_dir! do
     dir =
-      Path.join(System.tmp_dir!(), "ggen_igniter_reactor_test_#{System.unique_integer([:positive])}")
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_reactor_test_#{System.unique_integer([:positive])}"
+      )
 
     File.rm_rf!(dir)
     File.mkdir_p!(dir)
@@ -586,8 +589,13 @@ defmodule GgenIgniter.ReconcileReactorTest do
 
   defp fetch_mark!(marks, index, event) do
     case Enum.find(marks, fn {{i, e}, _ts} -> i == index and e == event end) do
-      {{^index, ^event}, ts} -> ts
-      nil -> flunk("no #{inspect(event)} probe mark recorded for target index #{index}: #{inspect(marks)}")
+      {{^index, ^event}, ts} ->
+        ts
+
+      nil ->
+        flunk(
+          "no #{inspect(event)} probe mark recorded for target index #{index}: #{inspect(marks)}"
+        )
     end
   end
 end

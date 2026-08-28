@@ -10,7 +10,12 @@ defmodule GgenIgniter.ReceiptTest do
   alias GgenIgniter.Receipt
 
   defp scratch_dir! do
-    dir = Path.join(System.tmp_dir!(), "ggen_igniter_receipt_test_#{System.unique_integer([:positive])}")
+    dir =
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_receipt_test_#{System.unique_integer([:positive])}"
+      )
+
     File.rm_rf!(dir)
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
@@ -18,11 +23,17 @@ defmodule GgenIgniter.ReceiptTest do
   end
 
   describe "standings/0 and new/1" do
-    test "exposes exactly the four required standings" do
-      assert Receipt.standings() == [:alive, :refused, :compensated, :build_broken]
+    test "exposes exactly the five required standings" do
+      assert Receipt.standings() == [
+               :alive,
+               :refused,
+               :compensated,
+               :build_broken,
+               :compensation_failed
+             ]
     end
 
-    for standing <- [:alive, :refused, :compensated, :build_broken] do
+    for standing <- [:alive, :refused, :compensated, :build_broken, :compensation_failed] do
       test "new/1 accepts standing #{inspect(standing)}" do
         receipt = Receipt.new(%{standing: unquote(standing)})
         assert receipt.standing == unquote(standing)
@@ -64,7 +75,8 @@ defmodule GgenIgniter.ReceiptTest do
       path = Path.join(dir, "real.ex")
       File.write!(path, "defmodule Real do\nend\n")
 
-      assert Receipt.hash_files([path]) == Receipt.hash_entries([{path, "defmodule Real do\nend\n"}])
+      assert Receipt.hash_files([path]) ==
+               Receipt.hash_entries([{path, "defmodule Real do\nend\n"}])
     end
 
     test "hash_files/1 treats a missing real file the same as a nil entry" do

@@ -472,7 +472,10 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   # Reactor pipeline does not implement.
   defp run_via_reactor(igniter, opts, pack_template_stem) do
     template_path = resolve_template!(opts, pack_template_stem)
-    {frontmatter, _frontmatter_mode, _template_string} = Frontmatter.split_template(File.read!(template_path))
+
+    {frontmatter, _frontmatter_mode, _template_string} =
+      Frontmatter.split_template(File.read!(template_path))
+
     for_each = opts[:for_each] || frontmatter_field(frontmatter, :for_each)
 
     if frontmatter == nil and for_each in [nil, ""] do

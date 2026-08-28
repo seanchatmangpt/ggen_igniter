@@ -228,7 +228,10 @@ defmodule GgenIgniter.ActuationFailureInjectionTest do
       # run will genuinely overwrite (and which must come back byte-for-byte
       # identical after compensation).
       existing_path = Path.join([project_dir, "lib", "existing_actuate_target.ex"])
-      original_content = "defmodule ExistingActuateTarget do\n  def value, do: :pre_run_original\nend\n"
+
+      original_content =
+        "defmodule ExistingActuateTarget do\n  def value, do: :pre_run_original\nend\n"
+
       File.write!(existing_path, original_content)
       assert File.exists?(existing_path)
 
@@ -256,7 +259,12 @@ defmodule GgenIgniter.ActuationFailureInjectionTest do
           # failure is detected, matching the task's own "after 1 of 2 real
           # writes succeed" framing as an observed, not merely possible,
           # ordering.
-          [template: valid_template, query: "spec=#{query_beta}", out: bad_path, test_delay_ms: 60]
+          [
+            template: valid_template,
+            query: "spec=#{query_beta}",
+            out: bad_path,
+            test_delay_ms: 60
+          ]
         ]
       ]
 
@@ -293,6 +301,7 @@ defmodule GgenIgniter.ActuationFailureInjectionTest do
       assert "FILES_CHANGED" in activities
       assert "COMPENSATION_STARTED" in activities
       assert "FILES_RESTORED" in activities
+
       refute "VERIFICATION_FAILED" in activities,
              "this scenario fails inside :actuate itself -- :verify must never run"
 
@@ -325,7 +334,10 @@ defmodule GgenIgniter.ActuationFailureInjectionTest do
 
       # -- Target A: a REAL pre-existing file with KNOWN content.
       existing_path = Path.join([project_dir, "lib", "verify_existing_target.ex"])
-      original_content = "defmodule VerifyExistingTarget do\n  def value, do: :pre_run_original\nend\n"
+
+      original_content =
+        "defmodule VerifyExistingTarget do\n  def value, do: :pre_run_original\nend\n"
+
       File.write!(existing_path, original_content)
       assert File.exists?(existing_path)
 
