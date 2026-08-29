@@ -647,10 +647,8 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
           graph = Ontology.load!(ontology_path)
           store = GgenIgniter.Query.Qlever.load_store!(graph, store_id)
 
-          case GgenIgniter.Query.Qlever.run(store, "ASK { ?s ?p ?o }") do
-            rows when is_list(rows) ->
-              {:ok, "QLever endpoint for #{store_id} reachable"}
-          end
+          GgenIgniter.Query.Qlever.run(store, "ASK { ?s ?p ?o }")
+          {:ok, "QLever endpoint for #{store_id} reachable"}
         rescue
           error ->
             {:error, "QLever endpoint for #{store_id} unreachable: #{Exception.message(error)}"}

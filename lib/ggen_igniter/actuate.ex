@@ -444,9 +444,23 @@ defmodule GgenIgniter.Actuate do
   # `:before` injection would splice a duplicate copy of `body_lines` instead
   # of returning `:unchanged`.
   defp already_present_at?(lines, body_lines, insert_at, :before) do
-    lines
-    |> Enum.slice(insert_at - length(body_lines), length(body_lines))
-    |> Kernel.==(body_lines)
+    body_len = length(body_lines)
+    start = insert_at - body_len
+
+    if start < 0 do
+      # Not enough real lines above the anchor to physically contain
+      # `body_lines` -- this can only mean the injection has NOT happened
+      # yet, never an error and never a false-positive match. Passing a
+      # negative `start` straight to `Enum.slice/2` would count from the END
+      # of `lines` instead of clamping to 0, silently slicing the wrong
+      # lines and risking a false `:unchanged` or a false already-present
+      # result depending on the file's trailing content.
+      false
+    else
+      lines
+      |> Enum.slice(start, body_len)
+      |> Kernel.==(body_lines)
+    end
   end
 
   defp already_present_at?(lines, body_lines, insert_at, _mode) do

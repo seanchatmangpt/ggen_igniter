@@ -269,6 +269,29 @@ defmodule GgenIgniter.ActuateInjectTest do
     end
   end
 
+  describe "inject_content!/5 - :before negative-index regression (anchor near top of file)" do
+    test "anchor on line 1 with a body longer than the anchor's own offset does not crash or misfire",
+         %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "top_anchor.txt")
+      # Anchor "marker" is the very first line (0-based index 0). The body to
+      # inject is 3 lines -- strictly longer than the anchor's own line
+      # offset (0) -- so `insert_at - length(body_lines)` = `0 - 3` = `-3`,
+      # the exact negative-index scenario `Enum.slice/2` would otherwise
+      # silently mis-slice (wrapping to count from the end of `lines`).
+      File.write!(path, "marker\nfooter\n")
+      body = "one\ntwo\nthree"
+
+      assert {:ok, :injected} = Actuate.inject_content!(path, "marker", body, :before)
+      assert File.read!(path) == "one\ntwo\nthree\nmarker\nfooter\n"
+
+      # Re-run: the marker line has shifted to index 3, `insert_at - 3 = 0`,
+      # a real non-negative slice now correctly detects the body already
+      # present immediately above the marker -> :unchanged, no duplication.
+      assert {:ok, :unchanged} = Actuate.inject_content!(path, "marker", body, :before)
+      assert File.read!(path) == "one\ntwo\nthree\nmarker\nfooter\n"
+    end
+  end
+
   describe "inject_content!/5 - idempotency composition: mu(mu(O)) = mu(O)" do
     test "applying the same :after injection twice yields the identical real file content as applying it once",
          %{tmp_dir: tmp_dir} do

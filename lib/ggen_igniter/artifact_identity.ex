@@ -28,6 +28,20 @@ defmodule GgenIgniter.ArtifactIdentity do
   pipeline reporting `standing: :alive` (full success) regardless of which
   target's content was actually discarded.
 
+  A second real, confirmed defect closed by this module's `walk_real_path/3`:
+  on a case-insensitive/case-preserving filesystem (macOS default
+  APFS/HFS+), each existing non-symlink path segment's REAL on-disk entry
+  casing is now looked up via `File.ls!/1`-equivalent (`real_case_segment/2`)
+  rather than the caller's raw spelling being preserved verbatim -- so two
+  differently-cased spellings of the SAME real file (e.g. `lib/Foo.ex` vs
+  `lib/foo.ex` when only one really exists) canonicalize IDENTICALLY, the
+  same way a `/./`-alias or a symlink alias already did. On a genuinely
+  case-sensitive filesystem (Linux ext4) this is a strict no-op: the
+  case-insensitive match this correction looks for cannot exist there
+  because two distinct real files with different casing are two distinct
+  real directory entries, and `File.read_link/1` already proved the raw
+  spelling itself resolves.
+
   This module closes that gap as a real, reusable, independently-tested
   primitive rather than a one-off string-munge inlined into `:admit` --
   see `GgenIgniter.Reactors.ReconcileReactor`'s `admit_pending/2` for the
@@ -168,14 +182,50 @@ defmodule GgenIgniter.ArtifactIdentity do
 
       {:error, :einval} ->
         # Exists, and is genuinely NOT a symlink -- keep it as-is and
-        # continue resolving the remaining segments underneath it.
-        walk_real_path(rest, candidate, budget)
+        # continue resolving the remaining segments underneath it. On a
+        # case-insensitive/case-preserving filesystem (macOS default
+        # APFS/HFS+), `seg`'s RAW caller-supplied spelling may still differ
+        # from the real on-disk directory-entry spelling (e.g. "Foo.ex" vs
+        # the real "foo.ex") even though `candidate` genuinely exists --
+        # `real_case_segment/2` queries the actual on-disk entry name via
+        # `File.ls!/1` so two case-variant spellings of the same real file
+        # always canonicalize identically. On a case-sensitive filesystem
+        # (Linux ext4, etc.) this is a strict no-op: `File.ls!/1` would
+        # never even find a case-insensitive match to correct, since
+        # `File.read_link/1` above already proved `candidate` (with `seg`'s
+        # own exact spelling) exists.
+        real_seg = real_case_segment(resolved, seg)
+        walk_real_path(rest, Path.join(resolved, real_seg), budget)
 
       {:error, _enoent_or_other} ->
         # Does not exist (or its parent isn't real-enough to check, or a
         # permissions error) -- real resolution stops here; the rest of
         # the (already lexically-normalized) path is appended verbatim.
         {:partial, join_all(candidate, rest)}
+    end
+  end
+
+  # Returns the REAL on-disk spelling of directory entry `seg` inside
+  # `parent`, when `parent` is listable and contains an entry that matches
+  # `seg` case-insensitively (the case-insensitive/case-preserving
+  # filesystem scenario this function exists to correct). Falls back to
+  # `seg`'s own raw spelling verbatim whenever `parent` can't be listed, or
+  # (the case-sensitive-filesystem case) no case-insensitive match exists at
+  # all -- never invents a spelling `File.ls!/1` didn't actually observe.
+  defp real_case_segment(parent, seg) do
+    case File.ls(parent) do
+      {:ok, entries} ->
+        if seg in entries do
+          # Exact spelling already matches a real entry -- nothing to
+          # correct (also the common case-sensitive-filesystem path).
+          seg
+        else
+          downcased_seg = String.downcase(seg)
+          Enum.find(entries, seg, fn entry -> String.downcase(entry) == downcased_seg end)
+        end
+
+      {:error, _} ->
+        seg
     end
   end
 

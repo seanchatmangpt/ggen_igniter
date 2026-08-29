@@ -1,5 +1,134 @@
 # Changelog
 
+## v26.9.1
+
+Seven-workstream integration pass (one isolated in a `git worktree`, six run
+directly against `main`'s working tree), independently re-verified before
+merge/commit -- not trusted on any workstream's own say-so.
+
+- **`sh_before:`/`sh_after:` frontmatter shell hooks, gated by `--allow-sh`**
+  -- new `GgenIgniter.ShellHook.run/3` (`lib/ggen_igniter/shell_hook.ex`)
+  executes a template's `sh_before:`/`sh_after:` frontmatter field for real
+  via `System.cmd("sh", ["-c", cmd], cd:, stderr_to_stdout: true)`, wrapped
+  in a real `Task.async/1` + `Task.yield/2`/`Task.shutdown/2` timeout
+  (default 60s). Wired into both `sync.ex`'s inline pipeline
+  (`actuate_row!/11`) and `ReconcileReactor`'s `actuate_one/2`. `--allow-sh`
+  (default `false`) is required whenever any resolved template declares
+  either field -- absent it, the WHOLE run refuses before any actuation,
+  checked in both pipelines' every real call path
+  (`check_allow_sh!/3`/`check_allow_sh!/2`). Failure semantics deliberately
+  differ by pipeline (disclosed in both moduledocs): the inline pipeline
+  gets new `:sh_before_failed`/`:sh_after_failed` per-row outcomes that do
+  not abort the run; the Reactor pipeline treats a hook failure as an
+  ordinary actuation failure, flowing through its existing self-heal/
+  `undo/4` machinery. `GgenIgniter.Receipt.commands` is populated by a real
+  call site for the first time. **DISCLOSED, INTENTIONAL LIMITATION**
+  (matching this changelog's own "`:run_queries` concurrency: investigated,
+  NOT changed" disclosure style from v26.8.30): a `sh_before:`/`sh_after:`
+  command's real side effects are NOT integrated into
+  `GgenIgniter.PendingActuation`'s `operation()` type, NOT inspected by
+  `:admit`'s guards (duplicate-path/path-escape/unowned-delete refusal), and
+  NOT tracked by `undo/4`'s compensation/revert machinery -- a template
+  author declaring `sh_before:`/`sh_after:` is trusted the same way this
+  repo already trusts a frontmatter `to:` path; `--allow-sh` is the one new,
+  deliberately small admission-adjacent mitigation, not a full admission-gate
+  integration. Independently re-verified this integration pass with three
+  real manual `mix ggen_igniter.sync` invocations (not just the new test
+  suite): without `--allow-sh` a template with `sh_after:` set refuses
+  before any file is written; with `--allow-sh` the real `touch` command
+  genuinely ran and `GgenIgniter.Receipt.commands` was populated on disk
+  with a real `status: "ok"` entry; with `--allow-sh --dry-run` the real
+  command never ran at all. Two real bugs found and fixed along the way: an
+  `inject: true` target's real outcome was previously discarded (hardcoded
+  `nil`), making `sh_after:` un-triggerable for it; and a failing
+  `sh_after:` after a successful Reactor-pipeline write bypassed the
+  self-heal revert list entirely, leaving a real file un-reverted despite
+  the run reporting `:compensated` -- both fixed, both covered by new
+  regression tests. `docs/reference/cli/sync.md`'s "`sh_before:`/`sh_after:`
+  shell hooks" section; `docs/glossary.md`'s "shell hook" term.
+- **`GgenIgniter.ArtifactIdentity.canonicalize/2` case-fold fix** -- a real,
+  confirmed defect in `walk_real_path/3`: on a case-insensitive/
+  case-preserving filesystem (macOS default APFS/HFS+), an existing,
+  non-symlink path segment's raw caller-supplied spelling was preserved
+  verbatim rather than resolved to its real on-disk directory-entry casing,
+  so two differently-cased spellings of the SAME real file could
+  canonicalize to two DIFFERENT strings -- defeating `:admit`'s
+  duplicate-canonical-target dedup guard. Fixed via new
+  `real_case_segment/2` (a real `File.ls/1`-backed case-insensitive lookup,
+  falling back to the raw spelling verbatim when unlistable or no match
+  exists). On a genuinely case-sensitive filesystem this is a structural
+  no-op. Independently re-verified this pass, not just trusted from the new
+  property test: confirmed this machine's filesystem is genuinely
+  case-insensitive via a real probe, then ran `canonicalize/2` directly
+  against two real case-variant spellings of the same file -- both returned
+  the byte-identical canonical string.
+- **`inject_content!/5`'s `:before` negative-index fix** -- `already_present_at?/4`'s
+  `:before` clause could compute a negative `Enum.slice/2` start
+  (`insert_at - length(body_lines)`) whenever an anchor sits near the top of
+  the file and the injected body is longer than the anchor's own line
+  offset; `Enum.slice/2` counts a negative start from the END of the list
+  rather than clamping to 0, silently slicing the wrong lines. Fixed to
+  return `false` (not-yet-injected) directly whenever the computed start is
+  negative, never reaching `Enum.slice/2` with it. New regression test in
+  `test/actuate_inject_test.exs` proves correct `:injected`-then-`:unchanged`
+  behavior for exactly this anchor-near-top-of-file scenario.
+- **`mix ggen_igniter.doctor`'s `check_qlever_reachable/2` dialyzer fix** --
+  a `case ... do rows when is_list(rows) -> ... end` wrapping a call whose
+  stub implementation (`:gno` not loaded) has a `no_return()` spec made
+  Elixir's compiler infer the case subject as `none()`, flagging the single
+  clause "will never match." Fixed by removing the pointless `case`/binding
+  entirely -- the existing `rescue` clause a few lines below already
+  handles both the stub's raise and any real network/query failure.
+- **`lib/mix/tasks/CLAUDE.md`**: new "Known `Igniter.Mix.Task` base-class
+  quirks" section documenting the `--help`/`-h` split (`help_requested?/1`
+  matches only the literal `"--help"`, never `-h`) and the `--json`
+  success-path `System.halt(0)` requirement (an Igniter-runner footer would
+  otherwise corrupt a single-JSON-document contract), both already fixed in
+  commits `6c2f109`/`b184d907` -- this section exists so a future change
+  doesn't silently reintroduce either one. New parametrized regression
+  coverage in `test/ggen_igniter_cli_tasks_quirks_test.exs` (real
+  subprocesses only) across every real CLI task.
+- **New test coverage on two previously-untested pure-data modules** (not a
+  status change): `test/ggen_igniter_write_outcome_test.exs` (10 tests over
+  `GgenIgniter.WriteOutcome`'s `FM-WRITE-NNN` formatting) and
+  `test/ggen_igniter_project_config_test.exs` (22 tests over
+  `GgenIgniter.ProjectConfig` and its nested submodules' real struct
+  construction, `@enforce_keys` enforcement, and defaults). No bug found in
+  either module; one intentional, documented behavior captured as an
+  explicit test case: `GgenIgniter.ProjectConfig` itself declares no
+  `@enforce_keys`, unlike every one of its nested submodules, so `%ProjectConfig{}`
+  silently succeeds with `nil` fields rather than raising.
+- **`docs/status.md` staleness fix**: two rows (`mix test`, `mix compile
+  --warnings-as-errors`) previously read BLOCKED, citing `GgenIgniter.Lock.acquire/2`/
+  `.release/1` and `GgenIgniter.Reactors.ReconcileReactor.plan/1` as
+  undefined/private. Both are real, public, currently-defined functions --
+  the BLOCKED finding was itself stale. Corrected to IMPLEMENTED with a
+  fresh re-verification citation.
+- **Version**: `mix.exs` bumped `26.8.30` -> `26.9.1` (`version:`/`source_ref:`
+  kept in sync per this file's own versioning convention -- see
+  `test/ws5_contracts/16_version_contract_test.exs` and
+  `test/ggen_igniter_doctor_task_test.exs`'s `check_version_policy` tests,
+  both of which read `mix.exs`/`CHANGELOG.md` fresh off disk rather than
+  hardcoding an expected version).
+- **Verification (this release)**: `mix format --check-formatted` -- clean
+  (2 new test files needed one `mix format` pass, applied). `mix compile
+  --warnings-as-errors` -- clean (only the pre-existing, unrelated
+  `:preferred_cli_env` deprecation warning). Full `mix test`, run three
+  times: **15 doctests, 42 properties, 493 tests** -- two runs showed 1
+  failure under full-suite concurrent load in
+  `test/ggen_igniter_lock_staleness_properties_test.exs` (the same real
+  subprocess/wall-clock timing property v26.8.30 already disclosed as
+  flaky under load), a third full run and three isolated re-runs of that
+  same file were all clean (0 failures) -- not a regression introduced by
+  this release. `grep -rn "Mock\|mock(\|patch(\|monkeypatch" test lib
+  native` -- zero real matches (the same two pre-existing prose mentions of
+  the banned-word list itself, untouched). Three real manual end-to-end
+  `mix ggen_igniter.sync` invocations independently re-confirmed the
+  `sh_before:`/`sh_after:` refuse/execute/dry-run contract (see above). The
+  `ArtifactIdentity` case-fold fix was independently re-verified against
+  this machine's real filesystem (confirmed case-insensitive), not just the
+  new property test.
+
 ## v26.8.30
 
 Seven-workstream integration pass (two isolated in `git worktree`s, five run

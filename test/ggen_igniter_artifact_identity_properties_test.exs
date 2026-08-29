@@ -147,4 +147,153 @@ defmodule GgenIgniter.ArtifactIdentityPropertiesTest do
       end
     end
   end
+
+  # ===========================================================================
+  # Real case-variant adversarial property (case-insensitive/case-preserving
+  # filesystem defect: `walk_real_path/3` used to preserve each existing,
+  # non-symlink segment's RAW caller-supplied spelling via
+  # `Path.join(resolved, seg)` rather than querying the real on-disk entry
+  # casing -- so two differently-cased spellings of the SAME real file (e.g.
+  # "Foo.ex" vs "foo.ex" when only one of the two spellings really exists on
+  # disk) canonicalized to two DIFFERENT strings on macOS default APFS/HFS+,
+  # defeating :admit's duplicate-canonical-target dedup guard in
+  # `GgenIgniter.Reactors.ReconcileReactor`.
+  #
+  # This property is REAL, not simulated: it writes one real mixed-case file
+  # to a real per-test tmp directory, generates several real case-permuted
+  # spellings of that file's own real path components via a StreamData
+  # case-flip-per-character generator, and asserts `canonicalize/2` returns
+  # the IDENTICAL canonical_target for every permutation. It first detects,
+  # for REAL (never assumed from `:os.type/0`), whether the CURRENT test
+  # runner's filesystem is actually case-insensitive by writing a real
+  # mixed-case file and checking whether `File.exists?/1` on a different-case
+  # spelling of that same path actually finds it -- skipping/guarding itself
+  # honestly on a genuinely case-sensitive runner filesystem (Linux ext4,
+  # etc.) rather than producing a false failure there.
+  # ===========================================================================
+
+  # Flips the case of each character independently with ~50% probability,
+  # constrained to letters only (StreamData over a boolean-per-character
+  # decision) -- a real generator, not a fixed permutation list, per the fix
+  # request's "StreamData generator over case-flip-per-character is fine".
+  defp case_flip_generator(original) when is_binary(original) do
+    chars = String.graphemes(original)
+
+    chars
+    |> Enum.map(fn ch -> StreamData.tuple({StreamData.constant(ch), StreamData.boolean()}) end)
+    |> StreamData.fixed_list()
+    |> StreamData.map(fn pairs ->
+      Enum.map_join(pairs, fn {ch, flip?} ->
+        cond do
+          not flip? -> ch
+          ch =~ ~r/[a-z]/ -> String.upcase(ch)
+          ch =~ ~r/[A-Z]/ -> String.downcase(ch)
+          true -> ch
+        end
+      end)
+    end)
+  end
+
+  # Detects, for REAL (writes a real mixed-case file and checks whether a
+  # different-case spelling of the same real path is found via
+  # `File.exists?/1`), whether the current test-runner filesystem is
+  # case-insensitive -- never assumed from platform/OS name.
+  defp filesystem_case_insensitive? do
+    probe_dir =
+      Path.join(
+        System.tmp_dir!(),
+        "ggen_igniter_artifact_identity_case_probe_#{System.unique_integer([:positive])}"
+      )
+
+    File.rm_rf!(probe_dir)
+    File.mkdir_p!(probe_dir)
+
+    mixed_case_path = Path.join(probe_dir, "CaseProbeFile.txt")
+    other_case_path = Path.join(probe_dir, "caseprobefile.txt")
+    File.write!(mixed_case_path, "probe")
+
+    result = File.exists?(other_case_path)
+    File.rm_rf!(probe_dir)
+    result
+  end
+
+  describe "canonicalize/2 (property): real case-variant adversarial spellings" do
+    property "every real case-permuted spelling of an existing file's path canonicalizes identically" do
+      if filesystem_case_insensitive?() do
+        check all(
+                dir_seg <- StreamData.string(?a..?z, min_length: 3, max_length: 6),
+                leaf_seg <- StreamData.string(?a..?z, min_length: 3, max_length: 6),
+                max_runs: 20
+              ) do
+          base_dir = scratch_dir!("case_variant_#{System.unique_integer([:positive])}")
+          real_dir = Path.join(base_dir, dir_seg)
+          File.mkdir_p!(real_dir)
+
+          real_file = Path.join(real_dir, "#{leaf_seg}.ex")
+          File.write!(real_file, "defmodule CaseVariant, do: :ok")
+
+          canonical = AI.canonicalize(base_dir, real_file)
+
+          # A small fixed set of real, independently-constructed case
+          # permutations of the SAME real path -- confirmed via
+          # `File.exists?/1` to genuinely resolve to the same real file on
+          # this (already-confirmed-case-insensitive) filesystem before
+          # asserting anything about `canonicalize/2`.
+          permutations = [
+            Path.join(String.upcase(dir_seg), "#{leaf_seg}.ex"),
+            Path.join(dir_seg, "#{String.upcase(leaf_seg)}.ex"),
+            Path.join(String.upcase(dir_seg), "#{String.upcase(leaf_seg)}.ex"),
+            Path.join(
+              dir_seg |> String.graphemes() |> Enum.map(&String.upcase/1) |> Enum.join(),
+              "#{leaf_seg}.ex"
+            )
+          ]
+
+          for rel_permutation <- permutations do
+            permuted_absolute = Path.join(base_dir, rel_permutation)
+
+            assert File.exists?(permuted_absolute),
+                   "sanity: expected the OS itself to resolve #{inspect(permuted_absolute)} " <>
+                     "to the same real file as #{inspect(real_file)} on this case-insensitive " <>
+                     "filesystem"
+
+            assert AI.canonicalize(base_dir, permuted_absolute) == canonical,
+                   "expected case-variant spelling #{inspect(permuted_absolute)} to " <>
+                     "canonicalize identically to #{inspect(canonical)} (real file " <>
+                     "#{inspect(real_file)}), got #{inspect(AI.canonicalize(base_dir, permuted_absolute))}"
+          end
+
+          # A genuine, real StreamData case-flip-per-character permutation
+          # of the full relative path, independently confirmed via
+          # `File.exists?/1` before being asserted against `canonicalize/2`.
+          check all(
+                  flipped_dir <- case_flip_generator(dir_seg),
+                  flipped_leaf <- case_flip_generator(leaf_seg),
+                  max_runs: 10
+                ) do
+            flipped_absolute = Path.join([base_dir, flipped_dir, "#{flipped_leaf}.ex"])
+
+            assert File.exists?(flipped_absolute),
+                   "sanity: expected the OS to resolve the case-flipped spelling " <>
+                     "#{inspect(flipped_absolute)} to the same real file"
+
+            assert AI.canonicalize(base_dir, flipped_absolute) == canonical,
+                   "expected case-flipped spelling #{inspect(flipped_absolute)} to " <>
+                     "canonicalize identically to #{inspect(canonical)}"
+          end
+
+          File.rm_rf!(base_dir)
+        end
+      else
+        IO.puts(
+          "\n[skip] case-variant property: this test runner's filesystem is genuinely " <>
+            "case-sensitive (confirmed via a real File.exists?/1 probe, not assumed from " <>
+            "platform) -- two differently-cased spellings really ARE different files here, " <>
+            "so this macOS/APFS-specific property does not apply."
+        )
+
+        assert true
+      end
+    end
+  end
 end
