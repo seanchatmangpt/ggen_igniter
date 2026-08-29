@@ -92,7 +92,7 @@ defmodule GgenIgniter.DoctorFixesTest do
     test "relaxes only: while preserving OTHER options on the same tuple (e.g. runtime: false)",
          %{dir: dir} do
       write_mix_exs!(dir, [
-        ~S({:credo, "~> 1.7", only: [:dev, :test], runtime: false}),
+        ~S({:credo, "~> 1.7", only: [:dev, :test], runtime: false},),
         ~S({:igniter, "~> 0.8"})
       ])
 
@@ -402,6 +402,179 @@ defmodule GgenIgniter.DoctorFixesTest do
 
       updated = File.read!(Path.join(dir, "config/config.exs"))
       assert updated =~ "config :fixture, ash_domains: [Fixture.A, Fixture.B]"
+    end
+  end
+
+  # ---------------------------------------------------------------------
+  # Fix 5/6: package/0 missing description:/licenses: (check 16,
+  # --hex-check) -- real structural Sourceror.Zipper rewrites of
+  # package/0's real keyword-list AST node, per
+  # `package_description_rule/0`/`package_licenses_rule/0`.
+  # ---------------------------------------------------------------------
+
+  defp write_mix_exs_with_package!(dir, package_body_lines) do
+    File.write!(Path.join(dir, "mix.exs"), """
+    defmodule Fixture.MixProject do
+      use Mix.Project
+
+      def project, do: [app: :fixture, version: "0.1.0", deps: deps(), package: package()]
+
+      defp description do
+        "a real fixture description"
+      end
+
+      defp package do
+        [
+    #{Enum.map_join(package_body_lines, "\n", &("      " <> &1))}
+        ]
+      end
+
+      defp deps do
+        []
+      end
+    end
+    """)
+  end
+
+  describe "package_description_rule/0 (check_* / fix_*!  via run_rule/3)" do
+    test "wires description: description() into package/0 without disturbing other keys",
+         %{dir: dir} do
+      write_mix_exs_with_package!(dir, [~S(licenses: ["MIT"])])
+      rule = DoctorFixes.package_description_rule()
+
+      assert {:fixable, message} = DoctorFixes.run_rule(rule, dir, false)
+      assert message =~ "description/0"
+
+      assert {:fixed, fix_message} = DoctorFixes.run_rule(rule, dir, true)
+      assert fix_message =~ "description: description()"
+
+      updated = File.read!(Path.join(dir, "mix.exs"))
+      assert updated =~ "description: description()"
+      # the pre-existing licenses: entry is untouched
+      assert updated =~ ~S(licenses: ["MIT"])
+
+      assert {:ok, _} = DoctorFixes.run_rule(rule, dir, false)
+    end
+
+    test "reports :ok and no-ops when description: is already present", %{dir: dir} do
+      write_mix_exs_with_package!(dir, [~S[description: description()]])
+      rule = DoctorFixes.package_description_rule()
+
+      assert {:ok, message} = DoctorFixes.run_rule(rule, dir, false)
+      assert message =~ "already present"
+
+      original = File.read!(Path.join(dir, "mix.exs"))
+      assert {:ok, _} = DoctorFixes.run_rule(rule, dir, true)
+      assert File.read!(Path.join(dir, "mix.exs")) == original
+    end
+  end
+
+  describe "package_licenses_rule/0 (check_* / fix_*! via run_rule/3)" do
+    test "wires licenses: [\"MIT\"] into package/0 from a real MIT LICENSE file", %{dir: dir} do
+      write_mix_exs_with_package!(dir, [~S[description: description()]])
+      File.write!(Path.join(dir, "LICENSE"), "MIT License\n\nCopyright (c) Fixture\n")
+      rule = DoctorFixes.package_licenses_rule()
+
+      assert {:fixable, message} = DoctorFixes.run_rule(rule, dir, false)
+      assert message =~ "MIT"
+
+      assert {:fixed, fix_message} = DoctorFixes.run_rule(rule, dir, true)
+      assert fix_message =~ ~S(licenses: ["MIT"])
+
+      updated = File.read!(Path.join(dir, "mix.exs"))
+      assert updated =~ ~S(licenses: ["MIT"])
+      # the pre-existing description: entry is untouched
+      assert updated =~ "description: description()"
+
+      assert {:ok, _} = DoctorFixes.run_rule(rule, dir, false)
+    end
+
+    test "reports :unrecognized (never guesses) when there is no recognized LICENSE file",
+         %{dir: dir} do
+      write_mix_exs_with_package!(dir, [~S[description: description()]])
+      rule = DoctorFixes.package_licenses_rule()
+
+      assert {:unrecognized, message} = DoctorFixes.run_rule(rule, dir, false)
+      assert message =~ "refusing to guess a license"
+
+      original = File.read!(Path.join(dir, "mix.exs"))
+
+      assert_raise RuntimeError, ~r/refusing to guess a license/, fn ->
+        DoctorFixes.run_rule(rule, dir, true)
+      end
+
+      assert File.read!(Path.join(dir, "mix.exs")) == original
+    end
+  end
+
+  # ---------------------------------------------------------------------
+  # Fix 7: mix.exs's version: literal vs. CHANGELOG.md's top entry --
+  # real structural Sourceror.Zipper rewrite of project/0's version: key.
+  # ---------------------------------------------------------------------
+
+  describe "check_version_policy/1 and fix_version_policy!/1" do
+    test "corrects a real mix.exs/CHANGELOG.md version mismatch via a structural rewrite",
+         %{dir: dir} do
+      write_mix_exs!(dir, [~S({:rdf, "~> 3.0"})])
+      File.write!(Path.join(dir, "CHANGELOG.md"), "# Changelog\n\n## v0.2.0\n\nStuff.\n")
+
+      assert {:fixable, message} = DoctorFixes.check_version_policy(dir)
+      assert message =~ "MISMATCH"
+
+      assert {:fixed, fix_message} = DoctorFixes.fix_version_policy!(dir)
+      assert fix_message =~ "0.1.0"
+      assert fix_message =~ "0.2.0"
+
+      updated = File.read!(Path.join(dir, "mix.exs"))
+      assert updated =~ ~S(version: "0.2.0")
+      refute updated =~ ~S(version: "0.1.0")
+      # the unrelated deps() function is untouched
+      assert updated =~ ~S({:rdf, "~> 3.0"})
+
+      assert {:ok, _} = DoctorFixes.check_version_policy(dir)
+    end
+
+    test "scopes the rewrite to project/0's real version: key, not a look-alike comment",
+         %{dir: dir} do
+      # The comment's `version: "0.1.0"` text appears BEFORE the real
+      # `version:` key in project/0 and shares the exact same current
+      # value/text -- the old whole-source
+      # `String.replace(source, "version: \"0.1.0\"", ..., global: false)`
+      # would have rewritten this FIRST (wrong) occurrence instead of the
+      # real one. The structural rewrite locates project/0's real
+      # keyword-list AST node instead of scanning raw text, so it can only
+      # ever touch the real key.
+      File.write!(Path.join(dir, "mix.exs"), """
+      defmodule Fixture.MixProject do
+        use Mix.Project
+
+        # NOTE: this file's real version: "0.1.0" is set in project/0 below.
+        def project, do: [app: :fixture, version: "0.1.0", deps: deps()]
+
+        defp deps, do: []
+      end
+      """)
+
+      File.write!(Path.join(dir, "CHANGELOG.md"), "# Changelog\n\n## v0.3.0\n\nStuff.\n")
+
+      assert {:fixed, _} = DoctorFixes.fix_version_policy!(dir)
+
+      updated = File.read!(Path.join(dir, "mix.exs"))
+      assert updated =~ ~S|def project, do: [app: :fixture, version: "0.3.0", deps: deps()]|
+      # the look-alike text inside the comment is untouched
+      assert updated =~ ~S(# NOTE: this file's real version: "0.1.0" is set in project/0 below.)
+    end
+
+    test "reports :ok and no-ops when mix.exs already matches CHANGELOG.md", %{dir: dir} do
+      write_mix_exs!(dir, [~S({:rdf, "~> 3.0"})])
+      File.write!(Path.join(dir, "CHANGELOG.md"), "# Changelog\n\n## v0.1.0\n\nStuff.\n")
+
+      assert {:ok, message} = DoctorFixes.check_version_policy(dir)
+      assert message =~ "MATCH"
+
+      original = File.read!(Path.join(dir, "mix.exs"))
+      assert {:ok, _} = DoctorFixes.fix_version_policy!(dir)
+      assert File.read!(Path.join(dir, "mix.exs")) == original
     end
   end
 end

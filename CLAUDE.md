@@ -54,7 +54,7 @@ this repo — `mix e2e` is not run by CI, only manually.
 | Layer | Real role here |
 |---|---|
 | **ggen** | Semantic compilation (ontology -> query -> render -> actuate), Elixir-native except the oxigraph NIF. |
-| **Igniter** | CLI-task plumbing only (`Igniter.Mix.Task`, `add_notice/2`) for `mix ggen_igniter.sync`/`.doctor`. Does **not** use Igniter's AST-mutation API (`Igniter.Project.Module`/`Igniter.Code`/`Sourceror.Zipper`) anywhere yet — real, disclosed future work. |
+| **Igniter** | CLI-task plumbing (`Igniter.Mix.Task`, `add_notice/2`) for `mix ggen_igniter.sync`/`.doctor`, plus real AST-mutation use in `GgenIgniter.DoctorFixes`'s `--fix` transforms: `Igniter.Code.Module`/`Function`/`List`/`Tuple`/`Keyword` and `Igniter.Project.Config.modify_config_code/4,5` operate directly on a `Sourceror.Zipper.t()` built from `Sourceror.parse_string!/1` (no `%Igniter{}` needed — see `doctor_fixes.ex`'s moduledoc for why). No code here builds a real `%Igniter{}`/`Rewrite` project (`Igniter.new/0`, `Igniter.Project.Module`) — that would require the process's own cwd to be the target project, which conflicts with `project_dir`-as-an-explicit-argument; real, disclosed future work if that's ever needed. |
 | **Reactor** | Coordination/ordering/concurrency/compensation. `GgenIgniter.Reactors.ReconcileReactor` is a plain `use Reactor` module (not `Ash.Reactor`) — real and tested, but opt-in via `config :ggen_igniter, use_reactor: true` (default `false`). |
 | **Ash** | Optional, consumer-side only. Not a dependency of this repo itself; `mix ggen_igniter.doctor` only scans a *consumer* project for `use Ash.Domain`. |
 
