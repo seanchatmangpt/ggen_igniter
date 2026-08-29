@@ -6,7 +6,7 @@ defmodule GgenIgniter.MixProject do
   def project do
     [
       app: :ggen_igniter,
-      version: "26.8.29",
+      version: "26.8.30",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -17,6 +17,24 @@ defmodule GgenIgniter.MixProject do
         coveralls: :test,
         "coveralls.detail": :test,
         "coveralls.html": :test
+      ],
+      docs: [
+        main: "readme",
+        extras:
+          (Path.wildcard("docs/**/*.md") -- Path.wildcard("docs/reviews/**/*.md")) ++
+            ["README.md", "CHANGELOG.md"],
+        source_url: @source_url,
+        # This repo's git tags follow "vMAJOR.MINOR.PATCH" (e.g. the real
+        # existing tag `v26.8.27` -- confirmed via `git tag -l`). Kept as a
+        # literal in sync with the `version:` key above (NOT `"v#{@version}"`
+        # via an interpolated module attribute or local binding): both
+        # `mix.exs`'s own `version:` value and this key must remain a plain
+        # quoted-string literal, because `test/ggen_igniter_doctor_task_test.exs`'s
+        # "check_version_policy/1 matches this project's real current
+        # mix.exs/CHANGELOG.md state" test greps `mix.exs`'s raw source with
+        # `~r/version:\s*"([^"]+)"/` and breaks if `version:` isn't followed
+        # directly by a literal string.
+        source_ref: "v26.8.30"
       ],
       dialyzer: [
         # `:mix` is excluded from the PLT by default (it's a build-time-only
@@ -141,7 +159,17 @@ defmodule GgenIgniter.MixProject do
       {:stream_data, "~> 1.2", only: [:dev, :test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.18", only: [:dev, :test]}
+      {:excoveralls, "~> 0.18", only: [:dev, :test]},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      # Explicit direct dep, NOT relying on the transitive resolution already
+      # pulled in by `:rdf`/`:igniter`/`:reactor`/etc: `lib/ggen_igniter/
+      # receipt.ex` calls real `Jason.encode!/1`/`Jason.decode!/1` at
+      # lines 411/483/510 -- production code, not test support. Declaring it
+      # directly is cheap insurance against a future transitive-dep bump
+      # dropping or renaming its own `:jason` requirement out from under this
+      # project (the exact silent-breakage shape the `:igniter`/`:reactor`
+      # comments above document for other deps).
+      {:jason, "~> 1.4"}
     ]
   end
 end

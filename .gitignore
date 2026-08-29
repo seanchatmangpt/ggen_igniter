@@ -27,3 +27,7 @@ erl_crash.dump
 *.plt
 *.plt.hash
 /cover/
+
+# ExDoc-generated reference site (`mix docs`, added v26.8.30) -- real,
+# regenerable tool output, not source.
+/doc/

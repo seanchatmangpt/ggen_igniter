@@ -1,5 +1,87 @@
 # Changelog
 
+## v26.8.30
+
+Seven-workstream integration pass (two isolated in `git worktree`s, five run
+directly against `main`'s working tree), independently re-verified before
+merge/commit -- not trusted on any workstream's own say-so.
+
+- **`GgenIgniter.DoctorFixes` `--fix` transforms migrated from regex/text splices to
+  structural `Sourceror.Zipper` rewrites** -- all 4 named targets (dep `:only`
+  relaxation, `ash_domains:` registration, `package/0` description/licenses
+  insertion, `version:` literal rewrite) now use Igniter's own pure-zipper codemod
+  primitives (`Igniter.Code.Module`/`Function`/`List`/`Tuple`/`Keyword`,
+  `Igniter.Project.Config.modify_config_code/4`) over a
+  `Sourceror.parse_string!/1`-built `Sourceror.Zipper.t()` -- no `%Igniter{}`/
+  `Rewrite` project needed. Fixes a latent bug: the old whole-file `version:`
+  regex could rewrite a look-alike `version: "..."` string in a comment instead of
+  the real `project/0` key; the structural rewrite is scoped to the real AST node
+  and a regression test proves it. 7 new tests in
+  `test/ggen_igniter_doctor_fixes_test.exs`. `docs/status.md`'s "Igniter
+  AST-mutation ... PLANNED" row is corrected to IMPLEMENTED.
+- **`GgenIgniter.Reactors.CompensationTelemetryMiddleware`** -- new real
+  `Reactor.Middleware` (`lib/ggen_igniter/reactors/compensation_telemetry_middleware.ex`)
+  wired alongside `Reactor.Middleware.Telemetry` in `ReconcileReactor`'s
+  `middlewares` block, counting `{:compensate_start, _}`/`{:compensate_error, _}`/
+  `:undo_start` events plus `error/2`-derived `:compensation_failed`/
+  `:build_broken` standings (reusing `ReconcileReactor`'s own real
+  `find_compensation_failure/1`/`find_step_error/2` helpers) into a real, public,
+  named ETS table (`counters/0`). New
+  `test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs`: 2 tests
+  against the real `:verify`-fails/`undo/4` path and the real `:actuate`-self-heal
+  path, 0 failures.
+- **`:run_queries` concurrency: investigated, NOT changed.** A real hazard was
+  found and disclosed rather than fixed: `GgenIgniter.Engine.Qlever.prepare!/2`
+  has a check-then-act race on a named process
+  (`Process.whereis(GgenIgniter.Finch)` then `Finch.start_link/1`) that
+  `Task.async_stream/3` concurrency would make reachable whenever two `:targets`
+  in one run both specify `engine: "qlever"`. `:run_queries` is byte-for-byte
+  unchanged.
+- **`GgenIgniter.Ontology.load!/1` multi-format dispatch** -- now dispatches on
+  file extension: `.nt` -> `RDF.NTriples.read_file!/1`, `.nq` ->
+  `RDF.NQuads.read_file!/1` (returns `RDF.Dataset.t()`, not `RDF.Graph.t()` --
+  `@spec` widened accordingly), everything else (including `.ttl`) falls back to
+  the pre-existing `RDF.Turtle.read_file!/1`. New
+  `test/ggen_igniter_ontology_multiformat_test.exs`: 4 tests, 0 failures, real
+  fixture files (`test/fixtures/sample.nt`/`sample.nq`/`sample.unknownext`).
+- **New property-test coverage** on already-IMPLEMENTED modules (not a status
+  change): `test/ggen_igniter_artifact_identity_properties_test.exs` (3
+  properties over `GgenIgniter.ArtifactIdentity.within_root?/2`/`canonicalize/2`,
+  including a real `File.ln_s!/2` symlink-escape adversarial sweep) and
+  `test/ggen_igniter_lock_staleness_properties_test.exs` (2 properties over
+  `GgenIgniter.Lock.acquire/2`'s stale-vs-live boundary at `@stale_after_ms`,
+  plus one real two-OS-subprocess contention test).
+- **`mix ggen_igniter.plan --help`/`-h` regression coverage** -- new
+  `test/ggen_igniter_plan_task_test.exs` closes a real coverage gap (`sync`/
+  `doctor` already had a dedicated subprocess test for this class of AR-11
+  regression; `plan` did not). Independently re-verified: `plan`'s `--help`/`-h`
+  were already byte-identical and already routed through the concise
+  `print_help/0` block (the AR-11 fix pattern from commit `b184d907` already
+  covers `plan.ex`) -- no bug found, no fix needed; this closes the test-coverage
+  gap only.
+- **`mix.exs`**: added `docs:` key + `{:ex_doc, "~> 0.34", only: :dev,
+  runtime: false}` (real `mix docs` run confirmed `doc/index.html`/`doc/llms.txt`/
+  `doc/ggen_igniter.epub` generated); added explicit `{:jason, "~> 1.4"}` (was
+  only present transitively; `lib/ggen_igniter/receipt.ex` calls
+  `Jason.encode!/1`/`decode!/1` directly in production code).
+- **`lib/ggen_igniter/pack.ex`**: added `{Tesla.Middleware.Retry, max_retries: 3}`
+  to the one `Tesla.client/1` call site (github:/hex: pack fetch), scoped to
+  transient connection failures only -- HTTP-level error statuses (404/500) are
+  not retried, per `Tesla.Middleware.Retry`'s own `should_retry` default.
+- **Verification (this release)**: `mix format --check-formatted` -- clean.
+  `mix compile --warnings-as-errors` -- clean (only the pre-existing, unrelated
+  `:preferred_cli_env` deprecation warning). Full `mix test`: **12 doctests, 41
+  properties, 440 tests** -- one run showed 1 failure under full-suite
+  concurrent load, a second full run and three isolated re-runs of the suspect
+  file (`test/ggen_igniter_lock_staleness_properties_test.exs`) were all clean
+  (0 failures) -- real subprocess/wall-clock timing flakiness under load,
+  disclosed rather than hidden, not a regression introduced by this release.
+  `grep -rn "Mock\|mock(\|patch(\|monkeypatch" test lib native` -- zero real
+  matches (the same two pre-existing doc-string mentions as v26.8.29, untouched).
+  `mix ggen_igniter.doctor --fix` re-run against a real fixture consumer project
+  confirmed the migrated Igniter-based codemods perform the same real fixes as
+  before the AST-mutation migration.
+
 ## v26.8.29
 
 Testing/observability strengthening pass (three parallel agents reconciled onto a

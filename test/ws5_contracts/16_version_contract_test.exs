@@ -1,7 +1,7 @@
 defmodule GgenIgniter.WS5.VersionContractTest do
   use ExUnit.Case, async: true
 
-  test "CalVer package identity remains 26.8.29" do
-    assert File.read!("mix.exs") =~ ~s(version: "26.8.29")
+  test "CalVer package identity remains 26.8.30" do
+    assert File.read!("mix.exs") =~ ~s(version: "26.8.30")
   end
 end

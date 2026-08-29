@@ -1,0 +1,3 @@
+<http://example.org/nq#Alice> <http://example.org/nq#name> "Alice" <http://example.org/nq#graph1> .
+<http://example.org/nq#Alice> <http://example.org/nq#knows> <http://example.org/nq#Bob> <http://example.org/nq#graph1> .
+<http://example.org/nq#Bob> <http://example.org/nq#name> "Bob" <http://example.org/nq#graph1> .

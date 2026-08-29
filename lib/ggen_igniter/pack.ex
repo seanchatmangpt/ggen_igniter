@@ -390,7 +390,21 @@ defmodule GgenIgniter.Pack do
     defp http_client do
       Tesla.client([
         {Tesla.Middleware.FollowRedirects, max_redirects: 5},
-        {Tesla.Middleware.Headers, [{"user-agent", "ggen_igniter/0.1.0 (+https://github.com/)"}]}
+        {Tesla.Middleware.Headers, [{"user-agent", "ggen_igniter/0.1.0 (+https://github.com/)"}]},
+        # Scoped only to this module's github:/hex: pack-fetch HTTP path (this
+        # is the only `Tesla.client/1` call site in the project) -- retries
+        # real transient connection failures (Tesla.Middleware.Retry's
+        # default `should_retry` only matches `{:error, _reason}` results,
+        # e.g. `nxdomain`/`connrefused`/timeouts, NOT HTTP-level error
+        # statuses like 404/500, which `http_get!/1` below already surfaces
+        # as a distinct, user-actionable `RuntimeError` and should not be
+        # silently retried). `max_retries: 3` and the library's own
+        # exponential-backoff-with-jitter `delay`/`max_delay` defaults (50ms
+        # base, 5000ms cap -- see `deps/tesla/lib/tesla/middleware/retry.ex`)
+        # are sane for a one-shot CLI fetch: enough attempts to ride out a
+        # flaky network blip without turning a real, permanent DNS/network
+        # failure into a long hang.
+        {Tesla.Middleware.Retry, max_retries: 3}
       ])
     end
 
