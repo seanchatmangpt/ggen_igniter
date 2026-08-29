@@ -350,12 +350,26 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   `test/ggen_igniter_reconcile_reactor_telemetry_test.exs` for the real,
   no-mock proof (a real `:telemetry.attach_many/4` handler process
   receiving real events from a real `ReconcileReactor.run/1` execution).
+
+  Alongside `Reactor.Middleware.Telemetry`,
+  `GgenIgniter.Reactors.CompensationTelemetryMiddleware` is wired here too --
+  it turns three of the same real Reactor lifecycle events
+  (`{:compensate_start, _}` / `{:compensate_error, _}` / `:undo_start`) plus
+  two real `error/2`-derived standings (`:compensation_failed` /
+  `:build_broken`, via the same `find_compensation_failure/1`/
+  `find_step_error/2` helpers `run/1` itself uses) into durable, real ETS
+  counters (`CompensationTelemetryMiddleware.counters/0`) instead of
+  ephemeral `:telemetry` events -- see that module's own moduledoc for the
+  full real-event-shape citations and
+  `test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs` for
+  the real, no-mock proof.
   """
 
   use Reactor
 
   middlewares do
     middleware(Reactor.Middleware.Telemetry)
+    middleware(GgenIgniter.Reactors.CompensationTelemetryMiddleware)
   end
 
   alias GgenIgniter.{
