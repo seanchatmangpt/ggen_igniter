@@ -336,9 +336,27 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   standing's full contract, and `test/ggen_igniter_compensation_failure_test.exs`
   for the real, no-mock proof (`File.chmod!/2` on a real target makes a
   real revert write fail, via the `:test_chmod_after_write` hook above).
+
+  ### Telemetry
+
+  `middlewares do middleware Reactor.Middleware.Telemetry end` wires
+  Reactor's own built-in middleware, emitting real `:telemetry.execute/3`
+  events for this reactor's run/step/compensate/undo timing under
+  `[:reactor, :run, :start | :stop]`, `[:reactor, :step, :run, :start | :stop]`,
+  `[:reactor, :step, :guard, :start | :stop]`,
+  `[:reactor, :step, :process, :start | :stop]`,
+  `[:reactor, :step, :compensate, :start | :stop]`, and
+  `[:reactor, :step, :undo, :start | :stop]` -- see
+  `test/ggen_igniter_reconcile_reactor_telemetry_test.exs` for the real,
+  no-mock proof (a real `:telemetry.attach_many/4` handler process
+  receiving real events from a real `ReconcileReactor.run/1` execution).
   """
 
   use Reactor
+
+  middlewares do
+    middleware(Reactor.Middleware.Telemetry)
+  end
 
   alias GgenIgniter.{
     Actuate,

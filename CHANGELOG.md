@@ -1,5 +1,58 @@
 # Changelog
 
+## v26.8.29
+
+Testing/observability strengthening pass (three parallel agents reconciled onto a
+shared working tree) -- no new user-facing CLI capability; `GgenIgniter.Manifest` and
+`GgenIgniter.PendingActuation` were already IMPLEMENTED (see `docs/status.md`), this
+pass adds real test coverage and real Reactor instrumentation for them.
+
+- **`Reactor.Middleware.Telemetry` wired onto `GgenIgniter.Reactors.ReconcileReactor`**
+  -- a new `middlewares do middleware Reactor.Middleware.Telemetry end` block
+  (`lib/ggen_igniter/reactors/reconcile_reactor.ex`), emitting real
+  `:telemetry.execute/3` events for this reactor's run/step/compensate/undo timing
+  under `[:reactor, :run, :start|:stop]`, `[:reactor, :step, :run, :start|:stop]`,
+  `[:reactor, :step, :guard, :start|:stop]`, `[:reactor, :step, :process,
+  :start|:stop]`, `[:reactor, :step, :compensate, :start|:stop]`, and `[:reactor,
+  :step, :undo, :start|:stop]`. Verified DSL shape directly against
+  `deps/reactor/documentation/explanation/architecture.md` and
+  `deps/reactor/lib/reactor/dsl/middleware.ex` before writing. New
+  `test/ggen_igniter_reconcile_reactor_telemetry_test.exs`: a real
+  `:telemetry.attach_many/4` handler receives real `[:reactor, :run, :start]`/`:stop`
+  events from a real `ReconcileReactor.run/1` execution against a real scratch Mix
+  project (`mix test test/ggen_igniter_reconcile_reactor_telemetry_test.exs`: 1 test,
+  0 failures).
+- **Two new StreamData property-test files**, strengthening already-IMPLEMENTED
+  modules (not a status change):
+  - `test/ggen_igniter_manifest_properties_test.exs` -- real generator-driven
+    properties over `GgenIgniter.Manifest`'s pure functions: `hash_content/1`
+    determinism and its `sha256:<64 hex>` output shape; `recipe_key/2` injectivity
+    over distinct `(template, out_template)` pairs (plus one disclosed unit test
+    documenting the known `"=>"`-embedded-string collision, not asserted as a
+    universal property); `output_paths/1` round-tripping the exact generated path
+    set; `stale_paths/2` as real `MapSet.difference/2` equivalence; `same_outputs?/2`
+    reflexivity and single-key-change detection.
+  - `test/ggen_igniter_pending_actuation_properties_test.exs` -- real
+    generator-driven properties over `GgenIgniter.PendingActuation`: `logical_id/3`
+    determinism and its sensitivity to a changed `target`; `plan_unchanged?/1`'s
+    exact iff-both-non-nil-and-equal semantics; `for_file/7` against real temp files
+    on disk (real `File.write!/2`/`File.exists?/1`), proving `:create` vs `:replace`
+    dispatch and the real `previous_hash`/`compensation_data` derivation from actual
+    prior file content.
+  - Both run clean: `mix test test/ggen_igniter_manifest_properties_test.exs
+    test/ggen_igniter_pending_actuation_properties_test.exs --seed 0` twice in a
+    row -- `15 properties, 2 tests, 0 failures` both times, no flakiness.
+- **Verification (this release)**: `mix format --check-formatted` -- clean (fixed
+  three real formatting deltas the three source agents left behind: the
+  `middleware` DSL call's parens and two `check all(...)` generator-list wraps).
+  `mix compile --warnings-as-errors` -- clean (only the pre-existing, unrelated
+  `:preferred_cli_env` deprecation warning from `mix.exs` itself). Full `mix test`:
+  **12 doctests, 36 properties, 424 tests, 0 failures** (174.1s). `grep -rn
+  "Mock\|mock(\|patch(\|monkeypatch" test lib native` -- zero matches (the two hits
+  the raw grep returns are pre-existing doc-string mentions of the banned pattern
+  names in `test/ggen_igniter_reactor_concurrency_test.exs` and `test/CLAUDE.md`
+  itself, not actual mock usage, and neither file was touched this release).
+
 ## v26.8.28
 
 DX/QoL swarm (16 parallel agents reconciled onto a shared working tree, commit

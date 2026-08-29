@@ -88,6 +88,7 @@ for this page):
 | `GgenIgniter.Controller` (persistent GenServer) | PARTIAL_ALIVE, opt-in | `config :ggen_igniter, start_controller: true` (default `false`); `docs/operations/controller.md` |
 | OCEL-shaped event log (`GgenIgniter.Telemetry.OcelEmitter`) | PARTIAL_ALIVE relative to full OCEL2.0 | real event/object shape for this pipeline's needs; no object-type registry, no e2o/o2o relation types; `docs/reference/evidence/ocel.md` |
 | Real `:telemetry` event (`[:ggen_igniter, :reconcile, :ocel]`) | IMPLEMENTED | `docs/reference/evidence/telemetry.md` |
+| `Reactor.Middleware.Telemetry` wiring (`middlewares do middleware Reactor.Middleware.Telemetry end`) | IMPLEMENTED, test-proven | `lib/ggen_igniter/reactors/reconcile_reactor.ex`'s `middlewares` block, emitting real `:telemetry.execute/3` events under `[:reactor, :run, :start\|:stop]`, `[:reactor, :step, :run, :start\|:stop]`, `[:reactor, :step, :guard, :start\|:stop]`, `[:reactor, :step, :process, :start\|:stop]`, `[:reactor, :step, :compensate, :start\|:stop]`, and `[:reactor, :step, :undo, :start\|:stop]` — distinct from the OCEL `:telemetry` event above (this is Reactor's own built-in run/step timing instrumentation, not the OCEL-shaped domain event). Verified by `test/ggen_igniter_reconcile_reactor_telemetry_test.exs` (real `:telemetry.attach_many/4` handler receiving real events from a real `ReconcileReactor.run/1` execution against a real scratch Mix project) — `mix test test/ggen_igniter_reconcile_reactor_telemetry_test.exs`: 1 test, 0 failures. |
 
 ## ggen / Igniter integration
 
@@ -121,7 +122,7 @@ for this page):
 | Capability | Status | Evidence |
 |---|---|---|
 | Chicago-style, no-mock test discipline | IMPLEMENTED (verified fresh) | zero matches on `grep "Mock\|mock(\|patch(\|monkeypatch" test lib native`; `docs/testing/chicago.md` |
-| Property-based tests (`StreamData`, 8 files) | IMPLEMENTED | `docs/contributing/testing.md` |
+| Property-based tests (`StreamData`, 10 files) | IMPLEMENTED | `docs/contributing/testing.md`. Strengthened this pass (evidence-of-testing, not a new capability — `GgenIgniter.Manifest` and `GgenIgniter.PendingActuation` were already IMPLEMENTED): `test/ggen_igniter_manifest_properties_test.exs` (8 properties + 1 disclosed-limitation unit test over `recipe_key/2`/`hash_content/1`/`output_paths/1`/`stale_paths/2`/`same_outputs?/2`) and `test/ggen_igniter_pending_actuation_properties_test.exs` (7 properties over `logical_id/3`/`plan_unchanged?/1`/`for_file/7`, the latter against real temp files on disk). `mix test` of both, `--seed 0`: 15 properties, 2 tests, 0 failures. |
 | `HumanRepairEdits = 0` | PARTIAL_ALIVE | holds for files `ggen_igniter` itself generates; not across a rename's ripple into hand-generated code (LiveViews); `docs/testing/definition-of-done.md` |
 | `PartialInvalidStates = 0` | PARTIAL_ALIVE | achieved on the opt-in Reactor path only; no rollback on the default pipeline; `docs/testing/definition-of-done.md` |
 | `SerialResult = ConcurrentResult` | PARTIAL_ALIVE | correctness + real overlap proven; no literal serial-vs-concurrent diff test; `docs/testing/definition-of-done.md` |
