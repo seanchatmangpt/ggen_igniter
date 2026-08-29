@@ -384,7 +384,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     PendingActuation,
     Receipt,
     Reconcile,
-    Render
+    Render,
+    ShellHook
   }
 
   alias GgenIgniter.Telemetry.OcelEmitter
@@ -456,6 +457,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
     run(fn %{queried: %{targets: targets}, observed: %{manifest: manifest}, reconcile_opts: opts},
            _context ->
+      check_allow_sh!(targets, opts)
+
       base_dir = opts[:manifest_dir] || File.cwd!()
       plan = build_plan(targets, manifest, base_dir)
 
@@ -873,6 +876,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         |> Enum.with_index()
         |> Enum.map(fn {target_opts, index} -> run_target_queries(target_opts, graph, index) end)
 
+      check_allow_sh!(targets, reconcile_opts)
+
       built_plan = build_plan(targets, manifest, manifest_dir)
 
       case admit_pending(built_plan, reconcile_opts) do
@@ -1112,6 +1117,95 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     }
   end
 
+  # -- `sh_before:`/`sh_after:` shell hooks -----------------------------------
+  #
+  # DISCLOSED, INTENTIONAL LIMITATION (mirrors ADR-0006's disclosure style
+  # for `inject_content!/5`'s own scope, and the v26.8.30 CHANGELOG's
+  # "`:run_queries` concurrency: investigated, NOT changed" entry): a
+  # template's `sh_before:`/`sh_after:` frontmatter fields
+  # (`GgenIgniter.Frontmatter.sh_before`/`sh_after`) run a real, arbitrary
+  # shell command via `GgenIgniter.ShellHook.run/3` -- this is deliberately
+  # NOT integrated into `PendingActuation`'s `operation()` type, NOT
+  # inspected by `:admit`'s guards (duplicate-path/path-escape/unowned-
+  # delete refusal), and NOT tracked by `undo/4`'s compensation/revert
+  # machinery. A template author declaring `sh_before:`/`sh_after:` is
+  # trusted the same way this repo already trusts a frontmatter `to:` path
+  # (an existing, accepted trust boundary, not a new one).
+  #
+  # `check_allow_sh!/2` is the one new, deliberately small admission-
+  # adjacent mitigation for the highest-severity real finding here (a
+  # destructive command bypassing admission entirely): unless
+  # `reconcile_opts[:allow_sh]` is `true`, ANY target whose resolved
+  # template declares `sh_before:`/`sh_after:` refuses the WHOLE
+  # run/plan before `build_plan/3` (hence before `:admit`/`:actuate`) ever
+  # runs -- called from both `:render`'s own `run/3` (the `run/1` entry
+  # point) AND `plan/1` (the read-only admission-preview entry point), so
+  # EVERY real caller of this module -- not only ones arriving through
+  # `Mix.Tasks.GgenIgniter.Sync`, which independently re-checks the same
+  # combination for its own two call paths, see that module's moduledoc --
+  # is covered.
+  #
+  # `actuate_one/2`'s own real hook execution below treats a failed hook
+  # (nonzero exit or `GgenIgniter.ShellHook` timeout) as an ordinary
+  # actuation failure -- it `raise`s, caught by the SAME `rescue` clause
+  # that already catches a real `Actuate.write_file!/3`/`inject_content!/5`
+  # raise, so it flows through this pipeline's EXISTING self-heal/`undo/4`
+  # machinery unchanged (whole-run revert, `:compensated` standing) rather
+  # than inventing a new per-target outcome vocabulary the way
+  # `Mix.Tasks.GgenIgniter.Sync`'s own `--for-each`-aware inline pipeline
+  # does (that module supports genuine per-row partial success already;
+  # this pipeline's `:actuate` step is deliberately all-or-nothing -- see
+  # this module's own moduledoc, "`compensate/4` vs `undo/4`"). One real,
+  # disclosed consequence of reusing the existing rescue path: a FAILED
+  # hook's structured detail (exit code/output/duration) is captured in the
+  # raised exception's MESSAGE text (and therefore in the receipt's
+  # `reason`/`raw_error` metadata), but is NOT appended as its own
+  # structured `GgenIgniter.Receipt.commands` entry the way a SUCCESSFUL
+  # hook invocation is -- `finalize_evidence/1` only ever runs on the
+  # success path, so there is no receipt to append a failed entry to by the
+  # time a hook failure is known. This is a smaller, honest scope than
+  # `Mix.Tasks.GgenIgniter.Sync`'s own inline pipeline (whose per-row model
+  # lets it record every invocation, success or failure), disclosed here
+  # rather than forced into a shape this pipeline's atomic all-or-nothing
+  # architecture does not naturally support.
+  defp check_allow_sh!(targets, opts) do
+    allow_sh? = opts[:allow_sh] || false
+
+    offending =
+      for t <- targets,
+          {frontmatter, _mode, _body} = Frontmatter.split_template(File.read!(t.template_path)),
+          frontmatter != nil,
+          frontmatter.sh_before not in [nil, false] or frontmatter.sh_after not in [nil, false] do
+        {t.template_path, frontmatter.sh_before, frontmatter.sh_after}
+      end
+
+    if offending != [] and not allow_sh? do
+      raise ArgumentError, refuse_sh_message(offending)
+    end
+
+    :ok
+  end
+
+  defp refuse_sh_message(offending) do
+    lines =
+      Enum.map_join(offending, "\n", fn {template_path, sh_before, sh_after} ->
+        fields =
+          [{"sh_before", sh_before}, {"sh_after", sh_after}]
+          |> Enum.filter(fn {_k, v} -> v not in [nil, false] end)
+          |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{inspect(v)}" end)
+
+        "  - #{template_path} (#{fields})"
+      end)
+
+    "refusing to reconcile -- the following template(s) declare sh_before:/sh_after: " <>
+      "frontmatter commands, which run arbitrary real shell commands NOT covered by " <>
+      "GgenIgniter.PendingActuation's operation() type / :admit's guards, and NOT tracked " <>
+      "by compensation/undo (a disclosed, intentional limitation -- see this module's " <>
+      "moduledoc, \"sh_before:/sh_after: shell hooks\"):\n\n#{lines}\n\nNothing was " <>
+      "actuated this run. Pass allow_sh: true in reconcile_opts (or --allow-sh via " <>
+      "Mix.Tasks.GgenIgniter.Sync) to explicitly opt in."
+  end
+
   # Builds this run's REAL plan: `pending` is the full intended delta as
   # `[%PendingActuation{}]` -- one real create/replace/eval intent per
   # target, PLUS one real `operation: :delete` item per stale-prune
@@ -1153,7 +1247,14 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       engine_name: t.engine_name,
       query_count: t.query_count,
       total_rows: t.total_rows,
-      template_path: t.template_path
+      template_path: t.template_path,
+      # `sh_before:`/`sh_after:` -- see this module's own "sh_before:/
+      # sh_after: shell hooks" section above. A property of the TEMPLATE
+      # (its frontmatter), resolved once here, same as every other
+      # frontmatter-derived `exec` field.
+      sh_before: frontmatter && frontmatter.sh_before,
+      sh_after: frontmatter && frontmatter.sh_after,
+      project_dir: base_dir
     }
 
     case t.mode do
@@ -1531,14 +1632,42 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
     {oks, errors} = Enum.split_with(tagged, &match?({:ok, _}, &1))
     entries = Enum.map(oks, fn {:ok, entry} -> entry end)
-    tracked = for e <- entries, e.tracked != nil, into: %{}, do: {e.tracked.path, e.tracked}
+    error_entries = Enum.map(errors, fn {:error, entry} -> entry end)
+
+    # `tracked` is built from EVERY item that genuinely, really mutated
+    # `pa.target` before this `Task.async_stream/3` invocation finished --
+    # NOT only the ones that ultimately returned `{:ok, ...}`. A `sh_after:`
+    # failure AFTER an already-successful write returns `{:error, ...}}`
+    # (see `actuate_one/2`'s own comment) but still carries `tracked`
+    # forward on that error map specifically so this real, already-written
+    # file is not silently excluded from the self-heal revert list below --
+    # a real, confirmed bug this merge fixes (without it, that one file
+    # would be left mutated on disk even though the overall run reports
+    # `:compensated`).
+    tracked =
+      entries
+      |> Enum.filter(&(&1.tracked != nil))
+      |> Enum.map(&{&1.tracked.path, &1.tracked})
+      |> Map.new()
+      |> Map.merge(
+        error_entries
+        |> Enum.filter(&(&1[:tracked] != nil))
+        |> Enum.map(&{&1.tracked.path, &1.tracked})
+        |> Map.new()
+      )
 
     if errors == [] do
       OcelEmitter.emit(event_sink, "FILES_CHANGED", file_objects_for_paths(Map.keys(tracked)), %{
         "paths" => Map.keys(tracked)
       })
 
-      {:ok, %{results: entries, tracked: tracked}}
+      # Every real `sh_before:`/`sh_after:` invocation this run made
+      # (success only -- see `run_sh_hook!/6`'s own comment for why a
+      # FAILED hook's detail lives in the raised exception message instead)
+      # flows through to `finalize_evidence/1`'s `GgenIgniter.Receipt.commands`.
+      commands = Enum.flat_map(entries, &(&1[:commands] || []))
+
+      {:ok, %{results: entries, tracked: tracked, commands: commands}}
     else
       # Self-heal: this SAME `run/3` invocation already partially succeeded
       # before one target failed -- revert those real writes right here,
@@ -1650,10 +1779,21 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     probe_mark(exec, :start)
     if exec.test_delay_ms && exec.test_delay_ms > 0, do: Process.sleep(exec.test_delay_ms)
 
+    dry_run = exec.write_opts[:dry_run] || false
+
+    {before_commands, before_planned} =
+      run_sh_hook!(
+        :sh_before,
+        exec.sh_before,
+        dry_run,
+        exec.project_dir,
+        exec.template_path,
+        pa.target
+      )
+
     prior = if File.exists?(pa.target), do: {:existed, File.read!(pa.target)}, else: :new
     {:ok, outcome} = Actuate.write_file!(pa.target, pa.desired_content, exec.write_opts)
     maybe_test_chmod!(pa.target, exec, outcome)
-    probe_mark(exec, :stop)
 
     # A `:dry_run` write never touched the filesystem; `:skipped_exists`/
     # `:skipped_match` mean this run deliberately left the target alone --
@@ -1665,6 +1805,15 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     # existence at plan time) while the real outcome here comes back
     # `:unchanged` (derived from a real byte-for-byte content compare) --
     # two different, both-real facts, never conflated.
+    #
+    # Computed BEFORE `sh_after:` runs (a real, confirmed bug this ordering
+    # fixes): if `sh_after:` fails AFTER this write already genuinely
+    # succeeded, this item's OWN result becomes `{:error, ...}` (see below)
+    # -- without `tracked` already in hand at that point, this item's real,
+    # already-written file would never make it into `actuate_pending/2`'s
+    # self-heal revert list at all (that list is built ONLY from each
+    # item's own `tracked` field), leaving a genuinely mutated file
+    # unreverted even though the overall run reports `:compensated`.
     tracked =
       if exec.write_opts[:dry_run] or outcome in [:skipped_exists, :skipped_match] do
         nil
@@ -1672,21 +1821,69 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         %{path: pa.target, prior: prior}
       end
 
-    {:ok,
-     %{
-       index: exec.index,
-       mode: :file,
-       out_path: pa.target,
-       canonical_target: pa.canonical_target,
-       outcome: outcome,
-       tracked: tracked,
-       dry_run: exec.write_opts[:dry_run] || false,
-       template_path: exec.template_path,
-       engine_name: exec.engine_name,
-       query_count: exec.query_count,
-       total_rows: exec.total_rows,
-       notice_line: notice_line(outcome, pa.target, exec.write_opts[:dry_run] || false)
-     }}
+    # `sh_after:` runs in its OWN `try/rescue` (not the function-level
+    # `rescue` below) specifically so a failure here can still carry
+    # `tracked` (computed above) into the `{:error, ...}` shape this clause
+    # returns -- see `actuate_pending/2`'s own comment for how a failed
+    # entry's `tracked` field is folded into the same real self-heal revert
+    # list a successful entry's `tracked` field already feeds.
+    after_result =
+      if outcome == :written do
+        try do
+          {:ok,
+           run_sh_hook!(
+             :sh_after,
+             exec.sh_after,
+             dry_run,
+             exec.project_dir,
+             exec.template_path,
+             pa.target
+           )}
+        rescue
+          e -> {:hook_failed, e}
+        end
+      else
+        {:ok, {[], []}}
+      end
+
+    probe_mark(exec, :stop)
+
+    case after_result do
+      {:ok, {after_commands, after_planned}} ->
+        base_notice = notice_line(outcome, pa.target, dry_run)
+
+        full_notice =
+          (before_planned ++ [base_notice] ++ after_planned)
+          |> Enum.reject(&is_nil/1)
+          |> Enum.join("; ")
+
+        {:ok,
+         %{
+           index: exec.index,
+           mode: :file,
+           out_path: pa.target,
+           canonical_target: pa.canonical_target,
+           outcome: outcome,
+           tracked: tracked,
+           dry_run: dry_run,
+           template_path: exec.template_path,
+           engine_name: exec.engine_name,
+           query_count: exec.query_count,
+           total_rows: exec.total_rows,
+           notice_line: full_notice,
+           commands: before_commands ++ after_commands
+         }}
+
+      {:hook_failed, e} ->
+        {:error,
+         %{
+           index: exec.index,
+           mode: :file,
+           out_path: pa.target,
+           reason: {e.__struct__, Exception.message(e)},
+           tracked: tracked
+         }}
+    end
   rescue
     e ->
       {:error,
@@ -1716,10 +1913,21 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     probe_mark(exec, :start)
     if exec.test_delay_ms && exec.test_delay_ms > 0, do: Process.sleep(exec.test_delay_ms)
 
+    dry_run = exec.write_opts[:dry_run] || false
+
+    {before_commands, before_planned} =
+      run_sh_hook!(
+        :sh_before,
+        exec.sh_before,
+        dry_run,
+        exec.project_dir,
+        exec.template_path,
+        pa.target
+      )
+
     prior = if File.exists?(pa.target), do: {:existed, File.read!(pa.target)}, else: :new
     marker = pa.semantic_source[:marker]
     insert_mode = pa.semantic_source[:insert_mode]
-    dry_run = exec.write_opts[:dry_run] || false
 
     inject_opts =
       (pa.semantic_source[:insert_opts] || [])
@@ -1735,14 +1943,15 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       )
 
     maybe_test_chmod!(pa.target, exec, outcome)
-    probe_mark(exec, :stop)
 
     # `:injected` -- a real splice happened, this run's own responsibility
     # to revert on a later failure. `:unchanged` -- the body was already
     # present exactly where this exact injection would place it (idempotent
     # re-run); a `:dry_run` inject never touches the filesystem either.
     # Neither is tracked for reversion, mirroring the `:create`/`:replace`
-    # clause's own `:unchanged`/`:dry_run` exclusion.
+    # clause's own `:unchanged`/`:dry_run` exclusion. Computed BEFORE
+    # `sh_after:` runs, same real ordering fix as the `:create`/`:replace`
+    # clause above -- see that clause's comment for why.
     tracked =
       if dry_run or outcome == :unchanged do
         nil
@@ -1750,21 +1959,63 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         %{path: pa.target, prior: prior}
       end
 
-    {:ok,
-     %{
-       index: exec.index,
-       mode: :inject,
-       out_path: pa.target,
-       canonical_target: pa.canonical_target,
-       outcome: outcome,
-       tracked: tracked,
-       dry_run: dry_run,
-       template_path: exec.template_path,
-       engine_name: exec.engine_name,
-       query_count: exec.query_count,
-       total_rows: exec.total_rows,
-       notice_line: notice_line(outcome, pa.target, dry_run)
-     }}
+    after_result =
+      if outcome == :injected do
+        try do
+          {:ok,
+           run_sh_hook!(
+             :sh_after,
+             exec.sh_after,
+             dry_run,
+             exec.project_dir,
+             exec.template_path,
+             pa.target
+           )}
+        rescue
+          e -> {:hook_failed, e}
+        end
+      else
+        {:ok, {[], []}}
+      end
+
+    probe_mark(exec, :stop)
+
+    case after_result do
+      {:ok, {after_commands, after_planned}} ->
+        base_notice = notice_line(outcome, pa.target, dry_run)
+
+        full_notice =
+          (before_planned ++ [base_notice] ++ after_planned)
+          |> Enum.reject(&is_nil/1)
+          |> Enum.join("; ")
+
+        {:ok,
+         %{
+           index: exec.index,
+           mode: :inject,
+           out_path: pa.target,
+           canonical_target: pa.canonical_target,
+           outcome: outcome,
+           tracked: tracked,
+           dry_run: dry_run,
+           template_path: exec.template_path,
+           engine_name: exec.engine_name,
+           query_count: exec.query_count,
+           total_rows: exec.total_rows,
+           notice_line: full_notice,
+           commands: before_commands ++ after_commands
+         }}
+
+      {:hook_failed, e} ->
+        {:error,
+         %{
+           index: exec.index,
+           mode: :inject,
+           out_path: pa.target,
+           reason: {e.__struct__, Exception.message(e)},
+           tracked: tracked
+         }}
+    end
   rescue
     e ->
       {:error,
@@ -1825,6 +2076,76 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   end
 
   defp maybe_test_chmod!(_target, _exec, _outcome), do: :ok
+
+  # Real per-hook dispatch for `sh_before:`/`sh_after:` -- see this module's
+  # own "sh_before:/sh_after: shell hooks" section for the full disclosed
+  # scope. Returns `{commands, planned_lines}`:
+  #
+  #   * `cmd == nil` (the overwhelmingly common case) -> `{[], []}`, nothing
+  #     to do.
+  #   * `dry_run` -> `{[], ["planned: run #{label}: <cmd>"]}` --
+  #     `GgenIgniter.ShellHook.run/3` is never called at all.
+  #   * A real zero exit -> `{[one command_entry/8 map], []}`.
+  #   * A real nonzero exit or a real `GgenIgniter.ShellHook` timeout ->
+  #     RAISES a `RuntimeError` naming the exact failure (exit code/output,
+  #     or the timeout), caught by the SAME `rescue` clause that already
+  #     catches a real `Actuate.write_file!/3`/`inject_content!/5` raise in
+  #     `actuate_one/2` -- this pipeline's EXISTING self-heal/`undo/4`
+  #     machinery handles it from there, unchanged. See this module's own
+  #     "sh_before:/sh_after: shell hooks" comment above `check_allow_sh!/2`
+  #     for why a failed hook's structured detail is therefore captured in
+  #     the exception message rather than a separate `commands` entry.
+  @spec run_sh_hook!(
+          :sh_before | :sh_after,
+          String.t() | nil,
+          boolean(),
+          String.t(),
+          String.t(),
+          String.t()
+        ) :: {[map()], [String.t()]}
+  defp run_sh_hook!(_label, nil, _dry_run, _project_dir, _template_path, _target), do: {[], []}
+
+  defp run_sh_hook!(label, cmd, true, _project_dir, _template_path, _target) do
+    {[], ["planned: run #{label}: #{cmd}"]}
+  end
+
+  defp run_sh_hook!(label, cmd, false, project_dir, template_path, target) do
+    started = System.monotonic_time(:millisecond)
+
+    case ShellHook.run(cmd, project_dir) do
+      {:ok, output} ->
+        duration = System.monotonic_time(:millisecond) - started
+        {[command_entry(label, cmd, template_path, target, 0, output, duration, "ok")], []}
+
+      {:error, {:sh_exit, code, output}} ->
+        raise RuntimeError,
+              "#{label} command failed (exit #{inspect(code)}): #{cmd}\n#{output}"
+
+      {:error, :sh_timeout} ->
+        raise RuntimeError,
+              "#{label} command timed out after #{ShellHook.default_timeout_ms()}ms: #{cmd}"
+    end
+  end
+
+  # `GgenIgniter.Receipt.commands`'s entry shape for a `sh_before:`/
+  # `sh_after:` invocation -- see `GgenIgniter.Receipt`'s moduledoc, and
+  # `Mix.Tasks.GgenIgniter.Sync`'s own identically-shaped private
+  # `command_entry/8` (duplicated here rather than shared via a new common
+  # module -- this pipeline must never depend on a Mix task module at
+  # runtime, same real constraint this module's own `notice_line/3`/
+  # `outcome_verb/1` duplication comment already states).
+  defp command_entry(label, cmd, template_path, target, exit_code, output, duration_ms, status) do
+    %{
+      "kind" => Atom.to_string(label),
+      "cmd" => cmd,
+      "template_path" => template_path,
+      "target" => target,
+      "exit_code" => exit_code,
+      "output" => output,
+      "duration_ms" => duration_ms,
+      "status" => status
+    }
+  end
 
   # REAL, best-effort, NEVER-RAISING revert of every `{path, prior}` in
   # `tracked` -- see moduledoc "Compensation failure: `:compensation_failed`".
@@ -1908,7 +2229,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   defp finalize_evidence(%{
          admitted: admitted,
-         actuated: %{results: results, tracked: tracked},
+         actuated: %{results: results, tracked: tracked, commands: commands},
          observed: observed,
          pack: %{pack_dir: pack_dir},
          ontology: %{ontology_path: ontology_path},
@@ -2033,6 +2354,10 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         files: Map.keys(outputs),
         events: events,
         reason: nil,
+        # Every real `sh_before:`/`sh_after:` invocation this run made
+        # (success only, per `actuate_pending/2`'s own comment) -- see
+        # `GgenIgniter.Receipt`'s moduledoc for the entry shape.
+        commands: commands,
         metadata: %{
           "graph_hash" => graph_hash,
           "target_count" => length(results),

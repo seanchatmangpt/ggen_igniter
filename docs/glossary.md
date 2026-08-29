@@ -164,12 +164,31 @@ actuate → verify → finalize evidence), reachable only when a consumer sets
 
 `GgenIgniter.Receipt` — a durable, append-only record of **one admitted
 reconciliation attempt**, one JSON line per attempt regardless of outcome, at
-`<base_dir>/.ggen_igniter/receipts/<yyyy-mm-dd>.jsonl`. Carries one of four
+`<base_dir>/.ggen_igniter/receipts/<yyyy-mm-dd>.jsonl`. Carries one of five
 closed-set standings (see "standing"), `pre_run_hash`/`post_run_hash`, the
-real touched `files`, and an OCEL-shaped `events` list. Written **only** by
-`GgenIgniter.Reactors.ReconcileReactor.run/1` — the default pipeline and the
-CLI's inline pipeline never write one. See
-`docs/reference/evidence/receipts.md`.
+real touched `files`, an OCEL-shaped `events` list, and (since the
+`sh_before:`/`sh_after:` shell-hook feature) a `commands` list — see "shell
+hook" below. Written by `GgenIgniter.Reactors.ReconcileReactor.run/1` on
+every path (the full receipt lifecycle), and by
+`Mix.Tasks.GgenIgniter.Sync`'s inline pipeline ONLY when a real (non-
+`--dry-run`) run declares `sh_before:`/`sh_after:` — a minimal, `standing:
+:alive` receipt whose sole purpose is populating `commands`, not a full
+reconciliation receipt (that pipeline has no `:verify`/compensation step of
+its own). See `docs/reference/evidence/receipts.md`.
+
+## shell hook
+
+A template frontmatter's `sh_before:`/`sh_after:` field
+(`GgenIgniter.Frontmatter.sh_before`/`sh_after`) — a real shell command run
+via `GgenIgniter.ShellHook.run/3` before/after that target's real
+`write_file!/3`/`inject_content!/5` call. Requires `--allow-sh`
+(`Mix.Tasks.GgenIgniter.Sync`) / `allow_sh: true`
+(`GgenIgniter.Reactors.ReconcileReactor.run/1`) — absent it, the whole run
+refuses before any actuation, fail-closed. Deliberately **not** integrated
+into "admission" or "compensation" (see those terms) — a disclosed,
+intentional trust boundary, the same one a frontmatter `to:` path already
+is. See `docs/reference/cli/sync.md`'s "`sh_before:`/`sh_after:` shell
+hooks" section.
 
 ## reconciliation
 
@@ -184,16 +203,23 @@ See `docs/reference/reconciliation/manifest.md`,
 
 ## standing
 
-`GgenIgniter.Receipt.standing/0` — a closed set of exactly four atoms
-(`:alive`, `:refused`, `:compensated`, `:build_broken`); `Receipt.new/1`
-raises `ArgumentError` on any other value. `:alive` = succeeded, manifest
-advanced. `:refused` = fail-closed refusal before any actuation, nothing
-touched disk. `:compensated` = files were written, verification failed for a
-non-compile reason, undo restored prior bytes. `:build_broken` = same shape as
-`:compensated`, but specifically because the generated content itself does
-not compile. Assigned only by `ReconcileReactor.run/1`; the default pipeline
-has no standing concept at all (a failure there is a raised exception). See
-`docs/reference/evidence/standing.md`.
+`GgenIgniter.Receipt.standing/0` — a closed set of exactly five atoms
+(`:alive`, `:refused`, `:compensated`, `:build_broken`, `:compensation_failed`);
+`Receipt.new/1` raises `ArgumentError` on any other value. `:alive` =
+succeeded, manifest advanced. `:refused` = fail-closed refusal before any
+actuation, nothing touched disk. `:compensated` = files were written,
+verification failed for a non-compile reason, undo restored prior bytes.
+`:build_broken` = same shape as `:compensated`, but specifically because the
+generated content itself does not compile. `:compensation_failed` =
+CATASTROPHIC — files were written, verification failed, and the attempt to
+restore them ALSO failed for one or more paths. Assigned by
+`ReconcileReactor.run/1`'s full lifecycle; a failure inside the CLI's inline
+pipeline (`Mix.Tasks.GgenIgniter.Sync.run_pipeline!/3`) is still a raised
+exception with no standing, EXCEPT the one narrow, disclosed case where that
+pipeline constructs a minimal `standing: :alive` receipt purely to record
+`sh_before:`/`sh_after:` shell-hook invocations (see "shell hook") — that
+receipt does not represent a full verify/compensate lifecycle the way
+`ReconcileReactor`'s does. See `docs/reference/evidence/standing.md`.
 
 ## stale artifact
 

@@ -179,7 +179,9 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     Injection,
     Manifest,
     Ontology,
-    Render
+    Receipt,
+    Render,
+    ShellHook
   }
 
   alias GgenIgniter.Reactors.ReconcileReactor
@@ -208,6 +210,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         on_stale: :string,
         manifest_dir: :string,
         verify_cwd: :string,
+        allow_sh: :boolean,
         help: :boolean,
         version: :boolean
       ],
@@ -335,6 +338,87 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   write stage is not implemented in this pass -- each named query's results
   and each eval's return value are independent of one another within a single
   `sync` run.
+
+  ## `sh_before:`/`sh_after:` shell hooks (frontmatter-only, gated by `--allow-sh`)
+
+  Mirroring the real Rust ggen's own `Frontmatter.sh_before`/`sh_after`
+  fields (`GgenIgniter.Frontmatter`'s own moduledoc, field-by-field
+  provenance): a template's frontmatter may declare a real shell command to
+  run before (`sh_before:`) and/or after (`sh_after:`) that row's real
+  `write_file!/3`/`inject_content!/5` call, executed via
+  `GgenIgniter.ShellHook.run/3` (`System.cmd("sh", ["-c", cmd], cd:
+  --manifest-dir/File.cwd!(), stderr_to_stdout: true)`, real timeout,
+  default 60s).
+
+  **`--allow-sh` is required** (default `false`) whenever ANY resolved
+  template's frontmatter sets `sh_before:`/`sh_after:` -- absent it, the
+  WHOLE run refuses before any actuation happens at all (fail-closed,
+  matching `--on-stale refuse`'s own default posture), naming the exact
+  template and field(s) that triggered the refusal. This refusal is checked
+  BEFORE `run_via_reactor/3`'s own Reactor dispatch AND before
+  `run_pipeline!/3`'s own inline actuation loop -- both are genuinely
+  separate call paths (see the `## Reactor dispatch` /
+  `GgenIgniter.Reactors.ReconcileReactor` sections), and
+  `ReconcileReactor.run/1` independently re-checks the same
+  `allow_sh`/`sh_before`/`sh_after` combination for ITS OWN direct callers
+  (not only calls arriving through this task) -- see that module's
+  moduledoc.
+
+  **DISCLOSED, INTENTIONAL LIMITATION** (mirrors ADR-0006's disclosure
+  style for `inject_content!/5`'s own scope, and the v26.8.30 CHANGELOG's
+  "`:run_queries` concurrency: investigated, NOT changed" entry): a
+  `sh_before:`/`sh_after:` command's real side effects are **NOT**
+  integrated into `GgenIgniter.PendingActuation`'s `operation()` type,
+  **NOT** inspected by `:admit`'s guards (duplicate-path refusal,
+  path-escape refusal, unowned-delete refusal), and **NOT** tracked by
+  `undo/4`'s compensation/revert machinery -- a template author declaring
+  `sh_before:`/`sh_after:` is trusted the same way this repo already
+  trusts a frontmatter `to:` path (an existing, accepted trust boundary,
+  not a new one). `--allow-sh` is the one new, deliberately small
+  admission-adjacent check this pass adds to mitigate the highest-severity
+  real finding here (a destructive command bypassing admission entirely) --
+  it is a single explicit opt-in flag, not a new operation-type/IR change.
+
+  **Failure semantics differ from every other row-level failure in this
+  module.** A nonzero exit or a real timeout from `sh_before:`/`sh_after:`
+  does **NOT** abort the whole run -- this is a genuinely new
+  failure-tolerance pattern for `sync.ex` (today, a raised exception from
+  any other row aborts the entire run). It produces a new per-row outcome
+  atom instead, extending the existing `:written`/`:injected`/`:unchanged`/
+  `:skipped_exists`/`:skipped_match` vocabulary:
+
+    * `sh_before:` fails (nonzero exit or timeout) -- the row's real
+      `write_file!/3`/`inject_content!/5` call is SKIPPED entirely (treated
+      as a failed precondition), outcome `:sh_before_failed`.
+    * `sh_after:` fails AFTER a real `:written`/`:injected` outcome -- the
+      write/inject already genuinely happened and is NOT reverted (no
+      compensation exists for this, per the disclosed limitation above);
+      outcome `:sh_after_failed`.
+
+  See `outcome_summary_suffix/2`/`summary_bucket/1` for how these two new
+  atoms are counted and reported in the final run summary, alongside every
+  other outcome.
+
+  `--dry-run` previews a shell hook exactly like every other actuation
+  decision in this module: `"planned: run sh_before: <cmd>"` /
+  `"planned: run sh_after: <cmd>"` is printed, and `GgenIgniter.ShellHook.run/3`
+  is never called at all (the real subprocess never starts under
+  `--dry-run`, matching this whole module's "zero real side effects" dry-run
+  contract).
+
+  Every real `sh_before:`/`sh_after:` invocation (success, nonzero exit, or
+  timeout) is appended to `GgenIgniter.Receipt.commands` -- see that
+  module's moduledoc for the entry shape. `sync.ex`'s inline pipeline does
+  not otherwise construct a `GgenIgniter.Receipt` at all (verified: no
+  `Receipt.new/1`/`Receipt.append!/2` call existed anywhere in this file
+  before this feature); a minimal receipt (`standing: :alive` -- this
+  module's inline pipeline has no compensation/verification step of its own
+  to fail, so `:alive` here describes "an attempt was made and files were
+  actuated via the normal write-safety guards," not "every shell hook
+  succeeded" -- any hook failure is named explicitly in `reason`/`commands`
+  instead) is constructed and appended ONLY for a real (non-`--dry-run`) run
+  that actually declared `sh_before:`/`sh_after:`, so a run with no shell
+  hooks at all produces no new receipt traffic.
 
   ## Reconciliation manifest (stale-output detection, `--on-stale`)
 
@@ -574,7 +658,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
                                [--pack NAME | --pack-dir DIR] [--for-each NAME]
                                [--mode file|eval] [--on-stale refuse|prune|preserve]
                                [--manifest-dir DIR] [--unless-exists] [--skip-if EXPR]
-                               [--dry-run] [--help] [--version]
+                               [--allow-sh] [--dry-run] [--help] [--version]
 
     FLAGS
         --ontology PATH     Path to the RDF/Turtle ontology to load.
@@ -591,6 +675,8 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         --manifest-dir DIR  Directory holding .ggen_igniter/manifest.json. Default: cwd.
         --unless-exists     Skip writing if the output path already exists.
         --skip-if EXPR      Skip writing if EXPR (literal string) matches.
+        --allow-sh          Required if any template frontmatter sets sh_before:/sh_after:
+                             (default: refuse the whole run before any actuation).
         --dry-run           Preview actuation without writing/deleting anything.
         --help, -h          Print this help and exit 0.
         --version, -v       Print ggen_igniter's version and exit 0.
@@ -690,6 +776,8 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
     {frontmatter, frontmatter_mode, _template_string} =
       Frontmatter.split_template(File.read!(template_path))
+
+    check_allow_sh!(opts, frontmatter, template_path)
 
     for_each = opts[:for_each] || frontmatter_field(frontmatter, :for_each)
     inline_sparql = frontmatter_field(frontmatter, :sparql)
@@ -893,6 +981,8 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     {frontmatter, frontmatter_mode, template_string} =
       Frontmatter.split_template(File.read!(template_path))
 
+    check_allow_sh!(opts, frontmatter, template_path)
+
     named_queries = resolve_named_queries!(opts, frontmatter)
     named_results = run_queries(engine_module, graph, opts, named_queries)
 
@@ -929,6 +1019,16 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       if mode == :file and (frontmatter_field(frontmatter, :inject) || false) do
         Injection.resolve_injection!(frontmatter)
       end
+
+    # `sh_before:`/`sh_after:` are, like the injection anchor above, a
+    # property of the TEMPLATE, resolved once per `sync` run -- not per
+    # `--for-each` row. `check_allow_sh!/3` above has already refused the
+    # whole run before this point if either is set without `--allow-sh`, so
+    # by the time `actuate_row!/11` below actually runs a hook, `sh_before`/
+    # `sh_after` being non-`nil` implies `--allow-sh` was given.
+    sh_before = frontmatter_field(frontmatter, :sh_before)
+    sh_after = frontmatter_field(frontmatter, :sh_after)
+    sh_project_dir = opts[:manifest_dir] || File.cwd!()
 
     total_rows = named_results |> Enum.map(fn {_name, rows} -> length(rows) end) |> Enum.sum()
 
@@ -989,8 +1089,8 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
     render_results =
       Enum.map(renders, fn {bindings, content, out_path} ->
-        {line, outcome} =
-          actuate!(
+        {line, out_path2, outcome, hook_status, commands} =
+          actuate_row!(
             mode,
             content,
             bindings,
@@ -998,14 +1098,21 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
             template_path,
             write_opts,
             dry_run,
-            inject_spec
+            inject_spec,
+            sh_before,
+            sh_after,
+            sh_project_dir
           )
 
         if dry_run, do: Mix.shell().info(line)
-        {line, out_path, outcome}
+        {line, out_path2, outcome, hook_status, commands}
       end)
 
-    notices = Enum.map(render_results, fn {line, _out_path, _outcome} -> line end)
+    notices =
+      Enum.map(render_results, fn {line, _out_path, _outcome, _hook_status, _cmds} -> line end)
+
+    all_sh_commands =
+      Enum.flat_map(render_results, fn {_line, _out, _outcome, _hs, cmds} -> cmds end)
 
     # DX: with `--for-each` fanning out to many rows (a pack with 8+ queries,
     # or many driver rows), the per-file notice line above becomes a wall of
@@ -1032,7 +1139,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         # `actuate!/8`'s comments for why recording it would let a later
         # rename's `--on-stale prune` delete a file this pack never wrote.
         outputs =
-          for {_line, out_path, outcome} <- render_results,
+          for {_line, out_path, outcome, _hook_status, _cmds} <- render_results,
               outcome in [:written, :unchanged],
               into: %{} do
             {out_path, Manifest.hash_content(File.read!(out_path))}
@@ -1047,6 +1154,50 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
           |> Manifest.persist!(manifest_dir)
         end
       end
+    end
+
+    # A minimal, best-effort `GgenIgniter.Receipt` for `sh_before:`/
+    # `sh_after:` invocations ONLY -- `run_pipeline!/3` otherwise never
+    # constructs a receipt at all (this inline pipeline has no `:verify`/
+    # compensation step of its own; `GgenIgniter.Reactors.ReconcileReactor`
+    # is the pipeline with the full receipt lifecycle). `standing: :alive`
+    # here describes "a real reconciliation attempt was made and files were
+    # actuated via the normal write-safety guards" -- NOT "every shell hook
+    # succeeded"; any hook failure is named explicitly in `reason` and in
+    # each `commands` entry's own `"status"` field instead of being hidden
+    # behind a misleading standing atom. Skipped entirely under `--dry-run`
+    # (no hook ever really ran) and whenever no template in this run
+    # declared `sh_before:`/`sh_after:` at all (`all_sh_commands == []`) --
+    # a run with no shell hooks produces no new receipt traffic.
+    unless dry_run or all_sh_commands == [] do
+      failed = Enum.filter(all_sh_commands, &(&1["status"] != "ok"))
+
+      reason =
+        case failed do
+          [] ->
+            nil
+
+          _ ->
+            "sh hook failure(s): " <>
+              Enum.map_join(failed, "; ", fn c -> "#{c["kind"]} (#{c["status"]}): #{c["cmd"]}" end)
+        end
+
+      written_paths =
+        for {_line, out_path, outcome, _hook_status, _cmds} <- render_results,
+            outcome in [:written, :injected],
+            do: out_path
+
+      receipt =
+        Receipt.new(%{
+          standing: :alive,
+          recipe_key: if(reconcile?, do: recipe_key),
+          files: written_paths,
+          reason: reason,
+          commands: all_sh_commands,
+          metadata: %{"source" => "inline_pipeline_sh_hooks"}
+        })
+
+      Receipt.append!(manifest_dir, receipt)
     end
 
     Igniter.add_notice(
@@ -1066,23 +1217,38 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   # the summary (an `--unless-exists`/`--skip-if` guard fired), and `nil`
   # (only ever returned for `mode: eval`, which never has a summary-worthy
   # per-row outcome) is silently excluded from the count entirely. Order is
-  # fixed (`written`, `injected`, `unchanged`, `skipped`) rather than
-  # insertion order, so the summary reads the same shape run to run; a
-  # zero-count bucket is omitted rather than printed as "wrote 0". Under
-  # `--dry-run`, the label is "planned to ..." instead of the past-tense verb,
-  # matching every other dry-run notice in this module's own convention of
-  # never claiming a real action happened when nothing was written.
-  @spec outcome_summary_suffix([{String.t(), String.t() | nil, atom() | nil}], boolean()) ::
-          String.t()
+  # fixed (`written`, `injected`, `unchanged`, `skipped`, `sh_before_failed`,
+  # `sh_after_failed`) rather than insertion order, so the summary reads the
+  # same shape run to run; a zero-count bucket is omitted rather than
+  # printed as "wrote 0". Under `--dry-run`, the label is "planned to ..."
+  # instead of the past-tense verb, matching every other dry-run notice in
+  # this module's own convention of never claiming a real action happened
+  # when nothing was written. `sh_before_failed`/`sh_after_failed` come from
+  # a row's `hook_status` (its 4th tuple element), NOT its underlying
+  # `outcome` -- see `actuate_row!/11` -- and are always `nil` under
+  # `--dry-run` (a shell hook never actually runs under `--dry-run`).
+  @spec outcome_summary_suffix(
+          [{String.t(), String.t() | nil, atom() | nil, atom() | nil, [map()]}],
+          boolean()
+        ) :: String.t()
   defp outcome_summary_suffix(render_results, dry_run) when length(render_results) > 1 do
     counts =
       render_results
-      |> Enum.map(fn {_line, _out_path, outcome} -> summary_bucket(outcome) end)
+      |> Enum.map(fn {_line, _out_path, outcome, hook_status, _cmds} ->
+        hook_status || summary_bucket(outcome)
+      end)
       |> Enum.reject(&is_nil/1)
       |> Enum.frequencies()
 
     parts =
-      for bucket <- [:written, :injected, :unchanged, :skipped],
+      for bucket <- [
+            :written,
+            :injected,
+            :unchanged,
+            :skipped,
+            :sh_before_failed,
+            :sh_after_failed
+          ],
           count = Map.get(counts, bucket, 0),
           count > 0 do
         "#{summary_verb(bucket, dry_run)} #{count}"
@@ -1109,6 +1275,186 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   defp summary_verb(:injected, true), do: "planned to inject"
   defp summary_verb(:unchanged, _dry_run), do: "unchanged"
   defp summary_verb(:skipped, _dry_run), do: "skipped"
+  defp summary_verb(:sh_before_failed, false), do: "sh_before failed"
+  defp summary_verb(:sh_after_failed, false), do: "sh_after failed"
+
+  # -- `sh_before:`/`sh_after:` shell hooks -----------------------------------
+  #
+  # See this module's own moduledoc ("## `sh_before:`/`sh_after:` shell
+  # hooks") for the full disclosed scope/failure-semantics contract these
+  # three functions implement. Checked from BOTH `run_via_reactor/3` and
+  # `run_pipeline!/3` -- genuinely separate call paths, per this module's own
+  # AR-9/AR-10 comments -- so neither can silently skip the refusal.
+  @spec check_allow_sh!(keyword(), Frontmatter.t() | nil, String.t()) :: :ok
+  defp check_allow_sh!(opts, frontmatter, template_path) do
+    sh_before = frontmatter_field(frontmatter, :sh_before)
+    sh_after = frontmatter_field(frontmatter, :sh_after)
+
+    if (sh_before || sh_after) && not (opts[:allow_sh] || false) do
+      raise ArgumentError, refuse_sh_message(template_path, sh_before, sh_after)
+    end
+
+    :ok
+  end
+
+  defp refuse_sh_message(template_path, sh_before, sh_after) do
+    fields =
+      [{"sh_before", sh_before}, {"sh_after", sh_after}]
+      |> Enum.filter(fn {_k, v} -> v not in [nil, false] end)
+      |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{inspect(v)}" end)
+
+    "ggen_igniter: refusing to sync -- #{template_path} declares #{fields} in its frontmatter. " <>
+      "A sh_before:/sh_after: command runs an arbitrary real shell command that is NOT " <>
+      "covered by GgenIgniter.PendingActuation's admission gate (:admit) and NOT tracked by " <>
+      "compensation/undo -- a disclosed, intentional limitation (see this module's moduledoc, " <>
+      "\"## sh_before:/sh_after: shell hooks\"). Nothing was actuated this run. Pass " <>
+      "--allow-sh to explicitly opt in and run this sync with shell hooks enabled."
+  end
+
+  # Runs ONE row's `sh_before:` (if any), then the row's real
+  # `write_file!/3`/`inject_content!/5` call, then `sh_after:` (if any and
+  # only when the write/inject genuinely happened -- `outcome in [:written,
+  # :injected]`). Returns `{line, out_path, outcome, hook_status, commands}`:
+  #
+  #   * `outcome` is the SAME real `Actuate` outcome atom `actuate!/8` always
+  #     returned before this feature existed -- unaffected by hook failure,
+  #     so manifest-tracking/stale-computation logic downstream (which keys
+  #     on `outcome`, never on `hook_status`) is completely unchanged.
+  #   * `hook_status` is `nil` (no hook failure) or `:sh_before_failed` /
+  #     `:sh_after_failed` -- purely a REPORTING signal (notice text,
+  #     `outcome_summary_suffix/2`), never fed back into manifest logic.
+  #   * A failed `sh_before:` SKIPS the real write/inject entirely for this
+  #     row (`outcome` is `nil`, mirroring `mode: eval`'s own "no writable
+  #     outcome" convention) -- this row's precondition failed, so nothing
+  #     is written; sh_before's own real command output is not silently
+  #     dropped, it goes out in `line`/`commands`. Other rows in the SAME
+  #     `--for-each` run are NOT aborted (they call `actuate_row!/11`
+  #     independently, one `Enum.map/2` iteration each).
+  @spec actuate_row!(
+          :file | :eval,
+          String.t(),
+          keyword(),
+          String.t() | nil,
+          String.t(),
+          keyword(),
+          boolean(),
+          {String.t() | Regex.t() | nil, :before | :after | :at_line, keyword()} | nil,
+          String.t() | nil,
+          String.t() | nil,
+          String.t()
+        ) :: {String.t(), String.t() | nil, atom() | nil, atom() | nil, [map()]}
+  defp actuate_row!(
+         mode,
+         content,
+         bindings,
+         out_path,
+         template_path,
+         write_opts,
+         dry_run,
+         inject_spec,
+         sh_before,
+         sh_after,
+         project_dir
+       ) do
+    {before_status, before_line, before_commands} =
+      run_hook(:sh_before, sh_before, dry_run, project_dir, template_path, out_path)
+
+    if before_status == :failed do
+      {before_line, out_path, nil, :sh_before_failed, before_commands}
+    else
+      {main_line, outcome} =
+        actuate!(
+          mode,
+          content,
+          bindings,
+          out_path,
+          template_path,
+          write_opts,
+          dry_run,
+          inject_spec
+        )
+
+      if outcome in [:written, :injected] do
+        {after_status, after_line, after_commands} =
+          run_hook(:sh_after, sh_after, dry_run, project_dir, template_path, out_path)
+
+        hook_status = if after_status == :failed, do: :sh_after_failed
+        line = [before_line, main_line, after_line] |> Enum.reject(&is_nil/1) |> Enum.join("; ")
+
+        {line, out_path, outcome, hook_status, before_commands ++ after_commands}
+      else
+        line = [before_line, main_line] |> Enum.reject(&is_nil/1) |> Enum.join("; ")
+        {line, out_path, outcome, nil, before_commands}
+      end
+    end
+  end
+
+  # Real per-hook dispatch: `:absent` (cmd is `nil`, nothing to do -- the
+  # overwhelmingly common case), `:planned` (`--dry-run`, prints the exact
+  # `"planned: run #{label}: <cmd>"` line this module's moduledoc documents,
+  # `GgenIgniter.ShellHook.run/3` never called), `:ok` (real command, real
+  # zero exit), or `:failed` (real nonzero exit or a real
+  # `GgenIgniter.ShellHook` timeout). `commands` is `[]` for `:absent`/
+  # `:planned` (no real invocation happened -- nothing to append to
+  # `GgenIgniter.Receipt.commands`) or a one-element list for a REAL
+  # invocation (`:ok` or `:failed` alike -- "every invocation, success or
+  # failure" per this module's moduledoc).
+  @spec run_hook(
+          :sh_before | :sh_after,
+          String.t() | nil,
+          boolean(),
+          String.t(),
+          String.t(),
+          String.t() | nil
+        ) ::
+          {:absent | :planned | :ok | :failed, String.t() | nil, [map()]}
+  defp run_hook(_label, nil, _dry_run, _project_dir, _template_path, _out_path),
+    do: {:absent, nil, []}
+
+  defp run_hook(label, cmd, true, _project_dir, _template_path, _out_path) do
+    {:planned, "planned: run #{label}: #{cmd}", []}
+  end
+
+  defp run_hook(label, cmd, false, project_dir, template_path, out_path) do
+    started = System.monotonic_time(:millisecond)
+
+    case ShellHook.run(cmd, project_dir) do
+      {:ok, output} ->
+        duration = System.monotonic_time(:millisecond) - started
+
+        {:ok, "ran #{label}: #{cmd}",
+         [command_entry(label, cmd, template_path, out_path, 0, output, duration, "ok")]}
+
+      {:error, {:sh_exit, code, output}} ->
+        duration = System.monotonic_time(:millisecond) - started
+
+        {:failed, "#{label} failed (exit #{inspect(code)}): #{cmd}\n#{output}",
+         [command_entry(label, cmd, template_path, out_path, code, output, duration, "failed")]}
+
+      {:error, :sh_timeout} ->
+        duration = System.monotonic_time(:millisecond) - started
+
+        {:failed, "#{label} timed out after #{ShellHook.default_timeout_ms()}ms: #{cmd}",
+         [command_entry(label, cmd, template_path, out_path, nil, nil, duration, "timeout")]}
+    end
+  end
+
+  # `GgenIgniter.Receipt.commands`'s entry shape for a `sh_before:`/
+  # `sh_after:` invocation -- see `GgenIgniter.Receipt`'s moduledoc, which
+  # documents this exact shape (the first real production call site to
+  # populate this field).
+  defp command_entry(label, cmd, template_path, target, exit_code, output, duration_ms, status) do
+    %{
+      "kind" => Atom.to_string(label),
+      "cmd" => cmd,
+      "template_path" => template_path,
+      "target" => target,
+      "exit_code" => exit_code,
+      "output" => output,
+      "duration_ms" => duration_ms,
+      "status" => status
+    }
+  end
 
   # Validates `--on-stale` up front (regardless of whether reconciliation
   # actually applies to this run's mode -- cheap to check, and a typo here
@@ -1245,12 +1591,16 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         Keyword.put(inject_opts, :dry_run, dry_run)
       )
 
-    # Never `outcome` here (always `nil`): an inject target is never
-    # manifest-tracked regardless of what `inject_content!/5` itself reports
-    # (`igniter/1` already gates reconciliation on `inject_spec == nil`, so
-    # this value is not even read in that case -- returned as `nil` anyway
-    # for a self-consistent, honest contract).
-    {notice_line(outcome, out_path, dry_run), nil}
+    # The REAL `inject_content!/5` outcome (`:injected`/`:unchanged`) is
+    # returned here -- NOT hardcoded `nil` as before `sh_after:` wiring
+    # needed to distinguish "a real splice just happened" from "already
+    # spliced in, no-op". This is safe: `igniter/1`'s manifest-tracking
+    # `outputs` computation is already gated on `reconcile?`
+    # (`mode == :file and inject_spec == nil`), never on this outcome
+    # value, so an inject target still never becomes manifest-owned --
+    # unchanged behavior, just no longer discarding real information this
+    # caller (`actuate_row!/11`) now needs.
+    {notice_line(outcome, out_path, dry_run), outcome}
   end
 
   defp actuate!(

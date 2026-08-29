@@ -1,0 +1,7 @@
+---
+to: sh_after_success_out.ex
+sh_after: "touch sh_after_ran.marker"
+---
+defmodule ShAfterSuccessOut do
+  def package_name, do: "<%= package_name %>"
+end

@@ -1,0 +1,7 @@
+---
+to: sh_after_fail_out.ex
+sh_after: "exit 7"
+---
+defmodule ShAfterFailOut do
+  def package_name, do: "<%= package_name %>"
+end

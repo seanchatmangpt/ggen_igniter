@@ -120,6 +120,47 @@ defmodule GgenIgniter.Receipt do
   from (see that module's moduledoc). This module itself never parses or
   interprets a path; it is the caller's job to decide, and pass in, a real
   identity.
+
+  ## `commands`' entries (first real production call site)
+
+  `commands` was schema-ready (PRD v2, additive field, defaulting to `[]`)
+  but never actually populated by any real call site until a template's
+  `sh_before:`/`sh_after:` frontmatter fields (`GgenIgniter.Frontmatter`)
+  gained real subprocess execution (`GgenIgniter.ShellHook.run/3`) -- see
+  `Mix.Tasks.GgenIgniter.Sync`'s and `GgenIgniter.Reactors.ReconcileReactor`'s
+  own moduledocs ("sh_before:/sh_after: shell hooks") for the full,
+  disclosed admission-gate/compensation exclusion this field's presence
+  documents. Each entry is a plain, `Jason`-encodable, string-keyed map:
+
+      %{
+        "kind" => "sh_before" | "sh_after",
+        "cmd" => "mix compile",
+        "template_path" => "priv/ggen/some-pack/templates/resource.ex.eex",
+        "target" => "lib/generated/resource.ex" | nil,
+        "exit_code" => 0 | non_neg_integer() | nil,
+        "output" => "...combined stdout+stderr...",
+        "duration_ms" => non_neg_integer(),
+        "status" => "ok" | "failed" | "timeout"
+      }
+
+  `"exit_code"`/`"output"` are `nil` only for `"status" => "timeout"` (the
+  real command was killed via `Task.shutdown/2`'s `:brutal_kill` before it
+  ever produced a real exit status). `Mix.Tasks.GgenIgniter.Sync`'s own
+  inline (`--for-each`-aware) pipeline appends an entry for EVERY real
+  invocation, success or failure (its own new `:sh_before_failed`/
+  `:sh_after_failed` per-row outcome atoms carry the failure without
+  aborting the whole run -- see that module's moduledoc). `GgenIgniter.
+  Reactors.ReconcileReactor`'s atomic all-or-nothing pipeline only ever
+  reaches `finalize_evidence/1` (where `commands` is attached to the
+  receipt) on its own success path, so its `commands` entries are always
+  `"status" => "ok"` -- a failed hook there raises, is caught by the SAME
+  `rescue` clause that already catches a real `Actuate.write_file!/3`/
+  `inject_content!/5` failure, and flows through the existing self-heal/
+  `undo/4` machinery (the failure's exit code/output land in the resulting
+  receipt's `reason`/`metadata["raw_error"]` text instead of a structured
+  `commands` entry -- a smaller, honest scope than the inline pipeline's,
+  disclosed in `ReconcileReactor`'s own moduledoc rather than forced into a
+  shape its atomic architecture does not naturally support).
   """
 
   @receipts_reldir ".ggen_igniter/receipts"

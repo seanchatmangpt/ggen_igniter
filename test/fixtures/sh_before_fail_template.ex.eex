@@ -1,0 +1,7 @@
+---
+to: sh_before_fail_out.ex
+sh_before: "exit 5"
+---
+defmodule ShBeforeFailOut do
+  def package_name, do: "<%= package_name %>"
+end

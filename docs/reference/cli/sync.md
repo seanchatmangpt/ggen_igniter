@@ -30,6 +30,7 @@ Pipeline: `Ontology.load!/1` → `Query`/`Engine.run/2` (once per `--query`) →
 | `--skip-if PATTERN` | string | `nil` | Skip the write if the existing target's content contains this substring (no regex from the CLI flag itself — see Notes). |
 | `--manifest-dir DIR` | string | `File.cwd!()` | Where `.ggen_igniter/manifest.json` is read/written, and (when `--verify-cwd` is absent) the authorized-project-root boundary `GgenIgniter.ArtifactIdentity.within_root?/2` enforces against every `--out` target. |
 | `--verify-cwd DIR` | string | `--manifest-dir` value, else `File.cwd!()` | Directory the Reactor pipeline's `:verify` step runs its real `mix compile --warnings-as-errors` subprocess in. Decouples verification from `--manifest-dir` for the case where the reconciliation-manifest/path-escape boundary and the actual Mix project root differ (e.g. a test writing to an isolated tmp dir outside the real project via `--manifest-dir`, while `--verify-cwd` still points at the real project so `:verify` compiles the right tree). Wired straight through to `GgenIgniter.Reactors.ReconcileReactor.run/1`'s own `:verify_cwd` opt — see that module's moduledoc, "`:verify` scope". Full worked example (including the clear error message when it's omitted by mistake) below. |
+| `--allow-sh` | boolean | `false` | Required if any resolved template's frontmatter sets `sh_before:`/`sh_after:` — absent it, the WHOLE run refuses before any actuation. See "`sh_before:`/`sh_after:` shell hooks" below. |
 
 ## `--ontology`, `--query`, `--template`, `--out`
 
@@ -287,6 +288,80 @@ mix ggen_igniter.sync --pack-dir priv/ggen/ash-lifecycle-pack \
   --for-each resource \
   --out "lib/support_desk/support/<%= String.downcase(resource_name) %>.ex" \
   --on-stale prune
+```
+
+## `sh_before:`/`sh_after:` shell hooks (frontmatter-only, `--allow-sh`) — IMPLEMENTED
+
+Status: **IMPLEMENTED**, see `igniter/1` → `run_via_reactor/3`/`run_pipeline!/3`'s
+`check_allow_sh!/3` calls, `actuate_row!/11` (inline pipeline), and
+`GgenIgniter.Reactors.ReconcileReactor`'s own `check_allow_sh!/2`/
+`actuate_one/2` (Reactor pipeline).
+
+A template's frontmatter may declare a real shell command to run before
+(`sh_before:`) and/or after (`sh_after:`) that target's real
+`write_file!/3`/`inject_content!/5` call, mirroring the real Rust ggen's own
+`Frontmatter.sh_before`/`sh_after` fields (`GgenIgniter.Frontmatter`'s own
+moduledoc). Execution is real: `GgenIgniter.ShellHook.run/3` — `System.cmd("sh",
+["-c", cmd], cd: <project_dir>, stderr_to_stdout: true)`, wrapped in a real
+`Task.async/1` + `Task.yield/2`/`Task.shutdown/2` timeout (default 60s).
+
+**`--allow-sh` is required.** Default `false`. If ANY resolved template
+declares `sh_before:`/`sh_after:` and `--allow-sh` is not passed, the WHOLE
+run refuses before any actuation happens at all (fail-closed, matching
+`--on-stale refuse`'s own default posture), naming the exact template and
+field(s). Checked BEFORE the Reactor dispatch path (`run_via_reactor/3`)
+AND BEFORE the inline pipeline's actuation loop (`run_pipeline!/3`) —
+genuinely separate call paths, both covered. `GgenIgniter.Reactors.
+ReconcileReactor.run/1` independently re-checks the same combination for
+its own direct callers (`reconcile_opts[:allow_sh]`), not only calls
+arriving through this task.
+
+**DISCLOSED, INTENTIONAL LIMITATION** (mirrors ADR-0006's disclosure style):
+a `sh_before:`/`sh_after:` command's real side effects are **NOT**
+integrated into `GgenIgniter.PendingActuation`'s `operation()` type, **NOT**
+inspected by `:admit`'s guards (duplicate-path/path-escape/unowned-delete
+refusal), and **NOT** tracked by `undo/4`'s compensation/revert machinery —
+a template author declaring `sh_before:`/`sh_after:` is trusted the same
+way this repo already trusts a frontmatter `to:` path. `--allow-sh` is the
+one new, deliberately small admission-adjacent mitigation this pass adds.
+
+**Failure semantics differ between the two pipelines:**
+
+- **Inline pipeline (`run_pipeline!/3`, used by `--for-each`)**: a nonzero
+  exit or timeout does **NOT** abort the whole run — it produces a new
+  per-row outcome atom instead (`:sh_before_failed` skips that row's real
+  write/inject entirely; `:sh_after_failed` means the write/inject already
+  genuinely happened and is NOT reverted), extending the existing
+  `:written`/`:injected`/`:unchanged`/`:skipped_exists`/`:skipped_match`
+  vocabulary and its `outcome_summary_suffix/2`/`summary_bucket/1`
+  reporting. Other rows in the same `--for-each` run are unaffected.
+- **Reactor pipeline (`ReconcileReactor`)**: a hook failure is treated as an
+  ordinary actuation failure — it raises, caught by the same `rescue`
+  clause that already catches a real `write_file!/3`/`inject_content!/5`
+  failure, flowing through the EXISTING self-heal/`undo/4` machinery
+  (whole-run revert, `:compensated` standing). This pipeline's `:actuate`
+  step is deliberately all-or-nothing (see its own moduledoc); it does not
+  gain a new per-target outcome vocabulary the way the inline pipeline
+  does.
+
+`--dry-run` previews a shell hook exactly like every other decision in this
+module: `"planned: run sh_before: <cmd>"` / `"planned: run sh_after: <cmd>"`
+is printed, and `GgenIgniter.ShellHook.run/3` is never called.
+
+Every real invocation is appended to `GgenIgniter.Receipt.commands` — see
+that module's moduledoc for the entry shape (`kind`/`cmd`/`template_path`/
+`target`/`exit_code`/`output`/`duration_ms`/`status`). The inline pipeline
+does not otherwise construct a `GgenIgniter.Receipt` at all; a minimal
+`standing: :alive` receipt is appended only for a real (non-`--dry-run`) run
+that declared `sh_before:`/`sh_after:`.
+
+```
+mix ggen_igniter.sync \
+  --ontology test/fixtures/audit_trail_ontology.ttl \
+  --query spec=test/fixtures/spec.rq \
+  --template test/fixtures/sh_after_template.ex.eex \
+  --out tmp_out/probe.ex \
+  --allow-sh
 ```
 
 ## `--verify-cwd DIR` (Reactor pipeline only)
