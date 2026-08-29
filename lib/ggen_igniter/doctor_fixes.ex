@@ -25,6 +25,47 @@ defmodule GgenIgniter.DoctorFixes do
   read internally, so every rule is trivially testable against a real temp
   directory fixture):
 
+  ## Structural codemods, not text/regex splices (`transform`s only)
+
+  Every `transform` in this module (`dep_only_transform!/2`,
+  `apply_ash_domains_fix!/4`, `package_description_transform!/1`,
+  `package_licenses_transform!/1`, and `fix_version_policy!/1`'s write
+  branch) parses the target file with `Sourceror.parse_string!/1`,
+  walks/edits the real AST via a `Sourceror.Zipper`, and re-serializes
+  with `Sourceror.to_string/1` -- using Igniter's own pure-zipper codemod
+  primitives (`Igniter.Code.Module`, `Igniter.Code.Function`,
+  `Igniter.Code.List`, `Igniter.Code.Tuple`, `Igniter.Code.Keyword`, and
+  `Igniter.Project.Config.modify_config_code/4,5`) rather than hand-rolled
+  zipper traversal. Every one of those operates on a plain
+  `Sourceror.Zipper.t()` and needs no `%Igniter{}` -- confirmed by reading
+  `Igniter.new/0`, `Igniter.Project.Deps`, `Igniter.Project.Config`, and
+  `Igniter.Code.Common` before writing any of this. `Igniter.new/0` builds
+  a `Rewrite` project that resolves file paths like `"mix.exs"` against
+  the running process's own cwd, which is incompatible with this module's
+  contract (`project_dir` is an explicit argument, never `File.cwd!()`, so
+  every rule stays testable against an arbitrary temp-dir fixture
+  regardless of the real process's cwd); building a throwaway `%Igniter{}`
+  scoped to `project_dir` would require `File.cd!/2`-ing the whole BEAM
+  process into it for the duration of the call, which is unsafe under
+  `async: true` tests that may run concurrently in other directories. The
+  lower-level `Igniter.Code.*` modules and
+  `Igniter.Project.Config.modify_config_code/5` sidestep that entirely:
+  they take a `Sourceror.Zipper.t()` built directly from a source string
+  and return an updated one, no `%Igniter{}`/`Rewrite`/cwd involved -- an
+  exact fit for `run_rule/3`'s real contract (read a real file for a real
+  `project_dir`, write a real fixed file, no implicit process-global
+  state).
+
+  Only `transform`s were migrated this way -- `predicate`s stay
+  regex-based read-only detection heuristics (unchanged, and still the
+  thing that decides `:ok`/`:fixable`/`:unrecognized`); a `predicate`
+  finding `:fixable` is what licenses a `transform` to run at all, and the
+  structural rewrite is expected to always find what the predicate found
+  for any shape the predicate recognizes -- a mismatch (predicate says
+  fixable, the structural rewrite can't locate the same node) raises a
+  `RuntimeError` rather than silently reporting false success or guessing
+  a different edit, same discipline as everywhere else in this module.
+
     * `predicate` -- read-only. Inspects real files and returns
       `{:ok, message}` (nothing wrong), `{:fixable, message}` (a real,
       recognized gap `transform` can safely repair), or
@@ -82,12 +123,14 @@ defmodule GgenIgniter.DoctorFixes do
   A fifth real check/fix pair (`mix.exs`'s `version:` vs. `CHANGELOG.md`'s
   topmost `## vX` heading) lives at the bottom of this module. It predates
   this rule-engine pass, is not one of the four fixes the engine above was
-  built to generalize, and is left as a plain function pair here
-  deliberately -- it fits the same `(Predicate, Transformation,
-  Verification)` shape and is a natural future `Rule`, but folding it in is
-  out of scope for this pass (and it is still being actively edited by
-  other in-flight work as of this pass -- confirmed via repeated fresh
-  re-reads of this file mid-task, 2026-08-27).
+  built to generalize, and is left as a plain function pair here (not
+  folded into `default_rules/0`/`hex_publish_rules/0`) -- it fits the same
+  `(Predicate, Transformation, Verification)` shape and is a natural future
+  `Rule`, but wiring it into the declarative engine (a new public entry
+  point, a new `default_rules/0` slot, `Mix.Tasks.GgenIgniter.Doctor`
+  wiring) is a separate, larger change than the structural-rewrite pass
+  this fix's own `fix_version_policy!/1` already received (see
+  `rewrite_version_literal/2`).
   """
 
   @config_relpath "config/config.exs"
@@ -268,21 +311,89 @@ defmodule GgenIgniter.DoctorFixes do
   # only case `run_rule/3` invokes this from); rewrites `project_dir`'s
   # `mix.exs`, removing the `:only` restriction from `dep`'s dependency
   # tuple (and only that -- any other options on the same tuple, e.g.
-  # `runtime: false`, are preserved) via a precise single-occurrence text
-  # replacement of the exact tuple matched, never a full-file regex
-  # rewrite.
+  # `runtime: false`, are preserved) via a structural `Sourceror.Zipper`
+  # rewrite of the real `deps/0` AST -- never a text/regex replacement.
   defp dep_only_transform!(project_dir, dep) do
     mix_exs_path = Path.join(project_dir, "mix.exs")
     source = File.read!(mix_exs_path)
-    {:ok, {:tuple, tuple_text}} = locate_dep_tuple(source, dep)
-    fixed_tuple_text = strip_only(tuple_text)
 
-    updated = String.replace(source, tuple_text, fixed_tuple_text, global: false)
-    File.write!(mix_exs_path, updated)
+    case rewrite_dep_only(source, dep) do
+      {:ok, %{source: updated, before: before_text}} ->
+        File.write!(mix_exs_path, updated)
 
-    {:fixed,
-     "relaxed :#{dep} dependency in #{mix_exs_path}: `#{String.trim(tuple_text)}` -> " <>
-       "`#{String.trim(fixed_tuple_text)}`"}
+        {:fixed,
+         "relaxed :#{dep} dependency in #{mix_exs_path}: removed `only:` from `#{before_text}`"}
+
+      :error ->
+        raise RuntimeError,
+              "#{dep}_only_relaxation: predicate found a fixable :only restriction on :#{dep} " <>
+                "in #{mix_exs_path}, but the structural Sourceror.Zipper rewrite could not " <>
+                "locate/relax the same dependency tuple -- refusing to guess"
+    end
+  end
+
+  # Structural counterpart of `locate_dep_tuple/2` + `strip_only/1`: parses
+  # `source` for real, walks to the `deps/0` list via
+  # `Igniter.Code.Module.move_to_module_using/2` +
+  # `Igniter.Code.Function.move_to_defp/3` (the same real, pure-zipper
+  # primitives `Igniter.Project.Deps.set_dep_option/4` uses), locates
+  # `dep`'s tuple via `Igniter.Code.List.move_to_list_item/2` +
+  # `Igniter.Code.Tuple.elem_equals?/3`, then removes just the `only:` key
+  # from that tuple's options via `Igniter.Code.Keyword.remove_keyword_key/2`
+  # -- a real AST edit, not a string splice. Every other option on the
+  # tuple (and every other dependency in the list) is left byte-for-byte
+  # untouched. Returns `:error` (never a guess) if any step doesn't find
+  # what the regex-based predicate already confirmed was there.
+  defp rewrite_dep_only(source, dep) do
+    zipper = source |> Sourceror.parse_string!() |> Sourceror.Zipper.zip()
+
+    with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+         {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
+         true <- Igniter.Code.List.list?(zipper),
+         {:ok, tuple_zipper} <-
+           Igniter.Code.List.move_to_list_item(zipper, fn item ->
+             Igniter.Code.Tuple.tuple?(item) and Igniter.Code.Tuple.elem_equals?(item, 0, dep)
+           end),
+         before_text <-
+           tuple_zipper |> Sourceror.Zipper.node() |> Sourceror.to_string() |> String.trim(),
+         {:ok, opts_zipper} <- Igniter.Code.Tuple.tuple_elem(tuple_zipper, 2),
+         {:ok, opts_zipper} <- Igniter.Code.Keyword.remove_keyword_key(opts_zipper, :only) do
+      final_zipper = collapse_empty_dep_opts(opts_zipper)
+
+      {:ok,
+       %{
+         source: final_zipper |> Sourceror.Zipper.root() |> Sourceror.to_string(),
+         before: before_text
+       }}
+    else
+      _ -> :error
+    end
+  end
+
+  # After removing `:only` (and possibly other options) leaves a dependency
+  # tuple's options list empty (e.g. `{:igniter, "~> 0.8", only: :dev}` had
+  # no other options), collapses the now-degenerate `{name, version, []}`
+  # 3-tuple back down to the plain `{name, version}` 2-tuple shape
+  # `igniter.new`/`phx.new` generate for an unrestricted dependency --
+  # matching this rule's own tests, which assert on that exact 2-tuple
+  # text. When other options remain (e.g. `runtime: false`), the tuple
+  # stays a 3-tuple with the reduced options list untouched.
+  defp collapse_empty_dep_opts(opts_zipper) do
+    if Sourceror.Zipper.node(opts_zipper) == [] do
+      tuple_zipper = Sourceror.Zipper.up(opts_zipper)
+
+      with {:ok, name_zipper} <- Igniter.Code.Tuple.tuple_elem(tuple_zipper, 0),
+           {:ok, version_zipper} <- Igniter.Code.Tuple.tuple_elem(tuple_zipper, 1) do
+        Sourceror.Zipper.replace(
+          tuple_zipper,
+          {Sourceror.Zipper.node(name_zipper), Sourceror.Zipper.node(version_zipper)}
+        )
+      else
+        _ -> opts_zipper
+      end
+    else
+      opts_zipper
+    end
   end
 
   # Locates the `defp deps do ... end` / `def deps do ... end` function body
@@ -579,25 +690,45 @@ defmodule GgenIgniter.DoctorFixes do
     |> Enum.reject(&(&1 == ""))
   end
 
+  # Structural counterpart of the old regex-block-splice: whether
+  # `config :OTP_APP, ash_domains: [...]` already exists (as a 2- or
+  # 3-arg `config` call, anywhere in the file), or doesn't exist at all
+  # yet, `Igniter.Project.Config.modify_config_code/4` (a real,
+  # pure-`Sourceror.Zipper` Igniter codemod -- no `%Igniter{}` needed, see
+  # this module's moduledoc) handles both cases in one real AST edit:
+  # replacing an existing `ash_domains:` value in place, or inserting a
+  # brand-new `config :OTP_APP, ash_domains: [...]` node right after
+  # `import Config` (before any `import_config "#{config_env()}.exs"`
+  # marker, so per-env overrides still take effect after this base value)
+  # when neither exists. Every other `config` entry in the file -- for
+  # this app or any other -- is left untouched.
   defp apply_ash_domains_fix!(config_path, otp_app, registered, missing) do
-    case File.read(config_path) do
-      {:ok, content} ->
-        case Regex.run(ash_domains_block_regex(otp_app), content) do
-          [existing_block] ->
-            new_inner = Enum.join(registered ++ missing, ", ")
-            new_block = Regex.replace(~r/\[[^\]]*\]\z/, existing_block, "[#{new_inner}]")
+    source = File.exists?(config_path) && File.read!(config_path)
 
-            updated = String.replace(content, existing_block, new_block, global: false)
-            File.write!(config_path, updated)
+    updated = rewrite_ash_domains!(source || "import Config\n", otp_app, registered ++ missing)
 
-          nil ->
-            domains_config = "config :#{otp_app}, ash_domains: [#{Enum.join(missing, ", ")}]\n\n"
-            write_config_insertion!(config_path, domains_config, content)
-        end
+    File.mkdir_p!(Path.dirname(config_path))
+    File.write!(config_path, updated)
+  end
 
-      {:error, _} ->
-        domains_config = "config :#{otp_app}, ash_domains: [#{Enum.join(missing, ", ")}]\n\n"
-        write_config_insertion!(config_path, domains_config)
+  defp rewrite_ash_domains!(source, otp_app, all_domains) do
+    zipper = source |> Sourceror.parse_string!() |> Sourceror.Zipper.zip()
+    value = Sourceror.parse_string!("[#{Enum.join(all_domains, ", ")}]")
+
+    case Igniter.Project.Config.modify_config_code(
+           zipper,
+           [:ash_domains],
+           String.to_atom(otp_app),
+           value
+         ) do
+      {:ok, zipper} ->
+        zipper |> Sourceror.Zipper.root() |> Sourceror.to_string()
+
+      other ->
+        raise RuntimeError,
+              "ash_domains_registration: predicate found ash_domains registration fixable for " <>
+                ":#{otp_app}, but the structural config codemod could not apply " <>
+                "(#{inspect(other)}) -- refusing to guess"
     end
   end
 
@@ -682,19 +813,27 @@ defmodule GgenIgniter.DoctorFixes do
   end
 
   # Assumes `package_description_predicate/1` has already confirmed
-  # `:fixable`: inserts `description: description(),` as the first entry of
-  # `package/0`'s keyword list, via a precise single-occurrence text
-  # replacement of the exact `package/0` body matched -- every other entry
-  # is preserved untouched.
+  # `:fixable`: sets `description: description()` in `package/0`'s real
+  # keyword-list AST node via `insert_package_key/3` (a structural
+  # `Sourceror.Zipper` rewrite) -- never a text splice at the function
+  # body's first `[`. Every other entry in `package/0` is preserved
+  # untouched.
   defp package_description_transform!(project_dir) do
     mix_exs_path = Path.join(project_dir, "mix.exs")
     source = File.read!(mix_exs_path)
-    package_body = locate_fn_body(source, "package")
 
-    updated_body =
-      String.replace(package_body, "[", "[\n      description: description(),", global: false)
+    updated =
+      case insert_package_key(source, :description, "description()") do
+        {:ok, new_source} ->
+          new_source
 
-    updated = String.replace(source, package_body, updated_body, global: false)
+        :error ->
+          raise RuntimeError,
+                "package_description: predicate found package/0 fixable in #{mix_exs_path}, " <>
+                  "but the structural Sourceror.Zipper rewrite could not locate package/0's " <>
+                  "real keyword-list AST node -- refusing to guess"
+      end
+
     File.write!(mix_exs_path, updated)
 
     {:fixed, "wired description: description() into package/0 in #{mix_exs_path}"}
@@ -752,19 +891,61 @@ defmodule GgenIgniter.DoctorFixes do
     end
   end
 
+  # Assumes `package_licenses_predicate/1` has already confirmed
+  # `:fixable`: sets `licenses: [spdx]` in `package/0`'s real keyword-list
+  # AST node via `insert_package_key/3` (a structural `Sourceror.Zipper`
+  # rewrite) -- never a text splice at the function body's first `[`.
   defp package_licenses_transform!(project_dir) do
     mix_exs_path = Path.join(project_dir, "mix.exs")
     source = File.read!(mix_exs_path)
-    package_body = locate_fn_body(source, "package")
     spdx = detect_known_license(project_dir)
 
-    updated_body =
-      String.replace(package_body, "[", "[\n      licenses: [#{inspect(spdx)}],", global: false)
+    updated =
+      case insert_package_key(source, :licenses, inspect([spdx])) do
+        {:ok, new_source} ->
+          new_source
 
-    updated = String.replace(source, package_body, updated_body, global: false)
+        :error ->
+          raise RuntimeError,
+                "package_licenses: predicate found package/0 fixable in #{mix_exs_path}, " <>
+                  "but the structural Sourceror.Zipper rewrite could not locate package/0's " <>
+                  "real keyword-list AST node -- refusing to guess"
+      end
+
     File.write!(mix_exs_path, updated)
 
     {:fixed, "wired licenses: [#{inspect(spdx)}] into package/0 in #{mix_exs_path}"}
+  end
+
+  # Structural helper shared by both `package/0` metadata fixes above:
+  # locates `package/0`'s real keyword-list AST node (`def` or `defp`, via
+  # `move_to_named_fn/3`) and sets `key` to the parsed AST of
+  # `value_source` (a snippet of real Elixir source, e.g. `"description()"`
+  # or `inspect([spdx])`) via `Igniter.Code.Keyword.set_keyword_key/4` --
+  # never a full-function-body text rewrite. Returns `:error` (never a
+  # guess) if `package/0` can't be found or its body isn't a keyword list
+  # this rule recognizes.
+  defp insert_package_key(source, key, value_source) do
+    zipper = source |> Sourceror.parse_string!() |> Sourceror.Zipper.zip()
+    value = Sourceror.parse_string!(value_source)
+
+    with {:ok, zipper} <- move_to_named_fn(zipper, :package, 0),
+         true <- Igniter.Code.List.list?(zipper),
+         {:ok, zipper} <- Igniter.Code.Keyword.set_keyword_key(zipper, key, value, &{:ok, &1}) do
+      {:ok, zipper |> Sourceror.Zipper.root() |> Sourceror.to_string()}
+    else
+      _ -> :error
+    end
+  end
+
+  # Moves to a `def name/arity` if one exists, else a `defp name/arity` --
+  # mirrors the old `locate_fn_body/2` regex's `def(?:p)?` alternation, but
+  # structurally.
+  defp move_to_named_fn(zipper, name, arity) do
+    case Igniter.Code.Function.move_to_def(zipper, name, arity) do
+      {:ok, zipper} -> {:ok, zipper}
+      :error -> Igniter.Code.Function.move_to_defp(zipper, name, arity)
+    end
   end
 
   defp detect_known_license(project_dir) do
@@ -831,15 +1012,15 @@ defmodule GgenIgniter.DoctorFixes do
   # versioning convention (calendar-ish, mirrored 1:1 from CHANGELOG.md's
   # own top entry header)
   #
-  # NOTE: added and actively edited by other in-flight work while this
-  # module was being converted to the declarative rule engine above
-  # (2026-08-27, confirmed via repeated fresh re-reads of this file
-  # mid-task). Left as a plain check_*/fix_*! pair, unmodified from its
-  # real current content, rather than folded into the engine -- out of
-  # scope for the rule-engine generalization pass, and folding in code
-  # someone else has mid-flight risks colliding with their own next edit.
-  # It already fits the same (Predicate, Transformation, Verification)
-  # shape and is a natural future `Rule`.
+  # This predates the rule-engine pass above and is still a plain
+  # check_*/fix_*! pair rather than a `Rule` in `default_rules/0` -- folding
+  # it into the declarative engine (a new public entry point, a new
+  # `default_rules/0` slot, doctor.ex wiring) is a separate, larger change
+  # than this pass's scope (migrating `fix_*!`'s *implementation* from
+  # text/regex splices to structural `Sourceror.Zipper` rewrites, same
+  # external contract). It already fits the same
+  # (Predicate, Transformation, Verification) shape and is a natural future
+  # `Rule`.
   # ---------------------------------------------------------------------
 
   @changelog_relpath "CHANGELOG.md"
@@ -903,8 +1084,9 @@ defmodule GgenIgniter.DoctorFixes do
   @doc """
   Applies the fix `check_version_policy/1` detects: rewrites `project_dir`'s
   `mix.exs` `version:` literal to match CHANGELOG.md's topmost `## vX`
-  entry header, via a precise single-occurrence text replacement of the
-  exact `version: "..."` literal matched, never a full-file rewrite.
+  entry header, via a structural `Sourceror.Zipper` rewrite of `project/0`'s
+  real keyword-list AST node (see `rewrite_version_literal/2`) -- never a
+  full-file text/regex rewrite.
 
   Raises a `RuntimeError` instead of guessing if the real shape isn't one
   `check_version_policy/1` recognizes (no CHANGELOG.md, no `## v` heading,
@@ -927,15 +1109,49 @@ defmodule GgenIgniter.DoctorFixes do
         {:ok, mix_version} = read_mix_exs_version(mix_exs_path)
         {:ok, changelog_version} = read_changelog_top_version(changelog_path)
 
-        old_literal = "version: #{inspect(mix_version)}"
-        new_literal = "version: #{inspect(changelog_version)}"
+        updated =
+          case rewrite_version_literal(source, changelog_version) do
+            {:ok, new_source} ->
+              new_source
 
-        updated = String.replace(source, old_literal, new_literal, global: false)
+            :error ->
+              raise RuntimeError,
+                    "check_version_policy/1 found a fixable version: mismatch in " <>
+                      "#{mix_exs_path}, but the structural Sourceror.Zipper rewrite could not " <>
+                      "locate project/0's version: key -- refusing to guess"
+          end
+
         File.write!(mix_exs_path, updated)
 
         {:fixed,
          "corrected mix.exs version: #{inspect(mix_version)} -> #{inspect(changelog_version)} " <>
            "(per CHANGELOG.md's top entry ## v#{changelog_version})"}
+    end
+  end
+
+  # Structural counterpart of the old whole-file `version: "OLD"` ->
+  # `version: "NEW"` text replacement: parses `source`, walks to
+  # `project/0`'s real keyword list (`def` or `defp`, via
+  # `move_to_named_fn/3`), and replaces the `version:` key's string-literal
+  # value in place via `Igniter.Code.Keyword.set_keyword_key/4` -- scoped
+  # to `project/0` specifically (unlike the old whole-source regex), so a
+  # `version:` string appearing anywhere else in the file (a doc comment, a
+  # different function) can never be mistaken for the real one. Returns
+  # `:error` (never a guess) if `project/0` or its `version:` key can't be
+  # located structurally.
+  defp rewrite_version_literal(source, new_version) do
+    zipper = source |> Sourceror.parse_string!() |> Sourceror.Zipper.zip()
+    value = Sourceror.parse_string!(inspect(new_version))
+
+    with {:ok, zipper} <- move_to_named_fn(zipper, :project, 0),
+         true <- Igniter.Code.List.list?(zipper),
+         {:ok, zipper} <-
+           Igniter.Code.Keyword.set_keyword_key(zipper, :version, value, fn existing ->
+             {:ok, Igniter.Code.Common.replace_code(existing, value)}
+           end) do
+      {:ok, zipper |> Sourceror.Zipper.root() |> Sourceror.to_string()}
+    else
+      _ -> :error
     end
   end
 
