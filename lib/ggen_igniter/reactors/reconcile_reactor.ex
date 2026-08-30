@@ -1310,13 +1310,53 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # real run with N-1 rows (one row's own driver condition genuinely
   # removed) asserts ONLY the genuinely-removed row's path is stale -- none
   # of the N-1 still-produced rows' paths are wrongly flagged.
+  #
+  # Real, second correctness fix found during independent post-merge
+  # verification of the above (not part of the original workstream B report,
+  # confirmed by a genuine `mix test` failure on `main` -- never reproduced
+  # inside the isolated worktree the original work was authored in, since
+  # that worktree's own `.ggen_igniter/manifest.json` never accumulated
+  # ANY inline-pipeline-authored entry for the recipe that tripped it):
+  # `representative.old_entry`'s stored `outputs` keys may be RAW,
+  # non-canonicalized path strings -- `Mix.Tasks.GgenIgniter.Sync.
+  # run_pipeline!/3`'s own inline manifest-commit code (`igniter/1`, the
+  # `outputs = for {_line, out_path, ...} <- ..., into: %{}, do: {out_path,
+  # ...}` block) has ALWAYS recorded the raw, uncanonicalized `Render.
+  # render/2` output as its key -- self-consistent as long as a recipe stays
+  # on the inline pipeline forever, since both its write and its own
+  # `Manifest.stale_paths/2` check use that same raw form. `new_paths` above,
+  # by contrast, is built from `canonical_out_path`
+  # (`ArtifactIdentity.canonicalize/2`'s result). Before v26.9.2, no
+  # frontmatter-bearing/`--for-each` recipe could ever reach the reactor at
+  # all, so this raw-vs-canonical mismatch was completely dormant; workstream
+  # A/B's widened routing means a recipe with a PRE-EXISTING inline-pipeline
+  # manifest entry (raw key) now hits the reactor's canonical-key stale
+  # check for the first time on upgrade -- `MapSet.difference/2` (inside the
+  # old `Manifest.stale_paths/2` call) never recognizes
+  # `"tmp_out/frontmatter/AuditTrail.Resource.ex"` (raw, as the inline
+  # pipeline wrote it) and `"/abs/.../tmp_out/frontmatter/AuditTrail.Resource.ex"`
+  # (canonical, as this run computes it) as the SAME real file, so it always
+  # reports the raw key as stale even when this run is about to write that
+  # identical real path again. Fixed the same way this codebase's own
+  # duplicate-path/case-fold guards already treat this exact class of
+  # problem (`ArtifactIdentity.canonicalize/2`, never a raw string compare):
+  # canonicalize every one of `old_entry`'s stored output-path KEYS against
+  # `base_dir` before diffing, so a legacy raw-keyed entry and this run's own
+  # canonical path are compared by real identity, not by string equality.
   defp compute_stale_deletes(recipes, base_dir) do
     recipes
     |> Enum.group_by(& &1.recipe_key)
     |> Enum.flat_map(fn {_recipe_key, group} ->
       representative = List.first(group)
       new_paths = group |> Enum.map(& &1.canonical_out_path) |> MapSet.new()
-      stale = Manifest.stale_paths(representative.old_entry, new_paths)
+
+      old_paths_canonical =
+        representative.old_entry
+        |> Manifest.output_paths()
+        |> Enum.map(&ArtifactIdentity.canonicalize(base_dir, &1))
+        |> MapSet.new()
+
+      stale = MapSet.difference(old_paths_canonical, new_paths)
 
       for path <- Enum.sort(MapSet.to_list(stale)) do
         PendingActuation.for_delete(

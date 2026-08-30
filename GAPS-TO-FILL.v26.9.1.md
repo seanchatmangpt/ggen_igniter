@@ -15,7 +15,29 @@ written: see items 4-8 below, added by that review, for exactly which paths stil
 that safety net and where the architecture itself has drifted (`Controller` defaulting to the
 wrong pipeline).
 
-## 1. `sh_after` frontmatter field is parsed but never executed (highest priority)
+## 1. `sh_after` frontmatter field is parsed but never executed (highest priority) — RESOLVED (v26.9.1, commit `d601983`)
+
+Closed in full: `GgenIgniter.ShellHook.run/3` (`lib/ggen_igniter/shell_hook.ex`)
+executes a template's `sh_before:`/`sh_after:` frontmatter field for real via
+`System.cmd("sh", ["-c", cmd], ...)`, gated by `--allow-sh`, wired into both
+`sync.ex`'s inline pipeline and `ReconcileReactor`'s `actuate_one/2` — see
+`CHANGELOG.md`'s v26.9.1 entry and `docs/status.md`'s `sh_before:`/`sh_after:`
+row for the full, independently-re-verified disclosure (three real manual
+`mix ggen_igniter.sync` invocations, not just the new test suite). The
+failure-semantics question this gap's own "Suggested shape" section left
+open (does a nonzero exit fail the whole run or only that row?) was answered
+per-pipeline, disclosed as an intentional difference: the inline pipeline's
+`sh_before:`/`sh_after:` failure is a per-row outcome that does not abort the
+run; the Reactor pipeline treats it as an ordinary actuation failure with
+real `undo/4` compensation. **v26.9.2 update**: now that `--for-each` also
+routes through the Reactor pipeline (see gap #5 below), a `sh_before:`/
+`sh_after:` failure can no longer reach the inline pipeline's per-row
+semantics at all in practice — `test/ggen_igniter_sync_sh_hooks_test.exs`'s
+two failure-mode tests were updated to assert the Reactor's all-or-nothing
+outcome instead, a real, disclosed contract change (see `CHANGELOG.md`'s
+v26.9.2 entry), not a regression of this gap's original fix.
+
+## 1 (original text, kept for the historical record below)
 
 `GgenIgniter.Frontmatter` parses a `sh_after: "..."` field (`lib/ggen_igniter/frontmatter.ex:35,96,124,191`)
 into every real `%GgenIgniter.Frontmatter{}` struct returned by `GgenIgniter.Frontmatter.parse/1`.
@@ -55,7 +77,16 @@ Not proposing this be un-decided -- noting it as the real, concrete migration co
 pays per template when adopting `sync.ex` in place of the Rust CLI, so it's visible in one place
 rather than rediscovered per-consumer.
 
-## 3. `GgenIgniter.Query.Qlever.load_store!/2`'s dead-code branch (pre-existing, low priority)
+## 3. `GgenIgniter.Query.Qlever.load_store!/2`'s dead-code branch (pre-existing, low priority) — RESOLVED (v26.9.1, commit `d601983`)
+
+Closed: the pointless `case ... do rows when is_list(rows) -> ... end` wrapping
+a stub-typed `no_return()` call was removed from `check_qlever_reachable/2` —
+the existing `rescue` clause a few lines below already handled both the
+stub's raise and any real network/query failure. See `CHANGELOG.md`'s v26.9.1
+entry ("`mix ggen_igniter.doctor`'s `check_qlever_reachable/2` dialyzer
+fix"). Original gap text kept below for the historical record.
+
+## 3 (original text)
 
 `lib/mix/tasks/ggen_igniter.doctor.ex:648`, `check_qlever_reachable/2`: a Dialyzer-style compiler
 typing warning ("the following pattern will never match... because the right-hand side has type
@@ -79,7 +110,21 @@ actually exercised anywhere except `Controller`'s now-default branch. Concrete f
 `Controller`'s expected return shape) and retire `Reconcile.run/1` once `Controller` no longer
 needs it.
 
-## 5. `--for-each` and `mode: eval` get zero Reactor/compensation coverage even after the AR-9/AR-10 corrections
+## 5. `--for-each` and `mode: eval` get zero Reactor/compensation coverage even after the AR-9/AR-10 corrections — HALF RESOLVED (v26.9.2)
+
+`--for-each` half of this gap is closed: `--for-each` now routes through
+`GgenIgniter.Reactors.ReconcileReactor.run/1` (`Mix.Tasks.GgenIgniter.Sync.
+run_for_each_via_reactor!/7`), with real `undo/3` compensation coverage —
+see `CHANGELOG.md`'s v26.9.2 entry and `docs/status.md`'s "`--for-each NAME`
+real compensation coverage" row for the full disclosure, including the
+real, intentional all-or-nothing behavior-change trade-off this brings.
+`mode: eval` remains OUT of scope, unchanged: `ReconcileReactor`'s `:render`
+step still has the real, pre-existing, unconditional crash on `:eval`
+targets this gap's original text and `test/ggen_igniter_reconcile_reactor_test.exs`'s
+":eval compensation-completeness" test both already named — v26.9.2 did not
+touch this. Original gap text kept below for the historical record.
+
+## 5 (original text)
 
 `run_via_reactor/3` (`lib/mix/tasks/ggen_igniter.sync.ex`) explicitly returns
 `{:not_delegatable, ...}` for `for_each not in [nil, ""]`, and separately falls back to the

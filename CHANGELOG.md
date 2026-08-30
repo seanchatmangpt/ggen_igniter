@@ -1,5 +1,164 @@
 # Changelog
 
+## v26.9.2
+
+Two-workstream integration pass (isolated in a `git worktree`, independently
+re-verified before merge -- not trusted on the workstream's own say-so,
+including re-running its own headline regression test and separately
+hand-reproducing both correctness claims against real files/manifest
+content before merging).
+
+- **Template frontmatter inline `sparql:` query text now resolves through
+  `GgenIgniter.Reactors.ReconcileReactor.run/1`** -- `resolve_named_queries!/1`
+  widened to `/2`, delegating directly to
+  `Mix.Tasks.GgenIgniter.Sync.resolve_named_queries!/2` (reused verbatim, not
+  re-derived) so a target's own frontmatter `sparql:` block is consulted the
+  same real merge-by-priority way `sync.ex`'s inline pipeline already does.
+  `run_via_reactor/3`'s `{:not_delegatable, "template frontmatter's inline
+  \"sparql:\" ..."}` guard is removed. `mode: eval` combined with frontmatter
+  stays excluded from Reactor delegation, unchanged and independent of this
+  fix -- a real, pre-existing `ReconcileReactor` `:render`-step crash on
+  `:eval` targets (see `docs/status.md`'s existing "`inject: true` closure"
+  row), out of this pass's scope to fix.
+- **`--for-each NAME` fan-out now also routes through
+  `GgenIgniter.Reactors.ReconcileReactor.run/1`** -- new
+  `Mix.Tasks.GgenIgniter.Sync.run_for_each_via_reactor!/7` runs the driver
+  query via the exact same call path `run_pipeline!/3` already uses
+  (`Engine.fetch!/1` -> `Ontology.load!/1` -> `resolve_named_queries!/2` ->
+  `run_queries/4` -> `fetch_driver_rows!/2`) and expands each row into a
+  `[for_each_row: row]` per-target override consumed by `ReconcileReactor`'s
+  existing `:targets` mechanism -- no second, parallel fan-out path added.
+  `run_via_reactor/3`'s `{:not_delegatable, "--for-each ..."}` guard is
+  removed.
+- **Real correctness fix, found and closed in the same pass**: stale-prune
+  detection for a `--for-each` recipe routed through the reactor is now
+  computed ONCE per `(template, out_template)` recipe, against the UNION of
+  every row's own canonical output path (new `compute_stale_deletes/2`),
+  instead of the prior per-target diff in `render_file_target/7`, which
+  independently compared each row's own single output path against the
+  recipe's FULL prior manifest entry -- wrongly flagging every OTHER row's
+  own still-produced sibling path as stale on that row's own diff. The
+  matching manifest-write bug is fixed alongside it: `commit_recipe_group/5`
+  now unions every row's real output into ONE manifest entry per
+  `recipe_key` before a single `Manifest.put/3` call, instead of each row's
+  own `commit_recipe/5` call independently overwriting the same key.
+  Independently re-verified this pass with a real, by-hand repro (not just
+  the new automated regression test): ran a real 3-row `--for-each` sync,
+  read the real `manifest.json` (all 3 paths present under one recipe
+  entry), then re-ran with a real 2-row ontology and `--on-stale prune` --
+  only the genuinely-removed row's file was pruned, the other two rows
+  reported `unchanged` and were left byte-identical on disk, and the
+  resulting `manifest.json` correctly lists only the two surviving paths.
+  New `test/ggen_igniter_sync_for_each_reactor_test.exs` proves the same
+  fact through the actual CLI path (real subprocess, real files, no mocks).
+- **DISCLOSED, INTENTIONAL BEHAVIOR CHANGE**: because every row of a
+  `--for-each` recipe now runs inside ONE `ReconcileReactor.run/1`
+  invocation, `:actuate` is all-or-nothing -- a genuine mid-run failure on
+  one row (independently re-verified with a real invalid-Elixir-identifier
+  row that fails a real `mix compile --warnings-as-errors`) now triggers
+  Reactor's real `undo/3`, reverting EVERY row's writes in that run, not
+  just the failing row's. Before this pass, `--for-each` always ran via the
+  inline `run_pipeline!/3` pipeline, which allowed genuine per-row partial
+  success (a failed row did not abort or revert its siblings) and had no
+  compensation machinery at all for this path. A second, related, disclosed
+  strictness increase: every `--for-each` row now passes through
+  `ReconcileReactor`'s own `:admit` gate, including its real
+  duplicate-canonical-output-path refusal and its real
+  authorized-project-root escape refusal
+  (`GgenIgniter.ArtifactIdentity.within_root?/2`) -- both previously
+  silently permitted under the inline pipeline's sequential, uncoordinated
+  writes. This is the same disclosure discipline this file's own
+  `sh_before:`/`sh_after:` entry (v26.9.1, above) and
+  `docs/architecture/adr/0006-marker-based-injection-not-ast-patch.md` both
+  already use for a deliberate scope trade-off: named as a real, intentional
+  behavior change with its own regression test, not silently absorbed.
+  `test/ggen_igniter_sync_sh_hooks_test.exs`'s two failure-mode tests now
+  assert the OPPOSITE outcome from before this pass for exactly this
+  reason: a failing `sh_before:`/`sh_after:` (a frontmatter-only field, with
+  no CLI equivalent, so it can no longer reach the inline pipeline at all
+  once `--for-each` and inline `sparql:` both route through the reactor)
+  now fails the whole run via real compensation instead of the inline
+  pipeline's old per-row outcome.
+- **UX parity ported into the reactor pipeline** so routing `--for-each`/
+  inline `sparql:` through it does not regress `sync.ex`'s existing
+  notice-text features: `--on-stale prune`/`preserve` real notice text
+  (`finalize_evidence/1`'s `prune_lines`/`preserve_warning` receipt
+  metadata) and the `outcome_summary_suffix` "`-- summary: wrote N, skipped
+  M`" convention (new `reactor_summary_suffix/1`), both mirroring `sync.ex`'s
+  own exact conventions.
+- **Second real correctness fix, found independently during this pass's own
+  post-merge verification** (not part of the original workstream report,
+  which never reproduced it — its own isolated `git worktree` had no
+  pre-existing manifest state to expose it): `compute_stale_deletes/2`'s
+  diff against a recipe's PRIOR manifest entry compared raw path strings,
+  not real path identity. `Mix.Tasks.GgenIgniter.Sync.run_pipeline!/3`'s own
+  inline pipeline has always recorded a manifest entry's `outputs` keys as
+  the RAW, uncanonicalized rendered path (self-consistent as long as a
+  recipe stays on the inline pipeline forever); the Reactor pipeline records
+  and compares `ArtifactIdentity.canonicalize/2`'s canonical form instead.
+  Before this pass, no frontmatter-bearing/`--for-each` recipe could ever
+  reach the Reactor at all, so this raw-vs-canonical mismatch was completely
+  dormant. Once workstream A/B widened Reactor routing, ANY recipe with a
+  pre-existing inline-pipeline manifest entry hit this mismatch on its first
+  post-upgrade run and was wrongly refused as "stale" even though it was
+  about to write the identical real file again — caught by a genuine `mix
+  test` failure on `main`'s own real, already-accumulated
+  `.ggen_igniter/manifest.json` (a local, gitignored dev artifact, not
+  committed state) in `test/ggen_igniter_sync_frontmatter_test.exs`, not by
+  the new automated suite. Fixed the same way this codebase's own
+  duplicate-path/case-fold guards already treat this exact class of problem
+  (`ArtifactIdentity.canonicalize/2`, never a raw string compare):
+  `compute_stale_deletes/2` now canonicalizes every one of a recipe's prior
+  manifest output-path keys against `base_dir` before diffing against this
+  run's own (already-canonical) paths.
+- **`--replay` file-path-dependency risk, investigated and confirmed a
+  non-issue** (not just asserted): read `lib/mix/tasks/ggen_igniter.replay.ex`
+  and `lib/ggen_igniter/receipt.ex` in full this pass. `replay`'s
+  ontology-drift/template-drift detection keys entirely off `recipe_key`
+  (`template_path=>out_template`), `metadata["graph_hash"]`, and the
+  template's own current hash -- the word "query" appears nowhere in
+  `receipt.ex`, and `replay` never reads query text or a query path. This
+  pass's inline-`sparql:` routing change has no effect on `--replay`'s real
+  dependency surface; confirmed by direct read, no fix needed.
+- **Test migration, wider than originally scoped**: 12 existing test files
+  needed `--manifest-dir`/`--verify-cwd` added now that they genuinely reach
+  `ReconcileReactor`'s real `:admit`/`:verify` steps. Several of these
+  (`ggen_igniter_sync_inject_test.exs`, the inject case in
+  `ggen_igniter_sync_inprocess_dispatch_test.exs`,
+  `ggen_igniter_sync_sh_hooks_test.exs`) are a real, confirmed finding: their
+  own fixture templates carry an inline `sparql:` frontmatter block, so
+  before this pass's inline-`sparql:` fix they were silently exercising the
+  inline `run_pipeline!/3` pipeline the whole time, never the reactor path
+  their own names/moduledocs claimed to test.
+  `ggen_igniter_sync_inprocess_reconcile_test.exs`'s stale-refusal test now
+  expects `RuntimeError` instead of `ArgumentError`, since
+  `dispatch_reactor_reconcile/2` wraps every reactor reconciliation failure
+  in a plain `raise`.
+- **Version**: `mix.exs` bumped `26.9.1` -> `26.9.2` (`version:`/`source_ref:`
+  kept in sync per this file's own versioning convention -- see
+  `test/ws5_contracts/16_version_contract_test.exs` and
+  `test/ggen_igniter_doctor_task_test.exs`'s `check_version_policy` tests).
+- **Verification (this release)**: `mix format --check-formatted` -- clean.
+  `mix compile --warnings-as-errors` -- clean (only the pre-existing,
+  unrelated `:preferred_cli_env` deprecation warning). Full `mix test`, run
+  four times total across this integration pass -- honestly reported, not
+  just the clean ones: once in the isolated `git worktree` before merge (0
+  failures); once on `main` immediately after merge (1 failure -- the
+  second real correctness fix above, caught here for the first time); once
+  more on `main` after that fix (1 unrelated failure, a self-inflicted
+  transient: `test/ws5_contracts/16_version_contract_test.exs` was mid-edit
+  when that run started, so it briefly asserted the OLD `26.9.1` literal
+  against the already-bumped `mix.exs`); and a final, true "everything
+  settled" run: **15 doctests, 42 properties, 495 tests, 0 failures** (up
+  from 493 in v26.9.1 -- the 2 new tests are
+  `test/ggen_igniter_sync_for_each_reactor_test.exs`'s own real-subprocess
+  regression proofs). No flaky failure observed in
+  `test/ggen_igniter_lock_staleness_properties_test.exs` (the real
+  subprocess/wall-clock timing property v26.8.30/v26.9.1 both already
+  disclosed as occasionally flaky under full-suite concurrent load) in any
+  of the four runs this pass. `grep -rn "Mock\|mock(\|patch(\|monkeypatch"
+  test lib native` -- zero real matches. HEAD at merge: `8eb27cc`.
+
 ## v26.9.1
 
 Seven-workstream integration pass (one isolated in a `git worktree`, six run
