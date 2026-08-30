@@ -1,8 +1,7 @@
 name: one-shot generated-dir verifier
 
 on:
-  push:
-    branches: [fix/forbid-generated-output-dir]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -27,13 +26,13 @@ jobs:
         run: |
           git diff --stat
           git diff --check
-          git diff -- README.md lib/ggen_igniter/actuate.ex lib/mix/tasks/ggen_igniter.sync.ex test/generated_directory_policy_test.exs
+          git diff -- README.md lib/ggen_igniter/actuate.ex lib/ggen_igniter/reactors/reconcile_reactor.ex lib/mix/tasks/ggen_igniter.sync.ex test/generated_directory_policy_test.exs
 
       - name: Dependencies
         run: mix deps.get
 
       - name: Format
-        run: mix format lib/ggen_igniter/actuate.ex lib/mix/tasks/ggen_igniter.sync.ex test/generated_directory_policy_test.exs
+        run: mix format lib/ggen_igniter/actuate.ex lib/ggen_igniter/reactors/reconcile_reactor.ex lib/mix/tasks/ggen_igniter.sync.ex test/generated_directory_policy_test.exs
 
       - name: Compile
         run: mix compile --warnings-as-errors
