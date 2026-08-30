@@ -67,7 +67,23 @@ defmodule GgenIgniter.SyncFrontmatterTest do
       "--out",
       explicit_out,
       "--query",
-      "spec=test/fixtures/spec.rq"
+      "spec=test/fixtures/spec.rq",
+      # v26.9.2 (workstream A real finding): `self_contained_module.ex.eex`'s
+      # frontmatter inline `sparql:` block used to make
+      # `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3` refuse to delegate
+      # (falling back to the inline `run_pipeline!/3` pipeline, which has no
+      # authorized-root check and no `:verify` step) -- so this test was
+      # SILENTLY exercising the inline pipeline the whole time, never the
+      # reactor path. Now that workstream A resolves inline `sparql:` too,
+      # this genuinely routes through the reactor, which enforces the SAME
+      # authorized-project-root/`:verify` requirements every other
+      # reactor-routed write in this codebase already does (`explicit_out`
+      # resolves outside the repo root) -- required here for the same real
+      # reason `ggen_igniter_sync_task_test.exs`'s own equivalent flags are.
+      "--manifest-dir",
+      Path.dirname(explicit_out),
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     {output, exit_code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)

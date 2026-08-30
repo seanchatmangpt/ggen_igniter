@@ -141,14 +141,23 @@ defmodule GgenIgniter.SyncDryRunTest do
   end
 
   test "--dry-run with --for-each plans one line per row and writes zero real files" do
-    out_dir =
+    # `root_dir` wraps `out_dir` as its own subdirectory -- kept DISTINCT
+    # because `GgenIgniter.Lock.acquire/2` (called unconditionally, even
+    # under `--dry-run`, to guard against a concurrent real run)
+    # `File.mkdir_p!/1`s `--manifest-dir` for real -- pointing `--manifest-dir`
+    # AT `out_dir` itself would create `out_dir` as a real side effect,
+    # breaking this test's own "the output directory itself was never
+    # created" assertion below.
+    root_dir =
       Path.join(
         System.tmp_dir!(),
         "ggen_igniter_dry_run_for_each_test_#{System.unique_integer([:positive])}"
       )
 
-    File.rm_rf!(out_dir)
-    on_exit(fn -> File.rm_rf!(out_dir) end)
+    out_dir = Path.join(root_dir, "output")
+
+    File.rm_rf!(root_dir)
+    on_exit(fn -> File.rm_rf!(root_dir) end)
 
     out_template = Path.join(out_dir, "<%= module_name %>.ex")
 
@@ -171,6 +180,15 @@ defmodule GgenIgniter.SyncDryRunTest do
       "test/fixtures/for_each_module.ex.eex",
       "--out",
       out_template,
+      # v26.9.2 (workstream B): `--for-each` now routes through
+      # `GgenIgniter.Reactors.ReconcileReactor.run/1`, whose `:admit` guard
+      # (real authorized-project-root check) and `:verify` step (real `mix
+      # compile`) both run even under `--dry-run` -- see this file's other
+      # tests' own `--manifest-dir`/`--verify-cwd` comments for why.
+      "--manifest-dir",
+      root_dir,
+      "--verify-cwd",
+      File.cwd!(),
       "--dry-run"
     ]
 

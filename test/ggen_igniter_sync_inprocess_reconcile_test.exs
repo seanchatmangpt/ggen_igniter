@@ -79,7 +79,15 @@ defmodule GgenIgniter.SyncInProcessReconcileTest do
       "--out",
       out_template(out_dir),
       "--manifest-dir",
-      out_dir
+      out_dir,
+      # v26.9.2: `--for-each` now routes through
+      # `GgenIgniter.Reactors.ReconcileReactor.run/1`, whose `:verify` step
+      # needs a real Mix project directory for its `mix compile` subprocess
+      # -- `out_dir` (a bare tmp dir) is not one. Before v26.9.2,
+      # `--for-each` always ran via the inline `run_pipeline!/3` pipeline,
+      # which has no `:verify` step at all.
+      "--verify-cwd",
+      File.cwd!()
     ] ++ extra_opts
   end
 
@@ -127,8 +135,16 @@ defmodule GgenIgniter.SyncInProcessReconcileTest do
 
     # No --on-stale flag at all -- the real default, resolve_on_stale!(nil),
     # must resolve to :refuse and really raise, not silently no-op.
+    #
+    # v26.9.2: this now routes through `GgenIgniter.Reactors.
+    # ReconcileReactor.run/1` (via `--for-each`, workstream B), which wraps
+    # EVERY reconciliation failure in a plain `raise "..."` from
+    # `Mix.Tasks.GgenIgniter.Sync.dispatch_reactor_reconcile/2` -- a
+    # `RuntimeError`, not the inline pipeline's own `ArgumentError` -- the
+    # real message text (`describe_failure/1`'s `:refused_stale_outputs`
+    # case) still names the same real facts, asserted below.
     error =
-      assert_raise ArgumentError, fn ->
+      assert_raise RuntimeError, fn ->
         run_sync!(sync_args(@ontology_rename, out_dir))
       end
 

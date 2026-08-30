@@ -568,19 +568,19 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   #
   # `run_via_reactor/3` only ever returns `{:not_delegatable, reason}` for a
   # request outside `GgenIgniter.Reactors.ReconcileReactor.run/1`'s own
-  # documented bounded scope: `--for-each` fan-out, or a template whose
-  # frontmatter declares INLINE `sparql:` query text -- neither has a
-  # Reactor-pipeline equivalent yet (`ReconcileReactor`'s own
-  # `resolve_named_queries!/1` only ever resolves explicit `--query`/
-  # pack-discovered `.rq` files, never a frontmatter `sparql:` block). A
-  # template with ANY OTHER frontmatter -- including `inject: true` --
-  # DOES route through the Reactor pipeline as of the correction below; see
-  # `run_via_reactor/3`'s own doc comment. For the two requests still outside
-  # scope, this task keeps the exact pre-existing `dispatch_pipeline/3`
-  # behavior (controller delegation when running, else the plain inline
-  # pipeline) -- never a silent reinterpretation of what an unsupported
-  # flag does -- and logs a one-time migration notice naming exactly which
-  # flag/feature has no Reactor-pipeline equivalent yet.
+  # documented bounded scope. As of v26.9.2 (workstreams A and B, see
+  # `run_via_reactor/3`'s own doc comment and `run_for_each_via_reactor!/7`),
+  # that scope is down to exactly ONE real gap: `mode: eval` combined with
+  # template frontmatter (a pre-existing `ReconcileReactor` `:render`-step
+  # defect, independent of frontmatter parsing itself -- see that clause's
+  # own comment). Both `--for-each` fan-out and a template's frontmatter
+  # inline `sparql:` query text -- the two gaps THIS comment originally
+  # described -- now route through the Reactor pipeline for real. For the
+  # one request still outside scope, this task keeps the exact pre-existing
+  # `dispatch_pipeline/3` behavior (controller delegation when running, else
+  # the plain inline pipeline) -- never a silent reinterpretation of what an
+  # unsupported flag does -- and logs a one-time migration notice naming
+  # exactly which flag/feature has no Reactor-pipeline equivalent yet.
   #
   # Correction (2026-08-27, AR-10): before this correction, `run_via_reactor/3`
   # refused delegation for ANY frontmatter-bearing template, including
@@ -780,7 +780,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     check_allow_sh!(opts, frontmatter, template_path)
 
     for_each = opts[:for_each] || frontmatter_field(frontmatter, :for_each)
-    inline_sparql = frontmatter_field(frontmatter, :sparql)
 
     # `mode` is always `:file` or `:eval` -- `resolve_mode!/2` returns
     # `frontmatter_mode` (never `nil`; `Frontmatter.split_template/1` itself
@@ -789,21 +788,10 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     mode = resolve_mode!(opts, frontmatter_mode)
 
     cond do
-      inline_sparql not in [nil, %{}] ->
-        {:not_delegatable,
-         "template frontmatter's inline \"sparql:\" query text (#{template_path} -- " <>
-           "GgenIgniter.Reactors.ReconcileReactor.run/1 only resolves explicit --query/" <>
-           "pack-discovered queries, never a frontmatter sparql: block)"}
-
-      for_each not in [nil, ""] ->
-        {:not_delegatable,
-         "--for-each #{inspect(for_each)} (GgenIgniter.Reactors.ReconcileReactor.run/1 does " <>
-           "not implement multi-row fan-out)"}
-
       # `mode: eval` (frontmatter-driven or `--mode eval`) is deliberately
-      # EXCLUDED from this AR-10 widening, independent of frontmatter/inject
-      # at all: `ReconcileReactor`'s `:render` step has a real, separately
-      # documented, unconditional crash for ANY `:eval` target --
+      # EXCLUDED from Reactor delegation, independent of frontmatter/inject/
+      # `--for-each`: `ReconcileReactor`'s `:render` step has a real,
+      # separately documented, unconditional crash for ANY `:eval` target --
       # `PendingActuation.for_eval/3`'s `target` is always `nil`, and
       # `:render`'s own `PLAN_CONSTRUCTED` telemetry emission
       # (`file_objects/1` -> `OcelEmitter.file_object/1`) has no clause for
@@ -811,23 +799,18 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       # `:actuate` ever run -- see
       # `test/ggen_igniter_reconcile_reactor_test.exs`'s ":eval
       # compensation-completeness: REAL FINDING -- unreachable, not just
-      # untested" test for the direct, reproduced proof. That is a
-      # pre-existing `ReconcileReactor` defect, entirely independent of the
-      # `inject: true` gap AR-10 closes, and out of THIS correction's scope
-      # to fix. Before AR-10, a `mode: eval` template with frontmatter (the
-      # only way to express `mode: eval` at all -- there is no CLI
-      # equivalent to the frontmatter fields other than `--mode` itself) was
-      # incidentally shielded from this crash by the old blanket
-      # `frontmatter != nil` guard; this clause preserves that same
-      # shielding specifically for `mode: eval`, so AR-10 cannot regress
-      # `test/ggen_igniter_sync_eval_mode_test.exs` while still opening the
-      # gate for `mode: file`/`inject: true`, which is real, tested, and
-      # crash-free (see `test/ggen_igniter_reconcile_reactor_inject_test.exs`).
-      # A header-less `mode: eval` template (`frontmatter == nil`, `--mode
-      # eval` on the CLI) is UNCHANGED by this clause -- it already routed
-      # through the Reactor pipeline before AR-10 and still does; the same
-      # pre-existing `:render` crash would already apply to it today,
-      # independent of this correction.
+      # untested" test for the direct, reproduced proof. Checked BEFORE the
+      # `--for-each` clause below (v26.9.2) so a `--for-each` +
+      # `mode: eval` combination cannot accidentally reach the newly-real
+      # `--for-each`-via-reactor path and hit that same crash through a
+      # different door -- this is a pre-existing `ReconcileReactor` defect,
+      # entirely independent of the `inject: true`/`sparql:`/`--for-each`
+      # gaps this module's AR-10/v26.9.2 corrections close, and out of
+      # THIS correction's scope to fix. A header-less `mode: eval` template
+      # (`frontmatter == nil`, `--mode eval` on the CLI) is UNCHANGED by
+      # this clause -- it already routed through the Reactor pipeline
+      # before AR-10 and still does; the same pre-existing `:render` crash
+      # would already apply to it today, independent of this correction.
       frontmatter != nil and mode == :eval ->
         {:not_delegatable,
          "template frontmatter combined with mode: eval (#{template_path} -- " <>
@@ -835,6 +818,24 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
            "pre-existing, documented crash for :eval targets independent of frontmatter; " <>
            "see test/ggen_igniter_reconcile_reactor_test.exs's \":eval " <>
            "compensation-completeness\" finding)"}
+
+      # v26.9.2 (workstream B): `--for-each NAME` fan-out now routes through
+      # `GgenIgniter.Reactors.ReconcileReactor.run/1` too -- see
+      # `run_for_each_via_reactor!/7`'s own doc comment for the real
+      # mechanism and the disclosed all-or-nothing/stricter-admission
+      # trade-offs this brings. Before v26.9.2, this was
+      # `{:not_delegatable, "--for-each ..."}` unconditionally, falling back
+      # to `dispatch_pipeline/3`'s inline `run_pipeline!/3`.
+      for_each not in [nil, ""] ->
+        run_for_each_via_reactor!(
+          igniter,
+          opts,
+          pack_template_stem,
+          template_path,
+          frontmatter,
+          for_each,
+          mode
+        )
 
       true ->
         resolved_out = opts[:out] || frontmatter_field(frontmatter, :to)
@@ -880,24 +881,127 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
           )
           |> Keyword.put(:skip_if, opts[:skip_if] || frontmatter_skip_if!(frontmatter))
 
-        case ReconcileReactor.run(reconcile_opts) do
-          {:ok, receipt} ->
-            notice = receipt.metadata["notice"] || "reconciled"
+        dispatch_reactor_reconcile(igniter, reconcile_opts)
+    end
+  end
 
-            # Mirrors `run_pipeline!/3`'s own `if dry_run, do:
-            # Mix.shell().info(line)` -- printed DURING the run (not just
-            # returned as an `Igniter.add_notice/2` notice, which an
-            # in-process caller invoking `igniter/1` directly -- never
-            # through the outer Mix-task/`Igniter.do_or_dry_run/2`
-            # printing machinery -- would otherwise never see at all).
-            for line <- receipt.metadata["dry_run_lines"] || [], do: Mix.shell().info(line)
+  # v26.9.2 (workstream B): expands ONE `--for-each NAME`-bearing target into
+  # N real per-row targets, and runs them as a SINGLE
+  # `GgenIgniter.Reactors.ReconcileReactor.run/1` invocation via its
+  # EXISTING `opts[:targets]` mechanism (`ReconcileReactor.normalize_targets/1`)
+  # -- never a second, parallel fan-out mechanism inside the reactor itself.
+  #
+  # The driver query is run here via the EXACT SAME call path
+  # `run_pipeline!/3` already uses to get its own `rows`
+  # (`Engine.fetch!/1` -> `Ontology.load!/1` -> `resolve_named_queries!/2` ->
+  # `run_queries/4` -> `fetch_driver_rows!/2`, all reused verbatim, never
+  # reinvented) -- so a query result the inline pipeline and this reactor
+  # dispatch would ever disagree about is structurally impossible: both call
+  # the identical private functions against the identical `opts`/
+  # `frontmatter`. Each row becomes one `[for_each_row: row]` per-target
+  # override; `ReconcileReactor.run_target_queries/3` merges that row's own
+  # columns into its EEx bindings LAST (same precedence
+  # `Mix.Tasks.GgenIgniter.Sync.build_bindings/2` already documents for
+  # `--for-each`), so both the rendered body and the EEx-rendered `--out`
+  # path see the row's own values.
+  #
+  # DISCLOSED, INTENTIONAL BEHAVIOR CHANGE (the deliberate trade-off this
+  # whole task exists to deliver): because all N rows now run inside ONE
+  # `ReconcileReactor.run/1` invocation, `:actuate` is all-or-nothing -- one
+  # row's write (or `sh_before:`/`sh_after:`) failure triggers the real
+  # Reactor `undo/3`/self-heal compensation, reverting EVERY row's writes in
+  # THIS run, not just the failing one. Before this change, `--for-each`
+  # always ran via the inline `run_pipeline!/3` pipeline, which allowed
+  # genuine per-row partial success (a failed row did not abort or revert
+  # its siblings) -- see
+  # `test/ggen_igniter_sync_for_each_reactor_test.exs` for
+  # the real, no-mock proof that a mid-run failure on one row now reverts
+  # every row's writes.
+  #
+  # A second, real, disclosed strictness increase this same routing brings:
+  # every row now passes through `ReconcileReactor`'s own `:admit` gate,
+  # including its real duplicate-canonical-output-path refusal (a `--out`
+  # EEx template that fails to interpolate a row field, producing the SAME
+  # resolved path for two rows, used to silently last-writer-win under the
+  # inline pipeline's sequential writes -- it is now refused outright before
+  # any actuation happens at all) and its real authorized-project-root
+  # escape refusal (`GgenIgniter.ArtifactIdentity.within_root?/2`, scoped to
+  # `--manifest-dir`/`File.cwd!()` -- a `--for-each` run whose `--out` lands
+  # outside that root, previously silently allowed by the inline pipeline,
+  # is now refused the same real way a single-target reactor-routed write
+  # already was).
+  defp run_for_each_via_reactor!(
+         igniter,
+         opts,
+         pack_template_stem,
+         _template_path,
+         frontmatter,
+         for_each,
+         mode
+       ) do
+    engine_name = opts[:engine] || "oxigraph"
+    engine_module = Engine.fetch!(engine_name)
+    ontology_path = resolve_ontology!(opts)
+    graph = Ontology.load!(ontology_path)
+    named_queries = resolve_named_queries!(opts, frontmatter)
+    named_results = run_queries(engine_module, graph, opts, named_queries)
+    rows = fetch_driver_rows!(named_results, for_each)
 
-            {:ok, Igniter.add_notice(igniter, "ggen_igniter: #{notice} (via reactor)")}
+    resolved_out = opts[:out] || frontmatter_field(frontmatter, :to)
 
-          {:error, receipt} ->
-            raise "ggen_igniter: reactor reconciliation failed (#{receipt.standing}): " <>
-                    (receipt.reason || "no reason recorded")
-        end
+    if mode == :file and resolved_out == nil do
+      raise ArgumentError,
+            "--out is required (directly, or via the template's own frontmatter \"to:\" field)"
+    end
+
+    reconcile_opts =
+      opts
+      |> Keyword.put(:pack_template_stem, pack_template_stem)
+      |> Keyword.put(:out, resolved_out)
+      |> Keyword.put(:mode, mode)
+      |> Keyword.put(
+        :unless_exists,
+        opts[:unless_exists] || frontmatter_field(frontmatter, :unless_exists) || false
+      )
+      |> Keyword.put(:skip_if, opts[:skip_if] || frontmatter_skip_if!(frontmatter))
+      |> Keyword.put(:targets, Enum.map(rows, fn row -> [for_each_row: row] end))
+
+    dispatch_reactor_reconcile(igniter, reconcile_opts)
+  end
+
+  # Shared success/failure handling for every `ReconcileReactor.run/1`
+  # dispatch site in this module (the single-target `true ->` branch above,
+  # and `run_for_each_via_reactor!/7`) -- extracted so both real call sites
+  # report the identical `"... (via reactor)"` notice convention and the
+  # identical reconciliation-failure error text, never two independently
+  # drifting copies.
+  defp dispatch_reactor_reconcile(igniter, reconcile_opts) do
+    case ReconcileReactor.run(reconcile_opts) do
+      {:ok, receipt} ->
+        notice = receipt.metadata["notice"] || "reconciled"
+
+        # Mirrors `run_pipeline!/3`'s own `if dry_run, do:
+        # Mix.shell().info(line)` -- printed DURING the run (not just
+        # returned as an `Igniter.add_notice/2` notice, which an
+        # in-process caller invoking `igniter/1` directly -- never
+        # through the outer Mix-task/`Igniter.do_or_dry_run/2`
+        # printing machinery -- would otherwise never see at all).
+        for line <- receipt.metadata["dry_run_lines"] || [], do: Mix.shell().info(line)
+
+        # v26.9.2 (workstream B): real `--on-stale prune`/`preserve` notice
+        # text, mirroring `apply_stale_policy!/2`'s own conventions -- see
+        # `ReconcileReactor.finalize_evidence/1`'s own comment for why this
+        # is returned as metadata (printed here, not inside the reactor
+        # module) rather than a silent notice-text regression for
+        # `--for-each` recipes now that they reach this pipeline too.
+        for line <- receipt.metadata["prune_lines"] || [], do: Mix.shell().info(line)
+        if warning = receipt.metadata["preserve_warning"], do: Mix.shell().error(warning)
+
+        {:ok, Igniter.add_notice(igniter, "ggen_igniter: #{notice} (via reactor)")}
+
+      {:error, receipt} ->
+        raise "ggen_igniter: reactor reconciliation failed (#{receipt.standing}): " <>
+                (receipt.reason || "no reason recorded")
     end
   end
 

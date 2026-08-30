@@ -81,7 +81,15 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
         "--template",
         "test/fixtures/for_each_module.ex.eex",
         "--out",
-        out_template
+        out_template,
+        # v26.9.2 (workstream B): `--for-each` now routes through
+        # `GgenIgniter.Reactors.ReconcileReactor.run/1` -- see
+        # `ggen_igniter_sync_for_each_test.exs`'s equivalent test for the
+        # full rationale.
+        "--manifest-dir",
+        out_dir,
+        "--verify-cwd",
+        File.cwd!()
       ])
 
     assert [notice] = igniter.notices
@@ -225,7 +233,19 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
       "--template",
       "test/fixtures/inject_before_literal.ex.eex",
       "--out",
-      path
+      path,
+      # v26.9.2 (workstream A real finding): `inject_before_literal.ex.eex`'s
+      # frontmatter inline `sparql:` block used to make this fall back to
+      # the inline pipeline (see `ggen_igniter_sync_inject_test.exs`'s own
+      # `manifest_args/1` comment for the full citation) -- this in-process
+      # test was silently exercising that fallback too, not the reactor's
+      # real `:inject` dispatch its own name implies. Now that workstream A
+      # resolves inline `sparql:`, this genuinely routes through the
+      # reactor, which needs the same authorized-root/`:verify` flags.
+      "--manifest-dir",
+      dir,
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     igniter1 = run_sync!(argv)
@@ -296,7 +316,15 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
         "--pack",
         "#{@stem_pack_name}:resource",
         "--out",
-        out_template
+        out_template,
+        # v26.9.2 (workstream B): this template's OWN frontmatter `for_each:`
+        # now routes through the reactor too (the same real dispatch clause
+        # `--for-each` on the CLI hits) -- needs the same authorized-root/
+        # `:verify` flags every other reactor-routed `--for-each` test does.
+        "--manifest-dir",
+        out_dir,
+        "--verify-cwd",
+        File.cwd!()
       ])
 
     assert [notice] = igniter.notices

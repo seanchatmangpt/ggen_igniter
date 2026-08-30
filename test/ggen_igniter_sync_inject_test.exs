@@ -31,6 +31,25 @@ defmodule GgenIgniter.SyncInjectTest do
     System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
   end
 
+  # v26.9.2 (workstream A): every fixture in this file (`inject_*.ex.eex`)
+  # has a frontmatter inline `sparql:` block, which used to make
+  # `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3` refuse to delegate at all
+  # (falling back to the pre-existing inline `run_pipeline!/3` pipeline,
+  # which has no authorized-root check and no `:verify` step) -- a real,
+  # confirmed finding this session: EVERY test in this file was silently
+  # exercising the INLINE pipeline, not `GgenIgniter.Reactors.
+  # ReconcileReactor`'s real `:inject`-typed actuation the file's own
+  # moduledoc/AR-10's sync.ex comments both claimed. Now that workstream A
+  # resolves inline `sparql:` too, these genuinely route through the
+  # reactor, which enforces the SAME authorized-project-root/`:verify`
+  # requirements every other reactor-routed write in this codebase already
+  # does -- `path` here always resolves outside the repo root (a real tmp
+  # dir), so `--manifest-dir`/`--verify-cwd` are required the same way
+  # `ggen_igniter_sync_task_test.exs`'s own equivalent flags already are.
+  defp manifest_args(path) do
+    ["--manifest-dir", Path.dirname(path), "--verify-cwd", File.cwd!()]
+  end
+
   describe "inject: true with a literal after: marker" do
     test "splices the rendered body immediately after the matched anchor line, and re-run is idempotent" do
       path = tmp_target("after_target.ex")
@@ -41,17 +60,18 @@ defmodule GgenIgniter.SyncInjectTest do
       end
       """)
 
-      args = [
-        "ggen_igniter.sync",
-        "--engine",
-        "sparql",
-        "--ontology",
-        "test/fixtures/audit_trail_ontology.ttl",
-        "--template",
-        "test/fixtures/inject_after_literal.ex.eex",
-        "--out",
-        path
-      ]
+      args =
+        [
+          "ggen_igniter.sync",
+          "--engine",
+          "sparql",
+          "--ontology",
+          "test/fixtures/audit_trail_ontology.ttl",
+          "--template",
+          "test/fixtures/inject_after_literal.ex.eex",
+          "--out",
+          path
+        ] ++ manifest_args(path)
 
       {output, exit_code} = run(args)
       assert exit_code == 0, "mix ggen_igniter.sync (inject after) failed:\n#{output}"
@@ -89,17 +109,18 @@ defmodule GgenIgniter.SyncInjectTest do
       end
       """)
 
-      args = [
-        "ggen_igniter.sync",
-        "--engine",
-        "sparql",
-        "--ontology",
-        "test/fixtures/audit_trail_ontology.ttl",
-        "--template",
-        "test/fixtures/inject_before_literal.ex.eex",
-        "--out",
-        path
-      ]
+      args =
+        [
+          "ggen_igniter.sync",
+          "--engine",
+          "sparql",
+          "--ontology",
+          "test/fixtures/audit_trail_ontology.ttl",
+          "--template",
+          "test/fixtures/inject_before_literal.ex.eex",
+          "--out",
+          path
+        ] ++ manifest_args(path)
 
       {output, exit_code} = run(args)
       assert exit_code == 0, "mix ggen_igniter.sync (inject before) failed:\n#{output}"
@@ -123,17 +144,18 @@ defmodule GgenIgniter.SyncInjectTest do
       end
       """)
 
-      args = [
-        "ggen_igniter.sync",
-        "--engine",
-        "sparql",
-        "--ontology",
-        "test/fixtures/audit_trail_ontology.ttl",
-        "--template",
-        "test/fixtures/inject_at_line.ex.eex",
-        "--out",
-        path
-      ]
+      args =
+        [
+          "ggen_igniter.sync",
+          "--engine",
+          "sparql",
+          "--ontology",
+          "test/fixtures/audit_trail_ontology.ttl",
+          "--template",
+          "test/fixtures/inject_at_line.ex.eex",
+          "--out",
+          path
+        ] ++ manifest_args(path)
 
       {output, exit_code} = run(args)
       assert exit_code == 0, "mix ggen_igniter.sync (inject at_line) failed:\n#{output}"
@@ -161,17 +183,18 @@ defmodule GgenIgniter.SyncInjectTest do
       end
       """)
 
-      args = [
-        "ggen_igniter.sync",
-        "--engine",
-        "sparql",
-        "--ontology",
-        "test/fixtures/audit_trail_ontology.ttl",
-        "--template",
-        "test/fixtures/inject_structured_regex.ex.eex",
-        "--out",
-        path
-      ]
+      args =
+        [
+          "ggen_igniter.sync",
+          "--engine",
+          "sparql",
+          "--ontology",
+          "test/fixtures/audit_trail_ontology.ttl",
+          "--template",
+          "test/fixtures/inject_structured_regex.ex.eex",
+          "--out",
+          path
+        ] ++ manifest_args(path)
 
       {output, exit_code} = run(args)
       assert exit_code == 0, "mix ggen_igniter.sync (inject structured regex) failed:\n#{output}"
@@ -202,18 +225,19 @@ defmodule GgenIgniter.SyncInjectTest do
 
       File.write!(path, original)
 
-      args = [
-        "ggen_igniter.sync",
-        "--engine",
-        "sparql",
-        "--ontology",
-        "test/fixtures/audit_trail_ontology.ttl",
-        "--template",
-        "test/fixtures/inject_after_literal.ex.eex",
-        "--out",
-        path,
-        "--dry-run"
-      ]
+      args =
+        [
+          "ggen_igniter.sync",
+          "--engine",
+          "sparql",
+          "--ontology",
+          "test/fixtures/audit_trail_ontology.ttl",
+          "--template",
+          "test/fixtures/inject_after_literal.ex.eex",
+          "--out",
+          path,
+          "--dry-run"
+        ] ++ manifest_args(path)
 
       {output, exit_code} = run(args)
       assert exit_code == 0, "mix ggen_igniter.sync --dry-run (inject) failed:\n#{output}"
@@ -234,17 +258,18 @@ defmodule GgenIgniter.SyncInjectTest do
       end
       """)
 
-      args = [
-        "ggen_igniter.sync",
-        "--engine",
-        "sparql",
-        "--ontology",
-        "test/fixtures/audit_trail_ontology.ttl",
-        "--template",
-        "test/fixtures/inject_after_literal.ex.eex",
-        "--out",
-        path
-      ]
+      args =
+        [
+          "ggen_igniter.sync",
+          "--engine",
+          "sparql",
+          "--ontology",
+          "test/fixtures/audit_trail_ontology.ttl",
+          "--template",
+          "test/fixtures/inject_after_literal.ex.eex",
+          "--out",
+          path
+        ] ++ manifest_args(path)
 
       # First, a real (non-dry-run) injection.
       {setup_output, setup_exit} = run(args)
@@ -323,17 +348,18 @@ defmodule GgenIgniter.SyncInjectTest do
       File.rm(missing_path)
       refute File.exists?(missing_path)
 
-      args = [
-        "ggen_igniter.sync",
-        "--engine",
-        "sparql",
-        "--ontology",
-        "test/fixtures/audit_trail_ontology.ttl",
-        "--template",
-        "test/fixtures/inject_after_literal.ex.eex",
-        "--out",
-        missing_path
-      ]
+      args =
+        [
+          "ggen_igniter.sync",
+          "--engine",
+          "sparql",
+          "--ontology",
+          "test/fixtures/audit_trail_ontology.ttl",
+          "--template",
+          "test/fixtures/inject_after_literal.ex.eex",
+          "--out",
+          missing_path
+        ] ++ manifest_args(missing_path)
 
       {output, exit_code} = run(args)
       assert exit_code != 0

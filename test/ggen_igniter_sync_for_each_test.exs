@@ -39,7 +39,21 @@ defmodule GgenIgniter.SyncForEachTest do
       "--template",
       "test/fixtures/for_each_module.ex.eex",
       "--out",
-      out_template
+      out_template,
+      # v26.9.2 (workstream B): `--for-each` now routes through
+      # `GgenIgniter.Reactors.ReconcileReactor.run/1`, which enforces the
+      # SAME authorized-project-root/`:verify` requirements every other
+      # reactor-routed write in this codebase already does -- `--out` here
+      # resolves outside the repo root (a real tmp dir), so `--manifest-dir`
+      # scopes the authorized root to it and `--verify-cwd` keeps `:verify`'s
+      # real `mix compile` pointed at the real repo root. Before v26.9.2,
+      # `--for-each` always ran via the inline `run_pipeline!/3` pipeline,
+      # which has neither an authorized-root check nor a `:verify` step, so
+      # neither flag was needed here.
+      "--manifest-dir",
+      out_dir,
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     {output, exit_code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
@@ -162,14 +176,20 @@ defmodule GgenIgniter.SyncForEachTest do
     # real appended summary's counts against real, independently-observable
     # outcomes (file mtimes/existence before and after a second run with
     # `--unless-exists`), not a hardcoded expectation.
-    out_dir =
+    # `root_dir` wraps `out_dir` -- kept DISTINCT so `--manifest-dir`'s own
+    # `.ggen_igniter/` bookkeeping never lands inside `out_dir` itself,
+    # which would break this test's own `File.ls!(out_dir)` exact-count
+    # assertions below.
+    root_dir =
       Path.join(
         System.tmp_dir!(),
         "ggen_igniter_for_each_summary_test_#{System.unique_integer([:positive])}"
       )
 
-    File.rm_rf!(out_dir)
-    on_exit(fn -> File.rm_rf!(out_dir) end)
+    out_dir = Path.join(root_dir, "output")
+
+    File.rm_rf!(root_dir)
+    on_exit(fn -> File.rm_rf!(root_dir) end)
 
     out_template = Path.join(out_dir, "<%= module_name %>.ex")
 
@@ -186,7 +206,13 @@ defmodule GgenIgniter.SyncForEachTest do
       "--template",
       "test/fixtures/for_each_module.ex.eex",
       "--out",
-      out_template
+      out_template,
+      # v26.9.2 (workstream B): see the earlier test in this file for why
+      # `--manifest-dir`/`--verify-cwd` are now required for `--for-each`.
+      "--manifest-dir",
+      root_dir,
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     # First run: every one of the 8 rows is a genuine fresh write.

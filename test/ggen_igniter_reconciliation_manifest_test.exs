@@ -78,7 +78,16 @@ defmodule GgenIgniter.ReconciliationManifestTest do
         "--out",
         out_template(out_dir),
         "--manifest-dir",
-        out_dir
+        out_dir,
+        # v26.9.2: `--for-each` now routes through
+        # `GgenIgniter.Reactors.ReconcileReactor.run/1`, whose `:verify` step
+        # runs a real `mix compile --warnings-as-errors` subprocess -- it
+        # needs a real Mix project directory to `cd:` into, which `out_dir`
+        # (a bare tmp dir) is not. Before v26.9.2, `--for-each` always ran
+        # via the inline `run_pipeline!/3` pipeline, which has no `:verify`
+        # step at all, so this flag was never needed here.
+        "--verify-cwd",
+        File.cwd!()
       ] ++ extra_args
 
     System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)

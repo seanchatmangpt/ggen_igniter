@@ -138,7 +138,12 @@ defmodule GgenIgniter.EngineModeMatrixTest do
     end
 
     test "mode: file, for_each: present -- writes three distinct real files, one per modules.rq row" do
-      out_dir = unique_tmp_dir("matrix_sparql_file_foreach")
+      # `root_dir` wraps `out_dir` as its own subdirectory (kept DISTINCT so
+      # `--manifest-dir`'s own `.ggen_igniter/` bookkeeping never lands
+      # inside `out_dir` itself, which would break this test's own
+      # `File.ls!(out_dir) == [...]` exact-listing assertion below).
+      root_dir = unique_tmp_dir("matrix_sparql_file_foreach")
+      out_dir = Path.join(root_dir, "output")
       out_template = Path.join(out_dir, "<%= module_name %>.ex")
 
       {output, exit_code} =
@@ -154,7 +159,15 @@ defmodule GgenIgniter.EngineModeMatrixTest do
           "--template",
           "test/fixtures/for_each_module.ex.eex",
           "--out",
-          out_template
+          out_template,
+          # v26.9.2: `--for-each` now routes through
+          # `GgenIgniter.Reactors.ReconcileReactor.run/1`, whose `:verify`
+          # step needs a real Mix project directory/authorized root -- see
+          # this file's other `--manifest-dir`/`--verify-cwd` uses above.
+          "--manifest-dir",
+          root_dir,
+          "--verify-cwd",
+          File.cwd!()
         ])
 
       assert exit_code == 0, "sparql/file/present sync failed:\n#{output}"
@@ -303,7 +316,10 @@ defmodule GgenIgniter.EngineModeMatrixTest do
     end
 
     test "mode: file, for_each: present -- writes three distinct real files, one per modules.rq row (clean filenames and content)" do
-      out_dir = unique_tmp_dir("matrix_oxigraph_file_foreach")
+      # `root_dir` wraps `out_dir` -- see the sparql-engine equivalent test
+      # above for why.
+      root_dir = unique_tmp_dir("matrix_oxigraph_file_foreach")
+      out_dir = Path.join(root_dir, "output")
       out_template = Path.join(out_dir, "<%= module_name %>.ex")
 
       {output, exit_code} =
@@ -319,7 +335,11 @@ defmodule GgenIgniter.EngineModeMatrixTest do
           "--template",
           "test/fixtures/for_each_module.ex.eex",
           "--out",
-          out_template
+          out_template,
+          "--manifest-dir",
+          root_dir,
+          "--verify-cwd",
+          File.cwd!()
         ])
 
       assert exit_code == 0, "oxigraph/file/present sync failed:\n#{output}"

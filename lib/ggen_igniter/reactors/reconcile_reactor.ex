@@ -182,6 +182,16 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   once); a target may still override its own `:pack`/`:pack_dir`/`:engine` for
   its own template/query resolution.
 
+  v26.9.2 (workstream B): `:for_each_row` is one more real per-target
+  override key -- a string-keyed row map (one row of a `--for-each` driver
+  query's results), merged into that target's own EEx bindings LAST by
+  `run_target_queries/3` (same precedence
+  `Mix.Tasks.GgenIgniter.Sync.build_bindings/2` documents). This is how
+  `Mix.Tasks.GgenIgniter.Sync.run_for_each_via_reactor!/7` expands ONE
+  `--for-each NAME`-bearing request into N real targets sharing this same
+  `:targets` mechanism, rather than inventing a second, parallel fan-out
+  path inside this module.
+
   ## Same-output-path collision: real, explicit refusal (never last-writer-wins)
 
   `:actuate` runs independent targets' real writes concurrently
@@ -1010,8 +1020,16 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   defp describe_failure({:refused_unowned_delete, target}),
     do: "refused: stale-prune candidate #{inspect(target)} is not owned by this recipe"
 
-  defp describe_failure({:refused_stale_outputs, paths}),
-    do: "refused: stale outputs with on_stale=refuse: #{inspect(MapSet.to_list(paths))}"
+  defp describe_failure({:refused_stale_outputs, paths}) do
+    stale_list = paths |> Enum.sort() |> Enum.map_join("\n", &"  - #{&1}")
+
+    "refusing to sync -- #{MapSet.size(paths)} stale output path(s) from a PRIOR run of " <>
+      "this recipe are not written by this run (a rename or removal upstream in the " <>
+      "ontology, most likely):\n\n#{stale_list}\n\nNothing was written this run (complete " <>
+      "reconciliation or refusal before any partial actuation -- never a silent orphan). " <>
+      "Re-run with --on-stale prune to really delete the stale path(s) above, or " <>
+      "--on-stale preserve to leave them on disk (with a warning) and proceed."
+  end
 
   defp describe_failure({:actuate_failed, reasons}),
     do: "actuation failed and was reverted: #{inspect(reasons)}"
@@ -1082,7 +1100,21 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     engine_name = target_opts[:engine] || "oxigraph"
     engine_module = Engine.fetch!(engine_name)
     template_path = resolve_template_path!(target_opts)
-    named_queries = resolve_named_queries!(target_opts)
+
+    # v26.9.2 (workstream A): frontmatter is read here so
+    # `resolve_named_queries!/2` below can resolve a target's OWN inline
+    # `sparql:` block, not just explicit `:query`/pack-discovered queries --
+    # see that function's own comment. This is a second, independent
+    # `File.read!/1` + `Frontmatter.split_template/1` of the same template
+    # (`render_target/3` below reads it again for the actual body, and
+    # `check_allow_sh!/2` reads it a third time) -- an existing, accepted
+    # pattern in this module (and in `Mix.Tasks.GgenIgniter.Sync`'s own
+    # `run_via_reactor/3`/`run_pipeline!/3`), not a new inefficiency
+    # introduced here.
+    {frontmatter, _frontmatter_mode, _body} =
+      Frontmatter.split_template(File.read!(template_path))
+
+    named_queries = resolve_named_queries!(target_opts, frontmatter)
     query_context = engine_module.prepare!(graph, target_opts)
 
     named_results =
@@ -1090,11 +1122,28 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         {name, engine_module.run(query_context, text)}
       end)
 
+    # v26.9.2 (workstream B): a `for_each_row` per-target override (set by
+    # `Mix.Tasks.GgenIgniter.Sync.run_for_each_via_reactor!/7` when expanding
+    # one `--for-each` target into N real per-row targets) is merged into
+    # this target's own bindings LAST -- the exact same precedence
+    # `Mix.Tasks.GgenIgniter.Sync.build_bindings/2` already documents for
+    # `--for-each` (a row's own columns win over any same-named column from
+    # an unrelated single-row query, since the row actually driving this
+    # render should never be shadowed by an incidental other query). `nil`
+    # (the common, non-`--for-each` case) is a no-op merge.
+    row_bindings =
+      case target_opts[:for_each_row] do
+        nil -> []
+        row -> Enum.map(row, fn {k, v} -> {String.to_atom(k), v} end)
+      end
+
+    bindings = Reconcile.build_bindings(named_results) |> Keyword.merge(row_bindings)
+
     %{
       index: index,
       engine_name: engine_name,
       template_path: template_path,
-      bindings: Reconcile.build_bindings(named_results),
+      bindings: bindings,
       mode: resolve_mode!(target_opts[:mode]),
       out_template: target_opts[:out],
       write_opts: [
@@ -1224,11 +1273,66 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     built = Enum.map(targets, &render_target(&1, manifest, base_dir))
 
     write_pending = Enum.map(built, & &1.pending_actuation)
-    delete_pending = Enum.flat_map(built, & &1.stale_pending)
     recipes = for %{recipe: recipe} <- built, recipe != nil, do: recipe
     exec = for b <- built, into: %{}, do: {b.pending_actuation.logical_id, b.exec}
 
+    delete_pending = compute_stale_deletes(recipes, base_dir)
+
     %{pending: write_pending ++ delete_pending, recipes: recipes, exec: exec}
+  end
+
+  # v26.9.2 (workstream B, real correctness fix): computes real stale-prune
+  # `:delete` candidates ONCE per `(template, out_template)` RECIPE -- i.e.
+  # grouping every target sharing that `recipe_key` (a single static target,
+  # or every row of a `--for-each` fan-out) -- and diffing the recipe's
+  # prior manifest `outputs` against the UNION of every grouped target's own
+  # real canonical output path, exactly mirroring
+  # `Mix.Tasks.GgenIgniter.Sync.run_pipeline!/3`'s own inline discipline
+  # (`sync.ex`'s `igniter/1`: every row's `out_path` is collected into ONE
+  # `MapSet` -- `new_paths` -- BEFORE a single `Manifest.stale_paths/2` call).
+  #
+  # Before this fix, stale-prune detection was computed INSIDE
+  # `render_file_target/7`, independently PER TARGET: `Manifest.stale_paths(
+  # old_entry, [this_one_target's_path])`. For N rows sharing ONE recipe_key,
+  # that independently diffed each row's own SINGLE path against the
+  # recipe's FULL prior `outputs` set -- so every OTHER row's own
+  # legitimately-still-produced sibling path (present in `old_entry` but not
+  # in THIS row's own one-element `new_paths`) was wrongly flagged stale on
+  # every row's own diff, N times over. Grouping by `recipe_key` first (all
+  # targets in a group share the identical `old_entry`, since it was looked
+  # up from the same manifest with the same key) and diffing the UNION once
+  # closes this for real, while leaving the single-target case (a group of
+  # exactly one) byte-for-byte identical to the old per-target computation
+  # (`MapSet.new([one_path])` either way).
+  #
+  # See `test/ggen_igniter_sync_for_each_reactor_test.exs` for the real
+  # regression proof: N real rows written via `--for-each`, then a second
+  # real run with N-1 rows (one row's own driver condition genuinely
+  # removed) asserts ONLY the genuinely-removed row's path is stale -- none
+  # of the N-1 still-produced rows' paths are wrongly flagged.
+  defp compute_stale_deletes(recipes, base_dir) do
+    recipes
+    |> Enum.group_by(& &1.recipe_key)
+    |> Enum.flat_map(fn {_recipe_key, group} ->
+      representative = List.first(group)
+      new_paths = group |> Enum.map(& &1.canonical_out_path) |> MapSet.new()
+      stale = Manifest.stale_paths(representative.old_entry, new_paths)
+
+      for path <- Enum.sort(MapSet.to_list(stale)) do
+        PendingActuation.for_delete(
+          base_dir,
+          path,
+          representative.template_path,
+          representative.out_template,
+          %{
+            index: representative.index,
+            recipe_key: representative.recipe_key,
+            out_template: representative.out_template,
+            reason: :stale
+          }
+        )
+      end
+    end)
   end
 
   defp render_target(t, manifest, base_dir) do
@@ -1317,28 +1421,20 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         semantic_source
       )
 
-    # Stale-prune detection now diffs by REAL canonical identity (never
+    # Stale-prune detection is NOT computed here any more -- see
+    # `compute_stale_deletes/2`, called ONCE from `build_plan/3` after every
+    # target has been rendered, grouped by `recipe_key` across the WHOLE
+    # target list (a single static target, or every row of a `--for-each`
+    # fan-out sharing this same recipe). Computing it here, per-target
+    # (`Manifest.stale_paths(old_entry, [pending_actuation.canonical_target])`,
+    # this function's own pre-v26.9.2 behavior), independently diffed each
+    # `--for-each` row's OWN single output path against the recipe's FULL
+    # prior `outputs` set -- wrongly flagging every OTHER row's own
+    # legitimately-still-produced sibling path as stale on that row's own
+    # diff. `canonical_out_path`/`old_entry` below still carry everything
+    # `compute_stale_deletes/2` needs, by real canonical identity (never
     # the raw `out_path` string) -- see `GgenIgniter.PendingActuation`'s
-    # `canonical_target` and this module's own moduledoc/red-team
-    # citation: `GgenIgniter.Manifest`'s `outputs` keys are themselves
-    # canonical identities (built the same way in `commit_recipe/5` /
-    # `finalize_evidence/1` below), so comparing them against anything
-    # OTHER than this run's own canonical identity would silently
-    # reintroduce the exact alias-blindness this whole primitive exists
-    # to close.
-    stale = Manifest.stale_paths(old_entry, [pending_actuation.canonical_target])
-
-    stale_pending =
-      for path <- Enum.sort(MapSet.to_list(stale)) do
-        PendingActuation.for_delete(
-          base_dir,
-          path,
-          t.template_path,
-          out_template,
-          Map.put(semantic_source, :reason, :stale)
-        )
-      end
-
+    # `canonical_target` and this module's own moduledoc/red-team citation.
     recipe = %{
       index: t.index,
       recipe_key: recipe_key,
@@ -1351,7 +1447,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
     %{
       pending_actuation: pending_actuation,
-      stale_pending: stale_pending,
+      stale_pending: [],
       recipe: recipe,
       exec: exec
     }
@@ -1461,44 +1557,24 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     end
   end
 
-  defp resolve_named_queries!(opts) do
-    explicit =
-      opts
-      |> Keyword.get_values(:query)
-      |> Enum.map(&parse_named_query!/1)
-      |> Enum.map(fn {name, path} -> {name, File.read!(path)} end)
-
-    if pack_given?(opts) do
-      pack_dir = Pack.resolve_dir!(opts)
-
-      pack_queries =
-        pack_dir
-        |> Pack.discover_queries()
-        |> Enum.map(fn {name, path} -> {name, File.read!(path)} end)
-
-      if pack_queries == [] and explicit == [] do
-        raise ArgumentError,
-              "no *.rq files found in #{pack_dir}/gates/ and no explicit query given"
-      end
-
-      Enum.reduce(explicit, pack_queries, fn {name, text}, acc ->
-        List.keystore(acc, name, 0, {name, text})
-      end)
-    else
-      if explicit == [] do
-        raise ArgumentError,
-              "at least one query name=path.rq is required (or use pack/pack_dir)"
-      end
-
-      explicit
-    end
-  end
-
-  defp parse_named_query!(arg) do
-    case String.split(arg, "=", parts: 2) do
-      [name, path] -> {name, path}
-      [_no_name] -> raise ArgumentError, "each query must be name=path.rq, got: #{arg}"
-    end
+  # v26.9.2 (workstream A): reuses
+  # `Mix.Tasks.GgenIgniter.Sync.resolve_named_queries!/2`'s EXACT
+  # merge-by-priority logic (frontmatter inline `sparql:` -> pack-discovered
+  # `.rq` files -> explicit `:query`, later overrides same-named earlier)
+  # directly, rather than re-deriving it a second time here. Before this
+  # fix, this function only ever merged pack-discovered queries + explicit
+  # `:query` opts -- a target's own frontmatter `sparql:` block was silently
+  # never consulted at all, which is exactly why
+  # `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3` used to refuse to
+  # delegate ANY template with inline `sparql:` text
+  # (`{:not_delegatable, "template frontmatter's inline \"sparql:\" ..."}`,
+  # now removed). `run_target_queries/3` is this function's one real caller,
+  # for both `run/1` (real reconciliation) and `plan/1` (read-only preview,
+  # which never reaches here with a real `frontmatter` since it refuses ANY
+  # frontmatter-bearing template earlier -- see that function's own
+  # moduledoc).
+  defp resolve_named_queries!(opts, frontmatter) do
+    Mix.Tasks.GgenIgniter.Sync.resolve_named_queries!(opts, frontmatter)
   end
 
   # -- :admit ---------------------------------------------------------------
@@ -2057,6 +2133,58 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   defp outcome_verb(:skipped_exists), do: "skipped (unless_exists, already exists):"
   defp outcome_verb(:skipped_match), do: "skipped (skip_if matched):"
 
+  # v26.9.2: real, counted-from-actual-outcomes summary suffix like
+  # `" -- summary: wrote 6, skipped 1, unchanged 1"` -- see
+  # `finalize_evidence/1`'s call site for the full rationale. Mirrors
+  # `Mix.Tasks.GgenIgniter.Sync.outcome_summary_suffix/2`'s bucket/verb/
+  # ordering convention exactly (`written`/`injected`/`unchanged`/`skipped`,
+  # fixed order, zero-count buckets omitted), minus the
+  # `sh_before_failed`/`sh_after_failed` buckets that convention also has --
+  # this pipeline's `:actuate` step fails the WHOLE run on a hook failure
+  # (see this module's "sh_before:/sh_after: shell hooks" section) rather
+  # than producing a per-row outcome, so `results` here never contains one.
+  # `""` for `length(results) <= 1` -- a single-output run's own per-file
+  # notice line is already exactly as readable as a summary would be, same
+  # guard `sync.ex`'s version uses.
+  @spec reactor_summary_suffix([map()]) :: String.t()
+  defp reactor_summary_suffix(results) when length(results) > 1 do
+    dry_run? = Enum.all?(results, &(&1[:dry_run] || false))
+
+    counts =
+      results
+      |> Enum.map(&reactor_summary_bucket(&1[:outcome]))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.frequencies()
+
+    parts =
+      for bucket <- [:written, :injected, :unchanged, :skipped],
+          count = Map.get(counts, bucket, 0),
+          count > 0 do
+        "#{reactor_summary_verb(bucket, dry_run?)} #{count}"
+      end
+
+    case parts do
+      [] -> ""
+      _ -> " -- summary: " <> Enum.join(parts, ", ")
+    end
+  end
+
+  defp reactor_summary_suffix(_results), do: ""
+
+  defp reactor_summary_bucket(:written), do: :written
+  defp reactor_summary_bucket(:injected), do: :injected
+  defp reactor_summary_bucket(:unchanged), do: :unchanged
+  defp reactor_summary_bucket(:skipped_exists), do: :skipped
+  defp reactor_summary_bucket(:skipped_match), do: :skipped
+  defp reactor_summary_bucket(nil), do: nil
+
+  defp reactor_summary_verb(:written, false), do: "wrote"
+  defp reactor_summary_verb(:written, true), do: "planned to write"
+  defp reactor_summary_verb(:injected, false), do: "injected"
+  defp reactor_summary_verb(:injected, true), do: "planned to inject"
+  defp reactor_summary_verb(:unchanged, _dry_run), do: "unchanged"
+  defp reactor_summary_verb(:skipped, _dry_run), do: "skipped"
+
   # Test-only instrumentation -- see moduledoc "Testing hooks". Inert unless
   # a caller explicitly sets `:test_probe` on a target.
   defp probe_mark(%{test_probe: table} = exec, event) when is_atom(table) and not is_nil(table) do
@@ -2239,11 +2367,20 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     manifest_dir = observed.manifest_dir
 
     # -- 1. Prepare BOTH the next manifest content and the new receipt
-    # payload, in memory -- nothing durable written yet.
+    # payload, in memory -- nothing durable written yet. Grouped by
+    # `recipe_key` (v26.9.2, workstream B real correctness fix) BEFORE
+    # committing -- see `commit_recipe_group/5` for why a `--for-each`
+    # recipe's N rows must be committed as ONE manifest entry recording the
+    # UNION of every row's own output, not N independent overwrites of the
+    # same key (which used to leave only the LAST-processed row's path in
+    # the manifest, immediately making `compute_stale_deletes/2` wrongly
+    # flag every OTHER row's path as stale on the very next run).
     {new_manifest, manifest_changed?} =
-      Enum.reduce(admitted.recipes, {observed.manifest, false}, fn recipe,
-                                                                   {manifest_acc, changed_acc} ->
-        commit_recipe(recipe, results, manifest_acc, changed_acc, pack_dir)
+      admitted.recipes
+      |> Enum.group_by(& &1.recipe_key)
+      |> Enum.reduce({observed.manifest, false}, fn {_recipe_key, group},
+                                                    {manifest_acc, changed_acc} ->
+        commit_recipe_group(group, results, manifest_acc, changed_acc, pack_dir)
       end)
 
     # Keyed by real canonical identity (`GgenIgniter.ArtifactIdentity`),
@@ -2345,6 +2482,23 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         ""
       end
 
+    # v26.9.2 (workstream B): a `--for-each` fan-out routed through this
+    # reactor now has more than one `results` entry -- port
+    # `Mix.Tasks.GgenIgniter.Sync.outcome_summary_suffix/2`'s own real,
+    # counted-from-actual-outcomes " -- summary: wrote N, skipped M" DX
+    # convention here too, so routing `--for-each` through the reactor does
+    # not silently drop this existing notice-text feature (a bare "N
+    # target(s)" count with no per-outcome breakdown, the pre-v26.9.2 state
+    # for any multi-target reactor run, was real UX regression risk for the
+    # exact many-rows case this convention exists for). `sh_before_failed`/
+    # `sh_after_failed` buckets are deliberately absent here (unlike
+    # `sync.ex`'s inline version): a hook failure in THIS pipeline always
+    # fails the whole `:actuate` step (see this module's own "sh_before:/
+    # sh_after: shell hooks" section) rather than producing a per-row
+    # outcome, so `results` (only ever populated on the real success path)
+    # never contains one.
+    summary_suffix = reactor_summary_suffix(results)
+
     receipt =
       Receipt.new(%{
         standing: :alive,
@@ -2368,7 +2522,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           "outcome" =>
             single_result && single_result[:outcome] && Atom.to_string(single_result[:outcome]),
           "mode" => single_result && single_result[:mode] && Atom.to_string(single_result[:mode]),
-          "notice" => notice_body <> query_suffix,
+          "notice" => notice_body <> query_suffix <> summary_suffix,
           # Per-target bare notice lines (no "ggen_igniter: " prefix, no
           # "(engine: ...)" suffix) for a `--dry-run` caller to print
           # DURING the run via `Mix.shell().info/1` -- mirrors
@@ -2466,12 +2620,49 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       "prune_outcome" => inspect(prune_outcome)
     })
 
+    # v26.9.2 (workstream B): real, printable notice lines for
+    # `on_stale: :prune`'s real deletions and `on_stale: :preserve`'s real
+    # warning -- mirrors `Mix.Tasks.GgenIgniter.Sync.apply_stale_policy!/2`'s
+    # own exact text conventions (`"pruned: PATH"` / `"pruned (already
+    # absent): PATH"` per path; a single `"WARNING -- N stale output
+    # path(s) ..."` block naming every preserved path) so a `--for-each`
+    # recipe routed through THIS pipeline reports the same real UX the
+    # inline pipeline already did for `--on-stale prune`/`preserve`, not a
+    # silent notice-text regression now that `--for-each` reaches here too.
+    # `[]`/`nil` (never printed) for a real run where `on_stale != :prune`/
+    # `:preserve`, or for a dry-run (which never applies either policy for
+    # real -- see `prune_outcome`'s own `not dry_run_run?` guard above).
+    prune_lines =
+      case prune_outcome do
+        {:pruned, results} ->
+          Enum.map(results, fn
+            {path, :pruned} -> "pruned: #{path}"
+            {path, :absent} -> "pruned (already absent): #{path}"
+          end)
+
+        _ ->
+          []
+      end
+
+    preserve_warning =
+      if admitted.on_stale == :preserve and MapSet.size(admitted.stale_paths) > 0 and
+           not dry_run_run? do
+        stale_list =
+          admitted.stale_paths |> Enum.sort() |> Enum.map_join("\n", &"  - #{&1}")
+
+        "ggen_igniter: WARNING -- #{MapSet.size(admitted.stale_paths)} stale output " <>
+          "path(s) from a prior run of this recipe were NOT written this run and are " <>
+          "being preserved untouched on disk (--on-stale preserve):\n\n#{stale_list}\n"
+      end
+
     final_receipt = %{
       receipt
       | metadata:
           receipt.metadata
           |> Map.put("manifest_promotion", inspect(manifest_promotion))
           |> Map.put("prune_outcome", inspect(prune_outcome))
+          |> Map.put("prune_lines", prune_lines)
+          |> Map.put("preserve_warning", preserve_warning)
     }
 
     {:ok, final_receipt}
@@ -2506,6 +2697,63 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       end
     else
       {manifest_acc, changed_acc}
+    end
+  end
+
+  # v26.9.2 (workstream B, real correctness fix): one `(template,
+  # out_template)` recipe's manifest entry must record the UNION of every
+  # target sharing that recipe_key -- a single static target (`[recipe]`,
+  # the common, non-`--for-each` case), or every row of a `--for-each`
+  # fan-out. The single-target clause below is the EXACT pre-existing
+  # `commit_recipe/5` call, byte-for-byte, so single-target behavior is
+  # unaffected by this fix.
+  defp commit_recipe_group([recipe], results, manifest_acc, changed_acc, pack_dir) do
+    commit_recipe(recipe, results, manifest_acc, changed_acc, pack_dir)
+  end
+
+  # A `--for-each` recipe fanned out across N targets sharing ONE
+  # `recipe_key`: before this fix, `admitted.recipes` was reduced one recipe
+  # at a time straight through `commit_recipe/5`, so EACH row independently
+  # called `Manifest.put/3` for the SAME key -- overwriting the previous
+  # row's own single-output entry every time. The manifest's final entry for
+  # that recipe_key then recorded only the LAST-processed row's own path,
+  # silently dropping every sibling row's legitimately-written path from
+  # `outputs` -- which would make the very NEXT run's
+  # `compute_stale_deletes/2` wrongly treat every one of those dropped
+  # sibling paths as stale (a prior run's manifest entry no longer lists
+  # them, even though this run genuinely still writes them). Fixed by
+  # collecting the UNION of every row's own real output across the WHOLE
+  # group into ONE `outputs` map before a SINGLE `Manifest.put/3` call --
+  # exactly the same union-before-commit discipline
+  # `Mix.Tasks.GgenIgniter.Sync.run_pipeline!/3`'s own inline `igniter/1`
+  # already uses for its own manifest bookkeeping. Only a row that actually
+  # wrote or reconfirmed byte-identical content THIS run
+  # (`outcome in [:written, :unchanged]`, and never for a real `--dry-run`)
+  # is manifest-owned -- same real rule `commit_recipe/5` already enforces
+  # per-target.
+  defp commit_recipe_group(group, results, manifest_acc, changed_acc, pack_dir) do
+    representative = List.first(group)
+
+    outputs =
+      for recipe <- group,
+          result = Enum.find(results, &(&1.index == recipe.index)),
+          result && result.outcome in [:written, :unchanged] && not (result[:dry_run] || false),
+          into: %{} do
+        {recipe.canonical_out_path, Manifest.hash_content(File.read!(recipe.out_path))}
+      end
+
+    if Manifest.same_outputs?(representative.old_entry, outputs) do
+      {manifest_acc, changed_acc}
+    else
+      entry =
+        Manifest.build_entry(
+          representative.template_path,
+          representative.out_template,
+          pack_dir,
+          outputs
+        )
+
+      {Manifest.put(manifest_acc, representative.recipe_key, entry), true}
     end
   end
 end

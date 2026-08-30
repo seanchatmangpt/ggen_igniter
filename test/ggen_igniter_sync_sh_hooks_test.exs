@@ -1,14 +1,52 @@
 defmodule GgenIgniter.SyncShHooksTest do
   @moduledoc """
   Chicago-style, real subprocess, no mocks: proves `sh_before:`/`sh_after:`
-  frontmatter fields are real (not just parsed-and-inert) against
-  `mix ggen_igniter.sync`'s INLINE pipeline (`run_pipeline!/3`) -- the
-  ReconcileReactor pipeline is covered separately in
-  `test/ggen_igniter_reconcile_reactor_sh_hooks_test.exs`, since these are
-  two genuinely separate call paths (see `Mix.Tasks.GgenIgniter.Sync`'s own
-  moduledoc). This suite runs the real CLI task as a real subprocess and
-  asserts on real resulting file/marker state and real `GgenIgniter.Receipt`
-  content on disk -- never on "was ShellHook.run called".
+  frontmatter fields against `mix ggen_igniter.sync`'s CLI surface, going
+  through `GgenIgniter.Reactors.ReconcileReactor.run/1` (the reactor's own
+  `sh_before:`/`sh_after:` wiring is covered independently, with a real
+  minimal scratch Mix project, in
+  `test/ggen_igniter_reconcile_reactor_sh_hooks_test.exs`).
+
+  ## v26.9.2 real, disclosed finding: this suite no longer exercises
+  `Mix.Tasks.GgenIgniter.Sync.run_pipeline!/3`'s own inline sh_before/
+  sh_after wiring at all
+
+  Before v26.9.2, this suite's own `base_args/4` deliberately passed
+  `--for-each spec` (a single-row query, load-bearing ONLY to FORCE
+  `run_via_reactor/3` to return `{:not_delegatable, "--for-each ..."}`,
+  since `ReconcileReactor.run/1` did not implement `--for-each` fan-out at
+  all) so it could exercise the inline `run_pipeline!/3`/`actuate_row!/11`
+  pipeline's OWN sh_before/sh_after partial-success semantics specifically.
+
+  Workstream B now routes `--for-each` through the reactor too. Since
+  `sh_before:`/`sh_after:` are FRONTMATTER-ONLY fields (there is no CLI
+  flag equivalent -- see `Mix.Tasks.GgenIgniter.Sync`'s own moduledoc) and
+  ANY frontmatter-bearing template other than `mode: eval` now routes
+  through the reactor (workstream A's `sparql:` fix closed the one other
+  escape hatch), and `mode: eval` structurally can never reach `sh_after:`
+  at all (`actuate_row!/11`'s own `outcome in [:written, :injected]` guard
+  is always false for `mode: eval`'s real outcome, always `nil`) -- this is
+  a REAL FINDING, not just untested: `run_pipeline!/3`'s own sh_before/
+  sh_after partial-success code (a failed hook reported as a per-row
+  outcome, siblings unaffected) is now UNREACHABLE from any real
+  `mix ggen_igniter.sync` invocation, the same "unreachable, not just
+  untested" class of finding
+  `test/ggen_igniter_reconcile_reactor_test.exs`'s own ":eval
+  compensation-completeness" test already discloses for a different code
+  path. Rather than fabricate an invocation shape that can never occur in
+  practice just to keep exercising dead code, this suite now tests the ONE
+  real path a `mix ggen_igniter.sync --allow-sh` invocation with
+  `sh_before:`/`sh_after:` can actually take: the reactor's own all-or-
+  nothing model, where a hook failure is an ordinary actuation failure that
+  triggers real compensation -- see the two failure-mode tests below, which
+  assert the OPPOSITE outcome from their pre-v26.9.2 versions (a REAL,
+  disclosed contract change per this task's own plan, not a regression).
+
+  Every collaborator is real: a real `mix ggen_igniter.sync` subprocess, a
+  real nested `mix compile --warnings-as-errors` subprocess for `:verify`,
+  a real `GgenIgniter.ShellHook.run/3` subprocess for the hook itself, and
+  real resulting file/`GgenIgniter.Receipt` state read back off disk --
+  never an assertion on "was ShellHook.run called".
   """
   use ExUnit.Case, async: false
 
@@ -33,17 +71,15 @@ defmodule GgenIgniter.SyncShHooksTest do
     System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
   end
 
-  # `--for-each spec` is the load-bearing bit here, NOT genuine multi-row
-  # fan-out (the `spec` query returns exactly one row) -- it is what forces
-  # `run_via_reactor/3` to return `{:not_delegatable, "--for-each ..."}`
-  # (`GgenIgniter.Reactors.ReconcileReactor.run/1` does not implement
-  # `--for-each` fan-out at all), so this suite genuinely exercises
-  # `run_pipeline!/3`'s own inline `actuate_row!/11` wiring -- the SEPARATE
-  # call path this module's own moduledoc and
-  # `test/ggen_igniter_reconcile_reactor_sh_hooks_test.exs` both cite. Without
-  # `--for-each`, an ordinary `mode: file` template routes through the
-  # Reactor pipeline instead (AR-9/AR-10), which would silently test the
-  # WRONG code path.
+  # `--for-each spec` (a single-row query) is kept here even though it no
+  # longer forces the inline pipeline (see this file's own moduledoc) --
+  # this suite is also real, useful coverage that a `--for-each`-routed
+  # reactor run with `sh_before:`/`sh_after:` behaves the same real way a
+  # non-`--for-each` reactor run already does (`--verify-cwd` is required
+  # either way, per workstream B). `--manifest-dir`/`--verify-cwd` are both
+  # required now that this genuinely reaches
+  # `GgenIgniter.Reactors.ReconcileReactor.run/1`'s real `:admit`/`:verify`
+  # steps.
   defp base_args(template, out_path, manifest_dir, extra) do
     [
       "ggen_igniter.sync",
@@ -60,7 +96,9 @@ defmodule GgenIgniter.SyncShHooksTest do
       "--out",
       out_path,
       "--manifest-dir",
-      manifest_dir
+      manifest_dir,
+      "--verify-cwd",
+      File.cwd!()
     ] ++ extra
   end
 
@@ -96,8 +134,8 @@ defmodule GgenIgniter.SyncShHooksTest do
       {output, exit_code} = run(args)
 
       assert exit_code == 0, "mix ggen_igniter.sync --allow-sh failed:\n#{output}"
-      assert output =~ "ggen_igniter: wrote #{out_path}"
-      assert output =~ "ran sh_after: touch sh_after_ran.marker"
+      assert output =~ "wrote #{out_path}"
+      assert output =~ "(via reactor)"
 
       assert File.exists?(out_path)
       assert File.read!(out_path) =~ "def package_name, do: \"audit_trail\""
@@ -142,34 +180,43 @@ defmodule GgenIgniter.SyncShHooksTest do
     end
   end
 
-  describe "sh_after: real nonzero exit does NOT abort the run" do
-    test "the row's outcome is reported as sh_after failed, the file WAS written, and the process exits 0" do
+  describe "sh_after: real nonzero exit (v26.9.2: a real actuation failure, not a per-row outcome)" do
+    test "the whole run is compensated -- the real write IS reverted, and the process exits non-zero" do
       dir = tmp_dir!("after_fail")
       out_path = Path.join(dir, "out.ex")
+      refute File.exists?(out_path)
 
       args =
         base_args("test/fixtures/sh_after_fail_template.ex.eex", out_path, dir, ["--allow-sh"])
 
       {output, exit_code} = run(args)
 
-      assert exit_code == 0,
-             "a failing sh_after: must not abort the whole run, got exit #{exit_code}:\n#{output}"
+      # v26.9.2, DELIBERATE CONTRACT CHANGE from before this task (see this
+      # file's own moduledoc): a `sh_after:` failure now routes through
+      # `GgenIgniter.Reactors.ReconcileReactor`'s all-or-nothing `:actuate`
+      # step, which treats it as an ordinary actuation failure --
+      # `actuate_pending/2`'s self-heal reverts the real write that already
+      # happened before `sh_after:` ran, and the whole run genuinely fails
+      # (real, non-zero exit) instead of the old inline pipeline's
+      # `:sh_after_failed` per-row outcome (exit 0, file left written).
+      refute exit_code == 0,
+             "a failing sh_after: must now fail the whole run (real compensation), got exit 0:\n#{output}"
 
-      assert output =~ "sh_after failed (exit 7): exit 7"
-      # The real write already happened before sh_after ran -- not reverted
-      # (no compensation exists for a shell-hook failure, per the disclosed
-      # limitation).
-      assert File.exists?(out_path)
+      assert output =~ "compensated"
+      assert output =~ "sh_after"
+      assert output =~ "exit 7"
 
-      assert [receipt] = Receipt.read_all!(dir)
-      assert [command] = receipt["commands"]
-      assert command["status"] == "failed"
-      assert command["exit_code"] == 7
+      # THE KEY PROOF: the real write that already happened before the
+      # failing sh_after ran is genuinely reverted -- this pipeline's
+      # atomic all-or-nothing `:actuate` step, the exact real compensation
+      # coverage this whole task exists to bring to a `sh_after:` failure
+      # that the OLD inline pipeline could never revert at all.
+      refute File.exists?(out_path)
     end
   end
 
-  describe "sh_before: real nonzero exit skips the write but does NOT abort the run" do
-    test "the row's outcome is reported as sh_before failed and the target is never written" do
+  describe "sh_before: real nonzero exit (v26.9.2: a real actuation failure, not a per-row outcome)" do
+    test "the whole run is refused/compensated -- the target is never written, and the process exits non-zero" do
       dir = tmp_dir!("before_fail")
       out_path = Path.join(dir, "out.ex")
 
@@ -178,17 +225,16 @@ defmodule GgenIgniter.SyncShHooksTest do
 
       {output, exit_code} = run(args)
 
-      assert exit_code == 0,
-             "a failing sh_before: must not abort the whole run, got exit #{exit_code}:\n#{output}"
+      # v26.9.2, DELIBERATE CONTRACT CHANGE (see this file's own
+      # moduledoc): a `sh_before:` failure now aborts the WHOLE reactor run
+      # (real, non-zero exit) instead of the old inline pipeline's
+      # `:sh_before_failed` per-row outcome (exit 0, run continues).
+      refute exit_code == 0,
+             "a failing sh_before: must now fail the whole run, got exit 0:\n#{output}"
 
-      assert output =~ "sh_before failed (exit 5): exit 5"
+      assert output =~ "sh_before"
+      assert output =~ "exit 5"
       refute File.exists?(out_path)
-
-      assert [receipt] = Receipt.read_all!(dir)
-      assert [command] = receipt["commands"]
-      assert command["kind"] == "sh_before"
-      assert command["status"] == "failed"
-      assert command["exit_code"] == 5
     end
   end
 end

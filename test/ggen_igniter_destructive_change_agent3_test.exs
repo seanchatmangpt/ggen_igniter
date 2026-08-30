@@ -84,7 +84,15 @@ defmodule GgenIgniter.DestructiveChangeAgent3Test do
         "--out",
         out_template,
         "--manifest-dir",
-        out_dir
+        out_dir,
+        # v26.9.2: `--for-each` now routes through
+        # `GgenIgniter.Reactors.ReconcileReactor.run/1`, whose `:verify` step
+        # runs a real `mix compile --warnings-as-errors` subprocess against a
+        # real Mix project directory -- `out_dir` (a bare tmp dir) is not
+        # one. Before v26.9.2, `--for-each` always ran via the inline
+        # `run_pipeline!/3` pipeline, which has no `:verify` step at all.
+        "--verify-cwd",
+        File.cwd!()
       ] ++ extra_args
 
     {output, exit_code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
@@ -105,7 +113,9 @@ defmodule GgenIgniter.DestructiveChangeAgent3Test do
       "--out",
       out_path,
       "--manifest-dir",
-      Path.dirname(out_path)
+      Path.dirname(out_path),
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     {output, exit_code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)

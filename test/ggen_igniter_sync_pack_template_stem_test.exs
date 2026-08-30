@@ -86,7 +86,15 @@ defmodule GgenIgniter.SyncPackTemplateStemTest do
       "--pack",
       "#{@pack_name}:resource",
       "--out",
-      out_template
+      out_template,
+      # v26.9.2 (workstream B): this template's OWN frontmatter `for_each:`
+      # now routes through `GgenIgniter.Reactors.ReconcileReactor.run/1`,
+      # which needs the authorized-root/`:verify` flags every other
+      # reactor-routed `--for-each` test in this codebase already has.
+      "--manifest-dir",
+      tmp_dir,
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     {output, exit_code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
@@ -123,7 +131,14 @@ defmodule GgenIgniter.SyncPackTemplateStemTest do
       "--pack",
       "#{@pack_name}:domain",
       "--out",
-      out_path
+      out_path,
+      # v26.9.2 (workstream B): `domain.ex.eex`'s OWN frontmatter
+      # `for_each: domains` now routes through the reactor too -- see the
+      # `:resource` stem test above for the full rationale.
+      "--manifest-dir",
+      tmp_dir,
+      "--verify-cwd",
+      File.cwd!()
     ]
 
     {output, exit_code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
