@@ -1,12 +1,13 @@
 from pathlib import Path
 
 
-def replace_once(text: str, old: str, new: str, label: str) -> str:
-    if new in text:
-        return text
-    if old not in text:
-        raise SystemExit(f"anchor not found: {label}")
-    return text.replace(old, new, 1)
+def insert_after_line(lines: list[str], predicate, insertion: str, label: str) -> list[str]:
+    if insertion in lines:
+        return lines
+    for index, line in enumerate(lines):
+        if predicate(line):
+            return lines[: index + 1] + [insertion] + lines[index + 1 :]
+    raise SystemExit(f"anchor not found: {label}")
 
 
 actuate_path = Path("lib/ggen_igniter/actuate.ex")
@@ -30,24 +31,31 @@ if policy_doc not in actuate:
         raise SystemExit("actuate moduledoc anchor not found")
     actuate = actuate.replace(doc_anchor, policy_doc + doc_anchor, 1)
 
-actuate = replace_once(
-    actuate,
-    "  def write_new_file!(path, content) do\n    File.mkdir_p!(Path.dirname(path))",
-    "  def write_new_file!(path, content) do\n    refuse_generated_directory!(path)\n    File.mkdir_p!(Path.dirname(path))",
+lines = actuate.splitlines(keepends=True)
+lines = insert_after_line(
+    lines,
+    lambda line: line.startswith("  def write_new_file!(path, content) do"),
+    "    refuse_generated_directory!(path)\n",
     "write_new_file!/2",
 )
-actuate = replace_once(
-    actuate,
-    "  def write_file!(path, content, opts \\ []) do\n    unless_exists = Keyword.get(opts, :unless_exists, false)",
-    "  def write_file!(path, content, opts \\ []) do\n    refuse_generated_directory!(path)\n    unless_exists = Keyword.get(opts, :unless_exists, false)",
+lines = insert_after_line(
+    lines,
+    lambda line: line.startswith("  def write_file!(path, content, opts "),
+    "    refuse_generated_directory!(path)\n",
     "write_file!/3",
 )
-actuate = replace_once(
-    actuate,
-    "  def inject_content!(path, marker, content, insert_mode, opts \\ [])\n      when insert_mode in [:before, :after, :at_line] do\n    dry_run = Keyword.get(opts, :dry_run, false)",
-    "  def inject_content!(path, marker, content, insert_mode, opts \\ [])\n      when insert_mode in [:before, :after, :at_line] do\n    refuse_generated_directory!(path)\n    dry_run = Keyword.get(opts, :dry_run, false)",
-    "inject_content!/5",
-)
+
+if "    refuse_generated_directory!(path)\n" not in lines[
+    max(0, next((i for i, line in enumerate(lines) if line.startswith("  def inject_content!(")), 0)) :
+]:
+    for index, line in enumerate(lines):
+        if line.strip() == "when insert_mode in [:before, :after, :at_line] do":
+            lines.insert(index + 1, "    refuse_generated_directory!(path)\n")
+            break
+    else:
+        raise SystemExit("anchor not found: inject_content!/5")
+
+actuate = "".join(lines)
 
 helper_anchor = "  defp matches?(content, %Regex{} = pattern), do: Regex.match?(pattern, content)\n"
 helper = """  # Fail-closed output policy shared by every filesystem actuation path.
