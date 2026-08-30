@@ -1,0 +1,100 @@
+@prefix rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#> .
+
+# Practice/dogfood pack: proves ggen_igniter can manufacture a real,
+# full-featured plain `Reactor` module (per ADR-0003, `docs/architecture/adr/
+# 0003-plain-reactor-for-coordination.md` — never Ash.Reactor) from ontology
+# data alone: ordered steps, real `argument`/`run`/`compensate`/`undo`
+# bodies, async flags, and a `return` — the same DSL surface
+# `GgenIgniter.Reactors.ReconcileReactor` itself uses, exercised here as a
+# small worked example rather than this repo's own production pipeline.
+#
+# Regenerate with:
+#   mix ggen_igniter.sync --pack reactor-scaffold-pack --engine sparql \
+#     --out lib/ggen_igniter/reactors/examples/expense_approval_reactor.ex
+#
+# The dogfood loop: add/edit an rx:Step individual here, re-run the command
+# above, re-run `mix test test/ggen_igniter_expense_approval_reactor_test.exs`
+# — never hand-edit the generated file (see its own "Do not edit" header).
+
+rx:reactor_expense_approval a rx:ReactorDef ;
+    rx:moduleName "GgenIgniter.Reactors.Examples.ExpenseApprovalReactor" ;
+    rx:inputs "email, amount, card_token" ;
+    rx:returnStep "charge_payment" ;
+    rx:middlewares "middlewares do\n    middleware Reactor.Middleware.Telemetry\n  end" .
+
+rx:step_fetch_user a rx:Step ;
+    rx:order "1" ;
+    rx:name "fetch_user" ;
+    rx:arguments "argument :email, input(:email)\n    argument :requested_currency, value(\"USD\")" ;
+    rx:runBody "fn %{email: email, requested_currency: _currency}, _context ->\n      case GgenIgniter.Reactors.Examples.Support.fetch_user(email) do\n        {:ok, user} -> {:ok, user}\n        {:error, reason} -> {:error, reason}\n      end\n    end" ;
+    rx:async "false" .
+
+rx:step_validate_user a rx:Step ;
+    rx:order "2" ;
+    rx:name "validate_user" ;
+    rx:arguments "argument :user, result(:fetch_user)" ;
+    rx:runBody "fn %{user: user}, _context ->\n      if user.active? do\n        {:ok, user}\n      else\n        {:error, :inactive_user}\n      end\n    end" ;
+    rx:async "false" ;
+    rx:whereBody "&(&1.user != nil)" ;
+    rx:guardBody "fn %{user: user}, _context ->\n      if is_nil(user) do\n        {:halt, {:error, :no_user}}\n      else\n        :cont\n      end\n    end" ;
+    rx:maxRetries "3" .
+
+rx:step_charge_payment a rx:Step ;
+    rx:order "3" ;
+    rx:name "charge_payment" ;
+    rx:arguments "argument :user, result(:validate_user)\n    argument :amount, input(:amount)\n    argument :card_token, input(:card_token)" ;
+    rx:runBody "fn %{user: user, amount: amount, card_token: card_token}, _context ->\n      GgenIgniter.Reactors.Examples.Support.charge(user, amount, card_token)\n    end" ;
+    rx:compensateBody "fn _reason, %{amount: amount, card_token: card_token}, _context ->\n      GgenIgniter.Reactors.Examples.Support.refund(card_token, amount)\n      :ok\n    end" ;
+    rx:undoBody "fn charge, %{card_token: card_token}, _context ->\n      GgenIgniter.Reactors.Examples.Support.refund(card_token, charge.amount)\n      :ok\n    end" ;
+    rx:async "true" ;
+    rx:waitFor "fetch_user" .
+
+rx:step_send_receipt a rx:Step ;
+    rx:order "4" ;
+    rx:name "send_receipt" ;
+    rx:arguments "argument :user, result(:validate_user)\n    argument :charge, result(:charge_payment)" ;
+    rx:runBody "fn %{user: user, charge: charge}, _context ->\n      GgenIgniter.Reactors.Examples.Support.send_receipt(user, charge)\n    end" ;
+    rx:async "true" .
+
+# Remaining DSL constructs from the real Reactor cheatsheet
+# (https://reactor.hexdocs.pm/reactor-cheatsheet.html), each verified to
+# actually compile and run: debug, group (before_all/after_all), switch
+# (matches?/default), compose, collect, map, around, template. Modeled as
+# rx:RawBlock individuals (one literal, verbatim top-level DSL block per
+# construct, still sourced from ontology data) rather than fully-structured
+# ontology fields, since each has a materially different nested shape
+# (switch's matches?/default, map's source+element, etc.) — the structured
+# rx:Step shape above already covers argument/run/compensate/undo/async?/
+# where/guard/max_retries/wait_for/value() for the common case.
+
+rx:raw_debug a rx:RawBlock ;
+    rx:order "5" ;
+    rx:body "debug :log_charge do\n    argument :charge, result(:charge_payment)\n    argument :message, value(\"charge completed\")\n  end" .
+
+rx:raw_group a rx:RawBlock ;
+    rx:order "6" ;
+    rx:body "group :audit_group do\n    argument :charge, result(:charge_payment)\n    before_all &GgenIgniter.Reactors.Examples.Support.audit_before/3\n    after_all &GgenIgniter.Reactors.Examples.Support.audit_after/1\n\n    step :record_audit do\n      argument :charge, input(:charge)\n      run fn %{charge: charge}, _context ->\n        {:ok, \"audited #{charge.amount}\"}\n      end\n    end\n  end" .
+
+rx:raw_switch a rx:RawBlock ;
+    rx:order "7" ;
+    rx:body "switch :route_by_amount do\n    on input(:amount)\n\n    matches? &(&1 > 1000) do\n      return :flag_large\n\n      step :flag_large do\n        run fn _args, _context -> {:ok, :large} end\n      end\n    end\n\n    default do\n      return :flag_normal\n\n      step :flag_normal do\n        run fn _args, _context -> {:ok, :normal} end\n      end\n    end\n  end" .
+
+rx:raw_compose a rx:RawBlock ;
+    rx:order "8" ;
+    rx:body "compose :sub_receipt, GgenIgniter.Reactors.Examples.ReceiptSubReactor do\n    argument :charge, result(:charge_payment)\n  end" .
+
+rx:raw_collect a rx:RawBlock ;
+    rx:order "9" ;
+    rx:body "collect :summary do\n    argument :user, result(:validate_user)\n    argument :charge, result(:charge_payment)\n    argument :notified, result(:notify_admins)\n\n    transform fn inputs -> %{user: inputs.user, charge: inputs.charge, notified: inputs.notified} end\n  end" .
+
+rx:raw_map a rx:RawBlock ;
+    rx:order "10" ;
+    rx:body "map :notify_admins do\n    source value([\"ops@example.com\", \"audit@example.com\"])\n    batch_size 2\n    allow_async? true\n\n    step :notify do\n      argument :email, element(:notify_admins)\n      run fn %{email: email}, _context -> {:ok, \"notified #{email}\"} end\n    end\n  end" .
+
+rx:raw_around a rx:RawBlock ;
+    rx:order "11" ;
+    rx:body "around :with_logging, &GgenIgniter.Reactors.Examples.Support.with_logging/4 do\n    step :logged_step do\n      run fn _args, _context -> {:ok, :done} end\n    end\n  end" .
+
+rx:raw_template a rx:RawBlock ;
+    rx:order "12" ;
+    rx:body "template :welcome_message do\n    argument :user, result(:validate_user)\n\n    template \"\"\"\n    Welcome <%= @user.email %>!\n    \"\"\"\n  end" .

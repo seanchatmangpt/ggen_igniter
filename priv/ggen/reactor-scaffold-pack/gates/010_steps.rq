@@ -1,0 +1,34 @@
+PREFIX rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT DISTINCT ?kind ?moduleName ?inputs ?returnStep ?middlewares ?order ?name ?arguments
+                ?runBody ?compensateBody ?undoBody ?async ?whereBody ?guardBody ?maxRetries
+                ?waitFor ?body WHERE {
+  ?r a rx:ReactorDef ;
+     rx:moduleName ?moduleName ;
+     rx:inputs ?inputs ;
+     rx:returnStep ?returnStep .
+  OPTIONAL { ?r rx:middlewares ?middlewares }
+  {
+    ?s a rx:Step ;
+       rx:order ?order ;
+       rx:name ?name ;
+       rx:arguments ?arguments ;
+       rx:runBody ?runBody .
+    BIND("step" AS ?kind)
+    OPTIONAL { ?s rx:compensateBody ?compensateBody }
+    OPTIONAL { ?s rx:undoBody ?undoBody }
+    OPTIONAL { ?s rx:async ?async }
+    OPTIONAL { ?s rx:whereBody ?whereBody }
+    OPTIONAL { ?s rx:guardBody ?guardBody }
+    OPTIONAL { ?s rx:maxRetries ?maxRetries }
+    OPTIONAL { ?s rx:waitFor ?waitFor }
+  }
+  UNION
+  {
+    ?b a rx:RawBlock ;
+       rx:order ?order ;
+       rx:body ?body .
+    BIND("raw" AS ?kind)
+  }
+}
+ORDER BY xsd:integer(?order)
