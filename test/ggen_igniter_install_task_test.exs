@@ -85,6 +85,71 @@ defmodule GgenIgniterInstallTaskTest do
       assert_has_patch(igniter, "lib/my_app/application.ex", "6 + |    children = [MyApp.Ash.Domain]")
     end
 
+    test "auto-inserts a children = [...] binding when start/2 inlines the list directly" do
+      mix_exs = """
+      defmodule MyApp.MixProject do
+        use Mix.Project
+
+        def project do
+          [
+            app: :my_app,
+            version: "0.1.0",
+            elixir: "~> 1.17",
+            start_permanent: Mix.env() == :prod,
+            deps: deps()
+          ]
+        end
+
+        def application do
+          [
+            extra_applications: [:logger],
+            mod: {MyApp.Application, []}
+          ]
+        end
+
+        defp deps do
+          []
+        end
+      end
+      """
+
+      # Real shape that Igniter.Project.Application.add_new_child/2,3 cannot handle
+      # on its own (no `children = [...]` binding to find an insertion point in) --
+      # confirmed in test/ggen_igniter_base_project_config_application_test.exs,
+      # where this exact shape degrades to a warning and leaves the file untouched.
+      application_ex = """
+      defmodule MyApp.Application do
+        use Application
+
+        @impl true
+        def start(_type, _args) do
+          Supervisor.start_link([], strategy: :one_for_one, name: MyApp.Supervisor)
+        end
+      end
+      """
+
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => mix_exs,
+            "lib/my_app/application.ex" => application_ex
+          }
+        )
+        |> Igniter.compose_task("ggen_igniter.install", ["--domain", "MyApp.Ash.Domain"])
+
+      # Real fix, not a warning: ensure_children_binding/1 introduces the binding
+      # first, then add_new_child/3 succeeds normally against it -- the real diff
+      # shows the binding introduced with the new child already present (add_new_child
+      # runs after ensure_children_binding in the pipeline), not an empty list.
+      assert_has_patch(igniter, "lib/my_app/application.ex", "6 + |    children = [MyApp.Ash.Domain]")
+      assert_has_patch(
+        igniter,
+        "lib/my_app/application.ex",
+        "7 + |    Supervisor.start_link(children,"
+      )
+      refute Enum.any?(igniter.warnings, &(&1 =~ "children"))
+    end
+
     test "emits an issue instead of crashing when consumer mix.exs inlines deps: [...] in project/0" do
       igniter =
         test_project(files: %{"mix.exs" => Ex4pmFixture.mix_exs_source()})

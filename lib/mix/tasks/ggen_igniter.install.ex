@@ -47,6 +47,36 @@ defmodule Mix.Tasks.GgenIgniter.Install do
   scoped AST rewrite with real risk of misapplying a patch to the consumer's actual
   `mix.exs`, and this repo's `local-dfcm-manufacturing-engine` discipline treats "never
   fake away a side of a merge" the same way for any nontrivial speculative rewrite.
+
+  ## `children = [...]` auto-insert (fixes `Igniter.Project.Application.add_new_child/2,3`'s
+  known insertion-point gap, without patching `deps/igniter`)
+
+  `Igniter.Project.Application.add_new_child/2,3` requires the target `start/2` callback to
+  already assign its child list to a `children = [...]` variable before passing it to
+  `Supervisor.start_link/2` (confirmed by reading `deps/igniter/lib/igniter/project/
+  application.ex`'s own moduledoc example). Against a real `start/2` that inlines the child
+  list directly -- `Supervisor.start_link([], opts)`, with no `children =` binding -- the
+  codemod cannot locate an insertion point and degrades to a real, honest warning, leaving
+  the file untouched (see `test/ggen_igniter_base_project_config_application_test.exs`).
+
+  Unlike the `deps:` defect above, this gap has a safe, semantics-preserving local fix that
+  does not require touching `deps/igniter`: `ensure_children_binding/1` runs BEFORE
+  `add_new_child/3` and, only when the app module's `start/2` calls `Supervisor.start_link/2`
+  (or `Supervisor.start_link/3`) with a bare list literal as its first argument (never a
+  variable -- that means a `children = [...]` binding may already exist elsewhere), rewrites
+
+      Supervisor.start_link([...], opts)
+
+  to
+
+      children = [...]
+      Supervisor.start_link(children, opts)
+
+  -- a real, targeted `Igniter.Code.Function`/`Sourceror.Zipper` rewrite, purely additive to
+  `start/2`'s body (inserts one statement, replaces the call's first argument with a
+  variable reference to it), leaving supervision semantics identical. When no app module
+  exists yet, or `start/2` isn't found, or the first argument is already a variable (not a
+  bare list), this is a no-op and `add_new_child/3` proceeds (or degrades) exactly as before.
   """
 
   use Igniter.Mix.Task
@@ -94,6 +124,7 @@ defmodule Mix.Tasks.GgenIgniter.Install do
           [:ash_domains],
           [domain_module]
         )
+        |> ensure_children_binding()
         |> Igniter.Project.Application.add_new_child(domain_module, opts_for_child: [])
 
       :error ->
@@ -113,6 +144,78 @@ defmodule Mix.Tasks.GgenIgniter.Install do
         """)
     end
   end
+
+  # Routes around `Igniter.Project.Application.add_new_child/2,3`'s known
+  # insertion-point gap (see moduledoc) without touching `deps/igniter`: when the app
+  # module's `start/2` calls `Supervisor.start_link/2,3` with a bare list literal as
+  # its first argument (never a variable -- that would mean a `children = [...]`
+  # binding may already exist), rewrites it to introduce that binding first. A no-op
+  # (returns `igniter` unchanged) whenever there's no app module, no `start/2`, no
+  # matching `Supervisor.start_link` call, or the first argument isn't a bare list.
+  defp ensure_children_binding(igniter) do
+    case Igniter.Project.Application.app_module(igniter) do
+      nil ->
+        igniter
+
+      app_module_result ->
+        module = elem_or_self(app_module_result)
+        do_ensure_children_binding(igniter, module)
+    end
+  end
+
+  defp elem_or_self({mod, _}), do: mod
+  defp elem_or_self(mod), do: mod
+
+  defp do_ensure_children_binding(igniter, module) do
+    case Igniter.Project.Module.find_module(igniter, module) do
+      {:ok, {igniter, source, zipper}} ->
+        case rewrite_children_binding(zipper) do
+          {:ok, zipper} ->
+            new_source =
+              Igniter.update_source(source, igniter, :quoted, Sourceror.Zipper.topmost_root(zipper))
+
+            %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}
+
+          :no_change ->
+            igniter
+        end
+
+      :error ->
+        igniter
+    end
+  end
+
+  defp rewrite_children_binding(zipper) do
+    with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :start, 2),
+         {:ok, call_zipper} <-
+           Igniter.Code.Function.move_to_function_call(zipper, {Supervisor, :start_link}, [2, 3]),
+         {form, meta, [first_arg | rest_args]} <- call_zipper.node,
+         true <- list_literal?(first_arg) do
+      updated_call_zipper =
+        Sourceror.Zipper.replace(
+          call_zipper,
+          {form, meta, [{:children, [], nil} | rest_args]}
+        )
+
+      {:ok,
+       Igniter.Code.Common.add_code(
+         updated_call_zipper,
+         {:=, [], [{:children, [], nil}, first_arg]},
+         placement: :before
+       )}
+    else
+      _ -> :no_change
+    end
+  end
+
+  # Sourceror's `literal_encoder` block-wraps a bare `[]` (an atomic literal token)
+  # as `{:__block__, meta, [[]]}`, but leaves a non-empty list (`[a, b]`, built from
+  # cons cells rather than a single literal token) as a raw Elixir list AST directly
+  # -- both are real "a bare list literal was passed as the first argument" shapes
+  # this rewrite must recognize.
+  defp list_literal?({:__block__, _, [list]}) when is_list(list), do: true
+  defp list_literal?(list) when is_list(list), do: true
+  defp list_literal?(_), do: false
 
   # Mirrors the exact probe `Igniter.Project.Deps.get_dep/2` runs internally before
   # `add_dep/2,3` would otherwise crash on an inline `deps: [...]` mix.exs shape (see

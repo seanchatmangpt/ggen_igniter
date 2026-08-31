@@ -44,6 +44,18 @@ defmodule GgenIgniterUpstreamRenameBlockerTest do
   `Igniter.Refactors.Rename.rename_function/4` against any module
   containing a parenless zero-arity def matching `old_function`'s name
   crashes the whole codemod rather than skipping or renaming it.
+
+  ## Workaround, without patching `deps/igniter`
+
+  Both defects are routed around (not fixed upstream -- `deps/igniter` is a vendored
+  hex dependency; editing it in place would be silently reverted by the next `mix
+  deps.get`) by `GgenIgniter.Refactors.SafeRename.rename_function/4`
+  (`lib/ggen_igniter/refactors/safe_rename.ex`) -- a local wrapper that
+  pre-normalizes parenless zero-arity defs (defect 2) and post-passes any
+  remaining guarded def (defect 1), while delegating to this exact real
+  `Igniter.Refactors.Rename.rename_function/4` for everything else. See
+  `test/ggen_igniter_safe_rename_test.exs` for the real, passing proof that the
+  wrapper produces correct output on both cases this file documents as broken.
   """
 
   use ExUnit.Case, async: true
