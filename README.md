@@ -253,6 +253,9 @@ Run it with:
 mix e2e
 ```
 
+For a host-independent, containerized run of this same suite, see
+`docs/reference/docker-e2e.md` (`docker compose -f docker-compose.e2e.yml run --rm e2e`).
+
 It requires network access (hex/GitHub fetches via `mix archive.install`),
 runs for several minutes, and uses real disk space in a temp directory
 (cleaned up via `on_exit` when the test finishes). It is not part of the

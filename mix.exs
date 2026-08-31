@@ -49,7 +49,8 @@ defmodule GgenIgniter.MixProject do
         # rebuilding the PLT eliminates all 12 of those warnings with zero new
         # findings.
         plt_add_apps: [:mix]
-      ]
+      ],
+      elixirc_paths: elixirc_paths(Mix.env())
     ]
   end
 
@@ -172,4 +173,10 @@ defmodule GgenIgniter.MixProject do
       {:jason, "~> 1.4"}
     ]
   end
+
+  defp elixirc_paths(:test),
+    do: elixirc_paths(:dev) ++ ["test/support"]
+
+  defp elixirc_paths(_),
+    do: ["lib"]
 end

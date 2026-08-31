@@ -1,0 +1,40 @@
+# Dockerfile.e2e — reproducible downstream-consumer validation container.
+#
+# Runs the existing `mix e2e` suite (test/e2e/run_e2e.exs) inside a clean, versioned
+# Elixir/OTP/Rust environment, independent of host machine state. Does not modify or
+# replace `mix e2e` — it reuses it verbatim (see docs/reference/docker-e2e.md).
+#
+# Base image ships Erlang/OTP 25 + Elixir 1.17, matching this repo's stated minimums
+# (mix.exs: `elixir: "~> 1.17"`; README: "OTP >= 25").
+FROM elixir:1.17-otp-25-slim
+
+# Rust/cargo is required because the default `--engine oxigraph` compiles the
+# Rustler NIF (native/ggen_graph_nif) as part of `mix compile`, regardless of which
+# engine is used at runtime. build-essential/curl/git are needed by rustup and by
+# `mix igniter.new`/`mix archive.install` (real Hex/GitHub network fetches).
+#
+# The base image is Debian 11 (bullseye), whose default g++ (10.2.1) does not
+# support the C++20 `using enum` syntax that oxrocksdb-sys (an oxigraph transitive
+# dependency, pulled in by the ggen_graph_nif crate) requires — this was confirmed
+# by a real container build failure (`error: expected nested-name-specifier before
+# 'enum'` in rocksdb/include/rocksdb/db.h). bullseye-backports' Release file is gone
+# (archived upstream), so instead of mixing in a newer glibc/libstdc++ from
+# bookworm, use bullseye's own clang-16 package (already C++20-`using enum`-capable)
+# as CC/CXX for the native build.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential curl git ca-certificates clang-16 && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+ENV CXX="clang++-16"
+ENV CC="clang-16"
+
+RUN mix local.hex --force && mix local.rebar --force
+
+# Matches test/e2e/support/e2e_case.ex's hardcoded @ggen_igniter_path, so the
+# unmodified e2e path-dependency logic resolves correctly against the bind-mounted
+# repo (see docker-compose.e2e.yml).
+WORKDIR /Users/sac/ggen_igniter
+
+CMD ["mix", "e2e"]

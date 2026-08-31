@@ -1,0 +1,30 @@
+# docker-compose.e2e.yml — one-liner entry point for the Docker downstream-consumer
+# validation test. See docs/reference/docker-e2e.md.
+#
+# Usage:
+#   docker compose -f docker-compose.e2e.yml run --rm e2e
+#
+# Requires network access (real `mix archive.install`/`mix igniter.new`/`mix deps.get`
+# Hex+GitHub fetches — no offline mode exists) and takes several minutes, same as the
+# bare `mix e2e` this wraps.
+services:
+  e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    volumes:
+      - .:/Users/sac/ggen_igniter
+      # deps/_build get their own named volumes, separate from the host tree:
+      # the host's own compiled BEAM/NIF artifacts are built for the host's
+      # Elixir/OTP/arch and are not ABI-compatible with the container's — bind-
+      # mounting them in caused a real `:beam_lib`/`binary_to_atom` crash while
+      # compiling the `:rdf` dep (a stale host-compiled .beam file read inside
+      # the container). Named volumes let the container compile its own tree.
+      - ggen_igniter_e2e_deps:/Users/sac/ggen_igniter/deps
+      - ggen_igniter_e2e_build:/Users/sac/ggen_igniter/_build
+    working_dir: /Users/sac/ggen_igniter
+    command: ["sh", "-c", "mix deps.get && mix e2e"]
+
+volumes:
+  ggen_igniter_e2e_deps:
+  ggen_igniter_e2e_build:
