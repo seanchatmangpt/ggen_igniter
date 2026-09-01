@@ -726,7 +726,20 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     manifest_dir = opts[:manifest_dir] || File.cwd!()
     started_at = DateTime.utc_now() |> DateTime.to_iso8601()
 
-    case Reactor.run(__MODULE__, %{reconcile_opts: opts}, %{}, async?: false) do
+    # `:telemetry_run_id` is an optional caller-supplied opaque term (real
+    # use: `CompensationTelemetryMiddlewareTest` passing its own unique id so
+    # it can read back `CompensationTelemetryMiddleware.counters/1` for
+    # exactly THIS run, not every run since BEAM boot). When absent, the
+    # middleware's own `init/1` mints one -- see that module's moduledoc
+    # "Per-run scoping" section -- so this is a pass-through, not a
+    # requirement.
+    reactor_context =
+      case reconcile_opts[:telemetry_run_id] do
+        nil -> %{}
+        run_id -> %{compensation_telemetry_run_id: run_id}
+      end
+
+    case Reactor.run(__MODULE__, %{reconcile_opts: opts}, reactor_context, async?: false) do
       {:ok, receipt} ->
         {:ok, receipt}
 

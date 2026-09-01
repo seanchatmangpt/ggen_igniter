@@ -344,6 +344,16 @@ defmodule GgenIgniter.DoctorFixes do
   # tuple (and every other dependency in the list) is left byte-for-byte
   # untouched. Returns `:error` (never a guess) if any step doesn't find
   # what the regex-based predicate already confirmed was there.
+  #
+  # Handles BOTH real dependency tuple arities `igniter.new`/`phx.new` (and
+  # hand-written mix.exs files) actually generate:
+  #   - the 3-tuple `{name, "VERSION_REQ", opts}` -- opts is elem 2
+  #   - the 2-tuple `{name, opts}` (no version requirement -- the common
+  #     `github:`/`path:`/`git:`-sourced dependency shape, e.g.
+  #     `{:some_dep, github: "org/repo", only: :test}`) -- opts is elem 1
+  # `dep_opts_elem/1` inspects the tuple's real arity via `Sourceror.Zipper`
+  # before picking which index to read, instead of unconditionally assuming
+  # 3 (which raised on the 2-tuple shape -- see GAPS-TO-FILL.v26.9.1.md #8).
   defp rewrite_dep_only(source, dep) do
     zipper = source |> Sourceror.parse_string!() |> Sourceror.Zipper.zip()
 
@@ -356,9 +366,19 @@ defmodule GgenIgniter.DoctorFixes do
            end),
          before_text <-
            tuple_zipper |> Sourceror.Zipper.node() |> Sourceror.to_string() |> String.trim(),
-         {:ok, opts_zipper} <- Igniter.Code.Tuple.tuple_elem(tuple_zipper, 2),
+         {:ok, opts_elem} <- dep_opts_elem(tuple_zipper),
+         {:ok, opts_zipper} <- Igniter.Code.Tuple.tuple_elem(tuple_zipper, opts_elem),
          {:ok, opts_zipper} <- Igniter.Code.Keyword.remove_keyword_key(opts_zipper, :only) do
-      final_zipper = collapse_empty_dep_opts(opts_zipper)
+      final_zipper =
+        if opts_elem == 2 do
+          collapse_empty_dep_opts(opts_zipper)
+        else
+          # 2-tuple `{name, opts}` shape: no version element to collapse
+          # back down to, so an emptied opts list is left as-is
+          # (`{name, []}`) -- still syntactically valid, and no other
+          # option on the tuple is disturbed.
+          opts_zipper
+        end
 
       {:ok,
        %{
@@ -366,6 +386,24 @@ defmodule GgenIgniter.DoctorFixes do
          before: before_text
        }}
     else
+      _ -> :error
+    end
+  end
+
+  # Determines which tuple element index holds `tuple_zipper`'s options
+  # (the `only:`/`runtime:`/etc. keyword list), based on the tuple's real
+  # arity -- NOT a hardcoded assumption of `{name, version, opts}`:
+  #   - 3-tuple `{name, version, opts}` -> opts is elem 2
+  #   - 2-tuple `{name, opts}` -> opts is elem 1 (no version requirement)
+  # Any other arity is `:error` (degrade gracefully, never guess).
+  @spec dep_opts_elem(Sourceror.Zipper.t()) :: {:ok, 1 | 2} | :error
+  defp dep_opts_elem(tuple_zipper) do
+    case tuple_zipper
+         |> Igniter.Code.Common.maybe_move_to_single_child_block()
+         |> Sourceror.Zipper.node() do
+      {:{}, _meta, elems} when is_list(elems) and length(elems) == 3 -> {:ok, 2}
+      {:{}, _meta, elems} when is_list(elems) and length(elems) == 2 -> {:ok, 1}
+      {_a, _b} -> {:ok, 1}
       _ -> :error
     end
   end

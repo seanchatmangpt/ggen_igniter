@@ -135,6 +135,43 @@ defmodule GgenIgniter.DoctorFixesTest do
       assert File.read!(Path.join(dir, "mix.exs")) == once_fixed
     end
 
+    test "relaxes only: on a real 2-tuple {name, opts} dependency (github:-sourced, no version req)",
+         %{dir: dir} do
+      write_mix_exs!(dir, [
+        ~S({:some_dep, github: "org/repo", only: :test},),
+        ~S({:igniter, "~> 0.8"})
+      ])
+
+      assert {:fixable, message} = DoctorFixes.check_dep_only(dir, :some_dep)
+      assert message =~ "some_dep"
+      assert message =~ "only: :test"
+
+      assert {:fixed, fix_message} = DoctorFixes.fix_dep_only!(dir, :some_dep)
+      assert fix_message =~ "relaxed :some_dep"
+
+      updated = File.read!(Path.join(dir, "mix.exs"))
+      assert updated =~ ~S({:some_dep, github: "org/repo"})
+      refute updated =~ "only:"
+      # the unrelated dependency line is untouched
+      assert updated =~ ~S({:igniter, "~> 0.8"})
+
+      assert {:ok, _} = DoctorFixes.check_dep_only(dir, :some_dep)
+    end
+
+    test "relaxes only: on a real 2-tuple {name, opts} dependency (path:-sourced, no version req)",
+         %{dir: dir} do
+      write_mix_exs!(dir, [
+        ~S({:local_dep, path: "../local", only: :dev},),
+        ~S({:igniter, "~> 0.8"})
+      ])
+
+      assert {:fixed, _} = DoctorFixes.fix_dep_only!(dir, :local_dep)
+
+      updated = File.read!(Path.join(dir, "mix.exs"))
+      assert updated =~ ~S({:local_dep, path: "../local"})
+      refute updated =~ "only:"
+    end
+
     test "raises a clear error (never guesses) when no deps/0 function body can be found",
          %{dir: dir} do
       File.write!(Path.join(dir, "mix.exs"), """

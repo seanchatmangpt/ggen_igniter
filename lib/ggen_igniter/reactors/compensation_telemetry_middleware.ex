@@ -62,6 +62,35 @@ defmodule GgenIgniter.Reactors.CompensationTelemetryMiddleware do
   this module's task explicitly asks to count -- reusing the SAME functions
   `run/1` itself uses to derive them, rather than re-implementing a second,
   possibly-diverging classification.
+
+  ## Per-run scoping (`run_id`, added post-v26.9.1-gap-#7)
+
+  The ETS table's real key shape is `{run_id, counter_atom}`, not a bare
+  `counter_atom` -- a bare-atom key would make `counters/0` answer "how many
+  times ever, across every run since BEAM boot" instead of "how many times
+  THIS run", which is genuinely useless for a caller that wants to know
+  whether the run it just made produced a compensation event.
+
+  `run_id` is generated fresh in `init/1` (via `System.unique_integer/1` +
+  `self()` of the calling process -- the real, honest signal available at
+  that point) and stored into the real `Reactor.context()` map this
+  middleware returns from `init/1`. This is not a guess about Reactor's own
+  internals: tracing `deps/reactor/lib/reactor/executor.ex`'s `run/4` (calls
+  `Executor.Hooks.init/2`, then does `execute(%{reactor | context: context},
+  state)` with THAT returned context) and
+  `deps/reactor/lib/reactor/executor/hooks.ex`'s `error/3` (called with
+  `reactor.context`, the same context threaded from `init/1` through the
+  whole run) confirms the context map `init/1` returns is the exact same map
+  `event/3` and `error/2` receive for the rest of that one real run -- no
+  Reactor-provided `reactor_id`/run-identifier exists in `Reactor.context()`
+  (confirmed absent from `deps/reactor/lib/reactor.ex`'s `@type context ::
+  %{optional(atom) => any}`), so this module mints its own rather than
+  inventing a fictitious one Reactor doesn't actually provide.
+
+  `counters/1` reads back just one run's counts via this real per-run key.
+  `counters/0` is kept for backward compatibility and now explicitly
+  documented as a cross-run aggregate (folds every `{_run_id, counter}` key
+  currently in the table into one map) -- not a per-run answer.
   """
 
   @behaviour Reactor.Middleware
@@ -74,61 +103,107 @@ defmodule GgenIgniter.Reactors.CompensationTelemetryMiddleware do
   @spec init(Reactor.context()) :: {:ok, Reactor.context()}
   def init(context) do
     ensure_table!()
-    {:ok, context}
+    run_id = Map.get(context, :compensation_telemetry_run_id) || generate_run_id()
+    {:ok, Map.put(context, :compensation_telemetry_run_id, run_id)}
   end
 
   @impl true
   @spec event(Reactor.Middleware.step_event(), Reactor.Step.t(), Reactor.context()) :: :ok
-  def event({:compensate_start, _reason}, _step, _context) do
-    bump(:compensate_start)
+  def event({:compensate_start, _reason}, _step, context) do
+    bump(run_id!(context), :compensate_start)
   end
 
-  def event({:compensate_error, _error_or_errors}, _step, _context) do
-    bump(:compensate_error)
+  def event({:compensate_error, _error_or_errors}, _step, context) do
+    bump(run_id!(context), :compensate_error)
   end
 
-  def event(:undo_start, _step, _context) do
-    bump(:undo_start)
+  def event(:undo_start, _step, context) do
+    bump(run_id!(context), :undo_start)
   end
 
   def event(_other_event, _step, _context), do: :ok
 
   @impl true
   @spec error(Reactor.Middleware.error_or_errors(), Reactor.context()) :: :ok
-  def error(error_or_errors, _context) do
+  def error(error_or_errors, context) do
     ensure_table!()
+    run_id = run_id!(context)
 
-    case ReconcileReactor.find_compensation_failure(error_or_errors) do
-      {:ok, _details} -> bump(:compensation_failed)
-      :error -> :ok
-    end
-
+    # Mutually exclusive by precedence: a `{:compile_failed, _}` step error is
+    # checked FIRST. `ReconcileReactor.standing_for_failure/2` (the real
+    # function this module's own moduledoc says it defers to) treats
+    # `:compile_failed` as the specific `:build_broken` standing and any
+    # OTHER real compensation failure (including the `revert_all/1`
+    # `:compensation_failed` shape `find_compensation_failure/1` detects) as
+    # the more generic `:compensated`/`:compensation_failed` bucket -- so for
+    # ONE real error term, only one of `:build_broken` /
+    # `:compensation_failed` should ever bump, matching
+    # `standing_for_failure/2`'s own real either/or classification instead of
+    # letting both independently match and double-count a single failing run.
     build_broken? =
       match?(
         {:ok, _name, _reason},
         ReconcileReactor.find_step_error(error_or_errors, &match?({:compile_failed, _}, &1))
       )
 
-    if build_broken? do
-      bump(:build_broken)
+    cond do
+      build_broken? ->
+        bump(run_id, :build_broken)
+
+      match?({:ok, _details}, ReconcileReactor.find_compensation_failure(error_or_errors)) ->
+        bump(run_id, :compensation_failed)
+
+      true ->
+        :ok
     end
 
     :ok
   end
 
   @doc """
-  Real, current contents of the `@table` ETS table as a plain map (e.g.
-  `%{compensate_start: 2, undo_start: 1}`) -- what a test asserts on
-  directly, per this module's own moduledoc (Chicago-style: real state, not
-  "was `event/3` called").
+  Real, current contents of the `@table` ETS table for ONE run, as a plain
+  map (e.g. `%{compensate_start: 2, undo_start: 1}`) -- what a test asserts
+  on directly, per this module's own moduledoc (Chicago-style: real state,
+  not "was `event/3` called").
+
+  `run_id` is the value stored under `context[:compensation_telemetry_run_id]`
+  by `init/1` for that run -- a test/caller reads it back from the same
+  `context` map it passed into `Reactor.run/4` (or, for `ReconcileReactor`,
+  from the run's own returned context if exposed) after the run completes.
 
   Never raises for an empty/not-yet-created table -- `ensure_table!/0` is
-  called first, so a fresh table with zero counters comes back as `%{}`.
+  called first, so a fresh/unknown `run_id` with zero counters comes back as
+  `%{}`.
+  """
+  @spec counters(term()) :: %{optional(atom()) => non_neg_integer()}
+  def counters(run_id) do
+    ensure_table!()
+
+    @table
+    |> :ets.tab2list()
+    |> Enum.flat_map(fn
+      {{^run_id, counter}, count} -> [{counter, count}]
+      _other -> []
+    end)
+    |> Map.new()
+  end
+
+  @doc """
+  Cross-run aggregate: real, current contents of the `@table` ETS table
+  summed across EVERY `run_id` currently present -- "how many times ever,
+  across every run since BEAM boot", not "how many times THIS run" (use
+  `counters/1` with a specific `run_id` for that). Kept for backward
+  compatibility with callers that only need a global sanity count.
   """
   @spec counters() :: %{optional(atom()) => non_neg_integer()}
   def counters do
     ensure_table!()
-    @table |> :ets.tab2list() |> Map.new()
+
+    @table
+    |> :ets.tab2list()
+    |> Enum.reduce(%{}, fn {{_run_id, counter}, count}, acc ->
+      Map.update(acc, counter, count, &(&1 + count))
+    end)
   end
 
   # Real, idempotent, public/named ETS table creation: `:ets.new/2` raises
@@ -149,9 +224,27 @@ defmodule GgenIgniter.Reactors.CompensationTelemetryMiddleware do
     ArgumentError -> :ok
   end
 
-  @spec bump(atom()) :: :ok
-  defp bump(key) do
-    :ets.update_counter(@table, key, {2, 1}, {key, 0})
+  # A real, per-process-and-call-site-unique run identifier -- not a
+  # Reactor-provided value (none exists in `Reactor.context()`, confirmed
+  # above), so this mints its own from two real, honestly-available signals:
+  # the calling process (`self()`, the real process that invoked
+  # `Reactor.run/4` for this run) and a real monotonic
+  # `System.unique_integer/1` counter (so two runs from the SAME process --
+  # e.g. two sequential `ReconcileReactor.run/1` calls in one test process --
+  # still get genuinely distinct ids).
+  @spec generate_run_id() :: {pid(), integer()}
+  defp generate_run_id do
+    {self(), System.unique_integer([:positive, :monotonic])}
+  end
+
+  @spec run_id!(Reactor.context()) :: term()
+  defp run_id!(context) do
+    Map.get(context, :compensation_telemetry_run_id) || generate_run_id()
+  end
+
+  @spec bump(term(), atom()) :: :ok
+  defp bump(run_id, key) do
+    :ets.update_counter(@table, {run_id, key}, {2, 1}, {{run_id, key}, 0})
     :ok
   end
 end

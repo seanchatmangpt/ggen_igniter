@@ -27,6 +27,22 @@ defmodule GgenIgniter.ReconcileReactorCompensationTelemetryTest do
   would make one test's real counter increments visible to another's
   assertions, which is exactly the shared-mutable-state hazard `async: true`
   is unsafe for.
+
+  Two tests below (added post-v26.9.1-gap-#7, see
+  `GAPS-TO-FILL.v26.9.1.md` #7) exercise the real per-run-scoping fix
+  directly:
+
+    * `counters/1` genuinely isolates two real, sequential
+      `ReconcileReactor.run/1` calls from each other via
+      `:telemetry_run_id` -- the SAME real compile-failure fixture run
+      twice with two distinct run ids reads back two independent counts,
+      neither summed into the other.
+    * `error/2`'s real mutual exclusion: a single real `{:compile_failed,
+      _}` failing run bumps ONLY `:build_broken`, never
+      `:compensation_failed` too, even though
+      `ReconcileReactor.find_compensation_failure/1` is (by construction of
+      the real `revert_all/1` catastrophic-standing shape) capable of also
+      matching a `:build_broken`-triggering error term.
   """
 
   use ExUnit.Case, async: false
@@ -144,13 +160,14 @@ defmodule GgenIgniter.ReconcileReactorCompensationTelemetryTest do
 
       new_path = Path.join([project_dir, "lib", "new_from_run.ex"])
 
-      before_counters = CompensationTelemetryMiddleware.counters()
+      run_id = make_ref()
 
       reconcile_opts = [
         engine: "sparql",
         ontology: ontology_path,
         manifest_dir: project_dir,
         verify_cwd: project_dir,
+        telemetry_run_id: run_id,
         targets: [
           [template: broken_template, query: "spec=#{query_alpha}", out: existing_path],
           [template: broken_template, query: "spec=#{query_beta}", out: new_path]
@@ -168,21 +185,95 @@ defmodule GgenIgniter.ReconcileReactorCompensationTelemetryTest do
       refute File.exists?(new_path)
       refute File.exists?(Manifest.path(project_dir))
 
-      after_counters = CompensationTelemetryMiddleware.counters()
+      run_counters = CompensationTelemetryMiddleware.counters(run_id)
 
-      # -- THE REAL, STATE-BASED PROOF: real ETS counters genuinely advanced
-      # by this real run, read back via counters/0 -- never an assertion
+      # -- THE REAL, STATE-BASED PROOF: real, per-run ETS counters genuinely
+      # advanced by THIS real run (scoped by `run_id`, never summed with any
+      # other test's counts), read back via counters/1 -- never an assertion
       # that event/3 or error/2 were "called".
-      assert Map.get(after_counters, :undo_start, 0) > Map.get(before_counters, :undo_start, 0),
+      assert Map.get(run_counters, :undo_start, 0) >= 1,
              ":undo_start should have incremented for :actuate's real undo/4 " <>
-               "(triggered by :verify's real compile failure) -- before=#{inspect(before_counters)}, " <>
-               "after=#{inspect(after_counters)}"
+               "(triggered by :verify's real compile failure) -- run_counters=#{inspect(run_counters)}"
 
-      assert Map.get(after_counters, :build_broken, 0) >
-               Map.get(before_counters, :build_broken, 0),
+      assert Map.get(run_counters, :build_broken, 0) >= 1,
              ":build_broken should have incremented via error/2's real " <>
                "find_step_error/2 match against the real {:compile_failed, _} reason -- " <>
-               "before=#{inspect(before_counters)}, after=#{inspect(after_counters)}"
+               "run_counters=#{inspect(run_counters)}"
+
+      # Mutual exclusion (the GAP #7 double-count fix): this real
+      # {:compile_failed, _} run must bump ONLY :build_broken via error/2,
+      # never :compensation_failed too, for the same one real error term.
+      assert Map.get(run_counters, :compensation_failed, 0) == 0,
+             ":compensation_failed must NOT also increment for a real " <>
+               ":build_broken error term -- run_counters=#{inspect(run_counters)}"
+    end
+
+    test "two real sequential ReconcileReactor.run/1 calls with distinct telemetry_run_id are independently readable via counters/1" do
+      fixtures = scratch_dir!()
+      ontology_path = write_ontology!(fixtures)
+      query_alpha = write_query!(fixtures, "spec_alpha", "Alpha")
+      query_beta = write_query!(fixtures, "spec_beta", "Beta")
+      broken_template = write_broken_template!(fixtures)
+
+      run_a = fn ->
+        project_dir = new_mix_project!()
+        run_id = make_ref()
+
+        reconcile_opts = [
+          engine: "sparql",
+          ontology: ontology_path,
+          manifest_dir: project_dir,
+          verify_cwd: project_dir,
+          telemetry_run_id: run_id,
+          targets: [
+            [
+              template: broken_template,
+              query: "spec=#{query_alpha}",
+              out: Path.join([project_dir, "lib", "a.ex"])
+            ],
+            [
+              template: broken_template,
+              query: "spec=#{query_beta}",
+              out: Path.join([project_dir, "lib", "b.ex"])
+            ]
+          ]
+        ]
+
+        {run_id, reconcile_opts}
+      end
+
+      {run_id_1, opts_1} = run_a.()
+      {run_id_2, opts_2} = run_a.()
+
+      refute run_id_1 == run_id_2
+
+      assert {:error, receipt_1} = ReconcileReactor.run(opts_1)
+      assert receipt_1.standing == :build_broken
+
+      # Run 1's counters must already be nonzero BEFORE run 2 executes --
+      # proves run 1's real counts are genuinely isolated under its own
+      # `run_id` key, not just "not yet overwritten".
+      counters_1_before_run_2 = CompensationTelemetryMiddleware.counters(run_id_1)
+      assert Map.get(counters_1_before_run_2, :build_broken, 0) >= 1
+
+      assert {:error, receipt_2} = ReconcileReactor.run(opts_2)
+      assert receipt_2.standing == :build_broken
+
+      counters_1_after_run_2 = CompensationTelemetryMiddleware.counters(run_id_1)
+      counters_2 = CompensationTelemetryMiddleware.counters(run_id_2)
+
+      # THE REAL PROOF: run 1's real per-run count is UNCHANGED by run 2's
+      # real execution (no summing across runs) -- and run 2 has its own,
+      # independently nonzero real count under its own run_id.
+      assert Map.get(counters_1_after_run_2, :build_broken, 0) ==
+               Map.get(counters_1_before_run_2, :build_broken, 0),
+             "run 1's real per-run :build_broken count must not change when a " <>
+               "SECOND, DIFFERENT real run executes -- run_id_1 counts before=" <>
+               "#{inspect(counters_1_before_run_2)}, after=#{inspect(counters_1_after_run_2)}"
+
+      assert Map.get(counters_2, :build_broken, 0) >= 1,
+             "run 2's own real per-run :build_broken count must be independently " <>
+               "nonzero -- counters_2=#{inspect(counters_2)}"
     end
 
     test "a real :actuate self-heal (no :verify/compile step involved) increments :compensate_start" do
@@ -204,13 +295,14 @@ defmodule GgenIgniter.ReconcileReactorCompensationTelemetryTest do
       File.write!(blocker_file, "not a directory\n")
       out_b = Path.join(blocker_file, "nested.ex")
 
-      before_counters = CompensationTelemetryMiddleware.counters()
+      run_id = make_ref()
 
       reconcile_opts = [
         engine: "sparql",
         ontology: ontology_path,
         manifest_dir: project_dir,
         verify_cwd: project_dir,
+        telemetry_run_id: run_id,
         targets: [
           [template: valid_template, query: "spec=#{query_alpha}", out: out_a],
           [template: valid_template, query: "spec=#{query_beta}", out: out_b]
@@ -228,13 +320,79 @@ defmodule GgenIgniter.ReconcileReactorCompensationTelemetryTest do
       refute File.exists?(out_a)
       refute File.exists?(Manifest.path(project_dir))
 
-      after_counters = CompensationTelemetryMiddleware.counters()
+      run_counters = CompensationTelemetryMiddleware.counters(run_id)
 
-      assert Map.get(after_counters, :compensate_start, 0) >
-               Map.get(before_counters, :compensate_start, 0),
+      assert Map.get(run_counters, :compensate_start, 0) >= 1,
              ":compensate_start should have incremented for :actuate's real " <>
                "compensate/4 firing on its own run/3 failure -- " <>
-               "before=#{inspect(before_counters)}, after=#{inspect(after_counters)}"
+               "run_counters=#{inspect(run_counters)}"
+    end
+  end
+
+  describe "error/2 mutual exclusion between :build_broken and :compensation_failed" do
+    test "one real error term matching BOTH find_step_error's {:compile_failed, _} predicate and find_compensation_failure/1's {:compensation_failed, _} tag increments only :build_broken" do
+      # This is real data shaped EXACTLY like the nested error terms
+      # `find_compensation_failure/1` and `find_step_error/2` themselves
+      # pattern-match on (see reconcile_reactor.ex lines 944-985: a map with
+      # an `:errors` list of maps, each either `%{step: %{name: _}, error:
+      # _}` or a bare `%{error: _}`) -- not a mock of any collaborator's
+      # behavior, a real term exercising the real recursive match clauses.
+      # This is the genuine "both would fire" shape: `:verify` originally
+      # failed with `{:compile_failed, _}` (the real `:build_broken`
+      # trigger), AND the SAME real run's `revert_all/1` (undo of `:actuate`)
+      # itself failed, appending a real `{:compensation_failed, _}`-tagged
+      # error alongside it -- both leaves genuinely present in ONE real
+      # `error_or_errors` term for one real failing run.
+      error_or_errors = %{
+        errors: [
+          %{step: %{name: :verify}, error: {:compile_failed, "mix compile failed: boom"}},
+          %{error: {:compensation_failed, %{paths: ["/tmp/x"], restored: [], failed: ["/tmp/x"]}}}
+        ]
+      }
+
+      run_id = make_ref()
+
+      assert :ok =
+               CompensationTelemetryMiddleware.error(error_or_errors, %{
+                 compensation_telemetry_run_id: run_id
+               })
+
+      run_counters = CompensationTelemetryMiddleware.counters(run_id)
+
+      assert Map.get(run_counters, :build_broken, 0) == 1,
+             "the real {:compile_failed, _} leaf should have incremented :build_broken " <>
+               "exactly once -- run_counters=#{inspect(run_counters)}"
+
+      # THE REAL, STATE-BASED PROOF of the GAP #7 fix: even though this same
+      # real error_or_errors term ALSO genuinely matches
+      # find_compensation_failure/1's {:compensation_failed, _} pattern,
+      # :compensation_failed must NOT also increment -- error/2's real
+      # precedence (compile_failed checked first, compensation_failed only
+      # on fallthrough) makes the two mutually exclusive for one error term.
+      assert Map.get(run_counters, :compensation_failed, 0) == 0,
+             ":compensation_failed must stay at 0 when :build_broken already matched " <>
+               "the same real error term -- run_counters=#{inspect(run_counters)}"
+    end
+
+    test "a real error term matching ONLY find_compensation_failure/1 (no {:compile_failed, _} leaf) increments :compensation_failed" do
+      error_or_errors = %{
+        error: {:compensation_failed, %{paths: ["/tmp/y"], restored: [], failed: ["/tmp/y"]}}
+      }
+
+      run_id = make_ref()
+
+      assert :ok =
+               CompensationTelemetryMiddleware.error(error_or_errors, %{
+                 compensation_telemetry_run_id: run_id
+               })
+
+      run_counters = CompensationTelemetryMiddleware.counters(run_id)
+
+      assert Map.get(run_counters, :compensation_failed, 0) == 1,
+             "run_counters=#{inspect(run_counters)}"
+
+      assert Map.get(run_counters, :build_broken, 0) == 0,
+             "run_counters=#{inspect(run_counters)}"
     end
   end
 end

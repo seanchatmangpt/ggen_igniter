@@ -23,12 +23,33 @@ defmodule GgenIgniter.Lock do
 
   ## Stale-lock recovery
 
-  A lock file older than 5 minutes is
-  treated as abandoned (its holder crashed, was killed, or the machine
-  restarted, without ever reaching `release/1`) and is removed automatically
-  by the next `acquire/2` caller before retrying -- a crashed prior holder
-  must never permanently wedge every future `mix ggen_igniter.sync` run. A
-  live holder well inside that window is never preempted.
+  Staleness is decided by TWO real signals, PID-liveness first and mtime-age
+  as the fallback -- this fixes a real gap where a legitimately slow same-VM
+  run past `@stale_after_ms` (5 minutes) used to get its lock stolen by a
+  second concurrent invocation purely because the file was "old", even
+  though the original holder process was still alive and still working:
+
+    * **PID-liveness (primary)**: `holder_marker/0` writes the acquiring
+      process's real `erlang_pid=` (its own `self()`, `inspect/1`-formatted)
+      alongside `node=` into the lock file's content. When a later
+      `acquire/2` call hits `:eexist` on that same node,
+      `holder_pid_status/1` parses that Erlang pid back out via
+      `:erlang.list_to_pid/1` and checks `Process.alive?/1` for real -- no
+      periodic background heartbeat/refresher process is needed, since
+      liveness is checked fresh, on demand, at contention time. A confirmed
+      *live* holder is never preempted, however old its file's mtime is; a
+      confirmed *dead* holder (the process genuinely exited) is immediately
+      reclaimable, however fresh its file's mtime is.
+    * **mtime-age (fallback)**: used only when PID-liveness is `:unknown` --
+      the recorded `node=` differs from `Node.self()` (the real, disclosed
+      cross-node limitation: an Erlang pid from another node's local process
+      table cannot be resolved locally), the marker line is missing/
+      unparseable, or the OS pid was reused by an unrelated process after a
+      hard crash. In that fallback case only, a lock file older than 5
+      minutes is treated as abandoned (its holder crashed, was killed, or
+      the machine restarted, without ever reaching `release/1`) and is
+      removed automatically by the next `acquire/2` caller before retrying.
+      A live holder well inside that window is never preempted.
 
   ## Real functions, no mock anywhere in this chain
 
@@ -123,14 +144,32 @@ defmodule GgenIgniter.Lock do
   defp lock_path(lock_key), do: Path.join(lock_key, @lock_subpath)
 
   defp holder_marker do
-    "pid=#{System.pid()} node=#{Node.self()} at=#{DateTime.utc_now() |> DateTime.to_iso8601()}\n"
+    "pid=#{System.pid()} node=#{Node.self()} erlang_pid=#{inspect(self())} " <>
+      "at=#{DateTime.utc_now() |> DateTime.to_iso8601()}\n"
   end
 
   defp stale_lock?(path) do
     case File.stat(path, time: :posix) do
       {:ok, %File.Stat{mtime: mtime}} ->
-        age_ms = System.os_time(:millisecond) - mtime * 1000
-        age_ms > @stale_after_ms
+        case holder_pid_status(path) do
+          :alive ->
+            # Primary signal: the recorded holder process is genuinely still
+            # running on this node right now -- never preempt it, no matter
+            # how old the lock file's mtime is.
+            false
+
+          :dead ->
+            # Primary signal: the recorded holder process genuinely no
+            # longer exists on this node -- reclaimable immediately, no
+            # matter how fresh the lock file's mtime is.
+            true
+
+          :unknown ->
+            # Fallback signal only (cross-node holder, unparseable/missing
+            # marker, or a reused OS pid) -- fall back to mtime-age.
+            age_ms = System.os_time(:millisecond) - mtime * 1000
+            age_ms > @stale_after_ms
+        end
 
       {:error, _reason} ->
         # The lock file vanished between the :eexist above and this stat
@@ -138,5 +177,32 @@ defmodule GgenIgniter.Lock do
         # the next do_acquire attempt will simply try to create it again.
         false
     end
+  end
+
+  # Reads the lock file's `node=`/`erlang_pid=` marker and resolves real
+  # liveness for real via `Process.alive?/1` -- returns `:alive`/`:dead` only
+  # when the marker was written by a process on THIS node (an Erlang pid
+  # from another node's local process table cannot be resolved locally, a
+  # real and disclosed cross-node limitation); returns `:unknown` (meaning
+  # "fall back to mtime-age") for every other case: file unreadable, marker
+  # missing/unparseable, or a recorded node that isn't `Node.self()`.
+  @spec holder_pid_status(String.t()) :: :alive | :dead | :unknown
+  defp holder_pid_status(path) do
+    with {:ok, content} <- File.read(path),
+         [_, node_str] <- Regex.run(~r/node=(\S+)/, content),
+         true <- node_str == to_string(Node.self()),
+         [_, pid_str] <- Regex.run(~r/erlang_pid=#PID(<[0-9.]+>)/, content),
+         {:ok, pid} <- parse_erlang_pid(pid_str) do
+      if Process.alive?(pid), do: :alive, else: :dead
+    else
+      _ -> :unknown
+    end
+  end
+
+  @spec parse_erlang_pid(String.t()) :: {:ok, pid()} | :error
+  defp parse_erlang_pid(pid_str) do
+    {:ok, :erlang.list_to_pid(String.to_charlist(pid_str))}
+  rescue
+    ArgumentError -> :error
   end
 end

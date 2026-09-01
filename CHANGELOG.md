@@ -1,12 +1,23 @@
 # Changelog
 
-## v26.9.1
+## v26.9.3
 
 Process-mining/OCEL manufacturing-pack expansion release, layered on the
 already-committed engine-registry and Reactor-pipeline hardening pass
-(ADR-0008, the `mode:eval` `:render`-step crash fix). Seven new
-ggen-marketplace packs ship for the first time, plus two disclosed
-documentation/build fixes closed out in the same pass.
+(ADR-0008, the `mode:eval` `:render`-step crash fix) and the v26.9.2
+integration pass below it. Seven new ggen-marketplace packs ship for the
+first time, plus two disclosed documentation/build fixes and three
+previously-open gaps (`GAPS-TO-FILL.v26.9.1.md` #6/#7/#8: `GgenIgniter.Lock`
+PID-liveness staleness detection, `CompensationTelemetryMiddleware` run-scoped
+counters + mutual-exclusion fix, `DoctorFixes` 2-tuple dependency-shape
+crash) closed out in the same pass, each with real Chicago-school tests.
+
+Note: this release was originally drafted under a "v26.9.1" working label
+(see `docs/v26.9.1-requirements.md`) before discovering `mix.exs` was
+already at `26.9.2` with its own real, already-merged `## v26.9.2` entry
+below -- renamed to `v26.9.3` to keep the CHANGELOG's top entry and
+`mix.exs`'s `version:` key in agreement, per `mix ggen_igniter.doctor`'s
+`check_version_policy` invariant.
 
 - **Seven new `priv/ggen/*` process-mining packs ship**, each ported from
   ex4pm's reference implementations into reusable, namespace-parameterized
@@ -75,6 +86,38 @@ documentation/build fixes closed out in the same pass.
 
 - **Two `mix credo --strict` warnings fixed** -- both flagged findings in
   the sync/install task modules addressed directly, no behavior change.
+
+- **`GgenIgniter.Lock` PID-liveness staleness detection** (closes
+  `GAPS-TO-FILL.v26.9.1.md` #6) -- `stale_lock?/1` previously computed
+  staleness purely from the lock file's original creation `mtime`, so a
+  legitimately slow run past `@stale_after_ms` could have its lock stolen
+  by a second concurrent invocation. `holder_marker/0` now records the
+  acquiring process's real `erlang_pid=`; `stale_lock?/1` checks
+  `Process.alive?/1` on that pid as the primary signal (a same-node holder
+  confirmed alive is never preempted regardless of mtime-age; a confirmed-
+  dead holder is reclaimable immediately), falling back to mtime-age only
+  for a cross-node holder or an unparseable marker.
+  `test/ggen_igniter_lock_heartbeat_test.exs` (new): `2 properties, 3 tests,
+  0 failures`.
+
+- **`CompensationTelemetryMiddleware` run-scoped counters + mutual-exclusion
+  fix** (closes `GAPS-TO-FILL.v26.9.1.md` #7) -- the ETS counter table's key
+  shape changed from a bare counter atom to `{run_id, counter_atom}` (a new
+  `counters/1` reads back one run's counts; `counters/0` is kept as a
+  documented cross-run aggregate), and `error/2`'s `{:compile_failed, _}`
+  check now runs before `find_compensation_failure/1` so one real error term
+  bumps at most one counter, never both.
+  `test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs`:
+  `5 tests, 0 failures`.
+
+- **`DoctorFixes.rewrite_dep_only/2` 2-tuple dependency crash fixed**
+  (closes `GAPS-TO-FILL.v26.9.1.md` #8) -- the `--fix` transform
+  unconditionally assumed a 3-element `{name, version, opts}` dependency
+  tuple; a real, equally common 2-tuple `{name, opts}` shape (e.g.
+  `{:some_dep, github: "org/repo", only: :test}`) now degrades correctly
+  via a new `dep_opts_elem/1` arity check instead of raising.
+  `test/ggen_igniter_doctor_fixes_test.exs`: `27 tests, 0 failures` (up
+  from 25).
 
 ## v26.9.2
 

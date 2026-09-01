@@ -13,6 +13,19 @@ defmodule GgenIgniterLockContentionTest do
   is given a short `timeout_ms` so the second racer's failure mode (a
   `RuntimeError` naming the still-held lock path) is observed directly
   instead of waiting out the 30s default.
+
+  The winner genuinely holds the lock (a real `Process.sleep/1`) for longer
+  than the loser's `timeout_ms` before returning, rather than letting its
+  task process exit the instant `acquire/2` returns. This matters for real:
+  `GgenIgniter.Lock`'s real PID-liveness staleness check (see `lock.ex`'s
+  "Stale-lock recovery" moduledoc section) checks whether the holder's
+  process is genuinely still alive, on demand, at contention time -- a
+  winner whose process exits immediately after acquiring (never calling
+  `release/1`) is indistinguishable from a real crashed holder, and its
+  lock becomes correctly, immediately reclaimable. Holding the lock for a
+  real duration here is what makes "exactly one winner" the correct
+  real-world expectation instead of an artifact of an unnaturally
+  short-lived task process.
   """
 
   use ExUnit.Case, async: false
@@ -28,13 +41,23 @@ defmodule GgenIgniterLockContentionTest do
     parent = self()
     ref = make_ref()
 
+    # A real hold duration: whichever task genuinely wins the OS-level race
+    # must stay alive (not exit its process) for longer than the loser's
+    # timeout_ms below, so the loser's failure is a real "still held by a
+    # live process" outcome rather than a race against an already-dead
+    # holder's PID.
+    hold_ms = 500
+    loser_timeout_ms = 200
+
     task_a =
       Task.async(fn ->
         send(parent, {ref, :ready})
         receive do: ({^ref, :go} -> :ok)
 
         try do
-          {:ok, GgenIgniter.Lock.acquire(lock_key, timeout_ms: 500)}
+          {:ok, lock} = GgenIgniter.Lock.acquire(lock_key, timeout_ms: loser_timeout_ms)
+          Process.sleep(hold_ms)
+          {:ok, {:ok, lock}}
         rescue
           e in RuntimeError -> {:error, :locked, e}
         end
@@ -46,7 +69,9 @@ defmodule GgenIgniterLockContentionTest do
         receive do: ({^ref, :go} -> :ok)
 
         try do
-          {:ok, GgenIgniter.Lock.acquire(lock_key, timeout_ms: 500)}
+          {:ok, lock} = GgenIgniter.Lock.acquire(lock_key, timeout_ms: loser_timeout_ms)
+          Process.sleep(hold_ms)
+          {:ok, {:ok, lock}}
         rescue
           e in RuntimeError -> {:error, :locked, e}
         end

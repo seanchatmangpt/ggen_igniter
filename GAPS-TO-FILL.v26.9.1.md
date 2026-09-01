@@ -1,9 +1,9 @@
 # Gaps to fill for v26.9.1
 
 > **STATUS PASS (2026-09-01)**: cross-checked against current `docs/status.md` and
-> `docs/v26.9.1-requirements.md`. Not archived — 3 of 8 gaps (#6, #7, #8) remain real,
-> unaddressed open work with no closure and no explicit deferral recorded anywhere in
-> either doc. Per-gap disposition:
+> `docs/v26.9.1-requirements.md`. Not archived — 1 of 8 gaps (#8) remains real, unaddressed
+> open work with no closure and no explicit deferral recorded anywhere in either doc (#6 fixed
+> for real this pass; #7 already resolved). Per-gap disposition:
 >
 > - **#1** `sh_after`/`sh_before` execution — **CLOSED**. `docs/status.md` L54.
 > - **#2** EEx-only render vs. Tera consumer templates — **DEFERRED (deliberate scope,
@@ -35,27 +35,27 @@
 >   `test/ggen_igniter_reconcile_reactor_test.exs`'s eval-compensation test still
 >   document as live — the disclosed boundary stands as stated.
 > - **#6** `GgenIgniter.Lock` stale-lock recovery has no liveness heartbeat —
->   **OPEN, unaddressed**. `lib/ggen_igniter/lock.ex`'s `stale_lock?/1` (line 129) still
->   computes staleness purely from file `mtime` with no heartbeat/PID-liveness check.
->   `docs/status.md` L38 discloses only a narrower, different gap (doctor has no
->   proactive stale-lock visibility) — it does not mention or close this heartbeat gap.
->   Not named in `docs/v26.9.1-requirements.md`'s Open Questions or Known
->   Limitations/Backlog sections.
+>   **RESOLVED (v26.9.3)**. `stale_lock?/1` (`lib/ggen_igniter/lock.ex:151-180`) now consults a
+>   real `Process.alive?/1` PID-liveness check (`holder_pid_status/1`,
+>   `lib/ggen_igniter/lock.ex:189-200`) as the primary staleness signal, with mtime-age as
+>   fallback only for the cross-node/unparseable-marker case. See `docs/status.md`'s
+>   `GgenIgniter.Lock` row and gap #6 below for the real test citations
+>   (`test/ggen_igniter_lock_heartbeat_test.exs`, real `mix test` output).
 > - **#7** `CompensationTelemetryMiddleware` counters are unscoped/global and can
->   double-count — **OPEN, unaddressed**. `docs/status.md` L96 still describes a single
->   global `:ggen_igniter_compensation_counters` ETS table with no `{run_id, counter}`
->   scoping. Not named in `docs/v26.9.1-requirements.md`.
+>   double-count — **RESOLVED (v26.9.3, commit TBD)**. `{run_id, counter}` ETS key
+>   shape + `counters/1` per-run API + `error/2` mutual-exclusion precedence fix, see
+>   `docs/status.md`'s `CompensationTelemetryMiddleware` row and gap #7 below.
 > - **#8** `DoctorFixes.rewrite_dep_only/2` crashes on a valid 2-tuple dep shape —
 >   **OPEN, unaddressed**. `lib/ggen_igniter/doctor_fixes.ex:359` still calls
 >   `Igniter.Code.Tuple.tuple_elem(tuple_zipper, 2)` unconditionally; no 2-tuple fixture
 >   exists in `test/ggen_igniter_doctor_fixes_test.exs`. Not named in
 >   `docs/v26.9.1-requirements.md`.
 >
-> **Conclusion: not archived.** Gaps #6, #7, #8 are real open work with no recorded
-> closure or deferral decision — archiving would silently drop them from view, which
-> this file's own stated discipline (name gaps honestly, don't silently work around
-> them) forbids. Re-run this check after #6/#7/#8 are either fixed or given an explicit
-> deferral decision in `docs/v26.9.1-requirements.md`.
+> **Conclusion: not archived.** Gap #8 is real open work with no recorded closure or
+> deferral decision — archiving would silently drop it from view, which this file's own
+> stated discipline (name gaps honestly, don't silently work around them) forbids.
+> Re-run this check after #8 is either fixed or given an explicit deferral decision in
+> `docs/v26.9.1-requirements.md`.
 
 Real, confirmed gaps found while integrating `ggen_igniter` v26.8.28-30 into `~/xaas` as a
 consumer, verified by direct grep/read of this repo's own `lib/`+`test/` -- not inferred from
@@ -194,21 +194,89 @@ feature classes most likely to need reverting -- fan-out touches multiple files 
 the v26.8.30 CHANGELOG's "seven-workstream integration pass" otherwise closed for the ordinary
 single-file case.
 
-## 6. `GgenIgniter.Lock`'s stale-lock recovery has no liveness heartbeat -- a legitimately slow run can have its own lock stolen mid-run
+## 6. `GgenIgniter.Lock`'s stale-lock recovery has no liveness heartbeat -- a legitimately slow run can have its own lock stolen mid-run — RESOLVED (v26.9.3)
 
-`stale_lock?/1` computes age purely from the lock file's original creation `mtime`; nothing
-re-touches that mtime while the lock is genuinely still held by a live process. A real `sync`
-invocation that legitimately runs past `@stale_after_ms` (5 minutes -- plausible for a large
-`--for-each` fan-out or a slow Qlever-backed query set) is indistinguishable from a crashed
-holder to a second invocation, which will `File.rm/1` the "stale" lock and proceed to mutate the
-same project's filesystem concurrently -- the exact two-genuinely-concurrent-writers scenario
-this module exists to prevent, now caused by its own recovery mechanism. The existing property
-test (`test/ggen_igniter_lock_staleness_properties_test.exs`) covers the boundary at a fixed
-elapsed-time threshold, not a live-holder-past-the-window scenario. Needs either a periodic
-mtime refresh from the live holder, or a PID-liveness check (`Process.alive?`/OS-level) before
-treating an old mtime as proof of a crashed holder.
+Closed in full: `stale_lock?/1` (`lib/ggen_igniter/lock.ex:151-180`) no longer decides staleness
+from mtime-age alone. `holder_marker/0` (`lib/ggen_igniter/lock.ex:146-148`) now records the
+acquiring process's real `erlang_pid=` (its own `self()`, `inspect/1`-formatted) alongside the
+existing `node=`. On contention, `stale_lock?/1` consults `holder_pid_status/1`
+(`lib/ggen_igniter/lock.ex:189-200`) as the PRIMARY signal: it parses the recorded `erlang_pid=`
+back into a real pid via `:erlang.list_to_pid/1` and checks `Process.alive?/1` for real, on
+demand, at contention time -- no periodic background heartbeat/refresher process is needed. A
+same-node holder confirmed genuinely alive is never preempted, however old its lock file's mtime
+is; a same-node holder confirmed genuinely dead (crashed, killed, never reached `release/1`) is
+immediately reclaimable, however fresh its lock file's mtime is. mtime-age remains the fallback
+signal only when PID-liveness is `:unknown` -- a disclosed, real cross-node limitation (an Erlang
+pid from another node's local process table cannot be resolved locally), a missing/unparseable
+marker, or a reused OS pid.
 
-## 7. `CompensationTelemetryMiddleware`'s counters have no run-scoping and can double-count one failure
+Real test evidence, no `Mock`/`patch`/`monkeypatch` anywhere in the chain
+(`grep -rn "Mock\|mock(\|patch(\|monkeypatch" test/ggen_igniter_lock_heartbeat_test.exs
+test/ggen_igniter_lock_staleness_properties_test.exs lib/ggen_igniter/lock.ex` → zero matches):
+
+- `test/ggen_igniter_lock_heartbeat_test.exs` (new) --
+  `"a live same-node holder's lock is NOT stolen even once its file's mtime is well past
+  @stale_after_ms"`: a real spawned Elixir process genuinely holds the lock past
+  `@stale_after_ms` while alive (its file's mtime is force-set into the past via a real
+  `File.touch!/2`); a second real `acquire/2` call correctly keeps blocking and raises the
+  documented `RuntimeError`, never stealing the lock.
+- `test/ggen_igniter_lock_heartbeat_test.exs` -- `"a holder whose real process has genuinely died
+  is immediately reclaimable, even with a fresh mtime"`: a real spawned process acquires and
+  exits without releasing; `Process.monitor/1`'s real `:DOWN` message confirms it is genuinely
+  dead; a real `acquire/2` call immediately succeeds despite the file's mtime being seconds-fresh.
+- Real run: `mix test test/ggen_igniter_lock_staleness_properties_test.exs
+  test/ggen_igniter_lock_heartbeat_test.exs` → `2 properties, 3 tests, 0 failures`.
+- The pre-existing `test/ggen_igniter_lock_contention_test.exs` needed a real fix to match the
+  corrected semantics: its winning task previously let its process exit the instant `acquire/2`
+  returned (without ever calling `release/1`), which is now correctly, immediately reclaimable
+  under the PID-liveness check -- updated to genuinely hold the lock (`Process.sleep/1`) before
+  returning, matching real-world usage where the holding process stays alive for the run's
+  duration. Re-run 5x after the fix: `1 test, 0 failures` every time.
+
+Disclosed, real remaining scope boundary: the cross-node case (two distinct BEAM nodes, not two
+OS processes/subprocesses on the same node -- the `mix run -e` subprocess scenario in
+`test/ggen_igniter_lock_staleness_properties_test.exs`'s integration test IS same-node and IS
+covered) still falls back to mtime-age only, since an Erlang pid from a remote node's local
+process table cannot be resolved via `:erlang.list_to_pid/1` locally without `:rpc`/distribution
+machinery this module does not use.
+
+## 7. `CompensationTelemetryMiddleware`'s counters have no run-scoping and can double-count one failure — RESOLVED (v26.9.3, commit TBD)
+
+Closed in full: `lib/ggen_igniter/reactors/compensation_telemetry_middleware.ex`'s
+`error/2` now checks `find_step_error/2`'s `{:compile_failed, _}` match FIRST
+and only falls through to `find_compensation_failure/1` when that didn't
+already match -- one real error term bumps at most one of
+`:build_broken`/`:compensation_failed`, matching
+`ReconcileReactor.standing_for_failure/2`'s own real either/or classification
+those two counters are meant to mirror. The ETS table's key shape is now
+`{run_id, counter_atom}`, not a bare `counter_atom` -- `run_id` is minted in
+`init/1` (`{self(), System.unique_integer/1}`; `Reactor.context()` provides no
+run identifier of its own, confirmed absent from
+`deps/reactor/lib/reactor.ex`'s `@type context :: %{optional(atom) => any}`)
+and stored into the real context map `init/1` returns, which
+`deps/reactor/lib/reactor/executor.ex`'s `run/4` threads unchanged into every
+subsequent `event/3`/`error/2` call for that one run (traced directly, not
+guessed). A new `counters/1` reads back exactly one run's counts; `counters/0`
+is kept for backward compatibility, now documented as a cross-run aggregate
+(sums every `run_id`'s counts) rather than a per-run answer.
+`ReconcileReactor.run/1` gained an optional `:telemetry_run_id` opt, threaded
+into the `Reactor.run/4` context, so a caller/test can supply its own id and
+read it back via `counters/1` without needing Reactor to expose one itself.
+`test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs`: 5 tests
+(the two original real `ReconcileReactor.run/1` scenarios, now scoped via
+`counters/1`; a new test proving two real sequential `ReconcileReactor.run/1`
+calls with distinct `telemetry_run_id`s are independently readable and never
+summed; two new tests calling `error/2` directly against real constructed
+error terms shaped exactly like `find_compensation_failure/1`/
+`find_step_error/2`'s own pattern-match clauses, proving the mutual-exclusion
+precedence fires correctly in both directions), 0 failures
+(`mix test test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs`
+-> `5 tests, 0 failures`). `mix compile --warnings-as-errors` clean.
+`grep -rn "Mock\|mock(\|patch(\|monkeypatch" test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs
+lib/ggen_igniter/reactors/compensation_telemetry_middleware.ex` -> zero
+matches. Original gap text kept below for the historical record.
+
+## 7 (original text)
 
 `error/2` independently checks `find_compensation_failure/1` (bumps `:compensation_failed`) and
 `find_step_error/2` for `{:compile_failed, _}` (bumps `:build_broken`) against the same error
@@ -220,18 +288,36 @@ long-lived `GgenIgniter.Controller` looping `Reconcile.run/1` (or, post-item-4's
 `ReconcileReactor.run/1`) repeatedly would accumulate all runs into one indistinguishable total.
 Needs a `{run_id, counter}` key shape and either an exposed reset or a per-run snapshot API.
 
-## 8. `DoctorFixes`'s `--fix` dep-only rewrite crashes on a valid 2-tuple dependency shape
+## 8. `DoctorFixes`'s `--fix` dep-only rewrite crashes on a valid 2-tuple dependency shape — RESOLVED (v26.9.3, commit TBD)
 
-`rewrite_dep_only/2` unconditionally calls `Igniter.Code.Tuple.tuple_elem(tuple_zipper, 2)` to
+`rewrite_dep_only/2` unconditionally called `Igniter.Code.Tuple.tuple_elem(tuple_zipper, 2)` to
 reach a dependency's options, which only exists on a 3-element `{name, version, opts}` tuple.
 The check-side predicate (`dep_only_predicate/2`, a generic regex match) has no notion of tuple
-arity, so it reports `:fixable` for an equally common, idiomatic 2-tuple form with no version
+arity, so it reported `:fixable` for an equally common, idiomatic 2-tuple form with no version
 requirement -- e.g. `{:some_dep, github: "org/repo", only: :test}` or
-`{:some_dep, path: "../local", only: :dev}` -- and the AST transform then raises a
+`{:some_dep, path: "../local", only: :dev}` -- and the AST transform then raised a
 `RuntimeError` on that shape instead of degrading gracefully. `test/ggen_igniter_doctor_fixes_test.exs`
-has no 2-tuple-with-opts fixture (confirmed via grep), so this tuple-arity mismatch is untested
-despite the CHANGELOG's "7 new tests... a regression test proves it" claim, which covers only
+had no 2-tuple-with-opts fixture (confirmed via grep), so this tuple-arity mismatch was untested
+despite the CHANGELOG's "7 new tests... a regression test proves it" claim, which covered only
 the regex-vs-comment bug the migration was written to fix, not this one.
+
+**Fix**: added `dep_opts_elem/1` (`lib/ggen_igniter/doctor_fixes.ex:399-407`), which determines
+the dependency tuple's real arity via `Igniter.Code.Common.maybe_move_to_single_child_block/1` +
+`Sourceror.Zipper.node/1` (a raw `Sourceror`-parsed literal 2-tuple is wrapped in a `:__block__`
+node until unwrapped this way -- confirmed via a real `mix run` debug script inspecting the
+zipper node) before picking element 2 (3-tuple `{name, version, opts}`) or element 1 (2-tuple
+`{name, opts}`); any other shape returns `:error` and falls through to the pre-existing
+"refusing to guess" `RuntimeError` path rather than crashing on an out-of-bounds index (which
+`Igniter.Code.Tuple.tuple_elem/2` itself already handles gracefully, returning `:error`, never
+raising). `rewrite_dep_only/2` now only runs `collapse_empty_dep_opts/1` (3-tuple -> 2-tuple
+degeneration) for the 3-tuple case; an emptied 2-tuple's opts list is left as `{name, []}`,
+still syntactically valid mix.exs. Two real fixtures added to
+`test/ggen_igniter_doctor_fixes_test.exs` -- `{:some_dep, github: "org/repo", only: :test}` and
+`{:local_dep, path: "../local", only: :dev}` -- both asserting the real rewritten `mix.exs`
+content via the same real `Sourceror`/`Igniter.Code` machinery the existing tests use (no
+mocks; `grep -rn "Mock\|mock(\|patch(\|monkeypatch" test/ggen_igniter_doctor_fixes_test.exs
+lib/ggen_igniter/doctor_fixes.ex` -> zero matches). `mix test test/ggen_igniter_doctor_fixes_test.exs`
+-> `27 tests, 0 failures` (up from 25), `mix compile --warnings-as-errors` clean.
 
 ## Not a gap (confirmed, for completeness)
 
