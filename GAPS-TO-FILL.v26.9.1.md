@@ -1,5 +1,62 @@
 # Gaps to fill for v26.9.1
 
+> **STATUS PASS (2026-09-01)**: cross-checked against current `docs/status.md` and
+> `docs/v26.9.1-requirements.md`. Not archived — 3 of 8 gaps (#6, #7, #8) remain real,
+> unaddressed open work with no closure and no explicit deferral recorded anywhere in
+> either doc. Per-gap disposition:
+>
+> - **#1** `sh_after`/`sh_before` execution — **CLOSED**. `docs/status.md` L54.
+> - **#2** EEx-only render vs. Tera consumer templates — **DEFERRED (deliberate scope,
+>   unchanged)**. `docs/status.md` L105 confirms `GgenIgniter.Render.Tera` exists only as
+>   a standalone parser with automated `*.tmpl` pipeline dispatch still "planned for
+>   future integration" — this was never claimed closed, and remains a disclosed,
+>   intentional scope boundary rather than silent neglect.
+> - **#3** `check_qlever_reachable/2` dialyzer dead branch — **CLOSED**. `docs/status.md`
+>   references the fix via CHANGELOG's v26.9.1 entry; `docs/v26.9.1-requirements.md` does
+>   not list it as open.
+> - **#4** `Controller` defaults to `Reconcile.run/1` not `ReconcileReactor` —
+>   **DEFERRED, explicitly**. `docs/status.md` L80-81 confirms `ReconcileReactor` is
+>   still `PARTIAL_ALIVE (not the default)` and `Reconcile.run/1` "is the default today";
+>   `docs/v26.9.1-requirements.md` Open Question 2 names this exact question
+>   ("Is the Reactor pipeline going default in v26.9.1, or does `use_reactor: true`
+>   remain opt-in?") as explicitly unresolved/deferred past this release, and Open
+>   Question 3 defers full pipeline consolidation (`Reconcile.run/1` /
+>   `ReconcileReactor` / `Sync`'s inline path) the same way.
+> - **#5** `--for-each`/`mode: eval` Reactor coverage — **HALF-CLOSED, remainder
+>   DEFERRED, explicitly**. `--for-each` closed per `docs/status.md` L55. `mode: eval`
+>   remains routed around `ReconcileReactor`'s `:render`-step crash by design —
+>   `docs/status.md` L52 states this is unchanged and deliberate ("`mode: eval`
+>   frontmatter templates remain deliberately kept off this widened path"), consistent
+>   with `docs/v26.9.1-requirements.md` Open Question 6 (`to_prd_status/1` and related
+>   eval-path questions deferred past v26.9.1). Note: HEAD commit `52164d6` ("Thread a
+>   real `%Igniter{}` through `mode:eval` targets in `ReconcileReactor`'s `:actuate`
+>   step") postdates this file's last edit and touches `mode:eval` handling in
+>   `:actuate`, but does not remove the `:render`-step crash `docs/status.md` L52 and
+>   `test/ggen_igniter_reconcile_reactor_test.exs`'s eval-compensation test still
+>   document as live — the disclosed boundary stands as stated.
+> - **#6** `GgenIgniter.Lock` stale-lock recovery has no liveness heartbeat —
+>   **OPEN, unaddressed**. `lib/ggen_igniter/lock.ex`'s `stale_lock?/1` (line 129) still
+>   computes staleness purely from file `mtime` with no heartbeat/PID-liveness check.
+>   `docs/status.md` L38 discloses only a narrower, different gap (doctor has no
+>   proactive stale-lock visibility) — it does not mention or close this heartbeat gap.
+>   Not named in `docs/v26.9.1-requirements.md`'s Open Questions or Known
+>   Limitations/Backlog sections.
+> - **#7** `CompensationTelemetryMiddleware` counters are unscoped/global and can
+>   double-count — **OPEN, unaddressed**. `docs/status.md` L96 still describes a single
+>   global `:ggen_igniter_compensation_counters` ETS table with no `{run_id, counter}`
+>   scoping. Not named in `docs/v26.9.1-requirements.md`.
+> - **#8** `DoctorFixes.rewrite_dep_only/2` crashes on a valid 2-tuple dep shape —
+>   **OPEN, unaddressed**. `lib/ggen_igniter/doctor_fixes.ex:359` still calls
+>   `Igniter.Code.Tuple.tuple_elem(tuple_zipper, 2)` unconditionally; no 2-tuple fixture
+>   exists in `test/ggen_igniter_doctor_fixes_test.exs`. Not named in
+>   `docs/v26.9.1-requirements.md`.
+>
+> **Conclusion: not archived.** Gaps #6, #7, #8 are real open work with no recorded
+> closure or deferral decision — archiving would silently drop them from view, which
+> this file's own stated discipline (name gaps honestly, don't silently work around
+> them) forbids. Re-run this check after #6/#7/#8 are either fixed or given an explicit
+> deferral decision in `docs/v26.9.1-requirements.md`.
+
 Real, confirmed gaps found while integrating `ggen_igniter` v26.8.28-30 into `~/xaas` as a
 consumer, verified by direct grep/read of this repo's own `lib/`+`test/` -- not inferred from
 docs. Each gap below is disclosed the same way this repo's own CHANGELOG discloses one (see

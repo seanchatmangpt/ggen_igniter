@@ -1,0 +1,31 @@
+docs: v26.9.1 README/Diataxis update + archive superseded audit dir
+
+- README.md: added a Packs section listing all priv/ggen/* packs including
+  the 7 new v26.9.1 process-mining packs, each with a one-line purpose and
+  test-coverage citation from docs/v26.9.1-requirements.md.
+- docs/reference/cli/packs.md: added a consolidated table for the 7 new
+  packs (namespace prefix, templates, gates, example invocation).
+- CHANGELOG.md: added the v26.9.1 entry (packs, ADR-0001/ADR-0007
+  resolution, dialyzer/credo fixes).
+- GAPS-TO-FILL.v26.9.1.md: dated status pass -- gaps #1/#3 confirmed closed,
+  #2/#4/mode:eval-half-of-#5 confirmed explicitly deferred past v26.9.1 per
+  docs/v26.9.1-requirements.md's Open Questions; #6 (Lock stale-recovery
+  heartbeat), #7 (CompensationTelemetryMiddleware global counters), #8
+  (DoctorFixes.rewrite_dep_only/2 unconditional tuple_elem/3) are real,
+  still-open gaps -- file NOT archived because of these three, each cited
+  to its real file:line.
+- .ggen_igniter_factory/ (26 files: ADVERSARIAL.md, AUTHORITY.md,
+  capability_matrix.md, redteam-*.md, adversarial/*.md, ledger*.jsonl, etc)
+  git-mv'd to docs/archive/ggen_igniter_factory/: confirmed fully superseded
+  by docs/status.md + docs/reviews/ + docs/testing/adversarial.md. Added
+  docs/archive/README.md noting what was archived, why, and where the
+  current equivalents live.
+- docs/index.md, docs/README.md, docs/architecture/{overview,glossary}.md,
+  docs/architecture/adr/README.md, wasm-artifacts/README.md: audited, found
+  already accurate against the reconciled ADR-0001/ADR-0007 status and the
+  new packs -- no stale content found, left unchanged.
+
+Gate: mix compile --warnings-as-errors and mix format --check-formatted
+both clean after this change (docs-only, no lib/test edits).
+
+Claude-Session: https://claude.ai/code/session_01D4V6ocKprQTsaUwJoL2ngC

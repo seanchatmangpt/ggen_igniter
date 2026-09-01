@@ -1,5 +1,81 @@
 # Changelog
 
+## v26.9.1
+
+Process-mining/OCEL manufacturing-pack expansion release, layered on the
+already-committed engine-registry and Reactor-pipeline hardening pass
+(ADR-0008, the `mode:eval` `:render`-step crash fix). Seven new
+ggen-marketplace packs ship for the first time, plus two disclosed
+documentation/build fixes closed out in the same pass.
+
+- **Seven new `priv/ggen/*` process-mining packs ship**, each ported from
+  ex4pm's reference implementations into reusable, namespace-parameterized
+  templates with real Chicago-school (no-mock) test coverage:
+  - `incremental-discovery-pack` -- streaming DFG discovery
+    (`update/2` O(1) amortized, `from_events/1` batch oracle, proven
+    equivalent by construction). `test/ggen_igniter_incremental_dfg_test.exs`.
+  - `sensor-sink-pack` -- threshold-crossing sensor-to-event discretization,
+    Broadway-shaped, forwarding emitted events through a real supplied
+    callback (`assert_received`, no mocking framework).
+    `test/ggen_igniter_sensor_sink_test.exs`.
+  - `process-discovery-pack` -- inductive-miner DFG cut discovery +
+    token-replay conformance, two sub-templates, namespace-parameterized
+    (default `Ex4pm.Engine`), including a real mine-then-replay
+    integration round-trip and a `mix ggen_igniter.doctor` subprocess
+    check. `test/process_discovery_pack_test.exs`.
+  - `ocel2-ekg-pack` -- OCEL 2.0/EKG-style IR derivation (object trace,
+    attribute-change history, O2O relationships), fully
+    namespace-parameterized, ships a worked `ekg:example_ir` individual.
+    `test/ggen_igniter_sync_ocel2_ekg_pack_test.exs`.
+  - `olap-pack` -- slice/dice/roll_up/drill_down over OCEL-shaped IR;
+    only `moduleName`/`logModule`/`eventModule` are ontology knobs, the
+    algebra itself is fixed in the template. Verified via a real
+    `Code.string_to_quoted!/1` parse of generated output.
+    `test/ggen_igniter_olap_pack_test.exs`.
+  - `chicago-fault-injection-pack` -- real BEAM network-partition +
+    process-kill Chicago fault-injection test-suite generator, ships a
+    worked `beam4pm_fault_injection_suite` individual, re-parameterization
+    proven with a second render against different bindings.
+    `test/ggen_igniter_chicago_fault_injection_pack_test.exs`.
+  - `beam4pm-bench-pack` -- distributed-topology + virtual-cost +
+    Wasmtime benchmark modules; `virtual_cost`/`topology` are real and
+    tested, `wasm_bench` requires a consumer-supplied `adapter` binding
+    that fails fast (nonzero exit, no output file) when omitted --
+    `test/ggen_igniter_sync_beam4pm_bench_pack_test.exs` plus
+    `test/fixtures/beam4pm-bench-pack-wasm-adapter/` prove the
+    load-bearing-binding contract; no real downstream consumer has wired
+    the adapter yet, disclosed as a release-surface caveat rather than a
+    defect in this pack.
+
+  All seven render through the existing pipeline
+  (`Ontology.load!/1` -> `Query.run/2` -> `Frontmatter.split_template/1`
+  -> `Render.render/2`) with no pipeline changes required, and
+  `olap-pack`/`ocel2-ekg-pack`/`beam4pm-bench-pack` are proven to work via
+  `--engine sparql` real subprocess invocation with no dependency on the
+  oxigraph NIF for their CI-viable path.
+
+- **ADR-0001 oxigraph row-shape dispute resolved** -- the previously
+  unreconciled disagreement between the ADR text and `docs/status.md`'s
+  independently-probed real behavior (raw N-Triples-style term strings vs.
+  bare Elixir values returned by the oxigraph NIF) is closed; ADR text and
+  `docs/status.md` now agree on the real, observed row shape, removing the
+  correctness-adjacent documentation contradiction flagged as a release
+  blocker.
+
+- **ADR-0007 ETS crash resolved and closed** -- the `Reactor.Executor.
+  ConcurrencyTracker.allocate_pool/1` "table identifier does not refer to
+  an existing ETS table" crash on `mix ggen_igniter.sync`'s unconditional
+  Reactor-path attempt is fixed; the ADR's "Known open issue" section is
+  updated to reflect resolution and the ADR is flipped to Accepted/closed.
+
+- **`mix dialyzer` `guard_fail` fix in `lib/mix/tasks/ggen_igniter.sync.ex`**
+  -- a guard clause dialyzer could prove would never succeed against the
+  narrowed type it now infers for the value in question is corrected so
+  the PLT run is clean again.
+
+- **Two `mix credo --strict` warnings fixed** -- both flagged findings in
+  the sync/install task modules addressed directly, no behavior change.
+
 ## v26.9.2
 
 Two-workstream integration pass (isolated in a `git worktree`, independently

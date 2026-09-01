@@ -51,10 +51,55 @@ OTP/Controller/Manifest/Receipt) and `docs/glossary.md` for term definitions.
 - **Real, currently open gap**: `mix e2e`'s full 8-stage Ash+Phoenix
   lifecycle test has not been freshly re-executed end to end in the most
   recent documentation pass (requires network + several minutes); the
-  mechanism is real and sound by inspection.
+  mechanism is real and sound by inspection. Two real captured runs both
+  stopped at Stage 5 (`AshPhoenix.Form.submit/2` assertion issue, unrelated
+  to timing) — see `docs/status.md`'s "Full 8-stage Ash+Phoenix e2e
+  lifecycle test" and "`AshPhoenix.Form` round-trip (Stage 5)" rows
+  (UNVERIFIED this pass).
 
 See `docs/status.md` for the complete, sourced capability table and
 `docs/architecture/adr/` for the accepted design decisions behind these.
+
+## Packs
+
+`priv/ggen/*` ships the following packs (the `--pack NAME` convention;
+purpose and test coverage sourced from `docs/v26.9.1-requirements.md` §3):
+
+- **`adr-index-pack`** — regenerates `docs/architecture/adr/README.md`'s own
+  machine-generated ADR index table.
+- **`reactor-scaffold-pack`** — scaffolds a new Reactor-pipeline coordination
+  module.
+- **`incremental-discovery-pack`** — streaming directly-follows-graph (DFG)
+  discovery, ported from ex4pm's `incremental.ex`; covered by
+  `test/ggen_igniter_incremental_dfg_test.exs`.
+- **`sensor-sink-pack`** — threshold-crossing sensor-to-event
+  discretization, ported from ex4pm's `sensor_sink.ex`; covered by
+  `test/ggen_igniter_sensor_sink_test.exs`.
+- **`process-discovery-pack`** — inductive-miner DFG cut discovery plus
+  token-replay conformance checking, ported 1:1 from ex4pm_engine; covered
+  by `test/process_discovery_pack_test.exs` (real mine-to-replay round-trip
+  plus a `mix ggen_igniter.doctor` subprocess check).
+- **`ocel2-ekg-pack`** — OCEL 2.0/event-knowledge-graph-style IR derivation
+  (object trace, attribute-change history, object-to-object lookup), ported
+  from ex4pm_core; covered by `test/ggen_igniter_sync_ocel2_ekg_pack_test.exs`.
+- **`olap-pack`** — slice/dice/roll_up/drill_down algebra over OCEL-shaped
+  IR, ported from ex4pm_core's `Ex4pm.Core.OLAP`; covered by
+  `test/ggen_igniter_olap_pack_test.exs`.
+- **`chicago-fault-injection-pack`** — generates a real BEAM
+  network-partition and process-kill Chicago-style fault-injection test
+  suite; covered by `test/ggen_igniter_chicago_fault_injection_pack_test.exs`
+  (including a re-parameterization proof).
+- **`beam4pm-bench-pack`** — distributed-topology, virtual-cost, and
+  Wasmtime benchmark modules, ported from ex4pm_engine; `virtual_cost`/
+  `topology` templates are covered by
+  `test/ggen_igniter_sync_beam4pm_bench_pack_test.exs` and
+  `test/fixtures/beam4pm-bench-pack-wasm-adapter/`. The `wasm_bench`
+  template requires a consumer-supplied Wasmex adapter binding that no real
+  downstream consumer ships yet — see `docs/v26.9.1-requirements.md` §3.
+
+See `priv/ggen/CLAUDE.md` for the fixed `--pack` subpath/naming convention
+and `docs/v26.9.1-requirements.md` for the source-of-truth requirements this
+list is drawn from.
 
 ## How do I run it
 
@@ -74,7 +119,7 @@ Add `ggen_igniter` to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:ggen_igniter, "~> 26.8.27"}
+    {:ggen_igniter, "~> 26.9.1"}
   ]
 end
 ```

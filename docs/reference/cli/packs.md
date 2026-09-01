@@ -115,6 +115,27 @@ built). Two spec formats, with genuinely different verification strength
 Both sources are exercised by `test/ggen_igniter_pack_fetch_test.exs`
 (tagged `:requires_network`).
 
+## Bundled packs in `priv/ggen/`
+
+Each row is a pack directory under `priv/ggen/<pack-name>/`, following the
+convention above (`ontology.ttl`, `gates/*.rq`, `templates/*.eex`). Source
+for every row: the listed `priv/ggen/<pack>/` files themselves.
+
+| Pack | Ontology namespace prefix | Templates | Gate queries | Example invocation |
+|---|---|---|---|---|
+| `incremental-discovery-pack` | `dfg:` `<https://ggen-igniter.dev/ontology/incremental-discovery#>` | `incremental.ex.eex` | `010_module.rq` | `mix ggen_igniter.sync --pack incremental-discovery-pack --out lib/generated/incremental.ex` |
+| `sensor-sink-pack` | `ss:` `<https://ggen-igniter.dev/ontology/sensor-sink#>` | `sensor_sink.ex.eex` | `010_module.rq` | `mix ggen_igniter.sync --pack sensor-sink-pack --out lib/generated/sensor_sink.ex` |
+| `process-discovery-pack` | `pdx:` `<https://ggen-igniter.dev/ontology/process-discovery#>` | `inductive_miner.ex.eex`, `token_replay.ex.eex` | `010_config.rq` | `mix ggen_igniter.sync --pack process-discovery-pack:inductive_miner --out lib/generated/inductive_miner.ex` |
+| `ocel2-ekg-pack` | `ekg:` `<https://ggen-igniter.dev/ontology/ocel2-ekg#>` | `ocel2.ex.eex` | `010_ir_module.rq` | `mix ggen_igniter.sync --pack ocel2-ekg-pack --out lib/generated/ocel2.ex` |
+| `olap-pack` | `olap:` `<https://ggen-igniter.dev/ontology/olap-pack#>` | `olap.ex.eex` | `010_olap_def.rq` | `mix ggen_igniter.sync --pack olap-pack --out lib/generated/olap.ex` |
+| `chicago-fault-injection-pack` | `cfi:` `<https://ggen-igniter.dev/ontology/chicago-fault-injection#>` | `fault_injection_test.exs.eex` | `010_suites.rq` | `mix ggen_igniter.sync --pack chicago-fault-injection-pack --out test/generated/fault_injection_test.exs` |
+| `beam4pm-bench-pack` | `bb:` `<https://ggen-igniter.dev/ontology/beam4pm-bench#>` | `topology.ex.eex`, `virtual_cost.ex.eex`, `wasm_engine_benchmark_test.exs.eex` | `010_virtual_cost.rq`, `020_topology.rq`, `030_wasm_bench.rq` | `mix ggen_igniter.sync --pack beam4pm-bench-pack:topology --out lib/generated/topology.ex` |
+
+`process-discovery-pack` and `beam4pm-bench-pack` have more than one
+template, so `--pack NAME` alone raises the multi-template ambiguity error
+(see `--pack NAME:TEMPLATE` above) — the example invocations for those two
+rows select a template stem explicitly.
+
 ## `pack_given?/1` semantics
 
 Both `sync` and internal helper functions treat a pack as "given" when
