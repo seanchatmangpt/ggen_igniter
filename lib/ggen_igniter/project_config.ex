@@ -184,11 +184,17 @@ defmodule GgenIgniter.ProjectConfig do
   by presence and name, not by internal shape, since the Rust side itself
   treats most of them as opaque `toml::Value` today.
 
-  **Real caveat** (from the Rust source's own doc comments, confirmed by
-  review agent): a second, structurally different `ggen.toml` schema
-  (`ggen_engine::config::GgenConfig`) also exists in the real codebase --
-  chosen instead of this one, at parse time, when `[[generation.rules]]` is
-  empty. This module mirrors `ggen_config::manifest::GgenManifest` only.
+  **Schema scope, a resolved and intentional decision** (from the Rust
+  source's own doc comments): a second, structurally different `ggen.toml`
+  schema (`ggen_engine::config::GgenConfig`) also exists in the real
+  codebase -- chosen instead of this one, at parse time, when
+  `[[generation.rules]]` is empty. This module mirrors
+  `ggen_config::manifest::GgenManifest` -- the `DeclarativeRules` schema --
+  only; it deliberately does not represent the sibling `Frontmatter` schema,
+  which lives in `GgenIgniter.FrontmatterConfig`/`GgenIgniter.FrontmatterPackRef`
+  instead. Which schema a given `ggen.toml` uses is decided by
+  `GgenIgniter.SchemaDispatch`, the one shared classifier/dispatch point --
+  never re-derived here or at any other call site.
   """
 
   defstruct [

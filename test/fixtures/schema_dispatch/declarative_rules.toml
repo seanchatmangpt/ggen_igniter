@@ -1,0 +1,23 @@
+[project]
+name = "fixture-project"
+version = "1.0.0"
+
+[ontology]
+source = "ontology.ttl"
+
+[[generation.rules]]
+name = "gen-resource"
+query = { inline = "SELECT * WHERE { ?s ?p ?o } ORDER BY ?s" }
+template = { inline = "hi" }
+output_file = "out.txt"
+
+[[packs]]
+name = "rust-cli-core"
+registry = "local"
+path = "vendor/ggen-marketplace/packs/rust-cli-core"
+version = "1.2.3"
+
+[[packs]]
+name = "github-actions-pack"
+registry = "default"
+version = "0.4.0"
