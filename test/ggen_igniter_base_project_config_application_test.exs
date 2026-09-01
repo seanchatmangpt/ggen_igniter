@@ -16,9 +16,7 @@ defmodule GgenIgniterBaseProjectConfigApplicationTest do
   describe "Igniter.Project.Config.configure_new/6 (real ex4pm root config/config.exs)" do
     test "adds a real new config value alongside the real existing :logger config" do
       igniter =
-        Igniter.Test.test_project(
-          files: %{"config/config.exs" => real_config_exs()}
-        )
+        Igniter.Test.test_project(files: %{"config/config.exs" => real_config_exs()})
 
       igniter =
         Igniter.Project.Config.configure_new(

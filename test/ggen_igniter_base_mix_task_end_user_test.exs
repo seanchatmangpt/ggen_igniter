@@ -69,7 +69,8 @@ defmodule GgenIgniterBaseMixTaskEndUserTest do
       assert content =~ "def boot(_type, _args) do"
       refute content =~ "def start(_type, _args) do"
       # the real, untouched Supervisor call survives byte-for-byte
-      assert content =~ "Supervisor.start_link([], strategy: :one_for_one, name: Ex4pm.Runtime.Supervisor)"
+      assert content =~
+               "Supervisor.start_link([], strategy: :one_for_one, name: Ex4pm.Runtime.Supervisor)"
     end
   end
 end

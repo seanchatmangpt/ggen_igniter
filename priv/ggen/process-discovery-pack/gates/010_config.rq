@@ -1,0 +1,5 @@
+PREFIX pdx: <https://ggen-igniter.dev/ontology/process-discovery#>
+SELECT ?namespace WHERE {
+  ?c a pdx:PackageConfig ;
+     pdx:namespace ?namespace .
+}

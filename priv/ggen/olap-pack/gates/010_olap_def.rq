@@ -1,0 +1,7 @@
+PREFIX olap: <https://ggen-igniter.dev/ontology/olap-pack#>
+SELECT ?moduleName ?logModule ?eventModule WHERE {
+  ?d a olap:OlapDef ;
+     olap:moduleName ?moduleName ;
+     olap:logModule ?logModule ;
+     olap:eventModule ?eventModule .
+}

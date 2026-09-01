@@ -1,0 +1,21 @@
+PREFIX ekg: <https://ggen-igniter.dev/ontology/ocel2-ekg#>
+SELECT ?namespace ?eventLogStruct ?eventStruct ?objectRelationshipStruct
+       ?attributeChangeStruct ?refusalModule ?eventsField ?objectsField
+       ?objectRelationshipsField ?objectIdsField ?timestampField ?idField
+       ?attributesField ?relationshipsField WHERE {
+  ?m a ekg:IRModule ;
+     ekg:namespace ?namespace ;
+     ekg:eventLogStruct ?eventLogStruct ;
+     ekg:eventStruct ?eventStruct ;
+     ekg:objectRelationshipStruct ?objectRelationshipStruct ;
+     ekg:attributeChangeStruct ?attributeChangeStruct ;
+     ekg:refusalModule ?refusalModule ;
+     ekg:eventsField ?eventsField ;
+     ekg:objectsField ?objectsField ;
+     ekg:objectRelationshipsField ?objectRelationshipsField ;
+     ekg:objectIdsField ?objectIdsField ;
+     ekg:timestampField ?timestampField ;
+     ekg:idField ?idField ;
+     ekg:attributesField ?attributesField ;
+     ekg:relationshipsField ?relationshipsField .
+}

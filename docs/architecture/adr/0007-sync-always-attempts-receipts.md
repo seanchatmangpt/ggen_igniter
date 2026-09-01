@@ -2,19 +2,42 @@
 
 ## Status
 
-**Accepted for the code shape; UNVERIFIABLE-pending-integration for
-end-to-end runtime behavior**, as of this pass (2026-08-27). The decision
-described below is real and landed in `lib/mix/tasks/ggen_igniter.sync.ex`
-(confirmed by direct reading and `git diff` against the prior
-`use_reactor?/0`-gated code this pass). A real invocation of the resulting
-pipeline currently fails downstream of this decision's own code, in
-`Reactor.Executor`'s concurrency-pool initialization (see "Known open
-issue" below) — this ADR records the decision itself as Accepted; it does
-not claim the pipeline it enables is currently runnable end to end. This
-repo is being edited concurrently by other agents on this same working
-tree; re-verify this status once the `Reactor.Executor` issue and
-`GgenIgniter.Lock`'s test coverage (see `docs/reference/cli/lock.md`) are
-both resolved.
+**Accepted, and the "Known open issue" ETS crash below is no longer
+reproducible** (re-verified 2026-09-01). The decision described below is
+real and landed in `lib/mix/tasks/ggen_igniter.sync.ex`. Re-verification
+this pass:
+
+- Real repro attempt of the exact scenario the "Known open issue" section
+  below describes (a bare `mix ggen_igniter.sync` CLI invocation, outside
+  `mix test`'s already-running application tree): `cd /Users/sac/
+  ggen_igniter && mix ggen_igniter.sync --ontology tmp_probe/mini.ttl
+  --query spec=tmp_probe/mini.rq --template tmp_probe/mini.eex --out
+  tmp_probe/probe_out.ex` completed successfully via the Reactor pipeline
+  — actual output: `Notices: * ggen_igniter: wrote tmp_probe/probe_out.ex
+  (engine: oxigraph, 1 query, 1 total row(s)) (via reactor)`, with the real
+  templated file (`# generated: Foo`) written to disk. No
+  `Reactor.Executor.ConcurrencyTracker.allocate_pool/1` `ArgumentError`, no
+  ETS failure of any kind.
+- `mix test test/ggen_igniter_reconcile_reactor_test.exs`: real output `8
+  tests, 0 failures` — the module driving `ReconcileReactor` directly.
+- Checked `git show --stat 0c0eb03 52164d6` (the two most recent commits
+  touching `ReconcileReactor`/`mode: eval`) specifically for this ETS
+  issue: neither commit's diff or message mentions
+  `ConcurrencyTracker`/`allocate_pool`/ETS. `0c0eb03` ("Fix AR-9: mode:eval
+  no longer crashes the Reactor's :render step") fixes an unrelated
+  `OcelEmitter.file_object/1` `FunctionClauseError` on `mode: eval`'s nil
+  target; `52164d6` ("Thread a real %Igniter{} through mode:eval targets in
+  ReconcileReactor's :actuate step") threads an `%Igniter{}` accumulator
+  through `:eval` actuation, also unrelated. So this ETS crash was not
+  fixed *by* either commit specifically — it is simply not reproducible on
+  current `main`, consistent with the original note's own hypothesis (a
+  missing `:reactor` OTP-application-supervision-tree start on a bare CLI
+  invocation, "rather than a defect in this ADR's own code") having since
+  resolved as a non-issue in the current dependency/boot state.
+
+The "Known open issue (this pass)" paragraph below is retained verbatim as
+a historical record of the 2026-08-27 finding; it is superseded by this
+Status section and is not a currently-standing blocker.
 
 ## Context
 
@@ -76,9 +99,10 @@ must serialize against, not an edge case only opt-in users hit.
   dead for this call site specifically. (`GgenIgniter.Controller`, a
   separate call site, is untouched by this ADR and was not re-verified for
   its own `use_reactor` dependency this pass.)
-- **Known open issue (this pass):** a real invocation of the now-default
-  Reactor path raises `** (ArgumentError) ... the table identifier does not
-  refer to an existing ETS table` from
+- **Known open issue (2026-08-27 pass; SUPERSEDED — see Status section
+  above, re-verified 2026-09-01 not reproducible):** a real invocation of
+  the now-default Reactor path raises `** (ArgumentError) ... the table
+  identifier does not refer to an existing ETS table` from
   `Reactor.Executor.ConcurrencyTracker.allocate_pool/1`, reproduced fresh
   this pass via `mix ggen_igniter.sync --ontology
   test/fixtures/audit_trail_ontology.ttl --query

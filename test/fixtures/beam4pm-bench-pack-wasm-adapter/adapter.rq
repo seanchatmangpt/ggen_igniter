@@ -1,0 +1,6 @@
+PREFIX ta: <https://ggen-igniter.dev/ontology/test-wasm-adapter#>
+SELECT ?wasm_adapter_module WHERE {
+  ?a a ta:Adapter ;
+     ta:wasmAdapterModule ?wasm_adapter_module .
+}
+LIMIT 1

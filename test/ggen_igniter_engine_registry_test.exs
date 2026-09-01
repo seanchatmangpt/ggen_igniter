@@ -140,8 +140,7 @@ defmodule GgenIgniter.EngineRegistryTest do
     RDF.Graph.new([
       {"https://example.org/engine_registry/s1", "https://example.org/engine_registry/p",
        "hello"},
-      {"https://example.org/engine_registry/s2", "https://example.org/engine_registry/p",
-       "world"}
+      {"https://example.org/engine_registry/s2", "https://example.org/engine_registry/p", "world"}
     ])
   end
 
@@ -273,7 +272,9 @@ defmodule GgenIgniter.EngineRegistryTest do
       agreement = report.pairwise_agreement[{:oxigraph, :sparql}]
       assert agreement.row_set_equal? == true, "same 10 rows on both engines (a set property)"
       assert agreement.row_count_diff == 0
-      assert agreement.order_equal? == false, "sparql-hex's real ORDER BY reversal must surface here"
+
+      assert agreement.order_equal? == false,
+             "sparql-hex's real ORDER BY reversal must surface here"
 
       # Ground truth: oxigraph honors ORDER BY ascending; sparql-hex reverses
       # it -- asserted directly against the real returned rows (field N's

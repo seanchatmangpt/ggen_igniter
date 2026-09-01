@@ -51,3 +51,15 @@ adr:d0006 a adr:Decision ;
     adr:filename "0006-marker-based-injection-not-ast-patch.md" ;
     adr:title "Marker-based line splice for injection, deferring real AST-based mutation" ;
     adr:status "Accepted" .
+
+adr:d0007 a adr:Decision ;
+    adr:number "0007" ;
+    adr:filename "0007-sync-always-attempts-receipts.md" ;
+    adr:title "`mix ggen_igniter.sync` Always Attempts the Reactor Pipeline (Receipts on Every Run), Gated Only by Delegatability" ;
+    adr:status "Accepted" .
+
+adr:d0008 a adr:Decision ;
+    adr:number "0008" ;
+    adr:filename "0008-evidence-ranked-multi-engine-registry.md" ;
+    adr:title "Evidence-Ranked Multi-Engine Registry for `--engine` Comparison Mode" ;
+    adr:status "Accepted" .

@@ -1,0 +1,32 @@
+@prefix dfg: <https://ggen-igniter.dev/ontology/incremental-discovery#> .
+
+# Reusable manufacturing pack: an incremental (streaming) directly-follows-graph
+# (DFG) discovery module -- one new event folded into a running state at a time
+# via `update/2`, O(1) amortized work per event, plus a `from_events/1` batch
+# oracle implemented as a fold through the SAME `update/2` step (so the
+# incremental and batch code paths are proven equivalent by construction, not
+# by two independently-written implementations that could silently drift).
+#
+# Real logic ported from ex4pm's reference implementation:
+#   ~/ex4pm/apps/ex4pm_engine/lib/ex4pm/engine/discovery/incremental.ex
+# Parameterized here so any consumer (e.g. beam4pm) can generate its own
+# module bound to its own canonical event struct, rather than depending on
+# `Ex4pm.Event` directly.
+#
+# Regenerate with:
+#   mix ggen_igniter.sync --pack incremental-discovery-pack \
+#     --out lib/<app>/discovery/incremental.ex
+#
+# The dogfood/consumer loop: edit the `dfg:IncrementalDiscoveryModule`
+# individual below (or a consumer-owned ontology.ttl using this same `dfg:`
+# vocabulary), re-run the command above, re-run the module's own generated
+# test file -- never hand-edit the generated output (see its own
+# "Do not edit" header).
+
+dfg:incremental_discovery_default a dfg:IncrementalDiscoveryModule ;
+    dfg:moduleName "GgenIgniter.Discovery.Examples.IncrementalDfg" ;
+    dfg:eventModule "GgenIgniter.Discovery.Examples.Event" ;
+    dfg:eventAlias "Event" ;
+    dfg:activityField "activity" ;
+    dfg:caseIdFieldExpr "event.object_ids" ;
+    dfg:defaultCaseId ":__global__" .

@@ -1,0 +1,37 @@
+@prefix ekg: <https://ggen-igniter.dev/ontology/ocel2-ekg#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# ocel2-ekg-pack -- reusable ggen_igniter pack that manufactures an OCEL 2.0 /
+# Event-Knowledge-Graph-style IR-derivation module (object trace recovery,
+# time-traceable dynamic attribute-change history, qualifier-typed O2O
+# relationship lookup) layered on top of a consumer's OWN canonical
+# `EventLog` IR -- never hardcoded to any one consumer's namespace.
+#
+# Reference implementation this pack templatizes:
+# ~/ex4pm/apps/ex4pm_core/lib/ex4pm/ocel2.ex (Ex4pm.OCEL2 / Ex4pm.AttributeChange).
+#
+# A consumer (e.g. beam4pm) provides its OWN individual of ekg:IRModule naming
+# its namespace and the field names its EventLog/Event/ObjectRelationship
+# structs actually use, and regenerates via:
+#
+#   mix ggen_igniter.sync --pack ocel2-ekg-pack \
+#     --out lib/<namespace>/ocel2.ex
+#
+# This ontology.ttl ships one worked individual (ekg:example_ir) so the pack
+# is provable standalone, without needing a live beam4pm ontology change.
+
+ekg:example_ir a ekg:IRModule ;
+    ekg:namespace "GgenIgniter.Ocel2Example" ;
+    ekg:eventLogStruct "EventLog" ;
+    ekg:eventStruct "Event" ;
+    ekg:objectRelationshipStruct "ObjectRelationship" ;
+    ekg:attributeChangeStruct "AttributeChange" ;
+    ekg:refusalModule "Refusal" ;
+    ekg:eventsField "events" ;
+    ekg:objectsField "objects" ;
+    ekg:objectRelationshipsField "object_relationships" ;
+    ekg:objectIdsField "object_ids" ;
+    ekg:timestampField "timestamp" ;
+    ekg:idField "id" ;
+    ekg:attributesField "attributes" ;
+    ekg:relationshipsField "relationships" .

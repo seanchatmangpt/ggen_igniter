@@ -27,6 +27,8 @@ table below directly (a future re-run would just overwrite a hand-edit).
 | [0004](0004-manifest-keyed-by-recipe-identity.md) | Reconciliation manifest keyed by `(template_path, out_template)` recipe identity | Accepted |
 | [0005](0005-receipt-independent-of-manifest.md) | Receipt as an independent, append-only attempt history distinct from the Manifest | Accepted |
 | [0006](0006-marker-based-injection-not-ast-patch.md) | Marker-based line splice for injection, deferring real AST-based mutation | Accepted |
+| [0007](0007-sync-always-attempts-receipts.md) | `mix ggen_igniter.sync` Always Attempts the Reactor Pipeline (Receipts on Every Run), Gated Only by Delegatability | Accepted |
+| [0008](0008-evidence-ranked-multi-engine-registry.md) | Evidence-Ranked Multi-Engine Registry for `--engine` Comparison Mode | Accepted |
 
 See `docs/status.md` for the current implementation status of the systems
 these decisions govern, and `docs/architecture/overview.md` for how they fit

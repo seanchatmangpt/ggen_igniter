@@ -44,15 +44,27 @@ deprecation of the other two engines.
   compilation. This requirement predates the default change (the loader
   module was already unconditionally part of `lib/`); changing the
   *default string* added no *new* compile-time requirement.
-- **Row-value shape differs from `sparql`, disclosed in source**: oxigraph's
-  rows are documented as the raw, unprocessed N-Triples-style term strings
-  oxigraph itself returns (angle-bracket IRIs, quoted/datatype-annotated
-  literals) rather than bare values. This disclosed trade-off was
-  independently probed against this repo's own real fixtures in a later
-  documentation pass and **could not be reproduced** — the real generated
-  output contained clean, bare Elixir values with no such wrapping. This ADR
-  does not resolve that discrepancy; see `docs/tutorials/getting-started.md`
-  and `docs/status.md` for the current, honestly-unresolved state.
+- **Row-value shape is PLAIN by default, matching `sparql`'s shape**:
+  verified by reading `lib/ggen_igniter/query/oxigraph.ex:112-142` — `run/2`
+  and `run/3` (with no `raw: true`) call `GraphNif.query_turtle/2`, which
+  returns oxigraph's terms normalized to plain, unwrapped values (no
+  `<...>` IRI brackets, no `"..."^^<...>`/`@lang` literal wrapping), the
+  same shape `GgenIgniter.Query.run/2` (the `sparql` hex engine) returns.
+  This was a real, already-fixed bug (see `oxigraph.ex`'s moduledoc,
+  "Term normalization: PLAIN values by default, raw as an explicit
+  opt-in") — earlier versions of this engine returned raw N-Triples-style
+  `Term::to_string()` serializations, fixed at the source in the Rust NIF
+  itself (`native/ggen_graph_nif/src/oxigraph_engine.rs`'s
+  `normalize_term/1`), not by post-processing in the Elixir wrapper. The
+  raw, pre-fix shape remains available only via the explicit `raw: true`
+  opt-in (`GraphNif.query_turtle_raw/2`), for callers that need a
+  binding's datatype IRI or language tag. One disclosed, narrower scope
+  limit survives: the plain default returns every literal's lexical
+  string uniformly regardless of datatype (an `xsd:boolean` literal
+  normalizes to the string `"true"`, not the Elixir boolean `true`),
+  unlike `GgenIgniter.Query.run/2`'s per-datatype `elixir_mapping/2`
+  coercion for `xsd:boolean`/`xsd:integer` specifically — see
+  `docs/status.md` for this narrower, still-accurate caveat.
 - `mix ggen_igniter.doctor` check 3 still warns on `sparql <= 0.3.12` for
   callers who explicitly choose `--engine sparql`.
 - This project's own `mix e2e` lifecycle test pins `--engine sparql`
@@ -62,4 +74,5 @@ deprecation of the other two engines.
 ## See also
 
 - `docs/reference/cli/engines.md` — full engine comparison and choosing guidance
-- `docs/status.md` — the disputed row-shape claim's current, unresolved status
+- `docs/status.md` — the row-shape claim's current, verified status (plain
+  by default; one narrower disclosed datatype-coercion caveat remains)

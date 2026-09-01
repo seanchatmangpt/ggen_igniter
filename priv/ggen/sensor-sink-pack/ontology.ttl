@@ -1,0 +1,31 @@
+@prefix ss: <https://ggen-igniter.dev/ontology/sensor-sink#> .
+
+# Reusable manufacturing pack: a threshold-crossing abstraction sink turning
+# raw numeric sensor samples `{value, timestamp, sensor_id}` into canonical
+# process-mining events -- an event is emitted only on a crossing edge of a
+# configured threshold (at-or-below -> above, or vice versa), not on every
+# sample. This is the discretization step that turns a continuous signal
+# into discrete events, matching whatever canonical event struct the
+# consumer's app already uses (parameterized via `ss:eventModule`/
+# `ss:eventAlias` below), so downstream discovery/conformance can consume
+# sensor-originated events identically to any other event source.
+#
+# Real logic ported from ex4pm's reference implementation:
+#   ~/ex4pm/apps/ex4pm_stream/lib/ex4pm/stream/sensor_sink.ex
+#
+# Regenerate with:
+#   mix ggen_igniter.sync --pack sensor-sink-pack \
+#     --out lib/<app>/stream/sensor_sink.ex
+#
+# The dogfood/consumer loop: edit the `ss:SensorSinkModule` individual below
+# (or a consumer-owned ontology.ttl using this same `ss:` vocabulary),
+# re-run the command above, re-run the module's own generated test file --
+# never hand-edit the generated output (see its own "Do not edit" header).
+
+ss:sensor_sink_default a ss:SensorSinkModule ;
+    ss:moduleName "GgenIgniter.Stream.Examples.SensorSink" ;
+    ss:eventModule "GgenIgniter.Discovery.Examples.Event" ;
+    ss:eventAlias "Event" ;
+    ss:defaultThreshold "0.0" ;
+    ss:risingActivity "threshold_crossed_above" ;
+    ss:fallingActivity "threshold_crossed_below" .

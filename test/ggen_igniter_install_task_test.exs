@@ -81,8 +81,18 @@ defmodule GgenIgniterInstallTaskTest do
         |> Igniter.compose_task("ggen_igniter.install", ["--domain", "MyApp.Ash.Domain"])
 
       assert_has_patch(igniter, "mix.exs", "22 + |    [{:ash, \"~> 3.0\"}]")
-      assert_has_patch(igniter, "config/config.exs", "2 |config :my_app, ash_domains: [MyApp.Ash.Domain]")
-      assert_has_patch(igniter, "lib/my_app/application.ex", "6 + |    children = [MyApp.Ash.Domain]")
+
+      assert_has_patch(
+        igniter,
+        "config/config.exs",
+        "2 |config :my_app, ash_domains: [MyApp.Ash.Domain]"
+      )
+
+      assert_has_patch(
+        igniter,
+        "lib/my_app/application.ex",
+        "6 + |    children = [MyApp.Ash.Domain]"
+      )
     end
 
     test "auto-inserts a children = [...] binding when start/2 inlines the list directly" do
@@ -141,12 +151,18 @@ defmodule GgenIgniterInstallTaskTest do
       # first, then add_new_child/3 succeeds normally against it -- the real diff
       # shows the binding introduced with the new child already present (add_new_child
       # runs after ensure_children_binding in the pipeline), not an empty list.
-      assert_has_patch(igniter, "lib/my_app/application.ex", "6 + |    children = [MyApp.Ash.Domain]")
+      assert_has_patch(
+        igniter,
+        "lib/my_app/application.ex",
+        "6 + |    children = [MyApp.Ash.Domain]"
+      )
+
       assert_has_patch(
         igniter,
         "lib/my_app/application.ex",
         "7 + |    Supervisor.start_link(children,"
       )
+
       refute Enum.any?(igniter.warnings, &(&1 =~ "children"))
     end
 

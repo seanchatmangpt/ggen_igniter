@@ -1,0 +1,11 @@
+PREFIX dfg: <https://ggen-igniter.dev/ontology/incremental-discovery#>
+SELECT DISTINCT ?moduleName ?eventModule ?eventAlias ?activityField
+                ?caseIdFieldExpr ?defaultCaseId WHERE {
+  ?m a dfg:IncrementalDiscoveryModule ;
+     dfg:moduleName ?moduleName ;
+     dfg:eventModule ?eventModule ;
+     dfg:eventAlias ?eventAlias ;
+     dfg:activityField ?activityField ;
+     dfg:caseIdFieldExpr ?caseIdFieldExpr ;
+     dfg:defaultCaseId ?defaultCaseId .
+}

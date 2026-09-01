@@ -1,0 +1,61 @@
+@prefix bb: <https://ggen-igniter.dev/ontology/beam4pm-bench#> .
+
+# Reusable manufacturing pack: real BEAM-native distributed-topology and
+# Wasmtime benchmark harnesses, ported from ex4pm's own real, already-run
+# reference implementations
+# (~/ex4pm/apps/ex4pm_engine/lib/ex4pm_engine/bench/virtual_cost.ex,
+# ~/ex4pm/apps/ex4pm_engine/lib/ex4pm_engine/bench/topology.ex, and
+# ~/ex4pm/apps/ex4pm_engine/test/benchmarks/wasm_engine_benchmark_test.exs),
+# parameterized here by namespace (and, for the Wasm benchmark, the
+# consumer's real Wasmex-backed engine adapter module) so any consumer repo
+# (beam4pm included) can manufacture its own copy under its own module tree
+# instead of hand-porting the logic.
+#
+# Regenerate a consumer's copy with (run from the CONSUMER repo root, e.g.
+# beam4pm), pointing --ontology/--query at THIS pack's files by absolute or
+# relative path (this pack ships no consumer-specific frontmatter `to:`,
+# since the real consumer, beam4pm, already drives generation explicitly via
+# its own `scripts/igniter_sync.sh` --template/--out invocations rather than
+# `--pack` delegation):
+#
+#   mix ggen_igniter.sync \
+#     --ontology <path-to-this-pack>/ontology.ttl \
+#     --query virtual_cost=<path-to-this-pack>/gates/010_virtual_cost.rq \
+#     --template <path-to-this-pack>/templates/virtual_cost.ex.eex \
+#     --out lib/beam4pm/bench/virtual_cost.ex
+#
+#   mix ggen_igniter.sync \
+#     --ontology <path-to-this-pack>/ontology.ttl \
+#     --query topology=<path-to-this-pack>/gates/020_topology.rq \
+#     --template <path-to-this-pack>/templates/topology.ex.eex \
+#     --out lib/beam4pm/bench/topology.ex
+#
+#   mix ggen_igniter.sync \
+#     --ontology <path-to-this-pack>/ontology.ttl \
+#     --query wasm_bench=<path-to-this-pack>/gates/030_wasm_bench.rq \
+#     --query adapter=<path-to-consumer-adapter-query>.rq \
+#     --template <path-to-this-pack>/templates/wasm_engine_benchmark_test.exs.eex \
+#     --out test/benchmarks/wasm_engine_benchmark_test.exs
+#
+# The third command's `--query adapter=...` is REQUIRED and deliberately not
+# supplied by this pack: as of 2026-08-31, beam4pm has no real Wasmex-backed
+# engine adapter (`grep -rl "Wasm\|wasmex" ~/beam4pm --include='*.ex'`
+# returns only `beam4pm_rust4pm.ex`, a Rust NIF facade, not a Wasmex
+# adapter) — there is nothing real yet to hardcode. The consumer supplies
+# their own single-row SPARQL query (or ontology individual) naming a
+# `?wasm_adapter_module` binding once a real adapter module exists (ex4pm's
+# own real one is `Ex4pm.Engine.Wasm`,
+# apps/ex4pm_engine/lib/ex4pm/engine/adapters.ex, for reference). Rendering
+# `templates/wasm_engine_benchmark_test.exs.eex` without that binding fails
+# fast with a real `EEx`/`CompileError` (undefined variable
+# `wasm_adapter_module`) rather than silently emitting a benchmark against a
+# fabricated module name — see that template's own moduledoc note.
+
+bb:beam4pm_bench_virtual_cost a bb:VirtualCostBenchDef ;
+    bb:namespace "Beam4pm" .
+
+bb:beam4pm_bench_topology a bb:TopologyBenchDef ;
+    bb:namespace "Beam4pm" .
+
+bb:beam4pm_bench_wasm a bb:WasmBenchDef ;
+    bb:namespace "Beam4pm" .

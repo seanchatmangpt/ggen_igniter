@@ -1,0 +1,9 @@
+PREFIX cfi: <https://ggen-igniter.dev/ontology/chicago-fault-injection#>
+SELECT DISTINCT ?moduleName ?appName ?targetModule ?nodePrefix WHERE {
+  ?s a cfi:FaultInjectionSuite ;
+     cfi:moduleName ?moduleName ;
+     cfi:appName ?appName ;
+     cfi:targetModule ?targetModule ;
+     cfi:nodePrefix ?nodePrefix .
+}
+ORDER BY ?moduleName

@@ -1,0 +1,6 @@
+PREFIX bb: <https://ggen-igniter.dev/ontology/beam4pm-bench#>
+SELECT ?namespace WHERE {
+  ?d a bb:VirtualCostBenchDef ;
+     bb:namespace ?namespace .
+}
+LIMIT 1

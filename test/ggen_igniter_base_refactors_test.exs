@@ -71,7 +71,9 @@ defmodule GgenIgniterBaseRefactorsTest do
 
       igniter = Igniter.Refactors.Elixir.unless_to_if_not(igniter)
 
-      source = igniter.rewrite |> Rewrite.source!("lib/synthetic.ex") |> Rewrite.Source.get(:content)
+      source =
+        igniter.rewrite |> Rewrite.source!("lib/synthetic.ex") |> Rewrite.Source.get(:content)
+
       assert source =~ "if not (x > 0) do"
       refute source =~ "unless"
     end
@@ -116,7 +118,9 @@ defmodule GgenIgniterBaseRefactorsTest do
         )
 
       source =
-        igniter.rewrite |> Rewrite.source!("lib/ex4pm/contracts.ex") |> Rewrite.Source.get(:content)
+        igniter.rewrite
+        |> Rewrite.source!("lib/ex4pm/contracts.ex")
+        |> Rewrite.Source.get(:content)
 
       # the real internal self-call (inside verify_required_terms/0) IS renamed
       assert source =~ "with {:ok, bytes} <- fetch(id) do"

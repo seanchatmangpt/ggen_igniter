@@ -1,0 +1,28 @@
+@prefix cfi: <https://ggen-igniter.dev/ontology/chicago-fault-injection#> .
+
+# Reusable manufacturing pack: an OTP-distribution fault-injection Chicago test
+# suite, parameterized per consuming application. Two real faults, no mocks,
+# modeled on the hand-authored reference at
+# ~/ex4pm/apps/ex4pm/test/chicago/network_partition_fault_injection_test.exs:
+#
+#   1. A real network partition between two real BEAM nodes, induced with
+#      stdlib/OTP primitives only (`:erlang.set_cookie/2` cookie desync,
+#      matching what schism-style partition tools do under the hood), followed
+#      by real healing.
+#   2. A real `Process.exit/2` `:kill` signal sent to a real supervised
+#      process, asserting real supervisor restart behavior (new pid under the
+#      same registered name).
+#
+# A consuming app supplies its own cfi:FaultInjectionSuite individual naming
+# its own target supervised module and a node-name/cookie prefix -- nothing
+# here hardcodes "ex4pm" or any other single consumer's naming.
+#
+# Regenerate a consumer's copy with:
+#   mix ggen_igniter.sync --pack chicago-fault-injection-pack --engine sparql \
+#     --out test/chicago/<app>_fault_injection_test.exs
+
+cfi:beam4pm_fault_injection_suite a cfi:FaultInjectionSuite ;
+    cfi:moduleName "Beam4pm.Chicago.FaultInjectionTest" ;
+    cfi:appName "beam4pm" ;
+    cfi:targetModule "Beam4pm.Store" ;
+    cfi:nodePrefix "beam4pm_chicago" .

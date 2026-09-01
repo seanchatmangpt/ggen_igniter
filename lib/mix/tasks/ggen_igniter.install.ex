@@ -172,7 +172,12 @@ defmodule Mix.Tasks.GgenIgniter.Install do
         case rewrite_children_binding(zipper) do
           {:ok, zipper} ->
             new_source =
-              Igniter.update_source(source, igniter, :quoted, Sourceror.Zipper.topmost_root(zipper))
+              Igniter.update_source(
+                source,
+                igniter,
+                :quoted,
+                Sourceror.Zipper.topmost_root(zipper)
+              )
 
             %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}
 

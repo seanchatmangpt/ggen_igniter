@@ -734,7 +734,9 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     IO.puts("ggen_igniter #{version}")
     System.halt(0)
   rescue
-    _ -> IO.puts("ggen_igniter unknown") && System.halt(0)
+    _ ->
+      IO.puts("ggen_igniter unknown")
+      System.halt(0)
   end
 
   defp run_sync(igniter, opts, pack_template_stem) do
@@ -1064,7 +1066,8 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         Keyword.put(opts, :engine, primary)
 
       {:error, reason} ->
-        raise ArgumentError, "ggen_igniter: invalid --engine value #{inspect(engine_spec)}: #{reason}"
+        raise ArgumentError,
+              "ggen_igniter: invalid --engine value #{inspect(engine_spec)}: #{reason}"
     end
   end
 

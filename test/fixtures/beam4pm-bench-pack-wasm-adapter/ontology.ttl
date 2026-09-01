@@ -1,0 +1,18 @@
+@prefix bb: <https://ggen-igniter.dev/ontology/beam4pm-bench#> .
+@prefix ta: <https://ggen-igniter.dev/ontology/test-wasm-adapter#> .
+
+# Test-only fixture standing in for a real consumer ontology (e.g. beam4pm's
+# own ontology.ttl) that both instantiates priv/ggen/beam4pm-bench-pack's
+# bb:WasmBenchDef AND supplies the pack-required wasm_adapter_module binding
+# via a second individual/query, exactly as documented in
+# priv/ggen/beam4pm-bench-pack/ontology.ttl's header comment. `Elixir.String`
+# is used as the adapter module purely because it is guaranteed loaded in
+# any real Elixir runtime (so `Code.ensure_loaded?/1` in the rendered test's
+# `setup_all` passes for real) -- this fixture makes no claim that `String`
+# is an actual Wasmex adapter.
+
+bb:beam4pm_bench_wasm a bb:WasmBenchDef ;
+    bb:namespace "Beam4pm" .
+
+ta:test_adapter a ta:Adapter ;
+    ta:wasmAdapterModule "Elixir.String" .

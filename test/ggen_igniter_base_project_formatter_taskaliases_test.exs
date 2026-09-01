@@ -15,11 +15,15 @@ defmodule GgenIgniterBaseProjectFormatterTaskAliasesTest do
   describe "Igniter.Project.Formatter.import_dep/2 (real ex4pm .formatter.exs)" do
     test "adds a real new import_deps entry to the real ex4pm formatter config" do
       igniter =
-        Igniter.Test.test_project(files: %{".formatter.exs" => Ex4pmFixture.read!(".formatter.exs")})
+        Igniter.Test.test_project(
+          files: %{".formatter.exs" => Ex4pmFixture.read!(".formatter.exs")}
+        )
 
       igniter = Igniter.Project.Formatter.import_dep(igniter, :ash)
 
-      source = igniter.rewrite |> Rewrite.source!(".formatter.exs") |> Rewrite.Source.get(:content)
+      source =
+        igniter.rewrite |> Rewrite.source!(".formatter.exs") |> Rewrite.Source.get(:content)
+
       assert source =~ "import_deps: [:ash]"
       # the real, pre-existing `inputs:` list from ex4pm is untouched
       assert source =~ ~s(inputs: ["mix.exs", "config/*.exs", "apps/**/*.{ex,exs}"])
@@ -27,14 +31,18 @@ defmodule GgenIgniterBaseProjectFormatterTaskAliasesTest do
 
     test "remove_imported_dep/2 removes a real just-added import_deps entry" do
       igniter =
-        Igniter.Test.test_project(files: %{".formatter.exs" => Ex4pmFixture.read!(".formatter.exs")})
+        Igniter.Test.test_project(
+          files: %{".formatter.exs" => Ex4pmFixture.read!(".formatter.exs")}
+        )
 
       igniter =
         igniter
         |> Igniter.Project.Formatter.import_dep(:ash)
         |> Igniter.Project.Formatter.remove_imported_dep(:ash)
 
-      source = igniter.rewrite |> Rewrite.source!(".formatter.exs") |> Rewrite.Source.get(:content)
+      source =
+        igniter.rewrite |> Rewrite.source!(".formatter.exs") |> Rewrite.Source.get(:content)
+
       refute source =~ ":ash"
     end
   end

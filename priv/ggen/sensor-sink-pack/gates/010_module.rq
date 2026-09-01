@@ -1,0 +1,11 @@
+PREFIX ss: <https://ggen-igniter.dev/ontology/sensor-sink#>
+SELECT DISTINCT ?moduleName ?eventModule ?eventAlias ?defaultThreshold
+                ?risingActivity ?fallingActivity WHERE {
+  ?m a ss:SensorSinkModule ;
+     ss:moduleName ?moduleName ;
+     ss:eventModule ?eventModule ;
+     ss:eventAlias ?eventAlias ;
+     ss:defaultThreshold ?defaultThreshold ;
+     ss:risingActivity ?risingActivity ;
+     ss:fallingActivity ?fallingActivity .
+}

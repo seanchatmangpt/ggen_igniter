@@ -1,0 +1,30 @@
+@prefix olap: <https://ggen-igniter.dev/ontology/olap-pack#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# olap-pack -- reusable ggen_igniter manufacturing pack for OLAP-style
+# slice/dice/roll_up/drill_down operations over an OCEL-shaped canonical
+# event log IR (an `%EventLog{}`-equivalent struct with `events` carrying
+# `:activity`/`:timestamp`/`:attributes`/`:object_ids`, `:objects`, and
+# `:object_relationships`).
+#
+# Real reference logic this pack's template is derived from:
+#   ~/ex4pm/apps/ex4pm_core/lib/ex4pm/core/olap.ex
+# (`Ex4pm.Core.OLAP`: `slice/3`, `dice/2`, `roll_up/3`, `drill_down/3` over
+# `Ex4pm.EventLog`/`Ex4pm.Event`). This ontology parameterizes that same
+# real logic so any consumer (e.g. beam4pm) can manufacture its own
+# namespace-scoped OLAP module without hand-writing it.
+#
+# Regenerate a consumer instance with:
+#   mix ggen_igniter.sync --pack olap-pack \
+#     --out lib/<app>/<namespace>/olap.ex
+#
+# `moduleName`/`logModule`/`eventModule` are the only ontology-level knobs;
+# everything else (dimension extraction, slice/dice/roll_up/drill_down
+# bodies) is fixed, verified logic in the template itself -- this pack does
+# not attempt to make the OLAP algebra itself data-driven, only the target
+# module/struct names it is generated against.
+
+olap:olap_def_default a olap:OlapDef ;
+    olap:moduleName "Ex4pm.Core.OLAP" ;
+    olap:logModule "Ex4pm.EventLog" ;
+    olap:eventModule "Ex4pm.Event" .

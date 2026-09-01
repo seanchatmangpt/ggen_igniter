@@ -1,0 +1,23 @@
+@prefix pdx: <https://ggen-igniter.dev/ontology/process-discovery#> .
+
+# Reusable manufacturing pack: single-pass Inductive-Miner-family process
+# discovery (directly-follows-graph exclusive-choice/sequence cuts) plus
+# token-based-replay conformance checking, parameterized by target
+# namespace so any consumer repo (e.g. beam4pm) manufactures its own copy
+# under its own module tree instead of ex4pm's.
+#
+# Real logic ported 1:1 from the already-implemented, already-tested ex4pm
+# reference modules:
+#   apps/ex4pm_engine/lib/ex4pm/engine/discovery/inductive_miner.ex
+#   apps/ex4pm_engine/lib/ex4pm/engine/conformance/token_replay.ex
+#
+# Regenerate with (namespace defaults to "Ex4pm.Engine" below; a consumer
+# repo overrides `pdx:namespace` in its own copy of this ontology.ttl, or
+# passes a different ontology entirely via `--ontology`):
+#   mix ggen_igniter.sync --pack process-discovery-pack:inductive_miner \
+#     --out lib/ex4pm/engine/discovery/inductive_miner.ex
+#   mix ggen_igniter.sync --pack process-discovery-pack:token_replay \
+#     --out lib/ex4pm/engine/conformance/token_replay.ex
+
+pdx:config a pdx:PackageConfig ;
+    pdx:namespace "Ex4pm.Engine" .
