@@ -158,8 +158,18 @@ defmodule GgenIgniter.Telemetry.OcelEmitter do
     "ev_" <> (:crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower))
   end
 
-  @doc "Builds a `\"file\"`-typed OCEL object reference for `path`."
-  @spec file_object(String.t()) :: object()
+  @doc """
+  Builds a `"file"`-typed OCEL object reference for `path`.
+
+  A `mode: eval` `PendingActuation` genuinely has no file path
+  (`PendingActuation.for_eval/3`'s `target` field is always `nil`) -- this is a
+  real, honest sentinel id for that case, not a crash. Fixes AR-9: previously
+  this function had only the `is_binary(path)` clause below, so ANY `:eval`
+  target raised `FunctionClauseError` inside the Reactor's `:render` step
+  before `:admit`/`:actuate` ever ran, independent of frontmatter.
+  """
+  @spec file_object(String.t() | nil) :: object()
+  def file_object(nil), do: %{"type" => "file", "id" => "(eval, no target)"}
   def file_object(path) when is_binary(path), do: %{"type" => "file", "id" => path}
 
   @doc "Builds a `\"reconcile_run\"`-typed OCEL object reference for `run_id`."

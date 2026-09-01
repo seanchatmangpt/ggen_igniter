@@ -601,8 +601,8 @@ defmodule GgenIgniter.ReconcileReactorTest do
   # no real `for_inject`/equivalent builder in this module, so `:inject`
   # compensation is genuinely untested here, not silently assumed to work.
 
-  describe ":eval compensation-completeness: REAL FINDING -- unreachable, not just untested" do
-    test "an :eval target crashes at :render before :admit/:actuate ever run" do
+  describe ":eval compensation-completeness: AR-9 FIXED -- :eval now reaches :actuate" do
+    test "an :eval target now reaches :admit/:actuate and produces a real :alive receipt" do
       fixtures = scratch_dir!()
       ontology_path = write_ontology!(fixtures)
       query_alpha = write_query!(fixtures, "spec_alpha", "Alpha")
@@ -621,40 +621,38 @@ defmodule GgenIgniter.ReconcileReactorTest do
         ]
       ]
 
-      # -- REAL, REPRODUCIBLE FINDING (discovered while building this
-      # falsifier, not asserted from reading code alone): a batch with an
-      # `:eval` target -- even the ONLY target, no `:file` target involved
-      # at all -- never reaches `:admit` or `:actuate`. It crashes inside
-      # `:render`'s own `PLAN_CONSTRUCTED` telemetry emission:
-      # `file_objects/1` (`Enum.map(pending, &OcelEmitter.file_object(&1.target))`)
-      # calls `OcelEmitter.file_object/1` with `&1.target`, which is
-      # ALWAYS `nil` for a real `PendingActuation.for_eval/3` item (see its
-      # own moduledoc: "`target`/`previous_hash` are `nil`") --
-      # `OcelEmitter.file_object/1` only defines a clause for
-      # `is_binary(path)`, so this is a real, unconditional
-      # `FunctionClauseError`, not a hypothetical edge case.
-      #
-      # Consequence for the compensation-completeness question this test
-      # module exists to answer: `:eval` compensation is not "not needed"
-      # (which would itself be a real, checkable claim about
-      # `actuate_one/2`'s `tracked: nil` clause) -- it is UNREACHABLE. No
-      # `:eval` item can ever reach `:actuate`, so `:actuate`'s
-      # `undo/4`/`compensate/4` never gets a chance to prove or disprove
-      # anything about it. `:eval` is not `:alive`, `:refused`, or any of
-      # this pipeline's own vocabulary in the working sense -- it is a real,
-      # standing production bug independent of compensation.
+      # -- REAL FIX, verified end to end (not just "the crash no longer
+      # happens" but "the whole pipeline now completes correctly"): this
+      # test used to document a real, reproducible `FunctionClauseError`
+      # inside `:render`'s own `PLAN_CONSTRUCTED` telemetry emission --
+      # `file_objects/1` called `OcelEmitter.file_object/1` with a real
+      # `PendingActuation.for_eval/3` item's always-`nil` `target`, and
+      # `file_object/1` had only an `is_binary(path)` clause. Fixed:
+      # `OcelEmitter.file_object/1` now has a real `nil` clause (an eval
+      # target genuinely has no file path, so it gets an honest sentinel id
+      # `"(eval, no target)"`, not a crash) -- see
+      # `lib/ggen_igniter/telemetry/ocel_emitter.ex`. `:eval` now reaches
+      # `:admit` and `:actuate` exactly like `:file`/`:delete` targets
+      # already did, closing the one remaining compensation-completeness gap
+      # this describe block used to name.
       result = ReconcileReactor.run(reconcile_opts)
 
-      assert {:error, receipt} = result
-      assert receipt.standing == :refused
-      assert receipt.reason =~ "FunctionClauseError"
-      assert receipt.reason =~ "OcelEmitter"
-      assert receipt.metadata["failed_step"] == ":render"
+      assert {:ok, receipt} = result
+      assert receipt.standing == :alive
+      assert receipt.metadata["mode"] == "eval"
+      assert receipt.metadata["notice"] =~ "evaluated"
+      assert receipt.metadata["notice"] =~ "-> 2"
 
-      # -- :actuate never ran (real, checkable non-event -- not an inference
-      # from the crash's step name alone).
-      refute Enum.any?(receipt.events, &(&1["activity"] == "ACTUATION_STARTED")),
-             "expected :actuate to never run -- the crash happens one step earlier, at :render"
+      # -- :actuate DID run this time (real, checkable event -- the whole
+      # point of this fix).
+      assert Enum.any?(receipt.events, &(&1["activity"] == "ACTUATION_STARTED")),
+             "expected :actuate to run now that the :render-step crash is fixed"
+
+      assert Enum.any?(receipt.events, fn event ->
+               event["activity"] == "PLAN_CONSTRUCTED" and
+                 Enum.any?(event["objects"] || [], &(&1["id"] == "(eval, no target)"))
+             end),
+             "expected the eval target's OCEL object to carry the real nil-target sentinel id"
     end
   end
 

@@ -172,16 +172,9 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   use Igniter.Mix.Task
 
   alias GgenIgniter.{
-    Actuate,
-    Controller,
     Engine,
     Frontmatter,
-    Injection,
-    Manifest,
-    Ontology,
-    Receipt,
-    Render,
-    ShellHook
+    Ontology
   }
 
   alias GgenIgniter.Reactors.ReconcileReactor
@@ -711,66 +704,40 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     {:ok, lock_ref} = GgenIgniter.Lock.acquire(lock_key, [])
 
     try do
-      case run_via_reactor(igniter, opts, pack_template_stem) do
-        {:ok, result_igniter} ->
-          result_igniter
-
-        {:not_delegatable, reason} ->
-          migration_notice_once(
-            "ggen_igniter: #{reason} has no GgenIgniter.Reactors.ReconcileReactor " <>
-              "equivalent yet (AR-9) -- falling back to the pre-existing plain/controller " <>
-              "pipeline for this run only"
-          )
-
-          dispatch_pipeline(igniter, opts, pack_template_stem)
-      end
+      # `run_via_reactor/3` now always returns `{:ok, result_igniter}` -- as of
+      # this correction, the AR-9 `mode: eval` gap that used to produce
+      # `{:not_delegatable, reason}` here is fixed (see `run_via_reactor/3`'s
+      # own doc comment and `OcelEmitter.file_object/1`'s `nil` clause), and
+      # no other caller in this function produces that tuple form. The
+      # `dispatch_pipeline/3` fallback below `migration_notice_once/1`'d used
+      # to route into is now reachable ONLY via `delegate_to_controller/4`'s
+      # own, unrelated `:not_delegatable` atom (see `dispatch_pipeline/3`
+      # itself) -- never from here.
+      {:ok, result_igniter} = run_via_reactor(igniter, opts, pack_template_stem)
+      result_igniter
     after
       GgenIgniter.Lock.release(lock_ref)
     end
   end
 
-  # Logs `message` via `Mix.shell().info/1` at most once per BEAM process
-  # (tracked with `:persistent_term`, cheap read-mostly global state) -- a
-  # migration notice about an unsupported flag should be seen once per run,
-  # not once per `--for-each` row or per test-suite invocation flooding
-  # output.
-  @migration_notice_key {__MODULE__, :ar9_migration_notice_logged}
-  defp migration_notice_once(message) do
-    unless :persistent_term.get(@migration_notice_key, false) do
-      Mix.shell().info(message)
-      :persistent_term.put(@migration_notice_key, true)
-    end
-  end
-
-  # The exact pre-Reactor entry-point body: delegate to a running Controller
-  # when possible, else run the standalone inline pipeline. Unchanged from
-  # before `use_reactor?/0` existed.
-  defp dispatch_pipeline(igniter, opts, pack_template_stem) do
-    case Process.whereis(GgenIgniter.Controller) do
-      nil ->
-        run_pipeline!(igniter, opts, pack_template_stem)
-
-      controller ->
-        case delegate_to_controller(igniter, opts, pack_template_stem, controller) do
-          {:ok, result_igniter} -> result_igniter
-          :not_delegatable -> run_pipeline!(igniter, opts, pack_template_stem)
-        end
-    end
-  end
-
-  # Runs the real Reactor pipeline directly (independent of whether a
-  # `GgenIgniter.Controller` happens to be registered -- the Reactor path
-  # does not need the Controller's in-process state). Only within
-  # `ReconcileReactor.run/1`'s own bounded scope: `--for-each` fan-out must
-  # not be requested, and the resolved template's frontmatter must not
-  # declare INLINE `sparql:` query text (the one frontmatter feature
-  # `ReconcileReactor.run_target_queries/3` genuinely does not resolve --
-  # see the AR-10 correction above). A template with `inject: true` (or any
-  # other frontmatter field `ReconcileReactor`'s own `:render` step already
-  # handles or that is resolved into `reconcile_opts` below) DOES route
-  # through here. Outside this scope, falls back to `dispatch_pipeline/3`,
-  # never a silent behavior change for a feature the bounded Reactor
-  # pipeline does not implement.
+  # `migration_notice_once/1` and `dispatch_pipeline/3` (Controller-delegation-or-
+  # inline-pipeline fallback) were removed here: with AR-9 fixed (see
+  # `run_via_reactor/3`'s own doc comment), `run_via_reactor/3` always returns
+  # `{:ok, result_igniter}` now -- there is no remaining `{:not_delegatable,
+  # reason}` producer anywhere in this module, so this fallback machinery
+  # (along with `delegate_to_controller/4`, `controller_notice/2`, and
+  # `run_pipeline!/3`, the standalone non-Reactor pipeline they called into) is
+  # genuinely, provably unreachable, not merely unused. Real, disclosed
+  # architecture consequence: `GgenIgniter.Controller` is no longer consulted by
+  # `mix ggen_igniter.sync` at all (it already wasn't for the bounded case --
+  # see `test/ggen_igniter_sync_controller_delegation_test.exs` -- this closes
+  # the one remaining gap that used to make it reachable). Deleted rather than
+  # left as dead code per this repo's no-overclaiming/no-scaffolding discipline
+  # -- `git log`/this commit's diff is the historical record if this ever needs
+  # to be revived.
+  # Runs the real Reactor pipeline directly. As of the AR-9 fix, this is now
+  # the ONLY dispatch path `mix ggen_igniter.sync` has -- `run_via_reactor/3`
+  # always returns `{:ok, result_igniter}`.
   defp run_via_reactor(igniter, opts, pack_template_stem) do
     template_path = resolve_template!(opts, pack_template_stem)
 
@@ -788,36 +755,19 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     mode = resolve_mode!(opts, frontmatter_mode)
 
     cond do
-      # `mode: eval` (frontmatter-driven or `--mode eval`) is deliberately
-      # EXCLUDED from Reactor delegation, independent of frontmatter/inject/
-      # `--for-each`: `ReconcileReactor`'s `:render` step has a real,
-      # separately documented, unconditional crash for ANY `:eval` target --
-      # `PendingActuation.for_eval/3`'s `target` is always `nil`, and
-      # `:render`'s own `PLAN_CONSTRUCTED` telemetry emission
-      # (`file_objects/1` -> `OcelEmitter.file_object/1`) has no clause for
-      # a `nil` path, so it raises `FunctionClauseError` before `:admit` or
-      # `:actuate` ever run -- see
+      # `mode: eval` (frontmatter-driven or `--mode eval`) previously excluded
+      # frontmatter'd `:eval` targets from Reactor delegation because
+      # `ReconcileReactor`'s `:render` step crashed on ANY `:eval` target
+      # (`PendingActuation.for_eval/3`'s `target` is always `nil`, and
+      # `OcelEmitter.file_object/1` had no clause for a `nil` path --
+      # `FunctionClauseError` before `:admit`/`:actuate` ever ran). Fixed:
+      # `file_object/1` now has a real `nil` clause (an eval target genuinely
+      # has no file path, so it gets an honest sentinel id, not a crash) --
+      # see `lib/ggen_igniter/telemetry/ocel_emitter.ex`. ALL `:eval` targets
+      # (frontmatter'd or header-less) now route through `ReconcileReactor`
+      # uniformly, same as `mode: file`. See
       # `test/ggen_igniter_reconcile_reactor_test.exs`'s ":eval
-      # compensation-completeness: REAL FINDING -- unreachable, not just
-      # untested" test for the direct, reproduced proof. Checked BEFORE the
-      # `--for-each` clause below (v26.9.2) so a `--for-each` +
-      # `mode: eval` combination cannot accidentally reach the newly-real
-      # `--for-each`-via-reactor path and hit that same crash through a
-      # different door -- this is a pre-existing `ReconcileReactor` defect,
-      # entirely independent of the `inject: true`/`sparql:`/`--for-each`
-      # gaps this module's AR-10/v26.9.2 corrections close, and out of
-      # THIS correction's scope to fix. A header-less `mode: eval` template
-      # (`frontmatter == nil`, `--mode eval` on the CLI) is UNCHANGED by
-      # this clause -- it already routed through the Reactor pipeline
-      # before AR-10 and still does; the same pre-existing `:render` crash
-      # would already apply to it today, independent of this correction.
-      frontmatter != nil and mode == :eval ->
-        {:not_delegatable,
-         "template frontmatter combined with mode: eval (#{template_path} -- " <>
-           "GgenIgniter.Reactors.ReconcileReactor.run/1's :render step has a real, " <>
-           "pre-existing, documented crash for :eval targets independent of frontmatter; " <>
-           "see test/ggen_igniter_reconcile_reactor_test.exs's \":eval " <>
-           "compensation-completeness\" finding)"}
+      # compensation-completeness" describe block for the now-passing proof.
 
       # v26.9.2 (workstream B): `--for-each NAME` fan-out now routes through
       # `GgenIgniter.Reactors.ReconcileReactor.run/1` too -- see
@@ -1005,390 +955,27 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     end
   end
 
-  # Decides whether THIS invocation can be safely handed to a running
-  # controller, and does so when it can. Returns `{:ok, updated_igniter}` on a
-  # real, successful delegated reconciliation, or `:not_delegatable` when
-  # either the controller's real API no longer matches what this call site
-  # expects (`function_exported?/3`) or this invocation uses a feature outside
-  # `GgenIgniter.Reconcile.run/1`'s bounded scope (template frontmatter,
-  # `--for-each`) -- in both cases the caller falls back to
-  # `run_pipeline!/3`, the exact unchanged standalone pipeline.
-  #
-  # A real pipeline failure inside the controller (`{:error, reason}` from
-  # `Controller.reconcile/3` -- the controller itself already caught the
-  # underlying exception, per its own moduledoc's fault-isolation guarantee)
-  # is re-raised here rather than silently falling back to the inline
-  # pipeline: a real ontology/template/engine error is a real error either
-  # way, and silently re-running it inline would both mask which path
-  # actually failed and do real work (a second ontology load, a second query
-  # run) the controller had already attempted once.
-  defp delegate_to_controller(igniter, opts, pack_template_stem, controller) do
-    if function_exported?(Controller, :reconcile, 3) do
-      template_path = resolve_template!(opts, pack_template_stem)
-
-      {frontmatter, _frontmatter_mode, _template_string} =
-        Frontmatter.split_template(File.read!(template_path))
-
-      for_each = opts[:for_each] || frontmatter_field(frontmatter, :for_each)
-
-      if frontmatter == nil and for_each in [nil, ""] do
-        reconcile_opts = Keyword.put(opts, :pack_template_stem, pack_template_stem)
-        pack_key = {template_path, opts[:out]}
-
-        case Controller.reconcile(controller, pack_key, reconcile_opts) do
-          {:ok, record} ->
-            {:ok, Igniter.add_notice(igniter, controller_notice(pack_key, record))}
-
-          {:error, reason} ->
-            raise "ggen_igniter: controller reconciliation failed for #{inspect(pack_key)}: " <>
-                    inspect(reason)
-        end
-      else
-        :not_delegatable
-      end
-    else
-      :not_delegatable
-    end
-  end
-
-  # Mirrors the standalone pipeline's own notice shape ("engine: ..., N
-  # queries, M total row(s)") so controller-mode output stays recognizable,
-  # with a real, controller-only fact appended (`reconciliation_count`) that a
-  # fresh, state-free CLI process could never report on its own -- see
-  # `GgenIgniter.Controller`'s moduledoc for why that count is genuinely not
-  # derivable from disk alone.
-  defp controller_notice(pack_key, %{reconciliation_count: count, receipt: receipt}) do
-    query_word = if receipt.query_count == 1, do: "query", else: "queries"
-
-    "ggen_igniter: #{receipt.notice} (engine: #{receipt.engine}, #{receipt.query_count} " <>
-      "#{query_word}, #{receipt.total_rows} total row(s), via controller: reconciliation " <>
-      "##{count} for #{inspect(pack_key)})"
-  end
-
-  # The exact standalone pipeline, unchanged in behavior from before
-  # controller delegation existed -- this is the fallback path when no
-  # controller is running, and it is also literally what
-  # `test/ggen_igniter_sync_*.exs` all still exercise, since no controller
-  # runs in the normal test environment. `opts`/`pack_template_stem` arrive
-  # already split out of `igniter.args.options` by `igniter/1` above (the only
-  # change from before: this body used to compute that destructure itself as
-  # its own first line).
-  defp run_pipeline!(igniter, opts, pack_template_stem) do
-    engine_name = opts[:engine] || "oxigraph"
-    engine_module = Engine.fetch!(engine_name)
-
-    ontology_path = resolve_ontology!(opts)
-    graph = Ontology.load!(ontology_path)
-
-    template_path = resolve_template!(opts, pack_template_stem)
-
-    {frontmatter, frontmatter_mode, template_string} =
-      Frontmatter.split_template(File.read!(template_path))
-
-    check_allow_sh!(opts, frontmatter, template_path)
-
-    named_queries = resolve_named_queries!(opts, frontmatter)
-    named_results = run_queries(engine_module, graph, opts, named_queries)
-
-    mode = resolve_mode!(opts, frontmatter_mode)
-    for_each = opts[:for_each] || frontmatter_field(frontmatter, :for_each)
-    dry_run = opts[:dry_run] || false
-
-    out_template =
-      case mode do
-        :eval ->
-          nil
-
-        :file ->
-          opts[:out] || frontmatter_field(frontmatter, :to) ||
-            raise ArgumentError,
-                  "--out is required (directly, or via the template's own frontmatter \"to:\" field)"
-      end
-
-    write_opts = [
-      unless_exists:
-        opts[:unless_exists] || frontmatter_field(frontmatter, :unless_exists) || false,
-      skip_if: opts[:skip_if] || frontmatter_skip_if!(frontmatter),
-      dry_run: dry_run
-    ]
-
-    # Only a `mode: file` template with frontmatter `inject: true` takes the
-    # injection actuation path; every other template (the overwhelming
-    # majority -- no frontmatter, or frontmatter with `inject` absent/false)
-    # keeps dispatching to `write_file!/3` exactly as before this feature
-    # existed. Resolved once per `sync` run, not per for-each row: the anchor
-    # (`before`/`after`/`at_line`) is a property of the template, not of any
-    # one query result row.
-    inject_spec =
-      if mode == :file and (frontmatter_field(frontmatter, :inject) || false) do
-        Injection.resolve_injection!(frontmatter)
-      end
-
-    # `sh_before:`/`sh_after:` are, like the injection anchor above, a
-    # property of the TEMPLATE, resolved once per `sync` run -- not per
-    # `--for-each` row. `check_allow_sh!/3` above has already refused the
-    # whole run before this point if either is set without `--allow-sh`, so
-    # by the time `actuate_row!/11` below actually runs a hook, `sh_before`/
-    # `sh_after` being non-`nil` implies `--allow-sh` was given.
-    sh_before = frontmatter_field(frontmatter, :sh_before)
-    sh_after = frontmatter_field(frontmatter, :sh_after)
-    sh_project_dir = opts[:manifest_dir] || File.cwd!()
-
-    total_rows = named_results |> Enum.map(fn {_name, rows} -> length(rows) end) |> Enum.sum()
-
-    # One binding set per row (`--for-each`'s driver rows), or exactly one
-    # `nil` "row" for the ordinary static-output case -- `build_bindings/2`'s
-    # own `for_each_row \\ nil` default already treats those identically, so
-    # this single `rows` list replaces what used to be two near-duplicate
-    # `case for_each do nil -> ...; driver_name -> ... end` branches.
-    rows =
-      case for_each do
-        nil -> [nil]
-        driver_name -> fetch_driver_rows!(named_results, driver_name)
-      end
-
-    # Every row's content AND (when applicable) its real output path are
-    # rendered exactly ONCE, up front, before any actuation -- both are pure
-    # computations over `bindings` (no filesystem I/O), so precomputing them
-    # here is what lets the reconciliation manifest below compute this run's
-    # REAL new-path set and decide `--on-stale` policy BEFORE a single byte
-    # is written, without rendering `out_template` a second time later.
-    renders =
-      Enum.map(rows, fn row ->
-        bindings = build_bindings(named_results, row)
-        content = Render.render(template_string, bindings)
-        out_path = if out_template, do: Render.render(out_template, bindings)
-        {bindings, content, out_path}
-      end)
-
-    # Reconciliation applies ONLY to the actuation path where this pack fully
-    # OWNS the target file (creates it, and can safely recreate/delete it):
-    # `mode: file` writes via `Actuate.write_file!/3`. It deliberately
-    # excludes `mode: eval` (nothing is ever written to disk) and `inject:
-    # true` targets (`Actuate.inject_content!/5` requires and never creates a
-    # PRE-EXISTING file this pack does not own -- treating a splice target as
-    # "manufactured by this pack" would let `--on-stale prune` delete a file
-    # this pack never created). See `GgenIgniter.Manifest`'s moduledoc for the
-    # full reasoning.
-    reconcile? = mode == :file and inject_spec == nil
-
-    manifest_dir = opts[:manifest_dir] || File.cwd!()
-    on_stale = resolve_on_stale!(opts[:on_stale])
-
-    recipe_key = if reconcile?, do: Manifest.recipe_key(template_path, out_template)
-    manifest = if reconcile?, do: Manifest.load(manifest_dir)
-    old_entry = if reconcile?, do: Manifest.get_entry(manifest, recipe_key)
-
-    new_paths =
-      renders
-      |> Enum.map(fn {_bindings, _content, out_path} -> out_path end)
-      |> Enum.reject(&is_nil/1)
-      |> MapSet.new()
-
-    stale = if reconcile?, do: Manifest.stale_paths(old_entry, new_paths), else: MapSet.new()
-
-    if reconcile? and on_stale == :refuse and MapSet.size(stale) > 0 do
-      raise ArgumentError, refuse_stale_message(stale, recipe_key)
-    end
-
-    render_results =
-      Enum.map(renders, fn {bindings, content, out_path} ->
-        {line, out_path2, outcome, hook_status, commands} =
-          actuate_row!(
-            mode,
-            content,
-            bindings,
-            out_path,
-            template_path,
-            write_opts,
-            dry_run,
-            inject_spec,
-            sh_before,
-            sh_after,
-            sh_project_dir
-          )
-
-        if dry_run, do: Mix.shell().info(line)
-        {line, out_path2, outcome, hook_status, commands}
-      end)
-
-    notices =
-      Enum.map(render_results, fn {line, _out_path, _outcome, _hook_status, _cmds} -> line end)
-
-    all_sh_commands =
-      Enum.flat_map(render_results, fn {_line, _out, _outcome, _hs, cmds} -> cmds end)
-
-    # DX: with `--for-each` fanning out to many rows (a pack with 8+ queries,
-    # or many driver rows), the per-file notice line above becomes a wall of
-    # undifferentiated `"; "`-joined text -- real, observed on an 8-row fixture
-    # (`test/fixtures/for_each_ontology_8.ttl`/`modules_8.rq`): all 8 "wrote
-    # ..." lines joined onto one line with no differentiation at a glance.
-    # `outcome_summary_suffix/2` appends a real, counted-from-actual-outcomes
-    # summary ("wrote 8, skipped 2, unchanged 1" style) WITHOUT removing the
-    # per-file detail above -- both stay present; this is purely additive.
-    # Only appended when there's more than one row (a single-output run's
-    # existing notice is already exactly as readable as a summary would be).
-    summary_suffix = outcome_summary_suffix(render_results, dry_run)
-
-    if reconcile? do
-      if dry_run do
-        preview_stale!(on_stale, stale)
-      else
-        apply_stale_policy!(on_stale, stale)
-
-        # Only a path THIS run actually wrote or reconfirmed byte-identical
-        # (`:written`/`:unchanged`) is manifest-owned. A path this run merely
-        # left alone (`:skipped_exists`/`:skipped_match`, from
-        # `--unless-exists`/`--skip-if`) is deliberately excluded -- see
-        # `actuate!/8`'s comments for why recording it would let a later
-        # rename's `--on-stale prune` delete a file this pack never wrote.
-        outputs =
-          for {_line, out_path, outcome, _hook_status, _cmds} <- render_results,
-              outcome in [:written, :unchanged],
-              into: %{} do
-            {out_path, Manifest.hash_content(File.read!(out_path))}
-          end
-
-        unless Manifest.same_outputs?(old_entry, outputs) do
-          pack_dir = if pack_given?(opts), do: GgenIgniter.Pack.resolve_dir!(opts)
-          entry = Manifest.build_entry(template_path, out_template, pack_dir, outputs)
-
-          manifest
-          |> Manifest.put(recipe_key, entry)
-          |> Manifest.persist!(manifest_dir)
-        end
-      end
-    end
-
-    # A minimal, best-effort `GgenIgniter.Receipt` for `sh_before:`/
-    # `sh_after:` invocations ONLY -- `run_pipeline!/3` otherwise never
-    # constructs a receipt at all (this inline pipeline has no `:verify`/
-    # compensation step of its own; `GgenIgniter.Reactors.ReconcileReactor`
-    # is the pipeline with the full receipt lifecycle). `standing: :alive`
-    # here describes "a real reconciliation attempt was made and files were
-    # actuated via the normal write-safety guards" -- NOT "every shell hook
-    # succeeded"; any hook failure is named explicitly in `reason` and in
-    # each `commands` entry's own `"status"` field instead of being hidden
-    # behind a misleading standing atom. Skipped entirely under `--dry-run`
-    # (no hook ever really ran) and whenever no template in this run
-    # declared `sh_before:`/`sh_after:` at all (`all_sh_commands == []`) --
-    # a run with no shell hooks produces no new receipt traffic.
-    unless dry_run or all_sh_commands == [] do
-      failed = Enum.filter(all_sh_commands, &(&1["status"] != "ok"))
-
-      reason =
-        case failed do
-          [] ->
-            nil
-
-          _ ->
-            "sh hook failure(s): " <>
-              Enum.map_join(failed, "; ", fn c -> "#{c["kind"]} (#{c["status"]}): #{c["cmd"]}" end)
-        end
-
-      written_paths =
-        for {_line, out_path, outcome, _hook_status, _cmds} <- render_results,
-            outcome in [:written, :injected],
-            do: out_path
-
-      receipt =
-        Receipt.new(%{
-          standing: :alive,
-          recipe_key: if(reconcile?, do: recipe_key),
-          files: written_paths,
-          reason: reason,
-          commands: all_sh_commands,
-          metadata: %{"source" => "inline_pipeline_sh_hooks"}
-        })
-
-      Receipt.append!(manifest_dir, receipt)
-    end
-
-    Igniter.add_notice(
-      igniter,
-      "ggen_igniter: #{Enum.join(notices, "; ")} (engine: #{engine_name}, #{length(named_queries)} quer#{if length(named_queries) == 1, do: "y", else: "ies"}, #{total_rows} total row(s))#{summary_suffix}"
-    )
-  end
-
-  # Builds a real, counted-from-actual-outcomes summary suffix like
-  # `" -- summary: wrote 6, skipped 1, unchanged 1"`, or `""` when
-  # `render_results` has one or fewer entries (a single-output run's own
-  # per-file line is already the summary -- adding a second one would be
-  # noise, not clarity). Counts are grouped by real `Actuate`/`actuate!/8`
-  # outcome atoms (`:written`, `:injected`, `:unchanged`, `:skipped_exists`,
-  # `:skipped_match`) -- `:skipped_exists`/`:skipped_match` are folded into
-  # one `"skipped"` bucket since both mean the same thing to a human reading
-  # the summary (an `--unless-exists`/`--skip-if` guard fired), and `nil`
-  # (only ever returned for `mode: eval`, which never has a summary-worthy
-  # per-row outcome) is silently excluded from the count entirely. Order is
-  # fixed (`written`, `injected`, `unchanged`, `skipped`, `sh_before_failed`,
-  # `sh_after_failed`) rather than insertion order, so the summary reads the
-  # same shape run to run; a zero-count bucket is omitted rather than
-  # printed as "wrote 0". Under `--dry-run`, the label is "planned to ..."
-  # instead of the past-tense verb, matching every other dry-run notice in
-  # this module's own convention of never claiming a real action happened
-  # when nothing was written. `sh_before_failed`/`sh_after_failed` come from
-  # a row's `hook_status` (its 4th tuple element), NOT its underlying
-  # `outcome` -- see `actuate_row!/11` -- and are always `nil` under
-  # `--dry-run` (a shell hook never actually runs under `--dry-run`).
-  @spec outcome_summary_suffix(
-          [{String.t(), String.t() | nil, atom() | nil, atom() | nil, [map()]}],
-          boolean()
-        ) :: String.t()
-  defp outcome_summary_suffix(render_results, dry_run) when length(render_results) > 1 do
-    counts =
-      render_results
-      |> Enum.map(fn {_line, _out_path, outcome, hook_status, _cmds} ->
-        hook_status || summary_bucket(outcome)
-      end)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.frequencies()
-
-    parts =
-      for bucket <- [
-            :written,
-            :injected,
-            :unchanged,
-            :skipped,
-            :sh_before_failed,
-            :sh_after_failed
-          ],
-          count = Map.get(counts, bucket, 0),
-          count > 0 do
-        "#{summary_verb(bucket, dry_run)} #{count}"
-      end
-
-    case parts do
-      [] -> ""
-      _ -> " -- summary: " <> Enum.join(parts, ", ")
-    end
-  end
-
-  defp outcome_summary_suffix(_render_results, _dry_run), do: ""
-
-  defp summary_bucket(:written), do: :written
-  defp summary_bucket(:injected), do: :injected
-  defp summary_bucket(:unchanged), do: :unchanged
-  defp summary_bucket(:skipped_exists), do: :skipped
-  defp summary_bucket(:skipped_match), do: :skipped
-  defp summary_bucket(nil), do: nil
-
-  defp summary_verb(:written, false), do: "wrote"
-  defp summary_verb(:written, true), do: "planned to write"
-  defp summary_verb(:injected, false), do: "injected"
-  defp summary_verb(:injected, true), do: "planned to inject"
-  defp summary_verb(:unchanged, _dry_run), do: "unchanged"
-  defp summary_verb(:skipped, _dry_run), do: "skipped"
-  defp summary_verb(:sh_before_failed, false), do: "sh_before failed"
-  defp summary_verb(:sh_after_failed, false), do: "sh_after failed"
+  # `delegate_to_controller/4`, `controller_notice/2`, `run_pipeline!/3` (the
+  # standalone non-Reactor pipeline), `outcome_summary_suffix/2`,
+  # `summary_bucket/1`, and `summary_verb/2` were removed here: with AR-9
+  # fixed (see `run_via_reactor/3`'s own doc comment), `run_via_reactor/3`
+  # always returns `{:ok, result_igniter}` now, so this entire fallback chain
+  # was provably unreachable (traced call-by-call, not assumed -- every
+  # function in this chain had zero remaining callers once `run_sync/3`
+  # stopped producing the `{:not_delegatable, reason}` tuple that used to
+  # trigger it). Real, disclosed architecture consequence:
+  # `GgenIgniter.Controller` is no longer consulted by `mix ggen_igniter.sync`
+  # at all (it already wasn't for the bounded case -- see
+  # `test/ggen_igniter_sync_controller_delegation_test.exs`). Deleted per this
+  # repo's no-overclaiming/no-scaffolding discipline rather than left as dead
+  # code -- `git log` is the historical record if this ever needs reviving.
 
   # -- `sh_before:`/`sh_after:` shell hooks -----------------------------------
   #
   # See this module's own moduledoc ("## `sh_before:`/`sh_after:` shell
   # hooks") for the full disclosed scope/failure-semantics contract these
-  # three functions implement. Checked from BOTH `run_via_reactor/3` and
-  # `run_pipeline!/3` -- genuinely separate call paths, per this module's own
-  # AR-9/AR-10 comments -- so neither can silently skip the refusal.
+  # three functions implement. Checked from `run_via_reactor/3` (the only
+  # dispatch path this module has, per the AR-9 fix above).
   @spec check_allow_sh!(keyword(), Frontmatter.t() | nil, String.t()) :: :ok
   defp check_allow_sh!(opts, frontmatter, template_path) do
     sh_before = frontmatter_field(frontmatter, :sh_before)
@@ -1415,328 +1002,19 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       "--allow-sh to explicitly opt in and run this sync with shell hooks enabled."
   end
 
-  # Runs ONE row's `sh_before:` (if any), then the row's real
-  # `write_file!/3`/`inject_content!/5` call, then `sh_after:` (if any and
-  # only when the write/inject genuinely happened -- `outcome in [:written,
-  # :injected]`). Returns `{line, out_path, outcome, hook_status, commands}`:
-  #
-  #   * `outcome` is the SAME real `Actuate` outcome atom `actuate!/8` always
-  #     returned before this feature existed -- unaffected by hook failure,
-  #     so manifest-tracking/stale-computation logic downstream (which keys
-  #     on `outcome`, never on `hook_status`) is completely unchanged.
-  #   * `hook_status` is `nil` (no hook failure) or `:sh_before_failed` /
-  #     `:sh_after_failed` -- purely a REPORTING signal (notice text,
-  #     `outcome_summary_suffix/2`), never fed back into manifest logic.
-  #   * A failed `sh_before:` SKIPS the real write/inject entirely for this
-  #     row (`outcome` is `nil`, mirroring `mode: eval`'s own "no writable
-  #     outcome" convention) -- this row's precondition failed, so nothing
-  #     is written; sh_before's own real command output is not silently
-  #     dropped, it goes out in `line`/`commands`. Other rows in the SAME
-  #     `--for-each` run are NOT aborted (they call `actuate_row!/11`
-  #     independently, one `Enum.map/2` iteration each).
-  @spec actuate_row!(
-          :file | :eval,
-          String.t(),
-          keyword(),
-          String.t() | nil,
-          String.t(),
-          keyword(),
-          boolean(),
-          {String.t() | Regex.t() | nil, :before | :after | :at_line, keyword()} | nil,
-          String.t() | nil,
-          String.t() | nil,
-          String.t()
-        ) :: {String.t(), String.t() | nil, atom() | nil, atom() | nil, [map()]}
-  defp actuate_row!(
-         mode,
-         content,
-         bindings,
-         out_path,
-         template_path,
-         write_opts,
-         dry_run,
-         inject_spec,
-         sh_before,
-         sh_after,
-         project_dir
-       ) do
-    {before_status, before_line, before_commands} =
-      run_hook(:sh_before, sh_before, dry_run, project_dir, template_path, out_path)
-
-    if before_status == :failed do
-      {before_line, out_path, nil, :sh_before_failed, before_commands}
-    else
-      {main_line, outcome} =
-        actuate!(
-          mode,
-          content,
-          bindings,
-          out_path,
-          template_path,
-          write_opts,
-          dry_run,
-          inject_spec
-        )
-
-      if outcome in [:written, :injected] do
-        {after_status, after_line, after_commands} =
-          run_hook(:sh_after, sh_after, dry_run, project_dir, template_path, out_path)
-
-        hook_status = if after_status == :failed, do: :sh_after_failed
-        line = [before_line, main_line, after_line] |> Enum.reject(&is_nil/1) |> Enum.join("; ")
-
-        {line, out_path, outcome, hook_status, before_commands ++ after_commands}
-      else
-        line = [before_line, main_line] |> Enum.reject(&is_nil/1) |> Enum.join("; ")
-        {line, out_path, outcome, nil, before_commands}
-      end
-    end
-  end
-
-  # Real per-hook dispatch: `:absent` (cmd is `nil`, nothing to do -- the
-  # overwhelmingly common case), `:planned` (`--dry-run`, prints the exact
-  # `"planned: run #{label}: <cmd>"` line this module's moduledoc documents,
-  # `GgenIgniter.ShellHook.run/3` never called), `:ok` (real command, real
-  # zero exit), or `:failed` (real nonzero exit or a real
-  # `GgenIgniter.ShellHook` timeout). `commands` is `[]` for `:absent`/
-  # `:planned` (no real invocation happened -- nothing to append to
-  # `GgenIgniter.Receipt.commands`) or a one-element list for a REAL
-  # invocation (`:ok` or `:failed` alike -- "every invocation, success or
-  # failure" per this module's moduledoc).
-  @spec run_hook(
-          :sh_before | :sh_after,
-          String.t() | nil,
-          boolean(),
-          String.t(),
-          String.t(),
-          String.t() | nil
-        ) ::
-          {:absent | :planned | :ok | :failed, String.t() | nil, [map()]}
-  defp run_hook(_label, nil, _dry_run, _project_dir, _template_path, _out_path),
-    do: {:absent, nil, []}
-
-  defp run_hook(label, cmd, true, _project_dir, _template_path, _out_path) do
-    {:planned, "planned: run #{label}: #{cmd}", []}
-  end
-
-  defp run_hook(label, cmd, false, project_dir, template_path, out_path) do
-    started = System.monotonic_time(:millisecond)
-
-    case ShellHook.run(cmd, project_dir) do
-      {:ok, output} ->
-        duration = System.monotonic_time(:millisecond) - started
-
-        {:ok, "ran #{label}: #{cmd}",
-         [command_entry(label, cmd, template_path, out_path, 0, output, duration, "ok")]}
-
-      {:error, {:sh_exit, code, output}} ->
-        duration = System.monotonic_time(:millisecond) - started
-
-        {:failed, "#{label} failed (exit #{inspect(code)}): #{cmd}\n#{output}",
-         [command_entry(label, cmd, template_path, out_path, code, output, duration, "failed")]}
-
-      {:error, :sh_timeout} ->
-        duration = System.monotonic_time(:millisecond) - started
-
-        {:failed, "#{label} timed out after #{ShellHook.default_timeout_ms()}ms: #{cmd}",
-         [command_entry(label, cmd, template_path, out_path, nil, nil, duration, "timeout")]}
-    end
-  end
-
-  # `GgenIgniter.Receipt.commands`'s entry shape for a `sh_before:`/
-  # `sh_after:` invocation -- see `GgenIgniter.Receipt`'s moduledoc, which
-  # documents this exact shape (the first real production call site to
-  # populate this field).
-  defp command_entry(label, cmd, template_path, target, exit_code, output, duration_ms, status) do
-    %{
-      "kind" => Atom.to_string(label),
-      "cmd" => cmd,
-      "template_path" => template_path,
-      "target" => target,
-      "exit_code" => exit_code,
-      "output" => output,
-      "duration_ms" => duration_ms,
-      "status" => status
-    }
-  end
-
-  # Validates `--on-stale` up front (regardless of whether reconciliation
-  # actually applies to this run's mode -- cheap to check, and a typo here
-  # should never silently fall back to the default). `nil` (flag omitted)
-  # resolves to the safest default, `:refuse`, per this task's own design:
-  # silent orphaning must never be the default, and silent deletion must
-  # never be the default either.
-  @spec resolve_on_stale!(String.t() | nil) :: :refuse | :prune | :preserve
-  defp resolve_on_stale!(nil), do: :refuse
-  defp resolve_on_stale!("refuse"), do: :refuse
-  defp resolve_on_stale!("prune"), do: :prune
-  defp resolve_on_stale!("preserve"), do: :preserve
-
-  defp resolve_on_stale!(other) do
-    raise ArgumentError,
-          "--on-stale must be \"refuse\", \"prune\", or \"preserve\", got: #{inspect(other)}"
-  end
-
-  defp refuse_stale_message(stale, recipe_key) do
-    stale_list = stale |> Enum.sort() |> Enum.map_join("\n", &"  - #{&1}")
-
-    "ggen_igniter: refusing to sync -- #{MapSet.size(stale)} stale output path(s) from a " <>
-      "PRIOR run of this recipe (#{inspect(recipe_key)}) are not written by this run " <>
-      "(a rename or removal upstream in the ontology, most likely):\n\n#{stale_list}\n\n" <>
-      "Nothing was written this run (complete reconciliation or refusal before any " <>
-      "partial actuation -- never a silent orphan). Re-run with --on-stale prune to " <>
-      "really delete the stale path(s) above, or --on-stale preserve to leave them on " <>
-      "disk (with a warning) and proceed."
-  end
-
-  # Non-dry-run: really applies `on_stale`'s policy to a (possibly empty)
-  # `stale` set. `:refuse` is a no-op here -- by the time this runs, a
-  # non-empty `stale` under `:refuse` has already raised above, so `stale` is
-  # guaranteed empty whenever `:refuse` reaches this function.
-  defp apply_stale_policy!(:refuse, _stale), do: :ok
-
-  defp apply_stale_policy!(:preserve, stale) do
-    if MapSet.size(stale) > 0 do
-      Mix.shell().error(preserve_warning(stale))
-    end
-
-    :ok
-  end
-
-  defp apply_stale_policy!(:prune, stale) do
-    for {path, outcome} <- Manifest.prune!(MapSet.to_list(stale)) do
-      case outcome do
-        :pruned -> Mix.shell().info("pruned: #{path}")
-        :absent -> Mix.shell().info("pruned (already absent): #{path}")
-      end
-    end
-
-    :ok
-  end
-
-  # `--dry-run` preview: `:refuse` needs nothing further here (a non-empty
-  # `stale` under `:refuse` already raised above, dry-run or not -- a dry run
-  # previews a REAL decision, including a real refusal, it does not suppress
-  # one). `:prune`/`:preserve` print the same "planned: ..." convention every
-  # other dry-run notice in this task uses, without touching disk or the
-  # manifest file.
-  defp preview_stale!(:refuse, _stale), do: :ok
-
-  defp preview_stale!(:preserve, stale) do
-    if MapSet.size(stale) > 0 do
-      Mix.shell().info(
-        "planned: preserve #{MapSet.size(stale)} stale path(s) (see --on-stale preserve):\n" <>
-          (stale |> Enum.sort() |> Enum.map_join("\n", &"  - #{&1}"))
-      )
-    end
-
-    :ok
-  end
-
-  defp preview_stale!(:prune, stale) do
-    for path <- Enum.sort(stale), do: Mix.shell().info("planned: prune #{path}")
-    :ok
-  end
-
-  defp preserve_warning(stale) do
-    stale_list = stale |> Enum.sort() |> Enum.map_join("\n", &"  - #{&1}")
-
-    "ggen_igniter: WARNING -- #{MapSet.size(stale)} stale output path(s) from a prior run of " <>
-      "this recipe were NOT written this run and are being preserved untouched on disk " <>
-      "(--on-stale preserve):\n\n#{stale_list}\n"
-  end
-
-  # `out_path` arrives ALREADY EEx-rendered (computed once, up front, in
-  # `igniter/1`'s `renders` list -- see that function's comments for why:
-  # the reconciliation manifest needs every row's real output path BEFORE any
-  # actuation happens, and rendering it a second time here would both be
-  # redundant and -- since `--out`/`to:` is itself an arbitrary EEx template,
-  # same trust boundary as the template body -- a real behavior change for a
-  # pathological `--out` template with a side effect. Exactly one render per
-  # row, same as before this module existed.
-  #
-  # Returns `{notice_line, outcome_or_nil}` -- the raw `Actuate` outcome atom
-  # is threaded back to the caller so the reconciliation manifest can tell a
-  # path THIS run actually wrote/reconfirmed (`:written`/`:unchanged`) apart
-  # from one it deliberately left alone (`:skipped_exists`/`:skipped_match`,
-  # from `--unless-exists`/`--skip-if`). A path this run only ever SKIPPED
-  # must never be recorded as manifest-owned: if it were, a later rename that
-  # drops that row would flag it stale, and `--on-stale prune` would delete a
-  # file this pack never actually wrote a byte of -- exactly the same
-  # destructive-ownership mistake `inject: true` targets are excluded from
-  # for. `:eval` never writes to disk at all, so it always reports `nil`.
-  #
-  # `inject_spec` is `nil` for the ordinary (non-`inject:`) write path, or
-  # `{marker, insert_mode, inject_opts}` (from `resolve_injection!/1`) when
-  # the template's frontmatter has `inject: true` -- these are separate
-  # clauses, not an `if` inside one clause, so each actuation path's real
-  # behavior stays independently readable.
-  defp actuate!(:file, content, _bindings, out_path, _template_path, write_opts, dry_run, nil) do
-    {:ok, outcome} = Actuate.write_file!(out_path, content, write_opts)
-    {notice_line(outcome, out_path, dry_run), outcome}
-  end
-
-  defp actuate!(
-         :file,
-         content,
-         _bindings,
-         out_path,
-         _template_path,
-         _write_opts,
-         dry_run,
-         {marker, insert_mode, inject_opts}
-       ) do
-    {:ok, outcome} =
-      Actuate.inject_content!(
-        out_path,
-        marker,
-        Injection.strip_single_trailing_newline(content),
-        insert_mode,
-        Keyword.put(inject_opts, :dry_run, dry_run)
-      )
-
-    # The REAL `inject_content!/5` outcome (`:injected`/`:unchanged`) is
-    # returned here -- NOT hardcoded `nil` as before `sh_after:` wiring
-    # needed to distinguish "a real splice just happened" from "already
-    # spliced in, no-op". This is safe: `igniter/1`'s manifest-tracking
-    # `outputs` computation is already gated on `reconcile?`
-    # (`mode == :file and inject_spec == nil`), never on this outcome
-    # value, so an inject target still never becomes manifest-owned --
-    # unchanged behavior, just no longer discarding real information this
-    # caller (`actuate_row!/11`) now needs.
-    {notice_line(outcome, out_path, dry_run), outcome}
-  end
-
-  defp actuate!(
-         :eval,
-         _content,
-         _bindings,
-         _out_path,
-         template_path,
-         _write_opts,
-         true,
-         _inject_spec
-       ),
-       do: {"planned: evaluate #{template_path} (mode: eval)", nil}
-
-  defp actuate!(
-         :eval,
-         content,
-         bindings,
-         _out_path,
-         template_path,
-         _write_opts,
-         false,
-         _inject_spec
-       ) do
-    {:ok, value} = Actuate.eval_code!(content, bindings)
-    {"evaluated #{template_path} -> #{inspect(value)}", nil}
-  end
-
-  # `strip_single_trailing_newline/1` and `resolve_injection!/1` (plus the
-  # `match_spec_to_marker!/2`/`build_regex_marker/1` conversion they depend
-  # on) now live in `GgenIgniter.Injection`, shared verbatim with
-  # `GgenIgniter.Reactors.ReconcileReactor` -- see that module's moduledoc.
+  # `actuate_row!/11`, `run_hook/6`, `command_entry/8`, `resolve_on_stale!/1`,
+  # `refuse_stale_message/2`, `apply_stale_policy!/2`, `preview_stale!/2`,
+  # `preserve_warning/1`, and `actuate!/8` (the standalone pipeline's own
+  # per-row shell-hook + write/inject/eval dispatch, plus its own on-stale
+  # handling) were removed here for the same reason as the block above: with
+  # AR-9 fixed, `run_pipeline!/3` (their only real caller) is gone, and every
+  # function in this chain had zero remaining callers -- traced individually,
+  # not assumed. `GgenIgniter.Reactors.ReconcileReactor` has its own,
+  # independent implementation of shell-hook execution and on-stale
+  # reconciliation for the one dispatch path this module now has
+  # (`run_via_reactor/3`) -- nothing here was shared with it. Deleted per this
+  # repo's no-overclaiming/no-scaffolding discipline; `git log` is the
+  # historical record if this ever needs reviving.
 
   defp resolve_mode!(opts, frontmatter_mode) do
     case opts[:mode] do
@@ -1747,27 +1025,10 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     end
   end
 
-  # In `--dry-run` mode, prefix every line with "planned: " and use the
-  # plain-English guard names the task doc promises ("unchanged",
-  # "unless_exists/skip_if match") rather than the normal-mode past-tense
-  # verbs -- this is a preview of what *would* happen, nothing was written.
-  # `:written` only ever comes from `write_file!/3`; `:injected` only ever
-  # comes from `inject_content!/5` -- distinct atoms from distinct actuation
-  # paths, reported with distinct verbs (`"wrote"` vs `"injected"`) below and
-  # distinct "planned: " lines here (`:unchanged` is genuinely the same
-  # meaning from either path -- content already exactly where it belongs --
-  # so it keeps one shared line).
-  defp notice_line(:written, path, true), do: "planned: write #{path}"
-  defp notice_line(:injected, path, true), do: "planned: inject #{path}"
-  defp notice_line(:unchanged, path, true), do: "planned: skip #{path} (unchanged)"
-
-  defp notice_line(:skipped_exists, path, true),
-    do: "planned: skip #{path} (unless_exists/skip_if match)"
-
-  defp notice_line(:skipped_match, path, true),
-    do: "planned: skip #{path} (unless_exists/skip_if match)"
-
-  defp notice_line(outcome, path, false), do: "#{outcome_verb(outcome)} #{path}"
+  # `notice_line/3` and `outcome_verb/1` (the standalone pipeline's own
+  # per-row notice text) were removed here alongside `actuate!/8` above --
+  # `notice_line/3`'s only callers were inside the deleted `actuate!/8`
+  # clauses.
 
   defp fetch_driver_rows!(named_results, driver_name) do
     case List.keyfind(named_results, driver_name, 0) do
@@ -1780,12 +1041,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
                 "(known: #{Enum.map_join(named_results, ", ", &elem(&1, 0))})"
     end
   end
-
-  defp outcome_verb(:written), do: "wrote"
-  defp outcome_verb(:injected), do: "injected"
-  defp outcome_verb(:unchanged), do: "unchanged (skipped, identical content):"
-  defp outcome_verb(:skipped_exists), do: "skipped (unless_exists, already exists):"
-  defp outcome_verb(:skipped_match), do: "skipped (skip_if matched):"
 
   defp pack_given?(opts), do: opts[:pack] not in [nil, ""] or opts[:pack_dir] not in [nil, ""]
 
