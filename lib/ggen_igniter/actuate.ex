@@ -388,6 +388,39 @@ defmodule GgenIgniter.Actuate do
   never a raw `CompileError`/`SyntaxError`/`TokenMissingError` struct
   surfacing uncaught.
 
+  ## The `igniter:` binding contract (`GgenIgniter.Reactors.ReconcileReactor`
+  callers only)
+
+  `GgenIgniter.Reactors.ReconcileReactor`'s `:actuate` step adds a real,
+  live `igniter:` entry to `bindings` for every `mode: eval` target it
+  actuates (see that module's `actuate_eval_sequential/2`/`actuate_eval_one/3`)
+  -- a genuine `%Igniter{}` (built fresh via `Igniter.new/0` for the first
+  `:eval` target in a run, or the PREVIOUS `:eval` target's own returned
+  `%Igniter{}` for every target after it) that the eval'd body can drive
+  real `Igniter.Project.*`/`Igniter.Code.*` codemods against. If the eval'd
+  code's own last expression returns an `%Igniter{}` (e.g. via
+  `Igniter.Project.Module.create_module/3`), that value becomes the
+  accumulator the NEXT `:eval` target sees -- so N `mode: eval` targets
+  across a `--targets`/`--for-each` row set compose their Igniter codemods
+  into ONE final `%Igniter{}`, in row order. Any other return value (every
+  pre-existing, non-Igniter `mode: eval` template) leaves the accumulator
+  unchanged for the next target -- zero behavior change for the common
+  case, and this function itself needs no code change to support it: `code`
+  simply sees `igniter` as an ordinary local variable, like any other
+  binding.
+
+  **Real, disclosed trade-off**: because this accumulation requires each
+  `:eval` target to see the previous one's real result, `ReconcileReactor`
+  runs `:eval` targets SEQUENTIALLY relative to each other (never
+  concurrently with one another, though still concurrently with the
+  `:create`/`:replace`/`:inject` batch) -- `Task.async_stream/3`'s parallel
+  items structurally cannot see each other's return values, so true
+  concurrent `:eval` targets and real cross-target `%Igniter{}` composition
+  are mutually exclusive; this module picks composition. Callers outside
+  `ReconcileReactor` (there are none today) get no `igniter:` binding at
+  all and no accumulation semantics -- this contract is specific to that
+  one caller, not a general property of `eval_code!/2` itself.
+
   ## Examples
 
       iex> GgenIgniter.Actuate.eval_code!("1 + 1", [])

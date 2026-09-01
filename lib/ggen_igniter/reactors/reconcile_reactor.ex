@@ -1738,13 +1738,53 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       "paths" => Enum.map(file_actionable, & &1.target)
     })
 
-    tagged =
-      actionable
-      |> Task.async_stream(&actuate_one(&1, Map.fetch!(exec, &1.logical_id)),
+    # `:eval` items are split out of the concurrent `Task.async_stream/3`
+    # batch below and actuated separately, SEQUENTIALLY -- see
+    # `actuate_eval_sequential/2`'s own comment for why (real `%Igniter{}`
+    # composition across `:eval` targets requires each item to see the
+    # previous item's result, which `Task.async_stream/3`'s parallel items
+    # structurally cannot do). `:create`/`:replace`/`:inject` items are
+    # completely unaffected -- same concurrency, same code path, as before
+    # this feature existed.
+    indexed = Enum.with_index(actionable)
+
+    {eval_indexed, concurrent_indexed} =
+      Enum.split_with(indexed, fn {pa, _i} -> pa.operation == :eval end)
+
+    concurrent_tagged =
+      concurrent_indexed
+      |> Task.async_stream(
+        fn {pa, i} -> {i, actuate_one(pa, Map.fetch!(exec, pa.logical_id))} end,
         max_concurrency: max_concurrency,
         timeout: :infinity
       )
-      |> Enum.map(fn {:ok, tagged_result} -> tagged_result end)
+      |> Enum.map(fn {:ok, indexed_result} -> indexed_result end)
+
+    {eval_tagged, final_igniter} = actuate_eval_sequential(eval_indexed, exec)
+
+    # Re-merged back into the ORIGINAL `pending` order (by the index each
+    # item held in `actionable`, not by which branch actuated it) -- so
+    # `results`' order, and every notice-line/summary computed from it
+    # below and in `finalize_evidence/1`, stays byte-for-byte identical to
+    # a pre-this-change run for any mix of create/replace/inject/eval
+    # targets.
+    tagged =
+      (concurrent_tagged ++ eval_tagged)
+      |> Enum.sort_by(fn {i, _result} -> i end)
+      |> Enum.map(fn {_i, result} -> result end)
+
+    # `igniter_diverged?`/`igniter_paths` describe whether at least one
+    # `:eval` target's own last expression returned a real `%Igniter{}`
+    # (the seed, a fresh `Igniter.new/0`, never diverges on its own) --
+    # `false`/`[]` for every run with no `:eval` targets, or where every
+    # `:eval` target returned an ordinary (non-`%Igniter{}`) value, which
+    # is the overwhelming common case and every pre-existing `mode: eval`
+    # fixture/test. The raw `%Igniter{}` struct itself is never embedded
+    # in the receipt (not `Jason.encode!/1`-safe) -- only its real,
+    # already-computed path list (`Rewrite.paths/1`), the same evidence
+    # `finalize_evidence/1` already surfaces for `mode: file` targets.
+    igniter_diverged? = eval_indexed != [] and igniter_diverged?(final_igniter)
+    igniter_paths = if igniter_diverged?, do: Rewrite.paths(final_igniter.rewrite), else: []
 
     {oks, errors} = Enum.split_with(tagged, &match?({:ok, _}, &1))
     entries = Enum.map(oks, fn {:ok, entry} -> entry end)
@@ -1783,7 +1823,14 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       # flows through to `finalize_evidence/1`'s `GgenIgniter.Receipt.commands`.
       commands = Enum.flat_map(entries, &(&1[:commands] || []))
 
-      {:ok, %{results: entries, tracked: tracked, commands: commands}}
+      {:ok,
+       %{
+         results: entries,
+         tracked: tracked,
+         commands: commands,
+         igniter_diverged: igniter_diverged?,
+         igniter_paths: igniter_paths
+       }}
     else
       # Self-heal: this SAME `run/3` invocation already partially succeeded
       # before one target failed -- revert those real writes right here,
@@ -1847,49 +1894,99 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     end
   end
 
-  # `:dry_run` short-circuits BEFORE `Actuate.eval_code!/2` ever runs --
-  # mirrors `Mix.Tasks.GgenIgniter.Sync`'s own `actuate!/8` `mode: :eval,
-  # dry_run: true` clause exactly (see that module). Without this check,
-  # `mode: eval` under `--dry-run` would actually execute the rendered
+  # `:eval` items are actuated by `actuate_eval_sequential/2`/`actuate_eval_one/3`
+  # below, NOT via this generic `actuate_one/2` (which now handles only
+  # `:create`/`:replace`/`:inject` -- the items `actuate_pending/2` still
+  # runs through the concurrent `Task.async_stream/3` batch).
+
+  # `:dry_run` short-circuits BEFORE `Actuate.eval_code!/2` ever runs -- under
+  # `--dry-run`, `mode: eval` would otherwise actually execute the rendered
   # body's real side effects (this pipeline's own adversarial-property
   # coverage -- `test/ggen_igniter_actuation_dispatch_matrix_properties_test.exs`'s
   # `%{mode: :eval, dry_run: true}` cases -- exists specifically to catch
   # exactly that class of bug), defeating `--dry-run`'s entire documented
   # "zero real side effects" contract.
-  defp actuate_one(%PendingActuation{operation: :eval} = pa, exec) do
+  #
+  # Runs every admitted `:eval` `PendingActuation` SEQUENTIALLY (never
+  # concurrently with each other, though still concurrently with the
+  # `:create`/`:replace`/`:inject` batch in `actuate_pending/2`), folding a
+  # single `Igniter.t()` accumulator across them via `actuate_eval_one/3` --
+  # seeded once per `:actuate` invocation with `Igniter.new/0`. When an
+  # eval'd body's own last expression returns a real `%Igniter{}` (e.g. via
+  # `Igniter.Project.Module.create_module/3` against the `igniter:` binding
+  # `bindings/2` now adds), that becomes the accumulator the NEXT `:eval`
+  # item sees -- so N eval'd Igniter codemods compose into one final
+  # `%Igniter{}` across a `--targets`/`--for-each` row set, in row order.
+  # Any other return value (every pre-existing, non-Igniter `mode: eval`
+  # fixture/test) passes the accumulator through UNCHANGED -- zero behavior
+  # change for the common case. Real, disclosed trade-off: this is why
+  # `:eval` items can no longer run concurrently with each other -- see
+  # `GgenIgniter.Actuate.eval_code!/2`'s moduledoc for the full contract.
+  defp actuate_eval_sequential(eval_indexed, exec) do
+    {tagged_rev, final_igniter} =
+      Enum.reduce(eval_indexed, {[], Igniter.new()}, fn {pa, i}, {acc_tagged, igniter_acc} ->
+        {result, next_igniter} =
+          actuate_eval_one(pa, Map.fetch!(exec, pa.logical_id), igniter_acc)
+
+        {[{i, result} | acc_tagged], next_igniter}
+      end)
+
+    {Enum.reverse(tagged_rev), final_igniter}
+  end
+
+  defp actuate_eval_one(pa, exec, igniter_acc) do
     dry_run = exec.write_opts[:dry_run] || false
 
-    {value, notice_value} =
+    {value, notice_value, next_igniter} =
       if dry_run do
-        {nil, nil}
+        {nil, nil, igniter_acc}
       else
-        {:ok, value} = Actuate.eval_code!(pa.desired_content, bindings(pa))
-        {value, value}
+        {:ok, value} = Actuate.eval_code!(pa.desired_content, bindings(pa, igniter_acc))
+
+        case value do
+          %Igniter{} = returned -> {returned, returned, returned}
+          other -> {other, other, igniter_acc}
+        end
       end
 
-    {:ok,
-     %{
-       index: exec.index,
-       mode: :eval,
-       out_path: nil,
-       canonical_target: nil,
-       outcome: nil,
-       value: value,
-       tracked: nil,
-       dry_run: dry_run,
-       template_path: exec.template_path,
-       engine_name: exec.engine_name,
-       query_count: exec.query_count,
-       total_rows: exec.total_rows,
-       notice_line:
-         if(dry_run,
-           do: "planned: evaluate #{exec.template_path} (mode: eval)",
-           else: "evaluated #{exec.template_path} -> #{inspect(notice_value)}"
-         )
-     }}
+    result =
+      {:ok,
+       %{
+         index: exec.index,
+         mode: :eval,
+         out_path: nil,
+         canonical_target: nil,
+         outcome: nil,
+         value: value,
+         tracked: nil,
+         dry_run: dry_run,
+         template_path: exec.template_path,
+         engine_name: exec.engine_name,
+         query_count: exec.query_count,
+         total_rows: exec.total_rows,
+         notice_line:
+           if(dry_run,
+             do: "planned: evaluate #{exec.template_path} (mode: eval)",
+             else: "evaluated #{exec.template_path} -> #{inspect(notice_value)}"
+           )
+       }}
+
+    {result, next_igniter}
   rescue
-    e -> {:error, %{index: exec.index, mode: :eval, reason: {e.__struct__, Exception.message(e)}}}
+    e ->
+      {{:error, %{index: exec.index, mode: :eval, reason: {e.__struct__, Exception.message(e)}}},
+       igniter_acc}
   end
+
+  # `false` for a freshly-`Igniter.new/0`-seeded accumulator that no `:eval`
+  # item ever replaced (the overwhelming common case) -- real divergence
+  # means at least one `:eval` item's own last expression returned an
+  # `%Igniter{}`, which `actuate_eval_one/3` always makes the new
+  # accumulator (never a partial/derived value), so identity comparison
+  # against a fresh seed's `Rewrite.paths/1` (always `[]`) is a safe,
+  # cheap, real check -- no need to track a separate boolean through the
+  # fold.
+  defp igniter_diverged?(%Igniter{rewrite: rewrite}), do: Rewrite.paths(rewrite) != []
 
   defp actuate_one(%PendingActuation{operation: op} = pa, exec) when op in [:create, :replace] do
     probe_mark(exec, :start)
@@ -2145,6 +2242,13 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   defp bindings(pa), do: Map.get(pa.semantic_source, :bindings, [])
 
+  # Same as `bindings/1`, plus a real `igniter:` entry -- the live
+  # `%Igniter{}` accumulator `actuate_eval_sequential/2`'s fold is
+  # threading across this run's `:eval` targets. Only ever called from
+  # `actuate_eval_one/3` -- `:create`/`:replace`/`:inject` targets have no
+  # use for an `%Igniter{}` and keep calling plain `bindings/1`.
+  defp bindings(pa, igniter), do: Keyword.put(bindings(pa), :igniter, igniter)
+
   # Byte-for-byte the same real per-target notice wording
   # `Mix.Tasks.GgenIgniter.Sync`'s own private `notice_line/3`/`outcome_verb/1`
   # produce (that module's exact `"--dry-run" -> "planned: X"` /
@@ -2397,7 +2501,13 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   defp finalize_evidence(%{
          admitted: admitted,
-         actuated: %{results: results, tracked: tracked, commands: commands},
+         actuated: %{
+           results: results,
+           tracked: tracked,
+           commands: commands,
+           igniter_diverged: igniter_diverged,
+           igniter_paths: igniter_paths
+         },
          observed: observed,
          pack: %{pack_dir: pack_dir},
          ontology: %{ontology_path: ontology_path},
@@ -2575,7 +2685,15 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
             if(dry_run_run?,
               do: results |> Enum.map(& &1[:notice_line]) |> Enum.reject(&is_nil/1),
               else: []
-            )
+            ),
+          # Real evidence of `mode: eval` + `Igniter` composition (see
+          # `actuate_eval_sequential/2`) -- `false`/`[]` for every run with
+          # no `:eval` targets, or where every `:eval` target returned an
+          # ordinary (non-`%Igniter{}`) value. The raw `%Igniter{}` struct
+          # itself is never embedded here (not `Jason.encode!/1`-safe) --
+          # only its real, already-computed `Rewrite.paths/1` path list.
+          "igniter_diverged" => igniter_diverged,
+          "igniter_paths" => igniter_paths
         }
       })
 
