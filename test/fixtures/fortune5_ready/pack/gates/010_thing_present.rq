@@ -1,0 +1,4 @@
+PREFIX ex: <https://ggen-igniter.dev/ontology/gi05-fortune5#>
+SELECT DISTINCT ?s WHERE {
+  ?s a ex:Thing .
+}

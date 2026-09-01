@@ -340,9 +340,7 @@ defmodule GgenIgniter.SchemaDispatch do
       ontology: %GgenIgniter.ProjectConfig.OntologyConfig{
         source: Map.get(ontology, "source")
       },
-      generation: %GgenIgniter.ProjectConfig.GenerationConfig{
-        rules: []
-      },
+      generation: build_generation_config(Map.get(table, "generation", %{})),
       packs: Map.get(table, "packs", []) |> Enum.map(&build_declarative_pack_ref/1)
     }
   end
@@ -355,6 +353,70 @@ defmodule GgenIgniter.SchemaDispatch do
       version: Map.get(entry, "version")
     }
   end
+
+  # `[[generation.rules]]` and `[generation]`'s own scalar fields were, until
+  # this ticket (GI-05, `docs/jira/v26.9.1/05-FORTUNE5-READY-MIX-TASK-AND-
+  # E2E-TEST.md`), silently dropped -- `build_project_config/1` hardcoded
+  # `rules: []` regardless of what was actually on disk. That is a real
+  # round-trip-losing gap (surfaced by GI-05's own DeclarativeRules
+  # end-to-end test: `parse! |> merge |> serialize! |> ggen sync run`
+  # against a real fixture with a non-empty `[[generation.rules]]`
+  # silently wrote back an empty rules array, breaking the real subprocess
+  # sync it was supposed to drive), not a cosmetic one -- fixed here rather
+  # than worked around in the mix task, since every caller of `SchemaDispatch.
+  # load/1` against a DeclarativeRules `ggen.toml` needs its real rules,
+  # not just this ticket's own task.
+  defp build_generation_config(generation) do
+    %GgenIgniter.ProjectConfig.GenerationConfig{
+      rules: Map.get(generation, "rules", []) |> Enum.map(&build_generation_rule/1),
+      max_sparql_timeout_ms: Map.get(generation, "max_sparql_timeout_ms", 30_000),
+      require_audit_trail: Map.get(generation, "require_audit_trail", false),
+      determinism_salt: Map.get(generation, "determinism_salt"),
+      output_dir: Map.get(generation, "output_dir", "generated"),
+      enable_llm: Map.get(generation, "enable_llm", false),
+      llm_provider: Map.get(generation, "llm_provider"),
+      llm_model: Map.get(generation, "llm_model")
+    }
+  end
+
+  defp build_generation_rule(entry) do
+    %GgenIgniter.ProjectConfig.GenerationRule{
+      name: Map.fetch!(entry, "name"),
+      query: build_query_source(Map.fetch!(entry, "query")),
+      template: build_template_source(Map.fetch!(entry, "template")),
+      output_file: Map.fetch!(entry, "output_file"),
+      skip_empty: Map.get(entry, "skip_empty", false),
+      mode: parse_generation_mode(Map.get(entry, "mode", "create")),
+      when: Map.get(entry, "when")
+    }
+  end
+
+  defp build_query_source(%{"inline" => inline}), do: {:inline, %{inline: inline}}
+
+  defp build_query_source(%{"pack" => pack, "output" => output, "file" => file}),
+    do: {:pack, %{pack: pack, output: output, file: file}}
+
+  defp build_query_source(%{"file" => file}), do: {:file, %{file: file}}
+
+  defp build_template_source(%{"inline" => inline}), do: {:inline, %{inline: inline}}
+
+  defp build_template_source(%{"pack" => pack, "output" => output, "file" => file}),
+    do: {:pack, %{pack: pack, output: output, file: file}}
+
+  defp build_template_source(%{"git" => git} = entry),
+    do: {:git, %{git: git, branch: Map.get(entry, "branch"), path: Map.fetch!(entry, "path")}}
+
+  defp build_template_source(%{"package" => package} = entry),
+    do:
+      {:package,
+       %{package: package, version: Map.get(entry, "version"), path: Map.fetch!(entry, "path")}}
+
+  defp build_template_source(%{"file" => file}), do: {:file, %{file: file}}
+
+  defp parse_generation_mode(mode) when is_atom(mode), do: mode
+
+  defp parse_generation_mode(mode) when is_binary(mode),
+    do: mode |> String.downcase() |> String.to_atom()
 
   # -- FrontmatterConfig struct construction ------------------------------
 
