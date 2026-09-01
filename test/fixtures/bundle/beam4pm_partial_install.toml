@@ -1,0 +1,16 @@
+[project]
+name = "beam4pm"
+
+[ontology]
+source = "ontology.ttl"
+
+[packs]
+beam4pm-process-model = { path = "vendor/ggen-marketplace/packs/beam4pm-process-model-pack" }
+beam4pm-pro-infra = { path = "vendor/ggen-marketplace/packs/beam4pm-pro-infra-pack" }
+github-actions-pack = { path = "vendor/ggen-marketplace/packs/github-actions-pack" }
+beam4pm-ai-contracts = { path = "vendor/ggen-marketplace/packs/beam4pm-ai-contracts-pack" }
+beam4pm-pro-entitlement = { path = "vendor/ggen-marketplace/packs/beam4pm-pro-entitlement-pack" }
+fortune5-architecture = { path = "vendor/ggen-marketplace/packs/fortune5-architecture-pack" }
+
+[templates]
+dir = "templates"

@@ -1,0 +1,17 @@
+{
+  "bundles": {
+    "fortune5_ready": {
+      "manifest_version": "1.0.0",
+      "packs": [
+        {
+          "name": "fortune5-architecture",
+          "path_hint": "vendor/ggen-marketplace/packs/fortune5-architecture-pack"
+        },
+        {
+          "name": "fortune5-deployment-blocks",
+          "path_hint": "vendor/ggen-marketplace/packs/fortune5-deployment-blocks-pack"
+        }
+      ]
+    }
+  }
+}
