@@ -18,7 +18,8 @@ Pipeline: `Ontology.load!/1` → `Query`/`Engine.run/2` (once per `--query`) →
 | `--query NAME=PATH` | string, repeatable (`:keep`) | *(none)* | One `.rq` file per flag; repeat for multiple named queries. |
 | `--template PATH` | string | *(required unless `--pack`/`--pack-dir` resolves exactly one)* | EEx template; may start with a `---` frontmatter fence. |
 | `--out PATH` | string | *(required for `mode: file`, unless frontmatter `to:` is set)* | An EEx template itself — rendered once per row with that row's bindings. Not used/required for `mode: eval`. |
-| `--engine NAME` | string | `"oxigraph"` | One of `oxigraph`, `sparql`, `qlever` — see `engines.md`. |
+| `--engine NAME` | string | `"oxigraph"` | One of `oxigraph`, `sparql`, `qlever` — see `engines.md`. Also accepts a comma-separated list (`oxigraph,sparql`) or the literal `all`, which trigger diagnostic **comparison mode** (ADR-0008) — see below. |
+| `--engine-report PATH` | string | *(none — prints a stdout summary instead)* | Only meaningful in comparison mode (`--engine` resolves to more than one engine). Writes the comparison report to `PATH`: `.json` uses `GgenIgniter.EngineComparisonReport.to_json/1`, any other extension uses `to_markdown/1`. |
 | `--store-id ID` | string | *(required only when `--engine qlever`)* | Names the `gnoa:Qlever`-typed store resource in the ontology graph. |
 | `--pack NAME` or `NAME:TEMPLATE` | string | *(none)* | Resolves `priv/ggen/<NAME>/` as the default ontology/queries/template source. See `packs.md`. |
 | `--pack-dir DIR` | string | *(none)* | Same as `--pack` but uses `DIR` directly (no `priv/ggen/` prefix, no `:TEMPLATE` stem suffix). |
@@ -113,6 +114,66 @@ real, already-running remote QLever SPARQL endpoint over HTTP and requires
 `--ontology` graph (the ontology is still loaded via `Ontology.load!/1` for
 this lookup — the query text itself never touches that graph's data under
 `--engine qlever`).
+
+## `--engine oxigraph,sparql` / `--engine all` (comparison mode, `--engine-report`) — IMPLEMENTED
+
+Per ADR-0008 (`docs/architecture/adr/0008-evidence-ranked-multi-engine-registry.md`):
+`--engine` also accepts a comma-separated list or the literal `all`, parsed
+by `GgenIgniter.EngineRegistry.resolve/2`. Resolving to more than one engine
+flips this task into **comparison mode**: every named `--query` runs against
+every resolved engine concurrently (`GgenIgniter.EngineRegistry.run_all/4`,
+real `Task.async_stream/3` fan-out, one `GgenIgniter.EngineComparisonReport.t()`
+per named query). This is strictly diagnostic-additive — rendering/actuation
+still use only the **primary** engine's rows (the first engine named, or
+`oxigraph` for `--engine all`), so comparison mode changes no actuation,
+admission, receipt, or manifest behavior; a plain single `--engine` value
+(the default) never triggers this path at all.
+
+`--engine all` expands to every `GgenIgniter.Engine.valid_names/0` engine
+whose preconditions are met: `qlever` is included only when `--store-id` was
+given **and** a real reachability probe against it succeeds (same real
+technique as `mix ggen_igniter.doctor`'s check 8) — otherwise it is silently
+excluded with a logged warning, never included and then allowed to error.
+
+Real, verified example (`--engine-report` omitted — stdout summary):
+
+```
+mix ggen_igniter.sync --engine oxigraph,sparql \
+  --ontology test/fixtures/audit_trail_ontology.ttl \
+  --query spec=test/fixtures/spec.rq \
+  --query sections=test/fixtures/sections.rq \
+  --query entities=test/fixtures/entities.rq \
+  --query fields=test/fixtures/fields.rq \
+  --template test/fixtures/extension.ex.eex \
+  --out /tmp/probe.ex
+```
+
+```
+ggen_igniter: engine comparison for query "spec":
+  oxigraph: ok, 1 rows, 35.11ms
+  sparql: ok, 1 rows, 52.79ms
+  oxigraph vs sparql: row-set-agreement 100% (row_count_diff: 0, order_equal?: true)
+ggen_igniter: engine comparison for query "sections":
+  oxigraph: ok, 1 rows, 1.67ms
+  sparql: ok, 1 rows, 0.45ms
+  oxigraph vs sparql: row-set-agreement DIVERGENT (row_count_diff: 0, order_equal?: false)
+...
+* ggen_igniter: wrote /tmp/probe.ex (engine: oxigraph, 4 queries, 7 total row(s)) (via reactor)
+```
+
+The `"sections"`/`"entities"`/`"fields"` rows above are real, disclosed
+divergences (not a bug this feature introduces): `sections`/`entities`/`fields`
+all `ORDER BY` a typed-integer column, hitting both the confirmed `sparql`-hex
+`ORDER BY` reversal (`lib/ggen_igniter/query.ex:4-16`) and oxigraph's
+plain-lexical-string vs. `sparql`-hex's native-value typed-literal encoding
+(`test/ggen_igniter_engine_parity_test.exs`'s "typed-literal query" case) —
+exactly the divergence classes `pairwise_agreement` exists to surface, not
+hide. `"spec"` (no typed literal, no `ORDER BY`) agrees 100%.
+
+`--engine-report PATH` writes the same data instead of printing it: `.json`
+via `to_json/1`, anything else (e.g. `.md`) via `to_markdown/1` — see
+`GgenIgniter.EngineComparisonReport`'s moduledoc for the exact JSON/Markdown
+shape.
 
 ## `--pack NAME[:TEMPLATE]` and `--pack-dir DIR`
 

@@ -109,6 +109,33 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   itself never touches this graph's data, it runs on the remote QLever store.
   `--store-id` is required when `--engine qlever` is given.
 
+  ## Comparison mode (`--engine oxigraph,sparql` / `--engine all`)
+
+  Per ADR-0008 (`docs/architecture/adr/0008-evidence-ranked-multi-engine-registry.md`):
+  `--engine` also accepts a comma-separated list (`--engine oxigraph,sparql`)
+  or the literal `--engine all`, parsed via `GgenIgniter.EngineRegistry.resolve/2`.
+  Resolving to more than one engine flips this task into **comparison mode**:
+  every named `--query` runs against EVERY resolved engine concurrently
+  (`GgenIgniter.EngineRegistry.run_all/4`), producing a
+  `GgenIgniter.EngineComparisonReport.t()` per named query. This is strictly
+  diagnostic-additive -- rendering/actuation still use only ONE **primary**
+  engine's rows (the first engine named, or `oxigraph` for `--engine all`),
+  so comparison mode changes no actuation, admission, receipt, or manifest
+  behavior at all.
+
+  `--engine all` expands to every engine `GgenIgniter.Engine.valid_names/0`
+  names whose preconditions are met: `qlever` is included only when
+  `--store-id` was given AND a real reachability probe against it succeeds
+  (mirroring `mix ggen_igniter.doctor`'s check 8) -- otherwise it is silently
+  excluded with a logged warning, never included-then-errored.
+
+  `--engine-report PATH` writes the report(s) to disk -- `.json` (via
+  `EngineComparisonReport.to_json/1`) or anything else (Markdown, via
+  `to_markdown/1`), chosen by `PATH`'s extension. Without `--engine-report`,
+  a compact summary (row count/elapsed time per engine, pairwise
+  row-set-agreement, per-engine errors) prints to stdout via
+  `Mix.shell().info/1` after the run.
+
   ## Example (default oxigraph engine)
 
       mix ggen_igniter.sync \\
@@ -173,6 +200,8 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
   alias GgenIgniter.{
     Engine,
+    EngineComparisonReport,
+    EngineRegistry,
     Frontmatter,
     Ontology
   }
@@ -192,6 +221,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         template: :string,
         out: :string,
         engine: :string,
+        engine_report: :string,
         store_id: :string,
         pack: :string,
         pack_dir: :string,
@@ -647,7 +677,8 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     USAGE
         mix ggen_igniter.sync --ontology path.ttl --query name=path.rq (repeatable)
                                --template path.eex --out path.ex
-                               [--engine oxigraph|sparql|qlever] [--store-id ID]
+                               [--engine oxigraph|sparql|qlever|comma-list|all]
+                               [--engine-report PATH] [--store-id ID]
                                [--pack NAME | --pack-dir DIR] [--for-each NAME]
                                [--mode file|eval] [--on-stale refuse|prune|preserve]
                                [--manifest-dir DIR] [--unless-exists] [--skip-if EXPR]
@@ -659,6 +690,13 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         --template PATH     EEx template to render (or resolved via --pack/--pack-dir).
         --out PATH          Output path (or an EEx path template with --for-each).
         --engine ENGINE     One of: oxigraph, sparql, qlever. Default: oxigraph.
+                             Also accepts a comma-separated list or "all" --
+                             triggers diagnostic comparison mode (ADR-0008);
+                             actuation still uses only the first-named engine.
+        --engine-report PATH  Write the comparison-mode report to PATH (.json
+                             or Markdown by extension). Without this, a
+                             summary prints to stdout. No effect with a
+                             single --engine value.
         --store-id ID       Named store to resolve for --engine qlever.
         --pack NAME         Resolve a marketplace-convention pack by name (priv/ggen/NAME).
         --pack-dir DIR      Use an explicit pack directory (bypasses the --pack convention).
@@ -753,6 +791,19 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     # always returns `:file` or `:eval`, even for a header-less template)
     # whenever `--mode` is not given.
     mode = resolve_mode!(opts, frontmatter_mode)
+
+    # ADR-0008 comparison mode: a comma-separated/"all" --engine value never
+    # reaches `Engine.fetch!/1` directly here or downstream -- it is resolved
+    # via `EngineRegistry.resolve/2`, run for real against every resolved
+    # engine, reported (to disk or stdout), and then collapsed BACK to a
+    # single primary engine name in `opts[:engine]` before either branch of
+    # the `cond` below (or `run_for_each_via_reactor!/7`, or
+    # `ReconcileReactor`'s own internal `target_opts[:engine] || "oxigraph"`
+    # resolution) ever sees it -- so actuation/rendering are byte-for-byte
+    # unaffected by comparison mode ever having run. A plain single engine
+    # name (the default, unchanged path) never reaches
+    # `maybe_run_engine_comparison!/3` at all -- see its own guard.
+    opts = maybe_run_engine_comparison!(opts, frontmatter)
 
     cond do
       # `mode: eval` (frontmatter-driven or `--mode eval`) previously excluded
@@ -954,6 +1005,133 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
                 (receipt.reason || "no reason recorded")
     end
   end
+
+  # -- ADR-0008: evidence-ranked multi-engine registry (comparison mode) -----
+  #
+  # A plain single `--engine` value (the default; also "oxigraph,oxigraph" or
+  # any other single-name-after-dedup spelling) is left COMPLETELY untouched
+  # here -- this guard is what makes comparison mode strictly additive rather
+  # than rerouting every sync run through `EngineRegistry.resolve/2` (whose
+  # error-message text differs from `Engine.fetch!/1`'s own, so a genuinely
+  # invalid single `--engine` name must still fail through the EXACT SAME
+  # `Engine.fetch!/1` raise it always has, byte-for-byte, per ADR-0008's own
+  # "No change to single-engine callers" consequence).
+  @spec maybe_run_engine_comparison!(keyword(), Frontmatter.t() | nil) :: keyword()
+  defp maybe_run_engine_comparison!(opts, frontmatter) do
+    engine_spec = opts[:engine] || "oxigraph"
+
+    if engine_comparison_spec?(engine_spec) do
+      run_engine_comparison!(opts, frontmatter, engine_spec)
+    else
+      opts
+    end
+  end
+
+  defp engine_comparison_spec?(engine_spec),
+    do: engine_spec == "all" or String.contains?(engine_spec, ",")
+
+  # Resolves `engine_spec` for real, runs `EngineRegistry.run_all/4` for
+  # every named query against every resolved engine, reports the result (to
+  # `--engine-report PATH` or stdout), then returns `opts` with `:engine`
+  # collapsed to the single PRIMARY engine (the first engine
+  # `EngineRegistry.resolve/2` resolved -- `oxigraph` for `--engine all`,
+  # since `resolve/2`'s own `"all"` expansion sorts non-qlever names
+  # ascending and appends `qlever` last when included; the first-named engine
+  # for an explicit comma list) so every downstream consumer of `opts[:engine]`
+  # (`run_for_each_via_reactor!/7`, `ReconcileReactor`'s own internal
+  # resolution) sees an ordinary single-engine string, exactly as ADR-0008
+  # requires ("comparison mode is strictly diagnostic-additive... does not
+  # change which rows get rendered or actuated").
+  @spec run_engine_comparison!(keyword(), Frontmatter.t() | nil, String.t()) :: keyword()
+  defp run_engine_comparison!(opts, frontmatter, engine_spec) do
+    case EngineRegistry.resolve(engine_spec, opts) do
+      {:ok, [_single_engine] = engines} ->
+        Keyword.put(opts, :engine, engines |> List.first() |> Atom.to_string())
+
+      {:ok, engines} when length(engines) > 1 ->
+        primary = engines |> List.first() |> Atom.to_string()
+
+        graph = resolve_ontology!(opts) |> Ontology.load!()
+        named_queries = resolve_named_queries!(opts, frontmatter)
+
+        reports =
+          Enum.map(named_queries, fn {name, query_text} ->
+            {name, EngineRegistry.run_all(query_text, graph, engines, opts)}
+          end)
+
+        report_engine_comparison!(reports, opts)
+
+        Keyword.put(opts, :engine, primary)
+
+      {:error, reason} ->
+        raise ArgumentError, "ggen_igniter: invalid --engine value #{inspect(engine_spec)}: #{reason}"
+    end
+  end
+
+  defp report_engine_comparison!(reports, opts) do
+    case opts[:engine_report] do
+      path when is_binary(path) and path != "" ->
+        File.write!(path, encode_engine_report(reports, path))
+        Mix.shell().info("ggen_igniter: engine comparison report written to #{path}")
+
+      _ ->
+        print_engine_comparison_summary(reports)
+    end
+  end
+
+  defp encode_engine_report([{_name, report}], path) do
+    case Path.extname(path) do
+      ".json" -> EngineComparisonReport.to_json(report)
+      _ -> EngineComparisonReport.to_markdown(report)
+    end
+  end
+
+  defp encode_engine_report(reports, path) do
+    case Path.extname(path) do
+      ".json" ->
+        reports
+        |> Enum.map(fn {name, report} ->
+          Map.put(EngineComparisonReport.to_json_map(report), "query_name", name)
+        end)
+        |> Jason.encode!(pretty: true)
+
+      _ ->
+        Enum.map_join(reports, "\n---\n\n", fn {name, report} ->
+          "## Query: #{name}\n\n" <> EngineComparisonReport.to_markdown(report)
+        end)
+    end
+  end
+
+  defp print_engine_comparison_summary(reports) do
+    for {name, report} <- reports do
+      Mix.shell().info("ggen_igniter: engine comparison for query #{inspect(name)}:")
+
+      for candidate <- report.candidates do
+        Mix.shell().info("  " <> candidate_summary_line(candidate))
+      end
+
+      for {{engine_a, engine_b}, agreement} <- report.pairwise_agreement do
+        agreement_pct = if agreement.row_set_equal?, do: "100%", else: "DIVERGENT"
+
+        Mix.shell().info(
+          "  #{engine_a} vs #{engine_b}: row-set-agreement #{agreement_pct} " <>
+            "(row_count_diff: #{agreement.row_count_diff}, order_equal?: " <>
+            "#{agreement.order_equal?})"
+        )
+      end
+    end
+  end
+
+  defp candidate_summary_line(%EngineComparisonReport.CandidateResult{status: :ok} = c) do
+    "#{c.engine}: ok, #{c.row_count} rows, #{elapsed_ms(c.elapsed_us)}ms"
+  end
+
+  defp candidate_summary_line(%EngineComparisonReport.CandidateResult{} = c) do
+    "#{c.engine}: #{c.status}, #{elapsed_ms(c.elapsed_us)}ms -- #{c.error}"
+  end
+
+  defp elapsed_ms(nil), do: "-"
+  defp elapsed_ms(us), do: Float.round(us / 1000, 2)
 
   # `delegate_to_controller/4`, `controller_notice/2`, `run_pipeline!/3` (the
   # standalone non-Reactor pipeline), `outcome_summary_suffix/2`,
