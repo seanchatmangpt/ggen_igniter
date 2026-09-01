@@ -2,16 +2,38 @@
 
 ## Status
 
-**PROPOSED.** Not accepted, not implemented. No code in `lib/`, `test/`, or
-`priv/ggen/` for this decision exists as of this writing — `EngineRegistry`,
-`EngineComparisonReport`, `CandidateResult`, and the `--engine-report` flag
-are all new names introduced by this ADR, none of which resolve to a real
-file today. This deliberately deviates from this directory's own convention
-(`docs/CLAUDE.md`: "Never write a 'Proposed' ADR into this directory — this
-repo only records decisions already made and verified") at the explicit
-request of the design's author, to capture a reviewed design before
-implementation begins; it should not be read as this repo's committed
-`Accepted` status vocabulary being loosened for any other ADR.
+**Accepted.** Implemented in commit `01a6ef9` ("Implement Part B:
+evidence-ranked multi-engine registry (ADR-0008)"): `lib/ggen_igniter/
+engine_registry.ex` (`GgenIgniter.EngineRegistry.resolve/1,2`,
+`EngineRegistry.run_all/4`), `lib/ggen_igniter/engine_comparison_report.ex`
+(`GgenIgniter.EngineComparisonReport`, `.CandidateResult`,
+`pairwise_agreement/1`, `to_markdown/1`, `to_json/1`), and `lib/mix/tasks/
+ggen_igniter.sync.ex`'s comparison-mode dispatch (`maybe_run_engine_comparison!/2`)
+plus the `--engine-report PATH` flag all resolve to real, compiling code as
+of that commit. Real verification from that commit: `mix compile
+--warnings-as-errors` exit 0; `mix test` — 20 doctests, 42 properties, 560
+tests, 3 pre-existing failures unrelated to this change (confirmed
+independent by re-running with this commit's changes git-stashed); a real
+`mix ggen_igniter.sync --engine oxigraph,sparql --engine-report PATH` run
+against `test/fixtures/audit_trail_ontology.ttl` produced a real JSON report
+and (with all four real gate queries) a full successful actuation using only
+the primary `oxigraph` engine's rows. Two real, disclosed deviations from
+this document's original text are recorded inline in `engine_registry.ex`'s
+moduledoc/comments (a `resolve/2` arity for `"all"`'s precondition context,
+and a SELECT-based qlever reachability probe instead of the literal `ASK`
+text, working around a real, independent, pre-existing bug in
+`GgenIgniter.Query.Qlever.run/2`'s ASK-response handling) — this ADR's own
+design intent (reuse `Engine.fetch!/1`, reuse the doctor's reachability
+*shape*, keep single-engine callers byte-for-byte unaffected) is otherwise
+implemented as originally specified below.
+
+This ADR was deliberately written and merged as `PROPOSED` before any code
+existed, at the explicit request of the design's author, as a disclosed
+one-time exception to this directory's own convention (`docs/CLAUDE.md`:
+"Never write a 'Proposed' ADR into this directory"); it should not be read
+as that convention being loosened for any other ADR. The design text below
+is preserved unedited from that proposal — see "Real deviations" above for
+where the real implementation departs from it, and why.
 
 ## Context
 
