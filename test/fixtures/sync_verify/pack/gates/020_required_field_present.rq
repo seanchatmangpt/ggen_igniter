@@ -1,0 +1,4 @@
+PREFIX ex: <https://ggen-igniter.dev/ontology/gi04-sync-verify#>
+SELECT DISTINCT ?s WHERE {
+  ?s a ex:RequiredField .
+}
