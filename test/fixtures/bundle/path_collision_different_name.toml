@@ -1,0 +1,12 @@
+[project]
+name = "beam4pm"
+
+[ontology]
+source = "ontology.ttl"
+
+[packs]
+beam4pm-process-model = { path = "vendor/ggen-marketplace/packs/beam4pm-process-model-pack" }
+my-renamed-architecture-fork = { path = "vendor/ggen-marketplace/packs/fortune5-architecture-pack" }
+
+[templates]
+dir = "templates"

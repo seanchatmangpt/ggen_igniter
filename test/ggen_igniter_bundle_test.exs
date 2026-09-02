@@ -1,0 +1,168 @@
+defmodule GgenIgniterBundleTest do
+  @moduledoc """
+  Real-collaborator, state-based tests for `GgenIgniter.Bundle`
+  (`docs/jira/v26.9.1/03-BUNDLE-MANIFEST-AND-MERGE.md`, GGEN-1801 manifest +
+  GGEN-1803 dedupe merge). No `Mock`/`mock(`/`patch(`/`monkeypatch` anywhere
+  in this file -- real `Jason.decode!/1` over the real
+  `priv/bundles/fortune5_ready.json` on disk, real `Toml.decode/1` (via
+  `GgenIgniter.SchemaDispatch.load_raw/1`) over real fixture files copied
+  from beam4pm's actual `ggen.toml`.
+  """
+  use ExUnit.Case, async: true
+
+  @fixtures_dir Path.join(__DIR__, "fixtures/bundle")
+
+  describe "load!/1 -- manifest (GGEN-1801)" do
+    test "loads the real priv/bundles/fortune5_ready.json and returns exactly the fortune5_ready bundle" do
+      bundles = GgenIgniter.Bundle.load!()
+
+      assert Map.has_key?(bundles, "fortune5_ready")
+
+      bundle = Map.fetch!(bundles, "fortune5_ready")
+      assert bundle.manifest_version == "1.0.0"
+      assert is_list(bundle.packs)
+    end
+
+    test "the loaded bundle is a typed struct, not a raw string-keyed Map decoded from JSON" do
+      bundle = GgenIgniter.Bundle.load!() |> Map.fetch!("fortune5_ready")
+
+      # Real struct field access -- this would raise KeyError against a raw
+      # %{"packs" => [...]}-shaped map with unconverted string keys.
+      assert is_list(bundle.packs)
+      [first_pack | _] = bundle.packs
+      assert %GgenIgniter.Bundle.Pack{} = first_pack
+      assert is_binary(first_pack.name)
+      assert is_binary(first_pack.path_hint)
+    end
+
+    test "v1 packs list has exactly 2 entries: fortune5-architecture and fortune5-deployment-blocks" do
+      packs = GgenIgniter.Bundle.load_packs!()
+
+      names = Enum.map(packs, & &1.name)
+
+      assert length(packs) == 2
+      assert names == ["fortune5-architecture", "fortune5-deployment-blocks"]
+    end
+
+    test "fortune5-required-capabilities and fortune5-testing-bblock are NOT present in the v1 manifest" do
+      names = GgenIgniter.Bundle.load_packs!() |> Enum.map(& &1.name)
+
+      refute "fortune5-required-capabilities" in names
+      refute "fortune5-testing-bblock" in names
+      refute "fortune5-enterprise-architecture" in names
+    end
+
+    test "the moduledoc records both resolved design decisions (manifest location, domain-aware composition)" do
+      {:docs_v1, _, _, _, %{"en" => moduledoc}, _, _} = Code.fetch_docs(GgenIgniter.Bundle)
+
+      assert moduledoc =~ "manifest location"
+      assert moduledoc =~ "ggen_igniter` itself"
+      assert moduledoc =~ "domain-aware"
+      assert moduledoc =~ "name-keyed map"
+    end
+  end
+
+  describe "merge/2 -- dedupe (GGEN-1803)" do
+    test "Test 1: real merge against beam4pm's actual ggen.toml produces exactly 5 existing + 2 new = 7 entries" do
+      {:frontmatter, config} = load_fixture!("beam4pm_ggen.toml")
+      bundle_packs = GgenIgniter.Bundle.load_packs!()
+
+      to_add = GgenIgniter.Bundle.merge(config, bundle_packs)
+      added_names = Enum.map(to_add, & &1.name) |> Enum.sort()
+
+      assert added_names == ["fortune5-architecture", "fortune5-deployment-blocks"]
+
+      # Full resulting pack set (existing ∪ added) is exactly the 5 real
+      # beam4pm entries plus the 2 new fortune5-* entries -- 7 total.
+      resulting_names =
+        (Map.keys(config.packs) ++ added_names) |> Enum.uniq() |> Enum.sort()
+
+      expected =
+        Enum.sort([
+          "beam4pm-process-model",
+          "beam4pm-pro-infra",
+          "github-actions-pack",
+          "beam4pm-ai-contracts",
+          "beam4pm-pro-entitlement",
+          "fortune5-architecture",
+          "fortune5-deployment-blocks"
+        ])
+
+      assert resulting_names == expected
+      assert length(resulting_names) == 7
+      # No duplicates.
+      assert length(resulting_names) == length(Enum.uniq(resulting_names))
+
+      # No path collisions: neither new entry's path_hint matches any
+      # existing entry's real path.
+      existing_paths =
+        config.packs
+        |> Map.values()
+        |> Enum.map(fn {:path, %{path: path}} -> path end)
+
+      for pack <- to_add do
+        refute pack.path_hint in existing_paths
+      end
+    end
+
+    test "Test 2: idempotency -- merging an already-fortune5-wired ggen.toml a second time is a true no-op" do
+      {:frontmatter, config} = load_fixture!("beam4pm_ggen.toml")
+      bundle_packs = GgenIgniter.Bundle.load_packs!()
+
+      first_run = GgenIgniter.Bundle.merge(config, bundle_packs)
+
+      # Simulate the first run's real output being wired into ggen.toml:
+      # the resulting config now has all 7 entries.
+      config_after_first_run = %{
+        config
+        | packs:
+            Enum.reduce(first_run, config.packs, fn pack, acc ->
+              Map.put(acc, pack.name, {:path, %{path: pack.path_hint, extra_ontologies: [], lock: nil}})
+            end)
+      }
+
+      second_run = GgenIgniter.Bundle.merge(config_after_first_run, bundle_packs)
+
+      assert second_run == []
+    end
+
+    test "Test 3: partial-install dedup -- only the missing bundle pack is reported as new" do
+      {:frontmatter, config} = load_fixture!("beam4pm_partial_install.toml")
+      bundle_packs = GgenIgniter.Bundle.load_packs!()
+
+      to_add = GgenIgniter.Bundle.merge(config, bundle_packs)
+
+      assert length(to_add) == 1
+      assert [%GgenIgniter.Bundle.Pack{name: "fortune5-deployment-blocks"}] = to_add
+    end
+
+    test "Test 4: dedup key is name, not path -- a path collision under a different name is still added" do
+      {:frontmatter, config} = load_fixture!("path_collision_different_name.toml")
+      bundle_packs = GgenIgniter.Bundle.load_packs!()
+
+      # Sanity: the fixture really does have a path collision with the
+      # fortune5-architecture bundle pack's path_hint, under a different name.
+      assert config.packs["my-renamed-architecture-fork"] ==
+               {:path,
+                %{
+                  path: "vendor/ggen-marketplace/packs/fortune5-architecture-pack",
+                  extra_ontologies: [],
+                  lock: nil
+                }}
+
+      refute Map.has_key?(config.packs, "fortune5-architecture")
+
+      to_add = GgenIgniter.Bundle.merge(config, bundle_packs)
+      added_names = Enum.map(to_add, & &1.name) |> Enum.sort()
+
+      assert "fortune5-architecture" in added_names
+      assert added_names == ["fortune5-architecture", "fortune5-deployment-blocks"]
+    end
+  end
+
+  defp load_fixture!(filename) do
+    Path.join(@fixtures_dir, filename)
+    |> File.read!()
+    |> GgenIgniter.SchemaDispatch.load_raw()
+  end
+end
