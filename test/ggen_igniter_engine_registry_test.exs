@@ -36,20 +36,6 @@ defmodule GgenIgniter.EngineRegistryTest do
   doctest GgenIgniter.EngineRegistry
   doctest GgenIgniter.EngineComparisonReport
 
-  setup do
-    endpoint_reachable? =
-      case :httpc.request(:get, {~c"http://localhost:7020", []}, [{:timeout, 1_000}], []) do
-        {:ok, _} -> true
-        _ -> false
-      end
-
-    unless endpoint_reachable? do
-      ExUnit.configure(exclude: [:requires_qlever_server])
-    end
-
-    :ok
-  end
-
   # ---------------------------------------------------------------------
   # resolve/1,2 -- single name, comma list, "all"
   # ---------------------------------------------------------------------

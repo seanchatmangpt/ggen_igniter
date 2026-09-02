@@ -13,20 +13,6 @@ defmodule GgenIgniter.SyncQleverEngineTest do
   """
   use ExUnit.Case, async: false
 
-  setup do
-    endpoint_reachable? =
-      case :httpc.request(:get, {~c"http://localhost:7020", []}, [{:timeout, 1_000}], []) do
-        {:ok, _} -> true
-        _ -> false
-      end
-
-    unless endpoint_reachable? do
-      ExUnit.configure(exclude: [:requires_qlever_server])
-    end
-
-    :ok
-  end
-
   @tag :requires_qlever_server
   test "mix ggen_igniter.sync --engine qlever runs a real gate query against real QLever and writes a real file" do
     out_dir =

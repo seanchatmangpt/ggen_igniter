@@ -25,15 +25,6 @@ defmodule GgenIgniter.AshR2rmlGateIntegrationTest do
   @gate_020 Path.join(@ash_r2rml_root, "priv/ggen/ash-r2rml-pack/gates/020_property_contract.rq")
   @fortune5_shapes Path.join(@ash_r2rml_root, "priv/ontologies/fortune5/operational_shapes.ttl")
 
-  setup do
-    unless File.exists?(@ash_r2rml_root) do
-      # Named, visible skip -- not a silent mock substitution.
-      ExUnit.configure(exclude: [:requires_ash_r2rml])
-    end
-
-    :ok
-  end
-
   @tag :requires_ash_r2rml
   test "loads the real fortune5 SHACL ontology from ash_r2rml via GgenIgniter.Ontology" do
     assert File.exists?(@fortune5_shapes),

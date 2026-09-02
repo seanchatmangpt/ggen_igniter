@@ -185,20 +185,6 @@ defmodule GgenIgniter.E2eAllEnginesTest do
   end
 
   describe "--engine qlever" do
-    setup do
-      endpoint_reachable? =
-        case :httpc.request(:get, {~c"http://localhost:7020", []}, [{:timeout, 1_000}], []) do
-          {:ok, _} -> true
-          _ -> false
-        end
-
-      unless endpoint_reachable? do
-        ExUnit.configure(exclude: [:requires_qlever_server])
-      end
-
-      :ok
-    end
-
     @tag :requires_qlever_server
     test "real end-to-end loop against a real, already-running QLever server: sync writes the real file, re-sync is a real idempotent no-op" do
       out_dir =

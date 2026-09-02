@@ -25,20 +25,6 @@ defmodule GgenIgniter.AshR2rmlGateQleverTest do
                   |> RDF.Turtle.read_file!(base: "http://example.com/")
   @store_id "http://example.com/Qlever"
 
-  setup do
-    endpoint_reachable? =
-      case :httpc.request(:get, {~c"http://localhost:7020", []}, [{:timeout, 1_000}], []) do
-        {:ok, _} -> true
-        _ -> false
-      end
-
-    unless endpoint_reachable? do
-      ExUnit.configure(exclude: [:requires_qlever_server])
-    end
-
-    :ok
-  end
-
   @tag :requires_qlever_server
   test "gate 010 (broke sparql 0.3.12) returns real rows from real QLever" do
     store = QleverQuery.load_store!(@manifest_graph, @store_id)

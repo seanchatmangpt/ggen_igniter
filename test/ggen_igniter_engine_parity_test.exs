@@ -55,20 +55,6 @@ defmodule GgenIgniter.EngineParityTest do
   alias GgenIgniter.Query.Qlever, as: QleverQuery
   alias GgenIgniter.Native.GraphNif
 
-  setup do
-    endpoint_reachable? =
-      case :httpc.request(:get, {~c"http://localhost:7020", []}, [{:timeout, 1_000}], []) do
-        {:ok, _} -> true
-        _ -> false
-      end
-
-    unless endpoint_reachable? do
-      ExUnit.configure(exclude: [:requires_qlever_server])
-    end
-
-    :ok
-  end
-
   # ---------------------------------------------------------------------
   # Fixture graph shared by every non-typed/non-unicode case in the matrix
   # ---------------------------------------------------------------------

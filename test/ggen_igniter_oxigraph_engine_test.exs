@@ -328,14 +328,6 @@ defmodule GgenIgniter.OxigraphEngineTest do
   @gate_020 Path.join(@ash_r2rml_root, "priv/ggen/ash-r2rml-pack/gates/020_property_contract.rq")
   @fortune5_shapes Path.join(@ash_r2rml_root, "priv/ontologies/fortune5/operational_shapes.ttl")
 
-  setup do
-    unless File.exists?(@ash_r2rml_root) do
-      ExUnit.configure(exclude: [:requires_ash_r2rml])
-    end
-
-    :ok
-  end
-
   @tag :requires_ash_r2rml
   test "gate 010 against real fortune5 shapes via --engine oxigraph: reports the real outcome, does not force a pass" do
     graph = Ontology.load!(@fortune5_shapes)

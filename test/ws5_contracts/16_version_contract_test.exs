@@ -18,6 +18,7 @@ defmodule GgenIgniter.WS5.VersionContractTest do
     changelog = File.read!("CHANGELOG.md")
 
     assert [_, mix_version] = Regex.run(~r/version:\s*"([^"]+)"/, mix_exs)
+
     assert mix_version =~ ~r/^\d{2}\.\d{1,2}\.\d+$/,
            "mix.exs version #{inspect(mix_version)} does not match this project's real CalVer shape YY.M[M].P"
 
