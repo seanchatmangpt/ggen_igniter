@@ -66,7 +66,7 @@ defmodule GgenIgniter.GgenToml.IO do
     defexception [:message]
   end
 
-  alias GgenIgniter.{SchemaDispatch, FrontmatterConfig, ProjectConfig}
+  alias GgenIgniter.{SchemaDispatch, FrontmatterConfig, ProjectConfig, Bundle}
 
   @doc """
   Read, classify, and parse `<project_dir>/ggen.toml` into its typed
@@ -129,6 +129,84 @@ defmodule GgenIgniter.GgenToml.IO do
     |> Enum.reject(&(&1 == :skip))
     |> Enum.join("\n")
     |> then(&(&1 <> "\n"))
+  end
+
+  @doc """
+  GI-07 targeted fix for story (c)'s disclosed comment/key-order-preservation
+  gap, scoped narrowly to the one path that actually needs it: the
+  merge-then-write-back of a bundle's new pack entries into an existing
+  Frontmatter-schema `ggen.toml`'s `[packs]` table (GGEN-1803/1807's
+  consumer, `Mix.Tasks.GgenIgniter.Fortune5Ready`).
+
+  Unlike `serialize!/1` (a full hand-written re-render of the whole typed
+  struct, which necessarily drops every field the struct has no
+  representation for -- comments included, per the moduledoc's accepted
+  limitation), this function never re-renders the file. It works over the
+  **original raw text** and performs a pure textual splice: it locates the
+  contiguous run of real `key = { ... }` entry lines directly under the
+  `[packs]` header, and inserts one new line per `to_add` pack immediately
+  after the last such entry line -- before whatever follows it (a trailing
+  comment block, a blank line, the next `[section]`, or end of file).
+
+  Every existing line -- including beam4pm's real
+  `# gh-terraform-pack: investigated 2026-08-30, NOT wired -- ...` comment
+  block, and the original `[packs]` entries' key order -- is reproduced
+  byte-for-byte. The diff between `raw` and this function's return value is
+  addition-only: new lines appended into the entries run, nothing removed,
+  nothing reordered, nothing rewritten.
+
+  Raises `GgenIgniter.GgenToml.IO.Error` if `raw` has no `[packs]` header at
+  all (this splice has nothing to anchor on) -- callers with that shape
+  should fall back to `serialize!/1` or install a `[packs]` header first.
+  """
+  @spec splice_added_packs!(String.t(), [Bundle.Pack.t()]) :: String.t()
+  def splice_added_packs!(raw, to_add) when is_binary(raw) and is_list(to_add) do
+    lines = String.split(raw, "\n")
+
+    header_idx =
+      Enum.find_index(lines, &(String.trim(&1) == "[packs]")) ||
+        raise Error, message: "splice_added_packs!/2: raw ggen.toml text has no [packs] header"
+
+    last_entry_idx = last_contiguous_entry_index(lines, header_idx)
+
+    new_lines =
+      Enum.map(to_add, fn %Bundle.Pack{name: name, path_hint: path_hint} ->
+        "#{toml_key(name)} = { path = #{toml_string(path_hint)} }"
+      end)
+
+    {before, after_} = Enum.split(lines, last_entry_idx + 1)
+    Enum.join(before ++ new_lines ++ after_, "\n")
+  end
+
+  @packs_entry_re ~r/^[A-Za-z0-9_-]+\s*=\s*\{.*\}\s*$/
+
+  # Walks forward from the `[packs]` header line, returning the index of the
+  # last line that is itself a real `key = { ... }` entry (skips nothing --
+  # the first non-matching line, comment or otherwise, ends the run). When
+  # the table has no entries at all (header immediately followed by a
+  # comment, blank line, next section, or EOF), returns the header's own
+  # index so new entries are inserted directly under `[packs]`.
+  defp last_contiguous_entry_index(lines, header_idx) do
+    entries_start = header_idx + 1
+    max_idx = length(lines) - 1
+
+    if entries_start > max_idx do
+      header_idx
+    else
+      do_last_contiguous_entry_index(lines, entries_start, max_idx, header_idx)
+    end
+  end
+
+  defp do_last_contiguous_entry_index(lines, entries_start, max_idx, header_idx) do
+    Enum.reduce_while(entries_start..max_idx, header_idx, fn idx, last_idx ->
+      line = Enum.at(lines, idx)
+
+      if Regex.match?(@packs_entry_re, line) do
+        {:cont, idx}
+      else
+        {:halt, last_idx}
+      end
+    end)
   end
 
   # -- Frontmatter schema serialization -----------------------------------
