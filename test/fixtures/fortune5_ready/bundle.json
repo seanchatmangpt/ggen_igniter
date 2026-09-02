@@ -1,0 +1,11 @@
+{
+  "bundles": {
+    "fortune5_ready": {
+      "manifest_version": "1.0.0",
+      "packs": [
+        { "name": "fixture-pack-a", "path_hint": "vendor/fixture-pack-a" },
+        { "name": "fixture-pack-b", "path_hint": "vendor/fixture-pack-b" }
+      ]
+    }
+  }
+}
