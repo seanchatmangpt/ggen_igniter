@@ -119,7 +119,7 @@ Add `ggen_igniter` to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:ggen_igniter, "~> 26.9.1"}
+    {:ggen_igniter, "~> 26.9.3"}
   ]
 end
 ```

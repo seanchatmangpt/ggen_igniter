@@ -1,5 +1,9 @@
 # Gaps to fill for v26.9.1
 
+> ARCHIVED 2026-09-01: all 8 gaps closed (#1/#3/#6/#7/#8) or explicitly deferred
+> (#2/#4/#5-mode:eval-half) as of v26.9.3. See docs/status.md and CHANGELOG.md's
+> v26.9.3 entry for current status.
+
 > **STATUS PASS (2026-09-01)**: cross-checked against current `docs/status.md` and
 > `docs/v26.9.1-requirements.md`. Not archived — 1 of 8 gaps (#8) remains real, unaddressed
 > open work with no closure and no explicit deferral recorded anywhere in either doc (#6 fixed

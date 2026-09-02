@@ -39,3 +39,25 @@ Current equivalents for anyone looking for what this directory used to cover:
 - `docs/testing/adversarial.md` — current adversarial/destructive-verification coverage
 
 Moved with `git mv` (history preserved), not deleted.
+
+## `GAPS-TO-FILL.v26.9.1.md` (archived 2026-09-01)
+
+A consumer-integration gap log (8 real, individually-verified gaps found while
+integrating `ggen_igniter` v26.8.28-30 into a consumer project) that stayed at the repo
+root, actively tracked, across the v26.9.1/v26.9.2/v26.9.3 working sessions. Archived now
+that all 8 gaps have a real, cited disposition:
+
+- **Closed**: #1 (`sh_after`/`sh_before` execution), #3 (`check_qlever_reachable/2`
+  dialyzer dead branch), #6 (`GgenIgniter.Lock` PID-liveness staleness detection), #7
+  (`CompensationTelemetryMiddleware` run-scoped counters + mutual-exclusion fix), #8
+  (`DoctorFixes.rewrite_dep_only/2` 2-tuple dependency crash) — the last three closed in
+  v26.9.3 with real Chicago-school tests, see `CHANGELOG.md`'s v26.9.3 entry.
+- **Explicitly deferred** (not silently dropped): #2 (EEx-only render vs. Tera consumer
+  templates — deliberate scope), #4 (`Controller` defaulting to `Reconcile.run/1` not
+  `ReconcileReactor`), and the `mode: eval` remainder of #5 — all named in
+  `docs/v26.9.1-requirements.md`'s Open Questions as deferred past this release.
+
+Current equivalent for gap status: `docs/status.md`'s per-capability rows (each closed
+gap cites its own real fix + test output inline).
+
+Moved with `git mv` (history preserved), not deleted.
