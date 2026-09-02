@@ -89,16 +89,16 @@ defmodule GgenIgniter.PackRef do
   (`~/ggen/crates/ggen-config/src/manifest/types.rs:54-69`) -- the
   `ggen.toml [[packs]]` reference entry.
 
-  **Real caveat, from the Rust source's own doc comments** (confirmed by
-  review agent, not assumed): a *second*, structurally incompatible
+  **Schema scope, a resolved and intentional decision** (from the Rust
+  source's own doc comments): a *second*, structurally incompatible
   `PackRef` also exists at `ggen_engine::config::PackRef` (an untagged
   `Path{path,extra_ontologies,lock} | Git{git,version}` enum, `[packs]` as a
   table-of-tables keyed by name rather than an array-of-tables) -- which one
-  a given `ggen.toml` uses is decided at parse time by whether
-  `[[generation.rules]]` is non-empty. This module mirrors the
-  array-of-tables (`ggen-config`) shape only; the `ggen-engine` variant is a
-  separate follow-on if the WASM bridge needs to parse a project using the
-  older schema.
+  a given `ggen.toml` uses is decided by `GgenIgniter.SchemaDispatch`, the
+  one shared classifier/dispatch point (never re-derived locally). This
+  module mirrors the array-of-tables (`ggen-config`)/`DeclarativeRules`
+  shape only; its now-real sibling for the other schema is
+  `GgenIgniter.FrontmatterPackRef`.
   """
 
   defstruct [:name, :path, :version, registry: "local"]

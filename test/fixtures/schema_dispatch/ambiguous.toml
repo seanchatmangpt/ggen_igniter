@@ -1,0 +1,9 @@
+[project]
+name = "ambiguous-fixture"
+version = "1.0.0"
+
+[ontology]
+source = "ontology.ttl"
+
+[templates]
+dir = "templates"
