@@ -301,7 +301,7 @@ defmodule GgenIgniterFortune5ReadyTaskTest do
         # entries.
         original_lines = String.split(original, "\n")
         after_lines = String.split(after_first_run, "\n")
-        assert is_subsequence?(original_lines, after_lines)
+        assert subsequence?(original_lines, after_lines)
         assert length(after_lines) == length(original_lines) + 2
 
         assert "fixture-pack-a = { path = \"vendor/fixture-pack-a\" }" in after_lines
@@ -455,12 +455,12 @@ defmodule GgenIgniterFortune5ReadyTaskTest do
   # verify `splice_added_packs!/2`'s addition-only diff property -- proves
   # every original line still appears, in the same relative order, in the
   # post-run file (not just a length/count coincidence).
-  defp is_subsequence?([], _list), do: true
+  defp subsequence?([], _list), do: true
 
-  defp is_subsequence?([h | t], list) do
+  defp subsequence?([h | t], list) do
     case Enum.find_index(list, &(&1 == h)) do
       nil -> false
-      idx -> is_subsequence?(t, Enum.drop(list, idx + 1))
+      idx -> subsequence?(t, Enum.drop(list, idx + 1))
     end
   end
 end

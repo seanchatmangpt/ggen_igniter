@@ -1542,8 +1542,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         semantic_source.out_template,
         old_entry,
         Map.put(semantic_source, :insert_opts, insert_opts),
-        marker,
-        insert_mode
+        {marker, insert_mode}
       )
 
     %{pending_actuation: pending_actuation, stale_pending: [], recipe: nil, exec: exec}

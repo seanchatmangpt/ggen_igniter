@@ -184,7 +184,7 @@ defmodule GgenIgniterBundleTest do
       # output, in the same relative order (a real subsequence check, not
       # just a length/count assertion) -- and the only lines the spliced
       # output has beyond the original are the 2 new pack-entry lines.
-      assert is_subsequence?(original_lines, spliced_lines)
+      assert subsequence?(original_lines, spliced_lines)
       assert length(spliced_lines) == length(original_lines) + 2
 
       # The new pack-entry lines are present, verbatim, in the expected
@@ -270,12 +270,12 @@ defmodule GgenIgniterBundleTest do
     end
   end
 
-  defp is_subsequence?([], _list), do: true
+  defp subsequence?([], _list), do: true
 
-  defp is_subsequence?([h | t], list) do
+  defp subsequence?([h | t], list) do
     case Enum.find_index(list, &(&1 == h)) do
       nil -> false
-      idx -> is_subsequence?(t, Enum.drop(list, idx + 1))
+      idx -> subsequence?(t, Enum.drop(list, idx + 1))
     end
   end
 
