@@ -51,7 +51,10 @@ defmodule GgenIgniterFortune5ReadyTaskTest do
   @pack_dir Path.join(__DIR__, "fixtures/fortune5_ready/pack")
 
   defp scratch_project_dir(tag) do
-    Path.join(System.tmp_dir!(), "gi05_fortune5_ready_#{tag}_#{System.unique_integer([:positive])}")
+    Path.join(
+      System.tmp_dir!(),
+      "gi05_fortune5_ready_#{tag}_#{System.unique_integer([:positive])}"
+    )
   end
 
   defp run_task!(scratch_dir, extra_argv \\ []) do
@@ -81,26 +84,29 @@ defmodule GgenIgniterFortune5ReadyTaskTest do
   # `fixture-pack-a`/`fixture-pack-b` path_hints, is therefore a real,
   # minimal, fully-valid pack root under the scratch project.
   defp vendor_pack_dirs!(dir) do
-    Enum.each(["vendor/already-installed", "vendor/fixture-pack-a", "vendor/fixture-pack-b"], fn rel ->
-      pack_root = Path.join(dir, rel)
-      File.mkdir_p!(Path.join(pack_root, "templates"))
+    Enum.each(
+      ["vendor/already-installed", "vendor/fixture-pack-a", "vendor/fixture-pack-b"],
+      fn rel ->
+        pack_root = Path.join(dir, rel)
+        File.mkdir_p!(Path.join(pack_root, "templates"))
 
-      File.write!(Path.join(pack_root, "pack.toml"), """
-      [pack]
-      name = "#{Path.basename(rel)}"
-      version = "0.1.0"
-      description = "GI-05 fixture pack"
-      """)
+        File.write!(Path.join(pack_root, "pack.toml"), """
+        [pack]
+        name = "#{Path.basename(rel)}"
+        version = "0.1.0"
+        description = "GI-05 fixture pack"
+        """)
 
-      File.write!(Path.join(pack_root, "ontology.ttl"), "")
+        File.write!(Path.join(pack_root, "ontology.ttl"), "")
 
-      File.write!(Path.join(pack_root, "templates/noop.tmpl"), """
-      ---
-      to: "__pack_noop__/#{Path.basename(rel)}.txt"
-      ---
-      noop
-      """)
-    end)
+        File.write!(Path.join(pack_root, "templates/noop.tmpl"), """
+        ---
+        to: "__pack_noop__/#{Path.basename(rel)}.txt"
+        ---
+        noop
+        """)
+      end
+    )
   end
 
   defp write_frontmatter_project!(dir, ontology_ttl) do
@@ -306,7 +312,10 @@ defmodule GgenIgniterFortune5ReadyTaskTest do
         # full-re-render path this ticket replaces for the frontmatter
         # schema).
         already_installed_idx =
-          Enum.find_index(after_lines, &(&1 == "already-installed = { path = \"vendor/already-installed\" }"))
+          Enum.find_index(
+            after_lines,
+            &(&1 == "already-installed = { path = \"vendor/already-installed\" }")
+          )
 
         assert Enum.at(after_lines, already_installed_idx + 1) ==
                  "fixture-pack-a = { path = \"vendor/fixture-pack-a\" }"
@@ -314,7 +323,8 @@ defmodule GgenIgniterFortune5ReadyTaskTest do
         assert Enum.at(after_lines, already_installed_idx + 2) ==
                  "fixture-pack-b = { path = \"vendor/fixture-pack-b\" }"
 
-        assert Enum.at(after_lines, already_installed_idx + 3) =~ "gh-terraform-pack: investigated"
+        assert Enum.at(after_lines, already_installed_idx + 3) =~
+                 "gh-terraform-pack: investigated"
 
         # Real post-run state re-parsed via the real pipeline.
         assert {:frontmatter, config} = GgenIgniter.SchemaDispatch.load(dir)

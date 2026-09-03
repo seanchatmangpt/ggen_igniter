@@ -23,7 +23,10 @@ defmodule GgenIgniterSyncShelloutTest do
   @pack_dir Path.join(__DIR__, "fixtures/sync_verify/pack")
 
   defp scratch_project_dir(tag) do
-    Path.join(System.tmp_dir!(), "gi04_sync_shellout_#{tag}_#{System.unique_integer([:positive])}")
+    Path.join(
+      System.tmp_dir!(),
+      "gi04_sync_shellout_#{tag}_#{System.unique_integer([:positive])}"
+    )
   end
 
   defp write_project!(dir, ontology_ttl) do
@@ -199,6 +202,7 @@ defmodule GgenIgniterSyncShelloutTest do
                  GgenIgniter.SyncVerify.run(dir, @pack_dir)
 
         assert is_binary(sync_output)
+
         assert gate_results == [
                  {"thing_present", :pass},
                  {"required_field_present", :pass}

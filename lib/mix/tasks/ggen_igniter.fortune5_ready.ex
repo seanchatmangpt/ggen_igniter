@@ -91,7 +91,13 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
   def info(_argv, _composing_task) do
     %Igniter.Mix.Task.Info{
       group: :ggen_igniter,
-      schema: [path: :string, pack_dir: :string, bundle: :string, bundle_path: :string, yes: :boolean],
+      schema: [
+        path: :string,
+        pack_dir: :string,
+        bundle: :string,
+        bundle_path: :string,
+        yes: :boolean
+      ],
       aliases: [y: :yes]
     }
   end
@@ -201,7 +207,11 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
   # so a bundle pack already present under a different path is still
   # correctly treated as already-installed, and idempotent re-merge is a
   # true no-op.
-  defp merge_into(:declarative_rules, %ProjectConfig{packs: existing_packs} = config, bundle_packs)
+  defp merge_into(
+         :declarative_rules,
+         %ProjectConfig{packs: existing_packs} = config,
+         bundle_packs
+       )
        when is_list(existing_packs) do
     existing_names = existing_packs |> Enum.map(& &1.name) |> MapSet.new()
     to_add = Enum.reject(bundle_packs, &MapSet.member?(existing_names, &1.name))
@@ -306,7 +316,10 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
         )
 
       {:error, reason} ->
-        Igniter.add_issue(igniter, "mix ggen_igniter.fortune5_ready: FAILED -- #{inspect(reason)}")
+        Igniter.add_issue(
+          igniter,
+          "mix ggen_igniter.fortune5_ready: FAILED -- #{inspect(reason)}"
+        )
     end
   end
 

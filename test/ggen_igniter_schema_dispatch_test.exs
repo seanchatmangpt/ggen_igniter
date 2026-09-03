@@ -53,7 +53,9 @@ defmodule GgenIgniterSchemaDispatchTest do
     end
 
     test "GgenIgniter.SchemaDispatch.load/1 reads the same fixture from an explicit project_dir argument" do
-      tmp = Path.join(System.tmp_dir!(), "schema_dispatch_load_#{System.unique_integer([:positive])}")
+      tmp =
+        Path.join(System.tmp_dir!(), "schema_dispatch_load_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(tmp)
       File.write!(Path.join(tmp, "ggen.toml"), read_fixture!("beam4pm_ggen.toml"))
       on_exit(fn -> File.rm_rf!(tmp) end)
@@ -163,7 +165,12 @@ defmodule GgenIgniterSchemaDispatchTest do
     end
 
     test "load/1 falls through to a typed refusal for a missing ggen.toml" do
-      tmp = Path.join(System.tmp_dir!(), "schema_dispatch_missing_#{System.unique_integer([:positive])}")
+      tmp =
+        Path.join(
+          System.tmp_dir!(),
+          "schema_dispatch_missing_#{System.unique_integer([:positive])}"
+        )
+
       File.mkdir_p!(tmp)
       on_exit(fn -> File.rm_rf!(tmp) end)
 
