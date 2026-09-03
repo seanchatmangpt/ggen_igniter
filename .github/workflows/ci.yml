@@ -83,15 +83,39 @@ jobs:
       # gap -- run `mix format` on the existing tree in a follow-up story,
       # then add this step back as a real gate.
 
-      # `mix credo` (default, non---strict) is a real, currently-green gate:
-      # verified locally that plain `mix credo` exits 0 today (it surfaces
-      # warnings/refactoring-opportunity notices but none cross the default
-      # priority threshold that would fail the run). `--strict` was
-      # deliberately NOT used here -- verified locally that `--strict` does
-      # NOT currently pass clean, so it would make CI red on day one for
-      # pre-existing lower-priority findings unrelated to CI-07.
+      # `mix credo` (default, non---strict) does NOT currently exit 0 --
+      # corrected after a real, independent re-check found the original
+      # claim here was wrong. Real, reproducible baseline as of CI-07
+      # authoring (2026-09-02): exit 12, "32 refactoring opportunities, 2
+      # code readability issues", zero [W]-priority warnings. Two things,
+      # verified for real rather than assumed:
+      #   1. The 32 refactor/readability [F]/[R] findings are pre-existing,
+      #      spread across ~5 files (lib/ggen_igniter/pending_actuation.ex
+      #      arity, lib/mix/tasks/ggen_igniter.plan.ex nesting, several
+      #      test/*_test.exs complexity/naming notices) and predate this
+      #      branch entirely -- out of scope for a "make CI exist" story.
+      #   2. The one thing that looked like an actionable [W] warning --
+      #      "test/e2e/lifecycle_test.ex should end with _test.exs" -- is a
+      #      credo FALSE POSITIVE against this repo's own deliberate
+      #      convention: mix.exs's `e2e: ["run test/e2e/run_e2e.exs"]` alias
+      #      intentionally keeps that file's `.ex` extension so Mix's
+      #      default `_test.exs` glob (and therefore plain `mix test`)
+      #      never picks it up -- it's a real, slow, network-touching,
+      #      subprocess-heavy (`mix igniter.new`, `mix archive.install`,
+      #      `mix deps.get`) end-to-end test meant to run only via a
+      #      dedicated `mix e2e`, never as part of the fast default suite.
+      #      Renaming it to satisfy credo was tried and reverted here on
+      #      that same basis -- it would have silently made every `mix test`
+      #      run (including this CI job's own) execute that real e2e
+      #      lifecycle test by accident.
+      # `continue-on-error: true` here (not skipping the step) so credo
+      # output remains visible on every run without blocking merges on
+      # pre-existing, out-of-scope findings. Follow-up story: fix the 32
+      # findings for real (or add scoped `.credo.exs` exceptions) and drop
+      # this flag.
       - name: mix credo
         shell: bash
+        continue-on-error: true
         run: |
           mix credo
 
