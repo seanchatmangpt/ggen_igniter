@@ -12,6 +12,16 @@ defmodule GgenIgniter.FrontmatterConfig do
   (`rules`/`shapes`/`gates`/`reflexive`), defaulting to the Rust side's own
   `#[derive(Default)]` shape when the table is absent.
 
+  `templates.aggregate_modules` mirrors Rust's `Templates.aggregate_modules`
+  (`config.rs:190-199`, `#[serde(default)]`, `false`): when `true`, sync
+  emits one engine-owned `src/ggen_pack_mods.rs` aggregator mounting every
+  generated `src/*.rs` output, instead of one hand-written mount per pack.
+  Real GI-PARITY-1 fix (closes a drift the 2026-09-02 fresh parity
+  validation found: this field had zero representation here, latent
+  because the fortune5_ready write path never emits it, but a real gap
+  against the directive "ggen_igniter should be changed to align" with
+  ggen core).
+
   Which schema a given `ggen.toml` uses is decided by
   `GgenIgniter.SchemaDispatch`, never re-derived here or at any other call
   site -- see that module's moduledoc. The sibling `DeclarativeRules` struct
@@ -29,7 +39,7 @@ defmodule GgenIgniter.FrontmatterConfig do
   @type t :: %__MODULE__{
           project: %{name: String.t()},
           ontology: %{source: String.t(), prefixes: %{optional(String.t()) => String.t()}},
-          templates: %{dir: String.t()},
+          templates: %{dir: String.t(), aggregate_modules: boolean()},
           packs: %{optional(String.t()) => GgenIgniter.FrontmatterPackRef.t()},
           law: %{
             rules: [String.t()],
@@ -44,22 +54,42 @@ defmodule GgenIgniter.FrontmatterPackRef do
   @moduledoc """
   Mirrors Rust `ggen_engine::config::PackRef`
   (`~/ggen/crates/ggen-engine/src/config.rs`) -- the untagged
-  `Path { path, extra_ontologies, lock } | Git { git, version }` enum used by
-  `GgenIgniter.FrontmatterConfig`'s `[packs]` table-of-tables entries.
+  `Path { path, extra_ontologies, lock } | Git { git, version, subdir }`
+  enum used by `GgenIgniter.FrontmatterConfig`'s `[packs]` table-of-tables
+  entries.
 
   Elixir has no untagged-union deserialization primitive, the same
   constraint `GgenIgniter.ProjectConfig.QuerySource`/`TemplateSource`
   document and solve via tagged tuples -- this module follows the same
   precedent: a discriminated tagged tuple,
   `{:path, %{path: ..., extra_ontologies: ..., lock: ...}}` |
-  `{:git, %{git: ..., version: ...}}`, rather than a struct, since which
-  variant applies is decided per-entry by which keys are present (`path` vs
-  `git`), not by any explicit tag in the TOML itself.
+  `{:git, %{git: ..., version: ..., subdir: ...}}`, rather than a struct,
+  since which variant applies is decided per-entry by which keys are
+  present (`path` vs `git`), not by any explicit tag in the TOML itself.
+
+  Two real GI-PARITY fixes (closing drift the 2026-09-02 fresh parity
+  validation found -- the shared classify/dispatch logic was an exact
+  line-verified match, but this struct had silently drifted):
+
+  * `Path.lock` -- Rust defaults to `true` when the key is omitted
+    (`config.rs:154-155`, `#[serde(default = "default_true")]`, preserving
+    existing pin-and-check behavior). This module previously typed it as
+    `String.t() | nil` and left an omitted key as bare `nil` -- a real
+    behavioral divergence, not just a wrong typespec: an entry with no
+    `lock` key would round-trip as "not locked" here vs "locked" in Rust.
+    `lock` is `boolean()`; `build_frontmatter_pack_ref/1` now defaults an
+    absent key to `true`.
+  * `Git.subdir` -- Rust gained `subdir: Option<PathBuf>` (`config.rs:163-174`)
+    for exactly the monorepo `packs/<name>/` layout this GM-PARITY effort's
+    own `fortune5-deployment-blocks-pack` lives under (both ggen's and
+    ggen-marketplace's copies). This module previously had no `subdir` key
+    at all, so a `{ git = "...", version = "...", subdir = "..." }` entry
+    would silently lose the `subdir` value passing through this struct.
   """
 
   @type t ::
-          {:path, %{path: String.t(), extra_ontologies: [String.t()], lock: String.t() | nil}}
-          | {:git, %{git: String.t(), version: String.t() | nil}}
+          {:path, %{path: String.t(), extra_ontologies: [String.t()], lock: boolean()}}
+          | {:git, %{git: String.t(), version: String.t() | nil, subdir: String.t() | nil}}
 end
 
 defmodule GgenIgniter.SchemaDispatch do
@@ -444,7 +474,10 @@ defmodule GgenIgniter.SchemaDispatch do
         source: Map.get(ontology, "source"),
         prefixes: Map.get(ontology, "prefixes", %{})
       },
-      templates: %{dir: Map.get(templates, "dir")},
+      templates: %{
+        dir: Map.get(templates, "dir"),
+        aggregate_modules: Map.get(templates, "aggregate_modules", false)
+      },
       packs: Map.new(packs, fn {name, entry} -> {name, build_frontmatter_pack_ref(entry)} end),
       law: %{
         rules: Map.get(law, "rules", []),
@@ -462,14 +495,21 @@ defmodule GgenIgniter.SchemaDispatch do
          %{
            path: Map.get(entry, "path"),
            extra_ontologies: Map.get(entry, "extra_ontologies", []),
-           lock: Map.get(entry, "lock")
+           # Rust default: `#[serde(default = "default_true")]` (config.rs:154-155).
+           # An omitted key means "locked", not "unset" -- mirror that exactly.
+           lock: Map.get(entry, "lock", true)
          }}
 
       Map.has_key?(entry, "git") ->
-        {:git, %{git: Map.get(entry, "git"), version: Map.get(entry, "version")}}
+        {:git,
+         %{
+           git: Map.get(entry, "git"),
+           version: Map.get(entry, "version"),
+           subdir: Map.get(entry, "subdir")
+         }}
 
       true ->
-        {:path, %{path: nil, extra_ontologies: [], lock: nil}}
+        {:path, %{path: nil, extra_ontologies: [], lock: true}}
     end
   end
 end

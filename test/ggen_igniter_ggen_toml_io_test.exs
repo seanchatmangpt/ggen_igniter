@@ -26,12 +26,18 @@ defmodule GgenIgniter.GgenTomlIOTest do
       assert map_size(result.packs) == 5
       assert %{"beam4pm-process-model" => process_model_ref} = result.packs
 
+      # lock: true is the correct default (mirrors Rust's
+      # `#[serde(default = "default_true")]` on PackRef::Path.lock,
+      # config.rs:154-155) for an entry that omits the `lock` key -- fixed
+      # here as part of GI-PARITY-1 after the 2026-09-02 fresh parity
+      # validation found this test was asserting the previously-wrong nil
+      # default.
       assert process_model_ref ==
                {:path,
                 %{
                   path: "vendor/ggen-marketplace/packs/beam4pm-process-model-pack",
                   extra_ontologies: [],
-                  lock: nil
+                  lock: true
                 }}
 
       assert {:path, %{path: "vendor/ggen-marketplace/packs/beam4pm-pro-infra-pack"}} =

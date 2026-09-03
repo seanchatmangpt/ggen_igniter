@@ -120,7 +120,7 @@ defmodule GgenIgniterBundleTest do
               Map.put(
                 acc,
                 pack.name,
-                {:path, %{path: pack.path_hint, extra_ontologies: [], lock: nil}}
+                {:path, %{path: pack.path_hint, extra_ontologies: [], lock: true}}
               )
             end)
       }
@@ -146,12 +146,15 @@ defmodule GgenIgniterBundleTest do
 
       # Sanity: the fixture really does have a path collision with the
       # fortune5-architecture bundle pack's path_hint, under a different name.
+      # lock: true is the correct Rust-aligned default (GI-PARITY-1); see
+      # ggen_igniter_ggen_toml_io_test.exs's matching fix for the full
+      # rationale.
       assert config.packs["my-renamed-architecture-fork"] ==
                {:path,
                 %{
                   path: "vendor/ggen-marketplace/packs/fortune5-architecture-pack",
                   extra_ontologies: [],
-                  lock: nil
+                  lock: true
                 }}
 
       refute Map.has_key?(config.packs, "fortune5-architecture")
