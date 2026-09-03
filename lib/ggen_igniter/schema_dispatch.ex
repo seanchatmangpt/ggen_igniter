@@ -18,7 +18,13 @@ defmodule GgenIgniter.FrontmatterConfig do
   family is `GgenIgniter.ProjectConfig`/`GgenIgniter.PackRef`.
   """
 
-  defstruct [:project, :ontology, :templates, packs: %{}, law: %{rules: [], shapes: [], gates: [], reflexive: false}]
+  defstruct [
+    :project,
+    :ontology,
+    :templates,
+    packs: %{},
+    law: %{rules: [], shapes: [], gates: [], reflexive: false}
+  ]
 
   @type t :: %__MODULE__{
           project: %{name: String.t()},
@@ -119,9 +125,12 @@ defmodule GgenIgniter.SchemaDispatch do
     ggen_toml_path = Path.join(project_dir, "ggen.toml")
 
     case File.read(ggen_toml_path) do
-      {:ok, raw} -> load_raw(raw)
+      {:ok, raw} ->
+        load_raw(raw)
+
       {:error, reason} ->
-        {:refused, {:malformed, diagnostic: "could not read #{ggen_toml_path}: #{inspect(reason)}"}}
+        {:refused,
+         {:malformed, diagnostic: "could not read #{ggen_toml_path}: #{inspect(reason)}"}}
     end
   end
 
@@ -275,7 +284,9 @@ defmodule GgenIgniter.SchemaDispatch do
 
       not declarative_empty? and frontmatter_empty? ->
         if satisfies_frontmatter_minimum?(table) do
-          matched = Enum.sort(MapSet.to_list(declarative) ++ ["frontmatter:satisfies_minimum_shape"])
+          matched =
+            Enum.sort(MapSet.to_list(declarative) ++ ["frontmatter:satisfies_minimum_shape"])
+
           {:ambiguous, matched}
         else
           {:unsupported, observed_top_level_tables(table)}

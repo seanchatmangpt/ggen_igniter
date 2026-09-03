@@ -304,7 +304,12 @@ defmodule GgenIgniter.GgenToml.IO do
     ]
 
     lines = if rule.skip_empty, do: lines ++ ["skip_empty = true"], else: lines
-    lines = if rule.mode != :create, do: lines ++ ["mode = #{toml_string(mode_to_string(rule.mode))}"], else: lines
+
+    lines =
+      if rule.mode != :create,
+        do: lines ++ ["mode = #{toml_string(mode_to_string(rule.mode))}"],
+        else: lines
+
     lines = if rule.when, do: lines ++ ["when = #{toml_string(rule.when)}"], else: lines
 
     Enum.join(lines, "\n")
@@ -314,11 +319,14 @@ defmodule GgenIgniter.GgenToml.IO do
   defp mode_to_string(:overwrite), do: "Overwrite"
   defp mode_to_string(:merge), do: "Merge"
 
-  defp source_inline_table({:inline, %{inline: text}}), do: "{ inline = #{toml_multiline_string(text)} }"
+  defp source_inline_table({:inline, %{inline: text}}),
+    do: "{ inline = #{toml_multiline_string(text)} }"
+
   defp source_inline_table({:file, %{file: file}}), do: "{ file = #{toml_string(file)} }"
 
   defp source_inline_table({:pack, %{pack: pack, output: output, file: file}}),
-    do: "{ pack = #{toml_string(pack)}, output = #{toml_string(output)}, file = #{toml_string(file)} }"
+    do:
+      "{ pack = #{toml_string(pack)}, output = #{toml_string(output)}, file = #{toml_string(file)} }"
 
   defp source_inline_table({:git, %{git: git, branch: branch, path: path}}) do
     branch_part = if branch, do: ", branch = #{toml_string(branch)}", else: ""

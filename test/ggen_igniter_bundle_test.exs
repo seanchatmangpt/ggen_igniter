@@ -117,7 +117,11 @@ defmodule GgenIgniterBundleTest do
         config
         | packs:
             Enum.reduce(first_run, config.packs, fn pack, acc ->
-              Map.put(acc, pack.name, {:path, %{path: pack.path_hint, extra_ontologies: [], lock: nil}})
+              Map.put(
+                acc,
+                pack.name,
+                {:path, %{path: pack.path_hint, extra_ontologies: [], lock: nil}}
+              )
             end)
       }
 
@@ -167,6 +171,7 @@ defmodule GgenIgniterBundleTest do
       bundle_packs = GgenIgniter.Bundle.load_packs!()
 
       to_add = GgenIgniter.Bundle.merge(config, bundle_packs)
+
       assert Enum.map(to_add, & &1.name) |> Enum.sort() ==
                ["fortune5-architecture", "fortune5-deployment-blocks"]
 
@@ -179,12 +184,13 @@ defmodule GgenIgniterBundleTest do
       # output, in the same relative order (a real subsequence check, not
       # just a length/count assertion) -- and the only lines the spliced
       # output has beyond the original are the 2 new pack-entry lines.
-      assert is_subsequence?(original_lines, spliced_lines)
+      assert subsequence?(original_lines, spliced_lines)
       assert length(spliced_lines) == length(original_lines) + 2
 
       # The new pack-entry lines are present, verbatim, in the expected
       # inline-table shape.
       assert "fortune5-architecture = { path = \"vendor/ggen-marketplace/packs/fortune5-architecture-pack\" }" in spliced_lines
+
       assert "fortune5-deployment-blocks = { path = \"vendor/ggen-marketplace/packs/fortune5-deployment-blocks-pack\" }" in spliced_lines
 
       # The gh-terraform-pack decline comment block survives byte-for-byte,
@@ -217,7 +223,11 @@ defmodule GgenIgniterBundleTest do
       # entry, before the comment block -- not appended at EOF or dropped
       # into the middle of the existing entries.
       last_existing_idx =
-        Enum.find_index(spliced_lines, &(&1 == "beam4pm-pro-entitlement = { path = \"vendor/ggen-marketplace/packs/beam4pm-pro-entitlement-pack\" }"))
+        Enum.find_index(
+          spliced_lines,
+          &(&1 ==
+              "beam4pm-pro-entitlement = { path = \"vendor/ggen-marketplace/packs/beam4pm-pro-entitlement-pack\" }")
+        )
 
       assert Enum.at(spliced_lines, last_existing_idx + 1) ==
                "fortune5-architecture = { path = \"vendor/ggen-marketplace/packs/fortune5-architecture-pack\" }"
@@ -230,6 +240,7 @@ defmodule GgenIgniterBundleTest do
       # The spliced text still parses cleanly through the real classifier,
       # and the resulting config's pack set is the full expected 7.
       {:frontmatter, reparsed} = GgenIgniter.SchemaDispatch.load_raw(spliced)
+
       assert Map.keys(reparsed.packs) |> Enum.sort() ==
                Enum.sort([
                  "beam4pm-process-model",
@@ -259,11 +270,12 @@ defmodule GgenIgniterBundleTest do
     end
   end
 
-  defp is_subsequence?([], _list), do: true
-  defp is_subsequence?([h | t], list) do
+  defp subsequence?([], _list), do: true
+
+  defp subsequence?([h | t], list) do
     case Enum.find_index(list, &(&1 == h)) do
       nil -> false
-      idx -> is_subsequence?(t, Enum.drop(list, idx + 1))
+      idx -> subsequence?(t, Enum.drop(list, idx + 1))
     end
   end
 

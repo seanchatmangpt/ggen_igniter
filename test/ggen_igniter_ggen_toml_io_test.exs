@@ -49,7 +49,9 @@ defmodule GgenIgniter.GgenTomlIOTest do
 
     test "raises GgenIgniter.GgenToml.IO.Error when the file cannot be read" do
       assert_raise GgenTomlIO.Error, ~r/ggen.toml refused/, fn ->
-        GgenTomlIO.parse!(System.tmp_dir!() <> "/does-not-exist-#{System.unique_integer([:positive])}")
+        GgenTomlIO.parse!(
+          System.tmp_dir!() <> "/does-not-exist-#{System.unique_integer([:positive])}"
+        )
       end
     end
   end

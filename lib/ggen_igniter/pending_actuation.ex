@@ -299,6 +299,16 @@ defmodule GgenIgniter.PendingActuation do
   without re-deriving them. Callers that also need `at_line:`'s numeric
   line argument should put it under `semantic_source[:insert_opts]`
   (`Actuate.inject_content!/5`'s own `opts` keyword list) before calling.
+
+  `marker`/`insert_mode` are passed together as one `{marker, insert_mode}`
+  tuple (credo `Refactor.FunctionArity`: this constructor's real arity was
+  9, one over the configured max of 8; the two args are already merged as
+  one unit into `semantic_source` in this function's own body, so bundling
+  them at the call boundary too is a real shape match, not an arbitrary
+  options-map wrapper). The one real call site
+  (`GgenIgniter.Reactors.ReconcileReactor.render_inject_target/8`) is
+  updated accordingly -- confirmed via `grep -rn "for_inject("` that no
+  other caller exists.
   """
   @spec for_inject(
           String.t(),
@@ -308,8 +318,7 @@ defmodule GgenIgniter.PendingActuation do
           String.t(),
           Manifest.entry() | nil,
           map(),
-          String.t() | Regex.t() | nil,
-          :before | :after | :at_line
+          {String.t() | Regex.t() | nil, :before | :after | :at_line}
         ) :: t()
   def for_inject(
         base_dir,
@@ -319,8 +328,7 @@ defmodule GgenIgniter.PendingActuation do
         out_template,
         old_entry,
         semantic_source,
-        marker,
-        insert_mode
+        {marker, insert_mode}
       )
       when is_binary(base_dir) and is_binary(target) and is_binary(desired_content) and
              insert_mode in [:before, :after, :at_line] do

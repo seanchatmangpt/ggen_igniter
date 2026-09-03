@@ -244,7 +244,7 @@ defmodule GgenIgniter.ArtifactIdentityPropertiesTest do
             Path.join(dir_seg, "#{String.upcase(leaf_seg)}.ex"),
             Path.join(String.upcase(dir_seg), "#{String.upcase(leaf_seg)}.ex"),
             Path.join(
-              dir_seg |> String.graphemes() |> Enum.map(&String.upcase/1) |> Enum.join(),
+              dir_seg |> String.graphemes() |> Enum.map_join(&String.upcase/1),
               "#{leaf_seg}.ex"
             )
           ]
