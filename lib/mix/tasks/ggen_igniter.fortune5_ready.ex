@@ -29,11 +29,31 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
      `GgenIgniter.PackRef.name`, the array-of-tables analogue), so dispatch
      genuinely branches on ticket 01's classifier rather than assuming the
      Frontmatter default.
-  4. **`serialize_step/1`** -- `GgenIgniter.GgenToml.IO.serialize!/1` (ticket
-     02) back to TOML text, written to `<path>/ggen.toml` for real. This
-     happens *before* the sync shellout because `ggen sync run` reads
-     `ggen.toml` off disk -- the newly-merged `[packs]` entries must already
-     be there for the real subprocess to see them.
+  4. **`serialize_step/1`** -- writes the merged config back to
+     `<path>/ggen.toml` for real. This happens *before* the sync shellout
+     because `ggen sync run` reads `ggen.toml` off disk -- the newly-merged
+     `[packs]` entries must already be there for the real subprocess to see
+     them.
+
+     GI-08 fix (the disclosed follow-on from GI-07's `splice_added_packs!/2`
+     landing without a live call site): for the `:frontmatter` schema, this
+     step now uses `GgenIgniter.GgenToml.IO.splice_added_packs!/2` -- the
+     addition-only textual splice over the *real original raw ggen.toml
+     text* (captured by `dispatch_probe/1` at the same read that classifies
+     the file, before any parse/merge/re-render touches it) -- rather than
+     `GgenToml.IO.serialize!/1`'s lossy full re-render. Comments (beam4pm's
+     real `# gh-terraform-pack: investigated ...` decline block) and the
+     original `[packs]` entry order survive byte-for-byte; only the
+     newly-merged pack entries (`fortune5_ready_added_pack_structs`, the
+     actual `GgenIgniter.Bundle.Pack.t()` list `merge_into/3` computed --
+     never re-derived by diffing) are appended. When the raw text has no
+     `[packs]` header to splice into at all (a valid but rare Frontmatter
+     shape), this falls back to `serialize!/1`, per that function's own
+     documented fallback guidance. The `:declarative_rules` schema still
+     goes through `serialize!/1` unconditionally -- `splice_added_packs!/2`
+     only understands the Frontmatter schema's single-line `key = { ... }`
+     `[packs]` table-of-tables shape and has no anchor for the
+     `[[packs]]` array-of-tables format DeclarativeRules uses.
   5. **`sync_step/1`** -- `GgenIgniter.SyncVerify.run/3` (ticket 04) when
      `--pack-dir` is given (real `ggen sync run` shellout, then real
      per-gate SPARQL verification); falls back to
@@ -93,10 +113,11 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
     bundle_path = igniter.args.options[:bundle_path] || Bundle.default_manifest_path()
 
     case dispatch_probe(path) do
-      {:ok, classification} ->
+      {:ok, raw, classification} ->
         igniter
         |> Igniter.assign(:fortune5_ready_project_dir, path)
         |> Igniter.assign(:fortune5_ready_pack_dir, pack_dir)
+        |> Igniter.assign(:fortune5_ready_raw_ggen_toml, raw)
         |> parse_step(classification)
         |> merge_bundle_step(bundle_name, bundle_path)
         |> serialize_step()
@@ -109,14 +130,27 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
   end
 
   # Runs ticket 01's shared classifier exactly once against the target
-  # project's real ggen.toml -- no local schema-guessing. `{:ok,
-  # classification}` on a real `:declarative_rules`/`:frontmatter` result;
-  # `{:error, reason}` on a `:refused` classification (missing/unreadable
-  # file, malformed TOML, ambiguous, or unsupported).
+  # project's real ggen.toml -- no local schema-guessing. `{:ok, raw,
+  # classification}` on a real `:declarative_rules`/`:frontmatter` result,
+  # `raw` being the real original file text read here (the same single read
+  # `SchemaDispatch.load/1` would otherwise do internally -- `load_raw/1` is
+  # reused, never re-derived, so this is exposing the existing read to the
+  # caller, not duplicating classification logic). `{:error, reason}` on a
+  # `:refused` classification (missing/unreadable file, malformed TOML,
+  # ambiguous, or unsupported). The GI-08 `serialize_step/1` fix needs this
+  # raw text to splice into -- see that step's own comment.
   defp dispatch_probe(path) do
-    case SchemaDispatch.load(path) do
-      {:refused, reason} -> {:error, reason}
-      classification -> {:ok, classification}
+    ggen_toml_path = Path.join(path, "ggen.toml")
+
+    case File.read(ggen_toml_path) do
+      {:ok, raw} ->
+        case SchemaDispatch.load_raw(raw) do
+          {:refused, reason} -> {:error, reason}
+          classification -> {:ok, raw, classification}
+        end
+
+      {:error, reason} ->
+        {:error, {:malformed, diagnostic: "could not read #{ggen_toml_path}: #{inspect(reason)}"}}
     end
   end
 
@@ -137,15 +171,19 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
     config = igniter.assigns[:fortune5_ready_config]
     schema = igniter.assigns[:fortune5_ready_schema]
 
-    {new_config, added_pack_names} = merge_into(schema, config, bundle_packs)
+    {new_config, to_add} = merge_into(schema, config, bundle_packs)
 
     igniter
     |> Igniter.assign(:fortune5_ready_config, new_config)
-    |> Igniter.assign(:fortune5_ready_added_packs, added_pack_names)
+    |> Igniter.assign(:fortune5_ready_added_packs, Enum.map(to_add, & &1.name))
+    |> Igniter.assign(:fortune5_ready_added_pack_structs, to_add)
   end
 
   # Frontmatter schema: dedup + entry-shape delegated entirely to ticket
-  # 03's real `GgenIgniter.Bundle.merge/2` -- no re-derivation here.
+  # 03's real `GgenIgniter.Bundle.merge/2` -- no re-derivation here. Returns
+  # the real `GgenIgniter.Bundle.Pack.t()` list that was added (not just
+  # names) -- `serialize_step/1`'s GI-08 splice path needs the actual
+  # structs (`name` + `path_hint`), not a re-derivation from names alone.
   defp merge_into(:frontmatter, %FrontmatterConfig{} = config, bundle_packs) do
     to_add = Bundle.merge(config, bundle_packs)
 
@@ -154,7 +192,7 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
         Map.put(acc, name, {:path, %{path: path_hint, extra_ontologies: [], lock: nil}})
       end)
 
-    {%{config | packs: new_packs}, Enum.map(to_add, & &1.name)}
+    {%{config | packs: new_packs}, to_add}
   end
 
   # DeclarativeRules schema: this ticket's own glue (ticket 03 scoped only
@@ -173,15 +211,47 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
         %PackRef{name: name, registry: "local", path: path_hint, version: nil}
       end)
 
-    {%{config | packs: existing_packs ++ new_pack_refs}, Enum.map(to_add, & &1.name)}
+    {%{config | packs: existing_packs ++ new_pack_refs}, to_add}
   end
 
   defp serialize_step(igniter) do
     project_dir = igniter.assigns[:fortune5_ready_project_dir]
-    config = igniter.assigns[:fortune5_ready_config]
-    content = GgenToml.IO.serialize!(config)
+    schema = igniter.assigns[:fortune5_ready_schema]
+    content = serialize_content(schema, igniter)
     File.write!(Path.join(project_dir, "ggen.toml"), content)
     igniter
+  end
+
+  # GI-08 fix: Frontmatter schema goes through the addition-only textual
+  # splice (`GgenToml.IO.splice_added_packs!/2`, GI-07) over the real
+  # original raw text `dispatch_probe/1` captured, rather than
+  # `serialize!/1`'s lossy full re-render -- see this module's own moduledoc
+  # pipeline-step-4 note for the full rationale. Falls back to `serialize!/1`
+  # when the raw text has no `[packs]` header at all to splice into (a
+  # valid but rare shape -- `splice_added_packs!/2`'s own moduledoc names
+  # this exact fallback as the correct caller behavior for that case).
+  defp serialize_content(:frontmatter, igniter) do
+    raw = igniter.assigns[:fortune5_ready_raw_ggen_toml]
+    to_add = igniter.assigns[:fortune5_ready_added_pack_structs] || []
+
+    if String.contains?(raw, "[packs]") do
+      GgenToml.IO.splice_added_packs!(raw, to_add)
+    else
+      GgenToml.IO.serialize!(igniter.assigns[:fortune5_ready_config])
+    end
+  end
+
+  # DeclarativeRules schema: `splice_added_packs!/2` only understands the
+  # Frontmatter schema's single-line `key = { ... }` `[packs]`
+  # table-of-tables shape -- it has no anchor for the `[[packs]]`
+  # array-of-tables format this schema uses, so this path still goes
+  # through the full `serialize!/1` re-render, same as before this ticket.
+  # Disclosed limitation, not a silent gap: a DeclarativeRules `ggen.toml`
+  # still loses comments/exact formatting on a fortune5_ready run. No real
+  # DeclarativeRules consumer has a comment-preservation requirement
+  # analogous to beam4pm's gh-terraform-pack block today.
+  defp serialize_content(:declarative_rules, igniter) do
+    GgenToml.IO.serialize!(igniter.assigns[:fortune5_ready_config])
   end
 
   defp sync_step(igniter) do
