@@ -48,6 +48,62 @@ defmodule GgenIgniter.Telemetry.OcelEmitter do
   testable: a test starts a real sink, runs real code that emits into it,
   and asserts on the real list `drain_sink/1` returns -- no interaction-based
   mock of "was emit called" is needed anywhere.
+
+  ## Relationship to autofde-lab's `ocp:` OCEL vocabulary (DECIDED, 2026-09-04)
+
+  `~/autofde-lab/ontology/ocel-production.ttl` defines a real, separate
+  `ocp:EventType` vocabulary (`ocp:RequirementDiscovered`,
+  `ocp:OntologyChanged`, `ocp:SparqlChanged`, `ocp:TypeManufactured`,
+  `ocp:ArtifactGenerated`, `ocp:TestFailed`, `ocp:RootCauseAnalyzed`,
+  `ocp:RepairApplied`, `ocp:PullRequestOpened`, `ocp:PullRequestReviewed`,
+  `ocp:CIRan`, `ocp:Merged`, `ocp:Released`, `ocp:ConsumerValidated`,
+  `ocp:InvariantIntroduced`, `ocp:InvariantViolated`) scoped to a
+  multi-repo manufacturing history: requirement discovery through ontology
+  change, code generation, test/repair cycles, PR review, CI, merge, and
+  release, spanning many consumer repos over the life of a capability.
+
+  This module's own stage constants (`ACTUATION_STARTED`, `FILES_CHANGED`,
+  `VERIFICATION_FAILED`, `VERIFICATION_SUCCEEDED`, `COMPENSATION_STARTED`,
+  `FILES_RESTORED`, `ADMITTED`, `STANDING_SET`) are a real but *narrower*
+  vocabulary, scoped to one single reconciliation attempt's transactional
+  lifecycle inside `GgenIgniter.Reactors.ReconcileReactor` (27 real call
+  sites there): write files, verify, admit-or-compensate, record standing --
+  seconds, not the days-to-months span an `ocp:` release lifecycle covers.
+
+  A real, exhaustive cross-check of all 8 of this module's stages against
+  all 16 `ocp:EventType` individuals found exactly **1 real match**:
+  `VERIFICATION_FAILED` ~ `ocp:TestFailed` (both mark a verification step
+  that did not pass). The other 7 stages have **no `ocp:` counterpart**,
+  because they name concepts `ocp:` has no object type for at all:
+
+    * `ACTUATION_STARTED` / `FILES_CHANGED` -- `ocp:` has no "file write in
+      progress" event; its nearest object types (`ocp:GeneratedArtifact`,
+      `ocp:Commit`) are recorded as already-produced, not as write-in-flight.
+    * `COMPENSATION_STARTED` / `FILES_RESTORED` -- rollback/undo of a
+      transactional write attempt has no `ocp:` analogue; `ocp:`'s
+      `ocp:failureLifecycle` runs `TestFailed -> RepairApplied` (repair
+      forward), never restore-to-prior-state.
+    * `ADMITTED` / `STANDING_SET` -- this repo's own admission/standing
+      vocabulary (`.claude/rules/standing-law.md` in `autofde-lab`) has no
+      `ocp:EventType` counterpart; `ocp:` records `ocp:ConsumerValidated`,
+      a different, later-stage, cross-repo consumer-acceptance concept.
+
+  **Decision: cross-reference only -- do NOT unify.** This module keeps
+  emitting its own ad hoc string constants unchanged. Unifying onto `ocp:`
+  would either (a) force 7 of 8 real stages into an `ocp:EventType` that
+  does not actually mean what they mean, silently widening this module's
+  single-attempt scope into `ocp:`'s multi-repo manufacturing-history scope
+  it was never designed to carry, or (b) require `ocel-production.ttl` to
+  grow 7 new `EventType` individuals for a lifecycle that isn't the one it
+  models, diluting a vocabulary that is otherwise a clean multi-repo
+  manufacturing ontology. Both are worse than the 1-line real overlap this
+  cross-reference documents. If a future caller needs to correlate one
+  reconciliation attempt's events with `ocp:`'s manufacturing history (e.g.
+  to relate a `VERIFICATION_FAILED` event to an `ocp:TestFailed` object in a
+  wider OCEL graph), that correlation belongs in the caller that has both
+  contexts in view, keyed by explicit shared object identity per
+  `autofde-lab`'s `.claude/rules/no-dual-bookkeeping.md` (never inferred
+  from label similarity) -- not by renaming this module's own vocabulary.
   """
 
   @telemetry_event [:ggen_igniter, :reconcile, :ocel]
