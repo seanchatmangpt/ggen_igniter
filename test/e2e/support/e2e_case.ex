@@ -18,7 +18,7 @@ defmodule GgenIgniter.E2e.Case do
     end
   end
 
-  @ggen_igniter_path "/Users/sac/ggen_igniter"
+  @ggen_igniter_path Path.expand("../../..", __DIR__)
 
   # Real, verified default (2026-08-27) -- see cmd!/3's moduledoc below for
   # the full root-cause investigation this hardens against.

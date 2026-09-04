@@ -45,7 +45,7 @@ defmodule GgenIgniter.DoctorFixE2eTest do
   # ggen_igniter itself -- genuinely slower than the rest of the suite.
   @moduletag timeout: 300_000
 
-  @ggen_igniter_path "/Users/sac/ggen_igniter"
+  @ggen_igniter_path Path.expand("..", __DIR__)
 
   defp cmd!(command, args, opts) do
     case System.cmd(command, args, Keyword.merge([stderr_to_stdout: true], opts)) do
