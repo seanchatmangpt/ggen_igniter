@@ -1,5 +1,71 @@
 # Changelog
 
+## Unreleased (post-v26.9.3, four real merged fixes, no version bump)
+
+Four small, real fixes merged to `main` after the v26.9.3 tag below, none
+changing `mix.exs`'s `version:` (still `26.9.3`) since none is a feature or
+behavior change in the sense the prior entries below describe -- each closes
+a real, live-observed defect or documents a real decision:
+
+- **docs(ocel-emitter): decide and record relationship to autofde-lab's
+  `ocp:` vocabulary** (`ceebb2e`, PR #4). Real, previously-open cross-repo
+  question raised in an autofde-lab session 2026-09-04: should
+  `GgenIgniter.Telemetry.OcelEmitter`'s 8 reconciliation-lifecycle stage
+  constants (`ACTUATION_STARTED`/`FILES_CHANGED`/`VERIFICATION_FAILED`/
+  `VERIFICATION_SUCCEEDED`/`COMPENSATION_STARTED`/`FILES_RESTORED`/
+  `ADMITTED`/`STANDING_SET`) unify onto autofde-lab's `ocp:EventType`
+  vocabulary (`ontology/ocel-production.ttl`)? Decided: no. An exhaustive
+  check of all 8 stages against all 16 `ocp:EventType` individuals found
+  exactly 1 match (`VERIFICATION_FAILED` ~ `ocp:TestFailed`) -- the other 7
+  have no `ocp:` counterpart because `ocp:` models a different, wider-scope
+  process (multi-repo manufacturing history: requirement -> ontology change
+  -> generation -> PR -> release, days-to-months) than this module's
+  single-reconciliation-attempt transactional lifecycle (seconds, one
+  Reactor run). Documentation-only; no code change.
+
+- **fix(test): derive repo path from `__DIR__` instead of hardcoding
+  `/Users/sac/ggen_igniter`** (`5ab81d1`, PR #5). Real CI failure,
+  live-confirmed: `test/ggen_igniter_doctor_fix_e2e_test.exs` hardcoded
+  `@ggen_igniter_path "/Users/sac/ggen_igniter"` and used it as a real
+  `path:` dependency source for a scaffolded consumer project's `mix.exs`
+  -- only correct on the author's own machine, failing on any other machine
+  including a GitHub Actions Linux runner checked out at
+  `/home/runner/work/ggen_igniter/ggen_igniter` ("the dependency is not
+  available" / `mix compile` exit 1). The identical hardcoded constant also
+  existed in `test/e2e/support/e2e_case.ex` (used by `mix e2e`, not
+  `mix test`, so it doesn't show up in the standard suite but would fail
+  the same way on any other machine under `mix e2e`) -- both fixed to
+  derive the repo root from each file's own `__DIR__`.
+
+- **fix(frontmatter): use `String.to_atom` for `MatchRule` enum fields**
+  (`3bb5b4b`, PR #6). `lib/ggen_igniter/frontmatter.ex:349`
+  (`GgenIgniter.Frontmatter.MatchRule.to_atom/1`) used
+  `String.to_existing_atom/1` on the `matcher`/`scope`/`occurrence`
+  frontmatter fields -- a small, fixed set of internal enum tags defined by
+  this module's own code, not attacker-controlled input, so the
+  existing-atom guard provided no real safety and only made `from_map/1`
+  raise `ArgumentError` whenever no other code path in the same BEAM VM
+  instance had already interned the atom, producing a test-order-dependent
+  failure. Confirmed pre-existing in CI (not a new regression) via
+  `gh run view 33927644656/33918236756`: `"binary_to_existing_atom"`
+  `ArgumentError` on `:erlang.binary_to_existing_atom("regex")` at
+  `frontmatter.ex:339`.
+
+- **ci: pre-compile dev env before `mix test` so test subprocesses never
+  emit compiler output** (`e74bc5d`, PR #7). Fixes a seed-dependent flake on
+  `main`: run `33933744857` (seed `846163`) failed
+  `test/ggen_igniter_cli_tasks_quirks_test.exs:115` ("`mix
+  ggen_igniter.doctor --json` produces exactly one valid JSON document")
+  with a `Jason.DecodeError` at position 0, because the child process's
+  stdout began with `"Compiling 50 files (.ex)\nCompiling crate
+  ggen_graph_nif ...\nGenerated ggen_igniter app\n"` ahead of the JSON.
+  Root cause: 78 `System.cmd("mix", [...])` sites across `test/*.exs` spawn
+  `mix` without exporting `MIX_ENV`, so the child runs in `MIX_ENV=dev`; on
+  a fresh checkout the first such child pays the full dev compile (Elixir +
+  rustler NIF) and Mix prints that on stdout, and which test eats it
+  depends on the ExUnit seed. Confirmed not a regression from PR #6 (the
+  prior run `33927644656` passed this same test).
+
 ## v26.9.3
 
 Process-mining/OCEL manufacturing-pack expansion release, layered on the
