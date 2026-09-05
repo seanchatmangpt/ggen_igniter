@@ -346,7 +346,15 @@ defmodule GgenIgniter.Frontmatter.MatchRule do
   end
 
   defp to_atom(a) when is_atom(a), do: a
-  defp to_atom(s) when is_binary(s), do: String.to_existing_atom(s)
+
+  # These fields are a small, fixed set of internal enum tags defined by this
+  # module's own code (not attacker-controlled arbitrary input), so
+  # `String.to_existing_atom/1` provides no real safety here -- it only makes
+  # `from_map/1` fail with `ArgumentError` whenever no other code path has
+  # already interned the atom in this BEAM VM instance (observed as a
+  # test-order-dependent failure in CI: frontmatter.ex:339 raising on
+  # `String.to_existing_atom("regex")`).
+  defp to_atom(s) when is_binary(s), do: String.to_atom(s)
 end
 
 defmodule GgenIgniter.Frontmatter.FreezePolicy do
