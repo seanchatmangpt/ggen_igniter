@@ -71,18 +71,22 @@ remain projections of the same semantic identity.
 ### 2. RuntimeShape contains portable data only
 
 The constructor recursively refuses functions, PIDs, ports, references,
-tuples, structs, and unsupported values. The IR must be serializable and
-inspectable without loading Ash, Spark, Reactor, Phoenix, or provider-specific
-runtime structs.
+tuples, structs, unsupported values, and non-string nested map keys. Nested
+maps therefore retain the same key identity before and after JSON interchange;
+Elixir atom keys cannot silently collapse into an indistinguishable JSON
+string key.
 
-This preserves ADR-0002's existing boundary: Ash stays consumer-side and
-optional in this repository.
+The IR must be serializable and inspectable without loading Ash, Spark,
+Reactor, Phoenix, or provider-specific runtime structs. This preserves
+ADR-0002's existing boundary: Ash stays consumer-side and optional in this
+repository.
 
 ### 3. Top-level fields are a closed vocabulary
 
-`RuntimeShape.new/1` accepts only explicitly named fields. String-keyed input
-is resolved through a literal case table; arbitrary external strings are
-never converted with `String.to_atom/1`.
+`RuntimeShape.new/1` accepts only explicitly named fields. Atom keys supplied
+by trusted Elixir callers and string-keyed interchange fields are both
+resolved against a compile-time closed lookup table; arbitrary external
+strings are never converted with `String.to_atom/1`.
 
 This makes the top-level schema fail closed and avoids turning an external
 observation vocabulary into unbounded VM atoms.
@@ -116,6 +120,7 @@ path to consequential DO.
 - runtime-discovered semantics can be compared, cached, receipted, and later
   promoted to source without changing identity;
 - arbitrary external field names do not become atoms;
+- JSON round-trips preserve nested semantic key identity;
 - future projectors can be added without coupling this core IR to optional
   consumer dependencies.
 
@@ -139,8 +144,9 @@ The accompanying Chicago-style tests must prove at least:
 2. list order does change identity;
 3. unknown top-level string fields are refused;
 4. executable/runtime-only values are refused recursively;
-5. required identity fields fail closed;
-6. JSON encode/decode round-trips to the same semantic identity.
+5. nested atom keys are refused rather than losing identity during JSON interchange;
+6. required identity fields fail closed;
+7. JSON encode/decode round-trips to the same semantic identity.
 
 A future ADR or extension may add runtime Ash/Spark/Reactor materialization,
 but it must consume this IR (or explicitly supersede this ADR with a
