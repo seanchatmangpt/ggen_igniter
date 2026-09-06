@@ -96,6 +96,13 @@ defmodule GgenIgniter.RuntimeShapeTest do
       assert Enum.any?(errors, &match?({:nonportable_value, _, :pid}, &1))
     end
 
+    test "refuses nested atom keys so JSON interchange cannot erase key identity" do
+      attrs = Map.put(base_attrs(), :provenance, %{observer: "system"})
+
+      assert {:error, errors} = RuntimeShape.new(attrs)
+      assert {:nonportable_key, ["provenance"], :observer} in errors
+    end
+
     test "refuses missing or invalid required identity fields" do
       attrs = base_attrs() |> Map.delete(:subject_id) |> Map.put(:graph_digest, nil)
 
