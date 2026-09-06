@@ -59,6 +59,7 @@ defmodule GgenIgniter.RuntimeShape do
   ]
 
   @required_fields [:subject_id, :source_digest, :graph_digest, :admission]
+
   @list_fields [
     :attributes,
     :relationships,
@@ -69,6 +70,7 @@ defmodule GgenIgniter.RuntimeShape do
     :projections,
     :measurements
   ]
+
   @map_fields [:ontology_versions, :native_facets, :admission, :provenance, :resource_budget]
   @map_or_nil_fields [:temporal]
 
@@ -289,8 +291,9 @@ defmodule GgenIgniter.RuntimeShape do
     |> Enum.reduce(errors, fn error, acc -> [error | acc] end)
   end
 
-  defp portable_errors(value, path) when is_binary(value) or is_number(value) or is_boolean(value) or is_nil(value),
-    do: []
+  defp portable_errors(value, _path)
+       when is_binary(value) or is_number(value) or is_boolean(value) or is_nil(value),
+       do: []
 
   defp portable_errors(value, path) when is_list(value) do
     value
