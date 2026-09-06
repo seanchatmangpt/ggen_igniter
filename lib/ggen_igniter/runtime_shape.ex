@@ -10,8 +10,8 @@ defmodule GgenIgniter.RuntimeShape do
       and refuse unknown fields instead of silently carrying unmodeled state.
     * `validate/1` verifies required identity fields and recursively refuses
       executable/runtime-only Elixir values such as functions, PIDs, ports,
-      references, tuples, and structs. A RuntimeShape is portable data, not
-      ambient executable code.
+      references, tuples, structs, and non-string nested map keys. A
+      RuntimeShape is portable data, not ambient executable code.
     * `semantic_map/1` returns the exact shape content covered by the semantic
       digest, excluding `shape_digest` itself to avoid circular identity.
     * `digest/1` computes an order-independent `sha256:` identity over the
@@ -184,7 +184,7 @@ defmodule GgenIgniter.RuntimeShape do
     |> stringify_top_level_keys()
   end
 
-  @doc "Builds a RuntimeShape from its string-keyed or atom-keyed interchange map."
+  @doc "Builds a RuntimeShape from its string-keyed or atom-keyed top-level interchange map."
   @spec from_map(map()) :: {:ok, t()} | {:error, [term()]}
   def from_map(map) when is_map(map), do: new(map)
 
@@ -287,7 +287,7 @@ defmodule GgenIgniter.RuntimeShape do
   defp portable_errors(value, path) when is_map(value) and not is_struct(value) do
     Enum.flat_map(value, fn {key, item} ->
       key_errors =
-        if is_binary(key) or is_atom(key) do
+        if is_binary(key) do
           []
         else
           [{:nonportable_key, Enum.reverse(path), key}]
@@ -318,13 +318,10 @@ defmodule GgenIgniter.RuntimeShape do
   # without creating atoms or changing list semantics.
   defp canonical_value(value) when is_map(value) and not is_struct(value) do
     value
-    |> Enum.map(fn {key, item} -> [canonical_key(key), canonical_value(item)] end)
+    |> Enum.map(fn {key, item} -> [key, canonical_value(item)] end)
     |> Enum.sort_by(&hd/1)
   end
 
   defp canonical_value(value) when is_list(value), do: Enum.map(value, &canonical_value/1)
   defp canonical_value(value), do: value
-
-  defp canonical_key(key) when is_binary(key), do: key
-  defp canonical_key(key) when is_atom(key), do: Atom.to_string(key)
 end
