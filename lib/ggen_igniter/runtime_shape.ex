@@ -58,6 +58,7 @@ defmodule GgenIgniter.RuntimeShape do
     :resource_budget
   ]
 
+  @string_fields Map.new(@fields, fn field -> {Atom.to_string(field), field} end)
   @required_fields [:subject_id, :source_digest, :graph_digest, :admission]
 
   @list_fields [
@@ -215,27 +216,9 @@ defmodule GgenIgniter.RuntimeShape do
   defp normalize_key(key) when key in @fields, do: {:ok, key}
 
   defp normalize_key(key) when is_binary(key) do
-    case key do
-      "schema_version" -> {:ok, :schema_version}
-      "subject_id" -> {:ok, :subject_id}
-      "source_digest" -> {:ok, :source_digest}
-      "graph_digest" -> {:ok, :graph_digest}
-      "shape_digest" -> {:ok, :shape_digest}
-      "ontology_versions" -> {:ok, :ontology_versions}
-      "attributes" -> {:ok, :attributes}
-      "relationships" -> {:ok, :relationships}
-      "actions" -> {:ok, :actions}
-      "policies" -> {:ok, :policies}
-      "public_facets" -> {:ok, :public_facets}
-      "native_facets" -> {:ok, :native_facets}
-      "bindings" -> {:ok, :bindings}
-      "projections" -> {:ok, :projections}
-      "temporal" -> {:ok, :temporal}
-      "measurements" -> {:ok, :measurements}
-      "admission" -> {:ok, :admission}
-      "provenance" -> {:ok, :provenance}
-      "resource_budget" -> {:ok, :resource_budget}
-      _ -> :error
+    case Map.fetch(@string_fields, key) do
+      {:ok, field} -> {:ok, field}
+      :error -> :error
     end
   end
 
