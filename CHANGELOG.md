@@ -1,5 +1,13 @@
 # Changelog
 
+## v26.9.8
+
+Generative Ash Manufacturing certification and zero vocabulary drift release:
+- Certified all 6 qualification crowns on the `book_library` case study (`ONTOLOGY_ALIVE`, `ASH_MANUFACTURE_ALIVE`, `ASH_RUNTIME_ALIVE`, `IDEMPOTENCY_ALIVE`, `OCEL_PROCESS_ALIVE`, `AGENT_HANDWRITE_REFUSAL_ALIVE`).
+- Added OCEL v2 process export telemetry (`GgenIgniter.Telemetry.Ocel2Export`) and `mix ggen_igniter.ocel.seal` task.
+- Eliminated documented vocabulary drift across `AGENTS.md` and test coverage suites (`test/ggen_igniter_ash_task_coverage_test.exs`).
+- Verified end-to-end integration and cutover against real PostgreSQL databases.
+
 ## v26.9.3
 
 Process-mining/OCEL manufacturing-pack expansion release, layered on the
