@@ -9,11 +9,33 @@ function called." This was independently, adversarially verified against
 this repo's actual test/lib/native trees (`.ggen_igniter_factory/ADVERSARIAL.md`,
 "Test/mock discipline" table, 2026-08-27):
 
-- **Zero real mock-library usage** (`Mock`, `mock(`, `patch(`, `monkeypatch`,
-  `Mox`) anywhere in `test/`/`lib/`/`native/` — grep-swept independently by
-  three separate reports; every "mock" text hit was either disclosure prose
-  or a third-party vendored crate's own file, never an actual test double
+- **Zero real mock-library usage** (`Mox`, `:meck`, `Mimic`, the Elixir
+  `Patch` library, Rust `mockall`, Python `unittest.mock`) anywhere in
+  `test/`/`lib/`/`native/` — grep-swept independently by three separate
+  reports; every "mock" text hit was either disclosure prose or a
+  third-party vendored crate's own file, never an actual test double
   standing in for a collaborator this codebase owns.
+
+  That last clause is the reason the *naive* sweep is no longer the
+  prescribed one. `grep -rn "Mock\|mock(\|patch(\|monkeypatch" test lib
+  native` returns roughly 20 hits on a clean tree and **none of them are
+  violations**: `patch(` matches `Igniter.Test`'s `assert_has_patch/3` (a
+  real state-based assertion on a real `%Igniter{}` diff), and a dozen test
+  moduledocs quote the banned tokens verbatim inside the no-mock disclosure
+  this repo requires of them. Use this instead — it exits 1 with no output
+  on a clean tree, and it does catch every library named above:
+
+  ```bash
+  grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' \
+    --exclude-dir=_build --exclude-dir=deps \
+    -E '(use|import) +(Mox|Mimic|Patch)\b|(Mox|Mimic|Patch)\.|:meck\.|mockall|MagicMock|Mock\(' \
+    test lib native
+  ```
+
+  It matches only `use`/`import`/module-qualified call positions, which is
+  what makes it skip prose and `assert_has_patch`, and it scans source
+  extensions only, so a fixture's `_build/`, a vendored `deps/` tree, or a
+  stray `erl_crash.dump` cannot turn it red either.
 - **8 sampled unit/property/integration test files, read in full, use only
   real collaborators** — real files, real subprocesses, real fixtures.
 - **3 real mutation-testing cycles** (breaking `pack.ex`'s `query_name/1`,
@@ -117,11 +139,26 @@ mix e2e
 ```
 
 It requires network access, takes several minutes, and uses real temp disk
-space (cleaned up via `on_exit`). There is no `.github/workflows` CI config
-in this repo, so it is not run by CI either — run it manually before a
-release, or when changing anything that touches the Ash/Phoenix-facing
-templates or the sync pipeline's interaction with a real scaffolded
-project.
+space (cleaned up via `on_exit`). It is not run by CI either — but not
+because CI is absent. `.github/workflows/ci.yml` does exist and runs
+`mix deps.get` -> `mix format --check-formatted` -> `mix credo` ->
+`mix test`. It never invokes `mix e2e`, and its `mix test` step could not
+pick this suite up even if someone expected it to, for two independent
+reasons:
+
+- `test/e2e/lifecycle_test.ex` deliberately keeps a `.ex` (not `_test.exs`)
+  extension, so Mix's default `*_test.exs` glob never matches it.
+  `.credo.exs:228-238` records that as a deliberate choice and excludes the
+  file from `Credo.Check.Warning.WrongTestFilename` as a confirmed false
+  positive, rather than renaming it.
+- `elixirc_paths(:test)` is `["lib", "test/support"]` (`mix.exs:194-198`),
+  so `test/e2e/` is never compiled under `MIX_ENV=test` at all.
+
+Run it manually before a release, or when changing anything that touches
+the Ash/Phoenix-facing templates or the sync pipeline's interaction with a
+real scaffolded project. Wiring it into CI means adding a step to the
+existing `ci.yml` that calls `mix e2e` directly — not creating a CI config,
+and not expecting `mix test` to start finding it.
 
 **Disclosed, currently-accepted limitation this suite exists to surface,
 not hide**: Stage 7 (a rename in the ontology) deliberately asserts that

@@ -17,7 +17,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"$CLAUDE_TOOL_INPUT\" | grep -qE 'rm -rf|git reset --hard|git push .*--force' && echo 'BLOCKED: destructive command — enumerate exact resolved paths/refs and get explicit user confirmation first' >&2 && exit 2 || exit 0"
+            "command": "p=\"\"; [ -t 0 ] || p=\"$(cat 2>/dev/null || true)\"; c=\"$(printf '%s' \"$p\" | python3 -c 'import json,sys;d=json.loads(sys.stdin.read() or \"{}\");ti=d.get(\"tool_input\") or {};sys.stdout.write(str(ti.get(\"command\") or \"\"))' 2>/dev/null)\"; [ -n \"$c\" ] || c=\"$p\"; [ -n \"$c\" ] || c=\"${CLAUDE_TOOL_INPUT:-}\"; printf '%s' \"$c\" | grep -qE 'rm -rf|git reset --hard|git push .*--force' && { echo 'BLOCKED: destructive command — enumerate exact resolved paths/refs and get explicit user confirmation first' >&2; exit 2; }; exit 0"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/refuse-handwritten-ash.sh\""
           }
         ]
       }

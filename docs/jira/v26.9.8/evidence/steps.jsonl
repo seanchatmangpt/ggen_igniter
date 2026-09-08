@@ -1,0 +1,29 @@
+{"rung":"A","label":"deps-get","command":"mix deps.get ","exit":0,"expected":0,"log":"01-deps-get.log"}
+{"rung":"B","label":"baseline-compile","command":"mix compile ","exit":0,"expected":0,"log":"02-baseline-compile.log"}
+{"rung":"C","label":"ggen-sync","command":"mix ggen_igniter.sync --pack-dir /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack ","exit":0,"expected":0,"log":"03-ggen-sync.log"}
+{"rung":"C","label":"compile-manufacture-task","command":"mix compile ","exit":0,"expected":0,"log":"04-compile-manufacture-task.log"}
+{"rung":"C","label":"drift-check","command":"python3 /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack/bin/drift_check.py /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack lib/mix/tasks/book_library.manufacture.ex ","exit":0,"expected":0,"log":"05-drift-check.log"}
+{"rung":"C","label":"evidence-citations","command":"python3 /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack/bin/evidence_check.py /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack /Users/sac/ggen_igniter/test/fixtures/book_library ","exit":0,"expected":0,"log":"06-evidence-citations.log"}
+{"rung":"D","label":"manufacture-base-run1","command":"mix book_library.manufacture --phase base --yes ","exit":0,"expected":0,"log":"07-manufacture-base-run1.log"}
+{"rung":"E","label":"compile-after-base","command":"mix compile ","exit":0,"expected":0,"log":"08-compile-after-base.log"}
+{"rung":"F","label":"manufacture-core-run1","command":"mix book_library.manufacture --phase core --yes ","exit":0,"expected":0,"log":"09-manufacture-core-run1.log"}
+{"rung":"F","label":"compile-after-core","command":"mix compile ","exit":0,"expected":0,"log":"10-compile-after-core.log"}
+{"rung":"F","label":"seal-ocel-base","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.base.ocel.json --exit 0 --observed phase base applied; mix compile exit 0 ","exit":0,"expected":0,"log":"11-seal-ocel-base.log"}
+{"rung":"F","label":"seal-ocel-core","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.core.ocel.json --exit 0 --observed phase core applied; mix compile exit 0 ","exit":0,"expected":0,"log":"12-seal-ocel-core.log"}
+{"rung":"F","label":"ash-codegen","command":"mix ash.codegen --name book_library_manufacture ","exit":0,"expected":0,"log":"13-ash-codegen.log"}
+{"rung":"F","label":"ash-setup","command":"mix ash.setup ","exit":0,"expected":0,"log":"14-ash-setup.log"}
+{"rung":"F","label":"compile-after-lifecycle","command":"mix compile ","exit":0,"expected":0,"log":"15-compile-after-lifecycle.log"}
+{"rung":"G","label":"idempotency-check-base","command":"mix book_library.manufacture --phase base --check ","exit":0,"expected":0,"log":"16-idempotency-check-base.log"}
+{"rung":"G","label":"idempotency-check-core","command":"mix book_library.manufacture --phase core --check ","exit":0,"expected":0,"log":"17-idempotency-check-core.log"}
+{"rung":"G","label":"manufacture-base-run2","command":"mix book_library.manufacture --phase base --yes ","exit":0,"expected":0,"log":"18-manufacture-base-run2.log"}
+{"rung":"G","label":"manufacture-core-run2","command":"mix book_library.manufacture --phase core --yes ","exit":0,"expected":0,"log":"19-manufacture-core-run2.log"}
+{"rung":"G","label":"ash-codegen-run2","command":"mix ash.codegen --name book_library_manufacture ","exit":0,"expected":0,"log":"20-ash-codegen-run2.log"}
+{"rung":"G","label":"compile-after-run2","command":"mix compile ","exit":0,"expected":0,"log":"21-compile-after-run2.log"}
+{"rung":"G","label":"seal-ocel-base-run2","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.base.ocel.json --exit 0 --observed phase base re-applied; mix compile exit 0 ","exit":0,"expected":0,"log":"22-seal-ocel-base-run2.log"}
+{"rung":"G","label":"seal-ocel-core-run2","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.core.ocel.json --exit 0 --observed phase core re-applied; mix compile exit 0 ","exit":0,"expected":0,"log":"23-seal-ocel-core-run2.log"}
+{"rung":"G","label":"tree-diff-T1-T2","command":"diff T1 T2","exit":0,"expected":0,"log":"T1-vs-T2.diff"}
+{"rung":"K","label":"guard-blocks-ash-resource","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/catalog/handwritten.ex","exit":2,"expected":2,"log":"24-guard-blocks-ash-resource.log"}
+{"rung":"K","label":"guard-blocks-base-resource-header","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/catalog/handwritten.ex","exit":2,"expected":2,"log":"25-guard-blocks-base-resource-header.log"}
+{"rung":"K","label":"guard-allows-plain-elixir","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/plain.ex","exit":0,"expected":0,"log":"26-guard-allows-plain-elixir.log"}
+{"rung":"K","label":"guard-allows-manufactured-task","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/mix/tasks/book_library.manufacture.ex","exit":0,"expected":0,"log":"27-guard-allows-manufactured-task.log"}
+{"rung":"H","label":"beam4pm-import","command":"BeamPM.Rust4PM.import_ocel_json/2","exit":0,"expected":0,"log":"28-beam4pm-import.log"}

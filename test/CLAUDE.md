@@ -39,9 +39,37 @@ it adds the concrete per-file conventions.
 
 ## Non-negotiable: no test doubles for in-repo or locally-runnable collaborators
 
-`grep -rn "Mock\|mock(\|patch(\|monkeypatch" test` must return zero matches.
 Real oxigraph NIF, real `sparql` hex engine, real file I/O, real subprocess
 calls (`mix archive.install`, `mix igniter.new` in `test/e2e/`) are all used
 directly — this repo has never needed the one-legitimate-exception carve-out
 from `~/.claude/rules/testing-chicago-style.md` and a new test shouldn't be
 the first to need it without a stated, reviewed reason.
+
+### The check to run
+
+This must exit 1 with no output before you call a test change done:
+
+```bash
+grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' \
+  --exclude-dir=_build --exclude-dir=deps \
+  -E '(use|import) +(Mox|Mimic|Patch)\b|(Mox|Mimic|Patch)\.|:meck\.|mockall|MagicMock|Mock\(' \
+  test lib native
+```
+
+**Do not use the older `grep -rn "Mock\|mock(\|patch(\|monkeypatch" test`.**
+It returns roughly 20 hits on a clean tree and not one of them is a
+violation, so it cannot tell a real mock from either of the two things it
+actually finds:
+
+- `patch(` matches `Igniter.Test`'s `assert_has_patch/3`, which is a real
+  state-based assertion on a real `%Igniter{}` diff — the exact opposite of
+  a mock. See `ggen_igniter_ash_install_alignment_test.exs` for real uses.
+- The moduledoc disclosure this file requires above quotes the banned tokens
+  verbatim, so every well-formed test file is a hit against itself.
+
+The replacement matches only `use`/`import`/module-qualified call positions,
+which is why prose and `assert_has_patch` fall out, and it scans source
+extensions only so a fixture's `_build/` or `deps/` tree cannot redden it.
+It still catches `use Mox`, `Mox.expect`, `:meck.new`, `use Patch`, `import
+Mimic`, `Mimic.copy`, `use mockall::`, `Mock()` and `MagicMock` — verified
+against a probe tree containing all of them on 2026-09-08.

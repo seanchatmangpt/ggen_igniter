@@ -1,0 +1,15 @@
+/_build/
+/deps/
+/cover/
+/doc/
+/.fetch
+erl_crash.dump
+*.ez
+*.beam
+/config/*.secret.exs
+.elixir_ls/
+
+# ggen_igniter reconciliation state for the manufacture path (not fixture source):
+# manifest.json, ocel/ and receipts/ -- regenerable output of a sync run against
+# this fixture, reproducible via the pack's bin/day_zero.sh + bin/qualify.sh.
+/.ggen_igniter/

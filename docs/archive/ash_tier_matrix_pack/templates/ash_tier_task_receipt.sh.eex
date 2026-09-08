@@ -1,0 +1,28 @@
+---
+to: ".ash-validation-receipts/<%= rank |> to_string() |> String.pad_leading(2, \"0\") %>-<%= module_name %>-<%= mix_task %>.sh"
+for_each: ash_tier_task_query
+mode: file
+sh_after: "sh ../ash_tier_matrix_pack/bin/run_pending_receipts.sh"
+---
+#!/bin/sh
+# ggen_igniter ash_tier_matrix_pack receipt -- rendered from
+# test/fixtures/ash_tier_matrix_pack/ontology.ttl (alp:AshTierTask) by
+# templates/ash_tier_task_receipt.sh.eex. Do not hand-edit; regenerate.
+#
+# rank:                  <%= rank %>
+# module_name:           <%= module_name %>
+# mix_task:              <%= mix_task %>
+# mix_args:              <%= mix_args %>
+# destructive:           <%= destructive %>
+# idempotency_mechanism: <%= idempotency_mechanism %>
+# spec_deviation:        <%= if spec_deviation == "", do: "(none -- equals ticket 02's literal row)", else: spec_deviation %>
+#
+# rendered command (executed by bin/run_pending_receipts.sh via sh_after:).
+# cwd = the invoking fixture root (test/fixtures/book_library) when
+# destructive is false; a disposable copy of that tree when destructive is
+# true (02-ASH-TASK-VALIDATION-MATRIX.md lines 112-114).
+#
+#   mix <%= mix_task %> <%= mix_args %>
+#
+set -e
+mix <%= mix_task %> <%= mix_args %>

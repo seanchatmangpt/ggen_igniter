@@ -206,12 +206,27 @@ defmodule GgenIgniterReceiptSchemaTest do
   end
 
   test "schema's standing enum matches GgenIgniter.Receipt.standings/0 exactly", %{schema: schema} do
+    # Read the real standings FIRST. `String.to_existing_atom/1` below needs
+    # every standing atom to be in the VM's atom table, and the only thing
+    # that puts them there is `GgenIgniter.Receipt` being loaded -- module
+    # attributes live in the module's literal pool, not in the atom table of
+    # a VM that has never loaded it. Calling `standings/0` after the map left
+    # that load to chance: passing alone and under any seed, but raising
+    # `ArgumentError: not an already existing atom` on "compensation_failed"
+    # in a full-suite run once the suite grew past ~700 tests and this file
+    # stopped happening to run after something that loaded Receipt.
+    #
+    # This is ordering, not strength: `to_existing_atom/1` still refuses an
+    # enum value that is not a real standing, which is the property under
+    # test.
+    standings = GgenIgniter.Receipt.standings()
+
     schema_enum =
       schema["properties"]["standing"]["enum"]
       |> Enum.map(&String.to_existing_atom/1)
       |> Enum.sort()
 
-    assert schema_enum == GgenIgniter.Receipt.standings() |> Enum.sort()
+    assert schema_enum == Enum.sort(standings)
   end
 
   test "valid fixture validates successfully", %{schema: schema} do

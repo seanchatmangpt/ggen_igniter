@@ -2,38 +2,44 @@
 
 **Status: OPTIONAL, consumer-side application model and semantic verifier.**
 
-`ggen_igniter` does not require, bundle, or force Ash onto consuming applications. Instead, Ash serves as an optional target framework for generated code and a semantic verifier for domain logic.
+`ggen_igniter` does not require, bundle, or force Ash onto consuming
+applications at runtime. Ash serves as an optional target framework for
+generated code and a semantic verifier for domain logic. See section 1 for the
+one real qualification: `:ash`/`:ash_postgres` ARE declared in this repo's own
+`mix.exs`, scoped `only: [:dev, :test]`.
 
 ---
 
 ## 1. Core vs. Consumer Dependency Boundary
 
-Observed implementation outranks intended architecture: `mix.exs` contains **no** direct dependency on `:ash`, `:ash_phoenix`, or `:ash_postgres`.
-
-### `mix.exs` Core Dependencies
+Observed implementation outranks intended architecture, including over a
+previous revision of this page. `mix.exs` **does** declare `:ash` and
+`:ash_postgres` — scoped `only: [:dev, :test]`:
 
 ```elixir
-defp deps do
-  [
-    {:rdf, "~> 3.0"},
-    {:sparql, "~> 0.3"},
-    {:igniter, "~> 0.8"},
-    {:reactor, "~> 1.0"},
-    {:toml, "~> 0.7"},
-    {:yaml_elixir, "~> 2.9"},
-    {:rustler, "~> 0.36"},
-    {:tesla, "~> 1.8", optional: true},
-    {:gno, "~> 0.1", optional: true},
-    {:stream_data, "~> 1.2", only: [:dev, :test]},
-    {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-    {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-    {:excoveralls, "~> 0.18", only: [:dev, :test]}
-  ]
-end
+# mix.exs:176-177 — real, current declarations
+{:ash, "~> 3.0", only: [:dev, :test]},
+{:ash_postgres, "~> 2.0", only: [:dev, :test]},
 ```
-*(Verified in [`mix.exs`](file:///Users/sac/ggen_igniter/mix.exs#L62-L147))*
 
-`ggen_igniter` core provides the RDF loading, SPARQL querying, template evaluation (EEx), write-safety validations, and optional Reactor orchestration pipeline. Consuming applications install `ash` and related packages in their own `mix.exs`.
+The claim that survives, and the one that actually matters, is narrower:
+**Ash is never a runtime dependency of `ggen_igniter`.** `only: [:dev, :test]`
+genuinely keeps both out of a consuming application's runtime; a consumer
+declares its own Ash requirement in its own `mix.exs`. `:ash_phoenix` is
+genuinely absent — `grep -n ":ash_phoenix" mix.exs` returns zero matches.
+
+The dev/test scoping is deliberate and has a stated reason in the comment
+directly above the two declarations, [`mix.exs:167-177`](../../../mix.exs): this
+repo's own suite drives the REAL upstream Ash generators through
+`Igniter.Test`, the upstream-sanctioned way to test an `Igniter.Mix.Task`
+(in-memory project, no subprocess, no scaffolded app). Driving Ash's actual
+generators is `ggen_igniter`'s primary use case, so "does our derived argv
+really work against them" has to be a real assertion in `mix test`, not only
+in a fixture qualification run.
+
+`ggen_igniter` core provides the RDF loading, SPARQL querying, template
+evaluation (EEx), write-safety validations, and optional Reactor orchestration
+pipeline.
 
 ---
 
@@ -57,9 +63,27 @@ flowchart LR
 
 ---
 
-## 3. The `ash-lifecycle-pack` Fixture
+## 3. The `ash-lifecycle-pack` Fixture — superseded pattern, retained for `mix e2e`
 
-To verify that `ggen_igniter` correctly generates valid, compilable Ash resources, the repo contains the `ash-lifecycle-pack` fixture pack under [`test/fixtures/ash-lifecycle-pack/`](file:///Users/sac/ggen_igniter/test/fixtures/ash-lifecycle-pack):
+**Read this section as history, not as the recommended path.** This pack's
+templates HAND-RENDER Ash source — the exact construct `AGENTS.md` now
+forbids. Reproduce with
+`grep -n "use Ash\." test/fixtures/ash-lifecycle-pack/templates/*.eex`:
+`resource.ex.eex` emits `use Ash.Resource,` and `domain.ex.eex` emits
+`use Ash.Domain`. The grep is the citation rather than a line number, because
+both templates are under active edit. It survives only because
+`.claude/hooks/refuse-handwritten-ash.sh` allowlists
+`*/test/fixtures/ash-lifecycle-pack/*` past the PreToolUse guard, so the e2e
+lifecycle suite below keeps running.
+
+New Ash surfaces use the composed-generator path instead: ontology → 11 SPARQL
+gates → ONE composed `Igniter.Mix.Task` → real upstream Ash generators via
+`Igniter.compose_task/4`. No template renders Ash resource source on that path.
+See `test/fixtures/ash_manufacture_pack/`, `docs/status.md`'s
+"Ash manufacturing path" section, and `docs/jira/v26.9.8/07-ASH-MANUFACTURE-PATH.md`.
+
+The pack itself lives under
+[`test/fixtures/ash-lifecycle-pack/`](../../../test/fixtures/ash-lifecycle-pack):
 
 | Component | Path | Description |
 |---|---|---|
@@ -87,6 +111,9 @@ The full integration lifecycle is demonstrated in [`test/e2e/lifecycle_test.ex`]
 
 ## Summary of Integration Rules
 
-- **Zero Core Coupling**: `ggen_igniter` never includes `:ash` in its own runtime dependencies.
+- **Zero Runtime Coupling**: `ggen_igniter` never includes `:ash` in its own
+  runtime dependencies. It does include `:ash`/`:ash_postgres` under
+  `only: [:dev, :test]` (`mix.exs:176-177`) so its own suite can drive the real
+  Ash generators — see section 1. "No Ash in `mix.exs` at all" is false.
 - **Fail-Closed Verification**: Generated Ash code must satisfy Spark DSL constraints under `mix compile --warnings-as-errors`.
 - **Idempotent Regeneration**: By default, `mode: file` re-emits clean, full Ash modules from current ontology state.

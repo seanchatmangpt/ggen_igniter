@@ -110,4 +110,21 @@ output pasted in.
 
 - [Glossary](glossary.md) — one canonical definition per term
 - [Status](status.md) — real IMPLEMENTED/PARTIAL_ALIVE/PLANNED status of every capability
-- [Documentation Audit](DOCUMENTATION_AUDIT.md) — classification of every `.md` file in this repo as of 2026-08-27
+- [Documentation Audit](DOCUMENTATION_AUDIT.md) — classification of every `.md`
+  file in this repo as of 2026-08-27
+
+## Release tickets and evidence
+
+Per-release ticket sets, adversarial reviews, and the raw evidence artifacts
+each one cites. These are dated working records, not maintained reference —
+[status.md](status.md) is the current-state page they feed.
+
+- [v26.9.8](jira/v26.9.8/) — the Ash manufacturing path: ontology → 11 SPARQL
+  gates → one composed `Igniter.Mix.Task` → real upstream Ash generators.
+  [Overview](jira/v26.9.8/00-OVERVIEW.md),
+  [Ash task validation matrix](jira/v26.9.8/02-ASH-TASK-VALIDATION-MATRIX.md),
+  [Manufacture path](jira/v26.9.8/07-ASH-MANUFACTURE-PATH.md),
+  [Adversarial review](jira/v26.9.8/08-REVIEW-MANUFACTURE-PATH.md), and
+  [`evidence/`](jira/v26.9.8/evidence/) (conformance, drift, receipt, OCEL
+  run-1/run-2 logs).
+- [v26.9.1](jira/v26.9.1/) — prior release's ticket set.

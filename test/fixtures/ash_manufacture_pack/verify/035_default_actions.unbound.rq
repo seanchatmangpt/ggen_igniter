@@ -1,0 +1,58 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+# INVERTED COMPANION to gates/035_default_actions.rq. ZERO ROWS IS THE PASS
+# CONDITION.
+#
+# HIGHEST-SEVERITY of the three companions, because this gate's failure mode is
+# not merely silent, it is INDISTINGUISHABLE from a legitimate modelling choice:
+# templates/manufacture.ex.eex OMITS the --default-actions flag entirely when
+# the row set for a resource is empty. So "the ontology lost every
+# amp:defaultAction triple" and "this resource intentionally declares no default
+# actions" render as byte-identical output. There is no downstream artifact
+# whose absence would reveal the loss. The refutation therefore has to live
+# here, in the graph, before projection.
+#
+# CONTRACT ASSERTED: every amp:Resource individual carries at least one
+# amp:defaultAction. That is a real constraint of THIS pack, not a general Ash
+# truth -- Ash permits a resource with no default actions. The pack requires the
+# fact to be asserted so that "no actions" is expressible only as an explicit
+# modelled decision, never as an absence. A resource that genuinely wants no
+# default actions needs new vocabulary (an explicit amp:noDefaultActions marker)
+# rather than an empty predicate, which is why an absence is scored a defect.
+#
+# DIALECT: OPTIONAL + BIND + UNION + FILTER + BOUND only -- the `sparql` hex
+# engine used by GgenIgniter.GateVerify has no EXISTS algebra
+# (deps/sparql/lib/sparql/algebra/expression/ has no exists.ex) and no VALUES
+# algebra. Verified to agree row-for-row with the oxigraph NIF.
+#
+# No ORDER BY: cosmetic on the `sparql` engine (a disclosed defect, see
+# GgenIgniter.Query's moduledoc) and irrelevant to a zero-rows check.
+#
+# ANCHOR LIMIT: branches anchor on `?subject a amp:Resource`, so a lost
+# rdf:type is invisible here. verify/cardinality.json's "default_actions"
+# contract covers it -- VALUES anchored on amp:defaultAction ALONE, not on the
+# class: measured, deleting amp:BookResource's rdf:type gives gate 4 vs
+# contract 8 (caught), while a class-anchored form gives 4 vs 4 (blind).
+#
+# The reciprocal limit is this file's reason to exist: the contract is blind to
+# the total loss of amp:defaultAction, because gate rows and contract count then
+# drop together (measured: 4 vs 4). Only this file catches that one.
+
+SELECT ?subject ?missing_property
+WHERE {
+  {
+    # gates/035_default_actions.rq projects ?resource_module, so a resource
+    # missing it drops out of the action plan even with every action present.
+    ?subject a amp:Resource .
+    OPTIONAL { ?subject amp:resourceModule ?p_resource_module }
+    FILTER (!BOUND(?p_resource_module))
+    BIND("amp:resourceModule" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:Resource .
+    OPTIONAL { ?subject amp:defaultAction ?p_default_action }
+    FILTER (!BOUND(?p_default_action))
+    BIND("amp:defaultAction" AS ?missing_property)
+  }
+}

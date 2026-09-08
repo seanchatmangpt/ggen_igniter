@@ -1,0 +1,9 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+SELECT ?domain_module ?domain_rank
+WHERE {
+  ?d a amp:Domain ;
+     amp:domainModule ?domain_module ;
+     amp:domainRank ?domain_rank .
+}
+ORDER BY ?domain_rank

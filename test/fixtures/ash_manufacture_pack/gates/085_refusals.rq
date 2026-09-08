@@ -1,0 +1,13 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+# Only the inadmissible capabilities, with their typed refusal reason. These
+# become real, emitted UNSUPPORTED receipts -- never a silent skip.
+SELECT ?mix_task ?standing ?refusal_reason
+WHERE {
+  ?c a amp:GeneratorCapability ;
+     amp:mixTask ?mix_task ;
+     amp:standing ?standing ;
+     amp:admitted false ;
+     amp:refusalReason ?refusal_reason .
+}
+ORDER BY ?mix_task

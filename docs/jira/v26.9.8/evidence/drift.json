@@ -1,0 +1,14 @@
+{
+  "drift": [],
+  "no_drift": true,
+  "ontology_counts": {
+    "attributes": 9,
+    "domains": 2,
+    "extensions": 2,
+    "relationships": 1,
+    "resources": 2,
+    "support_modules": 5
+  },
+  "rendered_task": "/Users/sac/ggen_igniter/test/fixtures/book_library/lib/mix/tasks/book_library.manufacture.ex",
+  "steps": 11
+}

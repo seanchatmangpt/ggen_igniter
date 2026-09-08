@@ -1,0 +1,908 @@
+@prefix amp:  <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix bibo: <http://purl.org/ontology/bibo/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix schema: <http://schema.org/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+
+#################################################################
+# Purpose
+#
+# This pack models an Ash application's DOMAIN SEMANTICS (what a Book and a
+# Loan ARE, what attributes/relationships/actions they carry) plus the
+# GENERATOR CAPABILITY ENVELOPE of the upstream Ash/Igniter mix tasks that
+# can lawfully manufacture that semantics.
+#
+# It deliberately does NOT store CLI argument strings. Every `mix ash.*`
+# invocation is DERIVED from these facts by the projection template
+# (templates/manufacture.ex.eex), which renders one composed
+# `Igniter.Mix.Task` -- not Ash resource source code.
+#
+# Prior art extended (not regressed): test/fixtures/ash-lifecycle-pack/
+# already modelled alp:Resource/alp:Attribute/alp:Relationship semantically.
+# This pack keeps that shape and adds the facts the real generators need
+# (publicness, requiredness, primary-key kind, base resource, extensions,
+# support-module classes) plus an explicit capability/standing vocabulary.
+#################################################################
+
+#################################################################
+# Vocabulary -- project
+#################################################################
+
+amp:Project a rdfs:Class ;
+    rdfs:label "The single Mix project this pack manufactures into." .
+amp:otpApp        a rdf:Property ; rdfs:domain amp:Project ;
+    rdfs:comment "OTP app atom name without leading colon, e.g. \"book_library\"." .
+amp:rootModule    a rdf:Property ; rdfs:domain amp:Project ;
+    rdfs:comment "Root Elixir namespace, e.g. \"BookLibrary\"." .
+amp:manufactureTaskModule a rdf:Property ; rdfs:domain amp:Project ;
+    rdfs:comment "Full module name of the composed Igniter task this pack renders." .
+amp:manufactureTaskName   a rdf:Property ; rdfs:domain amp:Project ;
+    rdfs:comment "Mix task name of that module, e.g. \"book_library.manufacture\"." .
+amp:baseResourceModule    a rdf:Property ; rdfs:domain amp:Project ;
+    rdfs:comment "Module manufactured by `mix ash.gen.base_resource` and retrofitted onto every resource." .
+amp:repoModule            a rdf:Property ; rdfs:domain amp:Project ;
+    rdfs:comment "Ecto/AshPostgres repo module manufactured by `mix ash_postgres.install`." .
+
+#################################################################
+# Vocabulary -- Ash domain semantics
+#################################################################
+
+amp:Domain a rdfs:Class ;
+    rdfs:label "One Ash.Domain module, manufactured by `mix ash.gen.domain`." .
+amp:domainModule a rdf:Property ; rdfs:domain amp:Domain .
+amp:domainRank   a rdf:Property ; rdfs:domain amp:Domain ;
+    rdfs:comment "Deterministic ordering key. Ordering is a manufactured property, not an accident of SPARQL row order." .
+
+amp:Resource a rdfs:Class ;
+    rdfs:label "One Ash.Resource, manufactured by `mix ash.gen.resource`." ;
+    skos:closeMatch schema:Thing .
+amp:resourceModule   a rdf:Property ; rdfs:domain amp:Resource .
+amp:resourceDomain   a rdf:Property ; rdfs:domain amp:Resource ; rdfs:range amp:Domain .
+amp:resourceRank     a rdf:Property ; rdfs:domain amp:Resource .
+amp:primaryKeyKind   a rdf:Property ; rdfs:domain amp:Resource ;
+    rdfs:comment "Closed: \"uuid\" | \"uuid_v7\" | \"integer\". Selects the real generator flag (--uuid-primary-key / --uuid-v7-primary-key / --integer-primary-key)." .
+amp:primaryKeyName   a rdf:Property ; rdfs:domain amp:Resource .
+amp:hasTimestamps    a rdf:Property ; rdfs:domain amp:Resource ;
+    rdfs:comment "xsd:boolean. True projects the real --timestamps flag." .
+amp:usesBaseResource a rdf:Property ; rdfs:domain amp:Resource ;
+    rdfs:comment "xsd:boolean. True means this resource is retrofitted onto amp:baseResourceModule by `mix ash.gen.base_resource`." .
+amp:defaultAction    a rdf:Property ; rdfs:domain amp:Resource ;
+    rdfs:comment "One of create|read|update|destroy. Repeatable; projected into a single --default-actions csv." .
+
+amp:Attribute a rdfs:Class ;
+    rdfs:label "One Ash attribute beyond the primary key." .
+amp:attributeOf    a rdf:Property ; rdfs:domain amp:Attribute ; rdfs:range amp:Resource .
+amp:attributeName  a rdf:Property ; rdfs:domain amp:Attribute .
+amp:attributeType  a rdf:Property ; rdfs:domain amp:Attribute ;
+    rdfs:comment "Ash type atom without leading colon, e.g. \"string\" | \"integer\" | \"date\" | \"utc_datetime\", or a full module name for a custom type." .
+amp:attributeOrder a rdf:Property ; rdfs:domain amp:Attribute .
+amp:isPublic       a rdf:Property ; rdfs:domain amp:Attribute ;
+    rdfs:comment "xsd:boolean -> the real `public` modifier. Public attributes are also what ash.gen.resource puts in the create/update accept list." .
+amp:isRequired     a rdf:Property ; rdfs:domain amp:Attribute ;
+    rdfs:comment "xsd:boolean -> the real `required` modifier (allow_nil? false)." .
+amp:isSensitive    a rdf:Property ; rdfs:domain amp:Attribute ;
+    rdfs:comment "xsd:boolean -> the real `sensitive` modifier." .
+
+amp:Relationship a rdfs:Class .
+amp:relationshipOf     a rdf:Property ; rdfs:domain amp:Relationship ; rdfs:range amp:Resource ;
+    rdfs:comment "The resource the relationship is DECLARED ON." .
+amp:relationshipKind   a rdf:Property ; rdfs:domain amp:Relationship ;
+    rdfs:comment "Closed: \"belongs_to\" | \"has_many\" | \"has_one\" | \"many_to_many\"." .
+amp:relationshipName   a rdf:Property ; rdfs:domain amp:Relationship .
+amp:relationshipTarget a rdf:Property ; rdfs:domain amp:Relationship ; rdfs:range amp:Resource .
+amp:relationshipOrder  a rdf:Property ; rdfs:domain amp:Relationship .
+amp:relationshipRequired a rdf:Property ; rdfs:domain amp:Relationship ;
+    rdfs:comment "xsd:boolean. belongs_to only -- the real `required` modifier." .
+amp:relationshipPublic   a rdf:Property ; rdfs:domain amp:Relationship .
+
+amp:Extension a rdfs:Class ;
+    rdfs:label "One Ash extension applied to a resource, manufactured through `mix ash.gen.resource --extend` (which itself composes the real `mix ash.extend`)." .
+amp:extensionOf   a rdf:Property ; rdfs:domain amp:Extension ; rdfs:range amp:Resource .
+amp:extensionName a rdf:Property ; rdfs:domain amp:Extension ;
+    rdfs:comment "Builtin shorthand (\"postgres\") or full extension module name." .
+
+#################################################################
+# Vocabulary -- support modules (change/validation/preparation/enum/...)
+#################################################################
+
+amp:SupportModule a rdfs:Class ;
+    rdfs:label "A non-resource Ash module manufactured by a dedicated ash.gen.* task." .
+amp:supportModuleName a rdf:Property ; rdfs:domain amp:SupportModule .
+amp:supportKind       a rdf:Property ; rdfs:domain amp:SupportModule ;
+    rdfs:comment "Closed: \"change\" | \"validation\" | \"preparation\" | \"enum\" | \"custom_expression\". Projects to `mix ash.gen.<kind>`." .
+amp:supportRank       a rdf:Property ; rdfs:domain amp:SupportModule .
+amp:servesResource    a rdf:Property ; rdfs:domain amp:SupportModule ; rdfs:range amp:Resource ;
+    rdfs:comment """The resource this module is FOR. Modelled deliberately even though no
+admitted generator can act on it: `mix ash.gen.validation` / `.change` /
+`.preparation` create a module and stop there -- `mix ash.gen.resource` has
+no --validation/--change/--preparation flag at ash 3.33.1, so the DSL entry
+that would attach the module to the resource cannot be manufactured. See
+amp:AttachSupportModuleCapability, which refuses that morphism explicitly.
+Recording the intent here is what makes the gap a typed refusal instead of
+a silent orphan.""" .
+amp:enumValue         a rdf:Property ; rdfs:domain amp:SupportModule ;
+    rdfs:comment "Repeatable. Only meaningful when amp:supportKind = \"enum\"; projected into the real --types csv." .
+
+#################################################################
+# Vocabulary -- generator capability envelope / standing
+#
+# DfCM: one non-idempotent or defective upstream edge is TOPOLOGY, not graph
+# failure. A capability row carries a truthful standing so the projection can
+# lawfully REFUSE to actuate an inadmissible morphism instead of faking it.
+#################################################################
+
+amp:GeneratorCapability a rdfs:Class ;
+    rdfs:label "One upstream mix task, with its verified standing in this exact dependency set." .
+amp:mixTask         a rdf:Property ; rdfs:domain amp:GeneratorCapability .
+amp:standing        a rdf:Property ; rdfs:domain amp:GeneratorCapability ;
+    rdfs:comment "Closed: UNKNOWN | PARTIAL_ALIVE | ALIVE | BLOCKED | BUILD_BROKEN | UNSUPPORTED." .
+amp:admitted        a rdf:Property ; rdfs:domain amp:GeneratorCapability ;
+    rdfs:comment "xsd:boolean. False means the projection MUST NOT compose this task; it emits a typed refusal instead." .
+amp:refusalReason   a rdf:Property ; rdfs:domain amp:GeneratorCapability .
+amp:evidence        a rdf:Property ; rdfs:domain amp:GeneratorCapability ;
+    rdfs:comment "file:line or exact command output that establishes the standing. No standing without evidence." .
+amp:idempotencyMechanism a rdf:Property ; rdfs:domain amp:GeneratorCapability ;
+    rdfs:comment "The REAL upstream code path that makes re-running safe, or the guard ggen_igniter must apply." .
+amp:phase a rdf:Property ; rdfs:domain amp:GeneratorCapability ;
+    rdfs:comment """Closed: "base" | "core" | "lifecycle".
+
+Manufacture is split into more than one Igniter run for a REAL, evidenced
+reason, not for tidiness. Two upstream facts force the split:
+
+  1. `mix ash.gen.resource --base X` validates X against
+     `Application.get_env(app, :base_resources)`
+     (ash.gen.resource.ex:150-160). Config written earlier in the SAME
+     Igniter run is not loaded into the application environment, so the
+     base resource must be manufactured and its config committed by a
+     PRIOR mix invocation.
+
+  2. `Igniter.update_all_elixir_files/2` short-circuits on the
+     `included_all_elixir_files?` assign (igniter.ex:1112-1123), and that
+     same assign is set as a side effect of any `find_module` full scan
+     (igniter/project/module.ex:475 `try_full_scan/3`). Because both the
+     ggen_igniter admission guards and `ash.gen.resource`'s own
+     `ensure_resource_exists/5` call `find_module`, the latch is already
+     set by the time `ash.gen.base_resource` runs, and its retrofit leg
+     (ash.gen.base_resource.ex:59) silently does nothing. Verified: after
+     a composed run in which base_resource ran last, book.ex still read
+     `use Ash.Resource`.
+
+  ggen_igniter does not patch or work around either behaviour. It uses the
+  upstream-supported path (`--base`) and orders the phases so that path is
+  actually available -- Chesterton's fence: the flag exists for exactly
+  this, so use it instead of relying on an opportunistic AST retrofit.
+
+  "lifecycle" steps (codegen/setup/migrate) are NOT composed into an
+  Igniter run at all: they must observe COMPILED resources.""" .
+
+#################################################################
+# Vocabulary -- dependency pins and mechanically checkable citations
+#
+# Every standing above is a VERSION-SCOPED fact. "ash.gen.resource.ex:76"
+# names a line in one exact tarball, and `mix deps.update` can move that line
+# without changing a character of this file. Two structures close that hole.
+#
+# amp:DependencyPin makes the version scope a TRIPLE. Before it, the scope
+# existed only as a `#` comment above the capability instances -- invisible to
+# every gate, every checker and every consumer of the receipt. A comment
+# cannot fail.
+#
+# amp:Citation makes a line number RESOLVABLE. Before it, line numbers were
+# prose inside amp:evidence, and bin/evidence_check.py could only assert that
+# the file existed and the range fit inside it -- its own docstring conceded
+# it did not verify the cited lines say what the claim says. Three real
+# off-by-N defects survived that regime and were found by reading, not by a
+# check:
+#
+#   * amp:AshGenResourceCapability cited :74 for `ignore_if_exists` in the
+#     schema. Line 74 is `da: :string,`; the real line is 76.
+#   * amp:AshGenBaseResourceCapability cited module.ex:475 for
+#     `try_full_scan/3`. `defp try_full_scan` is on 474.
+#   * amp:AshGenCustomExpressionCapability cited :46 for the emitted
+#     `args: [...]`. Line 46 is blank; the real line is 45. (Found while
+#     converting the first two, by the check that catches them.)
+#
+# amp:citesSymbol is the property that closes it: a literal token that MUST
+# occur inside the cited slice. That is what turns "the range exists" into
+# "the range still says it" -- a one-line upstream shift becomes a loud
+# failure instead of a citation quietly pointing at its neighbour.
+#
+# amp:evidence is deliberately KEPT as prose and DEMOTED from load-bearing.
+# It stays readable; amp:Citation is what a machine resolves.
+#################################################################
+
+amp:DependencyPin a rdfs:Class ;
+    rdfs:label "One resolved dependency version that a citation's line numbers are scoped to." .
+amp:pinnedDep     a rdf:Property ; rdfs:domain amp:DependencyPin ;
+    rdfs:comment "Hex package name exactly as it appears in the subject's mix.lock, e.g. \"ash\"." .
+amp:pinnedVersion a rdf:Property ; rdfs:domain amp:DependencyPin ;
+    rdfs:comment """Exact resolved version. bin/citation_check.py reads the subject's real
+mix.lock and reports a disagreement as its OWN distinguishable failure
+("pin drift"), so a dependency bump surfaces as one clear cause rather than
+as N confusing anchor misses whose shared root the reader has to infer.""" .
+
+amp:Citation a rdfs:Class ;
+    rdfs:label "One mechanically checkable anchor into pinned dependency source." .
+amp:citesFile a rdf:Property ; rdfs:domain amp:Citation ;
+    rdfs:comment "Path relative to the manufacturing subject, e.g. \"deps/ash/lib/mix/tasks/...\"." .
+amp:citesLine a rdf:Property ; rdfs:domain amp:Citation ;
+    rdfs:comment "First cited line, 1-based." .
+amp:citesEndLine a rdf:Property ; rdfs:domain amp:Citation ;
+    rdfs:comment "Optional last cited line, inclusive. Absent means a single line." .
+amp:citesSymbol a rdf:Property ; rdfs:domain amp:Citation ;
+    rdfs:comment """A literal token that MUST occur inside citesLine..citesEndLine. This is
+the anchor: without it a citation asserts only that a range exists, which an
+upstream edit cannot falsify. Chosen to be quote-free so the Turtle stays
+free of escaped literals that a regex parser would have to unescape.""" .
+amp:citesPin a rdf:Property ; rdfs:domain amp:Citation ; rdfs:range amp:DependencyPin ;
+    rdfs:comment "The dependency version this anchor's line numbers are only valid at." .
+amp:supports a rdf:Property ; rdfs:domain amp:Citation ; rdfs:range amp:GeneratorCapability ;
+    rdfs:comment "The capability whose standing this anchor backs." .
+amp:citedProperty a rdf:Property ; rdfs:domain amp:Citation ;
+    rdfs:comment "Closed: \"evidence\" | \"idempotencyMechanism\" | \"refusalReason\". Which prose claim this anchor makes checkable." .
+
+#################################################################
+# Instance -- project
+#################################################################
+
+amp:BookLibraryProject a amp:Project ;
+    amp:otpApp "book_library" ;
+    amp:rootModule "BookLibrary" ;
+    amp:manufactureTaskModule "Mix.Tasks.BookLibrary.Manufacture" ;
+    amp:manufactureTaskName "book_library.manufacture" ;
+    amp:baseResourceModule "BookLibrary.Resource" ;
+    amp:repoModule "BookLibrary.Repo" .
+
+#################################################################
+# Instance -- domains
+#################################################################
+
+amp:CatalogDomain a amp:Domain ;
+    amp:domainModule "BookLibrary.Catalog" ;
+    amp:domainRank 1 ;
+    rdfs:comment "Bibliographic holdings. Grounded in BIBO's bibliographic-record sense." .
+
+amp:CirculationDomain a amp:Domain ;
+    amp:domainModule "BookLibrary.Circulation" ;
+    amp:domainRank 2 ;
+    rdfs:comment "Lending events over Catalog holdings." .
+
+#################################################################
+# Instance -- Book (Catalog)
+#
+# Domain vocabulary is grounded in published public terms rather than
+# invented: bibo:Book, bibo:isbn, bibo:numPages, dcterms:title,
+# dcterms:issued. Where no public term fits an operational field
+# (copies_total), it is named plainly rather than force-fitted.
+#################################################################
+
+amp:BookResource a amp:Resource ;
+    skos:closeMatch bibo:Book ;
+    amp:resourceModule "BookLibrary.Catalog.Book" ;
+    amp:resourceDomain amp:CatalogDomain ;
+    amp:resourceRank 1 ;
+    amp:primaryKeyKind "uuid" ;
+    amp:primaryKeyName "id" ;
+    amp:hasTimestamps true ;
+    amp:usesBaseResource true ;
+    amp:defaultAction "create" , "read" , "update" , "destroy" .
+
+amp:BookTitleAttribute a amp:Attribute ;
+    skos:closeMatch dcterms:title ;
+    amp:attributeOf amp:BookResource ; amp:attributeOrder 1 ;
+    amp:attributeName "title" ; amp:attributeType "string" ;
+    amp:isPublic true ; amp:isRequired true ; amp:isSensitive false .
+
+amp:BookIsbnAttribute a amp:Attribute ;
+    skos:closeMatch bibo:isbn ;
+    amp:attributeOf amp:BookResource ; amp:attributeOrder 2 ;
+    amp:attributeName "isbn" ; amp:attributeType "string" ;
+    amp:isPublic true ; amp:isRequired false ; amp:isSensitive false .
+
+amp:BookPageCountAttribute a amp:Attribute ;
+    skos:closeMatch bibo:numPages ;
+    amp:attributeOf amp:BookResource ; amp:attributeOrder 3 ;
+    amp:attributeName "page_count" ; amp:attributeType "integer" ;
+    amp:isPublic true ; amp:isRequired false ; amp:isSensitive false .
+
+amp:BookIssuedAttribute a amp:Attribute ;
+    skos:closeMatch dcterms:issued ;
+    amp:attributeOf amp:BookResource ; amp:attributeOrder 4 ;
+    amp:attributeName "published_on" ; amp:attributeType "date" ;
+    amp:isPublic true ; amp:isRequired false ; amp:isSensitive false .
+
+amp:BookCopiesAttribute a amp:Attribute ;
+    amp:attributeOf amp:BookResource ; amp:attributeOrder 5 ;
+    amp:attributeName "copies_total" ; amp:attributeType "integer" ;
+    amp:isPublic true ; amp:isRequired true ; amp:isSensitive false ;
+    rdfs:comment "Operational holdings count. No public bibliographic term models this; named plainly rather than force-fitting one." .
+
+amp:BookPostgresExtension a amp:Extension ;
+    amp:extensionOf amp:BookResource ; amp:extensionName "postgres" .
+
+#################################################################
+# Instance -- Loan (Circulation)
+#
+# Grounding note (verified by reading the real files in
+# ~/ggen-marketplace/ontologies/public, not recalled):
+#   * bibo.ttl contains ZERO loan/circulation/checkout/borrow/lend terms --
+#     a case-insensitive grep over the whole file returns nothing. No FRBR
+#     file is present. So there is NO canonical bibliographic loan class.
+#   * The closest real published term is schema:LendAction
+#     (schema-org.ttl:2788, subClassOf schema:TransferAction, "The act of
+#     providing an object under an agreement that it will be returned at a
+#     later date"). A library LENDS, so LendAction is the correct side of
+#     the reciprocal pair (schema:BorrowAction is the borrower's side).
+#     Recorded as skos:closeMatch, never exactMatch -- an Ash resource is a
+#     persisted record, not an action instance.
+#   * There is NO public due-date property on disk: every "Due" term in
+#     schema.org is payment/order scoped (schema:paymentDueDate etc.) and
+#     dublin-core-terms.ttl has none. amp:LoanDueOnAttribute therefore
+#     carries NO closeMatch rather than a force-fitted one.
+#################################################################
+
+amp:LoanResource a amp:Resource ;
+    skos:closeMatch schema:LendAction ;
+    amp:resourceModule "BookLibrary.Circulation.Loan" ;
+    amp:resourceDomain amp:CirculationDomain ;
+    amp:resourceRank 2 ;
+    amp:primaryKeyKind "uuid" ;
+    amp:primaryKeyName "id" ;
+    amp:hasTimestamps true ;
+    amp:usesBaseResource true ;
+    amp:defaultAction "create" , "read" , "update" , "destroy" .
+
+amp:LoanBorrowerAttribute a amp:Attribute ;
+    skos:closeMatch foaf:name ;
+    rdfs:seeAlso schema:borrower ;
+    amp:attributeOf amp:LoanResource ; amp:attributeOrder 1 ;
+    amp:attributeName "borrower_name" ; amp:attributeType "string" ;
+    amp:isPublic true ; amp:isRequired true ; amp:isSensitive true .
+
+amp:LoanDueOnAttribute a amp:Attribute ;
+    amp:attributeOf amp:LoanResource ; amp:attributeOrder 2 ;
+    amp:attributeName "due_on" ; amp:attributeType "date" ;
+    amp:isPublic true ; amp:isRequired true ; amp:isSensitive false .
+
+amp:LoanReturnedAtAttribute a amp:Attribute ;
+    amp:attributeOf amp:LoanResource ; amp:attributeOrder 3 ;
+    amp:attributeName "returned_at" ; amp:attributeType "utc_datetime" ;
+    amp:isPublic true ; amp:isRequired false ; amp:isSensitive false .
+
+amp:LoanStatusAttribute a amp:Attribute ;
+    amp:attributeOf amp:LoanResource ; amp:attributeOrder 4 ;
+    amp:attributeName "status" ; amp:attributeType "BookLibrary.Circulation.LoanStatus" ;
+    amp:isPublic true ; amp:isRequired true ; amp:isSensitive false ;
+    rdfs:comment "Typed by the Ash.Type.Enum manufactured by `mix ash.gen.enum` (amp:LoanStatusEnum), so the enum must rank before the resource." .
+
+amp:LoanBookRelationship a amp:Relationship ;
+    amp:relationshipOf amp:LoanResource ; amp:relationshipOrder 1 ;
+    amp:relationshipKind "belongs_to" ;
+    amp:relationshipName "book" ;
+    amp:relationshipTarget amp:BookResource ;
+    amp:relationshipRequired true ;
+    amp:relationshipPublic true .
+
+amp:LoanPostgresExtension a amp:Extension ;
+    amp:extensionOf amp:LoanResource ; amp:extensionName "postgres" .
+
+#################################################################
+# Instance -- support modules
+#################################################################
+
+amp:LoanStatusEnum a amp:SupportModule ;
+    amp:supportModuleName "BookLibrary.Circulation.LoanStatus" ;
+    amp:supportKind "enum" ; amp:supportRank 1 ;
+    amp:enumValue "out" , "returned" , "overdue" .
+
+amp:LoanDueDateValidation a amp:SupportModule ;
+    amp:servesResource amp:LoanResource ;
+    amp:supportModuleName "BookLibrary.Circulation.Validations.DueDateInFuture" ;
+    amp:supportKind "validation" ; amp:supportRank 2 .
+
+amp:LoanMarkReturnedChange a amp:SupportModule ;
+    amp:servesResource amp:LoanResource ;
+    amp:supportModuleName "BookLibrary.Circulation.Changes.StampReturnedAt" ;
+    amp:supportKind "change" ; amp:supportRank 3 .
+
+amp:BookSortByTitlePreparation a amp:SupportModule ;
+    amp:servesResource amp:BookResource ;
+    amp:supportModuleName "BookLibrary.Catalog.Preparations.SortByTitle" ;
+    amp:supportKind "preparation" ; amp:supportRank 4 .
+
+# NOT admitted -- see amp:AshGenCustomExpressionCapability. Retained as a
+# modelled fact so the refusal is derived from the ontology, not hard-coded.
+amp:BookTitleLengthExpression a amp:SupportModule ;
+    amp:servesResource amp:BookResource ;
+    amp:supportModuleName "BookLibrary.Catalog.Expressions.TitleLength" ;
+    amp:supportKind "custom_expression" ; amp:supportRank 5 .
+
+#################################################################
+# Instance -- generator capability envelope
+#
+# Every standing below is backed by amp:evidence read out of the exact
+# dependency source resolved in the subject's deps/ directory. The version
+# scope is NOT this comment: it is the amp:DependencyPin individuals at the
+# end of this file, which bin/citation_check.py reconciles against the
+# subject's real mix.lock. A comment naming three deps (this one used to)
+# while the file cites four is a drift a checker can catch and a comment
+# cannot.
+#################################################################
+
+amp:AshInstallCapability a amp:GeneratorCapability ;
+    amp:phase "base" ;
+    amp:mixTask "ash.install" ; amp:standing "ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "Composes spark.install and reactor.install, and its example-mode generators all pass --ignore-if-exists. The dependency add it relies on is Igniter.Project.Deps.add_dep in spark.install, guarded by has_dep?." ;
+    amp:evidence "deps/ash/lib/mix/tasks/install/ash.install.ex:114-115 (compose spark.install/reactor.install), :242-252 (--ignore-if-exists on the example generators); deps/spark/lib/mix/tasks/spark.install.ex:29 (has_dep? guard), :32 (add_dep :sourceror). CORRECTED after review: an earlier revision of this triple pointed at ash.install.ex directly under the mix/tasks directory, which does not exist -- the file lives one level deeper under mix/tasks/install/ -- and attributed add_dep to it, which it does not contain. Caught by bin/evidence_check.py, which now resolves every deps/ citation in this file." .
+
+amp:AshPostgresInstallCapability a amp:GeneratorCapability ;
+    amp:phase "base" ;
+    amp:mixTask "ash_postgres.install" ; amp:standing "ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "Upstream's FILE writes are idempotent: Repo/Application are created only when absent (ash_postgres.install.ex:433 create_module, :387 find_and_update_or_create_module) and config writes go through prepend_new_to_list (:113-118). That is NOT sufficient on its own, which is why ggen_igniter additionally applies the amp:repoModule guard: the LAST leg of the pipeline is an unconditional Ash.Igniter.codegen call (:59), which queues a task via Igniter.add_task with `ash.codegen` (deps/ash/lib/ash/igniter.ex:31). A queued task fails Igniter's --check even when zero files change, so run 2 must not reach this task at all. CORRECTED after review: an earlier revision of this triple described only upstream's file idempotency and never mentioned the guard, while the rendered task shipping in the SAME generated tree justified that guard solely by the queued codegen. Two texts, one file, one of them wrong -- the third instance of this class the pack has had to correct in-band." ;
+    amp:evidence "deps/ash_postgres/lib/mix/tasks/ash_postgres.install.ex:59 (unconditional Ash.Igniter.codegen), :113-118 (prepend_new_to_list on the ecto_repos config), :430-436 (repo create_module); deps/ash/lib/ash/igniter.ex:31 (Igniter.add_task queues ash.codegen)." .
+
+amp:AshGenDomainCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.gen.domain" ; amp:standing "PARTIAL_ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "Ash's OWN --ignore-if-exists branch does the work (ash.gen.domain.ex:34 module_exists, :36 the flag check), so ggen_igniter composes with that flag and applies NO guard of its own -- duplicating a check Ash owns would be the exact Chesterton's-fence violation this pack avoids. The flag is only reachable through Igniter.compose_task: at the CLI boundary the task declares no schema:, so strict validation rejects it as an unknown option. CORRECTED after review: an earlier revision of this triple claimed a module_exists/2 guard here, contradicting the rendered plan, which sets guard: nil." ;
+    amp:evidence "deps/ash/lib/mix/tasks/gen/ash.gen.domain.ex:26-30 has no `schema:`; the flag branch is at :36." .
+
+amp:AshGenResourceCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.gen.resource" ; amp:standing "ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "ensure_resource_exists/5 skips creation when the module is found, and --conflicts ignore (the default) skips already-present attributes/relationships/actions." ;
+    amp:evidence "deps/ash/lib/mix/tasks/gen/ash.gen.resource.ex:254-267 (ensure_resource_exists), :76 (ignore_if_exists in schema), :119-122 (conflicts defaults to ignore), :664-666 (the ignore branch calls add_new_attribute). CORRECTED after review: this triple cited :74 for ignore_if_exists. Line 74 is `da: :string,` -- the real line is 76, an off-by-two that bin/evidence_check.py could not see because it only asserted the range fell inside the file. amp:AshGenResourceIgnoreIfExistsCitation now anchors it to a symbol." .
+
+amp:AshGenBaseResourceCapability a amp:GeneratorCapability ;
+    amp:phase "base" ;
+    amp:mixTask "ash.gen.base_resource" ; amp:standing "PARTIAL_ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "Module creation is guarded by ggen_igniter's module_exists/2 admission guard, and the config write is prepend_new_to_list. Run in its OWN Igniter run (phase \"base\") so no earlier find_module scan has latched included_all_elixir_files?." ;
+    amp:evidence "PARTIAL_ALIVE, not ALIVE: the module-creation and base_resources-config legs work, but the update_all_elixir_files retrofit leg (deps/ash/lib/mix/tasks/gen/ash.gen.base_resource.ex:59) is UNREACHABLE whenever any prior step in the same Igniter run performed a find_module full scan, because Igniter.update_all_elixir_files/2 short-circuits on the same included_all_elixir_files? assign that Igniter.Project.Module.try_full_scan/3 (deps/igniter/lib/igniter/project/module.ex:474) sets, and which Igniter.update_all_elixir_files/2 itself reads at deps/igniter/lib/igniter.ex:1112-1123. Reproduced: a composed run with base_resource ordered LAST left lib/book_library/catalog/book.ex reading `use Ash.Resource`. ggen_igniter therefore obtains base-resource usage through the supported `ash.gen.resource --base` flag rather than depending on the retrofit. CORRECTED after review: this triple cited module.ex:475 for try_full_scan/3. `defp try_full_scan` is on 474 -- 475 is its first body line. Off by one, and invisible to a range-only check." .
+
+amp:AshGenEnumCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.gen.enum" ; amp:standing "ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "ggen_igniter module_exists/2 admission guard. Upstream also owns an --ignore-if-exists branch (ash.gen.enum.ex:50-52), but the composed plan reaches this task through a guard, so the flag is not passed." ;
+    amp:evidence "deps/ash/lib/mix/tasks/gen/ash.gen.enum.ex:50-52 (module_exists then the --ignore-if-exists branch)." .
+
+amp:AshGenValidationCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.gen.validation" ; amp:standing "ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "ggen_igniter module_exists/2 admission guard. Required, not belt-and-braces: unlike ash.gen.domain and ash.gen.enum this task has NO --ignore-if-exists branch -- create_module is called unconditionally (ash.gen.validation.ex:34), so without the guard run 2 raises a file conflict." ;
+    amp:evidence "deps/ash/lib/mix/tasks/gen/ash.gen.validation.ex:34 (unconditional create_module), :23-25 (Info declares one positional and no schema)." .
+
+amp:AshGenChangeCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.gen.change" ; amp:standing "ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "ggen_igniter module_exists/2 admission guard. Required, not belt-and-braces: create_module is unconditional (ash.gen.change.ex:34) and there is no --ignore-if-exists branch." ;
+    amp:evidence "deps/ash/lib/mix/tasks/gen/ash.gen.change.ex:34 (unconditional create_module), :23-25 (Info declares one positional and no schema)." .
+
+amp:AshGenPreparationCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.gen.preparation" ; amp:standing "ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "ggen_igniter module_exists/2 admission guard. Required, not belt-and-braces: create_module is unconditional (ash.gen.preparation.ex:34) and there is no --ignore-if-exists branch." ;
+    amp:evidence "deps/ash/lib/mix/tasks/gen/ash.gen.preparation.ex:34 (unconditional create_module), :23-25 (Info declares one positional and no schema)." .
+
+amp:AshGenCustomExpressionCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.gen.custom_expression" ; amp:standing "BUILD_BROKEN" ; amp:admitted false ;
+    amp:refusalReason "UNSUPPORTED(generator capability): the generator emits `args: [...]` but Ash.CustomExpression.__using__/1 raises ArgumentError unless `arguments:` is given, so every module this task produces fails to compile. Manufacturing it would poison every later compile boundary. ggen_igniter refuses the morphism rather than hand-writing the module or patching upstream output." ;
+    amp:idempotencyMechanism "N/A -- not admitted." ;
+    amp:evidence "GENERATOR deps/ash/lib/mix/tasks/gen/ash.gen.custom_expression.ex:45 emits `args: [...]`; CONSUMER deps/ash/lib/ash/custom_expression.ex:113-115 raises `You must provide arguments for the custom expression` when opts[:arguments] is nil. CORRECTED while converting the citations to anchors: this triple cited :46, which is blank. The real line is 45. Third instance of the same off-by-N class, and the first one found BY the anchor check rather than by reading." .
+
+amp:AshCodegenCapability a amp:GeneratorCapability ;
+    amp:phase "lifecycle" ;
+    amp:mixTask "ash.codegen" ; amp:standing "PARTIAL_ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "Snapshot-diffed: a second run against an unchanged resource set generates no new migration. NOT composed inside the Igniter run -- it must observe COMPILED resources, so it runs as a post-manufacture lifecycle step." ;
+    amp:evidence "deps/ash/lib/mix/tasks/ash.codegen.ex:36-42 (plain `use Mix.Task`, not an Igniter task; it re-enables and runs compile itself, which is why it cannot be composed into an Igniter run)." .
+
+amp:AshSetupCapability a amp:GeneratorCapability ;
+    amp:phase "lifecycle" ;
+    amp:mixTask "ash.setup" ; amp:standing "PARTIAL_ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "Delegates to ash_postgres.create (CREATE DATABASE IF NOT EXISTS semantics) + ash_postgres.migrate (version-tracked)." ;
+    amp:evidence "deps/ash/lib/mix/tasks/ash.setup.ex:50-52 (run_extensions dispatches to each extension's own setup/1 -- for AshPostgres that is create + migrate, so the idempotency is the data layer's, not this task's)." .
+
+amp:AshTearDownCapability a amp:GeneratorCapability ;
+    amp:phase "lifecycle" ;
+    amp:mixTask "ash.tear_down" ; amp:standing "UNSUPPORTED" ; amp:admitted false ;
+    amp:refusalReason "DESTRUCTIVE: drops the database. Not idempotent in any meaningful sense (run 2 has nothing to drop) and cannot share a database identity with the qualification subject. Admitted only inside an isolated-database harness, never in the manufacture path." ;
+    amp:idempotencyMechanism "N/A -- destructive." ;
+    amp:evidence "deps/ash/lib/mix/tasks/ash.tear_down.ex" .
+
+amp:AshResetCapability a amp:GeneratorCapability ;
+    amp:phase "lifecycle" ;
+    amp:mixTask "ash.reset" ; amp:standing "UNSUPPORTED" ; amp:admitted false ;
+    amp:refusalReason "DESTRUCTIVE: tear_down + setup. Same isolation requirement as ash.tear_down. NOTE: `ash_postgres.reset` does not exist -- the real task is `ash.reset`; the v26.9.8 matrix named a nonexistent task." ;
+    amp:idempotencyMechanism "N/A -- destructive." ;
+    amp:evidence "`mix help` in a real Ash project lists ash.reset, not ash_postgres.reset." .
+
+amp:AttachSupportModuleCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.attach.support_module" ; amp:standing "UNSUPPORTED" ; amp:admitted false ;
+    amp:refusalReason "UNSUPPORTED(generator capability): NO upstream Ash task can attach a manufactured validation/change/preparation module to the resource it serves. `mix ash.gen.validation|change|preparation` create the module and stop (each Info declares only its positional module name); `mix ash.gen.resource` has no --validation/--change/--preparation flag; `mix ash.extend` adds extensions, not DSL entries inside actions. The exact unmanufacturable semantic element is the `validations do validate X end` / `changes do change X end` / `preparations do prepare X end` DSL entry. Consequence, stated rather than hidden: the modules this pack manufactures are REAL modules but STRUCTURAL ORPHANS -- nothing references them, so they carry no runtime behaviour. Their amp:servesResource fact records the intent that could not be actuated. ggen_igniter emits this refusal rather than hand-writing the DSL entry; a project that needs the behaviour today must add that entry as disclosed handwritten residue against THIS receipt." ;
+    amp:idempotencyMechanism "N/A -- not admitted." ;
+    amp:evidence "deps/ash/lib/mix/tasks/gen/ash.gen.validation.ex:23-25, ash.gen.change.ex:23-25 and ash.gen.preparation.ex:23-25 each declare a single positional and no schema. Reproduced: after a full qualification run, grep for the manufactured module names across the fixture's lib/ finds zero references outside their own definition files." .
+
+amp:GenPolicyCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.extend:policies" ; amp:standing "UNKNOWN" ; amp:admitted false ;
+    amp:refusalReason "NOT EXERCISED, not broken. `mix ash.extend <resource> Ash.Policy.Authorizer` is a real supported path that would add the authorizer, but this case study never ran it, so its standing here is UNKNOWN and it is not admitted. Upgrading it requires an observed run, not an argument that it should work." ;
+    amp:idempotencyMechanism "Would be Spark.Igniter.add_extension's prepend_new_to_list, unverified here." ;
+    amp:evidence "deps/ash/lib/mix/tasks/ash.extend.ex:40-52 declares positional [:subject, extensions: [rest: true]]; no run of it against a policy authorizer appears in this pack's qualification steps.jsonl." .
+
+#################################################################
+# Capability rows for the remaining Igniter-based tasks in these deps.
+#
+# Every task that declares `use Igniter.Mix.Task` in deps/ash or
+# deps/ash_postgres gets a row, so the envelope is closed against the real
+# dependency surface rather than against the subset this case study happened
+# to touch. test/ggen_igniter_ash_task_coverage_test.exs asserts that
+# closure at test time: a task a future Ash release adds fails the suite
+# instead of silently sitting outside the envelope.
+#
+# UNKNOWN here means NOT EXERCISED. It is not a claim that the task is
+# broken, and it must not be upgraded without an observed run.
+#################################################################
+
+amp:AshExtendCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.extend" ; amp:standing "PARTIAL_ALIVE" ; amp:admitted true ;
+    amp:idempotencyMechanism "Non-singleton extension keys go through Igniter.Code.List.prepend_new_to_list, so re-adding a present extension is a no-op; the singleton :data_layer key is replaced in place rather than appended. Exercised TRANSITIVELY only: the manufacture path reaches it through ash.gen.resource --extend, never by composing it directly, which is why this is PARTIAL_ALIVE and not ALIVE." ;
+    amp:evidence "deps/ash/lib/mix/tasks/ash.extend.ex:40-52 (Info), :57 (unconditional Mix.Task.run compile), :264-277 (simple_add_extension dispatch); deps/spark/lib/spark/igniter.ex:332-337 (prepend_new_to_list)." .
+
+amp:AshPatchExtendCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.patch.extend" ; amp:standing "UNKNOWN" ; amp:admitted false ;
+    amp:refusalReason "NOT EXERCISED. It delegates verbatim to ash.extend for both info/2 and igniter/1, so its behaviour is expected to be identical -- but expectation is not observation, and this pack never ran it." ;
+    amp:idempotencyMechanism "Would be ash.extend's, unverified here." ;
+    amp:evidence "deps/ash/lib/mix/tasks/patch/ash.patch.extend.ex:13-21 delegates to Mix.Tasks.Ash.Extend." .
+
+amp:AshSetDomainsCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash.set.domains" ; amp:standing "UNKNOWN" ; amp:admitted false ;
+    amp:refusalReason "NOT EXERCISED, and structurally redundant on this path: ash.gen.domain already writes the ash_domains config entry as part of creating the domain, so discovering and rewriting the list afterwards would be a second writer to state a generator already owns." ;
+    amp:idempotencyMechanism "Unverified." ;
+    amp:evidence "deps/ash/lib/mix/tasks/ash.set.domains.ex declares use Igniter.Mix.Task; deps/ash/lib/mix/tasks/gen/ash.gen.domain.ex:44-54 already configures :ash_domains." .
+
+amp:AshPostgresGenResourcesCapability a amp:GeneratorCapability ;
+    amp:phase "core" ;
+    amp:mixTask "ash_postgres.gen.resources" ; amp:standing "UNSUPPORTED" ; amp:admitted false ;
+    amp:refusalReason "DIRECTION INVERSION: this task generates Ash resources FROM an existing database schema. That is the opposite of this pack's direction (ontology -> resources -> migrations) and admitting it would create a second, competing source of truth for the same resources. Excluded by design, not by omission." ;
+    amp:idempotencyMechanism "N/A -- not admitted." ;
+    amp:evidence "deps/ash_postgres/lib/mix/tasks/ash_postgres.gen.resources.ex:185 queues ash_postgres.generate_migrations via Igniter.add_task." .
+
+amp:AshPostgresSetupVectorCapability a amp:GeneratorCapability ;
+    amp:phase "lifecycle" ;
+    amp:mixTask "ash_postgres.setup_vector" ; amp:standing "UNKNOWN" ; amp:admitted false ;
+    amp:refusalReason "NOT EXERCISED. pgvector is not part of the Book/Loan domain, so there was nothing to observe. UNKNOWN, not broken." ;
+    amp:idempotencyMechanism "Unverified." ;
+    amp:evidence "deps/ash_postgres/lib/mix/tasks/ash_postgres.setup_vector.ex declares use Igniter.Mix.Task." .
+
+#################################################################
+# Instance -- dependency pins
+#
+# Read out of test/fixtures/book_library/mix.lock, not recalled.
+# bin/citation_check.py fails with a distinguishable "pin drift" message when
+# any of these disagrees with the resolved lock, so a `mix deps.update` is
+# reported as ONE cause rather than as N anchor misses.
+#
+# spark is pinned here because this ontology cites deps/spark twice
+# (spark.install.ex, spark/igniter.ex) while the prose scope note above it
+# named only ash, ash_postgres and igniter.
+#################################################################
+
+amp:AshPin a amp:DependencyPin ;
+    amp:pinnedDep "ash" ; amp:pinnedVersion "3.33.1" .
+
+amp:AshPostgresPin a amp:DependencyPin ;
+    amp:pinnedDep "ash_postgres" ; amp:pinnedVersion "2.13.1" .
+
+amp:IgniterPin a amp:DependencyPin ;
+    amp:pinnedDep "igniter" ; amp:pinnedVersion "0.8.4" .
+
+amp:SparkPin a amp:DependencyPin ;
+    amp:pinnedDep "spark" ; amp:pinnedVersion "2.7.2" .
+
+#################################################################
+# Instance -- citations
+#
+# One row per mechanically checkable anchor. amp:citesSymbol is verified to
+# occur inside citesLine..citesEndLine by bin/citation_check.py; a symbol that
+# stops occurring is an upstream drift report, not a silent stale citation.
+#################################################################
+
+amp:AshInstallComposeCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/install/ash.install.ex" ;
+    amp:citesLine 114 ; amp:citesEndLine 115 ;
+    amp:citesSymbol "reactor.install" ;
+    amp:supports amp:AshInstallCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshInstallIgnoreIfExistsCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/install/ash.install.ex" ;
+    amp:citesLine 242 ; amp:citesEndLine 252 ;
+    amp:citesSymbol "ignore-if-exists" ;
+    amp:supports amp:AshInstallCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:SparkInstallHasDepCitation a amp:Citation ;
+    amp:citesFile "deps/spark/lib/mix/tasks/spark.install.ex" ;
+    amp:citesLine 29 ;
+    amp:citesSymbol "has_dep?" ;
+    amp:supports amp:AshInstallCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:SparkPin .
+
+amp:SparkInstallAddDepCitation a amp:Citation ;
+    amp:citesFile "deps/spark/lib/mix/tasks/spark.install.ex" ;
+    amp:citesLine 32 ;
+    amp:citesSymbol "add_dep" ;
+    amp:supports amp:AshInstallCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:SparkPin .
+
+amp:AshPostgresInstallCodegenCitation a amp:Citation ;
+    amp:citesFile "deps/ash_postgres/lib/mix/tasks/ash_postgres.install.ex" ;
+    amp:citesLine 59 ;
+    amp:citesSymbol "Ash.Igniter.codegen" ;
+    amp:supports amp:AshPostgresInstallCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPostgresPin .
+
+amp:AshIgniterQueuesCodegenCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/ash/igniter.ex" ;
+    amp:citesLine 31 ;
+    amp:citesSymbol "Igniter.add_task" ;
+    amp:supports amp:AshPostgresInstallCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshPostgresInstallEctoReposCitation a amp:Citation ;
+    amp:citesFile "deps/ash_postgres/lib/mix/tasks/ash_postgres.install.ex" ;
+    amp:citesLine 113 ; amp:citesEndLine 118 ;
+    amp:citesSymbol "prepend_new_to_list" ;
+    amp:supports amp:AshPostgresInstallCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPostgresPin .
+
+amp:AshPostgresInstallCreateRepoCitation a amp:Citation ;
+    amp:citesFile "deps/ash_postgres/lib/mix/tasks/ash_postgres.install.ex" ;
+    amp:citesLine 430 ; amp:citesEndLine 436 ;
+    amp:citesSymbol "create_module" ;
+    amp:supports amp:AshPostgresInstallCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPostgresPin .
+
+amp:AshGenDomainModuleExistsCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.domain.ex" ;
+    amp:citesLine 34 ;
+    amp:citesSymbol "module_exists" ;
+    amp:supports amp:AshGenDomainCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenDomainIgnoreFlagCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.domain.ex" ;
+    amp:citesLine 36 ;
+    amp:citesSymbol "argv_flags" ;
+    amp:supports amp:AshGenDomainCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenDomainConfiguresDomainsCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.domain.ex" ;
+    amp:citesLine 44 ; amp:citesEndLine 54 ;
+    amp:citesSymbol ":ash_domains" ;
+    amp:supports amp:AshSetDomainsCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenResourceEnsureExistsCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.resource.ex" ;
+    amp:citesLine 254 ; amp:citesEndLine 267 ;
+    amp:citesSymbol "ensure_resource_exists" ;
+    amp:supports amp:AshGenResourceCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPin .
+
+# The first of the three off-by-N defects this class of anchor exists to
+# catch: the prose cited :74, which is `da: :string,`.
+amp:AshGenResourceIgnoreIfExistsCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.resource.ex" ;
+    amp:citesLine 76 ;
+    amp:citesSymbol "ignore_if_exists" ;
+    amp:supports amp:AshGenResourceCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenResourceConflictsDefaultCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.resource.ex" ;
+    amp:citesLine 119 ; amp:citesEndLine 122 ;
+    amp:citesSymbol "conflicts_strategy" ;
+    amp:supports amp:AshGenResourceCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenResourceConflictsIgnoreCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.resource.ex" ;
+    amp:citesLine 664 ; amp:citesEndLine 666 ;
+    amp:citesSymbol "add_new_attribute" ;
+    amp:supports amp:AshGenResourceCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenResourceBaseValidationCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.resource.ex" ;
+    amp:citesLine 152 ; amp:citesEndLine 160 ;
+    amp:citesSymbol "base_resources" ;
+    amp:supports amp:AshGenBaseResourceCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenBaseResourcePrependConfigCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.base_resource.ex" ;
+    amp:citesLine 53 ;
+    amp:citesSymbol "prepend_new_to_list" ;
+    amp:supports amp:AshGenBaseResourceCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenBaseResourceRetrofitCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.base_resource.ex" ;
+    amp:citesLine 59 ;
+    amp:citesSymbol "update_all_elixir_files" ;
+    amp:supports amp:AshGenBaseResourceCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:IgniterUpdateAllShortCircuitCitation a amp:Citation ;
+    amp:citesFile "deps/igniter/lib/igniter.ex" ;
+    amp:citesLine 1112 ; amp:citesEndLine 1123 ;
+    amp:citesSymbol "included_all_elixir_files?" ;
+    amp:supports amp:AshGenBaseResourceCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:IgniterPin .
+
+# The second off-by-N defect: the prose cited :475, the first BODY line of
+# try_full_scan/3. The `defp` is on 474.
+amp:IgniterTryFullScanCitation a amp:Citation ;
+    amp:citesFile "deps/igniter/lib/igniter/project/module.ex" ;
+    amp:citesLine 474 ;
+    amp:citesSymbol "defp try_full_scan" ;
+    amp:supports amp:AshGenBaseResourceCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:IgniterPin .
+
+amp:AshGenEnumIgnoreFlagCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.enum.ex" ;
+    amp:citesLine 50 ; amp:citesEndLine 52 ;
+    amp:citesSymbol "module_exists" ;
+    amp:supports amp:AshGenEnumCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenValidationCreateModuleCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.validation.ex" ;
+    amp:citesLine 34 ;
+    amp:citesSymbol "create_module" ;
+    amp:supports amp:AshGenValidationCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenValidationInfoCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.validation.ex" ;
+    amp:citesLine 23 ; amp:citesEndLine 25 ;
+    amp:citesSymbol "positional: [:validation]" ;
+    amp:supports amp:AttachSupportModuleCapability ; amp:citedProperty "refusalReason" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenChangeCreateModuleCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.change.ex" ;
+    amp:citesLine 34 ;
+    amp:citesSymbol "create_module" ;
+    amp:supports amp:AshGenChangeCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenChangeInfoCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.change.ex" ;
+    amp:citesLine 23 ; amp:citesEndLine 25 ;
+    amp:citesSymbol "positional: [:change]" ;
+    amp:supports amp:AttachSupportModuleCapability ; amp:citedProperty "refusalReason" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenPreparationCreateModuleCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.preparation.ex" ;
+    amp:citesLine 34 ;
+    amp:citesSymbol "create_module" ;
+    amp:supports amp:AshGenPreparationCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshGenPreparationInfoCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.preparation.ex" ;
+    amp:citesLine 23 ; amp:citesEndLine 25 ;
+    amp:citesSymbol "positional: [:preparation]" ;
+    amp:supports amp:AttachSupportModuleCapability ; amp:citedProperty "refusalReason" ;
+    amp:citesPin amp:AshPin .
+
+# The third off-by-N defect, and the first found BY this check rather than by
+# reading: the prose cited :46, which is blank.
+amp:AshGenCustomExpressionArgsCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/gen/ash.gen.custom_expression.ex" ;
+    amp:citesLine 45 ;
+    amp:citesSymbol "args: [" ;
+    amp:supports amp:AshGenCustomExpressionCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshCustomExpressionRaisesCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/ash/custom_expression.ex" ;
+    amp:citesLine 113 ; amp:citesEndLine 115 ;
+    amp:citesSymbol "ArgumentError" ;
+    amp:supports amp:AshGenCustomExpressionCapability ; amp:citedProperty "refusalReason" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshCodegenPlainMixTaskCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/ash.codegen.ex" ;
+    amp:citesLine 36 ; amp:citesEndLine 42 ;
+    amp:citesSymbol "use Mix.Task" ;
+    amp:supports amp:AshCodegenCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshSetupRunExtensionsCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/ash.setup.ex" ;
+    amp:citesLine 50 ; amp:citesEndLine 52 ;
+    amp:citesSymbol "run_extensions" ;
+    amp:supports amp:AshSetupCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshTearDownDestructiveCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/ash.tear_down.ex" ;
+    amp:citesLine 19 ;
+    amp:citesSymbol ":tear_down" ;
+    amp:supports amp:AshTearDownCapability ; amp:citedProperty "refusalReason" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshExtendInfoCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/ash.extend.ex" ;
+    amp:citesLine 40 ; amp:citesEndLine 52 ;
+    amp:citesSymbol "sat_solver" ;
+    amp:supports amp:AshExtendCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshExtendCompileCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/ash.extend.ex" ;
+    amp:citesLine 57 ;
+    amp:citesSymbol "Mix.Task.run(" ;
+    amp:supports amp:AshExtendCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshExtendSimpleAddCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/ash.extend.ex" ;
+    amp:citesLine 264 ; amp:citesEndLine 277 ;
+    amp:citesSymbol "simple_add_extension" ;
+    amp:supports amp:AshExtendCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:SparkIgniterPrependNewCitation a amp:Citation ;
+    amp:citesFile "deps/spark/lib/spark/igniter.ex" ;
+    amp:citesLine 332 ; amp:citesEndLine 337 ;
+    amp:citesSymbol "prepend_new_to_list" ;
+    amp:supports amp:AshExtendCapability ; amp:citedProperty "idempotencyMechanism" ;
+    amp:citesPin amp:SparkPin .
+
+amp:AshExtendPolicyPositionalCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/ash.extend.ex" ;
+    amp:citesLine 41 ; amp:citesEndLine 46 ;
+    amp:citesSymbol "rest: true" ;
+    amp:supports amp:GenPolicyCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshPatchExtendDelegatesCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/patch/ash.patch.extend.ex" ;
+    amp:citesLine 13 ; amp:citesEndLine 21 ;
+    amp:citesSymbol "Mix.Tasks.Ash.Extend" ;
+    amp:supports amp:AshPatchExtendCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshSetDomainsIgniterTaskCitation a amp:Citation ;
+    amp:citesFile "deps/ash/lib/mix/tasks/ash.set.domains.ex" ;
+    amp:citesLine 7 ;
+    amp:citesSymbol "use Igniter.Mix.Task" ;
+    amp:supports amp:AshSetDomainsCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPin .
+
+amp:AshPostgresGenResourcesAddTaskCitation a amp:Citation ;
+    amp:citesFile "deps/ash_postgres/lib/mix/tasks/ash_postgres.gen.resources.ex" ;
+    amp:citesLine 185 ;
+    amp:citesSymbol "ash_postgres.generate_migrations" ;
+    amp:supports amp:AshPostgresGenResourcesCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPostgresPin .
+
+amp:AshPostgresSetupVectorIgniterTaskCitation a amp:Citation ;
+    amp:citesFile "deps/ash_postgres/lib/mix/tasks/ash_postgres.setup_vector.ex" ;
+    amp:citesLine 35 ;
+    amp:citesSymbol "use Igniter.Mix.Task" ;
+    amp:supports amp:AshPostgresSetupVectorCapability ; amp:citedProperty "evidence" ;
+    amp:citesPin amp:AshPostgresPin .

@@ -1,0 +1,12 @@
+PREFIX alp: <http://seanchatmangpt.github.io/packs/ash-lifecycle-pack#>
+SELECT ?module_name ?mix_task ?mix_args ?rank ?destructive ?idempotency_mechanism ?spec_deviation WHERE {
+  ?task a alp:AshTierTask ;
+        alp:moduleName           ?module_name ;
+        alp:mixTask              ?mix_task ;
+        alp:mixArgs              ?mix_args ;
+        alp:rank                 ?rank ;
+        alp:destructive          ?destructive ;
+        alp:idempotencyMechanism ?idempotency_mechanism ;
+        alp:specDeviation        ?spec_deviation .
+}
+ORDER BY ?rank

@@ -158,6 +158,23 @@ defmodule GgenIgniter.MixProject do
       # compile --warnings-as-errors` clean.
       {:gno, "~> 0.1", optional: true},
       {:stream_data, "~> 1.2", only: [:dev, :test]},
+      # Test-data generation. Tests assert STRUCTURAL properties (an event's
+      # activity round-trips into a declared eventType, a run object is
+      # related to every event), so the literal values must not be load-
+      # bearing -- generated names make an accidental pass on a hardcoded
+      # string impossible.
+      {:faker, "~> 0.18", only: [:dev, :test]},
+      # Ash is a CONSUMER-side dependency of ggen_igniter, never a runtime one
+      # -- see the layer table in CLAUDE.md. It is pulled in `only: [:dev,
+      # :test]` so this repo's own suite can drive the REAL generative Ash
+      # tasks through `Igniter.Test`, which is the upstream-sanctioned way to
+      # test an `Igniter.Mix.Task` (in-memory project, no subprocess, no
+      # scaffolded app). Driving Ash's actual generators is the primary use
+      # case for ggen_igniter, so "does our derived argv actually work
+      # against them" has to be a real assertion in `mix test`, not only in
+      # the fixture qualification run.
+      {:ash, "~> 3.0", only: [:dev, :test]},
+      {:ash_postgres, "~> 2.0", only: [:dev, :test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: [:dev, :test]},

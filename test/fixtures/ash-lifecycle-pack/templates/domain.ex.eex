@@ -10,9 +10,17 @@ defmodule <%= domain_module %> do
   whose ontology-declared `alp:resourceDomain` really resolves to THIS
   domain module (`<%= domain_module %>`).
 
-  Manufactured by ggen_igniter from the admitted alp: ontology -- do not
-  hand-edit; regenerate from the ontology instead. FIXED (multi-domain
-  admission gap): this template used to assume a SINGLE domain module via
+  Rendered by ggen_igniter from the alp: ontology -- do not hand-edit;
+  regenerate from the ontology instead.
+
+  Standing: this file's template hand-renders `use Ash.Domain` source text
+  directly, which is NOT the ontology -> composed-generator path this repo
+  requires for new Ash surfaces. The fixture predates that doctrine and is
+  kept only as a pack-SHAPE corpus for the test suite, never as Ash proof.
+  See test/fixtures/ash-lifecycle-pack/README.md.
+
+  FIXED (multi-domain registration gap): this template used to assume a
+  SINGLE domain module via
   `domain_resources |> List.first() |> Map.get("domain_module")`, so any
   resource whose real declared domain differed from the pack's one assumed
   domain got silently misregistered under the wrong module. It now fans out

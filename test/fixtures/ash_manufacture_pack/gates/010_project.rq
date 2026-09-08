@@ -1,0 +1,16 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+# Single-row query: ggen_igniter flattens a one-row result into bare
+# top-level EEx bindings, so the template refers to `otp_app`, `root_module`
+# etc. directly.
+SELECT ?otp_app ?root_module ?task_module ?task_name ?base_resource_module ?repo_module
+WHERE {
+  ?p a amp:Project ;
+     amp:otpApp ?otp_app ;
+     amp:rootModule ?root_module ;
+     amp:manufactureTaskModule ?task_module ;
+     amp:manufactureTaskName ?task_name ;
+     amp:baseResourceModule ?base_resource_module ;
+     amp:repoModule ?repo_module .
+}
+ORDER BY ?otp_app

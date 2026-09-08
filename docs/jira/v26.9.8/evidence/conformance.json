@@ -1,0 +1,82 @@
+{
+  "admitted": [
+    "ash.codegen",
+    "ash.gen.base_resource",
+    "ash.gen.change",
+    "ash.gen.domain",
+    "ash.gen.enum",
+    "ash.gen.preparation",
+    "ash.gen.resource",
+    "ash.gen.validation",
+    "ash.install",
+    "ash.setup",
+    "ash_postgres.install"
+  ],
+  "capabilities_declared": 16,
+  "conformant": true,
+  "guard_flip_run1_to_run2": [
+    "BookLibrary.Catalog.Preparations.SortByTitle",
+    "BookLibrary.Circulation.Changes.StampReturnedAt",
+    "BookLibrary.Circulation.Validations.DueDateInFuture",
+    "BookLibrary.Repo",
+    "BookLibrary.Resource"
+  ],
+  "not_admitted": [
+    "ash.attach.support_module",
+    "ash.extend:policies",
+    "ash.gen.custom_expression",
+    "ash.reset",
+    "ash.tear_down"
+  ],
+  "runs": {
+    "run1": {
+      "capability_refused": [
+        "ash.attach.support_module",
+        "ash.extend:policies",
+        "ash.gen.custom_expression",
+        "ash.reset",
+        "ash.tear_down"
+      ],
+      "composed": [
+        "ash.gen.base_resource",
+        "ash.gen.change",
+        "ash.gen.domain",
+        "ash.gen.enum",
+        "ash.gen.preparation",
+        "ash.gen.resource",
+        "ash.gen.validation",
+        "ash.install",
+        "ash_postgres.install"
+      ],
+      "composed_count": 11,
+      "events": 23,
+      "guarded_admission_refused": []
+    },
+    "run2": {
+      "capability_refused": [
+        "ash.attach.support_module",
+        "ash.extend:policies",
+        "ash.gen.custom_expression",
+        "ash.reset",
+        "ash.tear_down"
+      ],
+      "composed": [
+        "ash.gen.domain",
+        "ash.gen.enum",
+        "ash.gen.resource",
+        "ash.install"
+      ],
+      "composed_count": 6,
+      "events": 23,
+      "guarded_admission_refused": [
+        "BookLibrary.Catalog.Preparations.SortByTitle",
+        "BookLibrary.Circulation.Changes.StampReturnedAt",
+        "BookLibrary.Circulation.Validations.DueDateInFuture",
+        "BookLibrary.Repo",
+        "BookLibrary.Resource"
+      ]
+    }
+  },
+  "spc": "NOT_APPLICABLE: n=2 runs is not a time series; no control limits are computed and none should be inferred.",
+  "violations": []
+}

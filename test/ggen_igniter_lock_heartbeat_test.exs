@@ -50,6 +50,8 @@ defmodule GgenIgniter.LockHeartbeatTest do
 
         receive do
           :release -> :ok
+        after
+          5_000 -> :timeout
         end
 
         :ok = GgenIgniter.Lock.release(lock)

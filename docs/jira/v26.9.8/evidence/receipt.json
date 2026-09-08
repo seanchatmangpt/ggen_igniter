@@ -1,0 +1,610 @@
+{
+  "agent_handwrite_refusal": {
+    "cases": {
+      "guard-allows-manufactured-task": 0,
+      "guard-allows-plain-elixir": 0,
+      "guard-blocks-ash-resource": 2,
+      "guard-blocks-base-resource-header": 2
+    },
+    "hook": ".claude/hooks/refuse-handwritten-ash.sh",
+    "limit": "A content pattern-match, not a proof. It catches the observed failure mode (an agent writing `use Ash.Resource` directly) and will not catch every conceivable route to the same outcome.",
+    "wired_as": "PreToolUse Edit|Write in .claude/settings.json"
+  },
+  "capability_matrix": {
+    "ash.attach.support_module": {
+      "admitted": false,
+      "phase": "core",
+      "refusal_reason": "UNSUPPORTED(generator capability): NO upstream Ash task can attach a manufactured validation/change/preparation module to the resource it serves. `mix ash.gen.validation|change|preparation` create the module and stop (each Info declares only its positional module name); `mix ash.gen.resource` has no --validation/--change/--preparation flag; `mix ash.extend` adds extensions, not DSL entries inside actions. The exact unmanufacturable semantic element is the `validations do validate X end` / `changes do change X end` / `preparations do prepare X end` DSL entry. Consequence, stated rather than hidden: the modules this pack manufactures are REAL modules but STRUCTURAL ORPHANS -- nothing references them, so they carry no runtime behaviour. Their amp:servesResource fact records the intent that could not be actuated. ggen_igniter emits this refusal rather than hand-writing the DSL entry; a project that needs the behaviour today must add that entry as disclosed handwritten residue against THIS receipt.",
+      "standing": "UNSUPPORTED"
+    },
+    "ash.codegen": {
+      "admitted": true,
+      "phase": "lifecycle",
+      "refusal_reason": null,
+      "standing": "PARTIAL_ALIVE"
+    },
+    "ash.extend:policies": {
+      "admitted": false,
+      "phase": "core",
+      "refusal_reason": "NOT EXERCISED, not broken. `mix ash.extend <resource> Ash.Policy.Authorizer` is a real supported path that would add the authorizer, but this case study never ran it, so its standing here is UNKNOWN and it is not admitted. Upgrading it requires an observed run, not an argument that it should work.",
+      "standing": "UNKNOWN"
+    },
+    "ash.gen.base_resource": {
+      "admitted": true,
+      "phase": "base",
+      "refusal_reason": null,
+      "standing": "PARTIAL_ALIVE"
+    },
+    "ash.gen.change": {
+      "admitted": true,
+      "phase": "core",
+      "refusal_reason": null,
+      "standing": "ALIVE"
+    },
+    "ash.gen.custom_expression": {
+      "admitted": false,
+      "phase": "core",
+      "refusal_reason": "UNSUPPORTED(generator capability): the generator emits `args: [...]` but Ash.CustomExpression.__using__/1 raises ArgumentError unless `arguments:` is given, so every module this task produces fails to compile. Manufacturing it would poison every later compile boundary. ggen_igniter refuses the morphism rather than hand-writing the module or patching upstream output.",
+      "standing": "BUILD_BROKEN"
+    },
+    "ash.gen.domain": {
+      "admitted": true,
+      "phase": "core",
+      "refusal_reason": null,
+      "standing": "PARTIAL_ALIVE"
+    },
+    "ash.gen.enum": {
+      "admitted": true,
+      "phase": "core",
+      "refusal_reason": null,
+      "standing": "ALIVE"
+    },
+    "ash.gen.preparation": {
+      "admitted": true,
+      "phase": "core",
+      "refusal_reason": null,
+      "standing": "ALIVE"
+    },
+    "ash.gen.resource": {
+      "admitted": true,
+      "phase": "core",
+      "refusal_reason": null,
+      "standing": "ALIVE"
+    },
+    "ash.gen.validation": {
+      "admitted": true,
+      "phase": "core",
+      "refusal_reason": null,
+      "standing": "ALIVE"
+    },
+    "ash.install": {
+      "admitted": true,
+      "phase": "base",
+      "refusal_reason": null,
+      "standing": "ALIVE"
+    },
+    "ash.reset": {
+      "admitted": false,
+      "phase": "lifecycle",
+      "refusal_reason": "DESTRUCTIVE: tear_down + setup. Same isolation requirement as ash.tear_down. NOTE: `ash_postgres.reset` does not exist -- the real task is `ash.reset`; the v26.9.8 matrix named a nonexistent task.",
+      "standing": "UNSUPPORTED"
+    },
+    "ash.setup": {
+      "admitted": true,
+      "phase": "lifecycle",
+      "refusal_reason": null,
+      "standing": "PARTIAL_ALIVE"
+    },
+    "ash.tear_down": {
+      "admitted": false,
+      "phase": "lifecycle",
+      "refusal_reason": "DESTRUCTIVE: drops the database. Not idempotent in any meaningful sense (run 2 has nothing to drop) and cannot share a database identity with the qualification subject. Admitted only inside an isolated-database harness, never in the manufacture path.",
+      "standing": "UNSUPPORTED"
+    },
+    "ash_postgres.install": {
+      "admitted": true,
+      "phase": "base",
+      "refusal_reason": null,
+      "standing": "ALIVE"
+    }
+  },
+  "commands": [
+    {
+      "command": "mix deps.get ",
+      "exit": 0,
+      "expected": 0,
+      "label": "deps-get",
+      "log": "01-deps-get.log",
+      "rung": "A"
+    },
+    {
+      "command": "mix compile ",
+      "exit": 0,
+      "expected": 0,
+      "label": "baseline-compile",
+      "log": "02-baseline-compile.log",
+      "rung": "B"
+    },
+    {
+      "command": "mix ggen_igniter.sync --pack-dir /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack ",
+      "exit": 0,
+      "expected": 0,
+      "label": "ggen-sync",
+      "log": "03-ggen-sync.log",
+      "rung": "C"
+    },
+    {
+      "command": "mix compile ",
+      "exit": 0,
+      "expected": 0,
+      "label": "compile-manufacture-task",
+      "log": "04-compile-manufacture-task.log",
+      "rung": "C"
+    },
+    {
+      "command": "python3 /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack/bin/drift_check.py /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack lib/mix/tasks/book_library.manufacture.ex ",
+      "exit": 0,
+      "expected": 0,
+      "label": "drift-check",
+      "log": "05-drift-check.log",
+      "rung": "C"
+    },
+    {
+      "command": "python3 /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack/bin/evidence_check.py /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack /Users/sac/ggen_igniter/test/fixtures/book_library ",
+      "exit": 0,
+      "expected": 0,
+      "label": "evidence-citations",
+      "log": "06-evidence-citations.log",
+      "rung": "C"
+    },
+    {
+      "command": "mix book_library.manufacture --phase base --yes ",
+      "exit": 0,
+      "expected": 0,
+      "label": "manufacture-base-run1",
+      "log": "07-manufacture-base-run1.log",
+      "rung": "D"
+    },
+    {
+      "command": "mix compile ",
+      "exit": 0,
+      "expected": 0,
+      "label": "compile-after-base",
+      "log": "08-compile-after-base.log",
+      "rung": "E"
+    },
+    {
+      "command": "mix book_library.manufacture --phase core --yes ",
+      "exit": 0,
+      "expected": 0,
+      "label": "manufacture-core-run1",
+      "log": "09-manufacture-core-run1.log",
+      "rung": "F"
+    },
+    {
+      "command": "mix compile ",
+      "exit": 0,
+      "expected": 0,
+      "label": "compile-after-core",
+      "log": "10-compile-after-core.log",
+      "rung": "F"
+    },
+    {
+      "command": "mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.base.ocel.json --exit 0 --observed phase base applied; mix compile exit 0 ",
+      "exit": 0,
+      "expected": 0,
+      "label": "seal-ocel-base",
+      "log": "11-seal-ocel-base.log",
+      "rung": "F"
+    },
+    {
+      "command": "mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.core.ocel.json --exit 0 --observed phase core applied; mix compile exit 0 ",
+      "exit": 0,
+      "expected": 0,
+      "label": "seal-ocel-core",
+      "log": "12-seal-ocel-core.log",
+      "rung": "F"
+    },
+    {
+      "command": "mix ash.codegen --name book_library_manufacture ",
+      "exit": 0,
+      "expected": 0,
+      "label": "ash-codegen",
+      "log": "13-ash-codegen.log",
+      "rung": "F"
+    },
+    {
+      "command": "mix ash.setup ",
+      "exit": 0,
+      "expected": 0,
+      "label": "ash-setup",
+      "log": "14-ash-setup.log",
+      "rung": "F"
+    },
+    {
+      "command": "mix compile ",
+      "exit": 0,
+      "expected": 0,
+      "label": "compile-after-lifecycle",
+      "log": "15-compile-after-lifecycle.log",
+      "rung": "F"
+    },
+    {
+      "command": "mix book_library.manufacture --phase base --check ",
+      "exit": 0,
+      "expected": 0,
+      "label": "idempotency-check-base",
+      "log": "16-idempotency-check-base.log",
+      "rung": "G"
+    },
+    {
+      "command": "mix book_library.manufacture --phase core --check ",
+      "exit": 0,
+      "expected": 0,
+      "label": "idempotency-check-core",
+      "log": "17-idempotency-check-core.log",
+      "rung": "G"
+    },
+    {
+      "command": "mix book_library.manufacture --phase base --yes ",
+      "exit": 0,
+      "expected": 0,
+      "label": "manufacture-base-run2",
+      "log": "18-manufacture-base-run2.log",
+      "rung": "G"
+    },
+    {
+      "command": "mix book_library.manufacture --phase core --yes ",
+      "exit": 0,
+      "expected": 0,
+      "label": "manufacture-core-run2",
+      "log": "19-manufacture-core-run2.log",
+      "rung": "G"
+    },
+    {
+      "command": "mix ash.codegen --name book_library_manufacture ",
+      "exit": 0,
+      "expected": 0,
+      "label": "ash-codegen-run2",
+      "log": "20-ash-codegen-run2.log",
+      "rung": "G"
+    },
+    {
+      "command": "mix compile ",
+      "exit": 0,
+      "expected": 0,
+      "label": "compile-after-run2",
+      "log": "21-compile-after-run2.log",
+      "rung": "G"
+    },
+    {
+      "command": "mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.base.ocel.json --exit 0 --observed phase base re-applied; mix compile exit 0 ",
+      "exit": 0,
+      "expected": 0,
+      "label": "seal-ocel-base-run2",
+      "log": "22-seal-ocel-base-run2.log",
+      "rung": "G"
+    },
+    {
+      "command": "mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.core.ocel.json --exit 0 --observed phase core re-applied; mix compile exit 0 ",
+      "exit": 0,
+      "expected": 0,
+      "label": "seal-ocel-core-run2",
+      "log": "23-seal-ocel-core-run2.log",
+      "rung": "G"
+    },
+    {
+      "command": "diff T1 T2",
+      "exit": 0,
+      "expected": 0,
+      "label": "tree-diff-T1-T2",
+      "log": "T1-vs-T2.diff",
+      "rung": "G"
+    },
+    {
+      "command": "refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/catalog/handwritten.ex",
+      "exit": 2,
+      "expected": 2,
+      "label": "guard-blocks-ash-resource",
+      "log": "24-guard-blocks-ash-resource.log",
+      "rung": "K"
+    },
+    {
+      "command": "refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/catalog/handwritten.ex",
+      "exit": 2,
+      "expected": 2,
+      "label": "guard-blocks-base-resource-header",
+      "log": "25-guard-blocks-base-resource-header.log",
+      "rung": "K"
+    },
+    {
+      "command": "refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/plain.ex",
+      "exit": 0,
+      "expected": 0,
+      "label": "guard-allows-plain-elixir",
+      "log": "26-guard-allows-plain-elixir.log",
+      "rung": "K"
+    },
+    {
+      "command": "refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/mix/tasks/book_library.manufacture.ex",
+      "exit": 0,
+      "expected": 0,
+      "label": "guard-allows-manufactured-task",
+      "log": "27-guard-allows-manufactured-task.log",
+      "rung": "K"
+    },
+    {
+      "command": "BeamPM.Rust4PM.import_ocel_json/2",
+      "exit": 0,
+      "expected": 0,
+      "label": "beam4pm-import",
+      "log": "28-beam4pm-import.log",
+      "rung": "H"
+    }
+  ],
+  "conformance": {
+    "admitted": [
+      "ash.codegen",
+      "ash.gen.base_resource",
+      "ash.gen.change",
+      "ash.gen.domain",
+      "ash.gen.enum",
+      "ash.gen.preparation",
+      "ash.gen.resource",
+      "ash.gen.validation",
+      "ash.install",
+      "ash.setup",
+      "ash_postgres.install"
+    ],
+    "capabilities_declared": 16,
+    "conformant": true,
+    "guard_flip_run1_to_run2": [
+      "BookLibrary.Catalog.Preparations.SortByTitle",
+      "BookLibrary.Circulation.Changes.StampReturnedAt",
+      "BookLibrary.Circulation.Validations.DueDateInFuture",
+      "BookLibrary.Repo",
+      "BookLibrary.Resource"
+    ],
+    "not_admitted": [
+      "ash.attach.support_module",
+      "ash.extend:policies",
+      "ash.gen.custom_expression",
+      "ash.reset",
+      "ash.tear_down"
+    ],
+    "runs": {
+      "run1": {
+        "capability_refused": [
+          "ash.attach.support_module",
+          "ash.extend:policies",
+          "ash.gen.custom_expression",
+          "ash.reset",
+          "ash.tear_down"
+        ],
+        "composed": [
+          "ash.gen.base_resource",
+          "ash.gen.change",
+          "ash.gen.domain",
+          "ash.gen.enum",
+          "ash.gen.preparation",
+          "ash.gen.resource",
+          "ash.gen.validation",
+          "ash.install",
+          "ash_postgres.install"
+        ],
+        "composed_count": 11,
+        "events": 23,
+        "guarded_admission_refused": []
+      },
+      "run2": {
+        "capability_refused": [
+          "ash.attach.support_module",
+          "ash.extend:policies",
+          "ash.gen.custom_expression",
+          "ash.reset",
+          "ash.tear_down"
+        ],
+        "composed": [
+          "ash.gen.domain",
+          "ash.gen.enum",
+          "ash.gen.resource",
+          "ash.install"
+        ],
+        "composed_count": 6,
+        "events": 23,
+        "guarded_admission_refused": [
+          "BookLibrary.Catalog.Preparations.SortByTitle",
+          "BookLibrary.Circulation.Changes.StampReturnedAt",
+          "BookLibrary.Circulation.Validations.DueDateInFuture",
+          "BookLibrary.Repo",
+          "BookLibrary.Resource"
+        ]
+      }
+    },
+    "spc": "NOT_APPLICABLE: n=2 runs is not a time series; no control limits are computed and none should be inferred.",
+    "violations": []
+  },
+  "database_isolation": {
+    "database": "book_library_qual_20260908183051",
+    "evidence": "7:  database: \"book_library_qual_20260908183051\",",
+    "note": "The manufactured repo config was rewritten to a run-scoped database before any DB-touching lifecycle step, so a filesystem-disposable copy does not silently address the original database."
+  },
+  "drift_check": {
+    "drift": [],
+    "no_drift": true,
+    "ontology_counts": {
+      "attributes": 9,
+      "domains": 2,
+      "extensions": 2,
+      "relationships": 1,
+      "resources": 2,
+      "support_modules": 5
+    },
+    "rendered_task": "/Users/sac/ggen_igniter/test/fixtures/book_library/lib/mix/tasks/book_library.manufacture.ex",
+    "steps": 11
+  },
+  "failures": [],
+  "files": {
+    "generated": [
+      "config/config.exs",
+      "config/dev.exs",
+      "config/prod.exs",
+      "config/runtime.exs",
+      "config/test.exs",
+      "lib/book_library/application.ex",
+      "lib/book_library/catalog.ex",
+      "lib/book_library/catalog/book.ex",
+      "lib/book_library/catalog/preparations/sort_by_title.ex",
+      "lib/book_library/circulation.ex",
+      "lib/book_library/circulation/changes/stamp_returned_at.ex",
+      "lib/book_library/circulation/loan.ex",
+      "lib/book_library/circulation/loan_status.ex",
+      "lib/book_library/circulation/validations/due_date_in_future.ex",
+      "lib/book_library/repo.ex",
+      "lib/book_library/resource.ex",
+      "lib/mix/tasks/book_library.manufacture.ex",
+      "priv/repo/migrations/20260908183140_initialize_extensions_1.exs",
+      "priv/repo/migrations/20260908183145_book_library_manufacture.exs",
+      "priv/resource_snapshots/repo/books/20260908183146.json",
+      "priv/resource_snapshots/repo/extensions.json",
+      "priv/resource_snapshots/repo/loans/20260908183147.json"
+    ],
+    "handwritten_day_zero": [
+      "mix.exs",
+      "lib/book_library.ex",
+      "config/config.exs",
+      "config/dev.exs",
+      "config/prod.exs",
+      "config/test.exs",
+      ".formatter.exs"
+    ]
+  },
+  "idempotency": {
+    "igniter_check_exits": {
+      "idempotency-check-base": 0,
+      "idempotency-check-core": 0
+    },
+    "semantic_oracle": "mix book_library.manufacture --phase <p> --check -- Igniter halt_if_fails_check!/3 halts non-zero on any change, warning, issue, queued task, move or removal. Exit code alone from a normal run is NOT an oracle: issues return :issues without halting (igniter.ex:1279-1281).",
+    "tree_T1_sha256": "65c2ec4e9a624f174c44de20eb4e05e001ca73b0c257c0911d900bf46cda48b9",
+    "tree_T2_sha256": "65c2ec4e9a624f174c44de20eb4e05e001ca73b0c257c0911d900bf46cda48b9",
+    "tree_identical": true
+  },
+  "ocel": {
+    "run1/book_library.manufacture.base.ocel.json": {
+      "eventTypes": 3,
+      "events": 9,
+      "objectTypes": 5,
+      "objects": 12,
+      "sha256": "f581eccc27a1bded0a13d6f6e27f796396ae61aa06213e0d998b8bbb2c9e1e64"
+    },
+    "run1/book_library.manufacture.core.ocel.json": {
+      "eventTypes": 3,
+      "events": 14,
+      "objectTypes": 6,
+      "objects": 20,
+      "sha256": "1570a969da9573f6496cbae1ac28becdc7b7e187790d3e547b113bd01e0948ac"
+    },
+    "run2/book_library.manufacture.base.ocel.json": {
+      "eventTypes": 4,
+      "events": 9,
+      "objectTypes": 5,
+      "objects": 12,
+      "sha256": "9449ed681b0b60a713264862cbebab37700327f3a842a45d8db2065f8d96f5e7"
+    },
+    "run2/book_library.manufacture.core.ocel.json": {
+      "eventTypes": 4,
+      "events": 14,
+      "objectTypes": 6,
+      "objects": 20,
+      "sha256": "3b4961b881489f64d1c76ff866d302a94f53f391033df68f7601640b76e5e9e3"
+    }
+  },
+  "ontology": {
+    "gates": {
+      "010_project.rq": "78bc530d8e34d2cc17f98a2e7c0e3628cbd7a7ec1e2a1fbec22f6e5291619d39",
+      "020_domains.rq": "e1f9a3d8f2adc6b66b432091e481a96332056daf49dd1002e89e65dc7fd879cb",
+      "030_resources.rq": "aa21dceb8e210746beab6d286cc4dc0ef5e3a2f5f48a6b318c42502dffc2484f",
+      "035_default_actions.rq": "00d6f6afdf910602669238eee1babc176af9182abd8101c95323b661a0e1c3fe",
+      "040_attributes.rq": "e11c7ca57417b0fa73f0aa49d8109c7ae1cfb1d555bf71f1f9506fc354f57e66",
+      "050_relationships.rq": "fcb37ddcc8566f6310f62fbe52df7956fe84aeba717a47a6a688513aa6fb35cd",
+      "060_extensions.rq": "3ab42b7e65f4a9b86bc56a929259242b4e15e51543082ee597a7f9000c4471ef",
+      "070_support_modules.rq": "56f78dba09fe3aace2102537a6145d77fc6d7e59bf478d78f2a4be0f87fff06c",
+      "075_enum_values.rq": "0ba495e97e56f7de298f279be08d7d403336b53ca2e29f8c7d4fa99fdf816803",
+      "080_capabilities.rq": "9ecb413e65379b784ebaa3fdbfcb1958c39dc44361235a2e126666ebfc95a84d",
+      "085_refusals.rq": "ce1a4c2222c7e1e9dc3189a7d10181ebeb8365fbdd8958fcef0220c7e0ef337b"
+    },
+    "path": "test/fixtures/ash_manufacture_pack/ontology.ttl",
+    "sha256": "5cf98edeb751c7b30d4ba025991cb1383425935b45e06e3557f8080b754f9980",
+    "template_sha256": "c8b4f28106fcd9cabe4c80965d67974d9f432fa7507f9e4adb4e2b7e78cab538"
+  },
+  "replay": "bash test/fixtures/ash_manufacture_pack/bin/qualify.sh && python3 test/fixtures/ash_manufacture_pack/bin/receipt.py test/fixtures/book_library test/fixtures/.qualification/book_library",
+  "schema": "ggen_igniter.qualification.receipt/1",
+  "scope": "Scoped to THIS exact subject only: the book_library fixture at the dependency versions listed under toolchain.deps, on this machine, with a live local PostgreSQL. It is not a claim about other Ash projects, other dependency versions, or the Tier-1 tasks whose standing above is not ALIVE.",
+  "standing": {
+    "AGENT_HANDWRITE_REFUSAL_ALIVE": true,
+    "ASH_MANUFACTURE_ALIVE": true,
+    "IDEMPOTENCY_ALIVE": true,
+    "OCEL_PROCESS_ALIVE": true,
+    "ONTOLOGY_ALIVE": true
+  },
+  "subject": {
+    "fixture": "test/fixtures/book_library",
+    "pack": "test/fixtures/ash_manufacture_pack",
+    "repo": "/Users/sac/ggen_igniter",
+    "repo_branch": "fix/frontmatter-match-rule-to-atom",
+    "repo_dirty": true,
+    "repo_head": "1738ad15fbb265c3c182e990d1842193eab255f2"
+  },
+  "toolchain": {
+    "deps": {
+      "ash": "3.33.1",
+      "ash_postgres": "2.13.1",
+      "ash_sql": "0.7.3",
+      "crux": "0.1.4",
+      "db_connection": "2.10.2",
+      "decimal": "3.1.1",
+      "ecto": "3.14.2",
+      "ecto_sql": "3.14.0",
+      "ets": "0.9.0",
+      "ex_ast": "0.13.1",
+      "finch": "0.23.0",
+      "glob_ex": "0.1.12",
+      "hpax": "1.0.4",
+      "igniter": "0.8.4",
+      "iterex": "0.1.2",
+      "jason": "1.4.5",
+      "jcs": "0.2.0",
+      "mime": "2.0.7",
+      "mint": "1.10.0",
+      "multigraph": "0.16.1-mg.4",
+      "nimble_csv": "1.3.0",
+      "nimble_options": "1.1.1",
+      "nimble_pool": "1.1.0",
+      "owl": "0.13.1",
+      "postgrex": "0.22.4",
+      "protocol_ex": "0.5.1",
+      "rdf": "3.0.1",
+      "reactor": "1.0.6",
+      "req": "0.7.4",
+      "rewrite": "1.3.0",
+      "rustler": "0.38.0",
+      "sourceror": "1.12.2",
+      "spark": "2.7.2",
+      "sparql": "0.3.12",
+      "spitfire": "0.4.1",
+      "splode": "0.3.2",
+      "stream_data": "1.4.0",
+      "sweet_xml": "0.7.5",
+      "telemetry": "1.4.2",
+      "text_diff": "0.1.0",
+      "toml": "0.7.0",
+      "uniq": "0.6.3",
+      "yamerl": "0.10.0",
+      "yaml_elixir": "2.12.2",
+      "ymlr": "5.1.6"
+    },
+    "elixir": "Elixir 1.19.5 (compiled with Erlang/OTP 28)",
+    "erlang": "28",
+    "postgres": "postgres (PostgreSQL) 14.19 (Homebrew)"
+  }
+}

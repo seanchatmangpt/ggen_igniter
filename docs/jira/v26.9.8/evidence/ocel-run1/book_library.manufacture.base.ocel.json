@@ -1,0 +1,410 @@
+{
+  "eventTypes": [
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "standing",
+          "type": "string"
+        }
+      ],
+      "name": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "exit",
+          "type": "integer"
+        },
+        {
+          "name": "observed",
+          "type": "string"
+        }
+      ],
+      "name": "manufacture_run_applied"
+    },
+    {
+      "attributes": [
+        {
+          "name": "argv",
+          "type": "string"
+        },
+        {
+          "name": "guard",
+          "type": "string"
+        },
+        {
+          "name": "phase",
+          "type": "string"
+        },
+        {
+          "name": "step",
+          "type": "string"
+        }
+      ],
+      "name": "task_composed"
+    }
+  ],
+  "events": [
+    {
+      "attributes": [
+        {
+          "name": "argv",
+          "value": ""
+        },
+        {
+          "name": "guard",
+          "value": "none"
+        },
+        {
+          "name": "phase",
+          "value": "base"
+        },
+        {
+          "name": "step",
+          "value": "install_ash"
+        }
+      ],
+      "id": "ev_0001",
+      "relationships": [
+        {
+          "objectId": "ash",
+          "qualifier": "subject"
+        },
+        {
+          "objectId": "ash.install",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T18:31:18.388308Z",
+      "type": "task_composed"
+    },
+    {
+      "attributes": [
+        {
+          "name": "argv",
+          "value": ""
+        },
+        {
+          "name": "guard",
+          "value": "BookLibrary.Repo"
+        },
+        {
+          "name": "phase",
+          "value": "base"
+        },
+        {
+          "name": "step",
+          "value": "install_ash_postgres"
+        }
+      ],
+      "id": "ev_0002",
+      "relationships": [
+        {
+          "objectId": "BookLibrary.Repo",
+          "qualifier": "subject"
+        },
+        {
+          "objectId": "ash_postgres.install",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T18:31:18.388308Z",
+      "type": "task_composed"
+    },
+    {
+      "attributes": [
+        {
+          "name": "argv",
+          "value": "BookLibrary.Resource"
+        },
+        {
+          "name": "guard",
+          "value": "BookLibrary.Resource"
+        },
+        {
+          "name": "phase",
+          "value": "base"
+        },
+        {
+          "name": "step",
+          "value": "gen_base_resource"
+        }
+      ],
+      "id": "ev_0003",
+      "relationships": [
+        {
+          "objectId": "BookLibrary.Resource",
+          "qualifier": "subject"
+        },
+        {
+          "objectId": "ash.gen.base_resource",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T18:31:18.388308Z",
+      "type": "task_composed"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "UNSUPPORTED(generator capability): NO upstream Ash task can attach a manufactured validation/change/preparation module to the resource it serves. `mix ash.gen.validation|change|preparation` create the module and stop (each Info declares only its positional module name); `mix ash.gen.resource` has no --validation/--change/--preparation flag; `mix ash.extend` adds extensions, not DSL entries inside actions. The exact unmanufacturable semantic element is the `validations do validate X end` / `changes do change X end` / `preparations do prepare X end` DSL entry. Consequence, stated rather than hidden: the modules this pack manufactures are REAL modules but STRUCTURAL ORPHANS -- nothing references them, so they carry no runtime behaviour. Their amp:servesResource fact records the intent that could not be actuated. ggen_igniter emits this refusal rather than hand-writing the DSL entry; a project that needs the behaviour today must add that entry as disclosed handwritten residue against THIS receipt."
+        },
+        {
+          "name": "standing",
+          "value": "UNSUPPORTED"
+        }
+      ],
+      "id": "ev_0004",
+      "relationships": [
+        {
+          "objectId": "ash.attach.support_module",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T18:31:18.388308Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "NOT EXERCISED, not broken. `mix ash.extend <resource> Ash.Policy.Authorizer` is a real supported path that would add the authorizer, but this case study never ran it, so its standing here is UNKNOWN and it is not admitted. Upgrading it requires an observed run, not an argument that it should work."
+        },
+        {
+          "name": "standing",
+          "value": "UNKNOWN"
+        }
+      ],
+      "id": "ev_0005",
+      "relationships": [
+        {
+          "objectId": "ash.extend:policies",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T18:31:18.388308Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "UNSUPPORTED(generator capability): the generator emits `args: [...]` but Ash.CustomExpression.__using__/1 raises ArgumentError unless `arguments:` is given, so every module this task produces fails to compile. Manufacturing it would poison every later compile boundary. ggen_igniter refuses the morphism rather than hand-writing the module or patching upstream output."
+        },
+        {
+          "name": "standing",
+          "value": "BUILD_BROKEN"
+        }
+      ],
+      "id": "ev_0006",
+      "relationships": [
+        {
+          "objectId": "ash.gen.custom_expression",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T18:31:18.388308Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "DESTRUCTIVE: tear_down + setup. Same isolation requirement as ash.tear_down. NOTE: `ash_postgres.reset` does not exist -- the real task is `ash.reset`; the v26.9.8 matrix named a nonexistent task."
+        },
+        {
+          "name": "standing",
+          "value": "UNSUPPORTED"
+        }
+      ],
+      "id": "ev_0007",
+      "relationships": [
+        {
+          "objectId": "ash.reset",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T18:31:18.388308Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "DESTRUCTIVE: drops the database. Not idempotent in any meaningful sense (run 2 has nothing to drop) and cannot share a database identity with the qualification subject. Admitted only inside an isolated-database harness, never in the manufacture path."
+        },
+        {
+          "name": "standing",
+          "value": "UNSUPPORTED"
+        }
+      ],
+      "id": "ev_0008",
+      "relationships": [
+        {
+          "objectId": "ash.tear_down",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T18:31:18.388308Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "exit",
+          "value": 0
+        },
+        {
+          "name": "observed",
+          "value": "phase base applied; mix compile exit 0"
+        }
+      ],
+      "id": "ev_0009",
+      "relationships": [
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T18:31:43.782130Z",
+      "type": "manufacture_run_applied"
+    }
+  ],
+  "objectTypes": [
+    {
+      "attributes": [],
+      "name": "ash_base_resource"
+    },
+    {
+      "attributes": [],
+      "name": "manufacture_run"
+    },
+    {
+      "attributes": [],
+      "name": "mix_task"
+    },
+    {
+      "attributes": [],
+      "name": "repo"
+    },
+    {
+      "attributes": [],
+      "name": "toolchain"
+    }
+  ],
+  "objects": [
+    {
+      "attributes": [],
+      "id": "BookLibrary.Repo",
+      "relationships": [],
+      "type": "repo"
+    },
+    {
+      "attributes": [],
+      "id": "BookLibrary.Resource",
+      "relationships": [],
+      "type": "ash_base_resource"
+    },
+    {
+      "attributes": [],
+      "id": "ash",
+      "relationships": [],
+      "type": "toolchain"
+    },
+    {
+      "attributes": [],
+      "id": "ash.attach.support_module",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.extend:policies",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.gen.base_resource",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.gen.custom_expression",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.install",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.reset",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.tear_down",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash_postgres.install",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "book_library.manufacture:base",
+      "relationships": [],
+      "type": "manufacture_run"
+    }
+  ]
+}

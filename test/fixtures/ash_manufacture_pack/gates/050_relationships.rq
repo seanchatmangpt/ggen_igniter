@@ -1,0 +1,16 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+SELECT ?resource_module ?relationship_kind ?relationship_name ?target_module ?relationship_order ?relationship_required ?relationship_public
+WHERE {
+  ?rel a amp:Relationship ;
+       amp:relationshipOf ?r ;
+       amp:relationshipKind ?relationship_kind ;
+       amp:relationshipName ?relationship_name ;
+       amp:relationshipTarget ?t ;
+       amp:relationshipOrder ?relationship_order ;
+       amp:relationshipRequired ?relationship_required ;
+       amp:relationshipPublic ?relationship_public .
+  ?r amp:resourceModule ?resource_module .
+  ?t amp:resourceModule ?target_module .
+}
+ORDER BY ?resource_module ?relationship_order

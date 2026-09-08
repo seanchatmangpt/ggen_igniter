@@ -1,0 +1,10 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+SELECT ?support_module ?support_kind ?support_rank
+WHERE {
+  ?s a amp:SupportModule ;
+     amp:supportModuleName ?support_module ;
+     amp:supportKind ?support_kind ;
+     amp:supportRank ?support_rank .
+}
+ORDER BY ?support_rank

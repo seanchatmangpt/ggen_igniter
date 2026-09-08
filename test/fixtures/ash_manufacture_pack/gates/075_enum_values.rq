@@ -1,0 +1,9 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+SELECT ?support_module ?enum_value
+WHERE {
+  ?s a amp:SupportModule ;
+     amp:supportModuleName ?support_module ;
+     amp:enumValue ?enum_value .
+}
+ORDER BY ?support_module ?enum_value

@@ -52,7 +52,11 @@ defmodule GgenIgniterLockContentionTest do
     task_a =
       Task.async(fn ->
         send(parent, {ref, :ready})
-        receive do: ({^ref, :go} -> :ok)
+        receive do
+          {^ref, :go} -> :ok
+        after
+          5_000 -> raise "timed out waiting for go"
+        end
 
         try do
           {:ok, lock} = GgenIgniter.Lock.acquire(lock_key, timeout_ms: loser_timeout_ms)
@@ -66,7 +70,11 @@ defmodule GgenIgniterLockContentionTest do
     task_b =
       Task.async(fn ->
         send(parent, {ref, :ready})
-        receive do: ({^ref, :go} -> :ok)
+        receive do
+          {^ref, :go} -> :ok
+        after
+          5_000 -> raise "timed out waiting for go"
+        end
 
         try do
           {:ok, lock} = GgenIgniter.Lock.acquire(lock_key, timeout_ms: loser_timeout_ms)
@@ -79,8 +87,8 @@ defmodule GgenIgniterLockContentionTest do
 
     # Wait for both tasks to be scheduled and parked at the barrier, then
     # release them at (as close to) the same instant as possible.
-    receive do: ({^ref, :ready} -> :ok)
-    receive do: ({^ref, :ready} -> :ok)
+    assert_receive {^ref, :ready}, 5_000
+    assert_receive {^ref, :ready}, 5_000
     send(task_a.pid, {ref, :go})
     send(task_b.pid, {ref, :go})
 

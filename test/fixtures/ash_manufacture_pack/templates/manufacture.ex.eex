@@ -1,0 +1,510 @@
+---
+to: "lib/mix/tasks/<%= task_name %>.ex"
+mode: file
+---
+<%
+  truthy = fn
+    true -> true
+    "true" -> true
+    _ -> false
+  end
+
+  cap = fn mix_task -> Enum.find(capabilities, fn c -> c["mix_task"] == mix_task end) end
+  admitted? = fn mix_task ->
+    case cap.(mix_task) do
+      nil -> false
+      c -> truthy.(c["admitted"])
+    end
+  end
+  phase_of = fn mix_task ->
+    case cap.(mix_task) do
+      nil -> "core"
+      c -> c["phase"]
+    end
+  end
+
+  rows_for = fn list, module ->
+    Enum.filter(list, fn r -> r["resource_module"] == module end)
+  end
+
+  # ---- derive the real generator argv from semantic facts -----------------
+  attr_flag = fn a ->
+    mods =
+      []
+      |> then(fn acc -> if truthy.(a["is_public"]), do: acc ++ ["public"], else: acc end)
+      |> then(fn acc -> if truthy.(a["is_required"]), do: acc ++ ["required"], else: acc end)
+      |> then(fn acc -> if truthy.(a["is_sensitive"]), do: acc ++ ["sensitive"], else: acc end)
+
+    Enum.join([a["attribute_name"], a["attribute_type"]] ++ mods, ":")
+  end
+
+  rel_flag = fn r ->
+    mods =
+      []
+      |> then(fn acc -> if truthy.(r["relationship_public"]), do: acc ++ ["public"], else: acc end)
+      |> then(fn acc ->
+        if r["relationship_kind"] == "belongs_to" and truthy.(r["relationship_required"]),
+          do: acc ++ ["required"],
+          else: acc
+      end)
+
+    Enum.join(
+      [r["relationship_kind"], r["relationship_name"], r["target_module"]] ++ mods,
+      ":"
+    )
+  end
+
+  pk_flag = fn kind ->
+    case kind do
+      "uuid" -> "--uuid-primary-key"
+      "uuid_v7" -> "--uuid-v7-primary-key"
+      "integer" -> "--integer-primary-key"
+    end
+  end
+
+  resource_argv = fn r ->
+    module = r["resource_module"]
+    attrs = rows_for.(attributes, module) |> Enum.map(attr_flag)
+    rels = rows_for.(relationships, module) |> Enum.map(rel_flag)
+    exts = rows_for.(extensions, module) |> Enum.map(fn e -> e["extension_name"] end)
+
+    actions =
+      default_actions
+      |> Enum.filter(fn a -> a["resource_module"] == module end)
+      |> Enum.map(fn a -> a["action"] end)
+
+    [module]
+    |> Kernel.++([pk_flag.(r["pk_kind"]), r["pk_name"]])
+    |> Kernel.++(Enum.flat_map(attrs, fn a -> ["--attribute", a] end))
+    |> Kernel.++(Enum.flat_map(rels, fn a -> ["--relationship", a] end))
+    |> Kernel.++(if actions == [], do: [], else: ["--default-actions", Enum.join(actions, ",")])
+    |> Kernel.++(if exts == [], do: [], else: ["--extend", Enum.join(exts, ",")])
+    |> Kernel.++(if truthy.(r["has_timestamps"]), do: ["--timestamps"], else: [])
+    |> Kernel.++(if truthy.(r["uses_base"]), do: ["--base", base_resource_module], else: [])
+    |> Kernel.++(["--domain", r["domain_module"]])
+  end
+
+  support_argv = fn s ->
+    case s["support_kind"] do
+      "enum" ->
+        values =
+          enum_values
+          |> Enum.filter(fn v -> v["support_module"] == s["support_module"] end)
+          |> Enum.map(fn v -> v["enum_value"] end)
+          |> Enum.join(",")
+
+        [s["support_module"], values]
+
+      _ ->
+        [s["support_module"]]
+    end
+  end
+
+  lit = fn list -> Enum.map_join(list, ", ", &inspect/1) end
+
+  admitted_support =
+    Enum.filter(support_modules, fn s -> admitted?.("ash.gen." <> s["support_kind"]) end)
+%>defmodule <%= task_module %> do
+  @shortdoc "Manufactures the <%= root_module %> Ash implementation from the admitted ontology."
+  @moduledoc """
+  A composed `Igniter.Mix.Task` that manufactures the entire `<%= root_module %>`
+  Ash surface by calling the REAL upstream Ash/Igniter generators.
+
+  ## This file is manufactured -- do not hand-edit
+
+  It is rendered by `ggen_igniter` from `test/fixtures/ash_manufacture_pack/`
+  (`ontology.ttl` + `gates/*.rq` + `templates/manufacture.ex.eex`). Every
+  argument below is DERIVED from semantic facts in that ontology -- an
+  `amp:Attribute` with `amp:isPublic true` becomes the real `public`
+  modifier, `amp:primaryKeyKind "uuid"` becomes `--uuid-primary-key`,
+  `amp:usesBaseResource true` becomes `--base <%= base_resource_module %>`.
+  The ontology stores no CLI strings; regenerate rather than editing here.
+
+  ## Why composition, not N shell-outs
+
+  `Igniter.compose_task/4` runs each upstream generator against the SAME
+  in-memory `%Igniter{}` project, so a phase is one AST read, one diff, one
+  atomic write, one compile -- not N recompiling subprocesses. It is also
+  the only path on which Ash's own generators work as shipped:
+  `ash.gen.domain`'s `--ignore-if-exists` branch (`ash.gen.domain.ex:36`)
+  is UNREACHABLE from the CLI, because that task declares no `schema:` and
+  `Igniter.Util.Info.validate!/3` parses with `strict:`
+  (`igniter/lib/igniter/util/info.ex:354-368`), so the flag is rejected as
+  an unknown option. Through `compose_task` the argv is parsed by
+  `Igniter.Mix.Task.__options__!/2` with non-strict `switches:`
+  (`igniter/lib/mix/task.ex:237`), so the flag survives. Ash itself relies
+  on exactly this (`ash.gen.resource.ex:185`).
+
+  ## Phases (`--phase base` then `--phase core`)
+
+  The split is forced by two real upstream facts, not by preference:
+
+    1. `ash.gen.resource --base X` validates X against
+       `Application.get_env(app, :base_resources)`. Config written earlier
+       in the same Igniter run is not yet in the application environment,
+       so the base resource must be committed by a PRIOR mix invocation.
+    2. `Igniter.update_all_elixir_files/2` short-circuits on the
+       `included_all_elixir_files?` assign (`igniter.ex:1112-1123`) that
+       any `find_module` full scan already sets
+       (`igniter/project/module.ex:475`). So `ash.gen.base_resource`'s
+       retrofit leg cannot be relied on inside a run that has already
+       looked a module up. This task does not patch that -- it uses the
+       supported `--base` flag instead.
+
+  Lifecycle steps (`ash.codegen`, `ash.setup`) are deliberately NOT
+  composed: they must observe COMPILED resources, so they run as separate
+  mix invocations after this task.
+
+  ## Idempotency is semantic, not exit-code-shaped
+
+  Re-running is verified with Igniter's own `--check`, which halts non-zero
+  if ANY change, warning, issue, queued task, move or removal would be
+  produced (`igniter.ex:1293-1330`, `halt_if_fails_check!/3`). Plain exit
+  code proves nothing: a "File already exists" conflict is added via
+  `Igniter.add_issue/2` and `do_or_dry_run` returns the atom `:issues`
+  WITHOUT halting (`igniter.ex:1279-1281`).
+
+  Per-capability idempotency mechanism, each a real upstream code path or a
+  named ggen_igniter admission guard -- never a faked one:
+<%= for c <- capabilities do %>
+    * `<%= c["mix_task"] %>` (<%= c["standing"] %>, phase <%= c["phase"] %>) -- <%= String.replace(c["idempotency_mechanism"], "\"", "'") %>
+<% end %>
+  ## Guarding vs. draining a composed step
+
+  A `guard` is whole-step by construction: `apply_step/3` does not call
+  `Igniter.compose_task/4` at all when the guard module already exists. That
+  granularity is only correct when EVERY operation the composed task performs
+  is non-idempotent. For `ash_postgres.install` it is not -- exactly one leg
+  (`Ash.Igniter.codegen/2`) is, and every other leg is add-if-absent at
+  source, so a guard there suppressed the whole installer pipeline to
+  neutralise one queued list entry.
+
+  A step may therefore instead declare `drain_queued`: it composes
+  unconditionally, then drops the named entries from `igniter.tasks`. Each
+  drop emits a `queued_task_dropped` OCEL event carrying the dropped task and
+  the argv removed, because an unrecorded mutation of a dependency's struct
+  would be weaker evidence than the refusal event it replaces.
+
+  ## Refusals
+
+  A capability whose ontology standing is not admitted is REFUSED with a
+  typed reason and never hand-written as a fallback:
+<%= for r <- refusals do %>
+    * `<%= r["mix_task"] %>` -- <%= r["standing"] %>: <%= String.replace(r["refusal_reason"], "\"", "'") %>
+<% end %>
+  ## Usage
+
+      mix <%= task_name %> --phase base --yes
+      mix <%= task_name %> --phase core --yes
+      mix <%= task_name %> --phase base --check   # exits 0 iff nothing would change
+      mix <%= task_name %> --phase core --check
+  """
+
+  use Igniter.Mix.Task
+
+  @ocel_dir ".ggen_igniter/ocel"
+
+  # Manufacturing plan, ordered. `guard` names a module whose existence means
+  # the step's subject is already manufactured; where the upstream task
+  # provides its own admission flag we use THAT instead of a guard
+  # (Chesterton's fence: do not reimplement a check upstream already owns).
+  #
+  # `drain_queued` names mix tasks the step's composition is expected to QUEUE
+  # and that this task removes again afterwards. It is the finer-grained
+  # alternative to a guard for a step whose ONLY non-idempotent leg is the
+  # queue itself -- see `drain_queued_tasks/3`.
+  @plan [
+<%= if admitted?.("ash.install") do %>    %{
+      phase: "<%= phase_of.("ash.install") %>",
+      step: "install_ash",
+      task: "ash.install",
+      argv: [],
+      guard: nil,
+      subject: "ash",
+      object_type: "toolchain"
+    },
+<% end %><%= if admitted?.("ash_postgres.install") do %>    %{
+      phase: "<%= phase_of.("ash_postgres.install") %>",
+      step: "install_ash_postgres",
+      task: "ash_postgres.install",
+      argv: [],
+      # UNGUARDED, THEN DRAINED. `guard: <%= repo_module %>` used to sit here, but a
+      # guard is whole-step, so it suppressed this installer's ENTIRE pipeline
+      # (ash_postgres.install.ex:41-59) to neutralise one queued list entry.
+      # Every leg of that pipeline except the last is add-if-absent at source:
+      #
+      #   * import_dep and prepend_to_section_order both reduce to
+      #     prepend_new_to_list (formatter.ex:40-43, spark/igniter.ex:27)
+      #   * the alias legs default to `if_exists: :ignore` and otherwise land
+      #     in prepend_new_to_list/append_new_to_list (task_aliases.ex:31,
+      #     :199, :210); modify_existing_alias is documented as doing nothing
+      #     when the alias is absent (task_aliases.ex:139)
+      #   * setup_repo_module returns the zipper unchanged for an existing
+      #     AshPostgres.Repo (ash_postgres.install.ex:415-417), and its three
+      #     find_and_update legs each no-op when the def already exists
+      #     (ash_postgres.install.ex:566-621)
+      #   * configure_config and configure_known_types use prepend_new_to_list
+      #     (ash_postgres.install.ex:114, :340-341)
+      #   * configure_dev/runtime/test are each self-guarded by configures_key?
+      #     (ash_postgres.install.ex:245, :123, :274)
+      #   * add_new_child keeps the zipper when the child is already supervised
+      #     (application.ex:352-376, force? defaults false at :252)
+      #   * setup_data_case creates the module only when absent
+      #
+      # Only the codegen queue is not: Ash.Igniter.codegen/2 calls add_task
+      # unconditionally (ash/lib/ash/igniter.ex:31) and halt_if_fails_check!/3
+      # halts on ANY non-empty task list, with no allowance for an expected
+      # one (igniter.ex:1310-1314). The queued `ash.codegen initialize` is
+      # also redundant: `mix ash.codegen` runs as its own explicit lifecycle
+      # step after this task, and the extension migration it would have
+      # written is re-emitted there under that step's name
+      # (migration_generator.ex:337-341).
+      guard: nil,
+      drain_queued: ["ash.codegen"],
+      subject: "<%= repo_module %>",
+      object_type: "repo"
+    },
+<% end %><%= if admitted?.("ash.gen.base_resource") do %>    %{
+      phase: "<%= phase_of.("ash.gen.base_resource") %>",
+      step: "gen_base_resource",
+      task: "ash.gen.base_resource",
+      argv: [<%= lit.([base_resource_module]) %>],
+      guard: <%= base_resource_module %>,
+      subject: "<%= base_resource_module %>",
+      object_type: "ash_base_resource"
+    },
+<% end %><%= for d <- domains do %>    %{
+      phase: "<%= phase_of.("ash.gen.domain") %>",
+      step: "gen_domain",
+      task: "ash.gen.domain",
+      argv: [<%= lit.([d["domain_module"], "--ignore-if-exists"]) %>],
+      guard: nil,
+      subject: "<%= d["domain_module"] %>",
+      object_type: "ash_domain"
+    },
+<% end %><%= for s <- admitted_support, s["support_kind"] == "enum" do %>    %{
+      phase: "<%= phase_of.("ash.gen.enum") %>",
+      step: "gen_enum",
+      task: "ash.gen.enum",
+      argv: [<%= lit.(support_argv.(s) ++ ["--ignore-if-exists"]) %>],
+      guard: nil,
+      subject: "<%= s["support_module"] %>",
+      object_type: "ash_type"
+    },
+<% end %><%= for r <- resources do %>    %{
+      phase: "<%= phase_of.("ash.gen.resource") %>",
+      step: "gen_resource",
+      task: "ash.gen.resource",
+      argv: [<%= lit.(resource_argv.(r)) %>],
+      # UNGUARDED on purpose: ash.gen.resource is idempotent by construction
+      # -- ensure_resource_exists/5 skips creation when the module is found
+      # (ash.gen.resource.ex:254-267) and the default `--conflicts ignore`
+      # skips already-present attributes, relationships and actions.
+      # Guarding it would hide that real upstream property behind our check.
+      guard: nil,
+      subject: "<%= r["resource_module"] %>",
+      object_type: "ash_resource"
+    },
+<% end %><%= for s <- admitted_support, s["support_kind"] != "enum" do %>    %{
+      phase: "<%= phase_of.("ash.gen." <> s["support_kind"]) %>",
+      step: "gen_<%= s["support_kind"] %>",
+      task: "ash.gen.<%= s["support_kind"] %>",
+      argv: [<%= lit.(support_argv.(s)) %>],
+      # GUARDED: ash.gen.<%= s["support_kind"] %> has no existence check and no
+      # --ignore-if-exists flag; create_module -> create_new_file defaults to
+      # on_exists: :error, so a second run adds a "File already exists" issue.
+      guard: <%= s["support_module"] %>,
+      subject: "<%= s["support_module"] %>",
+      object_type: "ash_support_module"
+    },
+<% end %>  ]
+
+  @refusals [
+<%= for r <- refusals do %>    %{
+      mix_task: <%= inspect(r["mix_task"]) %>,
+      standing: <%= inspect(r["standing"]) %>,
+      reason: <%= inspect(r["refusal_reason"]) %>
+    },
+<% end %>  ]
+
+  @phases Enum.map(@plan, & &1.phase) |> Enum.uniq()
+
+  @doc false
+  def plan, do: @plan
+
+  @doc false
+  def refusals, do: @refusals
+
+  @impl Igniter.Mix.Task
+  def info(_argv, _parent) do
+    %Igniter.Mix.Task.Info{
+      group: :<%= otp_app %>,
+      example: "mix <%= task_name %> --phase base --yes",
+      composes: Enum.map(@plan, & &1.task) |> Enum.uniq(),
+      schema: [phase: :string, ocel: :boolean]
+    }
+  end
+
+  @impl Igniter.Mix.Task
+  def igniter(igniter) do
+    phase = igniter.args.options[:phase] || "core"
+
+    if phase not in @phases do
+      Igniter.add_issue(
+        igniter,
+        "unknown --phase #{inspect(phase)}; known phases: #{inspect(@phases)}"
+      )
+    else
+      steps = Enum.filter(@plan, &(&1.phase == phase))
+
+      {igniter, events} =
+        Enum.reduce(steps, {igniter, []}, fn step, {igniter, events} ->
+          apply_step(igniter, step, events)
+        end)
+
+      # Refusals are reported in every phase: an inadmissible capability is a
+      # standing fact about the toolchain, not a phase-local event.
+      events = events ++ Enum.map(@refusals, &refusal_event/1)
+
+      igniter
+      |> maybe_write_ocel(phase, events)
+      |> Igniter.add_notice(
+        "<%= task_name %> [#{phase}]: #{length(steps)} admitted step(s), " <>
+          "#{length(@refusals)} typed refusal(s). " <>
+          "Assert idempotency with `mix <%= task_name %> --phase #{phase} --check`."
+      )
+    end
+  end
+
+  # -- steps ----------------------------------------------------------------
+
+  defp apply_step(igniter, %{guard: nil} = step, events) do
+    igniter
+    |> compose(step)
+    |> drain_queued_tasks(step, events ++ [event("task_composed", step, %{"guard" => "none"})])
+  end
+
+  defp apply_step(igniter, %{guard: guard} = step, events) do
+    {exists?, igniter} = Igniter.Project.Module.module_exists(igniter, guard)
+
+    if exists? do
+      {igniter,
+       events ++
+         [
+           event("task_admission_refused", step, %{
+             "guard" => inspect(guard),
+             "reason" => "subject already manufactured; upstream task is not idempotent here"
+           })
+         ]}
+    else
+      igniter
+      |> compose(step)
+      |> drain_queued_tasks(
+        step,
+        events ++ [event("task_composed", step, %{"guard" => inspect(guard)})]
+      )
+    end
+  end
+
+  defp compose(igniter, step) do
+    Igniter.compose_task(igniter, step.task, step.argv)
+  end
+
+  # `compose_task/4` runs the upstream generator against THIS struct, so
+  # anything it queued is now in `igniter.tasks` -- a documented public field
+  # (igniter.ex:38, typed at igniter.ex:53-55) holding `{task, argv}` and
+  # `{task, argv, :delayed}` entries. Igniter exposes `add_task/3` and
+  # `delay_task/3` (igniter.ex:425-432) but no removal, so dropping one is a
+  # direct struct update. That is the seam Ash itself already writes through:
+  # `Ash.Igniter.codegen/2` renames an already-queued codegen with
+  # `Map.update!(igniter, :tasks, ...)` (ash/lib/ash/igniter.ex:21). This uses
+  # the seam upstream already uses rather than inventing one.
+  #
+  # An entry whose shape is not recognised is KEPT. A kept task halts `--check`
+  # loudly (igniter.ex:1310-1314); dropping a shape we cannot read would
+  # silently discard evidence instead.
+  defp drain_queued_tasks(igniter, step, events) do
+    case Map.get(step, :drain_queued, []) do
+      [] ->
+        {igniter, events}
+
+      names ->
+        {dropped, kept} = Enum.split_with(igniter.tasks, &queued_task_named?(&1, names))
+
+        {%{igniter | tasks: kept}, events ++ Enum.map(dropped, &dropped_event(step, &1))}
+    end
+  end
+
+  defp queued_task_named?({name, _argv}, names), do: name in names
+  defp queued_task_named?({name, _argv, :delayed}, names), do: name in names
+  defp queued_task_named?(_entry, _names), do: false
+
+  defp queued_task_parts({name, argv}), do: {name, argv}
+  defp queued_task_parts({name, argv, :delayed}), do: {name, argv}
+
+  # -- OCEL v2 evidence -----------------------------------------------------
+
+  defp event(activity, step, attrs) do
+    %{
+      "activity" => activity,
+      "objects" => [
+        %{"type" => step.object_type, "id" => step.subject, "qualifier" => "subject"},
+        %{"type" => "mix_task", "id" => step.task, "qualifier" => "generator"}
+      ],
+      "attributes" =>
+        Map.merge(attrs, %{
+          "step" => step.step,
+          "phase" => step.phase,
+          "argv" => Enum.join(step.argv, " ")
+        })
+    }
+  end
+
+  # Receipt for one drained entry. `argv` stays the STEP's argv, as on every
+  # other event; the removed task carries its own `dropped_*` attributes and
+  # is additionally related as a real OCEL object, so a process-mining query
+  # can join the drop to the generator that queued it rather than having to
+  # parse an attribute string.
+  defp dropped_event(step, entry) do
+    {name, argv} = queued_task_parts(entry)
+
+    "queued_task_dropped"
+    |> event(step, %{
+      "dropped_task" => name,
+      "dropped_argv" => Enum.join(argv, " "),
+      "reason" =>
+        "queued by the composed generator; a queued task fails --check " <>
+          "unconditionally and this one is redundant with the explicit " <>
+          "lifecycle step"
+    })
+    |> Map.update!("objects", fn objects ->
+      objects ++ [%{"type" => "mix_task", "id" => name, "qualifier" => "dropped_task"}]
+    end)
+  end
+
+  defp refusal_event(refusal) do
+    %{
+      "activity" => "capability_refused",
+      "objects" => [
+        %{"type" => "mix_task", "id" => refusal.mix_task, "qualifier" => "generator"}
+      ],
+      "attributes" => %{"standing" => refusal.standing, "reason" => refusal.reason}
+    }
+  end
+
+  defp maybe_write_ocel(igniter, phase, events) do
+    if Keyword.get(igniter.args.options, :ocel, true) && !igniter.args.options[:dry_run] &&
+         !igniter.args.options[:check] do
+      path = Path.join(@ocel_dir, "<%= task_name %>.#{phase}.ocel.json")
+
+      GgenIgniter.Telemetry.Ocel2Export.write!(path, events,
+        run_id: "<%= task_name %>:#{phase}",
+        run_type: "manufacture_run"
+      )
+
+      Igniter.add_notice(igniter, "OCEL v2 log written to #{path}")
+    else
+      igniter
+    end
+  end
+end

@@ -44,8 +44,22 @@ several minutes), adds `ggen_igniter` as a `path:` dep, then drives an 8-stage l
 (resource creation, attribute add, relationships, custom action, `AshPhoenix.Form`
 round-trip, `ash_phoenix.gen.live`, an attribute rename) against
 `test/fixtures/ash-lifecycle-pack/`, running `mix compile --warnings-as-errors`/`mix test`
-inside the scaffolded app after each stage. There is no `.github/workflows` CI config in
-this repo — `mix e2e` is not run by CI, only manually.
+inside the scaffolded app after each stage.
+
+`mix e2e` is not run by CI, only manually — but **not** for lack of a CI config.
+`.github/workflows/ci.yml` does exist and runs `mix deps.get` -> `mix format
+--check-formatted` -> `mix credo` -> `mix test`. It simply never invokes `mix e2e`, and
+plain `mix test` cannot reach this suite even in principle, for two independent reasons:
+
+- `test/e2e/lifecycle_test.ex` deliberately keeps a `.ex` (not `_test.exs`) extension, so
+  Mix's default `*_test.exs` glob never picks it up. `.credo.exs:228-238` documents that
+  choice and excludes the file from `Credo.Check.Warning.WrongTestFilename` as a confirmed
+  false positive rather than "fixing" the name.
+- `elixirc_paths(:test)` is `["lib", "test/support"]` (`mix.exs:194-198`), so `test/e2e/`
+  is never compiled under `MIX_ENV=test` at all.
+
+So adding an e2e job means adding a step to the existing `ci.yml` (and running it as
+`mix e2e`, not via `mix test`) — it does not mean creating a CI config from scratch.
 
 ## Architecture
 
@@ -56,7 +70,7 @@ this repo — `mix e2e` is not run by CI, only manually.
 | **ggen** | Semantic compilation (ontology -> query -> render -> actuate), Elixir-native except the oxigraph NIF. |
 | **Igniter** | CLI-task plumbing (`Igniter.Mix.Task`, `add_notice/2`) for `mix ggen_igniter.sync`/`.doctor`, plus real AST-mutation use in `GgenIgniter.DoctorFixes`'s `--fix` transforms: `Igniter.Code.Module`/`Function`/`List`/`Tuple`/`Keyword` and `Igniter.Project.Config.modify_config_code/4,5` operate directly on a `Sourceror.Zipper.t()` built from `Sourceror.parse_string!/1` (no `%Igniter{}` needed — see `doctor_fixes.ex`'s moduledoc for why). No code here builds a real `%Igniter{}`/`Rewrite` project (`Igniter.new/0`, `Igniter.Project.Module`) — that would require the process's own cwd to be the target project, which conflicts with `project_dir`-as-an-explicit-argument; real, disclosed future work if that's ever needed. |
 | **Reactor** | Coordination/ordering/concurrency/compensation. `GgenIgniter.Reactors.ReconcileReactor` is a plain `use Reactor` module (not `Ash.Reactor`) — real and tested, but opt-in via `config :ggen_igniter, use_reactor: true` (default `false`). |
-| **Ash** | Optional, consumer-side only. Not a dependency of this repo itself; `mix ggen_igniter.doctor` only scans a *consumer* project for `use Ash.Domain`. |
+| **Ash** | A **dev/test-only dependency of this repo itself**: `mix.exs:176-177` declares `{:ash, "~> 3.0", only: [:dev, :test]}` and `{:ash_postgres, "~> 2.0", only: [:dev, :test]}`, so this repo's own suite can drive the *real* upstream Ash generators through `Igniter.Test` instead of asserting against a hand-written imitation of their output. It is still not a **runtime** dependency: there is no `use`/`import`/`alias`/`require Ash` anywhere in `lib/` — every `Ash` string in `lib/` is inside a docstring or a literal the doctor/install tasks match a *consumer* tree against. Verify with `grep -rn -e '^ *use Ash' -e '^ *import Ash' -e '^ *alias Ash' -e '^ *require Ash' lib/`, which returns nothing (repeated `-e` rather than a `-E` alternation so the command survives copy-paste out of this table cell intact). The `only: [:dev, :test]` scoping means a consumer of this library never inherits Ash. `mix ggen_igniter.doctor` only scans a *consumer* project for `use Ash.Domain`, textually. |
 
 ### Two parallel pipelines — know which one you're editing
 
@@ -117,10 +131,34 @@ Requires exactly one of `before:`/`after:`/`at_line:` alongside `inject: true`.
 ## Testing discipline (enforced, not just preferred)
 
 Chicago-school only: real collaborators (real files, real subprocesses, real SPARQL
-engines/oxigraph NIF), state-based assertions on real resulting state. No
-`Mock`/`mock(`/`patch(`/`monkeypatch` anywhere in `test`, `lib`, or `native` — verify with
-`grep -rn "Mock\|mock(\|patch(\|monkeypatch" test lib native` (expect zero matches) before
-claiming a test change is done.
+engines/oxigraph NIF), state-based assertions on real resulting state. No mocking library —
+`Mox`, `:meck`, `Mimic`, the Elixir `Patch` library, Rust `mockall`, Python
+`unittest.mock` — anywhere in `test`, `lib`, or `native`. Verify with this exact command
+before claiming a test change is done:
+
+```bash
+grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' \
+  --exclude-dir=_build --exclude-dir=deps \
+  -E '(use|import) +(Mox|Mimic|Patch)\b|(Mox|Mimic|Patch)\.|:meck\.|mockall|MagicMock|Mock\(' \
+  test lib native
+```
+
+It exits 1 with zero output on a clean tree. Verified 2026-09-08 both ways: zero matches
+here, and it catches all of `use Mox` + `Mox.expect`, `:meck.new`, `use Patch`, `import
+Mimic` + `Mimic.copy`, `use mockall::`, and Python `Mock()`/`MagicMock` in a probe tree.
+
+**Do not grep bare `patch(`, `mock(`, `Mock` or `monkeypatch`** — the older command
+`grep -rn "Mock\|mock(\|patch(\|monkeypatch" test lib native` returns ~20 hits, none of
+them violations, so it cannot distinguish a real mock from either of these:
+
+- `patch(` matches `Igniter.Test`'s `assert_has_patch/3`, which is a real state-based
+  assertion on a real `%Igniter{}` diff — the opposite of a mock.
+- A dozen test moduledocs quote the banned tokens verbatim inside their own *no-mock*
+  disclosures, which this repo requires (see `test/CLAUDE.md`).
+
+The command above avoids both by matching only `use`/`import`/module-qualified call
+positions, and by scanning source extensions only, so a fixture's `_build/`, `deps/` or a
+stray `erl_crash.dump` cannot turn the check red either.
 
 ## How to work in this repo (explore -> plan -> implement -> verify -> commit)
 
@@ -182,8 +220,9 @@ claiming a test change is done.
 
 - `rm -rf`, `git reset --hard`, `git push --force` require enumerating the exact
   resolved paths/refs and explicit user confirmation first — never issue these based on
-  a plan alone. (A `PreToolUse` hook in `.claude/settings.json` blocks the raw commands
-  and prompts for this.)
+  a plan alone. (The `Bash`-matcher `PreToolUse` hook in `.claude/settings.json` blocks
+  the raw commands and prompts for this; the `Edit|Write` matcher is a different guard —
+  see "Repo-local skills and hooks" below.)
 - Per the global git workflow rule: fix forward only, never `git reset --hard`;
   `git revert` is the one destructive-looking operation that's actually fine (it's a
   new commit).
@@ -202,12 +241,27 @@ claiming a test change is done.
   (failing test first, fix, mutate, disk-verify, ledger receipt); `/defect-round` command
   wraps it.
 - `.claude/skills/agent-worktree/` — worktree isolation contract for parallel agents.
-- `.claude/settings.json` — a `PostToolUse` formatter hook (`mix format`/`rustfmt` on
-  edited files), a `PreToolUse` guard that blocks raw `rm -rf`/`git reset
-  --hard`/`git push --force` until paths/refs are enumerated and confirmed, and a
-  `Stop` hook that deterministically blocks ending a turn while
-  `mix compile --warnings-as-errors` is failing (fast compile-only check; full `mix
-  test` stays inside the `gate` skill, invoked explicitly before claiming completion).
+- `.claude/settings.json` — four hooks, and note there are **two separate `PreToolUse`
+  matchers**, not one:
+  - `PostToolUse` / `Edit|Write` — formatter (`mix format`/`rustfmt` on the edited file).
+  - `PreToolUse` / `Bash` — blocks raw `rm -rf`/`git reset --hard`/`git push --force`
+    until the exact resolved paths/refs are enumerated and confirmed.
+  - `PreToolUse` / `Edit|Write` — runs `.claude/hooks/refuse-handwritten-ash.sh`, which
+    exits 2 (blocking the write) when the tool payload hand-authors an Ash surface:
+    `use Ash.Resource`/`use Ash.Domain`, or a base-resource header (`otp_app:` paired with
+    `domain:`). Its purpose is doctrinal, not stylistic — Ash surfaces are manufactured by
+    the real upstream generators via the composed `manufacture` task, because writing them
+    by hand silently skips domain registration in `config/`, the create/update accept
+    lists derived from public attributes, `ash_postgres` repo wiring, and the migration
+    snapshot `ash.codegen` diffs against. The file looks right and the project is wrong.
+    Doctrine: `AGENTS.md` ("The admitted path", "What is structurally refused"). The
+    allowlist of surfaces permitted to mention those constructs (pack templates, `.eex`/
+    `.ttl`/`.rq`/`.md`, `lib/mix/tasks/`, the ash-lifecycle fixture pack, `deps/`,
+    `_build/`, `config/*.exs`, `test/*.exs`) lives in the script — read it there rather
+    than trusting this summary, which is a pointer and not the source of record.
+  - `Stop` — deterministically blocks ending a turn while `mix compile
+    --warnings-as-errors` is failing (fast compile-only check; the full `mix test` stays
+    inside the `gate` skill, invoked explicitly before claiming completion).
 - `.claude/agents/ggen-reviewer.md` — adversarial-review subagent scoped to this
   repo's real correctness surfaces (manifest staleness, Reactor admission/
   compensation, cross-engine divergence, `docs/status.md` alignment). Invoke with

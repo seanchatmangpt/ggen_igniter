@@ -1,0 +1,27 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+# The version scope every citation's line numbers are valid at.
+#
+# This exists as a gate, not only as a checker input, because the scope used
+# to live in a `#` comment above the capability instances. A comment cannot be
+# projected, cannot be hashed into the receipt, and cannot disagree with
+# mix.lock loudly enough for anyone to notice -- the comment named three deps
+# while the file cited four.
+#
+# NO AGGREGATE, and that is a measured decision rather than a stylistic one.
+# An earlier revision selected `(COUNT(?cite) AS ?citation_count)` with a
+# GROUP BY. Under the oxigraph NIF that returned the right 4 rows. Under the
+# DEFAULT engine (`sparql` hex 0.3.12, GgenIgniter.Query.run/2) it returned 41
+# rows -- one per citation, GROUP BY silently ignored -- with citation_count
+# bound to a nested SPARQL.Query.Result struct instead of an integer. It did
+# not raise. A gate that returns confidently wrong rows on the engine that
+# actually renders the pack is the fail-open shape this pack is trying to
+# remove, so the aggregate is gone. Per-pin citation counts belong to
+# bin/citation_check.py, which computes them against real files.
+SELECT ?pinned_dep ?pinned_version
+WHERE {
+  ?pin a amp:DependencyPin ;
+       amp:pinnedDep ?pinned_dep ;
+       amp:pinnedVersion ?pinned_version .
+}
+ORDER BY ?pinned_dep

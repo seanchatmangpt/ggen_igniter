@@ -27,9 +27,9 @@ one-shot templater.
 | Layer | Real role in this repo | Status |
 |---|---|---|
 | **ggen** | Semantic compilation (ontology → query → render → actuate). Fulfilled by this repo's **own** from-scratch Elixir port of the real Rust `ggen`'s pipeline shape (render uses Elixir stdlib `EEx`, not a Tera/Liquid port) — not a runtime dependency on, or shell-out to, the real `ggen` binary. One real Rust component *is* embedded: a Rustler NIF wrapping `ggen`'s own oxigraph query engine (the default `--engine`). | IMPLEMENTED |
-| **Igniter** | CLI-task plumbing (`Igniter.Mix.Task`, `add_notice/2`) for both `mix ggen_igniter.sync`/`.doctor`. A real, unconditional `mix.exs` dependency. Does **not** use Igniter's AST-mutation API (`Igniter.Project.Module`/`Igniter.Code`/`Sourceror.Zipper`) anywhere — that's real, disclosed future work. | IMPLEMENTED (CLI plumbing); AST-mutation PLANNED |
+| **Igniter** | CLI-task plumbing (`Igniter.Mix.Task`, `add_notice/2`) for both `mix ggen_igniter.sync`/`.doctor`, **plus** real AST mutation in `mix ggen_igniter.doctor --fix`: every `transform` in `lib/ggen_igniter/doctor_fixes.ex` parses the target with `Sourceror.parse_string!/1`, edits a `Sourceror.Zipper` through Igniter's own codemod primitives (`Igniter.Code.Module.move_to_module_using/2`, `Igniter.Code.Function.move_to_defp/3`, `Igniter.Code.List`/`Tuple`/`Keyword`, `Igniter.Project.Config.modify_config_code/5`) and re-serializes with `Sourceror.to_string/1` — see `doctor_fixes.ex:358-361`. Two real nuances remain: no `%Igniter{}`/`Rewrite` project is ever constructed (the zipper is built straight from a source string, so `project_dir` stays an explicit argument instead of the process cwd — `doctor_fixes.ex:33-57`), and `Igniter.Project.Module` is unused. A real, unconditional `mix.exs` dependency. | IMPLEMENTED (CLI plumbing + `--fix` AST codemods) |
 | **Reactor** | Coordination/dependency-ordering/concurrency/compensation. `GgenIgniter.Reactors.ReconcileReactor` is a plain `use Reactor` module (explicitly not `Ash.Reactor`, so this stays usable without Ash). Real, tested — but **opt-in**, not the default, via `config :ggen_igniter, use_reactor: true`. | PARTIAL_ALIVE (real, opt-in) |
-| **Ash** | Optional, consumer-side only. Neither `:ash` nor `:ash_phoenix` appears anywhere in this project's own `mix.exs` deps. `mix ggen_igniter.doctor` only *scans* a consumer's project for `use Ash.Domain` as one diagnostic among several. | Not a core dependency, by design |
+| **Ash** | Never a **runtime** dependency — but a real test-scoped one. `mix.exs:176-177` declares `{:ash, "~> 3.0", only: [:dev, :test]}` and `{:ash_postgres, "~> 2.0", only: [:dev, :test]}` so this repo's own suite can drive the real upstream Ash generators through `Igniter.Test`. `only: [:dev, :test]` means a consumer that depends on `ggen_igniter` never inherits either one, and no module under `lib/` requires Ash on any code path. `:ash_phoenix` is genuinely absent from `mix.exs` (it appears only inside a comment, `mix.exs:97`). `mix ggen_igniter.doctor` only *scans* a consumer's project for `use Ash.Domain` as one diagnostic among several. | Not a runtime dependency; `only: [:dev, :test]` for this repo's own suite |
 
 See `docs/architecture/overview.md` for the full ownership table (including
 OTP/Controller/Manifest/Receipt) and `docs/glossary.md` for term definitions.
@@ -43,19 +43,24 @@ OTP/Controller/Manifest/Receipt) and `docs/glossary.md` for term definitions.
 - **Implemented, opt-in (not the default)**: the `ReconcileReactor`
   coordination pipeline (real admission/compensation/receipts) and the
   `GgenIgniter.Controller` persistent GenServer.
-- **Planned, not implemented**: real AST-based structural mutation
-  (Sourceror/Igniter.Code) for existing files — today's injection is a
-  marker-based text splice, not an AST patch; cross-file stale-reference
-  repair (e.g. a renamed attribute breaking separately hand-generated
-  LiveView code) has no auto-repair mechanism.
+- **Implemented, but narrower than "AST support" sounds**: `mix
+  ggen_igniter.doctor --fix`'s `transform`s are real Sourceror/`Igniter.Code`
+  AST codemods (`lib/ggen_igniter/doctor_fixes.ex:358-361`), scoped to that
+  fixed rule list. Template `inject:` is a separate mechanism and is
+  deliberately *not* an AST patch — it is a marker-based line splice, a
+  recorded decision (ADR 0006), not a gap.
+- **Planned, not implemented**: cross-file stale-reference repair (e.g. a
+  renamed attribute breaking separately hand-generated LiveView code) has no
+  auto-repair mechanism; `Igniter.Project.Module` is still unused, so there
+  is no whole-project `%Igniter{}`-mediated mutation path.
 - **Real, currently open gap**: `mix e2e`'s full 8-stage Ash+Phoenix
-  lifecycle test has not been freshly re-executed end to end in the most
-  recent documentation pass (requires network + several minutes); the
-  mechanism is real and sound by inspection. Two real captured runs both
-  stopped at Stage 5 (`AshPhoenix.Form.submit/2` assertion issue, unrelated
-  to timing) — see `docs/status.md`'s "Full 8-stage Ash+Phoenix e2e
-  lifecycle test" and "`AshPhoenix.Form` round-trip (Stage 5)" rows
-  (UNVERIFIED this pass).
+  lifecycle test has never been observed running to completion. Two real
+  captured runs both stopped at Stage 5 (`AshPhoenix.Form.submit/2`
+  assertion issue, unrelated to timing), and the suite's own source records
+  that Stage 7's terminal assertion "was NOT executed or observed in this
+  authoring session" (`test/e2e/lifecycle_test.ex:49-50`). See
+  `docs/status.md`'s "Full 8-stage Ash+Phoenix e2e lifecycle test" and
+  "`AshPhoenix.Form` round-trip (Stage 5)" rows (UNVERIFIED this pass).
 
 See `docs/status.md` for the complete, sourced capability table and
 `docs/architecture/adr/` for the accepted design decisions behind these.
@@ -275,6 +280,24 @@ practical triage playbook.
 
 ### `mix e2e`
 
+**Status: UNVERIFIED (this pass).** Everything this section describes is
+sourced from the suite's real code, not from a completed run: no full
+8-stage `mix e2e` execution has been observed. `test/e2e/lifecycle_test.ex:49-50`
+records in its own moduledoc that Stage 7's terminal `assert_raise` "was NOT
+executed or observed in this authoring session", and the two captured real
+runs cited under the wall-clock baseline below both stopped at Stage 5.
+`docs/status.md` grades this same suite `UNVERIFIED (this pass)`; that table
+is the authority for its standing, and the present-tense description below
+states what the suite's code *does*, not what has been observed to pass.
+
+Note also that the `test/fixtures/ash-lifecycle-pack/` fixture this suite
+drives hand-renders Ash resource and domain source from EEx templates
+(`templates/resource.ex.eex`, `templates/domain.ex.eex`) — the pattern
+[`AGENTS.md`](AGENTS.md) now refuses. That pack predates the refusal and is
+retained only because this suite depends on it; the current, qualified path
+is the composed-manufacture path described below, which renders no Ash
+resource source at all.
+
 `mix e2e` (alias for `mix run test/e2e/run_e2e.exs`) is a real, sequential
 end-to-end lifecycle test, kept separate from the default `mix test` suite
 because it needs real network access and takes several minutes: it scaffolds
@@ -354,6 +377,59 @@ faked convincingly enough for Ash to compile against it — Stage 0 itself
 part most resistant to that swap, since it is exactly the real, on-disk,
 network-resolved dependency graph this suite exists to catch drift in (see
 (c) below).
+
+## The composed-manufacture path (ontology → real Ash generators)
+
+The `mix e2e` pack above renders Ash source directly from templates. The
+newer path does not: it renders exactly **one** file — a composed
+`Igniter.Mix.Task` — and that task calls the real upstream `ash.gen.*`
+generators via `Igniter.compose_task/4`. No template in this path emits an
+Ash resource, domain, enum, change, validation or preparation.
+
+Two working-tree fixtures implement it (both present on disk; verify with
+`ls` before relying on any path here):
+
+- **`test/fixtures/ash_manufacture_pack/`** — the pack itself:
+  `ontology.ttl` (domain semantics plus a generator-capability envelope for
+  the upstream Ash/Igniter tasks), 11 SPARQL gates in `gates/` (`010_project`
+  through `085_refusals`, one per template binding), the single
+  `templates/manufacture.ex.eex`, and a `bin/` harness
+  (`day_zero.sh`, `qualify.sh`, `conformance.py`, `receipt.py`,
+  `drift_check.py`, `evidence_check.py`).
+- **`test/fixtures/book_library/`** — a day-zero Mix application. Everything
+  else in it is manufactured, including
+  `lib/mix/tasks/book_library.manufacture.ex`, the composed task the pack
+  renders.
+
+Render it the same way as any other pack — the output path comes from the
+template's own `to:` frontmatter, derived from `amp:manufactureTaskName`, so
+no `--out` is passed:
+
+```
+cd test/fixtures/book_library
+mix ggen_igniter.sync --pack-dir ../ash_manufacture_pack
+mix book_library.manufacture --phase base --yes
+```
+
+Read these before changing anything on this path:
+
+- [`AGENTS.md`](AGENTS.md) — the refusal doctrine this path exists to
+  satisfy: which mutations are admitted, which are structurally refused, a
+  worked example, and what to do when the generator cannot express a
+  requirement. No other entry-point document in this repo links it.
+- [the pack's own README](test/fixtures/ash_manufacture_pack/README.md) — its
+  reference, including the exact upstream Ash/Igniter versions every claim
+  about it is scoped to, and the results of its `bin/qualify.sh` run.
+- [07-ASH-MANUFACTURE-PATH.md](docs/jira/v26.9.8/07-ASH-MANUFACTURE-PATH.md)
+  — the design record for this path.
+- [08-REVIEW-MANUFACTURE-PATH.md](docs/jira/v26.9.8/08-REVIEW-MANUFACTURE-PATH.md)
+  — the adversarial review of it, including the open backlog (unproven
+  database idempotency, fail-open gate semantics, and the Ash concepts that
+  have no ontology vocabulary yet).
+
+This section deliberately restates no pass/fail counts: those belong to the
+harness output and to the two documents above, and go stale the moment the
+ontology or the upstream Ash version moves.
 
 ## Reconciliation manifest: `--on-stale refuse|prune|preserve`
 

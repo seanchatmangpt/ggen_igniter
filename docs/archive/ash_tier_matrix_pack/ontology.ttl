@@ -1,0 +1,283 @@
+@prefix alp:  <http://seanchatmangpt.github.io/packs/ash-lifecycle-pack#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#################################################################
+# Vocabulary -- extends the SAME alp: namespace test/fixtures/ash-lifecycle-pack/
+# ontology.ttl uses (identical prefix IRI), scoped by ONE new class so this
+# pack's rows never collide with that pack's alp:Domain/alp:Resource/... rows.
+# Spec: docs/jira/v26.9.8/03-SH-AFTER-ALLOW-SH-HARNESS.md ("Ontology shape").
+#################################################################
+
+alp:AshTierTask a rdfs:Class ;
+    rdfs:label "One Tier-1 Ash/AshPostgres mix task invocation the sh_after:/--allow-sh harness drives against test/fixtures/book_library/ (docs/jira/v26.9.8/02-ASH-TASK-VALIDATION-MATRIX.md, one individual per matrix row)." .
+
+alp:moduleName a rdf:Property ; rdfs:domain alp:AshTierTask ;
+    rdfs:comment "Elixir module (or project-level label for tasks with no positional module) the row targets. Used for the receipt filename only -- the positional module, when the task takes one, is ALSO inside alp:mixArgs so alp:mixArgs is the complete, real argument string." .
+alp:mixTask a rdf:Property ; rdfs:domain alp:AshTierTask ;
+    rdfs:comment "the real mix task name, verified against deps/ash/lib/mix/tasks/**/*.ex and deps/ash_postgres/lib/mix/tasks/*.ex in test/fixtures/book_library/deps (ash 3.33.1, ash_postgres 2.13.1, igniter 0.8.4)." .
+alp:mixArgs a rdf:Property ; rdfs:domain alp:AshTierTask ;
+    rdfs:comment "the COMPLETE real argument string after the task name, rendered verbatim: `mix <mixTask> <mixArgs>`. Empty string for tasks that take no arguments. Equal to ticket 02's 'Real args' column unless alp:specDeviation is non-empty." .
+alp:rank a rdf:Property ; rdfs:domain alp:AshTierTask ; rdfs:range xsd:integer ;
+    rdfs:comment "ticket 02's dependency-first order (1 = ash.gen.domain ... 26 = ash_postgres.squash_snapshots); the query ORDER BYs on this and the receipt filename zero-pads it." .
+alp:destructive a rdf:Property ; rdfs:domain alp:AshTierTask ; rdfs:range xsd:boolean ;
+    rdfs:comment "true for ticket 02 rows 22-26 (rollback/reset/tear_down/drop/squash). bin/run_pending_receipts.sh executes a receipt marked destructive inside a disposable copy of the fixture tree (02-ASH-TASK-VALIDATION-MATRIX.md lines 112-114), never in test/fixtures/book_library itself. The Postgres database named in config is NOT copied; rows 23/25 do destroy book_library_dev." .
+alp:idempotencyMechanism a rdf:Property ; rdfs:domain alp:AshTierTask ;
+    rdfs:comment "the REAL run-2 mechanism, read from the task source in deps/, with file:line. 'NONE' means the task has no ignore/skip path and a second run against the post-run-1 tree is expected to exit nonzero (Igniter.create_new_file on_exists default :error, deps/igniter/lib/igniter.ex:878,890). Ticket 02's table claims --ignore-if-exists for rows 3,5,6,7,8; that claim is false against these deps and is recorded here rather than silently corrected." .
+alp:specDeviation a rdf:Property ; rdfs:domain alp:AshTierTask ;
+    rdfs:comment "empty string when alp:mixArgs/alp:mixTask equal ticket 02's literal row. Otherwise: what differs and the deps/ source line that forces it. Ticket 02 is not amended by this pack; every deviation is recorded here and rendered into the receipt so the spec/pack disagreement is visible in the artifact, not hidden." .
+
+#################################################################
+# Individuals -- ticket 02 Tier-1 matrix rows 1..26, dependency order.
+#
+# Flag provenance, per row, is in alp:idempotencyMechanism / alp:specDeviation.
+# The only flag added to EVERY Igniter-based row (1-11, 17) beyond ticket 02's
+# literal is `--yes`: Igniter's global non-interactive switch
+# (deps/igniter/lib/mix/task.ex:117,189). sh_after: has no TTY, so without it
+# every Igniter task would block on its "Proceed with changes?" prompt.
+# `--ignore-if-exists` is passed ONLY to the tasks whose info/0 actually reads
+# it: ash.gen.domain (ash.gen.domain.ex:36), ash.gen.resource
+# (ash.gen.resource.ex:76,103), ash.gen.enum (ash.gen.enum.ex:31,52).
+#################################################################
+
+# -- 1: domain --------------------------------------------------------------
+alp:Tier1Row01 a alp:AshTierTask ;
+    alp:rank 1 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog" ;
+    alp:mixTask "ash.gen.domain" ;
+    alp:mixArgs "Elixir.BookLibrary.Catalog --ignore-if-exists --yes" ;
+    alp:idempotencyMechanism "--ignore-if-exists: deps/ash/lib/mix/tasks/gen/ash.gen.domain.ex:36 returns the igniter unchanged when the module exists" ;
+    alp:specDeviation "+ --yes (Igniter non-interactive, deps/igniter/lib/mix/task.ex:189)" .
+
+# -- 2..8: resource-family generators ----------------------------------------
+alp:Tier1Row02 a alp:AshTierTask ;
+    alp:rank 2 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog.Book" ;
+    alp:mixTask "ash.gen.resource" ;
+    alp:mixArgs "Elixir.BookLibrary.Catalog.Book --domain Elixir.BookLibrary.Catalog -a title:string:required:public -a author:string:public -a isbn:string:public -a published_year:integer:public --uuid-primary-key id --timestamps --default-actions read,create,update,destroy --ignore-if-exists --yes" ;
+    alp:idempotencyMechanism "--ignore-if-exists: deps/ash/lib/mix/tasks/gen/ash.gen.resource.ex:103; --conflicts defaults to ignore (ash.gen.resource.ex:40,120)" ;
+    alp:specDeviation "ticket 02 literal `-r belongs_to:author:Elixir.BookLibrary.Catalog.Author` dropped: no matrix row generates BookLibrary.Catalog.Author, so the fixture would not compile after row 2; replaced by `-a author:string:public` (ticket 01's Book shape: title/author/isbn/published_year, 01-BOOK-CASE-STUDY-FIXTURE.md:53). `--uuid-primary-key` takes a value (uuid_primary_key: :string, ash.gen.resource.ex:65), so `id` is supplied. + --yes." .
+
+alp:Tier1Row03 a alp:AshTierTask ;
+    alp:rank 3 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.BaseResource" ;
+    alp:mixTask "ash.gen.base_resource" ;
+    alp:mixArgs "Elixir.BookLibrary.BaseResource --yes" ;
+    alp:idempotencyMechanism "NONE: info/0 is `positional: [:resource]` only (deps/ash/lib/mix/tasks/gen/ash.gen.base_resource.ex:24); create_module -> Igniter.create_new_file on_exists :error (deps/igniter/lib/igniter.ex:878). Run 2 is expected to exit nonzero." ;
+    alp:specDeviation "ticket 02 literal `--ignore-if-exists` dropped: the task declares no such switch; Igniter parses non-strict (deps/igniter/lib/mix/task.ex:237) and would silently discard it, so passing it would fake def (c). + --yes." .
+
+alp:Tier1Row04 a alp:AshTierTask ;
+    alp:rank 4 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog.Book.Genre" ;
+    alp:mixTask "ash.gen.enum" ;
+    alp:mixArgs "Elixir.BookLibrary.Catalog.Book.Genre fiction,nonfiction,reference --ignore-if-exists --yes" ;
+    alp:idempotencyMechanism "--ignore-if-exists: deps/ash/lib/mix/tasks/gen/ash.gen.enum.ex:31,52" ;
+    alp:specDeviation "+ --yes" .
+
+alp:Tier1Row05 a alp:AshTierTask ;
+    alp:rank 5 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog.Changes.NormalizeTitle" ;
+    alp:mixTask "ash.gen.change" ;
+    alp:mixArgs "Elixir.BookLibrary.Catalog.Changes.NormalizeTitle --yes" ;
+    alp:idempotencyMechanism "NONE: info/0 is `positional: [:change]` only (deps/ash/lib/mix/tasks/gen/ash.gen.change.ex:24); create_module on_exists :error. Run 2 is expected to exit nonzero." ;
+    alp:specDeviation "ticket 02 literal `--ignore-if-exists` dropped (no such switch; would be silently discarded). + --yes." .
+
+alp:Tier1Row06 a alp:AshTierTask ;
+    alp:rank 6 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog.Preparations.FilterActive" ;
+    alp:mixTask "ash.gen.preparation" ;
+    alp:mixArgs "Elixir.BookLibrary.Catalog.Preparations.FilterActive --yes" ;
+    alp:idempotencyMechanism "NONE: info/0 is `positional: [:preparation]` only (deps/ash/lib/mix/tasks/gen/ash.gen.preparation.ex:24); create_module on_exists :error. Run 2 is expected to exit nonzero." ;
+    alp:specDeviation "ticket 02 literal `--ignore-if-exists` dropped (no such switch; would be silently discarded). + --yes." .
+
+alp:Tier1Row07 a alp:AshTierTask ;
+    alp:rank 7 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog.Validations.IsbnFormat" ;
+    alp:mixTask "ash.gen.validation" ;
+    alp:mixArgs "Elixir.BookLibrary.Catalog.Validations.IsbnFormat --yes" ;
+    alp:idempotencyMechanism "NONE: info/0 is `positional: [:validation]` only (deps/ash/lib/mix/tasks/gen/ash.gen.validation.ex:24); create_module on_exists :error. Run 2 is expected to exit nonzero." ;
+    alp:specDeviation "ticket 02 literal `--ignore-if-exists` dropped (no such switch; would be silently discarded). + --yes." .
+
+alp:Tier1Row08 a alp:AshTierTask ;
+    alp:rank 8 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog.Expressions.FullTitle" ;
+    alp:mixTask "ash.gen.custom_expression" ;
+    alp:mixArgs "Elixir.BookLibrary.Catalog.Expressions.FullTitle --yes" ;
+    alp:idempotencyMechanism "NONE: schema is [args: :csv, name: :string] (deps/ash/lib/mix/tasks/gen/ash.gen.custom_expression.ex:29); create_module on_exists :error. Run 2 is expected to exit nonzero." ;
+    alp:specDeviation "ticket 02 literal `--ignore-if-exists` dropped (no such switch; would be silently discarded). No --name/--args: --args takes TYPES (`--args string,string`, custom_expression.ex:15,20), and the name defaults to `full_title` from the module (custom_expression.ex:56-60). + --yes." .
+
+# -- 9..10: extension wiring --------------------------------------------------
+alp:Tier1Row09 a alp:AshTierTask ;
+    alp:rank 9 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog.Book" ;
+    alp:mixTask "ash.extend" ;
+    alp:mixArgs "Elixir.BookLibrary.Catalog.Book Elixir.AshPostgres.DataLayer --yes" ;
+    alp:idempotencyMechanism "def (b)+(e): extension resolved by Module.concat (deps/ash/lib/mix/tasks/ash.extend.ex:168-175) then AshPostgres.DataLayer.install/5 patches `use Ash.Resource` -- re-run against an already-extended module must not duplicate data_layer/extensions (verified by run-2 git diff, not assumed)" ;
+    alp:specDeviation "+ --yes" .
+
+alp:Tier1Row10 a alp:AshTierTask ;
+    alp:rank 10 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog.Book" ;
+    alp:mixTask "ash.patch.extend" ;
+    alp:mixArgs "Elixir.BookLibrary.Catalog.Book Elixir.AshPostgres.DataLayer --yes" ;
+    alp:idempotencyMechanism "def (b): ash.patch.extend delegates info/2 and igniter/1 to Mix.Tasks.Ash.Extend verbatim (deps/ash/lib/mix/tasks/patch/ash.patch.extend.ex:14-21); row 10 is therefore row 9's own run-2 executed inside run 1" ;
+    alp:specDeviation "ticket 02 literal is the subject only, `non-interactive mode TBD`; ash.extend's positional is [:subject, extensions: [rest: true]] (ash.extend.ex:41-45), so the extension is required. Resolved TBD: same extension as row 9, + --yes." .
+
+# -- 11..14: Postgres install / create / generate / migrate -------------------
+alp:Tier1Row11 a alp:AshTierTask ;
+    alp:rank 11 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Repo" ;
+    alp:mixTask "ash_postgres.install" ;
+    alp:mixArgs "--yes" ;
+    alp:idempotencyMechanism "def (c)+(e): schema [yes: :boolean, repo: :string] (deps/ash_postgres/lib/mix/tasks/ash_postgres.install.ex:15-18); repo defaults to Igniter.Project.Module.module_name(igniter, \"Repo\") = BookLibrary.Repo (install.ex:31-33); installer creates lib/book_library/repo.ex, the Application child, and config/{config,dev,test,runtime}.exs via Igniter.Project.Config.configure, which is a no-op when the key already holds the value" ;
+    alp:specDeviation "+ --yes. No --repo: the default already resolves to BookLibrary.Repo, and test/fixtures/book_library ships NO pre-created Repo/Application/repo config (ticket 01 lists none), so this row is the real first install, not a re-install." .
+
+alp:Tier1Row12 a alp:AshTierTask ;
+    alp:rank 12 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Repo" ;
+    alp:mixTask "ash_postgres.create" ;
+    alp:mixArgs "" ;
+    alp:idempotencyMechanism "natural: delegates to ecto.create per repo (deps/ash_postgres/lib/mix/tasks/ash_postgres.create.ex:54-60); ecto.create reports 'has already been created' and exits 0" ;
+    alp:specDeviation "" .
+
+alp:Tier1Row13 a alp:AshTierTask ;
+    alp:rank 13 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Repo" ;
+    alp:mixTask "ash_postgres.generate_migrations" ;
+    alp:mixArgs "--name add_book_and_author" ;
+    alp:idempotencyMechanism "def (a)+(e): AshPostgres.MigrationGenerator.generate diffs resources against priv/resource_snapshots (deps/ash_postgres/lib/mix/tasks/ash_postgres.generate_migrations.ex:61,128); no resource change -> zero new migration files" ;
+    alp:specDeviation "" .
+
+alp:Tier1Row14 a alp:AshTierTask ;
+    alp:rank 14 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Repo" ;
+    alp:mixTask "ash_postgres.migrate" ;
+    alp:mixArgs "" ;
+    alp:idempotencyMechanism "def (c): delegates to ecto.migrate (deps/ash_postgres/lib/mix/tasks/ash_postgres.migrate.ex:115-154); Ecto schema_migrations applied-version tracking" ;
+    alp:specDeviation "" .
+
+# -- 15..18: umbrella codegen / setup / domain-list / manifest ---------------
+alp:Tier1Row15 a alp:AshTierTask ;
+    alp:rank 15 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary" ;
+    alp:mixTask "ash.codegen" ;
+    alp:mixArgs "--name book_library_v1" ;
+    alp:idempotencyMechanism "composes row 13 (deps/ash/lib/mix/tasks/ash.codegen.ex:70-73 forwards --name to each extension's codegen); ticket 04 log-pattern exception applies" ;
+    alp:specDeviation "" .
+
+alp:Tier1Row16 a alp:AshTierTask ;
+    alp:rank 16 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary" ;
+    alp:mixTask "ash.setup" ;
+    alp:mixArgs "" ;
+    alp:idempotencyMechanism "composes rows 12/14 per extension setup/1; ticket 04 log-pattern exception applies" ;
+    alp:specDeviation "" .
+
+alp:Tier1Row17 a alp:AshTierTask ;
+    alp:rank 17 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog" ;
+    alp:mixTask "ash.set.domains" ;
+    alp:mixArgs "--yes" ;
+    alp:idempotencyMechanism "def (e): discovers domains itself and calls Igniter.Project.Config.configure(\"config.exs\", app, [:ash_domains], domains) (deps/ash/lib/mix/tasks/ash.set.domains.ex:27-41), which replaces the list value rather than appending" ;
+    alp:specDeviation "ticket 02 literal `Elixir.BookLibrary.Catalog` dropped: the task has no info/0 and takes no positional (ash.set.domains.ex:21, `igniter(igniter, _argv)`); it discovers domains from the tree. + --yes." .
+
+alp:Tier1Row18 a alp:AshTierTask ;
+    alp:rank 18 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary" ;
+    alp:mixTask "ash.manifest.dump" ;
+    alp:mixArgs "--output priv/ash_manifest.json" ;
+    alp:idempotencyMechanism "def (b): deterministic JSON dump, byte-identical on re-run (verified by run-2 git diff of priv/ash_manifest.json)" ;
+    alp:specDeviation "ticket 02 says `(default output path)`; the real default is stdout (deps/ash/lib/mix/tasks/ash.manifest.dump.ex:15), which leaves no file for def (b)'s git diff, so --output names a file. --format json omitted (only value and the default, manifest.dump.ex:16)." .
+
+# -- 19..21: read-only diagram / livebook generation -------------------------
+alp:Tier1Row19 a alp:AshTierTask ;
+    alp:rank 19 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary.Catalog" ;
+    alp:mixTask "ash.generate_resource_diagrams" ;
+    alp:mixArgs "" ;
+    alp:idempotencyMechanism "def (b): defaults --type class --format plain (deps/ash/lib/mix/tasks/ash.generate_resource_diagrams.ex:47,52), writes a mermaid file next to each domain source; deterministic from unchanged resource state" ;
+    alp:specDeviation "" .
+
+alp:Tier1Row20 a alp:AshTierTask ;
+    alp:rank 20 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary" ;
+    alp:mixTask "ash.generate_policy_chart" ;
+    alp:mixArgs "--all" ;
+    alp:idempotencyMechanism "def (b): deterministic regeneration; --format defaults to plain" ;
+    alp:specDeviation "ticket 02 names `ash.generate_policy_charts` (plural) with default args; the real task file is deps/ash/lib/mix/tasks/ash.generate_policy_chart.ex (singular) and it raises `Must pass the --only option or the --all option.` at line 45 with no args, so --all is required." .
+
+alp:Tier1Row21 a alp:AshTierTask ;
+    alp:rank 21 ;
+    alp:destructive false ;
+    alp:moduleName "BookLibrary" ;
+    alp:mixTask "ash.generate_livebook" ;
+    alp:mixArgs "" ;
+    alp:idempotencyMechanism "def (b): default --filename livebook.livemd (deps/ash/lib/mix/tasks/ash.generate_livebook.ex:11); deterministic regeneration" ;
+    alp:specDeviation "" .
+
+# -- 22..26: destructive group, last -- run in a disposable copy -------------
+alp:Tier1Row22 a alp:AshTierTask ;
+    alp:rank 22 ;
+    alp:destructive true ;
+    alp:moduleName "BookLibrary.Repo" ;
+    alp:mixTask "ash_postgres.rollback" ;
+    alp:mixArgs "-n 1" ;
+    alp:idempotencyMechanism "not idempotent by design (ticket 02 row 22); -n aliases --step (deps/ash_postgres/lib/mix/tasks/ash_postgres.rollback.ex:71)" ;
+    alp:specDeviation "" .
+
+alp:Tier1Row23 a alp:AshTierTask ;
+    alp:rank 23 ;
+    alp:destructive true ;
+    alp:moduleName "BookLibrary.Repo" ;
+    alp:mixTask "ash.reset" ;
+    alp:mixArgs "" ;
+    alp:idempotencyMechanism "not idempotent by design (ticket 02 row 23); runs ash.tear_down then ash.setup (deps/ash/lib/mix/tasks/ash.reset.ex:14-17)" ;
+    alp:specDeviation "ticket 02 names `ash_postgres.reset`; no such file exists under deps/ash_postgres/lib/mix/tasks/. The reset task lives in ash: deps/ash/lib/mix/tasks/ash.reset.ex." .
+
+alp:Tier1Row24 a alp:AshTierTask ;
+    alp:rank 24 ;
+    alp:destructive true ;
+    alp:moduleName "BookLibrary.Catalog.Book" ;
+    alp:mixTask "ash.tear_down" ;
+    alp:mixArgs "" ;
+    alp:idempotencyMechanism "not idempotent by design (ticket 02 row 24); calls extension.tear_down(argv) for every extension (deps/ash/lib/mix/tasks/ash.tear_down.ex:16-29) -- for AshPostgres that is a database drop, not per-resource file removal" ;
+    alp:specDeviation "ticket 02 literal `Elixir.BookLibrary.Catalog.Book` dropped: the task takes no resource positional; argv is forwarded to Ash.Mix.Tasks.Helpers.extensions!/1 which only reads --domains (ash.tear_down.ex:17). Ticket 02's 'Remove Ash-generated scaffolding for a resource' purpose does not match the real task." .
+
+alp:Tier1Row25 a alp:AshTierTask ;
+    alp:rank 25 ;
+    alp:destructive true ;
+    alp:moduleName "BookLibrary.Repo" ;
+    alp:mixTask "ash_postgres.drop" ;
+    alp:mixArgs "--force" ;
+    alp:idempotencyMechanism "not idempotent by design (ticket 02 row 25): second drop against an absent DB exits nonzero" ;
+    alp:specDeviation "ticket 02 says `(none)`; --force (`-f`, deps/ash_postgres/lib/mix/tasks/ash_postgres.drop.ex:40) is added because without it ecto.drop asks for confirmation and sh_after: has no TTY to answer." .
+
+alp:Tier1Row26 a alp:AshTierTask ;
+    alp:rank 26 ;
+    alp:destructive true ;
+    alp:moduleName "BookLibrary.Repo" ;
+    alp:mixTask "ash_postgres.squash_snapshots" ;
+    alp:mixArgs "--into last" ;
+    alp:idempotencyMechanism "not idempotent by design (ticket 02 row 26)" ;
+    alp:specDeviation "ticket 02 literal `--name book_library_baseline` replaced: @switches are into/snapshot_path/quiet/dry_run/check (deps/ash_postgres/lib/mix/tasks/ash_postgres.squash_snapshots.ex:10-16) parsed with OptionParser.parse!(strict:) at line 41, so --name raises. --into last is the documented baseline mode (squash_snapshots.ex:25,55)." .

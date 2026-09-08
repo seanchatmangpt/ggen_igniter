@@ -7,9 +7,15 @@ defmodule <%= resource_module %> do
   @moduledoc """
   Ash.Resource for `<%= resource_name %>`, backed by `<%= data_layer %>`.
 
-  Manufactured by ggen_igniter from the admitted alp: ontology (pack
+  Rendered by ggen_igniter from the alp: ontology (pack
   test/fixtures/ash-lifecycle-pack/) -- do not hand-edit; regenerate from the
   ontology instead.
+
+  Standing: this file's template hand-renders `use Ash.Resource` source text
+  directly, which is NOT the ontology -> composed-generator path this repo
+  requires for new Ash surfaces. The fixture predates that doctrine and is
+  kept only as a pack-SHAPE corpus for the test suite, never as Ash proof.
+  See test/fixtures/ash-lifecycle-pack/README.md.
   """
 
   use Ash.Resource,
