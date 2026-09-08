@@ -16,7 +16,7 @@
 **EXECUTED — by 07's rung G, not by the protocol below.** `00-OVERVIEW.md`'s status
 table records this ticket as EXECUTED via Igniter `--check` plus a tree diff, and the
 receipt's `idempotency` block carries the result: both phases exit 0 under `--check`
-(`16-idempotency-check-base.log`, `17-idempotency-check-core.log`), and
+(`20-idempotency-check-base.log`, `21-idempotency-check-core.log`), and
 `tree_T1_sha256 == tree_T2_sha256 == 65c2ec4e…` with an empty `T1-vs-T2.diff`.
 
 The unchecked boxes below were never ticked because the protocol they belong to was

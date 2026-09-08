@@ -108,7 +108,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.240Z",
       "type": "task_composed"
     },
     {
@@ -145,7 +145,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.241Z",
       "type": "task_composed"
     },
     {
@@ -182,7 +182,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.242Z",
       "type": "task_composed"
     },
     {
@@ -219,7 +219,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.243Z",
       "type": "task_composed"
     },
     {
@@ -256,7 +256,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.244Z",
       "type": "task_composed"
     },
     {
@@ -297,7 +297,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.245Z",
       "type": "task_admission_refused"
     },
     {
@@ -338,7 +338,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.246Z",
       "type": "task_admission_refused"
     },
     {
@@ -379,7 +379,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.247Z",
       "type": "task_admission_refused"
     },
     {
@@ -404,7 +404,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.248Z",
       "type": "capability_refused"
     },
     {
@@ -429,7 +429,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.249Z",
       "type": "capability_refused"
     },
     {
@@ -454,7 +454,32 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.250Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "NOT EXERCISED. It delegates verbatim to ash.extend for both info/2 and igniter/1, so its behaviour is expected to be identical -- but expectation is not observation, and this pack never ran it."
+        },
+        {
+          "name": "standing",
+          "value": "UNKNOWN"
+        }
+      ],
+      "id": "ev_0012",
+      "relationships": [
+        {
+          "objectId": "ash.patch.extend",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:core",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:50.251Z",
       "type": "capability_refused"
     },
     {
@@ -468,7 +493,7 @@
           "value": "UNSUPPORTED"
         }
       ],
-      "id": "ev_0012",
+      "id": "ev_0013",
       "relationships": [
         {
           "objectId": "ash.reset",
@@ -479,7 +504,32 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.252Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "NOT EXERCISED, and structurally redundant on this path: ash.gen.domain already writes the ash_domains config entry as part of creating the domain, so discovering and rewriting the list afterwards would be a second writer to state a generator already owns."
+        },
+        {
+          "name": "standing",
+          "value": "UNKNOWN"
+        }
+      ],
+      "id": "ev_0014",
+      "relationships": [
+        {
+          "objectId": "ash.set.domains",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:core",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:50.253Z",
       "type": "capability_refused"
     },
     {
@@ -493,7 +543,7 @@
           "value": "UNSUPPORTED"
         }
       ],
-      "id": "ev_0013",
+      "id": "ev_0015",
       "relationships": [
         {
           "objectId": "ash.tear_down",
@@ -504,7 +554,57 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:50.541104Z",
+      "time": "2026-09-08T20:59:50.254Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "DIRECTION INVERSION: this task generates Ash resources FROM an existing database schema. That is the opposite of this pack's direction (ontology -> resources -> migrations) and admitting it would create a second, competing source of truth for the same resources. Excluded by design, not by omission."
+        },
+        {
+          "name": "standing",
+          "value": "UNSUPPORTED"
+        }
+      ],
+      "id": "ev_0016",
+      "relationships": [
+        {
+          "objectId": "ash_postgres.gen.resources",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:core",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:50.255Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "NOT EXERCISED. pgvector is not part of the Book/Loan domain, so there was nothing to observe. UNKNOWN, not broken."
+        },
+        {
+          "name": "standing",
+          "value": "UNKNOWN"
+        }
+      ],
+      "id": "ev_0017",
+      "relationships": [
+        {
+          "objectId": "ash_postgres.setup_vector",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:core",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:50.256Z",
       "type": "capability_refused"
     },
     {
@@ -518,18 +618,14 @@
           "value": "phase core re-applied; mix compile exit 0"
         }
       ],
-      "id": "ev_0014",
+      "id": "ev_0018",
       "relationships": [
-        {
-          "objectId": "book_library.manufacture:core",
-          "qualifier": "run"
-        },
         {
           "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:53.013864Z",
+      "time": "2026-09-08T20:59:54.337Z",
       "type": "manufacture_run_applied"
     }
   ],
@@ -664,13 +760,37 @@
     },
     {
       "attributes": [],
+      "id": "ash.patch.extend",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
       "id": "ash.reset",
       "relationships": [],
       "type": "mix_task"
     },
     {
       "attributes": [],
+      "id": "ash.set.domains",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
       "id": "ash.tear_down",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash_postgres.gen.resources",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash_postgres.setup_vector",
       "relationships": [],
       "type": "mix_task"
     },

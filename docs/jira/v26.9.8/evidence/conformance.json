@@ -1,6 +1,7 @@
 {
   "admitted": [
     "ash.codegen",
+    "ash.extend",
     "ash.gen.base_resource",
     "ash.gen.change",
     "ash.gen.domain",
@@ -12,30 +13,56 @@
     "ash.setup",
     "ash_postgres.install"
   ],
-  "capabilities_declared": 16,
+  "capabilities_declared": 21,
   "conformant": true,
+  "gates_sha256": {
+    "010_project.rq": "78bc530d8e34d2cc17f98a2e7c0e3628cbd7a7ec1e2a1fbec22f6e5291619d39",
+    "020_domains.rq": "e1f9a3d8f2adc6b66b432091e481a96332056daf49dd1002e89e65dc7fd879cb",
+    "030_resources.rq": "aa21dceb8e210746beab6d286cc4dc0ef5e3a2f5f48a6b318c42502dffc2484f",
+    "035_default_actions.rq": "00d6f6afdf910602669238eee1babc176af9182abd8101c95323b661a0e1c3fe",
+    "040_attributes.rq": "e11c7ca57417b0fa73f0aa49d8109c7ae1cfb1d555bf71f1f9506fc354f57e66",
+    "050_relationships.rq": "fcb37ddcc8566f6310f62fbe52df7956fe84aeba717a47a6a688513aa6fb35cd",
+    "060_extensions.rq": "3ab42b7e65f4a9b86bc56a929259242b4e15e51543082ee597a7f9000c4471ef",
+    "070_support_modules.rq": "56f78dba09fe3aace2102537a6145d77fc6d7e59bf478d78f2a4be0f87fff06c",
+    "075_enum_values.rq": "0ba495e97e56f7de298f279be08d7d403336b53ca2e29f8c7d4fa99fdf816803",
+    "080_capabilities.rq": "9ecb413e65379b784ebaa3fdbfcb1958c39dc44361235a2e126666ebfc95a84d",
+    "085_refusals.rq": "ce1a4c2222c7e1e9dc3189a7d10181ebeb8365fbdd8958fcef0220c7e0ef337b",
+    "090_citations.rq": "5e9defbe74c4ab3f8f45c9b8e11fcc08c2e4b9152726f3c1a1b3a0952a61b0c8",
+    "092_dependency_pins.rq": "586609a57f63c177ee42c342699aae797e46315dcdb9e847db62253624355667"
+  },
   "guard_flip_run1_to_run2": [
     "BookLibrary.Catalog.Preparations.SortByTitle",
     "BookLibrary.Circulation.Changes.StampReturnedAt",
     "BookLibrary.Circulation.Validations.DueDateInFuture",
-    "BookLibrary.Repo",
     "BookLibrary.Resource"
   ],
+  "manufacture_task": "/Users/sac/ggen_igniter/test/fixtures/book_library/lib/mix/tasks/book_library.manufacture.ex",
+  "manufacture_task_sha256": "0105e086404646e8d7c3a8f7d36cb63d9b2434961483feed788d190a983e2b66",
   "not_admitted": [
     "ash.attach.support_module",
     "ash.extend:policies",
     "ash.gen.custom_expression",
+    "ash.patch.extend",
     "ash.reset",
-    "ash.tear_down"
+    "ash.set.domains",
+    "ash.tear_down",
+    "ash_postgres.gen.resources",
+    "ash_postgres.setup_vector"
   ],
+  "ontology_sha256": "f7d01e44e4676460b4d90a7e0464f093a69142661b355aa8f5bbfb928f025aea",
+  "plan_steps": 11,
   "runs": {
     "run1": {
       "capability_refused": [
         "ash.attach.support_module",
         "ash.extend:policies",
         "ash.gen.custom_expression",
+        "ash.patch.extend",
         "ash.reset",
-        "ash.tear_down"
+        "ash.set.domains",
+        "ash.tear_down",
+        "ash_postgres.gen.resources",
+        "ash_postgres.setup_vector"
       ],
       "composed": [
         "ash.gen.base_resource",
@@ -49,7 +76,8 @@
         "ash_postgres.install"
       ],
       "composed_count": 11,
-      "events": 23,
+      "decisions": 11,
+      "events": 32,
       "guarded_admission_refused": []
     },
     "run2": {
@@ -57,22 +85,27 @@
         "ash.attach.support_module",
         "ash.extend:policies",
         "ash.gen.custom_expression",
+        "ash.patch.extend",
         "ash.reset",
-        "ash.tear_down"
+        "ash.set.domains",
+        "ash.tear_down",
+        "ash_postgres.gen.resources",
+        "ash_postgres.setup_vector"
       ],
       "composed": [
         "ash.gen.domain",
         "ash.gen.enum",
         "ash.gen.resource",
-        "ash.install"
+        "ash.install",
+        "ash_postgres.install"
       ],
-      "composed_count": 6,
-      "events": 23,
+      "composed_count": 7,
+      "decisions": 11,
+      "events": 32,
       "guarded_admission_refused": [
         "BookLibrary.Catalog.Preparations.SortByTitle",
         "BookLibrary.Circulation.Changes.StampReturnedAt",
         "BookLibrary.Circulation.Validations.DueDateInFuture",
-        "BookLibrary.Repo",
         "BookLibrary.Resource"
       ]
     }

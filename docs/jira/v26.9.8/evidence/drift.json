@@ -3,12 +3,18 @@
   "no_drift": true,
   "ontology_counts": {
     "attributes": 9,
+    "default_actions": 8,
     "domains": 2,
+    "enum_values": 3,
     "extensions": 2,
     "relationships": 1,
     "resources": 2,
     "support_modules": 5
   },
   "rendered_task": "/Users/sac/ggen_igniter/test/fixtures/book_library/lib/mix/tasks/book_library.manufacture.ex",
-  "steps": 11
+  "steps": 11,
+  "unranked_repeatable_properties": [
+    "amp:enumValue",
+    "amp:defaultAction"
+  ]
 }

@@ -23,6 +23,12 @@
       "refusal_reason": null,
       "standing": "PARTIAL_ALIVE"
     },
+    "ash.extend": {
+      "admitted": true,
+      "phase": "core",
+      "refusal_reason": null,
+      "standing": "PARTIAL_ALIVE"
+    },
     "ash.extend:policies": {
       "admitted": false,
       "phase": "core",
@@ -83,11 +89,23 @@
       "refusal_reason": null,
       "standing": "ALIVE"
     },
+    "ash.patch.extend": {
+      "admitted": false,
+      "phase": "core",
+      "refusal_reason": "NOT EXERCISED. It delegates verbatim to ash.extend for both info/2 and igniter/1, so its behaviour is expected to be identical -- but expectation is not observation, and this pack never ran it.",
+      "standing": "UNKNOWN"
+    },
     "ash.reset": {
       "admitted": false,
       "phase": "lifecycle",
       "refusal_reason": "DESTRUCTIVE: tear_down + setup. Same isolation requirement as ash.tear_down. NOTE: `ash_postgres.reset` does not exist -- the real task is `ash.reset`; the v26.9.8 matrix named a nonexistent task.",
       "standing": "UNSUPPORTED"
+    },
+    "ash.set.domains": {
+      "admitted": false,
+      "phase": "core",
+      "refusal_reason": "NOT EXERCISED, and structurally redundant on this path: ash.gen.domain already writes the ash_domains config entry as part of creating the domain, so discovering and rewriting the list afterwards would be a second writer to state a generator already owns.",
+      "standing": "UNKNOWN"
     },
     "ash.setup": {
       "admitted": true,
@@ -101,11 +119,23 @@
       "refusal_reason": "DESTRUCTIVE: drops the database. Not idempotent in any meaningful sense (run 2 has nothing to drop) and cannot share a database identity with the qualification subject. Admitted only inside an isolated-database harness, never in the manufacture path.",
       "standing": "UNSUPPORTED"
     },
+    "ash_postgres.gen.resources": {
+      "admitted": false,
+      "phase": "core",
+      "refusal_reason": "DIRECTION INVERSION: this task generates Ash resources FROM an existing database schema. That is the opposite of this pack's direction (ontology -> resources -> migrations) and admitting it would create a second, competing source of truth for the same resources. Excluded by design, not by omission.",
+      "standing": "UNSUPPORTED"
+    },
     "ash_postgres.install": {
       "admitted": true,
       "phase": "base",
       "refusal_reason": null,
       "standing": "ALIVE"
+    },
+    "ash_postgres.setup_vector": {
+      "admitted": false,
+      "phase": "lifecycle",
+      "refusal_reason": "NOT EXERCISED. pgvector is not part of the Book/Loan domain, so there was nothing to observe. UNKNOWN, not broken.",
+      "standing": "UNKNOWN"
     }
   },
   "commands": [
@@ -174,11 +204,19 @@
       "rung": "E"
     },
     {
+      "command": "python3 /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack/bin/isolate_db.py /Users/sac/ggen_igniter/test/fixtures/book_library book_library_qual_20260908205846 ",
+      "exit": 0,
+      "expected": 0,
+      "label": "isolate-databases",
+      "log": "09-isolate-databases.log",
+      "rung": "F"
+    },
+    {
       "command": "mix book_library.manufacture --phase core --yes ",
       "exit": 0,
       "expected": 0,
       "label": "manufacture-core-run1",
-      "log": "09-manufacture-core-run1.log",
+      "log": "10-manufacture-core-run1.log",
       "rung": "F"
     },
     {
@@ -186,7 +224,7 @@
       "exit": 0,
       "expected": 0,
       "label": "compile-after-core",
-      "log": "10-compile-after-core.log",
+      "log": "11-compile-after-core.log",
       "rung": "F"
     },
     {
@@ -194,7 +232,7 @@
       "exit": 0,
       "expected": 0,
       "label": "seal-ocel-base",
-      "log": "11-seal-ocel-base.log",
+      "log": "12-seal-ocel-base.log",
       "rung": "F"
     },
     {
@@ -202,7 +240,7 @@
       "exit": 0,
       "expected": 0,
       "label": "seal-ocel-core",
-      "log": "12-seal-ocel-core.log",
+      "log": "13-seal-ocel-core.log",
       "rung": "F"
     },
     {
@@ -210,7 +248,7 @@
       "exit": 0,
       "expected": 0,
       "label": "ash-codegen",
-      "log": "13-ash-codegen.log",
+      "log": "14-ash-codegen.log",
       "rung": "F"
     },
     {
@@ -218,7 +256,23 @@
       "exit": 0,
       "expected": 0,
       "label": "ash-setup",
-      "log": "14-ash-setup.log",
+      "log": "15-ash-setup.log",
+      "rung": "F"
+    },
+    {
+      "command": "psql -f db_fingerprint.sql book_library_qual_20260908205846_dev",
+      "exit": 0,
+      "expected": 0,
+      "label": "db-fingerprint-D1",
+      "log": "D1-run1.txt",
+      "rung": "F"
+    },
+    {
+      "command": "assert D1 has books,loans columns and >=1 migration",
+      "exit": 0,
+      "expected": 0,
+      "label": "db-nondegenerate",
+      "log": "16-db-nondegenerate.log",
       "rung": "F"
     },
     {
@@ -226,15 +280,31 @@
       "exit": 0,
       "expected": 0,
       "label": "compile-after-lifecycle",
-      "log": "15-compile-after-lifecycle.log",
+      "log": "17-compile-after-lifecycle.log",
       "rung": "F"
+    },
+    {
+      "command": "env MIX_ENV=test mix ash.setup ",
+      "exit": 0,
+      "expected": 0,
+      "label": "ash-setup-test-env",
+      "log": "18-ash-setup-test-env.log",
+      "rung": "M"
+    },
+    {
+      "command": "mix test ",
+      "exit": 0,
+      "expected": 0,
+      "label": "manufactured-resources-execute",
+      "log": "19-manufactured-resources-execute.log",
+      "rung": "M"
     },
     {
       "command": "mix book_library.manufacture --phase base --check ",
       "exit": 0,
       "expected": 0,
       "label": "idempotency-check-base",
-      "log": "16-idempotency-check-base.log",
+      "log": "20-idempotency-check-base.log",
       "rung": "G"
     },
     {
@@ -242,7 +312,7 @@
       "exit": 0,
       "expected": 0,
       "label": "idempotency-check-core",
-      "log": "17-idempotency-check-core.log",
+      "log": "21-idempotency-check-core.log",
       "rung": "G"
     },
     {
@@ -250,7 +320,7 @@
       "exit": 0,
       "expected": 0,
       "label": "manufacture-base-run2",
-      "log": "18-manufacture-base-run2.log",
+      "log": "22-manufacture-base-run2.log",
       "rung": "G"
     },
     {
@@ -258,7 +328,7 @@
       "exit": 0,
       "expected": 0,
       "label": "manufacture-core-run2",
-      "log": "19-manufacture-core-run2.log",
+      "log": "23-manufacture-core-run2.log",
       "rung": "G"
     },
     {
@@ -266,7 +336,7 @@
       "exit": 0,
       "expected": 0,
       "label": "ash-codegen-run2",
-      "log": "20-ash-codegen-run2.log",
+      "log": "24-ash-codegen-run2.log",
       "rung": "G"
     },
     {
@@ -274,7 +344,31 @@
       "exit": 0,
       "expected": 0,
       "label": "compile-after-run2",
-      "log": "21-compile-after-run2.log",
+      "log": "25-compile-after-run2.log",
+      "rung": "G"
+    },
+    {
+      "command": "mix ash.setup ",
+      "exit": 0,
+      "expected": 0,
+      "label": "ash-setup-run2",
+      "log": "26-ash-setup-run2.log",
+      "rung": "G"
+    },
+    {
+      "command": "psql -f db_fingerprint.sql book_library_qual_20260908205846_dev",
+      "exit": 0,
+      "expected": 0,
+      "label": "db-fingerprint-D2",
+      "log": "D2-run2.txt",
+      "rung": "G"
+    },
+    {
+      "command": "diff D1-run1.txt D2-run2.txt",
+      "exit": 0,
+      "expected": 0,
+      "label": "db-diff-D1-D2",
+      "log": "D1-vs-D2.diff",
       "rung": "G"
     },
     {
@@ -282,7 +376,7 @@
       "exit": 0,
       "expected": 0,
       "label": "seal-ocel-base-run2",
-      "log": "22-seal-ocel-base-run2.log",
+      "log": "27-seal-ocel-base-run2.log",
       "rung": "G"
     },
     {
@@ -290,7 +384,7 @@
       "exit": 0,
       "expected": 0,
       "label": "seal-ocel-core-run2",
-      "log": "23-seal-ocel-core-run2.log",
+      "log": "28-seal-ocel-core-run2.log",
       "rung": "G"
     },
     {
@@ -302,11 +396,123 @@
       "rung": "G"
     },
     {
+      "command": "mix book_library.manufacture --phase base --check ",
+      "exit": 0,
+      "expected": 0,
+      "label": "idempotency-check-base-at-T2",
+      "log": "29-idempotency-check-base-at-T2.log",
+      "rung": "G"
+    },
+    {
+      "command": "mix book_library.manufacture --phase core --check ",
+      "exit": 0,
+      "expected": 0,
+      "label": "idempotency-check-core-at-T2",
+      "log": "30-idempotency-check-core-at-T2.log",
+      "rung": "G"
+    },
+    {
+      "command": "mix book_library.manufacture --phase base --yes ",
+      "exit": 0,
+      "expected": 0,
+      "label": "manufacture-base-run3",
+      "log": "31-manufacture-base-run3.log",
+      "rung": "L"
+    },
+    {
+      "command": "mix book_library.manufacture --phase core --yes ",
+      "exit": 0,
+      "expected": 0,
+      "label": "manufacture-core-run3",
+      "log": "32-manufacture-core-run3.log",
+      "rung": "L"
+    },
+    {
+      "command": "mix ash.codegen --name book_library_manufacture ",
+      "exit": 0,
+      "expected": 0,
+      "label": "ash-codegen-run3",
+      "log": "33-ash-codegen-run3.log",
+      "rung": "L"
+    },
+    {
+      "command": "mix compile ",
+      "exit": 0,
+      "expected": 0,
+      "label": "compile-after-run3",
+      "log": "34-compile-after-run3.log",
+      "rung": "L"
+    },
+    {
+      "command": "mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.base.ocel.json --exit 0 --observed phase base re-applied (run 3); mix compile exit 0 ",
+      "exit": 0,
+      "expected": 0,
+      "label": "seal-ocel-base-run3",
+      "log": "35-seal-ocel-base-run3.log",
+      "rung": "L"
+    },
+    {
+      "command": "mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.core.ocel.json --exit 0 --observed phase core re-applied (run 3); mix compile exit 0 ",
+      "exit": 0,
+      "expected": 0,
+      "label": "seal-ocel-core-run3",
+      "log": "36-seal-ocel-core-run3.log",
+      "rung": "L"
+    },
+    {
+      "command": "mix ash.migrate ",
+      "exit": 0,
+      "expected": 0,
+      "label": "ash-migrate-run3",
+      "log": "37-ash-migrate-run3.log",
+      "rung": "L"
+    },
+    {
+      "command": "psql -f db_fingerprint.sql book_library_qual_20260908205846_dev",
+      "exit": 0,
+      "expected": 0,
+      "label": "db-fingerprint-D3",
+      "log": "D3-run3.txt",
+      "rung": "L"
+    },
+    {
+      "command": "diff D2-run2.txt D3-run3.txt",
+      "exit": 0,
+      "expected": 0,
+      "label": "db-diff-D2-D3",
+      "log": "D2-vs-D3.diff",
+      "rung": "L"
+    },
+    {
+      "command": "diff T2 T3",
+      "exit": 0,
+      "expected": 0,
+      "label": "tree-diff-T2-T3",
+      "log": "T2-vs-T3.diff",
+      "rung": "L"
+    },
+    {
+      "command": "mix book_library.manufacture --phase base --check ",
+      "exit": 0,
+      "expected": 0,
+      "label": "idempotency-check-base-at-T3",
+      "log": "38-idempotency-check-base-at-T3.log",
+      "rung": "L"
+    },
+    {
+      "command": "mix book_library.manufacture --phase core --check ",
+      "exit": 0,
+      "expected": 0,
+      "label": "idempotency-check-core-at-T3",
+      "log": "39-idempotency-check-core-at-T3.log",
+      "rung": "L"
+    },
+    {
       "command": "refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/catalog/handwritten.ex",
       "exit": 2,
       "expected": 2,
       "label": "guard-blocks-ash-resource",
-      "log": "24-guard-blocks-ash-resource.log",
+      "log": "40-guard-blocks-ash-resource.log",
       "rung": "K"
     },
     {
@@ -314,7 +520,7 @@
       "exit": 2,
       "expected": 2,
       "label": "guard-blocks-base-resource-header",
-      "log": "25-guard-blocks-base-resource-header.log",
+      "log": "41-guard-blocks-base-resource-header.log",
       "rung": "K"
     },
     {
@@ -322,7 +528,7 @@
       "exit": 0,
       "expected": 0,
       "label": "guard-allows-plain-elixir",
-      "log": "26-guard-allows-plain-elixir.log",
+      "log": "42-guard-allows-plain-elixir.log",
       "rung": "K"
     },
     {
@@ -330,7 +536,7 @@
       "exit": 0,
       "expected": 0,
       "label": "guard-allows-manufactured-task",
-      "log": "27-guard-allows-manufactured-task.log",
+      "log": "43-guard-allows-manufactured-task.log",
       "rung": "K"
     },
     {
@@ -338,13 +544,14 @@
       "exit": 0,
       "expected": 0,
       "label": "beam4pm-import",
-      "log": "28-beam4pm-import.log",
+      "log": "44-beam4pm-import.log",
       "rung": "H"
     }
   ],
   "conformance": {
     "admitted": [
       "ash.codegen",
+      "ash.extend",
       "ash.gen.base_resource",
       "ash.gen.change",
       "ash.gen.domain",
@@ -356,30 +563,56 @@
       "ash.setup",
       "ash_postgres.install"
     ],
-    "capabilities_declared": 16,
+    "capabilities_declared": 21,
     "conformant": true,
+    "gates_sha256": {
+      "010_project.rq": "78bc530d8e34d2cc17f98a2e7c0e3628cbd7a7ec1e2a1fbec22f6e5291619d39",
+      "020_domains.rq": "e1f9a3d8f2adc6b66b432091e481a96332056daf49dd1002e89e65dc7fd879cb",
+      "030_resources.rq": "aa21dceb8e210746beab6d286cc4dc0ef5e3a2f5f48a6b318c42502dffc2484f",
+      "035_default_actions.rq": "00d6f6afdf910602669238eee1babc176af9182abd8101c95323b661a0e1c3fe",
+      "040_attributes.rq": "e11c7ca57417b0fa73f0aa49d8109c7ae1cfb1d555bf71f1f9506fc354f57e66",
+      "050_relationships.rq": "fcb37ddcc8566f6310f62fbe52df7956fe84aeba717a47a6a688513aa6fb35cd",
+      "060_extensions.rq": "3ab42b7e65f4a9b86bc56a929259242b4e15e51543082ee597a7f9000c4471ef",
+      "070_support_modules.rq": "56f78dba09fe3aace2102537a6145d77fc6d7e59bf478d78f2a4be0f87fff06c",
+      "075_enum_values.rq": "0ba495e97e56f7de298f279be08d7d403336b53ca2e29f8c7d4fa99fdf816803",
+      "080_capabilities.rq": "9ecb413e65379b784ebaa3fdbfcb1958c39dc44361235a2e126666ebfc95a84d",
+      "085_refusals.rq": "ce1a4c2222c7e1e9dc3189a7d10181ebeb8365fbdd8958fcef0220c7e0ef337b",
+      "090_citations.rq": "5e9defbe74c4ab3f8f45c9b8e11fcc08c2e4b9152726f3c1a1b3a0952a61b0c8",
+      "092_dependency_pins.rq": "586609a57f63c177ee42c342699aae797e46315dcdb9e847db62253624355667"
+    },
     "guard_flip_run1_to_run2": [
       "BookLibrary.Catalog.Preparations.SortByTitle",
       "BookLibrary.Circulation.Changes.StampReturnedAt",
       "BookLibrary.Circulation.Validations.DueDateInFuture",
-      "BookLibrary.Repo",
       "BookLibrary.Resource"
     ],
+    "manufacture_task": "/Users/sac/ggen_igniter/test/fixtures/book_library/lib/mix/tasks/book_library.manufacture.ex",
+    "manufacture_task_sha256": "0105e086404646e8d7c3a8f7d36cb63d9b2434961483feed788d190a983e2b66",
     "not_admitted": [
       "ash.attach.support_module",
       "ash.extend:policies",
       "ash.gen.custom_expression",
+      "ash.patch.extend",
       "ash.reset",
-      "ash.tear_down"
+      "ash.set.domains",
+      "ash.tear_down",
+      "ash_postgres.gen.resources",
+      "ash_postgres.setup_vector"
     ],
+    "ontology_sha256": "f7d01e44e4676460b4d90a7e0464f093a69142661b355aa8f5bbfb928f025aea",
+    "plan_steps": 11,
     "runs": {
       "run1": {
         "capability_refused": [
           "ash.attach.support_module",
           "ash.extend:policies",
           "ash.gen.custom_expression",
+          "ash.patch.extend",
           "ash.reset",
-          "ash.tear_down"
+          "ash.set.domains",
+          "ash.tear_down",
+          "ash_postgres.gen.resources",
+          "ash_postgres.setup_vector"
         ],
         "composed": [
           "ash.gen.base_resource",
@@ -393,7 +626,8 @@
           "ash_postgres.install"
         ],
         "composed_count": 11,
-        "events": 23,
+        "decisions": 11,
+        "events": 32,
         "guarded_admission_refused": []
       },
       "run2": {
@@ -401,22 +635,27 @@
           "ash.attach.support_module",
           "ash.extend:policies",
           "ash.gen.custom_expression",
+          "ash.patch.extend",
           "ash.reset",
-          "ash.tear_down"
+          "ash.set.domains",
+          "ash.tear_down",
+          "ash_postgres.gen.resources",
+          "ash_postgres.setup_vector"
         ],
         "composed": [
           "ash.gen.domain",
           "ash.gen.enum",
           "ash.gen.resource",
-          "ash.install"
+          "ash.install",
+          "ash_postgres.install"
         ],
-        "composed_count": 6,
-        "events": 23,
+        "composed_count": 7,
+        "decisions": 11,
+        "events": 32,
         "guarded_admission_refused": [
           "BookLibrary.Catalog.Preparations.SortByTitle",
           "BookLibrary.Circulation.Changes.StampReturnedAt",
           "BookLibrary.Circulation.Validations.DueDateInFuture",
-          "BookLibrary.Repo",
           "BookLibrary.Resource"
         ]
       }
@@ -425,8 +664,8 @@
     "violations": []
   },
   "database_isolation": {
-    "database": "book_library_qual_20260908183051",
-    "evidence": "7:  database: \"book_library_qual_20260908183051\",",
+    "database": "book_library_qual_20260908205846",
+    "evidence": "/Users/sac/ggen_igniter/test/fixtures/book_library/config/dev.exs:7:  database: \"book_library_qual_20260908205846_dev\",\n/Users/sac/ggen_igniter/test/fixtures/book_library/config/test.exs:7:  database: \"book_library_qual_20260908205846_test\",",
     "note": "The manufactured repo config was rewritten to a run-scoped database before any DB-touching lifecycle step, so a filesystem-disposable copy does not silently address the original database."
   },
   "drift_check": {
@@ -434,23 +673,25 @@
     "no_drift": true,
     "ontology_counts": {
       "attributes": 9,
+      "default_actions": 8,
       "domains": 2,
+      "enum_values": 3,
       "extensions": 2,
       "relationships": 1,
       "resources": 2,
       "support_modules": 5
     },
     "rendered_task": "/Users/sac/ggen_igniter/test/fixtures/book_library/lib/mix/tasks/book_library.manufacture.ex",
-    "steps": 11
+    "steps": 11,
+    "unranked_repeatable_properties": [
+      "amp:enumValue",
+      "amp:defaultAction"
+    ]
   },
   "failures": [],
   "files": {
     "generated": [
-      "config/config.exs",
-      "config/dev.exs",
-      "config/prod.exs",
       "config/runtime.exs",
-      "config/test.exs",
       "lib/book_library/application.ex",
       "lib/book_library/catalog.ex",
       "lib/book_library/catalog/book.ex",
@@ -463,60 +704,100 @@
       "lib/book_library/repo.ex",
       "lib/book_library/resource.ex",
       "lib/mix/tasks/book_library.manufacture.ex",
-      "priv/repo/migrations/20260908183140_initialize_extensions_1.exs",
-      "priv/repo/migrations/20260908183145_book_library_manufacture.exs",
-      "priv/resource_snapshots/repo/books/20260908183146.json",
+      "priv/repo/migrations/20260908205940_book_library_manufacture_extensions_1.exs",
+      "priv/repo/migrations/20260908205941_book_library_manufacture.exs",
+      "priv/resource_snapshots/repo/books/20260908205942.json",
       "priv/resource_snapshots/repo/extensions.json",
-      "priv/resource_snapshots/repo/loans/20260908183147.json"
+      "priv/resource_snapshots/repo/loans/20260908205943.json",
+      "test/support/data_case.ex"
     ],
     "handwritten_day_zero": [
-      "mix.exs",
-      "lib/book_library.ex",
+      "config/prod.exs",
+      "lib/book_library.ex"
+    ],
+    "handwritten_removed_by_generators": [],
+    "handwritten_then_generator_modified": [
+      ".formatter.exs",
       "config/config.exs",
       "config/dev.exs",
-      "config/prod.exs",
       "config/test.exs",
-      ".formatter.exs"
-    ]
+      "mix.exs"
+    ],
+    "provenance_basis": "Derived from the tree manifests, not from a listing of the finished tree: T0-day-zero.sha256 (before any generator ran) vs T3-run3.sha256 (after the last run). The three lists are disjoint by construction."
   },
   "idempotency": {
+    "db_D1_sha256": "b31cc566510b2494a8dc601ee868751098ab5f0c35497adecddacf0b84922aac",
+    "db_D2_sha256": "b31cc566510b2494a8dc601ee868751098ab5f0c35497adecddacf0b84922aac",
+    "db_D3_sha256": "b31cc566510b2494a8dc601ee868751098ab5f0c35497adecddacf0b84922aac",
+    "db_identical": true,
+    "db_nondegenerate": true,
+    "db_oracle": "bin/db_fingerprint.sql projects columns, constraints, indexes and applied migration versions. D1 is captured after run 1's `mix ash.setup`, D2 after a SECOND `mix ash.setup` in run 2, D3 after `mix ash.migrate` in run 3.",
+    "db_oracle_scope": "D-files are comparable only WITHIN one qualification run's database. Index and constraint names are database-local -- Postgres names NOT NULL check constraints after the table OID (observed: `2200_69000_1_not_null`) -- so D-files from two different runs are EXPECTED to differ and a diff across runs would mean nothing. The oracle is 'this database did not change between lifecycle steps', never 'two runs produced the same database'.",
+    "failed_oracles": [],
+    "fixpoint_rationale": "T1 == T2 is consistent with a period-2 cycle as well as with a fixpoint. A third actuation is what separates them: only T2 == T3 makes 'the manufacturing path has a fixpoint' a tested claim.",
     "igniter_check_exits": {
       "idempotency-check-base": 0,
-      "idempotency-check-core": 0
+      "idempotency-check-base-at-T2": 0,
+      "idempotency-check-base-at-T3": 0,
+      "idempotency-check-core": 0,
+      "idempotency-check-core-at-T2": 0,
+      "idempotency-check-core-at-T3": 0
+    },
+    "oracle_states": {
+      "db_D1_D2": "identical",
+      "db_D2_D3": "identical",
+      "tree_T1_T2": "identical",
+      "tree_T2_T3": "identical"
     },
     "semantic_oracle": "mix book_library.manufacture --phase <p> --check -- Igniter halt_if_fails_check!/3 halts non-zero on any change, warning, issue, queued task, move or removal. Exit code alone from a normal run is NOT an oracle: issues return :issues without halting (igniter.ex:1279-1281).",
-    "tree_T1_sha256": "65c2ec4e9a624f174c44de20eb4e05e001ca73b0c257c0911d900bf46cda48b9",
-    "tree_T2_sha256": "65c2ec4e9a624f174c44de20eb4e05e001ca73b0c257c0911d900bf46cda48b9",
+    "tree_T1_sha256": "fd13f9af75b3e674b41b9eabb92dc22842e902130ff224ab9ef618f3478db440",
+    "tree_T2_sha256": "fd13f9af75b3e674b41b9eabb92dc22842e902130ff224ab9ef618f3478db440",
+    "tree_T3_sha256": "fd13f9af75b3e674b41b9eabb92dc22842e902130ff224ab9ef618f3478db440",
+    "tree_fixpoint_T1_T2_T3": true,
     "tree_identical": true
   },
   "ocel": {
     "run1/book_library.manufacture.base.ocel.json": {
-      "eventTypes": 3,
-      "events": 9,
+      "eventTypes": 4,
+      "events": 14,
       "objectTypes": 5,
-      "objects": 12,
-      "sha256": "f581eccc27a1bded0a13d6f6e27f796396ae61aa06213e0d998b8bbb2c9e1e64"
+      "objects": 17,
+      "sha256": "bb9af38c6158c18d0725161cd4b52a39eb0266fcafc08e719563b7747fd80b49"
     },
     "run1/book_library.manufacture.core.ocel.json": {
       "eventTypes": 3,
-      "events": 14,
+      "events": 18,
       "objectTypes": 6,
-      "objects": 20,
-      "sha256": "1570a969da9573f6496cbae1ac28becdc7b7e187790d3e547b113bd01e0948ac"
+      "objects": 24,
+      "sha256": "58619231a648f1810d039c7c3b58838925c853a3fd2d86fafc1486d6c5856b2e"
     },
     "run2/book_library.manufacture.base.ocel.json": {
-      "eventTypes": 4,
-      "events": 9,
+      "eventTypes": 5,
+      "events": 14,
       "objectTypes": 5,
-      "objects": 12,
-      "sha256": "9449ed681b0b60a713264862cbebab37700327f3a842a45d8db2065f8d96f5e7"
+      "objects": 17,
+      "sha256": "3a5b327e50fc6d007ab34a8117caa7e063a0c105fb80d38369f3e7033e31e898"
     },
     "run2/book_library.manufacture.core.ocel.json": {
       "eventTypes": 4,
-      "events": 14,
+      "events": 18,
       "objectTypes": 6,
-      "objects": 20,
-      "sha256": "3b4961b881489f64d1c76ff866d302a94f53f391033df68f7601640b76e5e9e3"
+      "objects": 24,
+      "sha256": "7b84043fec8a1ec0471c6d2d177d6b739daa8df291a886d85a6ab0ea82c6da60"
+    },
+    "run3/book_library.manufacture.base.ocel.json": {
+      "eventTypes": 5,
+      "events": 14,
+      "objectTypes": 5,
+      "objects": 17,
+      "sha256": "f45da29a12d7bb866970f08872c93e0b515962d94f8ea339c1947e10d45b7c02"
+    },
+    "run3/book_library.manufacture.core.ocel.json": {
+      "eventTypes": 4,
+      "events": 18,
+      "objectTypes": 6,
+      "objects": 24,
+      "sha256": "331a4ddee50d0c0968fa4f1b52bc059c0f0afac3afe214fd9f22482b61658aaf"
     }
   },
   "ontology": {
@@ -531,18 +812,21 @@
       "070_support_modules.rq": "56f78dba09fe3aace2102537a6145d77fc6d7e59bf478d78f2a4be0f87fff06c",
       "075_enum_values.rq": "0ba495e97e56f7de298f279be08d7d403336b53ca2e29f8c7d4fa99fdf816803",
       "080_capabilities.rq": "9ecb413e65379b784ebaa3fdbfcb1958c39dc44361235a2e126666ebfc95a84d",
-      "085_refusals.rq": "ce1a4c2222c7e1e9dc3189a7d10181ebeb8365fbdd8958fcef0220c7e0ef337b"
+      "085_refusals.rq": "ce1a4c2222c7e1e9dc3189a7d10181ebeb8365fbdd8958fcef0220c7e0ef337b",
+      "090_citations.rq": "5e9defbe74c4ab3f8f45c9b8e11fcc08c2e4b9152726f3c1a1b3a0952a61b0c8",
+      "092_dependency_pins.rq": "586609a57f63c177ee42c342699aae797e46315dcdb9e847db62253624355667"
     },
     "path": "test/fixtures/ash_manufacture_pack/ontology.ttl",
-    "sha256": "5cf98edeb751c7b30d4ba025991cb1383425935b45e06e3557f8080b754f9980",
-    "template_sha256": "c8b4f28106fcd9cabe4c80965d67974d9f432fa7507f9e4adb4e2b7e78cab538"
+    "sha256": "f7d01e44e4676460b4d90a7e0464f093a69142661b355aa8f5bbfb928f025aea",
+    "template_sha256": "28d735be287cc8d590410efbdb622ad7b6b4e8bd25a182525ad5fb370ab65513"
   },
-  "replay": "bash test/fixtures/ash_manufacture_pack/bin/qualify.sh && python3 test/fixtures/ash_manufacture_pack/bin/receipt.py test/fixtures/book_library test/fixtures/.qualification/book_library",
+  "replay": "bash test/fixtures/ash_manufacture_pack/bin/qualify.sh",
   "schema": "ggen_igniter.qualification.receipt/1",
   "scope": "Scoped to THIS exact subject only: the book_library fixture at the dependency versions listed under toolchain.deps, on this machine, with a live local PostgreSQL. It is not a claim about other Ash projects, other dependency versions, or the Tier-1 tasks whose standing above is not ALIVE.",
   "standing": {
     "AGENT_HANDWRITE_REFUSAL_ALIVE": true,
     "ASH_MANUFACTURE_ALIVE": true,
+    "ASH_RUNTIME_ALIVE": true,
     "IDEMPOTENCY_ALIVE": true,
     "OCEL_PROCESS_ALIVE": true,
     "ONTOLOGY_ALIVE": true
@@ -603,8 +887,8 @@
       "yaml_elixir": "2.12.2",
       "ymlr": "5.1.6"
     },
-    "elixir": "Elixir 1.19.5 (compiled with Erlang/OTP 28)",
-    "erlang": "28",
-    "postgres": "postgres (PostgreSQL) 14.19 (Homebrew)"
+    "elixir": "Elixir 1.18.4 (compiled with Erlang/OTP 27)",
+    "erlang": "27",
+    "postgres": "postgres (PostgreSQL) 15.2"
   }
 }

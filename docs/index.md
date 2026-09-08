@@ -109,7 +109,7 @@ output pasted in.
 ## Project-level reference
 
 - [Glossary](glossary.md) — one canonical definition per term
-- [Status](status.md) — real IMPLEMENTED/PARTIAL_ALIVE/PLANNED status of every capability
+- [Status](status.md) — real IMPLEMENTED/PARTIAL_ALIVE/PLANNED status of every capability, including the certified 6-crown generative Ash qualification ladder for v26.9.8
 - [Documentation Audit](DOCUMENTATION_AUDIT.md) — classification of every `.md`
   file in this repo as of 2026-08-27
 
@@ -119,8 +119,10 @@ Per-release ticket sets, adversarial reviews, and the raw evidence artifacts
 each one cites. These are dated working records, not maintained reference —
 [status.md](status.md) is the current-state page they feed.
 
-- [v26.9.8](jira/v26.9.8/) — the Ash manufacturing path: ontology → 11 SPARQL
-  gates → one composed `Igniter.Mix.Task` → real upstream Ash generators.
+- [v26.9.8](jira/v26.9.8/) — generative Ash manufacturing certification & zero vocabulary drift release:
+  ontology → 11 SPARQL gates → one composed `Igniter.Mix.Task` → real upstream Ash generators, certified
+  across all 6 qualification crowns (`ONTOLOGY_ALIVE`, `ASH_MANUFACTURE_ALIVE`, `ASH_RUNTIME_ALIVE`,
+  `IDEMPOTENCY_ALIVE`, `OCEL_PROCESS_ALIVE`, `AGENT_HANDWRITE_REFUSAL_ALIVE`) with real PostgreSQL cutover.
   [Overview](jira/v26.9.8/00-OVERVIEW.md),
   [Ash task validation matrix](jira/v26.9.8/02-ASH-TASK-VALIDATION-MATRIX.md),
   [Manufacture path](jira/v26.9.8/07-ASH-MANUFACTURE-PATH.md),

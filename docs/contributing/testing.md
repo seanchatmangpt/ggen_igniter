@@ -168,6 +168,39 @@ attribute and `ggen_igniter` has no cross-file stale-reference repair — see
 `docs/operations/failure-recovery.md`'s orphan-file section for the same
 underlying gap from the reconciliation-manifest angle.
 
+## The Qualification Tier: 6 Crowns Acceptance Ladder (`qualify.sh`)
+
+In addition to unit tests, property tests, and `mix e2e`, the generative Ash manufacturing pipeline is verified against a 45-step acceptance ladder across 3 full execution cycles against a live PostgreSQL database.
+
+The qualification harness lives at [`test/fixtures/ash_manufacture_pack/bin/qualify.sh`](file:///Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack/bin/qualify.sh).
+
+Run the qualification suite:
+
+```bash
+bash test/fixtures/ash_manufacture_pack/bin/qualify.sh
+```
+
+### The 6 Qualification Crowns
+
+| Crown | Meaning | Verification Mechanism |
+|---|---|---|
+| **`ONTOLOGY_ALIVE`** | The RDF ontology is loaded and evaluated via 11 SPARQL gates to render the composed task (`book_library.manufacture.ex`) without drift. | `mix ggen_igniter.sync --pack-dir ...` exits 0; `drift_check.py` and `evidence_check.py` pass. |
+| **`ASH_MANUFACTURE_ALIVE`** | Composed task drives real upstream Ash generators (`base` and `core` phases), runs `ash.codegen` to emit migrations, runs `ash.setup` to initialize DB, and compiles cleanly. | Steps 07 (`manufacture-base-run1`), 10 (`manufacture-core-run1`), 11 (`compile-after-core`), 14 (`ash.codegen`), 15 (`ash.setup`), 17 (`compile-after-lifecycle`) all exit 0. |
+| **`ASH_RUNTIME_ALIVE`** | Manufactured Ash resources and custom actions execute real queries and mutations against PostgreSQL. | Step 18 (`ash-setup-test-env`) and Step 19 (`manufactured-resources-execute` via `mix test`) pass clean. |
+| **`IDEMPOTENCY_ALIVE`** | Verified across three runs (T1, T2, T3) with three independent oracles: (1) Igniter `--check` halts clean, (2) source tree is byte-identical across runs (`T1 == T2 == T3`), and (3) Postgres schema fingerprint is identical (`D1 == D2 == D3`). | Steps 20-30 (Run 2 check, diff, seal) and 31-39 (Run 3 check, migrate, diff, seal) exit 0 with empty diff files. |
+| **`OCEL_PROCESS_ALIVE`** | Every phase produces OCEL 2.0 telemetry sealed via `mix ggen_igniter.ocel.seal`; logs pass token-replay conformance checking and import into external engines. | `conformance.json` passes (`conformant: true`) and Step 44 (`beam4pm-import`) imports logs into `BeamPM.Rust4PM`. |
+| **`AGENT_HANDWRITE_REFUSAL_ALIVE`** | PreToolUse guard hook (`.claude/hooks/refuse-handwritten-ash.sh`) blocks handwritten `use Ash.Resource` while allowing plain Elixir and manufactured tasks. | Steps 40-41 exit 2 (refused); Steps 42-43 exit 0 (allowed). |
+
+### Machine-Readable Receipt (`receipt.json`)
+
+`qualify.sh` writes a cryptographic, machine-readable receipt conforming to schema `ggen_igniter.qualification.receipt/1` at [`test/fixtures/.qualification/book_library/receipt.json`](file:///Users/sac/ggen_igniter/test/fixtures/.qualification/book_library/receipt.json) (mirrored to `docs/jira/v26.9.8/evidence/receipt.json`). It records git commit, toolchain metadata, step-by-step exit codes, tree checksums, DB fingerprints, and capability standings.
+
+All documentation citations to qualification logs and evidence files are strictly enforced by:
+
+```bash
+bash docs/jira/v26.9.8/bin/check_doc_citations.sh
+```
+
 ## Adversarial verification as a standing practice
 
 `.ggen_igniter_factory/ADVERSARIAL.md` (synthesizing 10 independent

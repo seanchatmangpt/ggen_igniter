@@ -137,7 +137,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.340Z",
+      "time": "2026-09-08T20:59:57.048Z",
       "type": "task_composed"
     },
     {
@@ -174,7 +174,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.341Z",
+      "time": "2026-09-08T20:59:57.049Z",
       "type": "task_composed"
     },
     {
@@ -223,7 +223,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.342Z",
+      "time": "2026-09-08T20:59:57.050Z",
       "type": "queued_task_dropped"
     },
     {
@@ -264,7 +264,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.343Z",
+      "time": "2026-09-08T20:59:57.051Z",
       "type": "task_admission_refused"
     },
     {
@@ -289,7 +289,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.344Z",
+      "time": "2026-09-08T20:59:57.052Z",
       "type": "capability_refused"
     },
     {
@@ -314,7 +314,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.345Z",
+      "time": "2026-09-08T20:59:57.053Z",
       "type": "capability_refused"
     },
     {
@@ -339,7 +339,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.346Z",
+      "time": "2026-09-08T20:59:57.054Z",
       "type": "capability_refused"
     },
     {
@@ -364,7 +364,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.347Z",
+      "time": "2026-09-08T20:59:57.055Z",
       "type": "capability_refused"
     },
     {
@@ -389,7 +389,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.348Z",
+      "time": "2026-09-08T20:59:57.056Z",
       "type": "capability_refused"
     },
     {
@@ -414,7 +414,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.349Z",
+      "time": "2026-09-08T20:59:57.057Z",
       "type": "capability_refused"
     },
     {
@@ -439,7 +439,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.350Z",
+      "time": "2026-09-08T20:59:57.058Z",
       "type": "capability_refused"
     },
     {
@@ -464,7 +464,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.351Z",
+      "time": "2026-09-08T20:59:57.059Z",
       "type": "capability_refused"
     },
     {
@@ -489,7 +489,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.352Z",
+      "time": "2026-09-08T20:59:57.060Z",
       "type": "capability_refused"
     },
     {
@@ -500,7 +500,7 @@
         },
         {
           "name": "observed",
-          "value": "phase base re-applied; mix compile exit 0"
+          "value": "phase base re-applied (run 3); mix compile exit 0"
         }
       ],
       "id": "ev_0014",
@@ -510,7 +510,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:53.770Z",
+      "time": "2026-09-08T21:00:01.147Z",
       "type": "manufacture_run_applied"
     }
   ],

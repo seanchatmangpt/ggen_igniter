@@ -33,6 +33,35 @@
           "type": "string"
         },
         {
+          "name": "dropped_argv",
+          "type": "string"
+        },
+        {
+          "name": "dropped_task",
+          "type": "string"
+        },
+        {
+          "name": "phase",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "step",
+          "type": "string"
+        }
+      ],
+      "name": "queued_task_dropped"
+    },
+    {
+      "attributes": [
+        {
+          "name": "argv",
+          "type": "string"
+        },
+        {
           "name": "guard",
           "type": "string"
         },
@@ -83,7 +112,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:18.388308Z",
+      "time": "2026-09-08T20:59:14.538Z",
       "type": "task_composed"
     },
     {
@@ -94,7 +123,7 @@
         },
         {
           "name": "guard",
-          "value": "BookLibrary.Repo"
+          "value": "none"
         },
         {
           "name": "phase",
@@ -120,8 +149,57 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:18.388308Z",
+      "time": "2026-09-08T20:59:14.539Z",
       "type": "task_composed"
+    },
+    {
+      "attributes": [
+        {
+          "name": "argv",
+          "value": ""
+        },
+        {
+          "name": "dropped_argv",
+          "value": "initialize"
+        },
+        {
+          "name": "dropped_task",
+          "value": "ash.codegen"
+        },
+        {
+          "name": "phase",
+          "value": "base"
+        },
+        {
+          "name": "reason",
+          "value": "queued by the composed generator; a queued task fails --check unconditionally and this one is redundant with the explicit lifecycle step"
+        },
+        {
+          "name": "step",
+          "value": "install_ash_postgres"
+        }
+      ],
+      "id": "ev_0003",
+      "relationships": [
+        {
+          "objectId": "BookLibrary.Repo",
+          "qualifier": "subject"
+        },
+        {
+          "objectId": "ash_postgres.install",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "ash.codegen",
+          "qualifier": "dropped_task"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:14.540Z",
+      "type": "queued_task_dropped"
     },
     {
       "attributes": [
@@ -142,7 +220,7 @@
           "value": "gen_base_resource"
         }
       ],
-      "id": "ev_0003",
+      "id": "ev_0004",
       "relationships": [
         {
           "objectId": "BookLibrary.Resource",
@@ -157,7 +235,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:18.388308Z",
+      "time": "2026-09-08T20:59:14.541Z",
       "type": "task_composed"
     },
     {
@@ -171,7 +249,7 @@
           "value": "UNSUPPORTED"
         }
       ],
-      "id": "ev_0004",
+      "id": "ev_0005",
       "relationships": [
         {
           "objectId": "ash.attach.support_module",
@@ -182,7 +260,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:18.388308Z",
+      "time": "2026-09-08T20:59:14.542Z",
       "type": "capability_refused"
     },
     {
@@ -196,7 +274,7 @@
           "value": "UNKNOWN"
         }
       ],
-      "id": "ev_0005",
+      "id": "ev_0006",
       "relationships": [
         {
           "objectId": "ash.extend:policies",
@@ -207,7 +285,7 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:18.388308Z",
+      "time": "2026-09-08T20:59:14.543Z",
       "type": "capability_refused"
     },
     {
@@ -221,7 +299,7 @@
           "value": "BUILD_BROKEN"
         }
       ],
-      "id": "ev_0006",
+      "id": "ev_0007",
       "relationships": [
         {
           "objectId": "ash.gen.custom_expression",
@@ -232,7 +310,32 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:18.388308Z",
+      "time": "2026-09-08T20:59:14.544Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "NOT EXERCISED. It delegates verbatim to ash.extend for both info/2 and igniter/1, so its behaviour is expected to be identical -- but expectation is not observation, and this pack never ran it."
+        },
+        {
+          "name": "standing",
+          "value": "UNKNOWN"
+        }
+      ],
+      "id": "ev_0008",
+      "relationships": [
+        {
+          "objectId": "ash.patch.extend",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:14.545Z",
       "type": "capability_refused"
     },
     {
@@ -246,7 +349,7 @@
           "value": "UNSUPPORTED"
         }
       ],
-      "id": "ev_0007",
+      "id": "ev_0009",
       "relationships": [
         {
           "objectId": "ash.reset",
@@ -257,7 +360,32 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:18.388308Z",
+      "time": "2026-09-08T20:59:14.546Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "NOT EXERCISED, and structurally redundant on this path: ash.gen.domain already writes the ash_domains config entry as part of creating the domain, so discovering and rewriting the list afterwards would be a second writer to state a generator already owns."
+        },
+        {
+          "name": "standing",
+          "value": "UNKNOWN"
+        }
+      ],
+      "id": "ev_0010",
+      "relationships": [
+        {
+          "objectId": "ash.set.domains",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:14.547Z",
       "type": "capability_refused"
     },
     {
@@ -271,7 +399,7 @@
           "value": "UNSUPPORTED"
         }
       ],
-      "id": "ev_0008",
+      "id": "ev_0011",
       "relationships": [
         {
           "objectId": "ash.tear_down",
@@ -282,7 +410,57 @@
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:18.388308Z",
+      "time": "2026-09-08T20:59:14.548Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "DIRECTION INVERSION: this task generates Ash resources FROM an existing database schema. That is the opposite of this pack's direction (ontology -> resources -> migrations) and admitting it would create a second, competing source of truth for the same resources. Excluded by design, not by omission."
+        },
+        {
+          "name": "standing",
+          "value": "UNSUPPORTED"
+        }
+      ],
+      "id": "ev_0012",
+      "relationships": [
+        {
+          "objectId": "ash_postgres.gen.resources",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:14.549Z",
+      "type": "capability_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "reason",
+          "value": "NOT EXERCISED. pgvector is not part of the Book/Loan domain, so there was nothing to observe. UNKNOWN, not broken."
+        },
+        {
+          "name": "standing",
+          "value": "UNKNOWN"
+        }
+      ],
+      "id": "ev_0013",
+      "relationships": [
+        {
+          "objectId": "ash_postgres.setup_vector",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:base",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:14.550Z",
       "type": "capability_refused"
     },
     {
@@ -296,18 +474,14 @@
           "value": "phase base applied; mix compile exit 0"
         }
       ],
-      "id": "ev_0009",
+      "id": "ev_0014",
       "relationships": [
-        {
-          "objectId": "book_library.manufacture:base",
-          "qualifier": "run"
-        },
         {
           "objectId": "book_library.manufacture:base",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T18:31:43.782130Z",
+      "time": "2026-09-08T20:59:38.741Z",
       "type": "manufacture_run_applied"
     }
   ],
@@ -360,6 +534,12 @@
     },
     {
       "attributes": [],
+      "id": "ash.codegen",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
       "id": "ash.extend:policies",
       "relationships": [],
       "type": "mix_task"
@@ -384,7 +564,19 @@
     },
     {
       "attributes": [],
+      "id": "ash.patch.extend",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
       "id": "ash.reset",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.set.domains",
       "relationships": [],
       "type": "mix_task"
     },
@@ -396,7 +588,19 @@
     },
     {
       "attributes": [],
+      "id": "ash_postgres.gen.resources",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
       "id": "ash_postgres.install",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash_postgres.setup_vector",
       "relationships": [],
       "type": "mix_task"
     },

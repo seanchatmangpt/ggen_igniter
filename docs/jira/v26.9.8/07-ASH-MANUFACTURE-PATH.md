@@ -83,7 +83,7 @@ Confirmed: `do_or_dry_run` returns `:issues` without halting
 **Resolution:** use Igniter's own `--check`, which `System.halt()`s on any change,
 warning, issue, queued task, move or removal (`halt_if_fails_check!/3`,
 `igniter.ex:1293-1330`). Both phases exit 0 under `--check` on run 2
-(`16-idempotency-check-base.log`, `17-idempotency-check-core.log`), **and** the T1/T2
+(`20-idempotency-check-base.log`, `21-idempotency-check-core.log`), **and** the T1/T2
 trees are byte-identical — two independent oracles, not one.
 
 ### B3 — `ash.gen.custom_expression` is broken upstream
@@ -237,27 +237,44 @@ turning this table into fiction.
 | C | `evidence-citations` | Every `amp:evidence` citation resolves | `06-evidence-citations.log` |
 | D | `manufacture-base-run1` | Real upstream tasks invoked, phase base | `07-manufacture-base-run1.log` |
 | E | `compile-after-base` | Base-phase surfaces compile | `08-compile-after-base.log` |
-| F | `manufacture-core-run1` | Book + Loan manufactured, phase core | `09-manufacture-core-run1.log` |
-| F | `compile-after-core` | Core-phase surfaces compile | `10-compile-after-core.log` |
-| F | `seal-ocel-base` | Base log sealed with the observed outcome | `11-seal-ocel-base.log` |
-| F | `seal-ocel-core` | Core log sealed with the observed outcome | `12-seal-ocel-core.log` |
-| F | `ash-codegen` | Migrations generated from real resources | `13-ash-codegen.log` |
-| F | `ash-setup` | Database created and migrated | `14-ash-setup.log` |
-| F | `compile-after-lifecycle` | Post-lifecycle tree compiles | `15-compile-after-lifecycle.log` |
-| G | `idempotency-check-base` | Base phase exits 0 under `--check` | `16-idempotency-check-base.log` |
-| G | `idempotency-check-core` | Core phase exits 0 under `--check` | `17-idempotency-check-core.log` |
-| G | `manufacture-base-run2` | Base phase re-applies without change | `18-manufacture-base-run2.log` |
-| G | `manufacture-core-run2` | Core phase re-applies without change | `19-manufacture-core-run2.log` |
-| G | `ash-codegen-run2` | No second migration is generated | `20-ash-codegen-run2.log` |
-| G | `compile-after-run2` | Run-2 tree still compiles | `21-compile-after-run2.log` |
-| G | `seal-ocel-base-run2` | Run-2 base log sealed | `22-seal-ocel-base-run2.log` |
-| G | `seal-ocel-core-run2` | Run-2 core log sealed | `23-seal-ocel-core-run2.log` |
+| F | `isolate-databases` | Run-scoped qualification database assigned | `09-isolate-databases.log` |
+| F | `manufacture-core-run1` | Book + Loan manufactured, phase core | `10-manufacture-core-run1.log` |
+| F | `compile-after-core` | Core-phase surfaces compile | `11-compile-after-core.log` |
+| F | `seal-ocel-base` | Base log sealed with the observed outcome | `12-seal-ocel-base.log` |
+| F | `seal-ocel-core` | Core log sealed with the observed outcome | `13-seal-ocel-core.log` |
+| F | `ash-codegen` | Migrations generated from real resources | `14-ash-codegen.log` |
+| F | `ash-setup` | Database created and migrated | `15-ash-setup.log` |
+| F | `db-nondegenerate` | Postgres schema contains manufactured tables | `16-db-nondegenerate.log` |
+| F | `compile-after-lifecycle` | Post-lifecycle tree compiles | `17-compile-after-lifecycle.log` |
+| M | `ash-setup-test-env` | Test database initialized and migrated | `18-ash-setup-test-env.log` |
+| M | `manufactured-resources-execute` | Real Ash actions execute against Postgres | `19-manufactured-resources-execute.log` |
+| G | `idempotency-check-base` | Base phase exits 0 under `--check` | `20-idempotency-check-base.log` |
+| G | `idempotency-check-core` | Core phase exits 0 under `--check` | `21-idempotency-check-core.log` |
+| G | `manufacture-base-run2` | Base phase re-applies without change | `22-manufacture-base-run2.log` |
+| G | `manufacture-core-run2` | Core phase re-applies without change | `23-manufacture-core-run2.log` |
+| G | `ash-codegen-run2` | No second migration is generated | `24-ash-codegen-run2.log` |
+| G | `compile-after-run2` | Run-2 tree still compiles | `25-compile-after-run2.log` |
+| G | `ash-setup-run2` | Database setup re-executes cleanly | `26-ash-setup-run2.log` |
+| G | `seal-ocel-base-run2` | Run-2 base log sealed | `27-seal-ocel-base-run2.log` |
+| G | `seal-ocel-core-run2` | Run-2 core log sealed | `28-seal-ocel-core-run2.log` |
 | G | `tree-diff-T1-T2` | T1 and T2 trees byte-identical | empty `T1-vs-T2.diff` |
-| K | `guard-blocks-ash-resource` | Hand-written `use Ash.Resource` refused | `24-guard-blocks-ash-resource.log` |
-| K | `guard-blocks-base-resource-header` | Hand-written base header refused | `25-guard-blocks-base-resource-header.log` |
-| K | `guard-allows-plain-elixir` | Plain Elixir is not refused | `26-guard-allows-plain-elixir.log` |
-| K | `guard-allows-manufactured-task` | The manufactured task is not refused | `27-guard-allows-manufactured-task.log` |
-| H | `beam4pm-import` | Both OCEL logs import into real beam4pm | `28-beam4pm-import.log` |
+| G | `idempotency-check-base-at-T2` | Base phase `--check` clean at T2 | `29-idempotency-check-base-at-T2.log` |
+| G | `idempotency-check-core-at-T2` | Core phase `--check` clean at T2 | `30-idempotency-check-core-at-T2.log` |
+| L | `manufacture-base-run3` | Base phase re-applies on run 3 | `31-manufacture-base-run3.log` |
+| L | `manufacture-core-run3` | Core phase re-applies on run 3 | `32-manufacture-core-run3.log` |
+| L | `ash-codegen-run3` | No third migration is generated | `33-ash-codegen-run3.log` |
+| L | `compile-after-run3` | Run-3 tree still compiles | `34-compile-after-run3.log` |
+| L | `seal-ocel-base-run3` | Run-3 base log sealed | `35-seal-ocel-base-run3.log` |
+| L | `seal-ocel-core-run3` | Run-3 core log sealed | `36-seal-ocel-core-run3.log` |
+| L | `ash-migrate-run3` | Ash migrations run cleanly on run 3 | `37-ash-migrate-run3.log` |
+| L | `tree-diff-T2-T3` | T2 and T3 trees byte-identical (fixpoint) | empty `T2-vs-T3.diff` |
+| L | `idempotency-check-base-at-T3` | Base phase `--check` clean at T3 | `38-idempotency-check-base-at-T3.log` |
+| L | `idempotency-check-core-at-T3` | Core phase `--check` clean at T3 | `39-idempotency-check-core-at-T3.log` |
+| K | `guard-blocks-ash-resource` | Hand-written `use Ash.Resource` refused | `40-guard-blocks-ash-resource.log` |
+| K | `guard-blocks-base-resource-header` | Hand-written base header refused | `41-guard-blocks-base-resource-header.log` |
+| K | `guard-allows-plain-elixir` | Plain Elixir is not refused | `42-guard-allows-plain-elixir.log` |
+| K | `guard-allows-manufactured-task` | The manufactured task is not refused | `43-guard-allows-manufactured-task.log` |
+| H | `beam4pm-import` | Both OCEL logs import into real beam4pm | `44-beam4pm-import.log` |
 | I | — | Execution followed the admitted process | `conformance.json` |
 | J | — | Machine-readable receipt over every rung | `receipt.json`, `steps.jsonl` |
 

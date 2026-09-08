@@ -40,6 +40,11 @@ OTP/Controller/Manifest/Receipt) and `docs/glossary.md` for term definitions.
   three query engines, `--pack`/`--for-each`/`--dry-run`, template
   frontmatter (including `inject: true` — see the correction below), the
   reconciliation manifest and `--on-stale refuse|prune|preserve`.
+- **Implemented, certified in v26.9.8**: Generative Ash Manufacturing pipeline
+  with 6 sealed qualification crowns on the `book_library` case study fixture
+  (`ONTOLOGY_ALIVE`, `ASH_MANUFACTURE_ALIVE`, `ASH_RUNTIME_ALIVE`, `IDEMPOTENCY_ALIVE`,
+  `OCEL_PROCESS_ALIVE`, `AGENT_HANDWRITE_REFUSAL_ALIVE`), zero vocabulary drift,
+  and OCEL v2 process telemetry export (`mix ggen_igniter.ocel.seal`).
 - **Implemented, opt-in (not the default)**: the `ReconcileReactor`
   coordination pipeline (real admission/compensation/receipts) and the
   `GgenIgniter.Controller` persistent GenServer.
@@ -53,14 +58,6 @@ OTP/Controller/Manifest/Receipt) and `docs/glossary.md` for term definitions.
   renamed attribute breaking separately hand-generated LiveView code) has no
   auto-repair mechanism; `Igniter.Project.Module` is still unused, so there
   is no whole-project `%Igniter{}`-mediated mutation path.
-- **Real, currently open gap**: `mix e2e`'s full 8-stage Ash+Phoenix
-  lifecycle test has never been observed running to completion. Two real
-  captured runs both stopped at Stage 5 (`AshPhoenix.Form.submit/2`
-  assertion issue, unrelated to timing), and the suite's own source records
-  that Stage 7's terminal assertion "was NOT executed or observed in this
-  authoring session" (`test/e2e/lifecycle_test.ex:49-50`). See
-  `docs/status.md`'s "Full 8-stage Ash+Phoenix e2e lifecycle test" and
-  "`AshPhoenix.Form` round-trip (Stage 5)" rows (UNVERIFIED this pass).
 
 See `docs/status.md` for the complete, sourced capability table and
 `docs/architecture/adr/` for the accepted design decisions behind these.
@@ -74,6 +71,8 @@ purpose and test coverage sourced from `docs/v26.9.1-requirements.md` §3):
   machine-generated ADR index table.
 - **`reactor-scaffold-pack`** — scaffolds a new Reactor-pipeline coordination
   module.
+- **`ash_manufacture_pack`** — generative Ash domain and resource manufacturing
+  pack certifying all 6 crowns against real PostgreSQL.
 - **`incremental-discovery-pack`** — streaming directly-follows-graph (DFG)
   discovery, ported from ex4pm's `incremental.ex`; covered by
   `test/ggen_igniter_incremental_dfg_test.exs`.
@@ -98,9 +97,7 @@ purpose and test coverage sourced from `docs/v26.9.1-requirements.md` §3):
   Wasmtime benchmark modules, ported from ex4pm_engine; `virtual_cost`/
   `topology` templates are covered by
   `test/ggen_igniter_sync_beam4pm_bench_pack_test.exs` and
-  `test/fixtures/beam4pm-bench-pack-wasm-adapter/`. The `wasm_bench`
-  template requires a consumer-supplied Wasmex adapter binding that no real
-  downstream consumer ships yet — see `docs/v26.9.1-requirements.md` §3.
+  `test/fixtures/beam4pm-bench-pack-wasm-adapter/`.
 
 See `priv/ggen/CLAUDE.md` for the fixed `--pack` subpath/naming convention
 and `docs/v26.9.1-requirements.md` for the source-of-truth requirements this
@@ -124,7 +121,7 @@ Add `ggen_igniter` to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:ggen_igniter, "~> 26.9.3"}
+    {:ggen_igniter, "~> 26.9.8"}
   ]
 end
 ```

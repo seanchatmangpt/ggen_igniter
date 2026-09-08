@@ -19,7 +19,7 @@ What exists now:
   which runs *before* Igniter applies anything. An unsealed log is a conformance
   violation. See 08 §B1.
 - Both run-1 and run-2 logs import into the real `BeamPM.Rust4PM.import_ocel_json/2`
-  (rung H, `28-beam4pm-import.log`), returning `{:ok, %{"ocel_handle" => n}}`.
+  (rung H, `44-beam4pm-import.log`), returning `{:ok, %{"ocel_handle" => n}}`.
   Compatibility is tested against the real importer, not asserted against a fixture
   the same author read — see 08 §B3.
 

@@ -6,24 +6,46 @@
 {"rung":"C","label":"evidence-citations","command":"python3 /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack/bin/evidence_check.py /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack /Users/sac/ggen_igniter/test/fixtures/book_library ","exit":0,"expected":0,"log":"06-evidence-citations.log"}
 {"rung":"D","label":"manufacture-base-run1","command":"mix book_library.manufacture --phase base --yes ","exit":0,"expected":0,"log":"07-manufacture-base-run1.log"}
 {"rung":"E","label":"compile-after-base","command":"mix compile ","exit":0,"expected":0,"log":"08-compile-after-base.log"}
-{"rung":"F","label":"manufacture-core-run1","command":"mix book_library.manufacture --phase core --yes ","exit":0,"expected":0,"log":"09-manufacture-core-run1.log"}
-{"rung":"F","label":"compile-after-core","command":"mix compile ","exit":0,"expected":0,"log":"10-compile-after-core.log"}
-{"rung":"F","label":"seal-ocel-base","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.base.ocel.json --exit 0 --observed phase base applied; mix compile exit 0 ","exit":0,"expected":0,"log":"11-seal-ocel-base.log"}
-{"rung":"F","label":"seal-ocel-core","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.core.ocel.json --exit 0 --observed phase core applied; mix compile exit 0 ","exit":0,"expected":0,"log":"12-seal-ocel-core.log"}
-{"rung":"F","label":"ash-codegen","command":"mix ash.codegen --name book_library_manufacture ","exit":0,"expected":0,"log":"13-ash-codegen.log"}
-{"rung":"F","label":"ash-setup","command":"mix ash.setup ","exit":0,"expected":0,"log":"14-ash-setup.log"}
-{"rung":"F","label":"compile-after-lifecycle","command":"mix compile ","exit":0,"expected":0,"log":"15-compile-after-lifecycle.log"}
-{"rung":"G","label":"idempotency-check-base","command":"mix book_library.manufacture --phase base --check ","exit":0,"expected":0,"log":"16-idempotency-check-base.log"}
-{"rung":"G","label":"idempotency-check-core","command":"mix book_library.manufacture --phase core --check ","exit":0,"expected":0,"log":"17-idempotency-check-core.log"}
-{"rung":"G","label":"manufacture-base-run2","command":"mix book_library.manufacture --phase base --yes ","exit":0,"expected":0,"log":"18-manufacture-base-run2.log"}
-{"rung":"G","label":"manufacture-core-run2","command":"mix book_library.manufacture --phase core --yes ","exit":0,"expected":0,"log":"19-manufacture-core-run2.log"}
-{"rung":"G","label":"ash-codegen-run2","command":"mix ash.codegen --name book_library_manufacture ","exit":0,"expected":0,"log":"20-ash-codegen-run2.log"}
-{"rung":"G","label":"compile-after-run2","command":"mix compile ","exit":0,"expected":0,"log":"21-compile-after-run2.log"}
-{"rung":"G","label":"seal-ocel-base-run2","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.base.ocel.json --exit 0 --observed phase base re-applied; mix compile exit 0 ","exit":0,"expected":0,"log":"22-seal-ocel-base-run2.log"}
-{"rung":"G","label":"seal-ocel-core-run2","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.core.ocel.json --exit 0 --observed phase core re-applied; mix compile exit 0 ","exit":0,"expected":0,"log":"23-seal-ocel-core-run2.log"}
+{"rung":"F","label":"isolate-databases","command":"python3 /Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack/bin/isolate_db.py /Users/sac/ggen_igniter/test/fixtures/book_library book_library_qual_20260908205846 ","exit":0,"expected":0,"log":"09-isolate-databases.log"}
+{"rung":"F","label":"manufacture-core-run1","command":"mix book_library.manufacture --phase core --yes ","exit":0,"expected":0,"log":"10-manufacture-core-run1.log"}
+{"rung":"F","label":"compile-after-core","command":"mix compile ","exit":0,"expected":0,"log":"11-compile-after-core.log"}
+{"rung":"F","label":"seal-ocel-base","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.base.ocel.json --exit 0 --observed phase base applied; mix compile exit 0 ","exit":0,"expected":0,"log":"12-seal-ocel-base.log"}
+{"rung":"F","label":"seal-ocel-core","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.core.ocel.json --exit 0 --observed phase core applied; mix compile exit 0 ","exit":0,"expected":0,"log":"13-seal-ocel-core.log"}
+{"rung":"F","label":"ash-codegen","command":"mix ash.codegen --name book_library_manufacture ","exit":0,"expected":0,"log":"14-ash-codegen.log"}
+{"rung":"F","label":"ash-setup","command":"mix ash.setup ","exit":0,"expected":0,"log":"15-ash-setup.log"}
+{"rung":"F","label":"db-fingerprint-D1","command":"psql -f db_fingerprint.sql book_library_qual_20260908205846_dev","exit":0,"expected":0,"log":"D1-run1.txt"}
+{"rung":"F","label":"db-nondegenerate","command":"assert D1 has books,loans columns and >=1 migration","exit":0,"expected":0,"log":"16-db-nondegenerate.log"}
+{"rung":"F","label":"compile-after-lifecycle","command":"mix compile ","exit":0,"expected":0,"log":"17-compile-after-lifecycle.log"}
+{"rung":"M","label":"ash-setup-test-env","command":"env MIX_ENV=test mix ash.setup ","exit":0,"expected":0,"log":"18-ash-setup-test-env.log"}
+{"rung":"M","label":"manufactured-resources-execute","command":"mix test ","exit":0,"expected":0,"log":"19-manufactured-resources-execute.log"}
+{"rung":"G","label":"idempotency-check-base","command":"mix book_library.manufacture --phase base --check ","exit":0,"expected":0,"log":"20-idempotency-check-base.log"}
+{"rung":"G","label":"idempotency-check-core","command":"mix book_library.manufacture --phase core --check ","exit":0,"expected":0,"log":"21-idempotency-check-core.log"}
+{"rung":"G","label":"manufacture-base-run2","command":"mix book_library.manufacture --phase base --yes ","exit":0,"expected":0,"log":"22-manufacture-base-run2.log"}
+{"rung":"G","label":"manufacture-core-run2","command":"mix book_library.manufacture --phase core --yes ","exit":0,"expected":0,"log":"23-manufacture-core-run2.log"}
+{"rung":"G","label":"ash-codegen-run2","command":"mix ash.codegen --name book_library_manufacture ","exit":0,"expected":0,"log":"24-ash-codegen-run2.log"}
+{"rung":"G","label":"compile-after-run2","command":"mix compile ","exit":0,"expected":0,"log":"25-compile-after-run2.log"}
+{"rung":"G","label":"ash-setup-run2","command":"mix ash.setup ","exit":0,"expected":0,"log":"26-ash-setup-run2.log"}
+{"rung":"G","label":"db-fingerprint-D2","command":"psql -f db_fingerprint.sql book_library_qual_20260908205846_dev","exit":0,"expected":0,"log":"D2-run2.txt"}
+{"rung":"G","label":"db-diff-D1-D2","command":"diff D1-run1.txt D2-run2.txt","exit":0,"expected":0,"log":"D1-vs-D2.diff"}
+{"rung":"G","label":"seal-ocel-base-run2","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.base.ocel.json --exit 0 --observed phase base re-applied; mix compile exit 0 ","exit":0,"expected":0,"log":"27-seal-ocel-base-run2.log"}
+{"rung":"G","label":"seal-ocel-core-run2","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.core.ocel.json --exit 0 --observed phase core re-applied; mix compile exit 0 ","exit":0,"expected":0,"log":"28-seal-ocel-core-run2.log"}
 {"rung":"G","label":"tree-diff-T1-T2","command":"diff T1 T2","exit":0,"expected":0,"log":"T1-vs-T2.diff"}
-{"rung":"K","label":"guard-blocks-ash-resource","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/catalog/handwritten.ex","exit":2,"expected":2,"log":"24-guard-blocks-ash-resource.log"}
-{"rung":"K","label":"guard-blocks-base-resource-header","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/catalog/handwritten.ex","exit":2,"expected":2,"log":"25-guard-blocks-base-resource-header.log"}
-{"rung":"K","label":"guard-allows-plain-elixir","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/plain.ex","exit":0,"expected":0,"log":"26-guard-allows-plain-elixir.log"}
-{"rung":"K","label":"guard-allows-manufactured-task","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/mix/tasks/book_library.manufacture.ex","exit":0,"expected":0,"log":"27-guard-allows-manufactured-task.log"}
-{"rung":"H","label":"beam4pm-import","command":"BeamPM.Rust4PM.import_ocel_json/2","exit":0,"expected":0,"log":"28-beam4pm-import.log"}
+{"rung":"G","label":"idempotency-check-base-at-T2","command":"mix book_library.manufacture --phase base --check ","exit":0,"expected":0,"log":"29-idempotency-check-base-at-T2.log"}
+{"rung":"G","label":"idempotency-check-core-at-T2","command":"mix book_library.manufacture --phase core --check ","exit":0,"expected":0,"log":"30-idempotency-check-core-at-T2.log"}
+{"rung":"L","label":"manufacture-base-run3","command":"mix book_library.manufacture --phase base --yes ","exit":0,"expected":0,"log":"31-manufacture-base-run3.log"}
+{"rung":"L","label":"manufacture-core-run3","command":"mix book_library.manufacture --phase core --yes ","exit":0,"expected":0,"log":"32-manufacture-core-run3.log"}
+{"rung":"L","label":"ash-codegen-run3","command":"mix ash.codegen --name book_library_manufacture ","exit":0,"expected":0,"log":"33-ash-codegen-run3.log"}
+{"rung":"L","label":"compile-after-run3","command":"mix compile ","exit":0,"expected":0,"log":"34-compile-after-run3.log"}
+{"rung":"L","label":"seal-ocel-base-run3","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.base.ocel.json --exit 0 --observed phase base re-applied (run 3); mix compile exit 0 ","exit":0,"expected":0,"log":"35-seal-ocel-base-run3.log"}
+{"rung":"L","label":"seal-ocel-core-run3","command":"mix ggen_igniter.ocel.seal .ggen_igniter/ocel/book_library.manufacture.core.ocel.json --exit 0 --observed phase core re-applied (run 3); mix compile exit 0 ","exit":0,"expected":0,"log":"36-seal-ocel-core-run3.log"}
+{"rung":"L","label":"ash-migrate-run3","command":"mix ash.migrate ","exit":0,"expected":0,"log":"37-ash-migrate-run3.log"}
+{"rung":"L","label":"db-fingerprint-D3","command":"psql -f db_fingerprint.sql book_library_qual_20260908205846_dev","exit":0,"expected":0,"log":"D3-run3.txt"}
+{"rung":"L","label":"db-diff-D2-D3","command":"diff D2-run2.txt D3-run3.txt","exit":0,"expected":0,"log":"D2-vs-D3.diff"}
+{"rung":"L","label":"tree-diff-T2-T3","command":"diff T2 T3","exit":0,"expected":0,"log":"T2-vs-T3.diff"}
+{"rung":"L","label":"idempotency-check-base-at-T3","command":"mix book_library.manufacture --phase base --check ","exit":0,"expected":0,"log":"38-idempotency-check-base-at-T3.log"}
+{"rung":"L","label":"idempotency-check-core-at-T3","command":"mix book_library.manufacture --phase core --check ","exit":0,"expected":0,"log":"39-idempotency-check-core-at-T3.log"}
+{"rung":"K","label":"guard-blocks-ash-resource","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/catalog/handwritten.ex","exit":2,"expected":2,"log":"40-guard-blocks-ash-resource.log"}
+{"rung":"K","label":"guard-blocks-base-resource-header","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/catalog/handwritten.ex","exit":2,"expected":2,"log":"41-guard-blocks-base-resource-header.log"}
+{"rung":"K","label":"guard-allows-plain-elixir","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/book_library/plain.ex","exit":0,"expected":0,"log":"42-guard-allows-plain-elixir.log"}
+{"rung":"K","label":"guard-allows-manufactured-task","command":"refuse-handwritten-ash.sh /Users/sac/ggen_igniter/test/fixtures/book_library/lib/mix/tasks/book_library.manufacture.ex","exit":0,"expected":0,"log":"43-guard-allows-manufactured-task.log"}
+{"rung":"H","label":"beam4pm-import","command":"BeamPM.Rust4PM.import_ocel_json/2","exit":0,"expected":0,"log":"44-beam4pm-import.log"}

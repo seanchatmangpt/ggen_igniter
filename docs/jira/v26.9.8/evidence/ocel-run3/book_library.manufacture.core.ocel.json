@@ -33,35 +33,6 @@
           "type": "string"
         },
         {
-          "name": "dropped_argv",
-          "type": "string"
-        },
-        {
-          "name": "dropped_task",
-          "type": "string"
-        },
-        {
-          "name": "phase",
-          "type": "string"
-        },
-        {
-          "name": "reason",
-          "type": "string"
-        },
-        {
-          "name": "step",
-          "type": "string"
-        }
-      ],
-      "name": "queued_task_dropped"
-    },
-    {
-      "attributes": [
-        {
-          "name": "argv",
-          "type": "string"
-        },
-        {
           "name": "guard",
           "type": "string"
         },
@@ -107,7 +78,7 @@
       "attributes": [
         {
           "name": "argv",
-          "value": ""
+          "value": "BookLibrary.Catalog --ignore-if-exists"
         },
         {
           "name": "guard",
@@ -115,36 +86,36 @@
         },
         {
           "name": "phase",
-          "value": "base"
+          "value": "core"
         },
         {
           "name": "step",
-          "value": "install_ash"
+          "value": "gen_domain"
         }
       ],
       "id": "ev_0001",
       "relationships": [
         {
-          "objectId": "ash",
+          "objectId": "BookLibrary.Catalog",
           "qualifier": "subject"
         },
         {
-          "objectId": "ash.install",
+          "objectId": "ash.gen.domain",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.340Z",
+      "time": "2026-09-08T20:59:58.148Z",
       "type": "task_composed"
     },
     {
       "attributes": [
         {
           "name": "argv",
-          "value": ""
+          "value": "BookLibrary.Circulation --ignore-if-exists"
         },
         {
           "name": "guard",
@@ -152,93 +123,155 @@
         },
         {
           "name": "phase",
-          "value": "base"
+          "value": "core"
         },
         {
           "name": "step",
-          "value": "install_ash_postgres"
+          "value": "gen_domain"
         }
       ],
       "id": "ev_0002",
       "relationships": [
         {
-          "objectId": "BookLibrary.Repo",
+          "objectId": "BookLibrary.Circulation",
           "qualifier": "subject"
         },
         {
-          "objectId": "ash_postgres.install",
+          "objectId": "ash.gen.domain",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.341Z",
+      "time": "2026-09-08T20:59:58.149Z",
       "type": "task_composed"
     },
     {
       "attributes": [
         {
           "name": "argv",
-          "value": ""
+          "value": "BookLibrary.Circulation.LoanStatus out,overdue,returned --ignore-if-exists"
         },
         {
-          "name": "dropped_argv",
-          "value": "initialize"
-        },
-        {
-          "name": "dropped_task",
-          "value": "ash.codegen"
+          "name": "guard",
+          "value": "none"
         },
         {
           "name": "phase",
-          "value": "base"
-        },
-        {
-          "name": "reason",
-          "value": "queued by the composed generator; a queued task fails --check unconditionally and this one is redundant with the explicit lifecycle step"
+          "value": "core"
         },
         {
           "name": "step",
-          "value": "install_ash_postgres"
+          "value": "gen_enum"
         }
       ],
       "id": "ev_0003",
       "relationships": [
         {
-          "objectId": "BookLibrary.Repo",
+          "objectId": "BookLibrary.Circulation.LoanStatus",
           "qualifier": "subject"
         },
         {
-          "objectId": "ash_postgres.install",
+          "objectId": "ash.gen.enum",
           "qualifier": "generator"
         },
         {
-          "objectId": "ash.codegen",
-          "qualifier": "dropped_task"
-        },
-        {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.342Z",
-      "type": "queued_task_dropped"
+      "time": "2026-09-08T20:59:58.150Z",
+      "type": "task_composed"
     },
     {
       "attributes": [
         {
           "name": "argv",
-          "value": "BookLibrary.Resource"
+          "value": "BookLibrary.Catalog.Book --uuid-primary-key id --attribute title:string:public:required --attribute isbn:string:public --attribute page_count:integer:public --attribute published_on:date:public --attribute copies_total:integer:public:required --default-actions create,destroy,read,update --extend postgres --timestamps --base BookLibrary.Resource --domain BookLibrary.Catalog"
         },
         {
           "name": "guard",
-          "value": "BookLibrary.Resource"
+          "value": "none"
         },
         {
           "name": "phase",
-          "value": "base"
+          "value": "core"
+        },
+        {
+          "name": "step",
+          "value": "gen_resource"
+        }
+      ],
+      "id": "ev_0004",
+      "relationships": [
+        {
+          "objectId": "BookLibrary.Catalog.Book",
+          "qualifier": "subject"
+        },
+        {
+          "objectId": "ash.gen.resource",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:core",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:58.151Z",
+      "type": "task_composed"
+    },
+    {
+      "attributes": [
+        {
+          "name": "argv",
+          "value": "BookLibrary.Circulation.Loan --uuid-primary-key id --attribute borrower_name:string:public:required:sensitive --attribute due_on:date:public:required --attribute returned_at:utc_datetime:public --attribute status:BookLibrary.Circulation.LoanStatus:public:required --relationship belongs_to:book:BookLibrary.Catalog.Book:public:required --default-actions create,destroy,read,update --extend postgres --timestamps --base BookLibrary.Resource --domain BookLibrary.Circulation"
+        },
+        {
+          "name": "guard",
+          "value": "none"
+        },
+        {
+          "name": "phase",
+          "value": "core"
+        },
+        {
+          "name": "step",
+          "value": "gen_resource"
+        }
+      ],
+      "id": "ev_0005",
+      "relationships": [
+        {
+          "objectId": "BookLibrary.Circulation.Loan",
+          "qualifier": "subject"
+        },
+        {
+          "objectId": "ash.gen.resource",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:core",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:58.152Z",
+      "type": "task_composed"
+    },
+    {
+      "attributes": [
+        {
+          "name": "argv",
+          "value": "BookLibrary.Circulation.Validations.DueDateInFuture"
+        },
+        {
+          "name": "guard",
+          "value": "BookLibrary.Circulation.Validations.DueDateInFuture"
+        },
+        {
+          "name": "phase",
+          "value": "core"
         },
         {
           "name": "reason",
@@ -246,25 +279,107 @@
         },
         {
           "name": "step",
-          "value": "gen_base_resource"
+          "value": "gen_validation"
         }
       ],
-      "id": "ev_0004",
+      "id": "ev_0006",
       "relationships": [
         {
-          "objectId": "BookLibrary.Resource",
+          "objectId": "BookLibrary.Circulation.Validations.DueDateInFuture",
           "qualifier": "subject"
         },
         {
-          "objectId": "ash.gen.base_resource",
+          "objectId": "ash.gen.validation",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.343Z",
+      "time": "2026-09-08T20:59:58.153Z",
+      "type": "task_admission_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "argv",
+          "value": "BookLibrary.Circulation.Changes.StampReturnedAt"
+        },
+        {
+          "name": "guard",
+          "value": "BookLibrary.Circulation.Changes.StampReturnedAt"
+        },
+        {
+          "name": "phase",
+          "value": "core"
+        },
+        {
+          "name": "reason",
+          "value": "subject already manufactured; upstream task is not idempotent here"
+        },
+        {
+          "name": "step",
+          "value": "gen_change"
+        }
+      ],
+      "id": "ev_0007",
+      "relationships": [
+        {
+          "objectId": "BookLibrary.Circulation.Changes.StampReturnedAt",
+          "qualifier": "subject"
+        },
+        {
+          "objectId": "ash.gen.change",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:core",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:58.154Z",
+      "type": "task_admission_refused"
+    },
+    {
+      "attributes": [
+        {
+          "name": "argv",
+          "value": "BookLibrary.Catalog.Preparations.SortByTitle"
+        },
+        {
+          "name": "guard",
+          "value": "BookLibrary.Catalog.Preparations.SortByTitle"
+        },
+        {
+          "name": "phase",
+          "value": "core"
+        },
+        {
+          "name": "reason",
+          "value": "subject already manufactured; upstream task is not idempotent here"
+        },
+        {
+          "name": "step",
+          "value": "gen_preparation"
+        }
+      ],
+      "id": "ev_0008",
+      "relationships": [
+        {
+          "objectId": "BookLibrary.Catalog.Preparations.SortByTitle",
+          "qualifier": "subject"
+        },
+        {
+          "objectId": "ash.gen.preparation",
+          "qualifier": "generator"
+        },
+        {
+          "objectId": "book_library.manufacture:core",
+          "qualifier": "run"
+        }
+      ],
+      "time": "2026-09-08T20:59:58.155Z",
       "type": "task_admission_refused"
     },
     {
@@ -278,18 +393,18 @@
           "value": "UNSUPPORTED"
         }
       ],
-      "id": "ev_0005",
+      "id": "ev_0009",
       "relationships": [
         {
           "objectId": "ash.attach.support_module",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.344Z",
+      "time": "2026-09-08T20:59:58.156Z",
       "type": "capability_refused"
     },
     {
@@ -303,18 +418,18 @@
           "value": "UNKNOWN"
         }
       ],
-      "id": "ev_0006",
+      "id": "ev_0010",
       "relationships": [
         {
           "objectId": "ash.extend:policies",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.345Z",
+      "time": "2026-09-08T20:59:58.157Z",
       "type": "capability_refused"
     },
     {
@@ -328,18 +443,18 @@
           "value": "BUILD_BROKEN"
         }
       ],
-      "id": "ev_0007",
+      "id": "ev_0011",
       "relationships": [
         {
           "objectId": "ash.gen.custom_expression",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.346Z",
+      "time": "2026-09-08T20:59:58.158Z",
       "type": "capability_refused"
     },
     {
@@ -353,18 +468,18 @@
           "value": "UNKNOWN"
         }
       ],
-      "id": "ev_0008",
+      "id": "ev_0012",
       "relationships": [
         {
           "objectId": "ash.patch.extend",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.347Z",
+      "time": "2026-09-08T20:59:58.159Z",
       "type": "capability_refused"
     },
     {
@@ -378,18 +493,18 @@
           "value": "UNSUPPORTED"
         }
       ],
-      "id": "ev_0009",
+      "id": "ev_0013",
       "relationships": [
         {
           "objectId": "ash.reset",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.348Z",
+      "time": "2026-09-08T20:59:58.160Z",
       "type": "capability_refused"
     },
     {
@@ -403,18 +518,18 @@
           "value": "UNKNOWN"
         }
       ],
-      "id": "ev_0010",
+      "id": "ev_0014",
       "relationships": [
         {
           "objectId": "ash.set.domains",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.349Z",
+      "time": "2026-09-08T20:59:58.161Z",
       "type": "capability_refused"
     },
     {
@@ -428,18 +543,18 @@
           "value": "UNSUPPORTED"
         }
       ],
-      "id": "ev_0011",
+      "id": "ev_0015",
       "relationships": [
         {
           "objectId": "ash.tear_down",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.350Z",
+      "time": "2026-09-08T20:59:58.162Z",
       "type": "capability_refused"
     },
     {
@@ -453,18 +568,18 @@
           "value": "UNSUPPORTED"
         }
       ],
-      "id": "ev_0012",
+      "id": "ev_0016",
       "relationships": [
         {
           "objectId": "ash_postgres.gen.resources",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.351Z",
+      "time": "2026-09-08T20:59:58.163Z",
       "type": "capability_refused"
     },
     {
@@ -478,18 +593,18 @@
           "value": "UNKNOWN"
         }
       ],
-      "id": "ev_0013",
+      "id": "ev_0017",
       "relationships": [
         {
           "objectId": "ash_postgres.setup_vector",
           "qualifier": "generator"
         },
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:49.352Z",
+      "time": "2026-09-08T20:59:58.164Z",
       "type": "capability_refused"
     },
     {
@@ -500,24 +615,36 @@
         },
         {
           "name": "observed",
-          "value": "phase base re-applied; mix compile exit 0"
+          "value": "phase core re-applied (run 3); mix compile exit 0"
         }
       ],
-      "id": "ev_0014",
+      "id": "ev_0018",
       "relationships": [
         {
-          "objectId": "book_library.manufacture:base",
+          "objectId": "book_library.manufacture:core",
           "qualifier": "run"
         }
       ],
-      "time": "2026-09-08T20:59:53.770Z",
+      "time": "2026-09-08T21:00:01.944Z",
       "type": "manufacture_run_applied"
     }
   ],
   "objectTypes": [
     {
       "attributes": [],
-      "name": "ash_base_resource"
+      "name": "ash_domain"
+    },
+    {
+      "attributes": [],
+      "name": "ash_resource"
+    },
+    {
+      "attributes": [],
+      "name": "ash_support_module"
+    },
+    {
+      "attributes": [],
+      "name": "ash_type"
     },
     {
       "attributes": [],
@@ -526,44 +653,60 @@
     {
       "attributes": [],
       "name": "mix_task"
-    },
-    {
-      "attributes": [],
-      "name": "repo"
-    },
-    {
-      "attributes": [],
-      "name": "toolchain"
     }
   ],
   "objects": [
     {
       "attributes": [],
-      "id": "BookLibrary.Repo",
+      "id": "BookLibrary.Catalog",
       "relationships": [],
-      "type": "repo"
+      "type": "ash_domain"
     },
     {
       "attributes": [],
-      "id": "BookLibrary.Resource",
+      "id": "BookLibrary.Catalog.Book",
       "relationships": [],
-      "type": "ash_base_resource"
+      "type": "ash_resource"
     },
     {
       "attributes": [],
-      "id": "ash",
+      "id": "BookLibrary.Catalog.Preparations.SortByTitle",
       "relationships": [],
-      "type": "toolchain"
+      "type": "ash_support_module"
+    },
+    {
+      "attributes": [],
+      "id": "BookLibrary.Circulation",
+      "relationships": [],
+      "type": "ash_domain"
+    },
+    {
+      "attributes": [],
+      "id": "BookLibrary.Circulation.Changes.StampReturnedAt",
+      "relationships": [],
+      "type": "ash_support_module"
+    },
+    {
+      "attributes": [],
+      "id": "BookLibrary.Circulation.Loan",
+      "relationships": [],
+      "type": "ash_resource"
+    },
+    {
+      "attributes": [],
+      "id": "BookLibrary.Circulation.LoanStatus",
+      "relationships": [],
+      "type": "ash_type"
+    },
+    {
+      "attributes": [],
+      "id": "BookLibrary.Circulation.Validations.DueDateInFuture",
+      "relationships": [],
+      "type": "ash_support_module"
     },
     {
       "attributes": [],
       "id": "ash.attach.support_module",
-      "relationships": [],
-      "type": "mix_task"
-    },
-    {
-      "attributes": [],
-      "id": "ash.codegen",
       "relationships": [],
       "type": "mix_task"
     },
@@ -575,7 +718,7 @@
     },
     {
       "attributes": [],
-      "id": "ash.gen.base_resource",
+      "id": "ash.gen.change",
       "relationships": [],
       "type": "mix_task"
     },
@@ -587,7 +730,31 @@
     },
     {
       "attributes": [],
-      "id": "ash.install",
+      "id": "ash.gen.domain",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.gen.enum",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.gen.preparation",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.gen.resource",
+      "relationships": [],
+      "type": "mix_task"
+    },
+    {
+      "attributes": [],
+      "id": "ash.gen.validation",
       "relationships": [],
       "type": "mix_task"
     },
@@ -623,19 +790,13 @@
     },
     {
       "attributes": [],
-      "id": "ash_postgres.install",
-      "relationships": [],
-      "type": "mix_task"
-    },
-    {
-      "attributes": [],
       "id": "ash_postgres.setup_vector",
       "relationships": [],
       "type": "mix_task"
     },
     {
       "attributes": [],
-      "id": "book_library.manufacture:base",
+      "id": "book_library.manufacture:core",
       "relationships": [],
       "type": "manufacture_run"
     }
