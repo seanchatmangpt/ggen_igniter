@@ -258,11 +258,23 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   Runs a real `mix compile --warnings-as-errors` subprocess (`System.cmd/3`)
   against `reconcile_opts[:verify_cwd] || reconcile_opts[:manifest_dir] ||
-  File.cwd!()` -- the actuated project's own directory. `mix format
-  --check-formatted`-equivalent verification (the plan's "in-process where
-  feasible" aside) is deliberately deferred this pass -- the compile check is
-  the load-bearing proof this pipeline's compensation exists to protect
-  against, and is what the task's own adversarial test exercises.
+  File.cwd!()` -- the actuated project's own directory. That compile check
+  remains the load-bearing proof this pipeline's compensation exists to
+  protect against, and is what the task's own adversarial test exercises.
+
+  Real, in-process auto-formatting of rendered `.ex`/`.exs` content now runs
+  BEFORE this check, in `render_target/2` (`format_generated_content/2`):
+  any `mode: :file` target whose resolved `out_path` ends in `.ex` or `.exs`
+  has its rendered body passed through `Code.format_string!/1` before it
+  reaches `PendingActuation.for_file/for_inject`. A `Code.format_string!/1`
+  failure (the rendered content is not valid Elixir) is rescued -- the
+  ORIGINAL unformatted content is passed through unchanged rather than
+  dropped, and a real warning is logged (`Logger.warning/1`) naming the
+  target and the rescued error -- so a formatting failure never fails an
+  otherwise-successful sync; `:verify`'s `mix compile --warnings-as-errors`
+  is still the gate that catches genuinely broken generated Elixir. Any
+  other extension (`.json`, `.md`, ...) is passed through byte-identical --
+  this pass never attempts to format non-Elixir output.
 
   ## Prune timing: deliberately AFTER `:verify`, not before
 
@@ -399,6 +411,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   }
 
   alias GgenIgniter.Telemetry.OcelEmitter
+
+  require Logger
 
   input(:reconcile_opts)
 
@@ -1423,6 +1437,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         out_path = Render.render(out_template, t.bindings)
         recipe_key = Manifest.recipe_key(t.template_path, out_template)
         old_entry = Manifest.get_entry(manifest, recipe_key)
+        content = format_generated_content(out_path, content)
 
         semantic_source = %{
           index: t.index,
@@ -1453,6 +1468,40 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         pending_actuation = PendingActuation.for_eval(content, t.template_path, semantic_source)
 
         %{pending_actuation: pending_actuation, stale_pending: [], recipe: nil, exec: exec}
+    end
+  end
+
+  # Real, in-process auto-formatting for rendered `mode: :file` content --
+  # see this module's own moduledoc "`:verify` scope" section. Only
+  # `.ex`/`.exs` output paths are run through `Code.format_string!/1`;
+  # every other extension (`.json`, `.md`, ...) is returned byte-identical,
+  # never touched. A `Code.format_string!/1` failure (the rendered body is
+  # not valid Elixir -- e.g. a template producing deliberately-broken code
+  # under test, or a real upstream template bug) is rescued: the ORIGINAL
+  # unformatted `content` is returned unchanged rather than dropped, and a
+  # real warning is logged naming the target path and the rescued error, so
+  # a formatting failure never fails an otherwise-successful sync --
+  # `:verify`'s `mix compile --warnings-as-errors` remains the load-bearing
+  # gate that catches genuinely broken generated Elixir.
+  defp format_generated_content(out_path, content) do
+    if String.ends_with?(out_path, ".ex") or String.ends_with?(out_path, ".exs") do
+      try do
+        content
+        |> Code.format_string!()
+        |> IO.iodata_to_binary()
+        |> then(&(&1 <> "\n"))
+      rescue
+        error ->
+          Logger.warning(
+            "GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for " <>
+              "#{out_path} -- writing unformatted content unchanged. " <>
+              "Error: #{Exception.format(:error, error, __STACKTRACE__)}"
+          )
+
+          content
+      end
+    else
+      content
     end
   end
 
