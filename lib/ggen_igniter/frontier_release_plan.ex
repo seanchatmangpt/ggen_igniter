@@ -28,9 +28,11 @@ defmodule GgenIgniter.FrontierReleasePlan do
 
   Project scaffolding is represented with the repository's already-observed
   `mix igniter.new` convention, while ontology manufacture is represented with
-  the implemented `mix ggen_igniter.sync --pack-dir ...` CLI surface. This
-  module does not claim that those tools have run merely because their intents
-  are present in a RuntimeShape.
+  the implemented `mix ggen_igniter.sync --pack-dir ...` CLI surface. Reusing
+  an admitted repository does not scaffold a replacement project; only
+  `repository_mode: "create"` adds the scaffold and repository-create intents.
+  This module does not claim that any tool ran merely because its intent is
+  present in a RuntimeShape.
   """
 
   alias GgenIgniter.RuntimeShape
@@ -39,7 +41,16 @@ defmodule GgenIgniter.FrontierReleasePlan do
   @repository_modes ~w(reuse create)
   @visibilities ~w(public private)
 
-  @required ~w(opportunity_id project_name project_dir target_repository pack_dir response_mode repository_mode visibility)
+  @required ~w(
+    opportunity_id
+    project_name
+    project_dir
+    target_repository
+    pack_dir
+    response_mode
+    repository_mode
+    visibility
+  )
 
   @type attrs :: map() | keyword()
 
@@ -58,7 +69,8 @@ defmodule GgenIgniter.FrontierReleasePlan do
     end
   end
 
-  def new(_source_shape, _attrs), do: {:error, [{:invalid_source_shape, :expected_runtime_shape}]}
+  def new(_source_shape, _attrs),
+    do: {:error, [{:invalid_source_shape, :expected_runtime_shape}]}
 
   @doc "Returns the ordered structured steps from a Frontier Release plan RuntimeShape."
   @spec steps(RuntimeShape.t()) :: {:ok, [map()]} | {:error, term()}
@@ -86,14 +98,18 @@ defmodule GgenIgniter.FrontierReleasePlan do
   end
 
   defp normalize_attrs(attrs) when is_list(attrs) do
-    if Keyword.keyword?(attrs), do: normalize_attrs(Map.new(attrs)), else: {:error, :invalid_attributes}
+    if Keyword.keyword?(attrs) do
+      normalize_attrs(Map.new(attrs))
+    else
+      {:error, :invalid_attributes}
+    end
   end
 
   defp normalize_attrs(attrs) when is_map(attrs) do
     normalized =
       Map.new(attrs, fn {key, value} ->
-        key = if is_atom(key), do: Atom.to_string(key), else: key
-        {key, value}
+        normalized_key = if is_atom(key), do: Atom.to_string(key), else: key
+        {normalized_key, value}
       end)
 
     unknown = Map.keys(normalized) -- @required
@@ -112,7 +128,7 @@ defmodule GgenIgniter.FrontierReleasePlan do
       |> validate_member(attrs, "response_mode", @response_modes)
       |> validate_member(attrs, "repository_mode", @repository_modes)
       |> validate_member(attrs, "visibility", @visibilities)
-      |> validate_repository_mode(attrs)
+      |> validate_create_project_identity(attrs)
 
     case Enum.reverse(errors) do
       [] -> :ok
@@ -134,13 +150,19 @@ defmodule GgenIgniter.FrontierReleasePlan do
     if value in allowed, do: errors, else: [{:invalid_enum, key, value, allowed} | errors]
   end
 
-  defp validate_repository_mode(errors, %{
-         "repository_mode" => "reuse",
-         "response_mode" => "invent"
-       }),
-       do: [{:invalid_combination, :invent_requires_repository_create_or_existing_target} | errors]
+  defp validate_create_project_identity(
+         errors,
+         %{"repository_mode" => "create", "project_name" => name, "project_dir" => dir}
+       )
+       when is_binary(name) and is_binary(dir) do
+    if Path.basename(dir) == name do
+      errors
+    else
+      [{:project_name_directory_mismatch, name, dir} | errors]
+    end
+  end
 
-  defp validate_repository_mode(errors, _attrs), do: errors
+  defp validate_create_project_identity(errors, _attrs), do: errors
 
   defp projection(attrs) do
     %{
@@ -157,52 +179,64 @@ defmodule GgenIgniter.FrontierReleasePlan do
     }
   end
 
-  defp build_steps(attrs) do
-    construct_steps = [
-      %{
-        "id" => "scaffold-local-project",
-        "class" => "CONSTRUCT",
-        "reversible" => true,
-        "broker_required" => false,
-        "receipt_required" => true,
-        "executable" => "mix",
-        "argv" => ["igniter.new", attrs["project_name"]],
-        "cwd" => attrs["project_dir"]
-      },
-      %{
-        "id" => "manufacture-from-pack",
-        "class" => "CONSTRUCT",
-        "reversible" => true,
-        "broker_required" => false,
-        "receipt_required" => true,
-        "executable" => "mix",
-        "argv" => [
-          "ggen_igniter.sync",
-          "--pack-dir",
-          attrs["pack_dir"],
-          "--manifest-dir",
-          attrs["project_dir"],
-          "--verify-cwd",
-          attrs["project_dir"]
-        ],
-        "cwd" => attrs["project_dir"]
-      },
-      %{
-        "id" => "verify-local-project",
-        "class" => "OBSERVE",
-        "reversible" => true,
-        "broker_required" => false,
-        "receipt_required" => true,
-        "executable" => "mix",
-        "argv" => ["compile", "--warnings-as-errors"],
-        "cwd" => attrs["project_dir"]
-      }
-    ]
+  defp build_steps(%{"repository_mode" => "reuse"} = attrs) do
+    [manufacture_intent(attrs), verify_intent(attrs)]
+  end
 
-    case attrs["repository_mode"] do
-      "reuse" -> construct_steps
-      "create" -> construct_steps ++ [repository_create_intent(attrs)]
-    end
+  defp build_steps(%{"repository_mode" => "create"} = attrs) do
+    [
+      scaffold_intent(attrs),
+      manufacture_intent(attrs),
+      verify_intent(attrs),
+      repository_create_intent(attrs)
+    ]
+  end
+
+  defp scaffold_intent(attrs) do
+    %{
+      "id" => "scaffold-local-project",
+      "class" => "CONSTRUCT",
+      "reversible" => true,
+      "broker_required" => false,
+      "receipt_required" => true,
+      "executable" => "mix",
+      "argv" => ["igniter.new", attrs["project_name"]],
+      "cwd" => Path.dirname(attrs["project_dir"])
+    }
+  end
+
+  defp manufacture_intent(attrs) do
+    %{
+      "id" => "manufacture-from-pack",
+      "class" => "CONSTRUCT",
+      "reversible" => true,
+      "broker_required" => false,
+      "receipt_required" => true,
+      "executable" => "mix",
+      "argv" => [
+        "ggen_igniter.sync",
+        "--pack-dir",
+        attrs["pack_dir"],
+        "--manifest-dir",
+        attrs["project_dir"],
+        "--verify-cwd",
+        attrs["project_dir"]
+      ],
+      "cwd" => attrs["project_dir"]
+    }
+  end
+
+  defp verify_intent(attrs) do
+    %{
+      "id" => "verify-local-project",
+      "class" => "OBSERVE",
+      "reversible" => true,
+      "broker_required" => false,
+      "receipt_required" => true,
+      "executable" => "mix",
+      "argv" => ["compile", "--warnings-as-errors"],
+      "cwd" => attrs["project_dir"]
+    }
   end
 
   defp repository_create_intent(attrs) do
@@ -220,7 +254,7 @@ defmodule GgenIgniter.FrontierReleasePlan do
         attrs["target_repository"],
         "--#{attrs["visibility"]}",
         "--source",
-        attrs["project_dir"],
+        ".",
         "--remote",
         "origin"
       ],
