@@ -85,9 +85,9 @@ defmodule GgenIgniterBaseRefactorsTest do
         Igniter.Test.test_project(
           files: %{
             "lib/ex4pm/contracts.ex" => Ex4pmFixture.contracts_source(),
-            "lib/ex4pm.ex" => Ex4pmFixture.read!("apps/ex4pm/lib/ex4pm.ex"),
+            "lib/ex4pm.ex" => Ex4pmFixture.read!("lib/ex4pm.ex"),
             "test/contracts_test.exs" =>
-              Ex4pmFixture.read!("apps/ex4pm_contracts/test/contracts_test.exs")
+              Ex4pmFixture.read!("test/contracts_test.exs")
           }
         )
 

@@ -3,11 +3,14 @@ Code.require_file("support/ex4pm_fixture.ex", __DIR__)
 defmodule GgenIgniterBaseProjectTestTest do
   @moduledoc """
   Chicago-style: real `Igniter.Test.test_project(files: ...)` seeded with the
-  real, unmodified `apps/ex4pm_contracts/mix.exs` content read from
-  `~/ex4pm` (`Ex4pmFixture`), driving `Igniter.Project.Test.ensure_test_support/1`
-  -- zero test coverage or production caller anywhere in this repo before
-  this file. Every assertion is on the real resulting `%Igniter{}` file
-  content, never on "was this called."
+  real, unmodified `apps/ex4pm_contracts/mix.exs` content, pinned to the real
+  umbrella-era ex4pm revision via `Ex4pmFixture.pinned_contracts_mix_exs_source/0`
+  (see that module's moduledoc: `~/ex4pm` flattened out of its umbrella shape
+  at commit `725f495`, so this path no longer exists in ex4pm's live working
+  tree), driving `Igniter.Project.Test.ensure_test_support/1` -- zero test
+  coverage or production caller anywhere in this repo before this file. Every
+  assertion is on the real resulting `%Igniter{}` file content, never on "was
+  this called."
   """
 
   use ExUnit.Case, async: true
@@ -16,7 +19,7 @@ defmodule GgenIgniterBaseProjectTestTest do
     test "adds a real elixirc_paths key plus the real per-env private functions" do
       igniter =
         Igniter.Test.test_project(
-          files: %{"mix.exs" => Ex4pmFixture.read!("apps/ex4pm_contracts/mix.exs")}
+          files: %{"mix.exs" => Ex4pmFixture.pinned_contracts_mix_exs_source()}
         )
 
       igniter = Igniter.Project.Test.ensure_test_support(igniter)
@@ -37,7 +40,7 @@ defmodule GgenIgniterBaseProjectTestTest do
     test "is idempotent against a real project that already has elixirc_paths" do
       once =
         Igniter.Test.test_project(
-          files: %{"mix.exs" => Ex4pmFixture.read!("apps/ex4pm_contracts/mix.exs")}
+          files: %{"mix.exs" => Ex4pmFixture.pinned_contracts_mix_exs_source()}
         )
         |> Igniter.Project.Test.ensure_test_support()
 

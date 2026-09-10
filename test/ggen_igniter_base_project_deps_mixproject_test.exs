@@ -37,7 +37,7 @@ defmodule GgenIgniterBaseProjectDepsMixProjectTest do
     test "crashes with a real CaseClauseError: no `defp deps do` to find in this real project" do
       igniter =
         Igniter.Test.test_project(
-          files: %{"mix.exs" => Ex4pmFixture.read!("apps/ex4pm_contracts/mix.exs")}
+          files: %{"mix.exs" => Ex4pmFixture.pinned_contracts_mix_exs_source()}
         )
 
       assert_raise CaseClauseError, ~r/no case clause matching:\s*nil/, fn ->
@@ -57,7 +57,10 @@ defmodule GgenIgniterBaseProjectDepsMixProjectTest do
     # by exercising it against a real, differently-shaped version string.
     # The fix, used below: `inspect/1` the string into valid literal source.
     test "patches the real umbrella `version:` key in project/0 in place" do
-      igniter = Igniter.Test.test_project(files: %{"mix.exs" => Ex4pmFixture.mix_exs_source()})
+      igniter =
+        Igniter.Test.test_project(
+          files: %{"mix.exs" => Ex4pmFixture.pinned_umbrella_mix_exs_source()}
+        )
 
       igniter =
         Igniter.Project.MixProject.update(igniter, :project, [:version], fn zipper ->
@@ -80,7 +83,10 @@ defmodule GgenIgniterBaseProjectDepsMixProjectTest do
     end
 
     test "the real, untouched apps_path key survives the patch unchanged" do
-      igniter = Igniter.Test.test_project(files: %{"mix.exs" => Ex4pmFixture.mix_exs_source()})
+      igniter =
+        Igniter.Test.test_project(
+          files: %{"mix.exs" => Ex4pmFixture.pinned_umbrella_mix_exs_source()}
+        )
 
       igniter =
         Igniter.Project.MixProject.update(igniter, :project, [:version], fn _ ->

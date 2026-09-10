@@ -4,7 +4,7 @@ defmodule GgenIgniterBaseCodeFunctionTest do
   @moduledoc """
   Chicago-style: real `Sourceror.parse_string!/1` -> `Sourceror.Zipper` ->
   `Igniter.Code.Function` calls against the real, unmodified source of
-  `~/ex4pm/apps/ex4pm_contracts/lib/ex4pm/contracts.ex` (`Ex4pmFixture.contracts_source/0`).
+  `~/ex4pm/lib/ex4pm/contracts.ex` (`Ex4pmFixture.contracts_source/0`).
   Every assertion is on the real resulting zipper/source text, never on "was
   this called" -- `Igniter.Code.Function` has zero test coverage in this repo
   today; its only real production caller is

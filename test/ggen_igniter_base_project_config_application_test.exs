@@ -47,58 +47,55 @@ defmodule GgenIgniterBaseProjectConfigApplicationTest do
     end
   end
 
-  describe "Igniter.Project.Application.add_new_child/2,3 (real Ex4pm.Runtime.Application)" do
+  describe "Igniter.Project.Application.add_new_child/2,3 (real Ex4pm.Application)" do
     test "finds the real, already-declared app_module via mix.exs's real `mod:` tuple" do
       igniter =
         Igniter.Test.test_project(
           files: %{
-            "mix.exs" => real_ex4pm_runtime_mix_exs(),
-            "lib/ex4pm/runtime/application.ex" =>
-              Ex4pmFixture.read!("apps/ex4pm_runtime/lib/ex4pm/runtime/application.ex")
+            "mix.exs" => real_ex4pm_mix_exs(),
+            "lib/ex4pm/application.ex" =>
+              Ex4pmFixture.read!("lib/ex4pm/application.ex")
           }
         )
 
-      assert Igniter.Project.Application.app_module(igniter) == Ex4pm.Runtime.Application
+      assert Igniter.Project.Application.app_module(igniter) == Ex4pm.Application
     end
 
-    # Real, disclosed finding: `add_new_child/2,3` requires the target
-    # `start/2` to assign its child list to a `children = [...]` variable
-    # before passing it to `Supervisor.start_link/2` -- confirmed by running
-    # this exact call against real ex4pm content. Ex4pm's real
-    # `Ex4pm.Runtime.Application.start/2` inlines the (currently-empty)
-    # child list directly (`Supervisor.start_link([], ...)`, no `children =`
-    # binding), so the codemod cannot locate an insertion point and degrades
-    # to a real, honest warning -- it does NOT crash, and it does NOT
-    # silently misapply a patch. A second real generalization gap found by
-    # testing against ex4pm's real code, distinct from the
-    # `Igniter.Project.Deps.add_dep/2` crash found in
-    # `ggen_igniter_base_project_deps_mixproject_test.exs`.
-    test "produces a real warning against real code with no `children = [...]` binding" do
+    # Real behavior against ex4pm's current (post-umbrella-merge) code: since
+    # the umbrella's separate per-app `Application` callbacks were merged
+    # into one installed OTP application, `Ex4pm.Application.start/2` now
+    # assigns its child list to a real `children = [...]` binding before
+    # passing it to `Supervisor.start_link/2` (see the module's own
+    # moduledoc: "formerly `Ex4pm.Runtime.Application`"). `add_new_child/2,3`
+    # can find that binding and successfully injects the new child --
+    # confirmed by running this exact call against real, current ex4pm
+    # content.
+    test "adds the new child to the real `children = [...]` binding" do
       igniter =
         Igniter.Test.test_project(
           files: %{
-            "mix.exs" => real_ex4pm_runtime_mix_exs(),
-            "lib/ex4pm/runtime/application.ex" =>
-              Ex4pmFixture.read!("apps/ex4pm_runtime/lib/ex4pm/runtime/application.ex")
+            "mix.exs" => real_ex4pm_mix_exs(),
+            "lib/ex4pm/application.ex" =>
+              Ex4pmFixture.read!("lib/ex4pm/application.ex")
           }
         )
 
       igniter = Igniter.Project.Application.add_new_child(igniter, MyNewRealChild)
 
-      assert Enum.any?(igniter.warnings, &(&1 =~ "Could not find a `children = [...]`"))
+      assert igniter.warnings == []
 
-      # and, consistent with that warning, the real file is left untouched
       source =
         igniter.rewrite
-        |> Rewrite.source!("lib/ex4pm/runtime/application.ex")
+        |> Rewrite.source!("lib/ex4pm/application.ex")
         |> Rewrite.Source.get(:content)
 
-      refute source =~ "MyNewRealChild"
-      assert source =~ "Ex4pm.Runtime.Supervisor"
+      assert source =~ "MyNewRealChild"
+      # and the real, pre-existing child is untouched
+      assert source =~ "Ex4pm.Evidence.Store"
     end
   end
 
   defp real_config_exs, do: Ex4pmFixture.read!("config/config.exs")
 
-  defp real_ex4pm_runtime_mix_exs, do: Ex4pmFixture.read!("apps/ex4pm_runtime/mix.exs")
+  defp real_ex4pm_mix_exs, do: Ex4pmFixture.read!("mix.exs")
 end

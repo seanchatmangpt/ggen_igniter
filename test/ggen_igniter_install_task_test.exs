@@ -167,8 +167,48 @@ defmodule GgenIgniterInstallTaskTest do
     end
 
     test "emits an issue instead of crashing when consumer mix.exs inlines deps: [...] in project/0" do
+      # `Ex4pmFixture.mix_exs_source/0` (the real `~/ex4pm/mix.exs`) was, at the time this
+      # test was first written, itself an umbrella project that inlined `deps: [...]`
+      # directly in `project/0` -- the exact defect shape this task's `deps_probe/1`
+      # defends against (see this task's moduledoc). `~/ex4pm` has since been refactored
+      # to a `defp deps do ... end`-shaped `mix.exs` (real dep on `{:ash, "~> 3.31"}`),
+      # so it no longer exercises the inline-deps defect path: `deps_probe/1` now returns
+      # `:ok` against it, and driving `Igniter.Project.Deps.add_dep/2` for `{:ash, "~>
+      # 3.0"}` against an already-present `{:ash, "~> 3.31"}` hits a REAL, different
+      # Igniter behavior -- `Igniter.Project.Deps.add_dependency/4`'s interactive
+      # "should we replace it?" confirmation prompt (`Igniter.Util.IO.yes?/1`), which
+      # raises when no stdin is available, exactly as it would for a real end user running
+      # this task non-interactively without `--yes`. That is a real, separate concern from
+      # the inline-deps defect this test targets, so this test uses a synthetic, minimal
+      # mix.exs that genuinely inlines `deps: [...]` in `project/0` (the shape the original
+      # test design called for) rather than depending on `~/ex4pm`'s current, drifted
+      # shape for this specific assertion.
+      mix_exs = """
+      defmodule Ex4pm.MixProject do
+        use Mix.Project
+
+        def project do
+          [
+            app: :ex4pm,
+            version: "0.1.0",
+            elixir: "~> 1.17",
+            start_permanent: Mix.env() == :prod,
+            deps: [
+              {:ash, "~> 3.31"}
+            ]
+          ]
+        end
+
+        def application do
+          [
+            extra_applications: [:logger]
+          ]
+        end
+      end
+      """
+
       igniter =
-        test_project(files: %{"mix.exs" => Ex4pmFixture.mix_exs_source()})
+        test_project(files: %{"mix.exs" => mix_exs})
         |> Igniter.compose_task("ggen_igniter.install", [
           "--domain",
           "Ex4pm.Ash.Domain",
