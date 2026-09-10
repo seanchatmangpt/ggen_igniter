@@ -72,10 +72,10 @@ defmodule GgenIgniter.FrontierReleasePlan do
   def new(_source_shape, _attrs),
     do: {:error, [{:invalid_source_shape, :expected_runtime_shape}]}
 
-  @doc "Returns the ordered structured steps from a Frontier Release plan RuntimeShape."
+  @doc "Returns the ordered structured steps from the most recently appended Frontier Release plan projection."
   @spec steps(RuntimeShape.t()) :: {:ok, [map()]} | {:error, term()}
   def steps(%RuntimeShape{projections: projections}) do
-    case Enum.find(projections, &frontier_projection?/1) do
+    case projections |> Enum.reverse() |> Enum.find(&frontier_projection?/1) do
       %{"steps" => steps} when is_list(steps) -> {:ok, steps}
       _ -> {:error, :frontier_release_projection_not_found}
     end
