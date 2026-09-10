@@ -30,41 +30,39 @@ defmodule GgenIgniter.Lock do
   though the original holder process was still alive and still working:
 
     * **PID-liveness (primary)**: `holder_marker/0` writes the acquiring
-      process's real `erlang_pid=` (its own `self()`, `inspect/1`-formatted)
-      alongside `node=` and `creation=` into the lock file's content. When a
-      later `acquire/2` call hits `:eexist` on that same node,
-      `holder_pid_status/1` parses that Erlang pid back out via
-      `:erlang.list_to_pid/1` and checks `Process.alive?/1` for real -- no
-      periodic background heartbeat/refresher process is needed, since
-      liveness is checked fresh, on demand, at contention time. A confirmed
-      *live* holder is never preempted, however old its file's mtime is; a
-      confirmed *dead* holder (the process genuinely exited) is immediately
-      reclaimable, however fresh its file's mtime is.
+      process's real OS process id (`pid=`, `System.pid()`) into the lock
+      file's content, alongside informational `node=`/`creation=`/
+      `erlang_pid=` fields. When a later `acquire/2` call hits `:eexist`,
+      `holder_pid_status/1` parses that OS pid back out and probes it with a
+      real `kill -0` (POSIX, no signal sent -- only checks whether a process
+      with that pid exists) -- no periodic background heartbeat/refresher
+      process is needed, since liveness is checked fresh, on demand, at
+      contention time. A confirmed *live* holder is never preempted, however
+      old its file's mtime is; a confirmed *dead* holder (the OS process
+      genuinely exited) is immediately reclaimable, however fresh its file's
+      mtime is.
 
-      **Node-restart pid-reuse guard**: the `<A.B.C>` text form `inspect/1`
-      prints for a pid does NOT encode the node's *creation* number (Erlang's
-      own per-incarnation counter, `:erlang.system_info(:creation)`, which
-      changes every time a node of the same name boots), so a bare
-      `node=`-equality check cannot by itself distinguish "the same BEAM
-      incarnation that wrote this marker" from "a later incarnation of a
-      node with the same name whose process table happens to have reused
-      slot `<A.B.C>` for something else entirely." `holder_marker/0` also
-      records this node's `creation=` at write time, and `holder_pid_status/1`
-      requires the *current* `Node.self()` creation to match the recorded
-      one before trusting `Process.alive?/1`'s answer -- a mismatch (this
-      node restarted since the marker was written) resolves to `:unknown`
-      exactly like a cross-node marker does, falling back to mtime-age
-      instead of risking a false `:alive` against an unrelated process that
-      happens to occupy the reused pid slot.
+      **Why OS pid, not `Process.alive?/1` on the Erlang pid**: an earlier
+      version of this check parsed the marker's `erlang_pid=` and called
+      `Process.alive?/1` on it, gated by a `node=`/`creation=` equality
+      check. That is wrong for this module's own disclosed primary scenario
+      (two separate `mix` invocations, i.e. two separate OS processes/BEAM
+      VMs): `Process.alive?/1` only ever inspects the CALLING VM's own local
+      process table, so a pid parsed from a marker written by a *different*
+      BEAM instance names an unrelated slot in the checking VM's table, not
+      the writer. The `node=`/`creation=` guard does not rescue this either:
+      neither invocation is started with `--sname`/`--name` by default, so
+      `Node.self()` is `:nonode@nohost` and `:erlang.system_info(:creation)`
+      is a fixed value on every non-distributed BEAM boot -- the guard
+      trivially "matches" between any two ordinary `mix` invocations, so the
+      broken check ran on every real acquire contention, not as a rare edge
+      case. A real OS pid, by contrast, genuinely and portably identifies
+      the same holder across OS processes and BEAM VMs on one machine, which
+      is the actual cross-process liveness signal this module needs.
     * **mtime-age (fallback)**: used only when PID-liveness is `:unknown` --
-      the recorded `node=` differs from `Node.self()` (the real, disclosed
-      cross-node limitation: an Erlang pid from another node's local process
-      table cannot be resolved locally), the recorded `creation=` differs
-      from the current node's creation (this node restarted under the same
-      name since the marker was written -- the pid-reuse-after-restart case
-      above), the marker line is missing/unparseable, or the OS pid was
-      reused by an unrelated process after a hard crash. In that fallback
-      case only, a lock file older than 5 minutes is treated as abandoned
+      the marker's `pid=` field is missing/unparseable, or no `kill`
+      executable is available on this platform to ask the OS. In that
+      fallback case only, a lock file older than 5 minutes is treated as abandoned
       (its holder crashed, was killed, or the machine restarted, without
       ever reaching `release/1`) and is removed automatically by the next
       `acquire/2` caller before retrying. A live holder well inside that
@@ -108,6 +106,7 @@ defmodule GgenIgniter.Lock do
     timeout_ms = Keyword.get(opts, :timeout_ms, @default_timeout_ms)
     retry_interval_ms = Keyword.get(opts, :retry_interval_ms, @default_retry_interval_ms)
 
+    lock_key = Path.expand(lock_key)
     path = lock_path(lock_key)
     File.mkdir_p!(Path.dirname(path))
 
@@ -168,7 +167,7 @@ defmodule GgenIgniter.Lock do
   `@lock_subpath` themselves.
   """
   @spec lock_path(String.t()) :: String.t()
-  def lock_path(lock_key), do: Path.join(lock_key, @lock_subpath)
+  def lock_path(lock_key), do: Path.join(Path.expand(lock_key), @lock_subpath)
 
   defp holder_marker do
     "pid=#{System.pid()} node=#{Node.self()} creation=#{node_creation()} " <>
@@ -225,51 +224,72 @@ defmodule GgenIgniter.Lock do
     end
   end
 
-  # Reads the lock file's `node=`/`creation=`/`erlang_pid=` marker and
-  # resolves real liveness for real via `Process.alive?/1` -- returns
-  # `:alive`/`:dead` only when the marker was written by a process on THIS
-  # node (an Erlang pid from another node's local process table cannot be
-  # resolved locally, a real and disclosed cross-node limitation) AND on
-  # THIS node's current BOOT INCARNATION (a recorded `creation=` that
-  # differs from `:erlang.system_info(:creation)` right now means this node
-  # restarted under the same name since the marker was written -- the
-  # printed `<A.B.C>` pid text doesn't encode creation, so without this
-  # check a brand-new unrelated process that reused that pid slot in the
-  # new incarnation would falsely resolve `:alive`). Returns `:unknown`
-  # (meaning "fall back to mtime-age") for every other case: file
-  # unreadable, marker missing/unparseable (including a marker written
-  # before this field existed, which has no `creation=` to match), a
-  # recorded node that isn't `Node.self()`, or a recorded creation that
-  # isn't this node's current creation.
+  # Reads the lock file's `pid=` marker (the holder's real OS process id,
+  # `System.pid()` at write time -- lock.ex:174) and resolves liveness via a
+  # real OS-level `kill -0` probe (see `os_pid_alive?/1`), NOT via
+  # `Process.alive?/1` on the `erlang_pid=` marker.
+  #
+  # `Process.alive?/1` was tried first and is WRONG for this module's own
+  # disclosed primary scenario (moduledoc, "two separate `mix` invocations
+  # ... not two processes in the same VM"): it only ever inspects the
+  # CALLING VM's own local process table, so a pid parsed from a marker
+  # written by a *different* OS process/BEAM instance names an unrelated
+  # slot in the checking VM's table -- not the writer. Worse, the `node=`/
+  # `creation=` guard that was meant to gate this cannot discriminate two
+  # ordinary `mix` invocations at all: neither is started with
+  # `--sname`/`--name`, so `Node.self()` is `:nonode@nohost` and
+  # `:erlang.system_info(:creation)` is a fixed value for every
+  # non-distributed BEAM boot -- the guard trivially passes between any two
+  # such invocations, so the broken `Process.alive?/1` path ran on every
+  # real acquire contention, not as a rare edge case.
+  #
+  # A real OS pid, by contrast, genuinely identifies the same holder across
+  # OS processes and BEAM VMs on the same machine (kernel-assigned, no
+  # per-BEAM-incarnation ambiguity), which is exactly the cross-process
+  # liveness signal this module's own moduledoc claims to provide. Returns
+  # `:unknown` (meaning "fall back to mtime-age") when the file is
+  # unreadable, the `pid=` marker is missing/unparseable, or the OS itself
+  # cannot be asked (no `kill` executable available, e.g. non-POSIX).
   @doc """
-  Reads the lock file's `node=`/`creation=`/`erlang_pid=` marker and
-  resolves real liveness for real via `Process.alive?/1`, cross-checking the
-  node's boot creation number so a post-restart pid-slot reuse under the
-  same node name cannot be mistaken for the original holder. Public for the
-  same read-only caller reason as `stale_lock?/1` -- `mix ggen_igniter.doctor`'s
+  Reads the lock file's `pid=` marker (the holder's real OS process id) and
+  resolves real liveness via a real `kill -0` OS-level probe -- correct
+  across separate OS processes/BEAM VMs, which is this module's disclosed
+  primary scenario (two separate `mix` invocations). Public for the same
+  read-only caller reason as `stale_lock?/1` -- `mix ggen_igniter.doctor`'s
   check 18 names the real holder in its info/warn line without duplicating
   this parsing logic.
   """
   @spec holder_pid_status(String.t()) :: :alive | :dead | :unknown
   def holder_pid_status(path) do
     with {:ok, content} <- File.read(path),
-         [_, node_str] <- Regex.run(~r/node=(\S+)/, content),
-         true <- node_str == to_string(Node.self()),
-         [_, creation_str] <- Regex.run(~r/creation=(\d+)/, content),
-         {recorded_creation, ""} <- Integer.parse(creation_str),
-         true <- recorded_creation == node_creation(),
-         [_, pid_str] <- Regex.run(~r/erlang_pid=#PID(<[0-9.]+>)/, content),
-         {:ok, pid} <- parse_erlang_pid(pid_str) do
-      if Process.alive?(pid), do: :alive, else: :dead
+         [_, os_pid_str] <- Regex.run(~r/pid=(\d+)/, content) do
+      os_pid_alive?(os_pid_str)
     else
       _ -> :unknown
     end
   end
 
-  @spec parse_erlang_pid(String.t()) :: {:ok, pid()} | :error
-  defp parse_erlang_pid(pid_str) do
-    {:ok, :erlang.list_to_pid(String.to_charlist(pid_str))}
+  # Real OS-level liveness probe via `kill -0 <pid>` (POSIX): sends no
+  # signal, only checks whether the OS permits signaling that pid, which
+  # fails with a non-zero exit (ESRCH) iff no process with that pid exists.
+  # This is the standard, documented way to check OS process liveness
+  # without side effects. Returns `:unknown` (never a false `:dead`/`:alive`)
+  # when `kill` itself cannot be found (e.g. a non-POSIX host), so callers
+  # correctly fall back to mtime-age rather than trusting a signal this
+  # platform cannot give.
+  @spec os_pid_alive?(String.t()) :: :alive | :dead | :unknown
+  defp os_pid_alive?(os_pid_str) do
+    case System.find_executable("kill") do
+      nil ->
+        :unknown
+
+      kill_path ->
+        case System.cmd(kill_path, ["-0", os_pid_str], stderr_to_stdout: true) do
+          {_output, 0} -> :alive
+          {_output, _nonzero} -> :dead
+        end
+    end
   rescue
-    ArgumentError -> :error
+    ErlangError -> :unknown
   end
 end

@@ -1,0 +1,157 @@
+@prefix aex:  <http://seanchatmangpt.github.io/packs/ash-extension-core#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+#################################################################
+# Vocabulary
+#################################################################
+
+aex:AshExtensionSpec a rdfs:Class ;
+    rdfs:label "One Ash extension to manufacture: a Spark.Dsl.Extension plus its transformer, verifier, Info module, and Igniter installer -- generalized from the real ash_r2rml/lib/ash_r2rml/resource.ex shape." .
+
+aex:packageName    a rdf:Property ; rdfs:domain aex:AshExtensionSpec ; rdfs:comment "hex package name, snake_case, e.g. audit_trail" .
+aex:moduleName     a rdf:Property ; rdfs:domain aex:AshExtensionSpec ; rdfs:comment "top Elixir module, e.g. AuditTrail.Resource" .
+aex:extensionTarget a rdf:Property ; rdfs:domain aex:AshExtensionSpec ; rdfs:comment "closed: \"resource\" | \"domain\" -- what Ash.Resource/Ash.Domain `extensions:` this attaches to." .
+aex:singleExtensionKind a rdf:Property ; rdfs:domain aex:AshExtensionSpec ;
+    rdfs:comment "optional -- the `use Spark.Dsl.Extension, single_extension_kinds: [...]` atom (ash_r2rml's resource.ex sets single_extension_kinds: [:ash_r2rml]), refusing more than one extension of this kind on the same resource. Absent means the option is omitted entirely (not rendered as an empty list)." .
+
+aex:taskModuleName a rdf:Property ; rdfs:domain aex:AshExtensionSpec ;
+    rdfs:comment "explicit, admitted `Mix.Tasks.<X>.Install` module name segment (e.g. \"AshR2rml\" for ash_r2rml -- Elixir's Macro.camelize(\"ash_r2rml\") == \"AshR2rml\", NOT a naive dot-strip of moduleName, which would wrongly produce \"AshR2RMLResource\" from moduleName \"AshR2RML.Resource\"). Stated as fact, not derived by string manipulation from packageName/moduleName, per this pack's \"echo, don't synthesize\" discipline -- a real parity check against ash_r2rml caught exactly this derivation bug." .
+aex:formatterModule a rdf:Property ; rdfs:domain aex:AshExtensionSpec ;
+    rdfs:comment "explicit, admitted formatter plugin module (e.g. \"AshR2RML.Formatter\" -- a TOP-LEVEL sibling of AshR2RML.Resource, not moduleName <> \".Formatter\", which would wrongly produce \"AshR2RML.Resource.Formatter\"). Same reasoning as aex:taskModuleName." .
+
+aex:DslSection a rdfs:Class ;
+    rdfs:label "One Spark.Dsl.Section this extension contributes (ash_r2rml has two: :r2rml, :sparql)." .
+aex:sectionOf   a rdf:Property ; rdfs:domain aex:DslSection ; rdfs:range aex:AshExtensionSpec .
+aex:sectionName a rdf:Property ; rdfs:domain aex:DslSection ; rdfs:comment "atom name, e.g. :audit" .
+aex:sectionOrder a rdf:Property ; rdfs:domain aex:DslSection .
+aex:sectionDescribe a rdf:Property ; rdfs:domain aex:DslSection ; rdfs:comment "optional Spark.Dsl.Section :describe string, e.g. ash_r2rml's :r2rml.describe." .
+
+aex:singletonEntityKey a rdf:Property ; rdfs:domain aex:DslSection ;
+    rdfs:comment "0+ rows -- an entity name (atom) listed in this section's singleton_entity_keys:, mirroring ash_r2rml's :r2rml section (singleton_entity_keys: [:subject]). Replaces a per-entity boolean: singleton-ness is a SECTION-level list in real Spark, not an entity flag." .
+
+aex:SectionSchemaField a rdfs:Class ;
+    rdfs:label "One field of a DslSection's own top-level Spark schema (ash_r2rml's :r2rml section schema: table_name/sql_query/schema), distinct from a DslEntity's schema." .
+aex:sectionFieldOf   a rdf:Property ; rdfs:domain aex:SectionSchemaField ; rdfs:range aex:DslSection .
+aex:sectionFieldOrder a rdf:Property ; rdfs:domain aex:SectionSchemaField .
+aex:sectionFieldName a rdf:Property ; rdfs:domain aex:SectionSchemaField .
+aex:sectionFieldType a rdf:Property ; rdfs:domain aex:SectionSchemaField ; rdfs:comment "same closed Spark-type vocabulary as aex:fieldType." .
+
+aex:DslEntity a rdfs:Class ;
+    rdfs:label "One Spark.Dsl.Entity inside a section (ash_r2rml: Class/Subject/Property/Reference/Graph/SparqlQuery)." .
+aex:entityOf       a rdf:Property ; rdfs:domain aex:DslEntity ; rdfs:range aex:DslSection .
+aex:entityName     a rdf:Property ; rdfs:domain aex:DslEntity ; rdfs:comment "atom name, e.g. :event. NOTE: the Spark entity name can differ from its struct's local name -- ash_r2rml's SparqlQuery entity is named :query, not :sparql_query." .
+aex:entityOrder    a rdf:Property ; rdfs:domain aex:DslEntity ; rdfs:comment "position within its section's entities: [...] list -- SPARQL result order is not guaranteed to match source-declaration order without this, and a real parity check against ash_r2rml/resource.ex caught exactly this (entities rendered reversed) before this property existed." .
+aex:entityStruct   a rdf:Property ; rdfs:domain aex:DslEntity ; rdfs:comment "backing struct module, e.g. AuditTrail.Dsl.Event" .
+aex:entityIdentifier a rdf:Property ; rdfs:domain aex:DslEntity ;
+    rdfs:comment "optional -- this entity's Spark :identifier field name (must be one of its own schema field names), e.g. ash_r2rml's Property entity has identifier: :attribute. Absent means Spark defaults identifier from the first positional arg." .
+
+aex:EntityArg a rdfs:Class ;
+    rdfs:label "One positional Spark.Dsl.Entity :args entry (ash_r2rml's Property entity: args: [:attribute, :predicate_iri]) -- ordered, distinct from the full schema field list." .
+aex:argOf    a rdf:Property ; rdfs:domain aex:EntityArg ; rdfs:range aex:DslEntity .
+aex:argOrder a rdf:Property ; rdfs:domain aex:EntityArg .
+aex:argName  a rdf:Property ; rdfs:domain aex:EntityArg ; rdfs:comment "must match one of this entity's own schema field names." .
+
+aex:EntitySchemaField a rdfs:Class ;
+    rdfs:label "One field of a DslEntity's Spark schema (name/type/required/doc)." .
+aex:fieldOf      a rdf:Property ; rdfs:domain aex:EntitySchemaField ; rdfs:range aex:DslEntity .
+aex:fieldOrder   a rdf:Property ; rdfs:domain aex:EntitySchemaField .
+aex:fieldName    a rdf:Property ; rdfs:domain aex:EntitySchemaField .
+aex:fieldType    a rdf:Property ; rdfs:domain aex:EntitySchemaField ;
+    rdfs:comment "closed set: atom | string | boolean | integer | module | list_atom | list_string | or_string_list_string | one_of | any. \"one_of\" and \"or_string_list_string\" are shape markers -- one_of's actual enum values come from aex:fieldOneOfValue rows; or_string_list_string renders the exact {:or, [:string, {:list, :string}]} union ash_r2rml's Class.iri uses." .
+aex:fieldRequired a rdf:Property ; rdfs:domain aex:EntitySchemaField .
+aex:fieldDoc     a rdf:Property ; rdfs:domain aex:EntitySchemaField .
+aex:fieldDefault a rdf:Property ; rdfs:domain aex:EntitySchemaField ;
+    rdfs:comment "optional literal Elixir default value source, e.g. \":iri\" or \":literal\" or \"[]\" -- rendered verbatim after `default:`." .
+
+aex:FieldOneOfValue a rdfs:Class ;
+    rdfs:label "One allowed atom value for a fieldType=\"one_of\" field, ordered (ash_r2rml's Subject.term_type: {:one_of, [:iri, :blank_node]})." .
+aex:oneOfValueOf   a rdf:Property ; rdfs:domain aex:FieldOneOfValue ; rdfs:range aex:EntitySchemaField .
+aex:oneOfValueOrder a rdf:Property ; rdfs:domain aex:FieldOneOfValue .
+aex:oneOfValueName a rdf:Property ; rdfs:domain aex:FieldOneOfValue ; rdfs:comment "atom text without the leading colon, e.g. \"iri\"." .
+
+aex:Verifier a rdfs:Class ;
+    rdfs:label "One legality constraint the generated verifier module checks, mirroring ash_r2rml's AshR2RML.Resource.Verify (which asserts persisted mapping exists and calls AshR2RML.Mapping.validate/1)." .
+aex:verifierOf    a rdf:Property ; rdfs:domain aex:Verifier ; rdfs:range aex:AshExtensionSpec .
+aex:verifierName  a rdf:Property ; rdfs:domain aex:Verifier ; rdfs:comment "slug, e.g. unique_event_name" .
+aex:verifierDoc   a rdf:Property ; rdfs:domain aex:Verifier .
+
+aex:workflowReactor a rdf:Property ; rdfs:domain aex:AshExtensionSpec ; rdfs:comment "boolean -- opt in to a generated Ash.Reactor pipeline (ash_r2rml/lib/ash_r2rml/reactor_pipeline.ex shape). Default false: Reactor is a capability, not mandatory for every extension." .
+aex:workflowReversible a rdf:Property ; rdfs:domain aex:AshExtensionSpec ; rdfs:comment "boolean -- generated Reactor steps include compensate/undo." .
+
+aex:CompositionTarget a rdfs:Class ;
+    rdfs:label "One :test-only compatibility target the generated composition test introspects against (mirrors ash_r2rml/test/ggen_api_bundle_test.exs: ash_graphql/ash_json_api are test-only deps, never runtime)." .
+aex:compositionOf     a rdf:Property ; rdfs:domain aex:CompositionTarget ; rdfs:range aex:AshExtensionSpec .
+aex:compositionTarget a rdf:Property ; rdfs:domain aex:CompositionTarget ; rdfs:comment "closed: \"ash_graphql\" | \"ash_json_api\"" .
+
+aex:AuditTrailSpec a aex:AshExtensionSpec ;
+    aex:packageName "audit_trail" ;
+    aex:moduleName "AuditTrail.Resource" ;
+    aex:extensionTarget "resource" ;
+    aex:taskModuleName "AuditTrail" ;
+    aex:formatterModule "AuditTrail.Formatter" ;
+    aex:workflowReactor false ;
+    aex:workflowReversible false .
+
+aex:AuditTrailSection a aex:DslSection ;
+    aex:sectionOf aex:AuditTrailSpec ;
+    aex:sectionName "audit" ;
+    aex:sectionOrder 1 .
+
+aex:AuditTrailEventEntity a aex:DslEntity ;
+    aex:entityOf aex:AuditTrailSection ;
+    aex:entityOrder 1 ; aex:entityName "event" ;
+    aex:entityStruct "AuditTrail.Dsl.Event" .
+
+aex:AuditTrailEventName a aex:EntitySchemaField ;
+    aex:fieldOf aex:AuditTrailEventEntity ;
+    aex:fieldOrder 1 ; aex:fieldName "name" ; aex:fieldType "atom" ;
+    aex:fieldRequired true ; aex:fieldDoc "The audited event's slug." .
+
+aex:AuditTrailEventDescription a aex:EntitySchemaField ;
+    aex:fieldOf aex:AuditTrailEventEntity ;
+    aex:fieldOrder 2 ; aex:fieldName "description" ; aex:fieldType "string" ;
+    aex:fieldRequired false ; aex:fieldDoc "Human-readable description of what triggers this event." .
+
+aex:AuditTrailProjectionEntity a aex:DslEntity ;
+    aex:entityOf aex:AuditTrailSection ;
+    aex:entityOrder 2 ; aex:entityName "projection" ;
+    aex:entityStruct "AuditTrail.Dsl.Projection" .
+
+aex:AuditTrailProjectionField a aex:EntitySchemaField ;
+    aex:fieldOf aex:AuditTrailProjectionEntity ;
+    aex:fieldOrder 1 ; aex:fieldName "attribute" ; aex:fieldType "atom" ;
+    aex:fieldRequired true ; aex:fieldDoc "Resource attribute this projection reads." .
+
+aex:AuditTrailUniqueEventVerifier a aex:Verifier ;
+    aex:verifierOf aex:AuditTrailSpec ;
+    aex:verifierName "unique_event_name" ;
+    aex:verifierDoc "Every :audit event name must be unique within the resource." .
+
+aex:AuditTrailValidProjectionVerifier a aex:Verifier ;
+    aex:verifierOf aex:AuditTrailSpec ;
+    aex:verifierName "valid_projection" ;
+    aex:verifierDoc "Every :audit projection attribute must reference an attribute that actually exists on the resource." .
+
+aex:AuditTrailGraphqlComposition a aex:CompositionTarget ;
+    aex:compositionOf aex:AuditTrailSpec ;
+    aex:compositionTarget "ash_graphql" .
+
+aex:AuditTrailJsonApiComposition a aex:CompositionTarget ;
+    aex:compositionOf aex:AuditTrailSpec ;
+    aex:compositionTarget "ash_json_api" .
+
+#################################################################
+# Worked instance: AshR2RMLSpec -- ash_r2rml's REAL, already-shipped DSL shape,
+# transcribed verbatim from /Users/sac/ash_r2rml/lib/ash_r2rml/resource.ex
+# (main@263aa768bbc5a933124409ee68f2b9efb9d09a3a, confirmed by direct read, not memory).
+# This is the acceptance fixture for "does this pack's ontology fully cover a real,
+# already-shipped Ash extension's DSL" -- not a toy. Only the DSL SHAPE (entities/
+# sections/schema/args/identifiers) is modeled here; AshR2RML.Resource.Persist's and
+# .Verify's real transform/verify BODIES are hand-written domain logic (subject/
+# property/reference resolution against Ash.Resource.Info, AshR2RML.Mapping
+# construction/validation) and are deliberately NOT modeled or regenerated by this
+# pack -- see ash-extension-core-pack's pack.toml and this repo's plan notes for that
+# boundary.
+#################################################################
+

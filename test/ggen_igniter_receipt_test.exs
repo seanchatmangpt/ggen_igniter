@@ -163,6 +163,74 @@ defmodule GgenIgniter.ReceiptTest do
       persisted = Receipt.read_all!(dir)
       assert Enum.map(persisted, & &1["reason"]) == ["first", "second", "third"]
     end
+
+    test "real concurrent OS-process-like writers never tear/interleave a line -- append!/2 self-locks" do
+      dir = scratch_dir!()
+      n = 40
+
+      # Real concurrency: N real BEAM processes (Task), each independently
+      # calling append!/2 against the SAME base_dir at (as close as
+      # scheduling allows) the same time -- no mock, no stub, the real
+      # File.write!/3 + real GgenIgniter.Lock.acquire!/2 path, exercised
+      # under genuine contention.
+      tasks =
+        for i <- 1..n do
+          Task.async(fn ->
+            Receipt.append!(
+              dir,
+              Receipt.new(%{standing: :alive, reason: "writer-#{i}"})
+            )
+          end)
+        end
+
+      results = Task.await_many(tasks, 30_000)
+      assert Enum.all?(results, &(&1 == :ok))
+
+      # The real file on disk: every line must be independently parseable
+      # JSON (no torn/interleaved bytes from a lost race), and every one
+      # of the N writers' reasons must be present exactly once -- proof
+      # that self-locking serialized the N concurrent File.write!/3 calls
+      # rather than letting any two race against the same fd offset.
+      receipt_path = Receipt.path(dir)
+      lines = receipt_path |> File.read!() |> String.split("\n", trim: true)
+      assert length(lines) == n
+
+      decoded =
+        Enum.map(lines, fn line ->
+          case Jason.decode(line) do
+            {:ok, decoded} -> decoded
+            {:error, reason} -> flunk("torn/unparseable line under concurrency: #{inspect(reason)} -- #{inspect(line)}")
+          end
+        end)
+
+      reasons = Enum.map(decoded, & &1["reason"]) |> Enum.sort()
+      expected = for i <- 1..n, do: "writer-#{i}"
+      assert reasons == Enum.sort(expected)
+
+      # No stray lock file left behind -- the self-acquired lock was
+      # released after every single write, win or lose the race.
+      refute File.exists?(GgenIgniter.Lock.lock_path(Receipt.dir(dir)))
+    end
+  end
+
+  describe "read_all!/1 -- defensive against a torn/unparseable trailing line" do
+    test "skips an unparseable line and still returns every other real, well-formed receipt" do
+      dir = scratch_dir!()
+
+      Receipt.append!(dir, Receipt.new(%{standing: :refused, reason: "before-corruption"}))
+
+      # Simulate a real torn line (e.g. a crash mid-write, or two writers
+      # that somehow still interleaved bytes) by directly corrupting the
+      # on-disk partition file -- a genuine malformed JSON line appended
+      # by hand, not a mocked reader.
+      receipt_path = Receipt.path(dir)
+      File.write!(receipt_path, ~s({"standing":"alive","reason":"torn\n), [:append])
+
+      Receipt.append!(dir, Receipt.new(%{standing: :alive, reason: "after-corruption"}))
+
+      persisted = Receipt.read_all!(dir)
+      assert Enum.map(persisted, & &1["reason"]) == ["before-corruption", "after-corruption"]
+    end
   end
 
   describe "PRD v2 fields -- new/1 defaults" do

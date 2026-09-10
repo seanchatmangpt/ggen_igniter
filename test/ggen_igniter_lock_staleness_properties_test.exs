@@ -46,9 +46,22 @@ defmodule GgenIgniter.LockStalenessPropertiesTest do
   end
 
   defp write_lock_file_with_age!(lock_key, age_ms) do
+    write_lock_file_with_age!(lock_key, age_ms, "pid=999999")
+  end
+
+  # `holder_pid` lets a caller choose whether the marker's real OS-pid field
+  # names a genuinely alive process (`"pid=#{System.pid()}"`) or a fake,
+  # certainly-not-running one (`"pid=999999"`). This matters because
+  # `GgenIgniter.Lock.holder_pid_status/1`'s real, current contract checks
+  # OS-pid liveness (via `kill -0`) FIRST and only falls back to mtime-age
+  # when that pid is unparseable/unavailable -- a fake dead pid is correctly
+  # reclaimed immediately regardless of mtime, so a property that wants to
+  # exercise the mtime-fallback boundary specifically must supply a real,
+  # currently-alive pid (this test process's own), never a fake one.
+  defp write_lock_file_with_age!(lock_key, age_ms, holder_pid) do
     lock_path = Path.join(lock_key, @lock_subpath)
     File.mkdir_p!(Path.dirname(lock_path))
-    File.write!(lock_path, "pid=999999 node=nonode@nohost at=stale-fixture\n")
+    File.write!(lock_path, "#{holder_pid} node=nonode@nohost at=stale-fixture\n")
 
     # Real mtime, set via File.touch/2 against a real posix timestamp
     # "age_ms milliseconds in the past" -- not a mocked clock. `stale_lock?/1`
@@ -92,7 +105,7 @@ defmodule GgenIgniter.LockStalenessPropertiesTest do
             ) do
         age_ms = @stale_after_ms - under_ms
         tmp_dir = scratch_dir!("lte_#{System.unique_integer([:positive])}")
-        lock_path = write_lock_file_with_age!(tmp_dir, age_ms)
+        lock_path = write_lock_file_with_age!(tmp_dir, age_ms, "pid=#{System.pid()}")
 
         assert_raise RuntimeError, ~r/could not acquire lock/, fn ->
           GgenIgniter.Lock.acquire(tmp_dir, timeout_ms: 200, retry_interval_ms: 10)

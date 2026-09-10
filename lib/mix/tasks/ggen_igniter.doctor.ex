@@ -122,7 +122,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   """
   use Igniter.Mix.Task
 
-  alias GgenIgniter.{DoctorFixes, Ontology, Pack}
+  alias GgenIgniter.{DoctorFixes, Engine, Frontmatter, Ontology, Pack}
 
   @impl Igniter.Mix.Task
   def info(_argv, _composing_task) do
@@ -648,7 +648,10 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   # 8. Qlever endpoint reachable (only if --engine qlever and a store can be resolved)
   defp maybe_check_qlever(opts, pack_dir) do
     if opts[:engine] == "qlever" do
-      [tag("qlever_reachable", check_qlever_reachable(opts, pack_dir))]
+      [
+        tag("qlever_reachable", check_qlever_reachable(opts, pack_dir)),
+        tag("qlever_concurrent_targets", check_qlever_concurrent_targets(pack_dir))
+      ]
     else
       []
     end
@@ -679,6 +682,88 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
           error ->
             {:error, "QLever endpoint for #{store_id} unreachable: #{Exception.message(error)}"}
         end
+    end
+  end
+
+  # 8b. Concurrent-target qlever hazard (disclosed, not yet reachable via the
+  # shipped pipeline -- see docs/status.md's "`:run_queries` step-level
+  # concurrency" row): `GgenIgniter.Engine.Qlever.prepare!/2`
+  # (lib/ggen_igniter/engine.ex:137-138) does an unsynchronized
+  # check-then-act `Process.whereis(GgenIgniter.Finch)` followed by
+  # `Finch.start_link/1` -- a real `MatchError` whenever 2+ targets that both
+  # specify `engine: "qlever"` execute `prepare!/2` concurrently. Today
+  # `:run_queries` runs every target's queries sequentially (`Enum.map/2`,
+  # `lib/ggen_igniter/reactors/reconcile_reactor.ex:468`/`:951`), so this
+  # hazard is not triggered by the pipeline as shipped -- but a `--for-each`
+  # template whose driver query already resolves to 2+ rows under
+  # `--engine qlever` produces exactly the N-targets-one-engine shape the
+  # disclosed hazard describes, one accidental `Task.async_stream/3` away
+  # from a real crash. This check surfaces that shape now, before anyone has
+  # to rediscover the disclosed status.md row by hand.
+  defp check_qlever_concurrent_targets(pack_dir) do
+    templates = pack_dir && Path.wildcard(Path.join(pack_dir, "templates/*.{eex,tmpl}"))
+
+    for_each_names =
+      (templates || [])
+      |> Enum.map(fn path ->
+        case Frontmatter.split_template(File.read!(path)) do
+          {%Frontmatter{for_each: name}, _mode, _body} -> name
+          _ -> nil
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    cond do
+      is_nil(pack_dir) or templates == [] ->
+        {:ok, "no pack templates found -- no --for-each concurrent qlever-target hazard to check"}
+
+      for_each_names == [] ->
+        {:ok,
+         "no --for-each templates found -- no concurrent qlever-target hazard to check"}
+
+      true ->
+        check_for_each_row_counts(pack_dir, for_each_names)
+    end
+  end
+
+  defp check_for_each_row_counts(pack_dir, for_each_names) do
+    ontology_path = Pack.default_ontology(pack_dir)
+    queries = Pack.discover_queries(pack_dir) |> Map.new()
+
+    try do
+      graph = Ontology.load!(ontology_path)
+
+      offending =
+        Enum.filter(for_each_names, fn name ->
+          with {:ok, query_path} <- Map.fetch(queries, name) do
+            query_path
+            |> File.read!()
+            |> then(&Engine.Oxigraph.run(graph, &1))
+            |> length() >= 2
+          else
+            :error -> false
+          end
+        end)
+
+      if offending == [] do
+        {:ok,
+         "--for-each driver quer(ies) #{Enum.join(for_each_names, ", ")} resolve to fewer than " <>
+           "2 rows today -- the disclosed qlever concurrent-target hazard is not triggered"}
+      else
+        {:warn,
+         "--for-each driver quer(ies) #{Enum.join(offending, ", ")} resolve to 2+ rows under " <>
+           "--engine qlever -- if this pack's targets are ever run concurrently " <>
+           "(Task.async_stream/3), this reaches the disclosed, unsynchronized " <>
+           "Finch.start_link/1 check-then-act race in GgenIgniter.Engine.Qlever.prepare!/2 " <>
+           "(lib/ggen_igniter/engine.ex:137-138) -- a real MatchError, per docs/status.md's " <>
+           "\"`:run_queries` step-level concurrency\" row (line 132)"}
+      end
+    rescue
+      error ->
+        {:ok,
+         "could not evaluate --for-each driver quer(ies) for the concurrent qlever-target " <>
+           "hazard check (#{Exception.message(error)}) -- skipping"}
     end
   end
 

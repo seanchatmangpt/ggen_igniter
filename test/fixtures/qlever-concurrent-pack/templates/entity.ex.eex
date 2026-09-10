@@ -1,0 +1,6 @@
+---
+to: lib/<%= entity_name %>.ex
+for_each: entities
+---
+defmodule <%= entity_struct %> do
+end

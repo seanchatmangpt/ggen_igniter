@@ -201,6 +201,8 @@ defmodule GgenIgniter.Receipt do
           completed_at: String.t() | nil
         }
 
+  require Logger
+
   @enforce_keys [:id, :standing, :started_at, :finished_at]
   defstruct id: nil,
             recipe_key: nil,
@@ -507,6 +509,20 @@ defmodule GgenIgniter.Receipt do
   partially overwritten. See `GgenIgniter.Reactors.ReconcileReactor`'s
   moduledoc for why this receipt append happens BEFORE, and independent of,
   any manifest promotion.
+
+  ## Self-locking, independent of any caller-held lock
+
+  This function does NOT rely on the caller already holding
+  `GgenIgniter.Lock` for `base_dir` -- it acquires its OWN real,
+  file-based `GgenIgniter.Lock` (keyed on `dir(base_dir)`, the actual
+  receipts directory this call is about to write into -- `Lock.acquire/2`
+  itself canonicalizes that key via `Path.expand/1`) around the
+  encode+append, and releases it in an `after` block unconditionally. Two
+  OS processes (or two BEAM processes) calling `append!/2` against the
+  same `base_dir` now serialize on this lock before either one opens the
+  `.jsonl` partition for writing, so no two `File.write!/3` calls can ever
+  race against the same partition file -- regardless of what lock, if any,
+  either caller separately believes it already holds.
   """
   @spec append!(String.t(), t()) :: :ok
   def append!(base_dir, %__MODULE__{} = receipt) do
@@ -527,7 +543,15 @@ defmodule GgenIgniter.Receipt do
     File.mkdir_p!(Path.dirname(receipt_path))
 
     line = Jason.encode!(to_json_map(receipt)) <> "\n"
-    File.write!(receipt_path, line, [:append])
+
+    {:ok, lock} = GgenIgniter.Lock.acquire(dir(base_dir))
+
+    try do
+      File.write!(receipt_path, line, [:append])
+    after
+      GgenIgniter.Lock.release(lock)
+    end
+
     :ok
   end
 
@@ -549,11 +573,28 @@ defmodule GgenIgniter.Receipt do
         |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
         |> Enum.sort()
         |> Enum.flat_map(fn filename ->
-          receipts_dir
-          |> Path.join(filename)
+          path = Path.join(receipts_dir, filename)
+
+          path
           |> File.read!()
           |> String.split("\n", trim: true)
-          |> Enum.map(&Jason.decode!/1)
+          |> Enum.with_index(1)
+          |> Enum.flat_map(fn {line, line_no} ->
+            case Jason.decode(line) do
+              {:ok, decoded} ->
+                [decoded]
+
+              {:error, reason} ->
+                Logger.warning(
+                  "GgenIgniter.Receipt.read_all!/1: skipping unparseable line " <>
+                    "#{line_no} in #{path} (#{inspect(reason)}) -- likely a torn " <>
+                    "line from a crash mid-write; discarding it rather than " <>
+                    "raising and losing every other receipt in this partition."
+                )
+
+                []
+            end
+          end)
         end)
 
       {:error, :enoent} ->
@@ -611,6 +652,7 @@ defmodule GgenIgniter.Receipt do
           {:ok, %{standing: standing(), receipt: map(), receipt_count: pos_integer()}}
           | {:error, :no_receipts}
           | {:error, {:chain_broken, map()}}
+          | {:error, {:unrecognized_standing, String.t()}}
   def reconstruct_standing(base_dir, recipe_key)
       when is_binary(base_dir) and is_binary(recipe_key) do
     base_dir
@@ -626,12 +668,25 @@ defmodule GgenIgniter.Receipt do
       {:ok, _last_expected_hash} ->
         last = List.last(receipts)
 
-        {:ok,
-         %{
-           standing: String.to_existing_atom(last["standing"]),
-           receipt: last,
-           receipt_count: length(receipts)
-         }}
+        # `String.to_existing_atom/1` raises `ArgumentError` on any string
+        # that isn't already a loaded atom -- a real risk here, since
+        # `last["standing"]` came from disk (a receipt written by a future
+        # or differently-versioned build could carry a `standing` value
+        # this runtime has never atomized). Guard it explicitly and return
+        # the documented error tuple instead of letting an unrecognized
+        # value crash the caller.
+        case safe_to_existing_atom(last["standing"]) do
+          {:ok, standing} ->
+            {:ok,
+             %{
+               standing: standing,
+               receipt: last,
+               receipt_count: length(receipts)
+             }}
+
+          :error ->
+            {:error, {:unrecognized_standing, last["standing"]}}
+        end
 
       {:break, receipt, expected, actual} ->
         {:error,
@@ -643,6 +698,15 @@ defmodule GgenIgniter.Receipt do
             actual_pre_run_hash: actual
           }}}
     end
+  end
+
+  # `String.to_existing_atom/1` without the raise -- returns `:error` for a
+  # string that isn't already a loaded atom, instead of crashing.
+  @spec safe_to_existing_atom(String.t()) :: {:ok, atom()} | :error
+  defp safe_to_existing_atom(str) when is_binary(str) do
+    {:ok, String.to_existing_atom(str)}
+  rescue
+    ArgumentError -> :error
   end
 
   # One link of the chain walk. `expected_pre_hash` is the most recent real

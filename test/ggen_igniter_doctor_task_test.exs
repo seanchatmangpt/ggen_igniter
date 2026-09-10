@@ -60,6 +60,59 @@ defmodule GgenIgniter.DoctorTaskTest do
 
     refute exit_code == 0, "expected a non-zero exit without --store-id, got 0:\n#{output}"
     assert output =~ "--store-id is missing"
+    # The qlever-reachability :error above still leaves room for the sibling
+    # concurrent-target check to run and report its own real result: this
+    # pack has no --for-each templates at all, so it's a clean :ok, not a
+    # crash and not silently skipped.
+    assert output =~ "no --for-each templates found -- no concurrent qlever-target hazard"
+  end
+
+  test "mix ggen_igniter.doctor --engine qlever warns on a real 2+-row --for-each pack " <>
+         "(the disclosed Qlever.prepare!/2 concurrent-target hazard)" do
+    {output, exit_code} =
+      System.cmd(
+        "mix",
+        [
+          "ggen_igniter.doctor",
+          "--engine",
+          "qlever",
+          "--pack-dir",
+          "test/fixtures/qlever-concurrent-pack"
+        ],
+        cd: File.cwd!(),
+        stderr_to_stdout: true
+      )
+
+    # --store-id is still missing (qlever_reachable stays a real :error), but
+    # the new check must independently detect and warn about the real
+    # for-each driver query (`entities`) resolving to 2+ rows against this
+    # fixture's real ontology -- the exact N-targets-one-qlever-engine shape
+    # `GgenIgniter.Engine.Qlever.prepare!/2`'s disclosed check-then-act race
+    # (lib/ggen_igniter/engine.ex:137-138) would hit under concurrent
+    # execution.
+    refute exit_code == 0, "expected a non-zero exit (missing --store-id), got 0:\n#{output}"
+    assert output =~ "⚠"
+    assert output =~ "entities"
+    assert output =~ "resolve to 2+ rows under --engine qlever"
+    assert output =~ "GgenIgniter.Engine.Qlever.prepare!/2"
+    assert output =~ "lib/ggen_igniter/engine.ex:137-138"
+  end
+
+  test "mix ggen_igniter.doctor --engine oxigraph never runs the qlever concurrent-target check" do
+    {output, exit_code} =
+      System.cmd(
+        "mix",
+        [
+          "ggen_igniter.doctor",
+          "--pack-dir",
+          "test/fixtures/qlever-concurrent-pack"
+        ],
+        cd: File.cwd!(),
+        stderr_to_stdout: true
+      )
+
+    assert exit_code == 0, "mix ggen_igniter.doctor failed:\n#{output}"
+    refute output =~ "concurrent qlever-target hazard"
   end
 
   test "mix ggen_igniter.doctor reports the real NIF compile check and oxigraph smoke test" do

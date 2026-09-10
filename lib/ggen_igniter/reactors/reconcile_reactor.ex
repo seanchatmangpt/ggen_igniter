@@ -2058,6 +2058,29 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # change for the common case. Real, disclosed trade-off: this is why
   # `:eval` items can no longer run concurrently with each other -- see
   # `GgenIgniter.Actuate.eval_code!/2`'s moduledoc for the full contract.
+  # `Map.fetch!(exec, pa.logical_id)` historically ran as argument evaluation
+  # to `actuate_one/2`/`actuate_eval_one/3` -- i.e. structurally OUTSIDE
+  # either function's own `rescue` -- so a missing `logical_id` would raise
+  # past both functions entirely instead of flowing through the same
+  # `{:error, %{...}}` self-heal path every other item-level failure uses.
+  # These `_safe/2` wrappers make that a real `{:error, ...}` instead of an
+  # uncaught exception.
+  defp actuate_one_safe(pa, exec) do
+    case Map.fetch(exec, pa.logical_id) do
+      {:ok, ex} ->
+        actuate_one(pa, ex)
+
+      :error ->
+        {:error,
+         %{
+           index: nil,
+           mode: :file,
+           out_path: pa.target,
+           reason: {:missing_exec_context, pa.logical_id}
+         }}
+    end
+  end
+
   defp actuate_eval_sequential(eval_indexed, exec) do
     {tagged_rev, final_igniter} =
       Enum.reduce(eval_indexed, {[], Igniter.new()}, fn {pa, i}, {acc_tagged, igniter_acc} ->

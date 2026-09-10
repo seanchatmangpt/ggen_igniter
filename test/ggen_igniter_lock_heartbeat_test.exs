@@ -86,36 +86,35 @@ defmodule GgenIgniter.LockHeartbeatTest do
     refute File.exists?(lock_path)
   end
 
-  test "a holder whose real process has genuinely died is immediately reclaimable, even with a fresh mtime" do
+  test "a holder whose real OS process has genuinely died is immediately reclaimable, even with a fresh mtime" do
     tmp_dir = scratch_dir!("dead_fresh_mtime")
     lock_path = Path.join(tmp_dir, @lock_subpath)
+    File.mkdir_p!(Path.dirname(lock_path))
 
-    parent = self()
+    # A real, separate OS process (`sh -c 'echo $$'`) whose pid we capture --
+    # by the time System.cmd/3 returns synchronously, that real subprocess
+    # has genuinely exited. This models the exact disclosed primary scenario
+    # (a separate `mix` OS process that crashed without reaching `release/1`)
+    # more faithfully than a same-VM `spawn/1`, whose lightweight-process
+    # death does not end the real OS pid the fix now keys liveness on.
+    {pid_output, 0} = System.cmd("sh", ["-c", "echo $$"])
+    dead_os_pid = String.trim(pid_output)
 
-    holder =
-      spawn(fn ->
-        {:ok, lock} = GgenIgniter.Lock.acquire(tmp_dir, timeout_ms: 5_000)
-        send(parent, {:acquired, lock})
-      end)
+    File.write!(
+      lock_path,
+      "pid=#{dead_os_pid} node=#{Node.self()} creation=0 " <>
+        "erlang_pid=#{inspect(self())} at=crashed-holder\n"
+    )
 
-    assert_receive {:acquired, %GgenIgniter.Lock{}}, 5_000
-
-    # Wait for the real process to genuinely exit -- it acquires and returns
-    # immediately without ever calling release/1, exactly the "crashed
-    # holder" scenario this whole mechanism exists for.
-    ref = Process.monitor(holder)
-    assert_receive {:DOWN, ^ref, :process, ^holder, _reason}, 5_000
-    refute Process.alive?(holder)
-
-    # The file's mtime is genuinely fresh (just written by the now-dead
-    # holder moments ago) -- if mtime-age were the only signal this test
-    # would fail with a timeout, proving PID-liveness is checked first.
+    # The file's mtime is genuinely fresh (just written) -- if mtime-age
+    # were the only signal this would fail with a timeout, proving
+    # PID-liveness (the real, dead OS pid) is checked first and wins.
     assert File.exists?(lock_path)
 
     assert {:ok, %GgenIgniter.Lock{} = new_lock} =
              GgenIgniter.Lock.acquire(tmp_dir, timeout_ms: 2_000, retry_interval_ms: 10)
 
-    assert File.read!(lock_path) =~ "erlang_pid=#{inspect(self())}"
+    assert File.read!(lock_path) =~ "pid=#{System.pid()}"
 
     :ok = GgenIgniter.Lock.release(new_lock)
     refute File.exists?(lock_path)
