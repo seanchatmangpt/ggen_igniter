@@ -196,6 +196,47 @@ defmodule GgenIgniter.DoctorTaskTest do
     end
   end
 
+  test "mix ggen_igniter.doctor reports no lock held when .ggen_igniter/.sync.lock is absent" do
+    lock_path = GgenIgniter.Lock.lock_path(File.cwd!())
+    refute File.exists?(lock_path), "expected no real lock file before this test runs"
+
+    {output, exit_code} =
+      System.cmd("mix", ["ggen_igniter.doctor"], cd: File.cwd!(), stderr_to_stdout: true)
+
+    assert exit_code == 0, "mix ggen_igniter.doctor failed:\n#{output}"
+    assert output =~ "✔ no lock held"
+  end
+
+  test "mix ggen_igniter.doctor reports a real stale lock as a warning, never a hard failure" do
+    project_dir = File.cwd!()
+    lock_path = GgenIgniter.Lock.lock_path(project_dir)
+    File.mkdir_p!(Path.dirname(lock_path))
+
+    # A real stale marker: a `node=` that doesn't match this node forces
+    # `holder_pid_status/1`'s real :unknown fallback, and an old mtime (set
+    # via `File.touch!/2`, a real filesystem mtime write) pushes it past
+    # `GgenIgniter.Lock`'s real 5-minute `@stale_after_ms` threshold.
+    File.write!(lock_path, "pid=99999 node=nonexistent@nowhere erlang_pid=#PID<0.1.0> at=2020-01-01T00:00:00Z\n")
+    old_time = System.os_time(:second) - 600
+    File.touch!(lock_path, old_time)
+
+    try do
+      assert GgenIgniter.Lock.stale_lock?(lock_path),
+             "expected the real lock file this test just wrote to be reported stale"
+
+      {output, exit_code} =
+        System.cmd("mix", ["ggen_igniter.doctor"], cd: project_dir, stderr_to_stdout: true)
+
+      assert exit_code == 0,
+             "a stale lock must warn, never hard-fail mix ggen_igniter.doctor:\n#{output}"
+
+      assert output =~ ~r/⚠ stale lock .*\.ggen_igniter\/\.sync\.lock/
+      assert output =~ "no --force-unlock flag exists"
+    after
+      File.rm(lock_path)
+    end
+  end
+
   test "GgenIgniter.DoctorFixes.check_version_policy/1 matches this project's real current " <>
          "mix.exs/CHANGELOG.md state directly (no subprocess)" do
     project_dir = File.cwd!()

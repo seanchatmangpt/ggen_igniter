@@ -141,14 +141,33 @@ defmodule GgenIgniter.Lock do
     :ok
   end
 
-  defp lock_path(lock_key), do: Path.join(lock_key, @lock_subpath)
+  @doc """
+  Resolves the real, canonical lock file path for `lock_key` (a directory --
+  typically `--manifest-dir` or `File.cwd!/0`). Public so callers that need to
+  check a lock's existence/staleness without racing `acquire/2` (e.g. `mix
+  ggen_igniter.doctor`'s read-only check 18) don't have to re-derive
+  `@lock_subpath` themselves.
+  """
+  @spec lock_path(String.t()) :: String.t()
+  def lock_path(lock_key), do: Path.join(lock_key, @lock_subpath)
 
   defp holder_marker do
     "pid=#{System.pid()} node=#{Node.self()} erlang_pid=#{inspect(self())} " <>
       "at=#{DateTime.utc_now() |> DateTime.to_iso8601()}\n"
   end
 
-  defp stale_lock?(path) do
+  @doc """
+  Real, read-only staleness check for the lock file at `path` -- same
+  PID-liveness-first, mtime-age-fallback logic `do_acquire/4` uses internally
+  before breaking a stale lock, exposed publicly so a read-only caller (e.g.
+  `mix ggen_igniter.doctor`'s check 18) can report staleness without
+  attempting to acquire (and thus without a doctor-owned side effect on a
+  lock file it must never mutate -- doctor is read-only per this module's own
+  moduledoc). Returns `false` (never stale-blocking) when the file is
+  missing, matching `do_acquire/4`'s own vanished-file handling.
+  """
+  @spec stale_lock?(String.t()) :: boolean()
+  def stale_lock?(path) do
     case File.stat(path, time: :posix) do
       {:ok, %File.Stat{mtime: mtime}} ->
         case holder_pid_status(path) do
@@ -186,8 +205,15 @@ defmodule GgenIgniter.Lock do
   # real and disclosed cross-node limitation); returns `:unknown` (meaning
   # "fall back to mtime-age") for every other case: file unreadable, marker
   # missing/unparseable, or a recorded node that isn't `Node.self()`.
+  @doc """
+  Reads the lock file's `node=`/`erlang_pid=` marker and resolves real
+  liveness for real via `Process.alive?/1`. Public for the same read-only
+  caller reason as `stale_lock?/1` -- `mix ggen_igniter.doctor`'s check 18
+  names the real holder in its info/warn line without duplicating this
+  parsing logic.
+  """
   @spec holder_pid_status(String.t()) :: :alive | :dead | :unknown
-  defp holder_pid_status(path) do
+  def holder_pid_status(path) do
     with {:ok, content} <- File.read(path),
          [_, node_str] <- Regex.run(~r/node=(\S+)/, content),
          true <- node_str == to_string(Node.self()),

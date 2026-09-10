@@ -273,7 +273,8 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         [
           tag("git_status", check_git_status()),
           tag("nif_compiles", check_nif_compiles()),
-          tag("oxigraph_smoke_test", check_oxigraph_smoke_test())
+          tag("oxigraph_smoke_test", check_oxigraph_smoke_test()),
+          tag("lock_status", check_lock_status())
         ] ++
         maybe_check_hex_publish(opts)
 
@@ -770,6 +771,35 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
     end
   rescue
     error -> {:warn, "not a git repo (or git not on PATH): #{Exception.message(error)}"}
+  end
+
+  # 18. GgenIgniter.Lock's real .ggen_igniter/.sync.lock file, checked
+  # read-only against the CURRENT project (File.cwd!()) -- doctor never
+  # calls Lock.acquire/2 or deletes the file itself (per this module's own
+  # moduledoc, checks 4-7/17 are the only real `--fix` mutators; a lock held
+  # by another live invocation is advisory information, not a defect).
+  defp check_lock_status do
+    path = GgenIgniter.Lock.lock_path(File.cwd!())
+
+    if File.exists?(path) do
+      if GgenIgniter.Lock.stale_lock?(path) do
+        {:warn,
+         "stale lock #{inspect(path)} (#{holder_marker_line(path)}) -- the next " <>
+           "`mix ggen_igniter.sync`/`.replay` acquire/2 call anywhere against this " <>
+           "project will automatically remove it (no --force-unlock flag exists)"}
+      else
+        {:ok, "lock held (#{holder_marker_line(path)}) -- live/recent, not stale"}
+      end
+    else
+      {:ok, "no lock held"}
+    end
+  end
+
+  defp holder_marker_line(path) do
+    case File.read(path) do
+      {:ok, content} -> content |> String.split("\n", trim: true) |> List.first() || "unknown"
+      {:error, _} -> "unknown"
+    end
   end
 
   # 14. native/ggen_graph_nif compiles / is up to date
