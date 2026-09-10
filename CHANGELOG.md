@@ -1,5 +1,42 @@
 # Changelog
 
+## v26.9.9
+
+Real in-process auto-formatting for generated Elixir content:
+- `ReconcileReactor.render_target/3` now runs rendered `mode: :file` target content
+  through a new private `format_generated_content/2` step immediately after
+  rendering. Output whose path ends in `.ex`/`.exs` is piped through
+  `Code.format_string!/1` and `IO.iodata_to_binary/1`, then given a trailing
+  newline, before it reaches `PendingActuation` -- eliminating the need for a manual
+  `mix format` pass after `mix ggen_igniter.sync`. Non-Elixir output (`.json`,
+  `.md`, etc.) is returned byte-identical.
+- A `Code.format_string!/1` failure on unparseable content is rescued: the original
+  unformatted content is written instead and a `Logger.warning/1` names the target
+  path and exception, so a formatter edge case never blocks an otherwise-successful
+  sync. `mix compile --warnings-as-errors` (the `:verify` step) remains the
+  load-bearing correctness gate for generated Elixir.
+- `require Logger` added to `ReconcileReactor`; moduledoc's `:verify` scope section
+  rewritten to describe the new formatting step in place of the old
+  deferred-`mix format` language.
+- Fix: `format_generated_content/2` is now applied only to non-inject `mode: :file`
+  targets. For `inject: true` targets, `content` is just the spliced-in snippet, not
+  the whole file -- running `Code.format_string!/1` on that snippet in isolation
+  formats it as top-level code (stripping the indentation the surrounding anchor
+  context needs), since it has no visibility into where `Actuate.inject_content!/5`
+  (a purely line-based splice, run later at `:actuate` time) will place it. Confirmed
+  by direct comparison: formatting the full post-splice file produces correct
+  indentation, but formatting the isolated snippet does not. Injected content is
+  spliced raw (unformatted), exactly as it was before this auto-formatter existed.
+- New Chicago-style test coverage in
+  `test/ggen_igniter_reconcile_reactor_format_test.exs` (245 lines, real
+  `ReconcileReactor.run/1` against a real scratch Mix project on disk, no mocking):
+  badly-indented valid Elixir is written already reformatted; a `.json` target's
+  irregular spacing is preserved untouched; and deliberately invalid Elixir is
+  still written unformatted by the rescue path but the run still returns
+  `{:error, receipt}` with `receipt.standing == :build_broken` via the real
+  `mix compile --warnings-as-errors` gate, with the existing undo/compensation
+  mechanism deleting the written file.
+
 ## v26.9.8
 
 Generative Ash Manufacturing certification and zero vocabulary drift release:

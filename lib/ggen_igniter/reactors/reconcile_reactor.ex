@@ -1437,7 +1437,6 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         out_path = Render.render(out_template, t.bindings)
         recipe_key = Manifest.recipe_key(t.template_path, out_template)
         old_entry = Manifest.get_entry(manifest, recipe_key)
-        content = format_generated_content(out_path, content)
 
         semantic_source = %{
           index: t.index,
@@ -1449,6 +1448,24 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         inject? = frontmatter != nil and (frontmatter.inject || false)
 
         if inject? do
+          # NOT run through `format_generated_content/2`: an inject target's
+          # `content` is only the spliced-in snippet, not the whole file --
+          # `Code.format_string!/1` on that snippet alone formats it as
+          # top-level code (0 indentation), discarding whatever indentation
+          # the surrounding anchor context needs, since it has no visibility
+          # into where `Actuate.inject_content!/5` (called later, at
+          # `:actuate` time, purely line-based) will splice it. Confirmed by
+          # direct comparison: formatting the FULL post-splice file yields
+          # correctly-indented output, but formatting the isolated snippet
+          # does not -- this is a real formatting-context bug, not a stale
+          # test expectation. Reformatting an injected snippet correctly
+          # would require making the splice itself format-aware (or
+          # reformatting the whole file post-splice AND updating the
+          # idempotency comparison in `Actuate.already_present_at?/3` to
+          # match), which is out of scope for this fix; the raw
+          # (unformatted) snippet -- carrying whatever indentation the
+          # template itself specifies -- is spliced unchanged, exactly as
+          # before this auto-formatter existed.
           render_inject_target(
             t,
             base_dir,
@@ -1460,7 +1477,15 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
             exec
           )
         else
-          render_file_target(t, base_dir, out_path, content, old_entry, semantic_source, exec)
+          render_file_target(
+            t,
+            base_dir,
+            out_path,
+            format_generated_content(out_path, content),
+            old_entry,
+            semantic_source,
+            exec
+          )
         end
 
       :eval ->
