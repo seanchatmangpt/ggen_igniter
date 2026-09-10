@@ -11,12 +11,26 @@ defmodule GgenIgniter.Reconcile do
   module is the shared implementation; `GgenIgniter.Controller` calls
   `run/1` directly and adds only in-process state around it.
 
-  `Mix.Tasks.GgenIgniter.Sync` itself is left unchanged in this pass (a
-  separate, concurrent effort owns wiring the CLI to delegate here) -- so for
-  now this is a second entry point into the same real query engines/render/
-  actuate modules `sync.ex` already uses, not yet the CLI's own call path.
-  Once that wiring lands, `sync.ex`'s `igniter/1` and `GgenIgniter.Controller`
-  will both terminate in this one function.
+  The predicted convergence described in earlier revisions of this
+  moduledoc -- `sync.ex`'s `igniter/1` eventually delegating to this
+  module's `run/1` -- did not happen. `sync.ex`'s real mutating dispatch
+  path (`lib/mix/tasks/ggen_igniter.sync.ex`) is wired to
+  `GgenIgniter.Reactors.ReconcileReactor.run/1` instead (aliased at
+  `sync.ex:209`, dispatched at `sync.ex:982` via `dispatch_reactor_reconcile/2`
+  and `run_for_each_via_reactor!/7`) -- a separate Reactor-based
+  implementation that reuses this module's `build_bindings/1` helper and
+  mirrors its single-target bounded shape for parity, but never calls this
+  module's `run/1`. `sync.ex`'s own comments (e.g. around `sync.ex:551,559`)
+  still narrate a `GgenIgniter.Reconcile.run/1`-pipeline story as rationale,
+  but that story describes intent, not the actual call path.
+
+  This module's real callers today are `GgenIgniter.Controller`
+  (`Controller.reconcile/3` wraps this module's `run/1` directly, and
+  `sync.ex` will delegate to `Controller` when one is registered under the
+  name `GgenIgniter.Controller` -- see `sync.ex`'s "Controller delegation"
+  section) and this module's own tests. `Mix.Tasks.GgenIgniter.Sync`'s
+  default (no running `Controller`) reconciliation path terminates in
+  `ReconcileReactor.run/1`, not here.
 
   ## Deliberately bounded relative to `Mix.Tasks.GgenIgniter.Sync`
 

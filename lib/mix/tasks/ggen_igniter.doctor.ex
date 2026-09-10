@@ -599,10 +599,26 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   # `RuntimeError` a fix raises when it hits a shape it refuses to guess at,
   # turning that into a real `:error` check result instead of crashing the
   # whole doctor run.
+  #
+  # `--fix --dry-run`: every `DoctorFixes` transform writes the target file
+  # for real via `File.write!/2` (never through `igniter.rewrite`, since
+  # these operate on a plain `project_dir` path, not an `%Igniter{}` source
+  # map -- see the moduledoc), so `Igniter.do_or_dry_run/2` downstream in
+  # `super/1` never gets a chance to preview or gate these writes: by the
+  # time it runs, `run_checks/2` (called from `igniter/1`, which runs
+  # *before* `Igniter.Mix.Task`'s generated `run/1` calls `do_or_dry_run/2`)
+  # has already executed every fix. The global `dry_run` switch is declared
+  # in `Igniter.Mix.Task.Info.global_options/0` and merged into every
+  # `Igniter.Mix.Task`'s schema by `deps/igniter/lib/mix/task.ex`, so
+  # `opts[:dry_run]` here is real and already parsed -- honor it explicitly:
+  # `--fix --dry-run` degrades to the same inspect-only path as plain
+  # `--fix` would take without `--dry-run`, wrapping the `:warn` message so
+  # it reads as "would fix" rather than "run --fix to fix" (which would be
+  # confusing when `--fix` was in fact passed).
   defp fix_or_check(opts, check_fn, fix_fn) do
     project_dir = File.cwd!()
 
-    if opts[:fix] do
+    if opts[:fix] && !opts[:dry_run] do
       try do
         case fix_fn.(project_dir) do
           {:fixed, msg} -> {:ok, "FIXED: #{msg}"}
@@ -613,9 +629,18 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       end
     else
       case check_fn.(project_dir) do
-        {:ok, msg} -> {:ok, msg}
-        {:fixable, msg} -> {:warn, "#{msg} -- run `mix ggen_igniter.doctor --fix` to fix"}
-        {:unrecognized, msg} -> {:error, msg}
+        {:ok, msg} ->
+          {:ok, msg}
+
+        {:fixable, msg} ->
+          if opts[:fix] && opts[:dry_run] do
+            {:warn, "#{msg} -- would be fixed (--dry-run: no files were written)"}
+          else
+            {:warn, "#{msg} -- run `mix ggen_igniter.doctor --fix` to fix"}
+          end
+
+        {:unrecognized, msg} ->
+          {:error, msg}
       end
     end
   end

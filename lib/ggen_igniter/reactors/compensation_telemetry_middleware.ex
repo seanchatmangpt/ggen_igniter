@@ -21,17 +21,41 @@ defmodule GgenIgniter.Reactors.CompensationTelemetryMiddleware do
   and the `error/2` callback in `deps/reactor/lib/reactor/middleware.ex`,
   never invented)
 
-  `Reactor.Middleware.step_event()`'s real union includes (among others):
+  `Reactor.Middleware.step_event()`'s real union (middleware.ex lines 26-49)
+  includes the full real undo/compensate lifecycle emitted by
+  `deps/reactor/lib/reactor/executor/step_runner.ex`:
 
       | {:compensate_start, any}
       | {:compensate_error, error_or_errors}
+      | {:compensate_retry, any}
+      | :compensate_retry
+      | :compensate_complete
       | :undo_start
+      | {:undo_error, error_or_errors}
+      | {:undo_retry, any}
+      | :undo_retry
+      | :undo_complete
 
-  `event/3` below matches exactly these three real shapes (note
+  `event/3` below matches exactly these real shapes (note
   `{:compensate_start, any}` is a real 2-element tuple -- `{tag, reason}` --
   not a 3-element one; this module matches the type as actually defined in
   `middleware.ex`, not a guessed arity) and increments one real ETS counter
-  per shape: `:compensate_start`, `:compensate_error`, `:undo_start`.
+  per shape: `:compensate_start`, `:compensate_error`, `:compensate_retry`,
+  `:compensate_complete`, `:undo_start`, `:undo_error`, `:undo_retry`,
+  `:undo_complete`. Both the bare-atom and `{tag, reason}`-tuple forms of
+  `:undo_retry`/`:compensate_retry` are matched (step_runner.ex emits both
+  shapes from different call sites -- lines 116/120 and 284/293
+  respectively) and bump the SAME counter atom, since the caller-facing
+  question ("did an undo/compensate retry happen") doesn't depend on
+  whether step_runner.ex happened to attach a reason term that call.
+
+  This closes the real completeness gap (v26.9.1-gap-#7): previously only
+  the start/terminal-error edges of this lifecycle were counted, so an undo
+  that retried several times before completing produced no visible signal
+  beyond the single `:undo_start` bump -- a caller reading `counters/1`
+  could not distinguish "started and completed" from "started and still
+  retrying" from "started and errored". All eight real per-attempt events
+  are now counted independently.
 
   `error/2`'s real signature is `error(error_or_errors, context) :: :ok |
   {:error, any}`, where `error_or_errors` is the SAME real
@@ -119,6 +143,42 @@ defmodule GgenIgniter.Reactors.CompensationTelemetryMiddleware do
 
   def event(:undo_start, _step, context) do
     bump(run_id!(context), :undo_start)
+  end
+
+  # -- Real per-attempt undo/compensate events, added post-v26.9.1-gap-#7 --
+  # (cited from `deps/reactor/lib/reactor/executor/step_runner.ex` and the
+  # `step_event()` union in `deps/reactor/lib/reactor/middleware.ex` lines
+  # 26-49 -- these six are the SAME real undo/compensate lifecycle
+  # `:undo_start`/`{:compensate_start, _}`/`{:compensate_error, _}` above
+  # already track the start/terminal-error edges of; without these clauses
+  # every completion/retry signal for that same lifecycle silently fell into
+  # the catch-all below).
+  def event(:undo_complete, _step, context) do
+    bump(run_id!(context), :undo_complete)
+  end
+
+  def event({:undo_error, _error}, _step, context) do
+    bump(run_id!(context), :undo_error)
+  end
+
+  def event(:undo_retry, _step, context) do
+    bump(run_id!(context), :undo_retry)
+  end
+
+  def event({:undo_retry, _reason}, _step, context) do
+    bump(run_id!(context), :undo_retry)
+  end
+
+  def event(:compensate_complete, _step, context) do
+    bump(run_id!(context), :compensate_complete)
+  end
+
+  def event(:compensate_retry, _step, context) do
+    bump(run_id!(context), :compensate_retry)
+  end
+
+  def event({:compensate_retry, _reason}, _step, context) do
+    bump(run_id!(context), :compensate_retry)
   end
 
   def event(_other_event, _step, _context), do: :ok

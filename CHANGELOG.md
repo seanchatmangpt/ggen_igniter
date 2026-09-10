@@ -30,6 +30,40 @@ one post-swarm cross-check:
   separate `mix ggen_igniter.sync` OS processes racing the same `--manifest-dir`
   via `System.cmd/3` and asserting on real `manifest.json`/output-file state,
   complementary to the existing same-BEAM-node `ggen_igniter_lock_contention_test.exs`.
+- **Pre-publish hardening pass (harsh review, before `mix hex.publish`)**:
+  - `GgenIgniter.Lock` node-restart pid-reuse guard: `holder_marker/0` now also
+    records `creation=` (`:erlang.system_info(:creation)`) alongside `node=`;
+    `holder_pid_status/1` requires the recorded creation to match the current
+    node's before trusting `Process.alive?/1`, closing a real gap where a printed
+    `<A.B.C>` pid form (which doesn't encode node incarnation) could resolve
+    `:alive` against an unrelated process that reused that pid slot after a
+    same-name node restart. New Chicago-style test:
+    `test/ggen_igniter_lock_node_restart_pid_reuse_test.exs`.
+  - `CompensationTelemetryMiddleware` completeness gap closed: `event/3` now also
+    matches `:undo_complete`, `{:undo_error, _}`, `:undo_retry`/`{:undo_retry, _}`,
+    `:compensate_complete`, `:compensate_retry`/`{:compensate_retry, _}` -- the
+    full real undo/compensate lifecycle from `deps/reactor`'s
+    `step_runner.ex`/`middleware.ex`, not just the start/terminal-error edges
+    previously counted.
+  - `mix ggen_igniter.fortune5_ready`'s `serialize_step/1` now honors
+    `--dry-run`/`--yes` against `igniter.args.options` before writing
+    `ggen.toml` (previously an unconditional `File.write!/2` bypassing every
+    `Igniter.Mix.Task` global-option convention); shows a real
+    `String.myers_difference/2` diff and prompts for confirmation absent
+    `--yes`.
+  - `mix ggen_igniter.doctor --fix --dry-run` now degrades to inspect-only
+    (`"would be fixed (--dry-run: no files were written)"`) instead of silently
+    running every `DoctorFixes` transform's real `File.write!/2` regardless of
+    the flag.
+  - `GgenIgniter.Reconcile` moduledoc corrected: the predicted convergence with
+    `Mix.Tasks.GgenIgniter.Sync`'s dispatch path never happened -- `sync.ex`'s
+    real default path terminates in `ReconcileReactor.run/1`, not
+    `Reconcile.run/1`; doc now states the real call graph instead of stale
+    intent.
+  - Verification for this pass: `mix compile --warnings-as-errors` clean,
+    `mix test` 0 failures (834 tests, 42 properties, 20 doctests, 1 skipped),
+    `mix ggen_igniter.doctor` all checks passed including
+    `check_version_policy` MATCH.
 
 ## v26.9.9
 

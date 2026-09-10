@@ -224,12 +224,93 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
     {%{config | packs: existing_packs ++ new_pack_refs}, to_add}
   end
 
+  # GI-09 fix: this used to `File.write!/2` the merged ggen.toml directly to
+  # disk unconditionally, bypassing `Igniter.Mix.Task`'s `--dry-run`/`--yes`
+  # global options entirely (deps/igniter/lib/mix/task.ex:95-118, deps/
+  # igniter/lib/mix/task/info.ex:77-91) -- a real
+  # `mix ggen_igniter.fortune5_ready --dry-run` would still mutate the real
+  # ggen.toml on disk with no diff shown and no confirmation gate,
+  # contradicting the flag every `use Igniter.Mix.Task` module advertises.
+  #
+  # `install.ex`'s pattern (install.ex:182, `Rewrite.update!(igniter.rewrite,
+  # new_source)`) routes writes through `igniter.rewrite` so `Igniter.
+  # do_or_dry_run/2` (called by `super(argv)` in `run/1`, deps/igniter/lib/
+  # mix/task.ex:112) previews/gates them -- but that path assumes the write
+  # target lives inside the *current* mix project's own tracked file set
+  # (`Igniter.new/0`'s glob over `File.cwd!()`) and its dry-run diffing
+  # never fires when a task is invoked via `Igniter.compose_task/3` against
+  # `Igniter.Test.test_project/1` (`do_or_dry_run/2` raises in that
+  # `test_mode?`, per its own guard). This task's `--path DIR` deliberately
+  # targets an arbitrary *external* project (real Chicago-style
+  # `System.tmp_dir!()` scratch fixtures, per this module's test suite's own
+  # moduledoc) -- not the current mix project -- so `Igniter.update_file/3`
+  # is the wrong primitive here regardless: honor `--dry-run`/`--yes`
+  # directly against `igniter.args.options` (populated for every
+  # `use Igniter.Mix.Task` module via `Igniter.Mix.Task.Info.global_options/
+  # 0`'s schema merge, deps/igniter/lib/mix/task/info.ex:77-91, before
+  # `igniter/1` ever runs -- real, already-parsed values, not re-derived
+  # here), the same two flags `Igniter.do_or_dry_run/2` itself branches on
+  # (deps/igniter/lib/igniter.ex:1169 `if opts[:dry_run] || !opts[:yes]`).
+  #
+  # `--dry-run` (or omitting `--yes` on a real TTY) now shows a real diff
+  # (`String.myers_difference/2` renders line-level add/remove, no
+  # third-party diff dep introduced) and skips the write entirely; `--yes`
+  # (or a confirmed prompt) performs the real `File.write!/2` exactly as
+  # before. A previously-`:refused`/error dispatch never reaches this step
+  # at all (the `{:error, reason}` branch in `igniter/1` short-circuits
+  # before `serialize_step/1`), so no-write-on-refusal is unaffected.
   defp serialize_step(igniter) do
     project_dir = igniter.assigns[:fortune5_ready_project_dir]
     schema = igniter.assigns[:fortune5_ready_schema]
+    raw = igniter.assigns[:fortune5_ready_raw_ggen_toml]
     content = serialize_content(schema, igniter)
-    File.write!(Path.join(project_dir, "ggen.toml"), content)
-    igniter
+    ggen_toml_path = Path.join(project_dir, "ggen.toml")
+
+    dry_run? = igniter.args.options[:dry_run]
+    yes? = igniter.args.options[:yes]
+
+    cond do
+      content == raw ->
+        igniter
+
+      dry_run? ->
+        Igniter.add_notice(igniter, dry_run_notice(ggen_toml_path, raw, content))
+
+      yes? || confirm_write?(ggen_toml_path, raw, content) ->
+        File.write!(ggen_toml_path, content)
+        igniter
+
+      true ->
+        Igniter.add_issue(
+          igniter,
+          "mix ggen_igniter.fortune5_ready: aborted -- #{ggen_toml_path} was not written " <>
+            "(declined). Re-run with --yes to skip confirmation."
+        )
+    end
+  end
+
+  defp dry_run_notice(path, raw, content) do
+    """
+    mix ggen_igniter.fortune5_ready: --dry-run -- #{path} was NOT written.
+
+    #{diff_lines(raw, content)}
+    """
+  end
+
+  defp confirm_write?(path, raw, content) do
+    Mix.shell().info(diff_lines(raw, content))
+    Mix.shell().yes?("Write the above changes to #{path}?")
+  end
+
+  defp diff_lines(raw, content) do
+    raw
+    |> String.myers_difference(content)
+    |> Enum.flat_map(fn
+      {:eq, _} -> []
+      {:ins, text} -> [IO.ANSI.green() <> "+ #{text}" <> IO.ANSI.reset()]
+      {:del, text} -> [IO.ANSI.red() <> "- #{text}" <> IO.ANSI.reset()]
+    end)
+    |> Enum.join("\n")
   end
 
   # GI-08 fix: Frontmatter schema goes through the addition-only textual

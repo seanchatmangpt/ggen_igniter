@@ -49,3 +49,4 @@ erl_crash.dump
 /test/fixtures/book_library/lib/mix/tasks/
 /test/fixtures/book_library/lib/book_library/
 /test/fixtures/book_library/priv/
+tmp/

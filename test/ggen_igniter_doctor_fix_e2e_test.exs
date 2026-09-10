@@ -210,4 +210,60 @@ defmodule GgenIgniter.DoctorFixE2eTest do
     assert second_exit_code == 0,
            "expected the second doctor --fix run to be a genuine no-op (exit 0), got #{second_exit_code}:\n#{second_output}"
   end
+
+  test "mix ggen_igniter.doctor --fix --dry-run leaves config/config.exs byte-identical",
+       %{dir: dir} do
+    config_path = Path.join(dir, "config/config.exs")
+    before_content = File.read!(config_path)
+    refute before_content =~ "dcatr", "fixture should start without config :dcatr"
+
+    {output, exit_code} =
+      System.cmd("mix", ["ggen_igniter.doctor", "--fix", "--dry-run"],
+        cd: dir,
+        env: [{"MIX_ENV", "dev"}],
+        stderr_to_stdout: true
+      )
+
+    # Real regression check for the bug this test exists to catch: before
+    # the fix, `--fix`'s real `File.write!/2` calls in `DoctorFixes` ran
+    # unconditionally regardless of the global `--dry-run` switch, so
+    # `config/config.exs` was permanently mutated even under `--dry-run`.
+    after_content = File.read!(config_path)
+
+    assert after_content == before_content,
+           "expected --fix --dry-run to leave config/config.exs completely unmutated, " <>
+             "but its content changed:\nBEFORE:\n#{before_content}\nAFTER:\n#{after_content}"
+
+    refute after_content =~ "dcatr",
+           "expected --fix --dry-run to NOT actually add config :dcatr for real"
+
+    # A dry-run should still report what it *would* fix (not silently pass),
+    # exiting 0 as a warning/preview -- never crashing or claiming it fixed
+    # anything for real.
+    refute output =~ "FIXED: added `config :dcatr",
+           "dry-run must never claim a real FIXED for a write it did not perform:\n#{output}"
+
+    assert output =~ "dcatr" and output =~ "would be fixed",
+           "expected the dry-run output to preview the dcatr fix as pending, not silent:\n#{output}"
+
+    assert exit_code == 0,
+           "expected --fix --dry-run to exit 0 (a fixable/warn result, not an error), got #{exit_code}:\n#{output}"
+
+    # A real, subsequent (non-dry-run) --fix against the SAME fixture still
+    # applies the fix for real -- proving --dry-run only skipped the write,
+    # it didn't corrupt or short-circuit the rule engine for later runs.
+    {real_output, real_exit_code} =
+      System.cmd("mix", ["ggen_igniter.doctor", "--fix"],
+        cd: dir,
+        env: [{"MIX_ENV", "dev"}],
+        stderr_to_stdout: true
+      )
+
+    assert real_output =~ "FIXED: added `config :dcatr, env: Mix.env()`",
+           "expected the real (non-dry-run) --fix run after a --dry-run preview to still " <>
+             "apply the fix for real:\n#{real_output}"
+
+    assert real_exit_code == 0
+    assert File.read!(config_path) =~ "config :dcatr, env: Mix.env()"
+  end
 end

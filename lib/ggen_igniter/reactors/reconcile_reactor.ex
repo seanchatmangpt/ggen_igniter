@@ -530,11 +530,24 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   end
 
   # side_effect: mutating -- the ONLY step that writes real files
-  # (`Actuate.write_file!/3`, `eval_code!/2`). `max_retries 0`: an
-  # actuation-class step must never be silently retried by Reactor after a
-  # failure (`run/3` already self-heals partial writes from ITS OWN failure
-  # before returning `{:error, _}`; the real rollback-on-a-LATER-step-failure
-  # path is `undo/4` below, not a Reactor-driven re-run of `run/3`). Real
+  # (`Actuate.write_file!/3`, `eval_code!/2`). This step is never silently
+  # retried by Reactor after a failure -- but NOT because of `max_retries(0)`
+  # below. Per `deps/reactor/lib/reactor/executor/step_runner.ex`'s
+  # `maybe_compensate/5` + `handle_compensate_result/5`, Reactor only enters
+  # its retry loop (the loop `max_retries` bounds, via
+  # `deps/reactor/lib/reactor/executor/{sync,async}.ex`'s retry-counter
+  # check) when a step's `compensate/1..3` callback itself returns
+  # `:retry`/`{:retry, reason}`. This step's own `compensate/4` below
+  # unconditionally returns `:ok` regardless of `_reason`, and
+  # `handle_compensate_result(:ok, ...)` (step_runner.ex) turns that into a
+  # final `{:error, error}`, never `:retry` -- so the retry branch
+  # `max_retries` gates is structurally unreachable here regardless of its
+  # value. `max_retries(0)` is set anyway as a stated, explicit intent (belt
+  # alongside the actually load-bearing suspenders: this compensate body
+  # never returning `:retry`), not because it does independent work.
+  # `run/3` already self-heals partial writes from ITS OWN failure before
+  # returning `{:error, _}`; the real rollback-on-a-LATER-step-failure path
+  # is `undo/4` below, not a Reactor-driven re-run of `run/3`. Real
   # `compensate/4` + `undo/4` both defined (see below).
   step :actuate do
     argument(:admitted, result(:admit))
@@ -612,10 +625,17 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # side_effect: observing -- real `mix compile` subprocess against the
   # actuated project (does write build artifacts under `_build/`, but never
   # touches the tracked/undoable project files this pipeline reasons about);
-  # its purpose is to CHECK the actuated state, not extend it.
-  # `max_retries 0`: a failed compile is a genuine, non-transient signal
-  # (`:build_broken`) this pipeline's compensation exists to protect
-  # against -- it must never be silently retried by Reactor.
+  # its purpose is to CHECK the actuated state, not extend it. A failed
+  # compile is a genuine, non-transient signal (`:build_broken`) this
+  # pipeline's compensation exists to protect against -- it is never
+  # silently retried by Reactor, but NOT because of `max_retries(0)` below:
+  # this step defines no `compensate/1..3` at all, so
+  # `Step.can?(step, :compensate)` is false and Reactor's own
+  # `maybe_compensate/5` (`deps/reactor/lib/reactor/executor/step_runner.ex`)
+  # short-circuits straight to `{:error, error}` without ever entering the
+  # retry loop `max_retries` bounds. `max_retries(0)` is set anyway as
+  # stated, explicit intent to match the actuation-class steps, not because
+  # it does independent work here.
   step :verify do
     argument(:actuated, result(:actuate))
     argument(:reconcile_opts, input(:reconcile_opts))
@@ -675,16 +695,23 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   # side_effect: mutating -- real evidence writes (`Receipt.append!/2` FIRST,
   # then `Manifest.persist!/2`'s atomic rename, then any real `on_stale:
-  # :prune` deletions -- see `finalize_evidence/1` and correction B).
-  # `max_retries 0`, hardened to match `:actuate`/`:verify` (both explicit
-  # actuation-class steps): this step performs real, durable side effects
-  # (an append-only receipt write, an atomic manifest rename, real file
-  # deletion) that must never be silently re-run by Reactor after a
-  # failure -- a retried `Receipt.append!/2` in particular would append a
-  # second, redundant line to the same real receipt log rather than fail
-  # cleanly. No `compensate/4`/`undo/4` of its own: nothing this step writes
-  # needs reverting on ITS OWN failure (see `finalize_evidence/1`'s ordering
-  # -- the receipt is only durable once genuinely complete), and it is the
+  # :prune` deletions -- see `finalize_evidence/1` and correction B). This
+  # step performs real, durable side effects (an append-only receipt write,
+  # an atomic manifest rename, real file deletion) that are never silently
+  # re-run by Reactor after a failure -- a retried `Receipt.append!/2` in
+  # particular would append a second, redundant line to the same real
+  # receipt log rather than fail cleanly. As with `:verify`, this is NOT
+  # because of `max_retries(0)` below: this step defines no
+  # `compensate/1..3` at all, so `Step.can?(step, :compensate)` is false and
+  # Reactor's own `maybe_compensate/5`
+  # (`deps/reactor/lib/reactor/executor/step_runner.ex`) short-circuits
+  # straight to `{:error, error}` without ever entering the retry loop
+  # `max_retries` bounds. `max_retries(0)` is set anyway, hardened to match
+  # `:actuate`/`:verify` (both explicit actuation-class steps) as stated,
+  # explicit intent, not because it does independent work here. No
+  # `compensate/4`/`undo/4` of its own: nothing this step writes needs
+  # reverting on ITS OWN failure (see `finalize_evidence/1`'s ordering --
+  # the receipt is only durable once genuinely complete), and it is the
   # pipeline's terminal step, so no later step's failure can ever trigger an
   # `undo/4` against it.
   step :finalize_evidence do

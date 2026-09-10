@@ -58,7 +58,12 @@ defmodule GgenIgniterFortune5ReadyTaskTest do
   end
 
   defp run_task!(scratch_dir, extra_argv \\ []) do
-    argv = ["--path", scratch_dir, "--bundle-path", @bundle_path] ++ extra_argv
+    # GI-09: `serialize_step/1` now honors `--dry-run`/`--yes` for real (it
+    # used to `File.write!/2` unconditionally) -- every non-interactive
+    # caller of this task, tests included, must pass `--yes` to get the
+    # same real on-disk write these tests assert against; a dedicated
+    # `--dry-run` case below exercises the no-write path explicitly.
+    argv = ["--path", scratch_dir, "--bundle-path", @bundle_path, "--yes"] ++ extra_argv
 
     test_project()
     |> Igniter.compose_task("ggen_igniter.fortune5_ready", argv)
@@ -224,6 +229,47 @@ defmodule GgenIgniterFortune5ReadyTaskTest do
             "(named, visible skip, no mock substitution)."
         )
       end
+    end
+  end
+
+  describe "GI-09: --dry-run does not mutate ggen.toml on disk" do
+    test "a real --dry-run run leaves the real ggen.toml byte-identical and writes nothing" do
+      dir = scratch_project_dir("dry_run")
+      write_frontmatter_project!(dir, @ontology_with_thing)
+      on_exit(fn -> File.rm_rf!(dir) end)
+
+      ggen_toml_path = Path.join(dir, "ggen.toml")
+      raw_before = File.read!(ggen_toml_path)
+
+      # `--path` + `--bundle-path` only, `--dry-run` in place of the
+      # `--yes` `run_task!/2` normally injects -- exercises exactly the
+      # regression this fix closes: before GI-09, `serialize_step/1` called
+      # `File.write!/2` unconditionally and `--dry-run` had no effect on
+      # the real ggen.toml on disk.
+      igniter =
+        test_project()
+        |> Igniter.compose_task("ggen_igniter.fortune5_ready", [
+          "--path",
+          dir,
+          "--bundle-path",
+          @bundle_path,
+          "--dry-run"
+        ])
+
+      assert igniter.issues == []
+      assert Enum.any?(igniter.notices, &(&1 =~ "--dry-run"))
+      assert Enum.any?(igniter.notices, &(&1 =~ "NOT written"))
+
+      # Real state on real disk, read back after the run -- the actual
+      # regression check, not an in-memory assertion on the igniter struct.
+      raw_after = File.read!(ggen_toml_path)
+      assert raw_after == raw_before
+
+      # The merge itself never landed: re-parsing the real file still shows
+      # the bundle packs absent.
+      assert {:frontmatter, config} = GgenIgniter.SchemaDispatch.load(dir)
+      refute Map.has_key?(config.packs, "fixture-pack-a")
+      refute Map.has_key?(config.packs, "fixture-pack-b")
     end
   end
 
