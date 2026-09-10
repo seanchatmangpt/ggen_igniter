@@ -410,6 +410,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     ShellHook
   }
 
+  alias GgenIgniter.Render.TeraWasm
+
   alias GgenIgniter.Telemetry.OcelEmitter
 
   require Logger
@@ -1436,10 +1438,26 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     end)
   end
 
+  # Additive dispatch: a `.tera`-suffixed template renders through the real
+  # WASM `tera` engine
+  # (`GgenIgniter.Render.TeraWasm`); every other template keeps rendering
+  # through the existing stdlib-EEx `GgenIgniter.Render.render/2` path,
+  # unchanged. Mirrors `GgenIgniter.Reconcile`'s own `render_content/3`.
+  defp render_body(template_path, body, bindings) do
+    if TeraWasm.tera_template?(template_path, body) do
+      case TeraWasm.render(body, bindings) do
+        {:ok, rendered} -> rendered
+        {:error, reason} -> raise "GgenIgniter.Render.TeraWasm: #{inspect(reason)}"
+      end
+    else
+      Render.render(body, bindings)
+    end
+  end
+
   defp render_target(t, manifest, base_dir) do
     raw_template = File.read!(t.template_path)
     {frontmatter, _frontmatter_mode, body} = Frontmatter.split_template(raw_template)
-    content = Render.render(body, t.bindings)
+    content = render_body(t.template_path, body, t.bindings)
 
     exec = %{
       index: t.index,

@@ -84,6 +84,7 @@ defmodule GgenIgniter.Reconcile do
   """
 
   alias GgenIgniter.{Actuate, Engine, Ontology, Pack, Render}
+  alias GgenIgniter.Render.TeraWasm
 
   @type result :: %{
           engine: String.t(),
@@ -118,7 +119,7 @@ defmodule GgenIgniter.Reconcile do
     total_rows = named_results |> Enum.map(fn {_name, rows} -> length(rows) end) |> Enum.sum()
 
     bindings = build_bindings(named_results)
-    content = Render.render(template_string, bindings)
+    content = render_content(template_path, template_string, bindings)
 
     mode = resolve_mode!(opts)
     {out_path, outcome, value, notice} = actuate!(mode, content, bindings, opts)
@@ -283,6 +284,22 @@ defmodule GgenIgniter.Reconcile do
   # merge in last, so it is the single-clause case of that logic).
   @doc false
   @spec build_bindings([{String.t(), [map()]}]) :: keyword()
+  # Additive dispatch: a `.tera`-suffixed template renders through the real
+  # WASM `tera` engine
+  # (`GgenIgniter.Render.TeraWasm`); every other template keeps rendering
+  # through the existing stdlib-EEx `GgenIgniter.Render.render/2` path,
+  # unchanged.
+  defp render_content(template_path, template_string, bindings) do
+    if TeraWasm.tera_template?(template_path, template_string) do
+      case TeraWasm.render(template_string, bindings) do
+        {:ok, rendered} -> rendered
+        {:error, reason} -> raise "GgenIgniter.Render.TeraWasm: #{inspect(reason)}"
+      end
+    else
+      Render.render(template_string, bindings)
+    end
+  end
+
   def build_bindings(named_results) do
     list_bindings = Enum.map(named_results, fn {name, rows} -> {String.to_atom(name), rows} end)
 

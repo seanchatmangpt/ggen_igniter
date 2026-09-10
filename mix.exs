@@ -187,7 +187,16 @@ defmodule GgenIgniter.MixProject do
       # dropping or renaming its own `:jason` requirement out from under this
       # project (the exact silent-breakage shape the `:igniter`/`:reactor`
       # comments above document for other deps).
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      # Real WASM host runtime for `GgenIgniter.Render.TeraWasm`
+      # (`lib/ggen_igniter/render/tera_wasm.ex`), which drives the compiled
+      # `native/tera_wasm_renderer` wasm32-wasip1 module (the real `tera`
+      # crate) to render Tera-syntax templates -- not optional/dev-only,
+      # `.tera`-suffixed templates route through this path at runtime in
+      # `GgenIgniter.Reconcile.run/1` and `ReconcileReactor.render_target/3`,
+      # same reasoning as `:jason` above. Version floor checked against
+      # hex.pm's real package index (2026-09; latest published is 0.15.1).
+      {:wasmex, "~> 0.9"}
     ]
   end
 
