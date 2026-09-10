@@ -100,6 +100,46 @@ defmodule GgenIgniter.FrontierReleasePlanTest do
       assert {:ok, []} = FrontierReleasePlan.do_intents(plan)
     end
 
+    test "selects the newly appended plan when the source already carries an older Frontier projection" do
+      prior_projection = %{
+        "kind" => "frontier_release_response_plan",
+        "opportunity_id" => "older-frontier-release",
+        "steps" => [
+          %{
+            "id" => "older-repository-create",
+            "class" => "DO",
+            "broker_required" => true,
+            "receipt_required" => true,
+            "required_authority" => "create_repository",
+            "executable" => "gh",
+            "argv" => ["repo", "create", "seanchatmangpt/older-frontier-response"]
+          }
+        ]
+      }
+
+      source_with_prior =
+        source_shape()
+        |> RuntimeShape.to_map()
+        |> Map.put("projections", [prior_projection])
+        |> RuntimeShape.new!()
+
+      assert {:ok, plan} = FrontierReleasePlan.new(source_with_prior, create_attrs())
+      assert {:ok, steps} = FrontierReleasePlan.steps(plan)
+
+      assert Enum.map(steps, & &1["id"]) == [
+               "scaffold-local-project",
+               "manufacture-from-pack",
+               "verify-local-project",
+               "create-github-repository"
+             ]
+
+      refute Enum.any?(steps, &(&1["id"] == "older-repository-create"))
+      assert {:ok, [repository_intent]} = FrontierReleasePlan.do_intents(plan)
+      assert repository_intent["id"] == "create-github-repository"
+      assert repository_intent["broker_required"] == true
+      assert repository_intent["receipt_required"] == true
+    end
+
     test "construct_intents excludes verification and consequential DO" do
       assert {:ok, plan} = FrontierReleasePlan.new(source_shape(), create_attrs())
       assert {:ok, construct} = FrontierReleasePlan.construct_intents(plan)
