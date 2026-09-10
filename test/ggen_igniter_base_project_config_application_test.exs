@@ -53,8 +53,7 @@ defmodule GgenIgniterBaseProjectConfigApplicationTest do
         Igniter.Test.test_project(
           files: %{
             "mix.exs" => real_ex4pm_mix_exs(),
-            "lib/ex4pm/application.ex" =>
-              Ex4pmFixture.read!("lib/ex4pm/application.ex")
+            "lib/ex4pm/application.ex" => Ex4pmFixture.read!("lib/ex4pm/application.ex")
           }
         )
 
@@ -75,8 +74,7 @@ defmodule GgenIgniterBaseProjectConfigApplicationTest do
         Igniter.Test.test_project(
           files: %{
             "mix.exs" => real_ex4pm_mix_exs(),
-            "lib/ex4pm/application.ex" =>
-              Ex4pmFixture.read!("lib/ex4pm/application.ex")
+            "lib/ex4pm/application.ex" => Ex4pmFixture.read!("lib/ex4pm/application.ex")
           }
         )
 
