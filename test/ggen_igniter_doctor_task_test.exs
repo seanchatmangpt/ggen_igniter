@@ -216,7 +216,11 @@ defmodule GgenIgniter.DoctorTaskTest do
     # `holder_pid_status/1`'s real :unknown fallback, and an old mtime (set
     # via `File.touch!/2`, a real filesystem mtime write) pushes it past
     # `GgenIgniter.Lock`'s real 5-minute `@stale_after_ms` threshold.
-    File.write!(lock_path, "pid=99999 node=nonexistent@nowhere erlang_pid=#PID<0.1.0> at=2020-01-01T00:00:00Z\n")
+    File.write!(
+      lock_path,
+      "pid=99999 node=nonexistent@nowhere erlang_pid=#PID<0.1.0> at=2020-01-01T00:00:00Z\n"
+    )
+
     old_time = System.os_time(:second) - 600
     File.touch!(lock_path, old_time)
 
