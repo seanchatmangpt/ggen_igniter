@@ -201,6 +201,8 @@ defmodule GgenIgniter.Receipt do
           completed_at: String.t() | nil
         }
 
+  require Logger
+
   @enforce_keys [:id, :standing, :started_at, :finished_at]
   defstruct id: nil,
             recipe_key: nil,
@@ -507,6 +509,20 @@ defmodule GgenIgniter.Receipt do
   partially overwritten. See `GgenIgniter.Reactors.ReconcileReactor`'s
   moduledoc for why this receipt append happens BEFORE, and independent of,
   any manifest promotion.
+
+  ## Self-locking, independent of any caller-held lock
+
+  This function does NOT rely on the caller already holding
+  `GgenIgniter.Lock` for `base_dir` -- it acquires its OWN real,
+  file-based `GgenIgniter.Lock` (keyed on `dir(base_dir)`, the actual
+  receipts directory this call is about to write into -- `Lock.acquire/2`
+  itself canonicalizes that key via `Path.expand/1`) around the
+  encode+append, and releases it in an `after` block unconditionally. Two
+  OS processes (or two BEAM processes) calling `append!/2` against the
+  same `base_dir` now serialize on this lock before either one opens the
+  `.jsonl` partition for writing, so no two `File.write!/3` calls can ever
+  race against the same partition file -- regardless of what lock, if any,
+  either caller separately believes it already holds.
   """
   @spec append!(String.t(), t()) :: :ok
   def append!(base_dir, %__MODULE__{} = receipt) do
@@ -527,7 +543,15 @@ defmodule GgenIgniter.Receipt do
     File.mkdir_p!(Path.dirname(receipt_path))
 
     line = Jason.encode!(to_json_map(receipt)) <> "\n"
-    File.write!(receipt_path, line, [:append])
+
+    {:ok, lock} = GgenIgniter.Lock.acquire(dir(base_dir))
+
+    try do
+      File.write!(receipt_path, line, [:append])
+    after
+      GgenIgniter.Lock.release(lock)
+    end
+
     :ok
   end
 
@@ -538,6 +562,17 @@ defmodule GgenIgniter.Receipt do
   chronological attempt history). Returns `[]` (not an error) when no
   receipts directory exists yet -- the honest "no attempts recorded yet"
   state, matching `GgenIgniter.Manifest.load/1`'s same "first run" honesty.
+
+  ## Defensive against a torn/unparseable line
+
+  Each line is decoded with `Jason.decode/1` (not the raising
+  `decode!/1`) -- a line that fails to parse (e.g. a genuinely torn line
+  left behind by a crash mid-write, or defense-in-depth on top of
+  `append!/2`'s own self-locking, see that function's moduledoc) is
+  skipped rather than raising and losing every OTHER well-formed receipt
+  in the same partition. Each skipped line is reported via
+  `Logger.warning/1` (file, line number, and reason) so the corruption is
+  visible rather than silently swallowed.
   """
   @spec read_all!(String.t()) :: [map()]
   def read_all!(base_dir) do
@@ -549,11 +584,28 @@ defmodule GgenIgniter.Receipt do
         |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
         |> Enum.sort()
         |> Enum.flat_map(fn filename ->
-          receipts_dir
-          |> Path.join(filename)
+          path = Path.join(receipts_dir, filename)
+
+          path
           |> File.read!()
           |> String.split("\n", trim: true)
-          |> Enum.map(&Jason.decode!/1)
+          |> Enum.with_index(1)
+          |> Enum.flat_map(fn {line, line_no} ->
+            case Jason.decode(line) do
+              {:ok, decoded} ->
+                [decoded]
+
+              {:error, reason} ->
+                Logger.warning(
+                  "GgenIgniter.Receipt.read_all!/1: skipping unparseable line " <>
+                    "#{line_no} in #{path} (#{inspect(reason)}) -- likely a torn " <>
+                    "line from a crash mid-write; discarding it rather than " <>
+                    "raising and losing every other receipt in this partition."
+                )
+
+                []
+            end
+          end)
         end)
 
       {:error, :enoent} ->

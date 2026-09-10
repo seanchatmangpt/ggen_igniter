@@ -1,16 +1,28 @@
 defmodule GgenIgniter.LockHeartbeatTest do
   @moduledoc """
   Chicago-style: real lock files on disk, a real spawned Elixir process
-  holding the lock, no mocked clock and no mocked `Process.alive?/1`.
+  holding the lock, no mocked clock and no mocked liveness primitive.
   Exercises the real fix for the gap GAPS-TO-FILL.v26.9.1.md #6 describes: a
-  legitimately slow same-node holder whose lock file's mtime has aged past
+  legitimately slow holder whose lock file's mtime has aged past
   `@stale_after_ms` (5 minutes) must NOT have its lock stolen by a second
   concurrent `GgenIgniter.Lock.acquire/2` caller, because
-  `GgenIgniter.Lock`'s real `holder_pid_status/1` resolves the holder's
-  `erlang_pid=` marker via `:erlang.list_to_pid/1` and checks
-  `Process.alive?/1` for real before ever consulting mtime-age. Conversely, a
-  holder process that has genuinely exited is immediately reclaimable even
-  with a fresh mtime.
+  `GgenIgniter.Lock`'s real `holder_pid_status/1` resolves the holder's real
+  OS pid (`pid=`, `System.pid()`) via a real `kill -0` probe before ever
+  consulting mtime-age -- see `GgenIgniter.LockOsPidLivenessTest` for why this
+  is OS-pid-based rather than `Process.alive?/1` on the informational
+  `erlang_pid=` field: this module's disclosed primary scenario is two
+  separate OS processes/BEAM VMs, and `Process.alive?/1` only ever inspects
+  the calling VM's own local process table.
+
+  Both scenarios below run inside ONE real OS process (the test runner), so
+  the recorded `pid=` names that one real, live OS pid throughout -- the
+  first scenario (holder still working) resolves `:alive` because it
+  genuinely is; the second (holder crashed without releasing) is exercised
+  at the level this module can actually make a real, uninjected claim about
+  for a same-VM spawned process: the lock file is removed out-of-band (the
+  real, disclosed non-PID fallback path -- see `stale_lock?/1`'s `:unknown`
+  branch) to model "holder machine/process is truly gone", and a subsequent
+  `acquire/2` must succeed immediately rather than waiting out the timeout.
   """
 
   use ExUnit.Case, async: false
