@@ -138,6 +138,21 @@ defmodule GgenIgniter.ReceiptTest do
       assert {:ok, _} = Jason.decode(List.first(lines))
     end
 
+    test "a malformed started_at raises ArgumentError instead of silently filing under utc_now" do
+      dir = scratch_dir!()
+
+      receipt =
+        Receipt.new(%{standing: :alive, reason: "malformed timestamp"})
+        |> Map.put(:started_at, "not-a-real-timestamp")
+
+      assert_raise ArgumentError, ~r/malformed started_at/, fn ->
+        Receipt.append!(dir, receipt)
+      end
+
+      # Fail-closed: nothing was written to disk under any partition.
+      assert Receipt.read_all!(dir) == []
+    end
+
     test "appending multiple receipts preserves real chronological order, never overwriting a prior line" do
       dir = scratch_dir!()
 

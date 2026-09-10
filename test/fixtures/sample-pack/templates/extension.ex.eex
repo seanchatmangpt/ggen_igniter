@@ -35,6 +35,41 @@ defmodule <%= module_name %> do
   }
 <% end %>
 
+  defmodule Persist do
+    @moduledoc """
+    Transformer companion for `<%= module_name %>`, manufactured alongside the
+    extension so `transformers: [<%= module_name %>.Persist]` below resolves to a
+    real module -- without this, `Spark.Dsl.Extension.run_transformers/4` raises
+    `UndefinedFunctionError` the first time any resource `use`s this extension.
+
+    Currently a no-op pass-through: it persists no derived state of its own, but
+    exists so the extension's `transformers:` list is real and satisfies
+    `Spark.Dsl.Transformer`'s `transform/1` contract at compile time.
+    """
+    use Spark.Dsl.Transformer
+
+    @impl true
+    def transform(dsl_state), do: {:ok, dsl_state}
+  end
+
+  defmodule Verify do
+    @moduledoc """
+    Verifier companion for `<%= module_name %>`, manufactured alongside the
+    extension so `verifiers: [<%= module_name %>.Verify]` below resolves to a real
+    module -- without this, Spark raises `UndefinedFunctionError` calling
+    `verify/1` on an undefined module the first time any resource compiles
+    against this extension.
+
+    Currently a no-op pass-through: it enforces no invariants of its own, but
+    exists so the extension's `verifiers:` list is real and satisfies
+    `Spark.Dsl.Verifier`'s `verify/1` contract post-compile.
+    """
+    use Spark.Dsl.Verifier
+
+    @impl true
+    def verify(_dsl_state), do: :ok
+  end
+
   use Spark.Dsl.Extension,
     sections: [<%= sections |> Enum.map(& "@#{&1["section_name"]}") |> Enum.join(", ") %>],
     transformers: [<%= module_name %>.Persist],

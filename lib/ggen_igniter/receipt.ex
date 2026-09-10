@@ -514,8 +514,15 @@ defmodule GgenIgniter.Receipt do
   def append!(base_dir, %__MODULE__{} = receipt) do
     started_at =
       case DateTime.from_iso8601(receipt.started_at) do
-        {:ok, dt, _offset} -> dt
-        {:error, _} -> DateTime.utc_now()
+        {:ok, dt, _offset} ->
+          dt
+
+        {:error, reason} ->
+          raise ArgumentError,
+                "GgenIgniter.Receipt.append!/2 received a malformed started_at " <>
+                  "(#{inspect(receipt.started_at)}: #{inspect(reason)}) -- refusing to " <>
+                  "silently file this receipt under DateTime.utc_now()'s date partition. " <>
+                  "Fail-closed: fix the caller's started_at instead."
       end
 
     receipt_path = path(base_dir, started_at)

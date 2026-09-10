@@ -58,5 +58,33 @@ defmodule GgenIgniterTest do
     assert rendered =~ "sections: [@audit],"
     assert rendered =~ "transformers: [AuditTrail.Resource.Persist],"
     assert rendered =~ "verifiers: [AuditTrail.Resource.Verify]"
+
+    # Real compile, not just parse -- catches the guaranteed-crash regression where
+    # `transformers:`/`verifiers:` name companion modules (`<module>.Persist`,
+    # `<module>.Verify`) that no template ever emits. Spark.Dsl.Extension.run_transformers/4
+    # calls `transformer.transform(dsl)` on every listed transformer the first time ANY
+    # module `use`s the extension, so an undefined module there raises `UndefinedFunctionError`
+    # at that point, not at this compile. We therefore also `use` the rendered extension in a
+    # throwaway module here, which is the real trigger for both the transformer and verifier
+    # call sites.
+    compiled_modules = Code.compile_string(rendered) |> Enum.map(&elem(&1, 0))
+    assert AuditTrail.Resource in compiled_modules
+    assert Code.ensure_loaded?(AuditTrail.Resource.Persist)
+    assert Code.ensure_loaded?(AuditTrail.Resource.Verify)
+    assert function_exported?(AuditTrail.Resource.Persist, :transform, 1)
+    assert function_exported?(AuditTrail.Resource.Verify, :verify, 1)
+
+    consumer_source = """
+    defmodule GgenIgniterTest.AuditTrailConsumer do
+      use Spark.Dsl,
+        default_extensions: [extensions: [AuditTrail.Resource]]
+    end
+    """
+
+    # This is the real crash site: compiling a module that `use`s the manufactured
+    # extension runs Spark's transformer pipeline (transformers, then verifiers) against
+    # it. Before the fix, this raised UndefinedFunctionError for `.Persist`/`.Verify`.
+    consumer_modules = Code.compile_string(consumer_source) |> Enum.map(&elem(&1, 0))
+    assert GgenIgniterTest.AuditTrailConsumer in consumer_modules
   end
 end
