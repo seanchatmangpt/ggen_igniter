@@ -1398,11 +1398,18 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # `base_dir` before diffing, so a legacy raw-keyed entry and this run's own
   # canonical path are compared by real identity, not by string equality.
   defp compute_stale_deletes(recipes, base_dir) do
+    # Whole-plan write set: a path stale for recipe A must NOT be deleted if
+    # ANY OTHER recipe/template in this same run is newly producing that
+    # same canonical path (confirmed adversarial finding: recipe A's stale
+    # output == recipe B's fresh output => prune! would delete B's
+    # just-verified file). Union across every recipe's canonical_out_path,
+    # not just the same recipe_key's own group.
+    all_new_paths = recipes |> Enum.map(& &1.canonical_out_path) |> MapSet.new()
+
     recipes
     |> Enum.group_by(& &1.recipe_key)
     |> Enum.flat_map(fn {_recipe_key, group} ->
       representative = List.first(group)
-      new_paths = group |> Enum.map(& &1.canonical_out_path) |> MapSet.new()
 
       old_paths_canonical =
         representative.old_entry
@@ -1410,7 +1417,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         |> Enum.map(&ArtifactIdentity.canonicalize(base_dir, &1))
         |> MapSet.new()
 
-      stale = MapSet.difference(old_paths_canonical, new_paths)
+      stale = MapSet.difference(old_paths_canonical, all_new_paths)
 
       for path <- Enum.sort(MapSet.to_list(stale)) do
         PendingActuation.for_delete(
@@ -1785,6 +1792,18 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     unowned_delete = Enum.find(delete_pending, &(&1.ownership != true))
     stale_paths = delete_pending |> Enum.map(& &1.target) |> MapSet.new()
 
+    # Defense-in-depth: even with compute_stale_deletes/2 unioning canonical
+    # output paths across all recipes, refuse admission outright if any
+    # delete_pending item's canonical_target collides with any write_pending
+    # item's canonical_target in THIS admitted plan. This is the confirmed
+    # adversarial finding's second layer -- a stale-delete for one recipe
+    # must never be admitted alongside a create/replace/inject for the same
+    # real path, regardless of how the collision arose.
+    write_targets = write_pending |> Enum.map(& &1.canonical_target) |> MapSet.new()
+
+    delete_write_collisions =
+      Enum.filter(delete_pending, &MapSet.member?(write_targets, &1.canonical_target))
+
     cond do
       duplicates != [] ->
         collisions =
@@ -1799,6 +1818,10 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
       unowned_delete != nil ->
         {:error, {:refused_unowned_delete, unowned_delete.target}}
+
+      delete_write_collisions != [] ->
+        colliding_targets = Enum.map(delete_write_collisions, & &1.canonical_target)
+        {:error, {:refused_delete_write_collision, colliding_targets}}
 
       on_stale == :refuse and MapSet.size(stale_paths) > 0 ->
         {:error, {:refused_stale_outputs, stale_paths}}
@@ -1867,7 +1890,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     concurrent_tagged =
       concurrent_indexed
       |> Task.async_stream(
-        fn {pa, i} -> {i, actuate_one(pa, Map.fetch!(exec, pa.logical_id))} end,
+        fn {pa, i} -> {i, actuate_one_safe(pa, exec)} end,
         max_concurrency: max_concurrency,
         timeout: :infinity
       )

@@ -128,4 +128,44 @@ defmodule GgenIgniter.PackTest do
       assert length(paths) == 2
     end
   end
+
+  describe "discover_template/2 (stem-selection branch)" do
+    setup do
+      tmp_dir =
+        Path.join(
+          System.tmp_dir!(),
+          "ggen_igniter_pack_test_stem_#{System.unique_integer([:positive])}"
+        )
+
+      File.rm_rf!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+
+      templates_dir = Path.join(tmp_dir, "templates")
+      File.mkdir_p!(templates_dir)
+
+      %{tmp_dir: tmp_dir, templates_dir: templates_dir}
+    end
+
+    test "returns {:error, {:stem_not_found, stem, paths}} when no template matches the stem",
+         %{tmp_dir: tmp_dir, templates_dir: templates_dir} do
+      resource_path = Path.join(templates_dir, "resource.ex.eex")
+      other_path = Path.join(templates_dir, "other.ex.eex")
+      File.write!(resource_path, "resource")
+      File.write!(other_path, "other")
+
+      assert Pack.discover_template(tmp_dir, "missing") ==
+               {:error, {:stem_not_found, "missing", Enum.sort([resource_path, other_path])}}
+    end
+
+    test "returns {:error, {:ambiguous, paths}} when two templates share the requested stem",
+         %{tmp_dir: tmp_dir, templates_dir: templates_dir} do
+      eex_path = Path.join(templates_dir, "resource.eex")
+      tmpl_path = Path.join(templates_dir, "resource.tmpl")
+      File.write!(eex_path, "eex")
+      File.write!(tmpl_path, "tmpl")
+
+      assert Pack.discover_template(tmp_dir, "resource") ==
+               {:error, {:ambiguous, Enum.sort([eex_path, tmpl_path])}}
+    end
+  end
 end

@@ -1074,8 +1074,14 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   defp report_engine_comparison!(reports, opts) do
     case opts[:engine_report] do
       path when is_binary(path) and path != "" ->
-        File.write!(path, encode_engine_report(reports, path))
-        Mix.shell().info("ggen_igniter: engine comparison report written to #{path}")
+        if opts[:dry_run] do
+          Mix.shell().info(
+            "ggen_igniter: [dry-run] would write engine comparison report to #{path}"
+          )
+        else
+          File.write!(path, encode_engine_report(reports, path))
+          Mix.shell().info("ggen_igniter: engine comparison report written to #{path}")
+        end
 
       _ ->
         print_engine_comparison_summary(reports)

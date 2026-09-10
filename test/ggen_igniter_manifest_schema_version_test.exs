@@ -172,4 +172,24 @@ defmodule GgenIgniter.ManifestSchemaVersionTest do
     assert manifest["schema_version"] == Manifest.current_schema_version()
     assert manifest["entries"] == %{}
   end
+
+  # -- 7. A File.read/1 failure that is NOT :enoent (here: manifest.json is
+  # actually a directory, so File.read/1 returns {:error, :eisdir}) is a
+  # real :corrupt_manifest refusal with a distinct "could not read" message
+  # -- never conflated with the honest first-run :enoent case. --------------
+  test "a File.read failure other than :enoent (manifest.json is a directory) is refused as :corrupt_manifest" do
+    base_dir = tmp_dir!("eisdir")
+    manifest_path = Manifest.path(base_dir)
+
+    File.mkdir_p!(manifest_path)
+
+    assert {:error, :corrupt_manifest, detail} = Manifest.load_safe(base_dir)
+    assert is_binary(detail)
+    assert detail =~ "could not read ggen_igniter manifest at #{manifest_path}"
+    assert detail =~ "eisdir"
+
+    assert_raise ArgumentError, ~r/could not read ggen_igniter manifest/, fn ->
+      Manifest.load(base_dir)
+    end
+  end
 end

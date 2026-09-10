@@ -131,4 +131,23 @@ defmodule GgenIgniter.LockNodeRestartPidReuseTest do
     # off to the real mtime signal.
     assert GgenIgniter.Lock.stale_lock?(lock_path)
   end
+
+  test "matching node= and creation= but a malformed erlang_pid= (regex-matching, list_to_pid-rejecting) resolves :unknown, never raises" do
+    tmp_dir = scratch_dir!("malformed_pid")
+    real_creation = :erlang.system_info(:creation)
+
+    # "<0.999999999.0>" satisfies the erlang_pid= regex (digits and dots
+    # inside <...>) but :erlang.list_to_pid/1 rejects it with ArgumentError
+    # because 999999999 is out of range for the serial field on this node --
+    # this is the real rescue clause in parse_erlang_pid/1 that every other
+    # test in this file bypasses by always supplying inspect(self()).
+    lock_path =
+      write_marker!(
+        tmp_dir,
+        "pid=#{System.pid()} node=#{Node.self()} creation=#{real_creation} " <>
+          "erlang_pid=#PID<0.999999999.0> at=malformed-pid\n"
+      )
+
+    assert GgenIgniter.Lock.holder_pid_status(lock_path) == :unknown
+  end
 end
