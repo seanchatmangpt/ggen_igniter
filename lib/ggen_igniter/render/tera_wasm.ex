@@ -21,11 +21,7 @@ defmodule GgenIgniter.Render.TeraWasm do
                  "..",
                  "..",
                  "..",
-                 "native",
-                 "tera_wasm_renderer",
-                 "target",
-                 "wasm32-wasip1",
-                 "release",
+                 "wasm-artifacts",
                  "tera_wasm_renderer.wasm"
                ])
              )

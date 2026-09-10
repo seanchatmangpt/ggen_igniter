@@ -27,3 +27,27 @@ a working, callable bundle. `ggen_igniter`'s own native integration
 (`native/ggen_graph_nif/`) uses the *native* `oxigraph-engine` feature via a
 Rustler NIF instead — these `wasm32` artifacts are unrelated to that path and
 are kept here purely as a size reference for the separate WASM effort.
+
+## `tera_wasm_renderer.wasm` (a real, callable module — unlike the above)
+
+Built from `native/tera_wasm_renderer/` (this repo, real `tera = "1.20"` from
+crates.io) via:
+
+```
+cargo build --target wasm32-wasip1 --release
+```
+
+| File | Real size (bytes) | Real size |
+|---|---|---|
+| `tera_wasm_renderer.wasm` | 3,342,260 | ≈ 3.2 MiB |
+
+Unlike the two `ggen_graph_wasm.*` files above, this module **is** wired to a
+real, tested call path: `GgenIgniter.Render.TeraWasm` (`lib/ggen_igniter/
+render/tera_wasm.ex`) loads this exact file, drives its real
+`alloc`/`render`/`result_len` ptr+len exports through `Wasmex` (WASI), and is
+dispatched to by `GgenIgniter.Reconcile.run/1` and
+`GgenIgniter.Reactors.ReconcileReactor.render_target/3` for any `.tera`-suffixed
+template — `test/ggen_igniter/render/tera_wasm_test.exs` exercises it
+end-to-end. Rebuild and copy here after any change to
+`native/tera_wasm_renderer/src/lib.rs`; nothing regenerates this file
+automatically.
