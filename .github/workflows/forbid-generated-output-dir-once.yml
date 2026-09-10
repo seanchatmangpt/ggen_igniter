@@ -1,0 +1,59 @@
+name: one-shot generated-dir verifier
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18.4"
+          otp-version: "27.2.4"
+
+      - name: Apply bounded patch
+        run: python3 scripts/forbid_generated_output_dir_once.py
+
+      - name: Inspect diff
+        run: |
+          git diff --stat
+          git diff --check
+          git diff -- README.md lib/ggen_igniter/actuate.ex lib/ggen_igniter/reactors/reconcile_reactor.ex lib/mix/tasks/ggen_igniter.sync.ex test/generated_directory_policy_test.exs
+
+      - name: Dependencies
+        run: mix deps.get
+
+      - name: Format
+        run: mix format lib/ggen_igniter/actuate.ex lib/ggen_igniter/reactors/reconcile_reactor.ex lib/mix/tasks/ggen_igniter.sync.ex test/generated_directory_policy_test.exs
+
+      - name: Compile
+        run: mix compile --warnings-as-errors
+
+      - name: Contract test
+        run: mix test test/generated_directory_policy_test.exs
+
+      - name: Full suite
+        run: mix test
+
+      - name: No sanctioned lib/generated path
+        run: |
+          ! grep -RIn --exclude-dir=.git --exclude='*.lock' 'lib/generated/' README.md lib docs priv test
+
+      - name: Commit verified patch
+        run: |
+          rm .github/workflows/forbid-generated-output-dir-once.yml
+          rm scripts/forbid_generated_output_dir_once.py
+          git add -A
+          git diff --cached --check
+          git config user.name "ggen-igniter verifier"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: forbid generated output directories"
+          git push origin HEAD:fix/forbid-generated-output-dir
