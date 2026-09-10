@@ -198,8 +198,13 @@ defmodule GgenIgniter.ReceiptTest do
       decoded =
         Enum.map(lines, fn line ->
           case Jason.decode(line) do
-            {:ok, decoded} -> decoded
-            {:error, reason} -> flunk("torn/unparseable line under concurrency: #{inspect(reason)} -- #{inspect(line)}")
+            {:ok, decoded} ->
+              decoded
+
+            {:error, reason} ->
+              flunk(
+                "torn/unparseable line under concurrency: #{inspect(reason)} -- #{inspect(line)}"
+              )
           end
         end)
 

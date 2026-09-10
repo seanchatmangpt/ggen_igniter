@@ -200,6 +200,7 @@ defmodule GgenIgniter.StaleDeleteCrossRecipeCollisionTest do
              "expected recipe B's fresh write at the collision path to survive --on-stale prune"
 
       content = File.read!(a_old_path)
+
       assert content =~ "hello_from_b",
              "expected the surviving file to be recipe B's real content, not A's stale leftovers"
 
