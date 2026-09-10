@@ -301,9 +301,7 @@ defmodule GgenIgniter.Manifest do
 
   @doc "A `\"sha256:\" <> hex` digest of real binary content -- the real, written-to-disk bytes, not the in-memory rendered string."
   @spec hash_content(binary()) :: String.t()
-  def hash_content(content) when is_binary(content) do
-    "sha256:" <> (:crypto.hash(:sha256, content) |> Base.encode16(case: :lower))
-  end
+  def hash_content(content) when is_binary(content), do: GgenIgniter.Digest.sha256(content)
 
   @doc """
   Whether `outputs` (a fresh `%{path => hash}` map for this run) is

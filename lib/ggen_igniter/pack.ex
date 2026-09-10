@@ -374,7 +374,7 @@ defmodule GgenIgniter.Pack do
     end
   end
 
-  defp sha256_hex(body), do: :crypto.hash(:sha256, body) |> Base.encode16(case: :lower)
+  defp sha256_hex(body), do: GgenIgniter.Digest.hex(body)
 
   # `:tesla` is `optional: true` in `mix.exs`: it still resolves/compiles for
   # THIS project's own dev/test/prod, but a consuming app that adds

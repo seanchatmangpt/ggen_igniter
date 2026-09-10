@@ -389,9 +389,7 @@ defmodule GgenIgniter.Receipt do
     |> hash_entries()
   end
 
-  defp hex_sha256(binary) do
-    :crypto.hash(:sha256, binary) |> Base.encode16(case: :lower)
-  end
+  defp hex_sha256(binary), do: GgenIgniter.Digest.hex(binary)
 
   @doc "Converts a receipt struct to its plain, `Jason`-encodable, string-keyed map form."
   @spec to_json_map(t()) :: map()

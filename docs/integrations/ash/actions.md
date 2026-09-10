@@ -1,5 +1,15 @@
 # Generating Ash Actions
 
+> **Superseded pattern, retained for `mix e2e`.** Everything below describes
+> the `ash-lifecycle-pack` fixture's EEx templates, which HAND-RENDER
+> `Ash.Resource` source — the exact construct `AGENTS.md` now forbids for new
+> work. Read this page as history, not as the recommended path. New Ash
+> surfaces use the composed-generator path instead (ontology → SPARQL gates →
+> one composed `Igniter.Mix.Task` → real upstream Ash generators via
+> `Igniter.compose_task/4`) — see
+> [`docs/integrations/ash/overview.md`](overview.md) section 3-4 for the full
+> disclosure and the current recommended path.
+
 How `ggen_igniter` projects RDF action definitions into Ash resource `actions do ... end` blocks, distinguishing default CRUD actions from custom actions.
 
 ---

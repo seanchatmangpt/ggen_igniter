@@ -173,7 +173,7 @@ defmodule GgenIgniter.RuntimeShape do
   def digest(%__MODULE__{} = shape) do
     canonical = canonical_value(semantic_map(shape))
     encoded = Jason.encode!(canonical)
-    "sha256:" <> (:crypto.hash(:sha256, encoded) |> Base.encode16(case: :lower))
+    GgenIgniter.Digest.sha256(encoded)
   end
 
   @doc "Converts a RuntimeShape to a JSON-compatible, string-keyed map including its digest."
