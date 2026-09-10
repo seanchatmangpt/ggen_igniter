@@ -52,6 +52,7 @@ defmodule GgenIgniterLockContentionTest do
     task_a =
       Task.async(fn ->
         send(parent, {ref, :ready})
+
         receive do
           {^ref, :go} -> :ok
         after
@@ -70,6 +71,7 @@ defmodule GgenIgniterLockContentionTest do
     task_b =
       Task.async(fn ->
         send(parent, {ref, :ready})
+
         receive do
           {^ref, :go} -> :ok
         after
