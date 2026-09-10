@@ -121,6 +121,28 @@ jobs:
       # idempotent", which runs `mix ggen_igniter.fortune5_ready` twice
       # against a real scratch fixture project and asserts the second run's
       # ggen.toml is byte-identical to the first).
+      # Pre-compile the dev env before `mix test`. 78 tests across
+      # test/*.exs spawn `System.cmd("mix", [task, ...])` without exporting
+      # MIX_ENV, so those children run in MIX_ENV=dev. On a fresh checkout
+      # (cache miss) the FIRST such child pays the full dev compile --
+      # "Compiling 50 files (.ex)", the rustler `ggen_graph_nif` crate,
+      # "Generated ggen_igniter app" -- and Mix prints that chatter on the
+      # child's STDOUT, ahead of the task's own output. Which test eats it
+      # is decided by the ExUnit seed, so it surfaces as a seed-dependent
+      # flake: main run 33933744857 (seed 846163) failed
+      # test/ggen_igniter_cli_tasks_quirks_test.exs:115 with
+      # `Jason.DecodeError position: 0` because the JSON document was
+      # preceded by compile output. Compiling dev once here, outside any
+      # test, means no test subprocess ever sees compiler output -- fixing
+      # the whole 78-site class without weakening the single-JSON-document
+      # assertion (which is the real contract under test). Locally the same
+      # flake reproduces with `rm -rf _build/dev && mix test <that file>`
+      # and disappears with `mix compile` run first.
+      - name: mix compile (dev env, so test subprocesses never pay the first compile)
+        shell: bash
+        run: |
+          mix compile
+
       - name: mix test
         shell: bash
         run: |
