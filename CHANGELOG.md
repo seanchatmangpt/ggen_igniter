@@ -1,5 +1,36 @@
 # Changelog
 
+## v26.9.10
+
+Closes 4 of the 10 disclosed gaps from `docs/status.md`'s v26.9.10 swarm pass, plus
+one post-swarm cross-check:
+
+- **`GgenIgniter.Pack.fetch_pack!/2` wired to a real CLI task** (task #8/10): new
+  `mix ggen_igniter.pack.fetch <spec> [--cache-dir DIR] [--json]` plain Mix.Task
+  (`lib/mix/tasks/ggen_igniter.pack.fetch.ex`), closing the gap where
+  `fetch_pack!/2` was a real, tested function with zero CLI callers. Exits 1 on a
+  real raise (bad spec, HTTP failure, hex checksum mismatch), 2 on invalid
+  invocation.
+- **`mix ggen_igniter.doctor` stale-lock check** (task #7/10): `GgenIgniter.Lock`'s
+  `stale_lock?/1`, `holder_pid_status/1`, and `lock_path/1` promoted from `defp` to
+  `def`; doctor's `check_lock_status/0` (check 18) added to `run_checks/2`, reading
+  `.ggen_igniter/.sync.lock` and reporting `:ok` (absent, or a live holder) or
+  `:warn` (a real stale lock, never `:error`).
+- **`docs/status.md` manifest schema-versioning row corrected to IMPLEMENTED**
+  (task #3/10): `lib/ggen_igniter/manifest.ex:161-267` already implements the
+  migration path the row had marked `PARTIAL_ALIVE`.
+- **`docs/status.md` `:finalize_evidence` retry-safety row corrected** (task
+  #5/10): the row claimed a missing `max_retries(0)` override; the real code
+  already sets `max_retries(0)` on `:finalize_evidence`
+  (`lib/ggen_igniter/reactors/reconcile_reactor.ex:701`).
+- **Post-swarm cross-check after 10 parallel agents**: reformatted one
+  over-length line in `test/ggen_igniter_doctor_task_test.exs`, and landed
+  `test/ggen_igniter_sync_concurrent_process_test.exs` (106 lines) -- a real
+  Chicago-style test left untracked by its authoring agent, driving two genuine
+  separate `mix ggen_igniter.sync` OS processes racing the same `--manifest-dir`
+  via `System.cmd/3` and asserting on real `manifest.json`/output-file state,
+  complementary to the existing same-BEAM-node `ggen_igniter_lock_contention_test.exs`.
+
 ## v26.9.9
 
 Real in-process auto-formatting for generated Elixir content:
