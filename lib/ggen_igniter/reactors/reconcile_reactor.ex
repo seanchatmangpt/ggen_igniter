@@ -565,6 +565,16 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       # rollback-on-a-LATER-step-failure path is `undo/3` below (Reactor's
       # actual mechanism for "a downstream step failed, roll back this
       # already-successful step" -- see this module's moduledoc).
+      #
+      # This is now a STRUCTURAL guarantee, not an assumption: every item-level
+      # lookup inside `actuate_pending/2` (`actuate_one_safe/2`,
+      # `actuate_eval_one_safe/3`) turns a missing `exec` entry into the same
+      # `{:error, %{...}}` shape `actuate_one/2`/`actuate_eval_one/3`'s own
+      # rescues already produce, so it is routed through the real
+      # `errors != []` self-heal branch instead of raising past it -- there is
+      # no remaining code path in `actuate_pending/2`'s body that can reach
+      # Reactor's `do_run/4` rescue (and thus this `compensate/4`) without
+      # `tracked` having already been computed and, on failure, reverted.
       :ok
     end)
 
@@ -2061,13 +2071,58 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   defp actuate_eval_sequential(eval_indexed, exec) do
     {tagged_rev, final_igniter} =
       Enum.reduce(eval_indexed, {[], Igniter.new()}, fn {pa, i}, {acc_tagged, igniter_acc} ->
-        {result, next_igniter} =
-          actuate_eval_one(pa, Map.fetch!(exec, pa.logical_id), igniter_acc)
+        {result, next_igniter} = actuate_eval_one_safe(pa, exec, igniter_acc)
 
         {[{i, result} | acc_tagged], next_igniter}
       end)
 
     {Enum.reverse(tagged_rev), final_igniter}
+  end
+
+  # Both `actuate_one/2` and `actuate_eval_one/3` already guard their OWN
+  # function bodies with a `rescue`, but `Map.fetch!(exec, pa.logical_id)`
+  # (looking up the per-item `%ExecContext{}` this function's caller built)
+  # historically ran as ARGUMENT evaluation to those calls -- i.e. structurally
+  # OUTSIDE either function's own `rescue`, so a missing `logical_id` (an
+  # invariant `build_plan/3` upholds today, but nothing structurally enforces
+  # for every future caller) would raise past both functions entirely,
+  # propagate out of `actuate_pending/2`'s body as an uncaught exception, and
+  # (per Reactor's real `do_run/4` semantics -- see this module's moduledoc)
+  # reach `:actuate`'s `compensate/4` WITHOUT the `errors != []` self-heal
+  # branch ever running, since `tracked` was never computed. `compensate/4`'s
+  # unconditional `:ok` return depends entirely on `run/3` never returning
+  # (or raising) failure any other way than through that branch -- these
+  # `_safe/2`/`_safe/3` wrappers make that invariant structural instead of
+  # assumed, by turning a missing `exec` entry into the SAME `{:error, %{...}}`
+  # shape `actuate_one/2`/`actuate_eval_one/3`'s own rescues already produce,
+  # so it flows through the real self-heal/`revert_all/1` path like any other
+  # item-level failure instead of raising.
+  defp actuate_one_safe(pa, exec) do
+    case Map.fetch(exec, pa.logical_id) do
+      {:ok, ex} ->
+        actuate_one(pa, ex)
+
+      :error ->
+        {:error,
+         %{
+           index: nil,
+           mode: :file,
+           out_path: pa.target,
+           reason: {:missing_exec_context, pa.logical_id}
+         }}
+    end
+  end
+
+  defp actuate_eval_one_safe(pa, exec, igniter_acc) do
+    case Map.fetch(exec, pa.logical_id) do
+      {:ok, ex} ->
+        actuate_eval_one(pa, ex, igniter_acc)
+
+      :error ->
+        {{:error,
+          %{index: nil, mode: :eval, reason: {:missing_exec_context, pa.logical_id}}},
+         igniter_acc}
+    end
   end
 
   defp actuate_eval_one(pa, exec, igniter_acc) do
@@ -2707,9 +2762,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     # present still gets real evidence persisted.
     dry_run_run? = results != [] and Enum.all?(results, &(&1[:dry_run] || false))
 
-    graph_hash =
-      "sha256:" <>
-        (:crypto.hash(:sha256, File.read!(ontology_path)) |> Base.encode16(case: :lower))
+    graph_hash = GgenIgniter.Digest.sha256(File.read!(ontology_path))
 
     single_recipe = if length(admitted.recipes) == 1, do: List.first(admitted.recipes), else: nil
     single_result = List.first(results)

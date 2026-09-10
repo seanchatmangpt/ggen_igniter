@@ -62,6 +62,21 @@ defmodule GgenIgniter.DoctorTaskTest do
     assert output =~ "--store-id is missing"
   end
 
+  test "mix ggen_igniter.doctor --engine qlever with NO --pack/--pack-dir still runs check 8 and fails, it is never skipped" do
+    {output, exit_code} =
+      System.cmd(
+        "mix",
+        ["ggen_igniter.doctor", "--engine", "qlever"],
+        cd: File.cwd!(),
+        stderr_to_stdout: true
+      )
+
+    refute exit_code == 0,
+           "check 8 (qlever_reachable) must run and fail with --engine qlever even with no pack given, got exit 0:\n#{output}"
+
+    assert output =~ "--store-id is missing"
+  end
+
   test "mix ggen_igniter.doctor reports the real NIF compile check and oxigraph smoke test" do
     {output, exit_code} =
       System.cmd("mix", ["ggen_igniter.doctor"], cd: File.cwd!(), stderr_to_stdout: true)

@@ -306,7 +306,7 @@ defmodule Mix.Tasks.GgenIgniter.Replay do
            Manifest.get_entry(Manifest.load(manifest_dir), key),
          ontology_path = Path.join(pack_dir, "ontology.ttl"),
          {:ok, content} <- File.read(ontology_path) do
-      current_hash = "sha256:" <> (:crypto.hash(:sha256, content) |> Base.encode16(case: :lower))
+      current_hash = GgenIgniter.Digest.sha256(content)
 
       if current_hash == recorded_graph_hash do
         nil

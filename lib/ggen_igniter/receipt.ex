@@ -166,6 +166,7 @@ defmodule GgenIgniter.Receipt do
   @receipts_reldir ".ggen_igniter/receipts"
 
   @standings [:alive, :refused, :compensated, :build_broken, :compensation_failed]
+  @standing_strings Enum.map(@standings, &Atom.to_string/1)
 
   @typedoc "One of the five real, closed-set standings a receipt may record."
   @type standing :: :alive | :refused | :compensated | :build_broken | :compensation_failed
@@ -200,6 +201,8 @@ defmodule GgenIgniter.Receipt do
           receipt_hash: String.t() | nil,
           completed_at: String.t() | nil
         }
+
+  require Logger
 
   @enforce_keys [:id, :standing, :started_at, :finished_at]
   defstruct id: nil,
@@ -507,6 +510,23 @@ defmodule GgenIgniter.Receipt do
   partially overwritten. See `GgenIgniter.Reactors.ReconcileReactor`'s
   moduledoc for why this receipt append happens BEFORE, and independent of,
   any manifest promotion.
+
+  ## Self-locking, independent of any caller-held lock
+
+  This function does NOT rely on the caller already holding
+  `GgenIgniter.Lock` for `base_dir` -- it acquires its OWN real,
+  file-based `GgenIgniter.Lock` (keyed on `Path.expand(dir(base_dir))`,
+  the actual receipts directory this call is about to write into) around
+  the encode+append, and releases it in an `after` block unconditionally.
+  This is what makes the single `File.write!/3` call below safe under real
+  concurrent writers: two OS processes (or two BEAM processes) calling
+  `append!/2` against the same `base_dir` -- however each one arrived at
+  that `base_dir`, canonicalized or not by some *other* caller-held lock --
+  now serialize on this function's own lock file before either one opens
+  the `.jsonl` partition for writing, so no two `File.write!/3` calls can
+  ever race against the same partition file. Compare
+  `GgenIgniter.Lock.acquire/2`, which also canonicalizes its `lock_key`
+  via `Path.expand/1` for the same reason.
   """
   @spec append!(String.t(), t()) :: :ok
   def append!(base_dir, %__MODULE__{} = receipt) do
@@ -527,7 +547,15 @@ defmodule GgenIgniter.Receipt do
     File.mkdir_p!(Path.dirname(receipt_path))
 
     line = Jason.encode!(to_json_map(receipt)) <> "\n"
-    File.write!(receipt_path, line, [:append])
+
+    {:ok, lock} = GgenIgniter.Lock.acquire(dir(base_dir))
+
+    try do
+      File.write!(receipt_path, line, [:append])
+    after
+      GgenIgniter.Lock.release(lock)
+    end
+
     :ok
   end
 
@@ -538,6 +566,17 @@ defmodule GgenIgniter.Receipt do
   chronological attempt history). Returns `[]` (not an error) when no
   receipts directory exists yet -- the honest "no attempts recorded yet"
   state, matching `GgenIgniter.Manifest.load/1`'s same "first run" honesty.
+
+  ## Defensive against a torn/unparseable line
+
+  Each line is decoded with `Jason.decode/1` (not the raising `decode!/1`)
+  and a line that fails to parse -- e.g. a genuinely torn line left behind
+  by a crash mid-write, or (now defense-in-depth on top of `append!/2`'s
+  own self-locking, see that function's moduledoc) two writers that somehow
+  still interleaved bytes -- is skipped rather than raising and losing
+  every OTHER real, well-formed receipt in the same read. Each skipped line
+  is reported via `Logger.warning/1` (file, line number, and reason) so the
+  corruption is visible rather than silently swallowed.
   """
   @spec read_all!(String.t()) :: [map()]
   def read_all!(base_dir) do
@@ -549,11 +588,28 @@ defmodule GgenIgniter.Receipt do
         |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
         |> Enum.sort()
         |> Enum.flat_map(fn filename ->
-          receipts_dir
-          |> Path.join(filename)
+          path = Path.join(receipts_dir, filename)
+
+          path
           |> File.read!()
           |> String.split("\n", trim: true)
-          |> Enum.map(&Jason.decode!/1)
+          |> Enum.with_index(1)
+          |> Enum.flat_map(fn {line, line_no} ->
+            case Jason.decode(line) do
+              {:ok, decoded} ->
+                [decoded]
+
+              {:error, reason} ->
+                Logger.warning(
+                  "GgenIgniter.Receipt.read_all!/1: skipping unparseable line " <>
+                    "#{line_no} in #{path} (#{inspect(reason)}) -- likely a torn " <>
+                    "line from a crash mid-write; discarding it rather than " <>
+                    "raising and losing every other receipt in this partition."
+                )
+
+                []
+            end
+          end)
         end)
 
       {:error, :enoent} ->
@@ -606,11 +662,19 @@ defmodule GgenIgniter.Receipt do
       `recipe_key`'s OWN filtered history, not the whole-directory history)
       of the FIRST receipt whose `pre_run_hash` fails to match the expected
       prior hash.
+    * `{:error, {:unknown_standing, String.t()}}` -- the last receipt's
+      on-disk `"standing"` field is not one of `standings/0`'s five real
+      values (as strings). This is real, located evidence that the receipt
+      line was hand-edited/corrupted, or was written by a differently-built
+      version whose standing vocabulary has drifted -- it is never let
+      through to `String.to_existing_atom/1`, which would otherwise raise
+      `ArgumentError` and crash the caller instead of returning this error.
   """
   @spec reconstruct_standing(String.t(), String.t()) ::
           {:ok, %{standing: standing(), receipt: map(), receipt_count: pos_integer()}}
           | {:error, :no_receipts}
           | {:error, {:chain_broken, map()}}
+          | {:error, {:unknown_standing, String.t()}}
   def reconstruct_standing(base_dir, recipe_key)
       when is_binary(base_dir) and is_binary(recipe_key) do
     base_dir
@@ -625,13 +689,18 @@ defmodule GgenIgniter.Receipt do
     case Enum.reduce_while(receipts, {:ok, nil}, &check_link/2) do
       {:ok, _last_expected_hash} ->
         last = List.last(receipts)
+        last_standing_str = last["standing"]
 
-        {:ok,
-         %{
-           standing: String.to_existing_atom(last["standing"]),
-           receipt: last,
-           receipt_count: length(receipts)
-         }}
+        if last_standing_str in @standing_strings do
+          {:ok,
+           %{
+             standing: String.to_existing_atom(last_standing_str),
+             receipt: last,
+             receipt_count: length(receipts)
+           }}
+        else
+          {:error, {:unknown_standing, last_standing_str}}
+        end
 
       {:break, receipt, expected, actual} ->
         {:error,

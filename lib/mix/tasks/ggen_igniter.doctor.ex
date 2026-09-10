@@ -53,20 +53,38 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       never guessed at.
   18. `GgenIgniter.Lock`'s real cross-process `.ggen_igniter/.sync.lock` file (see
       `GgenIgniter.Lock`'s moduledoc) is checked against the CURRENT project
-      (`File.cwd!()`): absent is `✔` (no lock held); present and younger than
-      `GgenIgniter.Lock`'s own 5-minute stale threshold is `✔` info naming the real
-      holder marker (`pid=... node=... at=...`) written by `GgenIgniter.Lock.acquire/2`
-      -- a live/recent lock held by a real, still-running `mix ggen_igniter.sync`/
-      `.replay` invocation is not a problem; present and older than 5 minutes is a real
-      `⚠` warning naming the exact real remedy (the next `acquire/2` call anywhere
-      against this project automatically deletes it -- `GgenIgniter.Lock` has no
-      `--force-unlock` flag, so this never invents one). Never `:error`: a held lock,
-      stale or not, is advisory information about another invocation, not a defect in
-      the current project.
+      (`File.cwd!()`) via `GgenIgniter.Lock.stale_lock?/1`: absent is `✔` (no lock
+      held). When present, staleness is decided by the SAME two-signal logic
+      `stale_lock?/1` implements for every caller -- PID-liveness (primary) and
+      mtime-age (fallback) -- never mtime-age alone:
+
+      * **PID-liveness (primary)**: the lock file's `erlang_pid=`/`node=`/
+        `creation=` marker (written by `GgenIgniter.Lock.acquire/2`) is resolved via
+        `holder_pid_status/1`, which checks `Process.alive?/1` for real (with a
+        node-restart pid-reuse guard on `creation=`). A confirmed *live* same-node
+        holder is reported `✔` info naming the real holder marker, however old the
+        file's mtime is -- a legitimately slow, still-running `mix ggen_igniter.sync`/
+        `.replay` invocation past 5 minutes is correctly NOT flagged stale. A
+        confirmed *dead* holder is a real `⚠` warning immediately, however fresh the
+        file's mtime is.
+      * **mtime-age (fallback)**: used only when PID-liveness resolves to
+        `:unknown` (cross-node holder, unparseable/missing marker, or this node
+        restarted since the marker was written). In that fallback case only, a lock
+        file older than `GgenIgniter.Lock`'s 5-minute stale threshold is a real `⚠`
+        warning; younger is `✔`.
+
+      Every `⚠` warning names the exact real remedy (the next `acquire/2` call
+      anywhere against this project automatically deletes the stale lock --
+      `GgenIgniter.Lock` has no `--force-unlock` flag, so this never invents one).
+      Never `:error`: a held lock, stale or not, is advisory information about
+      another invocation, not a defect in the current project.
 
   Checks 9-12 only run when `--pack`/`--pack-dir` is given; without it, only checks 1-3
-  and 4-7 (and 8, if `--engine qlever` was explicitly passed with a graph-free reachability
-  check is not possible, so 8 is skipped) run. Checks 4-7, 13-15, 17, and 18 always run.
+  and 4-7 (and 8, if `--engine qlever` was explicitly passed) run. Check 8 always runs
+  when `--engine qlever` is passed, independent of `--pack`/`--pack-dir` -- without a
+  pack (or without `--store-id`), it does not get skipped, it reports a real `:error`
+  naming the missing `--store-id` or missing pack ontology. Checks 4-7, 13-15, 17, and
+  18 always run.
   Check 16 only runs with `--hex-check` (it shells out to `mix hex.build`, which is slow,
   so it stays off by default to keep `mix ggen_igniter.doctor` fast).
 

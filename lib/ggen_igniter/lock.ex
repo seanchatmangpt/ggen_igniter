@@ -108,6 +108,7 @@ defmodule GgenIgniter.Lock do
     timeout_ms = Keyword.get(opts, :timeout_ms, @default_timeout_ms)
     retry_interval_ms = Keyword.get(opts, :retry_interval_ms, @default_retry_interval_ms)
 
+    lock_key = Path.expand(lock_key)
     path = lock_path(lock_key)
     File.mkdir_p!(Path.dirname(path))
 
@@ -168,7 +169,7 @@ defmodule GgenIgniter.Lock do
   `@lock_subpath` themselves.
   """
   @spec lock_path(String.t()) :: String.t()
-  def lock_path(lock_key), do: Path.join(lock_key, @lock_subpath)
+  def lock_path(lock_key), do: Path.join(Path.expand(lock_key), @lock_subpath)
 
   defp holder_marker do
     "pid=#{System.pid()} node=#{Node.self()} creation=#{node_creation()} " <>

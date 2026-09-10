@@ -324,6 +324,59 @@ defmodule GgenIgniter.ReceiptReconstructStandingTest do
     end
   end
 
+  describe "reconstruct_standing/2 -- real unknown-standing detection" do
+    test "a hand-corrupted `standing` string on the last receipt returns {:error, {:unknown_standing, _}}, never raises" do
+      fixtures = scratch_dir!()
+      ontology_path = Path.join(fixtures, "ontology.ttl")
+      query_path = write_query!(fixtures)
+      template_path = write_template!(fixtures)
+
+      project_dir = new_mix_project!()
+      out_path = Path.join([project_dir, "lib", "alpha.ex"])
+      recipe_key = template_path <> "=>" <> out_path
+
+      assert {:ok, _r1} =
+               run_real_reconciliation!(
+                 fixtures,
+                 ontology_path,
+                 query_path,
+                 template_path,
+                 project_dir,
+                 out_path,
+                 "hello_v1"
+               )
+
+      # Sanity: BEFORE tampering, the real chain verifies clean.
+      assert {:ok, %{standing: :alive, receipt_count: 1}} =
+               Receipt.reconstruct_standing(project_dir, recipe_key)
+
+      # -- REAL tamper: overwrite the last receipt's top-level `"standing"`
+      # field, directly on the real file on disk, with a value that is NOT
+      # one of `GgenIgniter.Receipt.standings/0` and is NOT already an atom
+      # in this BEAM's atom table -- simulating a hand-edited/corrupted
+      # `.jsonl` line, or a receipt written by a differently-built version
+      # whose standing vocabulary has drifted.
+      receipt_path = Receipt.path(project_dir)
+      [line1] = receipt_path |> File.read!() |> String.split("\n", trim: true)
+      decoded1 = Jason.decode!(line1)
+
+      bogus_standing =
+        "totally_bogus_standing_#{System.unique_integer([:positive])}"
+
+      # Real, checked precondition: this string is not already an atom.
+      assert_raise ArgumentError, fn -> String.to_existing_atom(bogus_standing) end
+
+      tampered_line1 = Jason.encode!(Map.put(decoded1, "standing", bogus_standing))
+      File.write!(receipt_path, tampered_line1 <> "\n")
+
+      # -- THE REAL DETECTION: reconstruct_standing/2 must return the
+      # documented {:error, {:unknown_standing, _}} tuple, not raise
+      # ArgumentError from String.to_existing_atom/1.
+      assert {:error, {:unknown_standing, ^bogus_standing}} =
+               Receipt.reconstruct_standing(project_dir, recipe_key)
+    end
+  end
+
   # Flips one hex character in a `"sha256:" <> hex` string to a DIFFERENT
   # real hex character, preserving length and the `"sha256:"` prefix -- a
   # minimal, deterministic one-byte tamper.
