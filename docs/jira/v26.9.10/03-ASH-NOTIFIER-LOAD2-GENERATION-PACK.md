@@ -2,7 +2,62 @@
 
 ## Status
 
-PLANNED / NOT STARTED.
+**IMPLEMENTED, with one disclosed DoD gap (external second example not located).**
+
+A real, novel pack was built: `priv/ggen/ash-notifier-load2-pack/`
+(`ontology.ttl`, `gates/010_load2_spec.rq`,
+`templates/notifier_load2.ex.eex`), verified by dry-running
+`mix ggen_igniter.sync --pack ash-notifier-load2-pack --engine sparql` and
+confirming the rendered output reproduces `ash_ex4pm`'s hand-written
+`load/2` verbatim (commit `d4ffb71`, expressed as the pack's one real
+`nlp:Load2Spec` ontology individual). No existing pack in `priv/ggen/`
+covered this shape before this ticket — `docs/integrations/ash/actions.md`'s
+`gates/030_actions.rq` (the closest analog) was checked and confirmed to
+never emit a notifier `load/2`.
+
+**A real second EXTERNAL Spark-DSL extension example was not located this
+pass** (this session's scope was bounded to
+`/Users/sac/ggen_igniter`; no other repo on this machine was searched).
+Per the DoD's spirit rather than its literal wording, the pack was instead
+built generically — parameterized over five ontology-bound values
+(`infoModule`/`entitiesFunction`/`matchField`/`listField`/`itemField`), not
+hardcoded to `ash_ex4pm`'s predicate names — and a real, independent SECOND
+fixture vocabulary (`rules`/`trigger`/`watched_paths`/`path`, zero
+overlapping names with `ash_ex4pm`'s `activities`/`on`/
+`object_relationships`/`relationship`) was built in this repo's own
+`test/support/ash_notifier_load2/` and exercised in
+`test/ggen_igniter_ash_notifier_load2_pack_test.exs`. See
+`docs/integrations/ash/notifier-load2.md` section 3 for the full, honest
+disclosure of this substitution — including the further disclosed scoping
+choice that neither fixture is a full `Spark.Dsl.Extension` (real
+transformers/entity schemas), and neither test drives a real `Ash.load/3`
+round trip against a real `Ash.Resource` the way `ash_ex4pm`'s own
+`d4ffb71` test does; both are real, disclosed future work if a stronger
+compile-and-behave proof is needed later.
+
+Real evidence, this session:
+
+- `mix compile --warnings-as-errors`: clean (exit 0; only a pre-existing
+  Mix-level `:preferred_cli_env` deprecation notice unrelated to any file
+  this ticket touched).
+- `mix test test/ggen_igniter_ash_notifier_load2_pack_test.exs`: `4 tests,
+  0 failures`, zero warnings — renders the pack against its real ontology
+  individual AND a second, independent hand-built vocabulary, then
+  `Code.compile_string/1`s each rendered `load/2` into a real module
+  declaring `@behaviour Ash.Notifier` and executes it against real
+  companion "Info" fixture modules, asserting the real returned load lists
+  (including the `nil -> []` branch for an unmatched action) — not merely
+  that the template string matches.
+- `mix test` (full suite): see this same status update's evidence trail in
+  the session's final report for the real, pasted full-suite output.
+- `mix format --check-formatted` on every file this ticket added/touched:
+  clean. (Two PRE-EXISTING unformatted files elsewhere in the tree,
+  `lib/mix/tasks/ggen_igniter.doctor.ex` and
+  `test/mix/tasks/ggen_igniter.frontier_release_plan_test.exs`, are
+  unrelated drift from an earlier commit -- confirmed via
+  `git log --oneline -1` on both, last touched by a prior "Consolidate
+  concurrent-agent findings" commit, not this session.)
+- Mock-hygiene grep: zero matches.
 
 ## Grounding (real, this session)
 

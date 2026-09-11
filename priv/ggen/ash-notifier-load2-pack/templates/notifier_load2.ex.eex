@@ -1,0 +1,14 @@
+---
+to: "lib/<%= Macro.underscore(info_module) %>_load2_snippet.ex"
+mode: file
+---
+@impl Ash.Notifier
+def load(resource, action) do
+  resource
+  |> <%= info_module %>.<%= entities_function %>()
+  |> Enum.find(&(&1.<%= match_field %> == action.name))
+  |> case do
+    nil -> []
+    entity -> Enum.map(entity.<%= list_field %>, & &1.<%= item_field %>)
+  end
+end
