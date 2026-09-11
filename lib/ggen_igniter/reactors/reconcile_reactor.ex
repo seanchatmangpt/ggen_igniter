@@ -1688,7 +1688,17 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   defp resolve_ontology_path!(opts) do
     cond do
       opts[:ontology] not in [nil, ""] ->
-        opts[:ontology]
+        path = opts[:ontology]
+
+        unless File.exists?(path) do
+          raise ArgumentError,
+                "--ontology resolved ontology not found at #{path} (resolved against " <>
+                  "the current working directory, #{File.cwd!()} -- for a cross-package " <>
+                  "ontology this is usually a missing `mix deps.get`, see " <>
+                  "docs/integrations/ggen/cross-package-sync.md)"
+        end
+
+        path
 
       pack_given?(opts) ->
         path = Pack.default_ontology(Pack.resolve_dir!(opts))

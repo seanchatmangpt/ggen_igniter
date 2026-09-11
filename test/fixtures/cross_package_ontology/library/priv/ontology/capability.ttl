@@ -1,0 +1,37 @@
+@prefix ccp:  <https://ggen-igniter.example/packs/cross-package-capability#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#################################################################
+# Vocabulary
+#################################################################
+# Mirrors the real shape observed in ~/ex4pm/priv/ontology/ex4pm.ttl's
+# ex4pmb:AdmittedBeam4pmService individuals (lines ~178-194 there): a
+# capability individual carries a `status` of either "admitted" (a real,
+# generatable capability) or "forward_declared" (named but not yet ready --
+# a consumer's generated output for it must come out empty, not crash).
+# See docs/jira/v26.9.10/01-CROSS-PACKAGE-ONTOLOGY-SYNC.md for the ticket
+# this fixture answers and docs/integrations/ggen/cross-package-sync.md for
+# the pattern this fixture demonstrates.
+#################################################################
+
+ccp:Capability a rdfs:Class ;
+    rdfs:label "One capability a library package packages in its own priv/ontology/*.ttl for a consumer's --ontology to query." .
+
+ccp:capabilityName a rdf:Property ; rdfs:domain ccp:Capability ; rdfs:range xsd:string .
+ccp:status a rdf:Property ; rdfs:domain ccp:Capability ; rdfs:range xsd:string ;
+    rdfs:comment "closed: \"admitted\" | \"forward_declared\"." .
+
+#################################################################
+# Individuals -- this is the "individuals present" case: one admitted
+# capability, so a consumer's generated delegate has one real function.
+#################################################################
+
+ccp:widget_plan a ccp:Capability ;
+    ccp:capabilityName "widget_plan" ;
+    ccp:status "admitted" .
+
+ccp:gadget_plan a ccp:Capability ;
+    ccp:capabilityName "gadget_plan" ;
+    ccp:status "forward_declared" .
