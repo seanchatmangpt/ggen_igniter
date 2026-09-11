@@ -1,0 +1,10 @@
+defmodule ConsumerCwdFixture.Widget do
+  @moduledoc """
+  Manufactured by ggen_igniter (GGEN-05 consumer-cwd regression fixture) --
+  do not hand-edit.
+  """
+
+<%= for w <- widget do %>  # <%= w["widget_label"] %>
+  def <%= w["widget_name"] %>, do: "<%= w["widget_name"] %>"
+<% end %>
+end

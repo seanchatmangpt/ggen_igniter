@@ -1,0 +1,5 @@
+PREFIX wid: <https://ggen-igniter.dev/ontology/consumer-cwd-widget#>
+SELECT DISTINCT ?widget_name ?widget_label WHERE {
+  ?s a wid:Widget ; wid:widgetName ?widget_name ; wid:widgetLabel ?widget_label .
+}
+ORDER BY ?widget_name

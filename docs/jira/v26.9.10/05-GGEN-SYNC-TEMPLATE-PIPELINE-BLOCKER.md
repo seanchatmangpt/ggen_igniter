@@ -2,7 +2,81 @@
 
 ## Status
 
-PLANNED / NOT STARTED.
+PARTIAL_ALIVE -- narrowed this pass by an explicit scope constraint (below).
+
+### Real finding: zero `/workspace` hardcodes anywhere in `lib/` (this session)
+
+```
+$ grep -rn '/workspace' lib/
+(zero matches, exit 1)
+```
+
+Every path-construction site in `lib/` uses either the raw flag value
+verbatim or `opts[:manifest_dir] || File.cwd!()` -- never a fixed
+`/workspace` string. The blocker as literally described in `ash_a2a`'s
+`MANUFACTURING_RECEIPT.md` ("the previously-reported `/workspace`
+path-resolution blocker") is **not reproducible from this repo's current
+source** -- there is no such hardcode to reproduce.
+
+### Explicit scope disclosure: the real `ash_a2a` blocker itself is NOT
+### reproduced-or-refuted this pass
+
+This session operated under an explicit standing user instruction that did
+**not** grant permission to touch `~/ash_a2a` or any other repo outside
+`/Users/sac/ggen_igniter`. That means this pass could not clone/read/run
+anything against `ash_a2a`'s real `priv/ggen/ash_a2a/` ontology/query/
+template material, and therefore **could not honestly claim** to have
+reproduced or refuted the specific blocker `ash_a2a`'s receipt disclosed
+against its own real material. This is a real, disclosed gap, not a
+silently-dropped DoD item -- named explicitly as follow-up work:
+
+- **Follow-up (blocked on scope, not on unknown root cause)**: run `mix
+  ggen_igniter.sync` (or the equivalent `ash_a2a` PRD/ARD-named command)
+  against `~/ash_a2a`'s real `priv/ggen/ash_a2a/` material, from
+  `~/ash_a2a`'s own working directory, in a session explicitly authorized to
+  touch that repo, and paste the real output (reproduces or confirms
+  already-fixed).
+
+### Real regression coverage manufactured this pass (in-repo, general shape)
+
+Since the grep above proves there is no `/workspace`-specific bug to target,
+and the cross-repo material itself is out of scope, this pass manufactures a
+real, checked-in, passing Chicago-style regression test that reproduces the
+general SHAPE of the disclosed scenario using small, self-contained fixture
+material (not `ash_a2a`'s real content):
+
+- `test/fixtures/consumer_cwd_pack/{ontology.ttl,gates/010_widget.rq,
+  templates/widget.ex.eex}` -- a minimal, realistic consumer-style
+  `priv/ggen/<pack>/` tree.
+- `test/ggen_igniter_consumer_cwd_pack_test.exs` -- two tests, real
+  collaborators throughout (a real `File.cd!/2` process-cwd change to a real
+  tmp directory built under `System.tmp_dir!()`, deliberately outside this
+  repo's own working tree; the real `Igniter.Mix.Task.configure_and_run/3`
+  plumbing `mix ggen_igniter.sync` itself uses; the real oxigraph NIF query
+  engine; real file I/O):
+  1. `mix ggen_igniter.sync --pack-dir ...`, invoked with a deliberately
+     RELATIVE `--out` and NO `--manifest-dir` flag, from a consumer project
+     root that is NOT `ggen_igniter`'s own repo root, resolves the
+     generated file and the reconciliation manifest against that
+     consumer's own real `File.cwd!()` -- proven by real
+     `File.exists?/1` checks against both the correct location and the two
+     wrong ones (`ggen_igniter`'s own root, and a literal `/workspace`).
+  2. A second identical sync run against the same consumer root is a real
+     no-op re-run (the manifest file's real mtime is unchanged), the same
+     reconciliation guarantee `docs/CLAUDE.md` describes.
+
+  Real finding surfaced while building this fixture: this repo's own
+  `config/test.exs` defaults `use_reactor: true` (the Reactor pipeline, not
+  the default-pipeline codepath a production consumer gets unless it also
+  sets that config) -- both tests pass `--verify-cwd` pointing back at
+  `ggen_igniter`'s own root for exactly this reason, orthogonal to what they
+  actually prove (default `--out`/`--manifest-dir` path resolution).
+
+Real, pasted verification output (this session, this worktree) --
+`mix compile --warnings-as-errors`, `mix test` (full suite),
+`mix format --check-formatted`, and the mock-hygiene grep -- is recorded in
+this session's manufacturing receipt; the two new fixture-test file paths
+above are the reviewable diff.
 
 ## Grounding (real, this session)
 
