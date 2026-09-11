@@ -1,0 +1,9 @@
+PREFIX nlp: <https://ggen-igniter.dev/ontology/ash-notifier-load2#>
+SELECT DISTINCT ?info_module ?entities_function ?match_field ?list_field ?item_field WHERE {
+  ?spec a nlp:Load2Spec ;
+        nlp:infoModule ?info_module ;
+        nlp:entitiesFunction ?entities_function ;
+        nlp:matchField ?match_field ;
+        nlp:listField ?list_field ;
+        nlp:itemField ?item_field .
+}

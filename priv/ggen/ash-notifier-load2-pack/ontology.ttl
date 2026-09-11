@@ -1,0 +1,65 @@
+@prefix nlp:  <https://ggen-igniter.dev/ontology/ash-notifier-load2#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+#################################################################
+# Vocabulary
+#################################################################
+#
+# Semantic source of truth for the "Spark-DSL entity declares fields per
+# action, derive an Ash.Notifier load/2 from them" shape. Generalizes the
+# real, hand-written precedent in `~/ash_ex4pm`'s
+# `lib/ash_ex4pm/notifier.ex` (commit d4ffb71):
+#
+#   @impl Ash.Notifier
+#   def load(resource, action) do
+#     resource
+#     |> AshEx4pm.Info.activities()
+#     |> Enum.find(&(&1.on == action.name))
+#     |> case do
+#       nil -> []
+#       activity -> Enum.map(activity.object_relationships, & &1.relationship)
+#     end
+#   end
+#
+# Not hardcoded to ash_ex4pm's predicate names (`activities`, `on`,
+# `object_relationships`, `relationship`) -- those are DATA on the one
+# nlp:Load2Spec individual below, not vocabulary baked into the query or
+# template. A second Spark-DSL extension with a completely different entity
+# vocabulary (e.g. "rules" matched on "trigger", each holding
+# "watched_paths" of "path") is the same shape rendered from a different
+# individual -- see `test/ggen_igniter_ash_notifier_load2_pack_test.exs` for
+# a second, independently-verified vocabulary proving this generalizes.
+
+nlp:Load2Spec a rdfs:Class ;
+    rdfs:label "One Ash.Notifier load/2 derivation spec for a single Spark-DSL extension: how to walk from a resource, through its DSL-declared entities, to the field names Ash.load/2 should load for the firing action." .
+
+nlp:infoModule a rdf:Property ; rdfs:domain nlp:Load2Spec ;
+    rdfs:comment "Elixir module exposing the DSL entities for a resource (e.g. \"AshEx4pm.Info\"), rendered verbatim before the entities-function call." .
+
+nlp:entitiesFunction a rdf:Property ; rdfs:domain nlp:Load2Spec ;
+    rdfs:comment "Function on info_module, called with the resource as its sole argument, returning every DSL entity of the relevant kind declared on it (e.g. \"activities\")." .
+
+nlp:matchField a rdf:Property ; rdfs:domain nlp:Load2Spec ;
+    rdfs:comment "Field on each returned DSL entity struct compared against action.name to find the one entity governing the firing action (e.g. \"on\")." .
+
+nlp:listField a rdf:Property ; rdfs:domain nlp:Load2Spec ;
+    rdfs:comment "Field on the matched entity struct holding the list of declared field-reference structs the load list is derived from (e.g. \"object_relationships\")." .
+
+nlp:itemField a rdf:Property ; rdfs:domain nlp:Load2Spec ;
+    rdfs:comment "Field on each item in list_field holding the actual relationship/calculation/aggregate name to load (e.g. \"relationship\")." .
+
+#################################################################
+# Real, worked precedent individual
+#################################################################
+# Expresses ash_ex4pm's hand-written load/2 (commit d4ffb71) as data
+# instead of hand-maintained Elixir -- see docs/integrations/ash/notifier-load2.md
+# for the full disclosure of this pack's real precedent and generality
+# evidence.
+
+nlp:ash_ex4pm_activity_load2 a nlp:Load2Spec ;
+    nlp:infoModule "AshEx4pm.Info" ;
+    nlp:entitiesFunction "activities" ;
+    nlp:matchField "on" ;
+    nlp:listField "object_relationships" ;
+    nlp:itemField "relationship" .
