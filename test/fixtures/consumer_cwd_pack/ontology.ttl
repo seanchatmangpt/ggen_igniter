@@ -1,0 +1,24 @@
+@prefix wid: <https://ggen-igniter.dev/ontology/consumer-cwd-widget#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+#################################################################
+# Small, self-contained ontology for GGEN-05 (05-GGEN-SYNC-TEMPLATE-PIPELINE-BLOCKER):
+# proves a consumer-style priv/ggen/<pack>/{ontology.ttl,gates/*.rq,templates/*.eex}
+# tree, invoked from a working directory that is NOT ggen_igniter's own repo root,
+# resolves and generates for real. Deliberately tiny and unrelated to any real
+# consumer's actual content (ash_a2a's real material is out of scope this pass --
+# see docs/jira/v26.9.10/05-GGEN-SYNC-TEMPLATE-PIPELINE-BLOCKER.md).
+#################################################################
+
+wid:Widget a rdfs:Class ;
+    rdfs:label "One generated widget module." .
+
+wid:widgetName a rdf:Property ; rdfs:domain wid:Widget ;
+    rdfs:comment "snake_case widget name, e.g. gizmo" .
+wid:widgetLabel a rdf:Property ; rdfs:domain wid:Widget ;
+    rdfs:comment "human-readable label rendered into the generated module's moduledoc" .
+
+wid:GizmoWidget a wid:Widget ;
+    wid:widgetName "gizmo" ;
+    wid:widgetLabel "Gizmo Widget (consumer-cwd fixture)" .
