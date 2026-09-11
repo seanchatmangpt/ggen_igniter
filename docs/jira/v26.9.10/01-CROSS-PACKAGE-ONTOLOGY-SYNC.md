@@ -2,7 +2,72 @@
 
 ## Status
 
-PLANNED / NOT STARTED.
+COMPLETE. Real fixture, real passing tests (both the individuals-admitted
+and individuals-not-yet-admitted cases, plus a direct cwd-relative
+resolution proof), a real doc page, and a real small enhancement all
+landed -- see the Definition-of-Done checklist below with citations.
+
+No defect was found in `--ontology`'s own path-resolution logic: it already
+resolves a cross-package `deps/<library>/priv/ontology/<file>.ttl` path
+correctly, because `--ontology` is passed through verbatim and
+`RDF.Turtle.read_file!/1` (reached via `GgenIgniter.Ontology.load!/1`,
+`lib/ggen_igniter/ontology.ex`) resolves a relative path against the real
+OS process cwd. This was confirmed by reading the real code (this session)
+and is now additionally backed by a real, passing test that changes the
+real OS cwd via `File.cd!/2` and calls `GgenIgniter.Ontology.load!/1`
+directly, with a control assertion showing the same relative path does NOT
+resolve from a different real cwd (see
+`test/ggen_igniter_cross_package_ontology_sync_test.exs`, describe block
+"the real cwd-relative resolution mechanism").
+
+**Correction found empirically this session, real and worth recording**:
+this ticket's original grounding named ONE resolution function,
+`Mix.Tasks.GgenIgniter.Sync.resolve_ontology!/1`
+(`lib/mix/tasks/ggen_igniter.sync.ex` ~line 1264-1296) -- but that function
+is reached only by the `--for-each` and multi-engine-comparison paths. A
+plain `mix ggen_igniter.sync --ontology PATH` (the shape `~/ash_ex4pm`
+actually uses, and this ticket's own test fixture exercises) goes through a
+SEPARATE, parallel implementation of the identical `cond` logic:
+`GgenIgniter.Reactors.ReconcileReactor.resolve_ontology_path!/1`
+(`lib/ggen_igniter/reactors/reconcile_reactor.ex` ~line 1687-1710). The
+real, passing test below caught this directly: fixing only the first
+function left the missing-file test failing, because the CLI's actual
+stdout still showed the generic `%File.Error{}` wrapped inside a
+`"reactor reconciliation failed"` message. Both functions now carry the
+identical friendlier-error fix -- see
+`docs/integrations/ggen/cross-package-sync.md`'s "The exact resolution
+rule" section for the full citation and mechanism.
+
+### Definition-of-Done checklist, with citations
+
+- [x] Fixture under `test/fixtures/cross_package_ontology/`: a `library/
+  priv/ontology/*.ttl` (the library's own packaged ontology) and a
+  `consumer/deps/capability_lib/priv/ontology/*.ttl` (the same content at
+  the real `deps/<library>/...` path shape), covering both the
+  individuals-admitted case (`capability.ttl`) and the
+  individuals-not-yet-admitted case (`capability_none_admitted.ttl`).
+- [x] Real, passing Chicago-style test:
+  `test/ggen_igniter_cross_package_ontology_sync_test.exs` -- real
+  `mix ggen_igniter.sync` subprocesses (no mocks) for both cases, plus the
+  direct `GgenIgniter.Ontology.load!/1` cwd-proof test above.
+- [x] `docs/integrations/ggen/cross-package-sync.md` -- new page
+  documenting this pattern by name, citing `~/ash_ex4pm`'s real usage and
+  the exact lines of BOTH real resolution functions (see the correction
+  above).
+- [x] Missing-file friendliness: both `resolve_ontology!/1`
+  (`lib/mix/tasks/ggen_igniter.sync.ex`) and `resolve_ontology_path!/1`
+  (`lib/ggen_igniter/reactors/reconcile_reactor.ex`) now raise the same
+  friendlier named `ArgumentError` shape the `--pack`/`--pack-dir` branch
+  already had (naming the resolved path and the real cwd), rather than
+  letting the generic `File.Error` from `RDF.Turtle.read_file!/1`
+  propagate. Covered by a real subprocess test asserting the new message
+  text is present (as a substring of the reactor's wrapped failure
+  message, for the default dispatch path).
+- [x] `mix format --check-formatted`, `mix compile --warnings-as-errors`,
+  `mix test`, and the mock-hygiene grep all clean -- see the session's
+  real command output (pasted in the delivering commit/PR, not restated
+  here to avoid a second copy going stale -- see `docs/CLAUDE.md`'s
+  cross-document-consistency rule).
 
 ## Grounding (real, this session)
 

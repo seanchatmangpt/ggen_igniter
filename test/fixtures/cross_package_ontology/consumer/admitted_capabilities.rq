@@ -1,0 +1,5 @@
+PREFIX ccp: <https://ggen-igniter.example/packs/cross-package-capability#>
+SELECT DISTINCT ?name WHERE {
+  ?s a ccp:Capability ; ccp:capabilityName ?name ; ccp:status "admitted" .
+}
+ORDER BY ?name

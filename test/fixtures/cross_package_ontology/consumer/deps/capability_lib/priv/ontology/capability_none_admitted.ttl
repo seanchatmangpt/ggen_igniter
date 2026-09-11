@@ -1,0 +1,24 @@
+@prefix ccp:  <https://ggen-igniter.example/packs/cross-package-capability#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#################################################################
+# Same vocabulary as capability.ttl (see that file's header comment for the
+# full rationale) -- this is the "individuals not yet admitted" case: every
+# capability individual is `forward_declared`, none `admitted`, matching
+# ~/ash_ex4pm/lib/ash_ex4pm/ferroplan.ex's real observed shape (an
+# empty-function-list delegate is correct, honest output here, not a bug).
+#################################################################
+
+ccp:Capability a rdfs:Class .
+ccp:capabilityName a rdf:Property ; rdfs:domain ccp:Capability ; rdfs:range xsd:string .
+ccp:status a rdf:Property ; rdfs:domain ccp:Capability ; rdfs:range xsd:string .
+
+ccp:widget_plan a ccp:Capability ;
+    ccp:capabilityName "widget_plan" ;
+    ccp:status "forward_declared" .
+
+ccp:gadget_plan a ccp:Capability ;
+    ccp:capabilityName "gadget_plan" ;
+    ccp:status "forward_declared" .

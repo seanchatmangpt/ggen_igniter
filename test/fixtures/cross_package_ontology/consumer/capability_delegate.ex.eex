@@ -1,0 +1,14 @@
+defmodule CrossPackageOntology.CapabilityDelegate do
+  @moduledoc """
+  Generated from a cross-package `--ontology` (a library's own packaged
+  `priv/ontology/*.ttl`, reached via the consumer's own `deps/<library>/...`
+  tree) -- one function per `admitted` capability individual. Mirrors the
+  real observed shape of `~/ash_ex4pm/lib/ash_ex4pm/ferroplan.ex`: zero
+  admitted individuals renders zero functions (correct, honest output, not
+  a bug), not a crash.
+  """
+
+<%= for row <- admitted do %>
+  def <%= row["name"] %>(), do: :ok
+<% end %>
+end

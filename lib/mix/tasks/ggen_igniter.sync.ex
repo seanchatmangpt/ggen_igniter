@@ -1264,7 +1264,17 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   defp resolve_ontology!(opts) do
     cond do
       opts[:ontology] not in [nil, ""] ->
-        opts[:ontology]
+        path = opts[:ontology]
+
+        unless File.exists?(path) do
+          raise ArgumentError,
+                "--ontology resolved ontology not found at #{path} (resolved against " <>
+                  "the current working directory, #{File.cwd!()} -- for a cross-package " <>
+                  "ontology this is usually a missing `mix deps.get`, see " <>
+                  "docs/integrations/ggen/cross-package-sync.md)"
+        end
+
+        path
 
       pack_given?(opts) ->
         path = GgenIgniter.Pack.default_ontology(GgenIgniter.Pack.resolve_dir!(opts))
