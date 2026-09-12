@@ -43,8 +43,16 @@ defmodule GgenIgniter.RecurrenceDetectorTest do
 
   test "ignores events without explicit reasoning-class or run identity" do
     events = [
-      %{"activity" => "STANDING_SET", "objects" => [], "attributes" => %{"reasoning_class" => "x"}},
-      %{"activity" => "STANDING_SET", "objects" => [%{"type" => "reconcile_run", "id" => "run-1"}], "attributes" => %{}}
+      %{
+        "activity" => "STANDING_SET",
+        "objects" => [],
+        "attributes" => %{"reasoning_class" => "x"}
+      },
+      %{
+        "activity" => "STANDING_SET",
+        "objects" => [%{"type" => "reconcile_run", "id" => "run-1"}],
+        "attributes" => %{}
+      }
     ]
 
     assert [] = RecurrenceDetector.scan(events, min_occurrences: 1, min_distinct_runs: 1)
