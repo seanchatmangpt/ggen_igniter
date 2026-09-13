@@ -69,6 +69,36 @@ it dispatches to `GgenIgniter.Reconcile.run/1` (default) or
 Started only when a consumer sets `config :ggen_igniter, start_controller:
 true` (default `false`). See `docs/operations/controller.md`.
 
+## Executable Research Claim
+
+`GgenIgniter.EDS.Claim` — `ERC = <H, A, F, E, V>`, operationally `ERC+ = <H,
+A, F, P, I, E, V, R>` (Executable Design Science, S6): hypothesis (`H`),
+artifact (`A`, the executable thing operationalizing `H`), falsifiers (`F`,
+see "falsifier" below), protocol (`P`, how the artifact is meant to be
+exercised), execution identity (`I`), execution evidence (`E`, real
+collected outputs once run), verifier (`V`, turns evidence + falsifier
+verdicts into a `GgenIgniter.EDS.EvidenceState.t()`), and receipt (`R`,
+produced by `verify/1`, not supplied up front). "A hypothesis with no
+executable artifact remains legitimate research but is not yet an
+executable research claim" (S6) — `Claim.new/1` therefore requires both
+`hypothesis` and `artifact`, and raises `ArgumentError` if `falsifiers` is
+empty ("an ERC with no falsifier is a demonstration, not an executable
+research claim"). See `lib/ggen_igniter/eds/claim.ex`.
+
+## falsifier
+
+`GgenIgniter.EDS.Falsifier` (Executable Design Science, S9): "every strong
+computational claim [must] identify what would weaken it," and the research
+artifact must "make contradictory evidence representable" — a check
+function that CAN return `:falsified`, not one wired to always pass.
+`%Falsifier{}` pairs a human-readable statement of what would falsify the
+hypothesis with a real `check` function of arity 1 (taking the artifact's
+evidence) returning `{:survived, detail}` or `{:falsified, detail}`.
+`Falsifier.run/2` executes it for real against real evidence; a raised
+exception is caught and reported as `:falsified` (a crashing falsifier "has
+not survived, it has been falsified by an unhandled real failure"). See
+`lib/ggen_igniter/eds/falsifier.ex`.
+
 ## ggen
 
 The real, external Rust project (`~/ggen` /
@@ -189,6 +219,22 @@ into "admission" or "compensation" (see those terms) — a disclosed,
 intentional trust boundary, the same one a frontmatter `to:` path already
 is. See `docs/reference/cli/sync.md`'s "`sh_before:`/`sh_after:` shell
 hooks" section.
+
+## reasoning recurrence
+
+What `GgenIgniter.RecurrenceDetector.scan/2` detects: a repeated
+`reasoning_class` (read from an OCEL-shaped reconciliation event's
+attributes — `reasoning_class` or `reasoning_class_id`) that recurs across
+at least `:min_distinct_runs` (default 2) explicit `reconcile_run` objects
+with at least `:min_occurrences` (default 3) total classified events —
+"repetition inside a single run is not sufficient evidence of cross-run
+recurrence." A qualifying recurrence produces a candidate map with
+`"standing" => "CANDIDATE"` and `"authority" => "NONE"`: the detector is
+"deliberately OBSERVE/SELECT only" — it never writes a pack, edits a
+template, invokes ggen, or acquires actuation authority; a returned
+candidate stays `CANDIDATE`/`NONE` until a separate manufacturing/admission
+path constructs and verifies a reusable artifact. See
+`lib/ggen_igniter/recurrence_detector.ex`.
 
 ## reconciliation
 

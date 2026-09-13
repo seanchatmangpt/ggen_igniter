@@ -1,7 +1,7 @@
 # `mix ggen_igniter.doctor`
 
 Source: `lib/mix/tasks/ggen_igniter.doctor.ex` (`Mix.Tasks.GgenIgniter.Doctor`).
-Status: **IMPLEMENTED** — every flag and every one of the 17 checks below is
+Status: **IMPLEMENTED** — every flag and every one of the 18 checks below is
 verified against that module's `info/2` schema (lines 84–93) and the
 `igniter/1` implementation.
 
@@ -24,11 +24,11 @@ own `--check` halt mechanism) if and only if any check comes back `:error`.
 | `--fix` | boolean | `false` | Applies real, safely-recognized fixes for checks #4–#7 and #17 directly to the current project (`File.cwd!()`) instead of only reporting them. |
 | `--strict` | boolean | `false` | Treats `:warn`-level findings as failures too (exit `1`), not just `:error`. Each strict-mode-only failure line is suffixed `[STRICT]` in human output (`"strict_failure": true` in `--json` output). |
 
-## The 17 checks
+## The 18 checks
 
 Checks always run unless noted. Checks 9–12 run **only** with
 `--pack`/`--pack-dir`. Check 8 runs only with `--engine qlever`. Check 16
-runs only with `--hex-check`.
+runs only with `--hex-check`. Checks 4–7, 13–15, 17, and 18 always run.
 
 1. **Elixir/OTP version** — `System.version()` satisfies `~> 1.17` and
    `:erlang.system_info(:otp_release)` is `>= 25` (this project's own
@@ -109,6 +109,20 @@ runs only with `--hex-check`.
     `CHANGELOG.md`, no `## v` heading, or a non-literal `version:`) is
     reported as informational-only (`:error` from `check_version_policy`'s
     `{:unrecognized, msg}` branch), never guessed at.
+18. **`lock_status`** — `GgenIgniter.Lock`'s real cross-process
+    `.ggen_igniter/.sync.lock` file (see `GgenIgniter.Lock`'s moduledoc) is
+    checked against the CURRENT project (`File.cwd!()`): absent is `:ok`
+    (no lock held); present and younger than `GgenIgniter.Lock`'s own
+    5-minute stale threshold is `:ok` info naming the real holder marker
+    (`pid=... node=... at=...`) written by `GgenIgniter.Lock.acquire/2` — a
+    live/recent lock held by a real, still-running `mix ggen_igniter.sync`/
+    `.replay` invocation is not a problem; present and older than 5 minutes
+    is a real `:warn` naming the exact real remedy (the next `acquire/2`
+    call anywhere against this project automatically deletes it —
+    `GgenIgniter.Lock` has no `--force-unlock` flag, so this never invents
+    one). Never `:error`: a held lock, stale or not, is advisory
+    information about another invocation, not a defect in the current
+    project.
 
 ## `--fix`
 

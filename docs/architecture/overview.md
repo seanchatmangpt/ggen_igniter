@@ -75,6 +75,8 @@ flowchart TD
 | **AST-Based Structural Mutation** | Igniter / Sourceror AST zipper transformations for incremental elixir code edits | `PLANNED` | `lib/ggen_igniter/actuate.ex:24-28` discloses that structural AST zipper editing is deferred; text splice (`inject_content!/5`) is implemented. |
 | **Ash Framework Integration** | Ash domain/resource code generation and Ash.Reactor integration | `PARTIAL_ALIVE` | ReconcileReactor uses standalone `use Reactor` (not `Ash.Reactor`) to ensure zero mandatory Ash dependency. Ash templates supported via packs. |
 | **Distributed Multi-Node Control Plane** | Distributed clustering and multi-node supervision of reconciliation workers | `PLANNED` | `lib/ggen_igniter/controller.ex:49-54` scopes Controller to single-node in-process state. |
+| **`GgenIgniter.RecurrenceDetector`** | Observation-only scan of OCEL-shaped events for cross-run repeated reasoning classes, returning `standing: "CANDIDATE"`, `authority: "NONE"` generator-evidence candidates | `IMPLEMENTED` | `lib/ggen_igniter/recurrence_detector.ex:1-18`: moduledoc states it "never writes a pack, edits a template, invokes ggen, or acquires actuation authority" — output feeds a separate manufacturing/admission path, it does not actuate. |
+| **`GgenIgniter.EDS.*`** (`Claim`, `Falsifier`, `EvidenceState`, `Receipt`) | Executable Research Claim / falsifier harness (Executable Design Science `ERC+ = <H, A, F, P, I, E, V, R>`) for binding a research hypothesis to a real executable artifact, real falsifier checks, and a receipt | `IMPLEMENTED` | `lib/ggen_igniter/eds/claim.ex:1-22`, `eds/falsifier.ex:1-14`, `eds/evidence_state.ex:1-20`, `eds/receipt.ex:1-17`: distinct from `GgenIgniter.Receipt` (file-actuation receipt, ADR-0005) — EDS receipts research claims about executable systems, not code changes to disk. |
 
 ---
 
@@ -115,6 +117,14 @@ flowchart TD
 ### 3.6. OCEL & Evidence Projection
 - Every lifecycle transition produces structured Object-Centric Event Log entries (`GgenIgniter.Telemetry.OcelEmitter`).
 - Events are broadcast over Erlang `:telemetry` and captured in date-partitioned JSONL receipts (`GgenIgniter.Receipt`) providing cryptographic hashes (`pre_run_hash`, `post_run_hash`) for verified compensation auditability.
+- `GgenIgniter.RecurrenceDetector` consumes this same OCEL event shape (`reasoning_class`/`reasoning_class_id`, explicit `reconcile_run` objects) to scan for cross-run repeated reasoning classes. It is observe/select only — a returned candidate carries `standing: "CANDIDATE"` and `authority: "NONE"` and cannot itself write a pack, edit a template, or invoke ggen; externalizing a candidate into a reusable artifact is a separate, later admission/manufacturing path.
+
+### 3.7. EDS: Executable Research Claims
+`lib/ggen_igniter/eds/` operationalizes Executable Design Science's evidence discipline as real Elixir, not documentation prose:
+- **`GgenIgniter.EDS.Claim`**: the Executable Research Claim `ERC+ = <H, A, F, P, I, E, V, R>` (hypothesis, artifact, falsifiers, protocol, execution identity, evidence, verifier, receipt); `evidence` and `receipt` are legitimately `nil` until `execute/2`/`verify/1` actually run.
+- **`GgenIgniter.EDS.Falsifier`**: a named check function of arity 1 that can genuinely return `{:falsified, detail}` against real evidence, not one wired to always pass.
+- **`GgenIgniter.EDS.EvidenceState`**: the S7 state vocabulary (`PROPOSED | IMPLEMENTED | EXECUTABLE | OBSERVED | VERIFIED | REPRODUCIBLE | REPRODUCED | FALSIFIED | BLOCKED | UNSUPPORTED | UNKNOWN`) with `collapse?/2`/`assert_no_collapse!/2` mechanically preventing e.g. `IMPLEMENTED` being narrated as `VERIFIED`.
+- **`GgenIgniter.EDS.Receipt`**: binds a claim to its exact execution (source/dependency/environment identity, inputs, outputs, falsifier verdicts) — distinct from `GgenIgniter.Receipt` (§3.6), which receipts code changes to disk rather than research claims.
 
 ---
 

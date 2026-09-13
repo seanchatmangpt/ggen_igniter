@@ -324,9 +324,10 @@ For a host-independent, containerized run of this same suite, see
 It requires network access (hex/GitHub fetches via `mix archive.install`),
 runs for several minutes, and uses real disk space in a temp directory
 (cleaned up via `on_exit` when the test finishes). It is not part of the
-default `mix test` suite — there is no `.github/workflows` CI config in this
-repo, so it is not run by CI either; run it manually when you need to verify
-the full lifecycle.
+default `mix test` suite, and `.github/workflows/ci.yml` does not invoke it
+either (CI runs `mix deps.get` -> `mix format --check-formatted` -> `mix
+credo` -> `mix test` only); run it manually when you need to verify the full
+lifecycle.
 
 What it proves: that ggen_igniter-generated code stays consistent across a
 real Ash resource, its `AshPhoenix.Form`, and its Phoenix LiveView through a
