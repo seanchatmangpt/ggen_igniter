@@ -1,5 +1,48 @@
 # Changelog
 
+## v26.9.12
+
+Real work landed on `main` since the `v26.9.10` entry below (that version's own
+`mix.exs`/`CHANGELOG.md` pair was never separately tagged or released):
+
+- **Executable Design Science (EDS)** (`975ae1f`): a real, tested machinery module
+  under `lib/ggen_igniter/eds/` plus `test/ggen_igniter/eds/worked_example_test.exs`,
+  demonstrating a genuinely ontology-driven (not hardcoded) render against a real
+  `ggen-marketplace` pack instance/template pair.
+- **Cross-run reasoning recurrence detector** (`GgenIgniter.RecurrenceDetector.scan/2`,
+  `lib/ggen_igniter/recurrence_detector.ex`, merged PR #12): detects repeated
+  `reasoning_class`/`reasoning_class_id` occurrences across distinct
+  `reconcile_run` identities in the OCEL-shaped reconciliation event surface,
+  returning deterministic `CANDIDATE`-standing, `authority: NONE` recommendations
+  only -- it never writes a pack, edits a template, invokes ggen, or acquires DO
+  authority. 5 tests (repeat-in-one-run and missing-identity cases correctly do
+  not qualify; ordering is deterministic; invalid thresholds are refused).
+- **v26.9.10 ecosystem-research ticket receipts** (`docs/jira/v26.9.11/`): four
+  receipt-style summaries recapping the four already-merged v26.9.10 tickets
+  (cross-package ontology sync, igniter/ash/spark version conformance,
+  ash-notifier-load2-pack, workspace-path-blocker regression), each citing real
+  merge/content commit SHAs and verification evidence.
+- **`mix credo` gate genuinely restored to a clean pass** (real regression: CI had
+  been failing on this step across every recent commit). Two real classes of
+  cause, both closed:
+  - `test/fixtures/book_library/` -- a real, checked-in `mix igniter.new` + Ash
+    generator scaffold for the `mix e2e` lifecycle test -- was never excluded
+    from credo's scan, so generator-output style findings (missing `@moduledoc`,
+    `Enum.count/1` vs `Enum.empty?/1`, a `WrongTestFilename` false positive on its
+    own `_exec.exs` convention) were failing a gate against code this repo
+    doesn't own or hand-edit. Excluded in `.credo.exs`, the same way `deps/` and
+    `_build/` already are.
+  - Four real `Credo.Check.Refactor.Nesting`/`Readability.WithSingleClause`
+    findings in `lib/ggen_igniter/gate_verify.ex` (`load_cardinality/1`),
+    `lib/ggen_igniter/receipt.ex` (`read_all!/1`), `lib/mix/tasks/ggen_igniter.doctor.ex`
+    (`fix_or_check/3`, `check_for_each_row_counts/2`), and
+    `lib/mix/tasks/ggen_igniter.ocel.seal.ex` (`run/1`) fixed by extracting nested
+    branches into named private helpers (behavior unchanged) -- each verified
+    independently: `mix compile --warnings-as-errors` clean, `mix credo <file>`
+    reporting zero issues, and that module's own real test file passing (13, 42,
+    29, and 9 tests respectively, 0 failures).
+  - `mix credo` now exits `0`: "found no issues" against the full 255-file tree.
+
 ## v26.9.10
 
 Closes 4 of the 10 disclosed gaps from `docs/status.md`'s v26.9.10 swarm pass, plus

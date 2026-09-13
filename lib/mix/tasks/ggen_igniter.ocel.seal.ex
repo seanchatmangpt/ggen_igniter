@@ -84,15 +84,7 @@ defmodule Mix.Tasks.GgenIgniter.Ocel.Seal do
       """)
     end
 
-    run_id =
-      Keyword.get_lazy(opts, :run_id, fn ->
-        doc
-        |> Map.get("events", [])
-        |> Enum.flat_map(&Map.get(&1, "relationships", []))
-        |> Enum.find_value("run", fn r ->
-          if r["qualifier"] == "run", do: r["objectId"]
-        end)
-      end)
+    run_id = Keyword.get_lazy(opts, :run_id, fn -> run_id_from_doc(doc) end)
 
     activity = if exit_code == 0, do: @activity_applied, else: @activity_aborted
 
@@ -119,6 +111,17 @@ defmodule Mix.Tasks.GgenIgniter.Ocel.Seal do
     )
 
     Mix.shell().info("ggen_igniter: sealed #{path} as #{activity} (exit #{exit_code})")
+  end
+
+  defp run_id_from_doc(doc) do
+    doc
+    |> Map.get("events", [])
+    |> Enum.flat_map(&Map.get(&1, "relationships", []))
+    |> Enum.find_value("run", &relationship_run_id/1)
+  end
+
+  defp relationship_run_id(r) do
+    if r["qualifier"] == "run", do: r["objectId"]
   end
 
   defp sealed?(doc) do

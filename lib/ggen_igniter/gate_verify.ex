@@ -218,12 +218,14 @@ defmodule GgenIgniter.GateVerify do
          {:ok, json} <- decode_contract(body, path) do
       json
       |> Map.get("gates", %{})
-      |> Enum.reduce_while({:ok, %{}}, fn {stem, entry}, {:ok, acc} ->
-        case parse_contract(entry) do
-          {:ok, contract} -> {:cont, {:ok, Map.put(acc, stem, contract)}}
-          {:error, reason} -> {:halt, {:error, {:invalid_contract, stem, reason}}}
-        end
-      end)
+      |> Enum.reduce_while({:ok, %{}}, &reduce_contract_entry/2)
+    end
+  end
+
+  defp reduce_contract_entry({stem, entry}, {:ok, acc}) do
+    case parse_contract(entry) do
+      {:ok, contract} -> {:cont, {:ok, Map.put(acc, stem, contract)}}
+      {:error, reason} -> {:halt, {:error, {:invalid_contract, stem, reason}}}
     end
   end
 

@@ -619,29 +619,45 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
     project_dir = File.cwd!()
 
     if opts[:fix] && !opts[:dry_run] do
-      try do
-        case fix_fn.(project_dir) do
-          {:fixed, msg} -> {:ok, "FIXED: #{msg}"}
-          {:ok, msg} -> {:ok, msg}
-        end
-      rescue
-        error -> {:error, Exception.message(error)}
-      end
+      apply_fix(fix_fn, project_dir)
     else
-      case check_fn.(project_dir) do
-        {:ok, msg} ->
-          {:ok, msg}
+      run_check(opts, check_fn, project_dir)
+    end
+  end
 
-        {:fixable, msg} ->
-          if opts[:fix] && opts[:dry_run] do
-            {:warn, "#{msg} -- would be fixed (--dry-run: no files were written)"}
-          else
-            {:warn, "#{msg} -- run `mix ggen_igniter.doctor --fix` to fix"}
-          end
+  # Extracted from `fix_or_check/3` (Credo Refactor.Nesting): applies a real
+  # `DoctorFixes` fix function, catching the `RuntimeError` a fix raises when
+  # it hits a shape it refuses to guess at and turning that into a real
+  # `:error` check result instead of crashing the whole doctor run.
+  defp apply_fix(fix_fn, project_dir) do
+    case fix_fn.(project_dir) do
+      {:fixed, msg} -> {:ok, "FIXED: #{msg}"}
+      {:ok, msg} -> {:ok, msg}
+    end
+  rescue
+    error -> {:error, Exception.message(error)}
+  end
 
-        {:unrecognized, msg} ->
-          {:error, msg}
-      end
+  # Extracted from `fix_or_check/3` (Credo Refactor.Nesting): the read-only
+  # (no `--fix`, or `--fix --dry-run`) inspection path.
+  defp run_check(opts, check_fn, project_dir) do
+    case check_fn.(project_dir) do
+      {:ok, msg} ->
+        {:ok, msg}
+
+      {:fixable, msg} ->
+        fixable_result(opts, msg)
+
+      {:unrecognized, msg} ->
+        {:error, msg}
+    end
+  end
+
+  defp fixable_result(opts, msg) do
+    if opts[:fix] && opts[:dry_run] do
+      {:warn, "#{msg} -- would be fixed (--dry-run: no files were written)"}
+    else
+      {:warn, "#{msg} -- run `mix ggen_igniter.doctor --fix` to fix"}
     end
   end
 
@@ -735,13 +751,15 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
 
       offending =
         Enum.filter(for_each_names, fn name ->
-          with {:ok, query_path} <- Map.fetch(queries, name) do
-            query_path
-            |> File.read!()
-            |> then(&Engine.Oxigraph.run(graph, &1))
-            |> length() >= 2
-          else
-            :error -> false
+          case Map.fetch(queries, name) do
+            {:ok, query_path} ->
+              query_path
+              |> File.read!()
+              |> then(&Engine.Oxigraph.run(graph, &1))
+              |> length() >= 2
+
+            :error ->
+              false
           end
         end)
 

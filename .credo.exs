@@ -31,7 +31,23 @@
           "apps/*/test/",
           "apps/*/web/"
         ],
-        excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]
+        excluded: [
+          ~r"/_build/",
+          ~r"/deps/",
+          ~r"/node_modules/",
+          # v26.9.12 credo cleanup: test/fixtures/book_library/ is a real,
+          # checked-in scaffold produced by `mix igniter.new` + real Ash
+          # generators for the `mix e2e` lifecycle test (see CLAUDE.md's
+          # `mix e2e` section) -- not hand-written source this repo owns.
+          # Its 15 findings (missing @moduledoc, Enum.count/1 vs empty?/1,
+          # a WrongTestFilename false positive on its own `_exec.exs`
+          # convention, a negated if-else) are all inside generator output;
+          # holding generated scaffolding to this repo's own style checks
+          # would mean hand-editing generated code, which this repo's own
+          # doctrine (AGENTS.md: "generated outputs are not hand-edited")
+          # refuses. Excluded the same way deps/ already is.
+          ~r"/test/fixtures/book_library/"
+        ]
       },
       #
       # Load and configure plugins here:

@@ -36,12 +36,18 @@ defmodule GgenIgniter.EDS.WorkedExampleTest do
 
   @moduletag :eds_worked_example
 
-  setup do
-    unless File.exists?(@instance_path) and File.exists?(@template_path) do
-      raise "expected #{@instance_path} and #{@template_path} to exist"
-    end
-
-    :ok
+  # The one legitimate skip this module's own moduledoc names: the real
+  # ~/ggen-marketplace sibling checkout is not vendored here and has no
+  # fixed relative path, so its absence degrades every test in this module
+  # to a named, visible ExUnit skip (via `@moduletag skip: reason`) rather
+  # than a mocked substitute or a hard test-suite failure. Computed once at
+  # compile time since neither path changes within a single test run.
+  if File.exists?(@instance_path) and File.exists?(@template_path) do
+    @moduletag skip: false
+  else
+    @moduletag skip:
+                 "expected #{@instance_path} and #{@template_path} to exist -- " <>
+                   "the real ~/ggen-marketplace sibling checkout is absent on this machine"
   end
 
   # ---------------------------------------------------------------------

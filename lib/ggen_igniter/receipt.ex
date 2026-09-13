@@ -572,32 +572,45 @@ defmodule GgenIgniter.Receipt do
         entries
         |> Enum.filter(&String.ends_with?(&1, ".jsonl"))
         |> Enum.sort()
-        |> Enum.flat_map(fn filename ->
-          path = Path.join(receipts_dir, filename)
-
-          path
-          |> File.read!()
-          |> String.split("\n", trim: true)
-          |> Enum.with_index(1)
-          |> Enum.flat_map(fn {line, line_no} ->
-            case Jason.decode(line) do
-              {:ok, decoded} ->
-                [decoded]
-
-              {:error, reason} ->
-                Logger.warning(
-                  "GgenIgniter.Receipt.read_all!/1: skipping unparseable line " <>
-                    "#{line_no} in #{path} (#{inspect(reason)}) -- likely a torn " <>
-                    "line from a crash mid-write; discarding it rather than " <>
-                    "raising and losing every other receipt in this partition."
-                )
-
-                []
-            end
-          end)
-        end)
+        |> Enum.flat_map(&read_partition!(receipts_dir, &1))
 
       {:error, :enoent} ->
+        []
+    end
+  end
+
+  # One `.jsonl` partition file's worth of decoded receipt lines, in-file
+  # order. Split out of `read_all!/1` so its own per-line decode step
+  # (`decode_receipt_line/3`) doesn't nest a third level of branching inside
+  # this function.
+  @spec read_partition!(String.t(), String.t()) :: [map()]
+  defp read_partition!(receipts_dir, filename) do
+    path = Path.join(receipts_dir, filename)
+
+    path
+    |> File.read!()
+    |> String.split("\n", trim: true)
+    |> Enum.with_index(1)
+    |> Enum.flat_map(fn {line, line_no} -> decode_receipt_line(path, line, line_no) end)
+  end
+
+  # Decodes one JSONL line, returning `[decoded]` on success or `[]` (with a
+  # warning logged) for a torn/unparseable line -- pulled out of
+  # `read_partition!/2` to keep that function's own nesting shallow.
+  @spec decode_receipt_line(String.t(), String.t(), pos_integer()) :: [map()]
+  defp decode_receipt_line(path, line, line_no) do
+    case Jason.decode(line) do
+      {:ok, decoded} ->
+        [decoded]
+
+      {:error, reason} ->
+        Logger.warning(
+          "GgenIgniter.Receipt.read_all!/1: skipping unparseable line " <>
+            "#{line_no} in #{path} (#{inspect(reason)}) -- likely a torn " <>
+            "line from a crash mid-write; discarding it rather than " <>
+            "raising and losing every other receipt in this partition."
+        )
+
         []
     end
   end
