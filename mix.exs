@@ -20,9 +20,37 @@ defmodule GgenIgniter.MixProject do
       ],
       docs: [
         main: "readme",
+        # v26.9.12 fix: a bare `Path.wildcard("docs/**/*.md")` list produces
+        # real ExDoc output-filename collisions -- confirmed via
+        # `find docs -iname "*.md" | xargs -I{} basename {} | sort | uniq -c`
+        # showing 5 files basenamed "readme.md" (docs/README.md,
+        # docs/archive/README.md, docs/archive/ash_tier_matrix_pack/README.md,
+        # docs/architecture/adr/README.md, and the root README.md) plus real
+        # collisions on "overview.md" (4), "00-overview.md" (3), "packs.md",
+        # "index.md", "concurrency.md", and "adversarial.md" (2 each). ExDoc
+        # disambiguates same-basename extras by appending `-N` to ALL of
+        # them (not just the extras), so `main: "readme"` pointed at a
+        # `readme.html` that no file actually produced -- confirmed via
+        # `mix docs`'s own real warning: "index.html redirects to
+        # readme.html, which does not exist" -- and the published hexdocs
+        # page 404'd on every viewer. Fixed by giving every extra an
+        # explicit, path-derived, guaranteed-unique `:filename` instead of
+        # relying on ExDoc's basename-collision fallback.
         extras:
-          (Path.wildcard("docs/**/*.md") -- Path.wildcard("docs/reviews/**/*.md")) ++
-            ["README.md", "CHANGELOG.md"],
+          Enum.map(
+            (Path.wildcard("docs/**/*.md") -- Path.wildcard("docs/reviews/**/*.md")) ++
+              ["README.md", "CHANGELOG.md"],
+            fn path ->
+              filename =
+                case path do
+                  "README.md" -> "readme"
+                  "CHANGELOG.md" -> "changelog"
+                  _ -> path |> Path.rootname() |> String.replace("/", "-") |> String.downcase()
+                end
+
+              {path, filename: filename}
+            end
+          ),
         source_url: @source_url,
         # This repo's git tags follow "vMAJOR.MINOR.PATCH" (e.g. the real
         # existing tag `v26.8.27` -- confirmed via `git tag -l`). Kept as a
