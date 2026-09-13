@@ -68,7 +68,7 @@ defmodule Mix.Tasks.GgenIgniter.FrontierReleasePlanTest do
   end
 
   test "reports a real validation error for a missing required flag" do
-    args = List.delete_at(@task_args, Enum.find_index(@task_args, &(&1 == "--project-name")) )
+    args = List.delete_at(@task_args, Enum.find_index(@task_args, &(&1 == "--project-name")))
     args = List.delete_at(args, Enum.find_index(args, &(&1 == "frontier_response")))
 
     output =

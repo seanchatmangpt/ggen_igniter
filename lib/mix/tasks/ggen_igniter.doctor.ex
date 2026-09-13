@@ -719,8 +719,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         {:ok, "no pack templates found -- no --for-each concurrent qlever-target hazard to check"}
 
       for_each_names == [] ->
-        {:ok,
-         "no --for-each templates found -- no concurrent qlever-target hazard to check"}
+        {:ok, "no --for-each templates found -- no concurrent qlever-target hazard to check"}
 
       true ->
         check_for_each_row_counts(pack_dir, for_each_names)
