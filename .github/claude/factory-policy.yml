@@ -1,0 +1,12 @@
+# Daily factory policy for ggen_igniter
+repository: seanchatmangpt/ggen_igniter
+daily_capacity: 1
+acceptance:
+  primary: mix test
+  doctor: mix ggen_igniter.doctor
+  extended: mix e2e
+  extended_policy: run only for an explicitly admitted issue; it is network-bound and multi-minute
+wip:
+  labels: [factory:bot-owned, factory:ready, factory:repair, factory:blocked]
+  zero_at_eod: true
+  blocked_disposition: close_branch_and_create_issue

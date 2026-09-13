@@ -1,0 +1,70 @@
+name: Claude daily backlog drain
+
+on:
+  schedule:
+    - cron: "15 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  checks: read
+  actions: read
+
+concurrency:
+  group: claude-factory-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact default branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Execute one bounded work cell
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            You are the daily completion work cell for ggen_igniter.
+
+            Read AGENTS.md and the repository's factory policy first.
+            Census open issues, bot-owned branches, draft PRs, failed workflows,
+            and ready/repair-labeled work. Preserve human-owned work.
+
+            Little's Law admission:
+            WIP = throughput × cycle_time.
+            Admit at most one bounded item today. Repair existing bot-owned work
+            before admitting new work. Do not start work that cannot reach one
+            of these terminal states during this run:
+            - merged PR;
+            - closed PR/branch with a typed blocker issue and receipt.
+
+            Required lifecycle:
+            observe -> route -> admit/refuse -> construct -> verify ->
+            merge-or-close -> receipt -> EOD WIP audit.
+
+            Rules:
+            - Never weaken tests or fabricate evidence.
+            - Preserve the exact base SHA and record it in the receipt.
+            - Every state-changing operation requires a pending and outcome receipt.
+            - Use the repository's documented acceptance commands.
+            - A blocked task is not complete while its bot branch or draft PR exists.
+            - Do not mutate human-owned branches or PRs.
+            - Do not leave speculative branches, draft PRs, or untracked bot work.
+            - If blocked, preserve logs, create/update a typed factory:blocked
+              issue, close the bot branch/PR, and record the falsifier.
+            - Do not run extended/network-heavy checks unless the selected issue
+              explicitly requires them.
+
+            At the end, write a concise JSON receipt to
+            .github/claude/daily-receipt.json and summarize:
+            status, base_sha, selected_issue, pull_request, changed_files,
+            commands/exits, merged, blocked_issue, remaining_bot_wip,
+            evidence_urls, replay_command, and falsifiers.
