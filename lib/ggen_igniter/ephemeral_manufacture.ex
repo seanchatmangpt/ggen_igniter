@@ -86,28 +86,34 @@ defmodule GgenIgniter.EphemeralManufacture do
   end
 
   defp build_projections(receipt, graph_digest, receipt_hash, provenance_opts) do
-    Enum.reduce_while(receipt.files, {:ok, []}, fn path, {:ok, acc} ->
-      case File.read(path) do
-        {:ok, bytes} ->
-          opts =
-            provenance_opts
-            |> Keyword.put(:name, path)
-            |> Keyword.put(:graph_digest, graph_digest)
-
-          with {:ok, projection} <- EphemeralProjection.manufacture(bytes, opts),
-               {:ok, verified} <- EphemeralProjection.verify(projection, receipt_hash) do
-            {:cont, {:ok, [verified | acc]}}
-          else
-            {:error, reason} -> {:halt, {:error, reason}}
-          end
-
-        {:error, reason} ->
-          {:halt, {:error, {:ephemeral_projection_unreadable, path, reason}}}
+    receipt.files
+    |> Enum.reduce_while({:ok, []}, fn path, {:ok, acc} ->
+      case manufacture_projection(path, graph_digest, receipt_hash, provenance_opts) do
+        {:ok, verified} -> {:cont, {:ok, [verified | acc]}}
+        {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
     |> case do
       {:ok, projections} -> {:ok, Enum.reverse(projections)}
       {:error, _reason} = error -> error
+    end
+  end
+
+  defp manufacture_projection(path, graph_digest, receipt_hash, provenance_opts) do
+    with {:ok, bytes} <- read_ephemeral_source(path),
+         opts =
+           provenance_opts
+           |> Keyword.put(:name, path)
+           |> Keyword.put(:graph_digest, graph_digest),
+         {:ok, projection} <- EphemeralProjection.manufacture(bytes, opts) do
+      EphemeralProjection.verify(projection, receipt_hash)
+    end
+  end
+
+  defp read_ephemeral_source(path) do
+    case File.read(path) do
+      {:ok, bytes} -> {:ok, bytes}
+      {:error, reason} -> {:error, {:ephemeral_projection_unreadable, path, reason}}
     end
   end
 
