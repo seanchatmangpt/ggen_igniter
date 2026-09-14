@@ -99,6 +99,11 @@
 # server.
 ci? = System.get_env("CI") not in [nil, "", "false", "0"]
 
+IO.puts(
+  "ggen_igniter test_helper.exs diagnostic: System.get_env(\"CI\")=#{inspect(System.get_env("CI"))} " <>
+    "System.get_env(\"GITHUB_ACTIONS\")=#{inspect(System.get_env("GITHUB_ACTIONS"))} ci?=#{inspect(ci?)}"
+)
+
 qlever_reachable? =
   not ci? and
     try do
