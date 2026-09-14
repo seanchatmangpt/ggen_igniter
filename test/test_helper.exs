@@ -11,101 +11,104 @@
 # MUST happen here, before `ExUnit.start/1`, not inside any test file's own
 # `setup` block. `ExUnit.configure/1`'s `:exclude` option only affects which
 # already-collected tests get DISPATCHED; by the time a per-test `setup`
-# callback runs, ExUnit has already decided to run that specific test, so a
-# `setup`-local `ExUnit.configure(exclude: [:requires_qlever_server])` call
-# can never exclude the very test whose `setup` invoked it (nor, reliably,
-# any other already-scheduled test) -- confirmed the hard way: six real test
-# files (`ggen_igniter_engine_registry_test.exs`,
-# `ggen_igniter_engine_parity_test.exs`, `ggen_igniter_e2e_all_engines_test.exs`,
-# `ggen_igniter_sync_qlever_engine_test.exs`, `ash_r2rml_gate_qlever_test.exs`)
-# each independently reimplemented this same broken per-`setup` pattern, and
-# every `:requires_qlever_server`-tagged test in them genuinely FAILED (not
-# skipped) against a real no-QLever-server environment, contradicting the
-# very docstrings describing the pattern as "only runs when a real QLever
-# server is reachable."
+# callback runs, ExUnit has already decided (in `ExUnit.Runner.prepare_tests/3`,
+# via `ExUnit.Filters.eval/4`, against each test's STATIC `@tag`-collected
+# tags only) whether to run that specific test -- a `setup`-local
+# `ExUnit.configure(exclude: [:requires_qlever_server])` call can never
+# exclude the very test whose `setup` invoked it. This was tried, the hard
+# way, twice, independently:
 #
-# GI-13 follow-up (2026-09-14): the probe used to be a bare
-# `:httpc.request(:get, {~c"http://localhost:7020", []}, ...)`, treating ANY
-# `{:ok, _}` -- including a non-2xx HTTP response from ANY server, QLever or
-# not -- as "reachable". Real, same-run evidence from hosted CI (run
-# 34822966689 on SHA d617ec6) proved this false-positives there: the log's
-# own `Excluding tags: [:requires_ash_r2rml]` line omitted
-# `:requires_qlever_server` entirely, so all 9 `:requires_qlever_server`-tagged
-# tests actually ran (not skipped) and 7 failed for real -- including
-# `ash_r2rml_gate_qlever_test.exs`'s "exact query shape" test (no `~/ash_r2rml`
-# fixture involved) raising `** (RuntimeError) ... :econnrefused` from a REAL
-# `SPARQL.Client` round trip to this same `config/gno/test/store.ttl`'s
-# `127.0.0.1:7020` endpoint, in that very run. That is direct, in-run proof
-# that nothing speaking the real SPARQL protocol was listening there --
-# whatever answered the bare `:httpc.request` GET to `http://localhost:7020`
-# (no path, `localhost` not `127.0.0.1`) was not a QLever endpoint; the exact
-# process/service that did answer was not independently identified (no shell
-# access to the ephemeral hosted runner), but `:inets`/`:httpc` failing to
-# start is RULED OUT as the mechanism -- real local evidence: `tesla`'s own
-# `mix.exs` declares `extra_applications: [:logger, :ssl, :inets]`, so
-# `Application.ensure_all_started(:tesla)` above already, deterministically,
-# starts `:inets` too, identically in both environments (same code path, not
-# environment-dependent) -- confirmed locally via
-# `:application.which_applications/0` showing `:inets` present before this
-# probe ever runs.
+#   * Six real test files each reimplemented this exact broken per-`setup`
+#     `ExUnit.configure(exclude: ...)` pattern; every `:requires_qlever_server`
+#     -tagged test in them genuinely FAILED (not skipped) against a real
+#     no-QLever-server environment.
+#   * GI-13 (2026-09-14) tried the OTHER real ExUnit primitive for a
+#     per-test runtime decision -- a `setup` callback returning
+#     `{:skip, reason}` -- on the theory that this is a distinct mechanism
+#     from `ExUnit.configure/1` and might not share its timing constraint.
+#     Verified locally, for real, that it is NOT distinct: ExUnit 1.18.4's
+#     own `setup`/`setup_all` callback contract
+#     (`lib/ex_unit/lib/ex_unit/callbacks.ex`, confirmed by reading the
+#     installed source, not assumed) only accepts `:ok`, a keyword list, or
+#     a map as a `setup` return value; `{:skip, reason}` raises
+#     `RuntimeError, "expected ExUnit setup callback ... to return the atom
+#     :ok, a keyword, or a map"`. `ExUnit.Filters.eval/4`'s `:skip` handling
+#     (`lib/ex_unit/lib/ex_unit/filters.ex`) only reads a test's STATIC
+#     `tags[:skip]`, evaluated inside `prepare_tests/3` -- i.e. before any
+#     `setup` callback for that test ever runs, the identical "too late"
+#     shape as the original bug, confirmed by reading the actual installed
+#     ExUnit source rather than assumed from a remembered API. There is no
+#     ExUnit-native way, in this Elixir version, to decide "skip this one
+#     test" at its own run time based on a check performed then. Every such
+#     decision must be made in advance of `ExUnit.start/1`, using only
+#     information available at that point -- which is exactly the
+#     architecture this file already has.
 #
-# The fix, part 1: stop asking "did ANY HTTP server answer?" and instead run
-# the same real SPARQL-protocol round trip this codebase already trusts for
-# this exact decision -- `GgenIgniter.EngineRegistry`'s own
-# `qlever_reachable?/2` (`lib/ggen_igniter/engine_registry.ex`) already does
-# this correctly: real `Ontology.load!/1` + real `Query.Qlever.load_store!/2`
-# + a real `Query.Qlever.run/2` SELECT against the endpoint, `rescue ->
-# false`.
+# GI-13 (2026-09-14) real hosted-CI history, in order, on this exact
+# `127.0.0.1:7020` / `config/gno/test/store.ttl` precondition (three
+# independently-triggered runs: 34822966689, 34826784317, 34829186413):
 #
-# GI-13 follow-up 2 (2026-09-14, same day, next hosted run 34826784317 on
-# SHA ec038f7): part 1 alone was NOT sufficient -- real, evidenced,
-# reproduced on a SECOND independent hosted CI run. That run's own
-# `Excluding tags: [:requires_ash_r2rml]` line again omitted
-# `:requires_qlever_server`, i.e. THIS EXACT round-trip probe (below) still
-# returned `true` there, yet 3 of the 9 `:requires_qlever_server`-tagged
-# tests still failed for real, including two with the identical real
-# `** (RuntimeError) ... :econnrefused` seen on the first hosted run, AND
-# (most tellingly) `ggen_igniter_engine_registry_test.exs`'s own "all"-engine
-# test failed on `left: {:ok, [:oxigraph, :sparql]}` vs
-# `right: {:ok, [:oxigraph, :sparql, :qlever]}` -- meaning
-# `EngineRegistry.resolve/2`'s OWN internal call to this exact same
-# `qlever_reachable?/2` technique, moments later in the SAME run, correctly
-# found the endpoint UNREACHABLE. Two independent invocations of the
-# identical real round-trip technique, on the identical `127.0.0.1:7020`
-# literal IP:port (no DNS involved), disagreed within the same run: this
-# probe (very first thing this suite does, before `ExUnit.start/1`) got
-# `true`; the same technique run again minutes later got `false` (a real
-# `:econnrefused`, proven by the sibling failures in the same run). That
-# is real, direct, reproduced (now twice, across two independently
-# triggered CI runs) evidence of TIME-DEPENDENT transience on the hosted
-# runner's `127.0.0.1:7020` -- reachable at the very earliest possible
-# moment in the job, refused shortly after -- not a technique defect (the
-# technique itself, a real SPARQL round trip, is exactly right; asking it
-# once, at the earliest possible instant, is what's wrong). The exact
-# mechanism on the runner side is still not independently identified (no
-# shell access to the ephemeral runner), but pinning that is unnecessary for
-# a correct fix here.
+#   1. A bare `:httpc.request(:get, {~c"http://localhost:7020", []}, ...)`
+#      probe treated ANY `{:ok, _}` (any HTTP response, any status, from
+#      any process) as "reachable" -- false-positived: 7 of 9
+#      `:requires_qlever_server` tests ran for real and failed, one with a
+#      real `:econnrefused` from an actual `SPARQL.Client` round trip to
+#      the SAME endpoint this probe claimed was reachable.
+#   2. Replacing the bare GET with the real SPARQL-protocol round trip this
+#      codebase already trusts for this decision
+#      (`GgenIgniter.EngineRegistry.qlever_reachable?/2`,
+#      `lib/ggen_igniter/engine_registry.ex`) was NECESSARY but not
+#      SUFFICIENT -- false-positived again: the identical technique,
+#      invoked again moments later from inside `EngineRegistry.resolve/2`
+#      during an actual test, correctly found the endpoint unreachable,
+#      while this probe's own earlier call had returned `true`, in the SAME
+#      run.
+#   3. Requiring that same round trip to succeed TWICE, 2 seconds apart,
+#      was STILL not sufficient -- false-positived a third time: both calls
+#      returned `true`, yet a fresh identical round trip from an actual
+#      test failed with real `:econnrefused` only ~3.4 real seconds after
+#      this probe's own second success (timestamps: the "Excluding tags"
+#      log line vs. the first qlever-tagged test failure, same run).
 #
-# The fix, part 2: a real round trip is trusted for this decision only if it
-# still succeeds a second time, after a short real, deliberate pause -- this
-# targets the exact observed failure shape (transiently-true, then
-# durably-false) directly, without guessing at its cause. A real,
-# continuously-running local QLever server (the normal dev-machine case
-# these tests were written for) trivially still answers a moment later; a
-# transient early-boot artifact on a hosted runner does not.
-qlever_reachable? =
-  try do
-    graph = GgenIgniter.Ontology.load!("config/gno/test/store.ttl")
-    store = GgenIgniter.Query.Qlever.load_store!(graph, "http://example.com/Qlever")
-    query = "SELECT ?s WHERE { ?s ?p ?o } LIMIT 1"
+# Three real, network-technique-based attempts establish that no amount of
+# retrying or delaying a REAL NETWORK PROBE reliably characterizes this
+# specific hosted runner's `127.0.0.1:7020` behavior -- whatever is
+# transiently true there flips on a timescale this file cannot safely
+# out-wait without an unbounded guess, each guess costing a full ~20+
+# minute real hosted CI round trip to (dis)confirm, and (per the ExUnit
+# constraint established above) there is no way to defer the check to each
+# test's own run time instead.
+#
+# The fix: stop trying to detect the hosted runner's transient network
+# state at all, and instead use the standard, deterministic, universally-set
+# signal for "is this a CI runner, not a real developer machine with real
+# local services" -- the `CI` environment variable, which GitHub Actions
+# (and effectively every other CI provider) sets unconditionally for every
+# job. This is not a workaround for not being able to detect the real
+# condition; it is a more accurate model of the real condition: this
+# project's own `ci.yml` never starts a QLever server as part of any job
+# (confirmed by reading the whole workflow -- no `services:` block, no
+# `qlever start` step, nothing binds port 7020 deliberately), so "hosted CI"
+# and "no real QLever server, ever, structurally" are the same fact here,
+# independent of whatever noise a network probe observes on that port.
+# `CI=true` is force-excluded without any network call; every non-CI
+# environment (a real developer machine) keeps the real round-trip probe
+# (`GgenIgniter.EngineRegistry.qlever_reachable?/2`'s own technique),
+# unaffected, exactly as originally designed for the case these tests were
+# actually written for: a developer with a real, locally-running QLever
+# server.
+ci? = System.get_env("CI") not in [nil, "", "false", "0"]
 
-    GgenIgniter.Query.Qlever.run(store, query)
-    Process.sleep(2_000)
-    GgenIgniter.Query.Qlever.run(store, query)
-    true
-  rescue
-    _ -> false
-  end
+qlever_reachable? =
+  not ci? and
+    try do
+      graph = GgenIgniter.Ontology.load!("config/gno/test/store.ttl")
+      store = GgenIgniter.Query.Qlever.load_store!(graph, "http://example.com/Qlever")
+      GgenIgniter.Query.Qlever.run(store, "SELECT ?s WHERE { ?s ?p ?o } LIMIT 1")
+      true
+    rescue
+      _ -> false
+    end
 
 unless qlever_reachable? do
   ExUnit.configure(exclude: [:requires_qlever_server])
@@ -115,7 +118,12 @@ end
 # (`test/ash_r2rml_gate_integration_test.exs`, `test/ggen_igniter_oxigraph_engine_test.exs`):
 # both files reimplemented an identical broken per-`setup`
 # `ExUnit.configure(exclude: ...)` call, gated on whether `~/ash_r2rml` exists
-# on disk, that could never actually exclude an already-scheduled test.
+# on disk, that could never actually exclude an already-scheduled test. This
+# precondition is genuinely stable for the lifetime of one `mix test`
+# invocation (nothing mid-run mounts or unmounts `~/ash_r2rml`), so, unlike
+# qlever's network precondition above, a single check here, before
+# `ExUnit.start/1`, is and remains the correct shape -- this half was never
+# the unreliable part.
 unless File.exists?(Path.expand("~/ash_r2rml")) do
   ExUnit.configure(exclude: [:requires_ash_r2rml])
 end
