@@ -26,6 +26,41 @@ jobs:
         with:
           persist-credentials: false
 
+      # Real fixture checkout: 10 real ExUnit test files
+      # (test/ggen_igniter_base_*_test.exs, test/ggen_igniter_install_task_
+      # test.exs -- see `grep -rl Ex4pmFixture test/`) read real source
+      # bytes off `test/support/ex4pm_fixture.ex`'s `@ex4pm_root`, which is
+      # `Path.join(System.user_home!(), "ex4pm")` i.e. `$HOME/ex4pm` on the
+      # runner. That module's own moduledoc documents `~/ex4pm` as already
+      # present on real dev machines, but a hosted GitHub Actions runner has
+      # no such checkout, so every one of those tests previously failed with
+      # `** (File.Error) could not git show 725f495^:mix.exs (exit 2):
+      # "/home/runner/ex4pm/mix.exs": no such file or directory` --
+      # confirmed as ~30 of 35 hosted `mix test` failures, pre-existing on
+      # main at 6b9baecf (not introduced by this branch).
+      #
+      # `actions/checkout` is NOT used here: its `path:` input is scoped
+      # under `$GITHUB_WORKSPACE`, but `Ex4pmFixture` needs the real,
+      # unscoped `$HOME/ex4pm` path. A plain `git clone` lands it exactly
+      # where the fixture module expects.
+      #
+      # Full clone, NOT `--depth=1`: `Ex4pmFixture.read_pinned!/1` runs
+      # `git show 725f495^:<path>` (see ex4pm_fixture.ex), which needs real
+      # commit history reachable back through `725f495^`. A shallow clone
+      # would only fetch the tip commit's tree and make that `git show`
+      # fail with the exact same "no such file or directory"-shaped error
+      # this step exists to fix -- so do not "optimize" this into
+      # `--depth=1` even though ex4pm is otherwise only read via `File.
+      # read!/1` (which doesn't need history) for most fixture files; the
+      # pinned reads are real and need the full clone.
+      - name: Clone ex4pm fixture repo (full history, not shallow -- see comment)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/seanchatmangpt/ex4pm.git "$HOME/ex4pm"
+          git -C "$HOME/ex4pm" cat-file -e 725f495^ && \
+            echo "confirmed: 725f495^ reachable in $HOME/ex4pm history"
+
       # Real ggen binary on PATH: several real, non-mocked ExUnit tests
       # (test/ggen_igniter_fortune5_ready_task_test.exs,
       # test/ggen_igniter_sync_shellout_test.exs) shell out to the real
