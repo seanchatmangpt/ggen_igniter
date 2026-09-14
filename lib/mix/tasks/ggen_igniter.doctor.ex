@@ -1,4 +1,16 @@
 defmodule Mix.Tasks.GgenIgniter.Doctor do
+  # These CLI exit helpers all end in `System.halt/1`, which never returns to
+  # the caller by design (real process exit codes for `--help`/`--version`/
+  # invalid-invocation/blocked/unsupported-capability outcomes). Dialyzer
+  # correctly observes the function has no local return and flags it
+  # `:no_return`; that is the intended contract here, not a bug -- suppress
+  # per-function rather than leave it as an unexplained "known" warning.
+  @dialyzer {:no_return, print_version_and_halt: 0}
+  @dialyzer {:no_return, invalid_invocation_and_halt: 2}
+  @dialyzer {:no_return, blocked_and_halt: 2}
+  @dialyzer {:no_return, unsupported_capability_and_halt: 2}
+  @dialyzer {:no_return, print_help_and_halt: 0}
+
   @moduledoc """
   Diagnostic task: `mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine sparql|qlever] [--store-id ID] [--fix] [--strict]`.
 

@@ -1,4 +1,10 @@
 defmodule Mix.Tasks.GgenIgniter.Install do
+  # `print_help_and_halt/0` ends in `System.halt(0)`, which never returns to
+  # the caller by design (a real process exit for `--help`). Dialyzer
+  # correctly observes the function has no local return and flags it
+  # `:no_return`; that is the intended contract here, not a bug.
+  @dialyzer {:no_return, print_help_and_halt: 0}
+
   @moduledoc """
   Installer task: `mix ggen_igniter.install [--domain Module.Name] [--otp-app name] [--yes]`.
 

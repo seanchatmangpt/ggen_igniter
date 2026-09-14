@@ -1,4 +1,17 @@
 defmodule Mix.Tasks.GgenIgniter.Replay do
+  # `halt/1` wraps `System.halt/1` on purpose (see its own comment below on
+  # why -- distinguishable 0/1/2 exit codes a caller can branch on), which
+  # never returns to the caller by design. Every function below propagates
+  # that non-return through its own real exit path (`run/1`'s `cond`
+  # branches, `invalid_invocation/2`, and the help/version printers) --
+  # Dialyzer correctly observes each has no local return and flags it
+  # `:no_return`; that is the intended CLI-exit contract here, not a bug.
+  @dialyzer {:no_return, halt: 1}
+  @dialyzer {:no_return, print_version_and_halt: 0}
+  @dialyzer {:no_return, print_help_and_halt: 0}
+  @dialyzer {:no_return, invalid_invocation: 2}
+  @dialyzer {:no_return, run: 1}
+
   @moduledoc """
   Diagnostic task: `mix ggen_igniter.replay <receipt_file> [--verify-only] [--json] [--manifest-dir DIR]`.
 

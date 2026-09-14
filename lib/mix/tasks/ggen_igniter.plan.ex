@@ -1,4 +1,13 @@
 defmodule Mix.Tasks.GgenIgniter.Plan do
+  # `igniter/1`'s `--help`/`--version` branches end in `System.halt(0)`,
+  # which never returns to the caller by design (a real process exit); its
+  # `true ->` branch propagates that same non-return through `run_plan/2`'s
+  # own halting exit paths. Dialyzer correctly observes each has no local
+  # return and flags it `:no_return`; that is the intended CLI-exit
+  # contract here, not a bug.
+  @dialyzer {:no_return, run_plan: 2}
+  @dialyzer {:no_return, igniter: 1}
+
   @moduledoc """
   Read-only admission preview: `mix ggen_igniter.plan --template path.eex [--pack NAME |
   --pack-dir DIR] --query name=path.rq (repeatable) [--engine oxigraph|sparql|qlever]

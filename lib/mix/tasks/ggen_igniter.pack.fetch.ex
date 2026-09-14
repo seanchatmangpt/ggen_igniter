@@ -1,4 +1,18 @@
 defmodule Mix.Tasks.GgenIgniter.Pack.Fetch do
+  # `halt/1` wraps `System.halt/1`, which never returns to the caller by
+  # design (a real process exit code). Every function below propagates that
+  # non-return through its own real exit path (`run/1`'s `cond` branches,
+  # `do_fetch/3`'s success/rescue, `invalid_invocation/2`, and the
+  # help/version printers) -- Dialyzer correctly observes each has no local
+  # return and flags it `:no_return`; that is the intended CLI-exit
+  # contract here, not a bug.
+  @dialyzer {:no_return, halt: 1}
+  @dialyzer {:no_return, print_version_and_halt: 0}
+  @dialyzer {:no_return, print_help_and_halt: 0}
+  @dialyzer {:no_return, invalid_invocation: 2}
+  @dialyzer {:no_return, do_fetch: 3}
+  @dialyzer {:no_return, run: 1}
+
   @moduledoc """
   CLI wiring for `GgenIgniter.Pack.fetch_pack!/2`: `mix ggen_igniter.pack.fetch <spec> [--cache-dir DIR] [--json]`.
 

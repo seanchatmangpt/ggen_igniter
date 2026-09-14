@@ -1,4 +1,12 @@
 defmodule Mix.Tasks.GgenIgniter.Sync do
+  # `print_help_and_halt/0`/`print_version_and_halt/0` end in
+  # `System.halt(0)`, which never returns to the caller by design (a real
+  # process exit for `--help`/`--version`). Dialyzer correctly observes each
+  # has no local return and flags it `:no_return`; that is the intended
+  # contract here, not a bug.
+  @dialyzer {:no_return, print_version_and_halt: 0}
+  @dialyzer {:no_return, print_help_and_halt: 0}
+
   @moduledoc """
   CLI entrypoint: `mix ggen_igniter.sync --ontology path.ttl --query name=path.rq (repeatable) --template path.eex --out path.ex`.
 
