@@ -41,6 +41,7 @@ defmodule GgenIgniter.EphemeralManufactureTest do
     assert projection.verification_receipt_hash == receipt.receipt_hash
 
     assert [statement] = result.provenance
+
     assert statement["predicate"]["runDetails"]["metadata"]["verificationReceiptHash"] ==
              receipt.receipt_hash
 
