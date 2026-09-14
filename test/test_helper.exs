@@ -49,24 +49,59 @@
 # `:application.which_applications/0` showing `:inets` present before this
 # probe ever runs.
 #
-# The fix: stop asking "did ANY HTTP server answer?" and instead run the
-# same real SPARQL-protocol round trip this codebase already trusts for this
-# exact decision -- `GgenIgniter.EngineRegistry`'s own `qlever_reachable?/2`
-# (`lib/ggen_igniter/engine_registry.ex`) already does this correctly: real
-# `Ontology.load!/1` + real `Query.Qlever.load_store!/2` + a real
-# `Query.Qlever.run/2` SELECT against the endpoint, `rescue -> false`. This
-# is not a guess that the replacement works in the target environment: the
-# SAME hosted CI run's own log shows this exact technique (invoked from
-# `EngineRegistry.resolve/2` inside `ggen_igniter_engine_registry_test.exs`,
-# against this exact `config/gno/test/store.ttl` store) logging "the QLever
-# endpoint at --store-id ... is unreachable (or its ontology could not be
-# resolved/loaded)" -- i.e. this technique already proved itself correct, in
-# situ, on the exact runner this fix targets.
+# The fix, part 1: stop asking "did ANY HTTP server answer?" and instead run
+# the same real SPARQL-protocol round trip this codebase already trusts for
+# this exact decision -- `GgenIgniter.EngineRegistry`'s own
+# `qlever_reachable?/2` (`lib/ggen_igniter/engine_registry.ex`) already does
+# this correctly: real `Ontology.load!/1` + real `Query.Qlever.load_store!/2`
+# + a real `Query.Qlever.run/2` SELECT against the endpoint, `rescue ->
+# false`.
+#
+# GI-13 follow-up 2 (2026-09-14, same day, next hosted run 34826784317 on
+# SHA ec038f7): part 1 alone was NOT sufficient -- real, evidenced,
+# reproduced on a SECOND independent hosted CI run. That run's own
+# `Excluding tags: [:requires_ash_r2rml]` line again omitted
+# `:requires_qlever_server`, i.e. THIS EXACT round-trip probe (below) still
+# returned `true` there, yet 3 of the 9 `:requires_qlever_server`-tagged
+# tests still failed for real, including two with the identical real
+# `** (RuntimeError) ... :econnrefused` seen on the first hosted run, AND
+# (most tellingly) `ggen_igniter_engine_registry_test.exs`'s own "all"-engine
+# test failed on `left: {:ok, [:oxigraph, :sparql]}` vs
+# `right: {:ok, [:oxigraph, :sparql, :qlever]}` -- meaning
+# `EngineRegistry.resolve/2`'s OWN internal call to this exact same
+# `qlever_reachable?/2` technique, moments later in the SAME run, correctly
+# found the endpoint UNREACHABLE. Two independent invocations of the
+# identical real round-trip technique, on the identical `127.0.0.1:7020`
+# literal IP:port (no DNS involved), disagreed within the same run: this
+# probe (very first thing this suite does, before `ExUnit.start/1`) got
+# `true`; the same technique run again minutes later got `false` (a real
+# `:econnrefused`, proven by the sibling failures in the same run). That
+# is real, direct, reproduced (now twice, across two independently
+# triggered CI runs) evidence of TIME-DEPENDENT transience on the hosted
+# runner's `127.0.0.1:7020` -- reachable at the very earliest possible
+# moment in the job, refused shortly after -- not a technique defect (the
+# technique itself, a real SPARQL round trip, is exactly right; asking it
+# once, at the earliest possible instant, is what's wrong). The exact
+# mechanism on the runner side is still not independently identified (no
+# shell access to the ephemeral runner), but pinning that is unnecessary for
+# a correct fix here.
+#
+# The fix, part 2: a real round trip is trusted for this decision only if it
+# still succeeds a second time, after a short real, deliberate pause -- this
+# targets the exact observed failure shape (transiently-true, then
+# durably-false) directly, without guessing at its cause. A real,
+# continuously-running local QLever server (the normal dev-machine case
+# these tests were written for) trivially still answers a moment later; a
+# transient early-boot artifact on a hosted runner does not.
 qlever_reachable? =
   try do
     graph = GgenIgniter.Ontology.load!("config/gno/test/store.ttl")
     store = GgenIgniter.Query.Qlever.load_store!(graph, "http://example.com/Qlever")
-    GgenIgniter.Query.Qlever.run(store, "SELECT ?s WHERE { ?s ?p ?o } LIMIT 1")
+    query = "SELECT ?s WHERE { ?s ?p ?o } LIMIT 1"
+
+    GgenIgniter.Query.Qlever.run(store, query)
+    Process.sleep(2_000)
+    GgenIgniter.Query.Qlever.run(store, query)
     true
   rescue
     _ -> false
