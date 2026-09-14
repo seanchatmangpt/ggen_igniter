@@ -17,6 +17,14 @@ defmodule GgenIgniter.EphemeralProjection do
   @slsa_provenance "https://slsa.dev/provenance/v1"
   @build_type "https://seanchatmangpt.github.io/ggen-igniter/ephemeral-projection/v26.9.15"
 
+  @shared_required [
+    :generator_digest,
+    :environment_digest,
+    :dependency_digest,
+    :builder_id,
+    :invocation_id
+  ]
+
   @enforce_keys [
     :name,
     :graph_digest,
@@ -49,6 +57,28 @@ defmodule GgenIgniter.EphemeralProjection do
           | {:refused_ephemeral_projection, atom(), term()}
 
   @doc """
+  Admits the shared provenance closure before any consequence-bearing
+  reconciliation starts. This lets callers fail closed on missing or malformed
+  manufacture identity without first actuating a project.
+  """
+  @spec admit_provenance_opts(keyword()) :: {:ok, keyword()} | {:error, refusal()}
+  def admit_provenance_opts(opts) when is_list(opts) do
+    with {:ok, admitted} <- fetch_required(opts, @shared_required),
+         :ok <- validate_digest(:generator_digest, admitted[:generator_digest]),
+         :ok <- validate_digest(:environment_digest, admitted[:environment_digest]),
+         :ok <- validate_digest(:dependency_digest, admitted[:dependency_digest]),
+         :ok <- validate_nonempty(:builder_id, admitted[:builder_id]),
+         :ok <- validate_nonempty(:invocation_id, admitted[:invocation_id]),
+         :ok <- validate_dependencies(Keyword.get(opts, :resolved_dependencies, [])) do
+      {:ok,
+       admitted
+       |> Keyword.put(:authority_ceiling, Keyword.get(opts, :authority_ceiling, :construct))
+       |> Keyword.put(:disposition, Keyword.get(opts, :disposition, :ephemeral))
+       |> Keyword.put(:resolved_dependencies, Keyword.get(opts, :resolved_dependencies, []))}
+    end
+  end
+
+  @doc """
   Builds and admits one ephemeral projection from exact artifact bytes.
 
   Required provenance digests use ggen_igniter's existing `sha256:<hex>`
@@ -58,27 +88,27 @@ defmodule GgenIgniter.EphemeralProjection do
   @spec manufacture(binary(), keyword()) ::
           {:ok, t()} | {:error, refusal() | SemanticEpoch.refusal()}
   def manufacture(bytes, opts) when is_binary(bytes) and is_list(opts) do
-    projection = %__MODULE__{
-      name: Keyword.fetch!(opts, :name),
-      graph_digest: Keyword.fetch!(opts, :graph_digest),
-      generator_digest: Keyword.fetch!(opts, :generator_digest),
-      environment_digest: Keyword.fetch!(opts, :environment_digest),
-      dependency_digest: Keyword.fetch!(opts, :dependency_digest),
-      artifact_digest: Digest.sha256(bytes),
-      builder_id: Keyword.fetch!(opts, :builder_id),
-      invocation_id: Keyword.fetch!(opts, :invocation_id),
-      authority_ceiling: Keyword.get(opts, :authority_ceiling, :construct),
-      disposition: Keyword.get(opts, :disposition, :ephemeral),
-      resolved_dependencies: Keyword.get(opts, :resolved_dependencies, [])
-    }
+    with {:ok, shared} <- admit_provenance_opts(opts),
+         {:ok, identity} <- fetch_required(opts, [:name, :graph_digest]),
+         :ok <- validate_nonempty(:name, identity[:name]),
+         :ok <- validate_digest(:graph_digest, identity[:graph_digest]) do
+      projection = %__MODULE__{
+        name: identity[:name],
+        graph_digest: identity[:graph_digest],
+        generator_digest: shared[:generator_digest],
+        environment_digest: shared[:environment_digest],
+        dependency_digest: shared[:dependency_digest],
+        artifact_digest: Digest.sha256(bytes),
+        builder_id: shared[:builder_id],
+        invocation_id: shared[:invocation_id],
+        authority_ceiling: shared[:authority_ceiling],
+        disposition: shared[:disposition],
+        resolved_dependencies: shared[:resolved_dependencies]
+      }
 
-    with {:ok, _epoch} <- SemanticEpoch.admit(:ephemeral, epoch_declaration(projection)),
-         :ok <- validate_digest(:graph_digest, projection.graph_digest),
-         :ok <- validate_digest(:generator_digest, projection.generator_digest),
-         :ok <- validate_digest(:environment_digest, projection.environment_digest),
-         :ok <- validate_digest(:dependency_digest, projection.dependency_digest),
-         :ok <- validate_dependencies(projection.resolved_dependencies) do
-      {:ok, projection}
+      with {:ok, _epoch} <- SemanticEpoch.admit(:ephemeral, epoch_declaration(projection)) do
+        {:ok, projection}
+      end
     end
   end
 
@@ -163,7 +193,10 @@ defmodule GgenIgniter.EphemeralProjection do
         },
         "runDetails" => %{
           "builder" => %{"id" => projection.builder_id},
-          "metadata" => %{"invocationId" => projection.invocation_id}
+          "metadata" => %{
+            "invocationId" => projection.invocation_id,
+            "verificationReceiptHash" => projection.verification_receipt_hash
+          }
         }
       }
     }
@@ -182,6 +215,15 @@ defmodule GgenIgniter.EphemeralProjection do
     }
   end
 
+  defp fetch_required(opts, keys) do
+    Enum.reduce_while(keys, {:ok, []}, fn key, {:ok, acc} ->
+      case Keyword.fetch(opts, key) do
+        {:ok, value} -> {:cont, {:ok, Keyword.put(acc, key, value)}}
+        :error -> {:halt, {:error, {:refused_ephemeral_projection, :missing_option, key}}}
+      end
+    end)
+  end
+
   defp epoch_declaration(projection) do
     SemanticEpoch.invariants(:ephemeral)
     |> Map.put(:generator_authority_ceiling, projection.authority_ceiling)
@@ -198,6 +240,11 @@ defmodule GgenIgniter.EphemeralProjection do
 
   defp validate_digest(field, _value),
     do: {:error, {:refused_ephemeral_projection, :invalid_digest, field}}
+
+  defp validate_nonempty(_field, value) when is_binary(value) and byte_size(value) > 0, do: :ok
+
+  defp validate_nonempty(field, _value),
+    do: {:error, {:refused_ephemeral_projection, :invalid_option, field}}
 
   defp validate_dependencies(dependencies) when is_list(dependencies) do
     if Enum.all?(dependencies, &valid_dependency?/1) do
