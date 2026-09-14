@@ -55,7 +55,8 @@ defmodule GgenIgniter.EphemeralProjection do
   convention. The artifact digest is manufactured here from the exact bytes,
   preventing a caller from supplying an unrelated subject digest.
   """
-  @spec manufacture(binary(), keyword()) :: {:ok, t()} | {:error, refusal() | SemanticEpoch.refusal()}
+  @spec manufacture(binary(), keyword()) ::
+          {:ok, t()} | {:error, refusal() | SemanticEpoch.refusal()}
   def manufacture(bytes, opts) when is_binary(bytes) and is_list(opts) do
     projection = %__MODULE__{
       name: Keyword.fetch!(opts, :name),
@@ -103,7 +104,9 @@ defmodule GgenIgniter.EphemeralProjection do
   end
 
   def verify(%__MODULE__{} = projection, _receipt_hash),
-    do: {:error, {:refused_ephemeral_projection, :invalid_verification_transition, projection.status}}
+    do:
+      {:error,
+       {:refused_ephemeral_projection, :invalid_verification_transition, projection.status}}
 
   @doc """
   Returns a retirement intent only after verification evidence exists.
@@ -209,7 +212,8 @@ defmodule GgenIgniter.EphemeralProjection do
 
   defp valid_dependency?(%{"uri" => uri, "digest" => digest})
        when is_binary(uri) and is_map(digest) and map_size(digest) > 0,
-       do: Enum.all?(digest, fn {algorithm, value} -> is_binary(algorithm) and is_binary(value) end)
+       do:
+         Enum.all?(digest, fn {algorithm, value} -> is_binary(algorithm) and is_binary(value) end)
 
   defp valid_dependency?(_), do: false
 

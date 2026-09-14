@@ -47,7 +47,8 @@ defmodule GgenIgniter.SemanticEpoch do
   """
   @spec admit(:constitutional | :ephemeral, map()) ::
           {:ok, %{epoch: atom(), version: String.t(), declaration: map()}} | {:error, refusal()}
-  def admit(epoch, declaration) when epoch in [:constitutional, :ephemeral] and is_map(declaration) do
+  def admit(epoch, declaration)
+      when epoch in [:constitutional, :ephemeral] and is_map(declaration) do
     required = invariants(epoch)
 
     mismatches =
