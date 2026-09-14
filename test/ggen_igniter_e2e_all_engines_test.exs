@@ -186,6 +186,7 @@ defmodule GgenIgniter.E2eAllEnginesTest do
 
   describe "--engine qlever" do
     @tag :requires_qlever_server
+    @tag :requires_ash_r2rml
     test "real end-to-end loop against a real, already-running QLever server: sync writes the real file, re-sync is a real idempotent no-op" do
       out_dir =
         Path.join(

@@ -26,6 +26,7 @@ defmodule GgenIgniter.AshR2rmlGateQleverTest do
   @store_id "http://example.com/Qlever"
 
   @tag :requires_qlever_server
+  @tag :requires_ash_r2rml
   test "gate 010 (broke sparql 0.3.12) returns real rows from real QLever" do
     store = QleverQuery.load_store!(@manifest_graph, @store_id)
     query = File.read!(@gate_010)
@@ -50,6 +51,7 @@ defmodule GgenIgniter.AshR2rmlGateQleverTest do
   end
 
   @tag :requires_qlever_server
+  @tag :requires_ash_r2rml
   test "gate 020 (broke sparql 0.3.12) returns real rows from real QLever" do
     store = QleverQuery.load_store!(@manifest_graph, @store_id)
     query = File.read!(@gate_020)

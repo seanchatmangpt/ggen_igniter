@@ -14,6 +14,7 @@ defmodule GgenIgniter.SyncQleverEngineTest do
   use ExUnit.Case, async: false
 
   @tag :requires_qlever_server
+  @tag :requires_ash_r2rml
   test "mix ggen_igniter.sync --engine qlever runs a real gate query against real QLever and writes a real file" do
     out_dir =
       Path.join(
