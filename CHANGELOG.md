@@ -1,5 +1,32 @@
 # Changelog
 
+## v26.9.15
+
+The v26.9.15 epoch (reserved by `epoch/v26.9.15-graph-ephemerals`, carried to
+completion on `feat/dfcm-agent-pack`, fast-forwarded to `main` for release):
+
+- **Semantic manufacture boundary + graph-generated ephemeral projections**
+  (`bcd02b9`, `9426c10`, `5535027`): establishes the v26.9.14 semantic
+  manufacture boundary, adds v26.9.15 graph-generated ephemeral projections,
+  and composes ephemerals with the existing receipt court.
+- **DfCM agent core contract as an ontology projection** (`f1f7990`):
+  manufactures the DfCM agent contract (the one behind `~/.zcode/AGENTS.md`)
+  as a pack projection rather than a hand-edited file.
+- **CI/test hardening** (`ec038f7`, `3ebdf13`, `4453e0e`, `d617ec6`,
+  `ca76f80`, `b139a64`): a real SPARQL round-trip qlever probe gated on a CI
+  env var (not network timing) and required to hold on a second round trip;
+  the ex4pm fixture repo is cloned to `$HOME/ex4pm` before `mix test`;
+  `ExUnit.configure(exclude:)` calls no longer clobber each other.
+- **Static-analysis and style gates** (`941a920`, `b3dc62d`, `e0f5d03`,
+  `70f2db9`): 22 real `no_return` dialyzer warnings suppressed on intentional
+  CLI-halt exits; `build_projections/4` nesting reduced for credo; the
+  ephemeral-manufacture test satisfies `mix format --check-formatted`.
+- **macOS test-lane repairs** (`bccf084`): scratch dirs are expressed in
+  realpath form (`/var` -> `/private/var`) matching the manifest/actuation
+  layers' canonical storage, and the shellout/fortune5 suites are unblocked
+  by running the native `ggen` binary (the docker-wrapper route cannot mount
+  macOS `/var/folders` fixture paths) -- full suite back to green on macOS.
+
 ## v26.9.12
 
 Real work landed on `main` since the `v26.9.10` entry below (that version's own
