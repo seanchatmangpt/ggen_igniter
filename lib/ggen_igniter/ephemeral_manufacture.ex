@@ -8,6 +8,23 @@ defmodule GgenIgniter.EphemeralManufacture do
   durable `:alive` receipt, this module reads the exact admitted output bytes
   and constructs verified provenance plus authority-free retirement intents.
 
+  ## Receipt-bound output identity (GGEN-2601)
+
+  Before any projection may reach `:verified`, the CURRENT bytes of the
+  receipted file set are proven to equal the receipt's committed post-state:
+
+      H(current receipted file-set) == receipt.post_run_hash
+
+  via the SAME `GgenIgniter.Receipt.hash_entries/1` primitive that built
+  `post_run_hash` at finalize time (`hash_files/1`'s disk-reading twin).
+  The bytes are read from disk exactly ONCE, verified as a set, and the
+  projections are manufactured from those same in-memory bytes -- there is
+  no second disk read between verification and attestation, so a receipt
+  `t0` -> mutate output `t1` -> attest `t2` sequence cannot bind
+  post-receipt-modified bytes to a pre-receipt verification receipt. A
+  mismatch (or a receipt carrying no `post_run_hash` at all) is a typed
+  refusal that names both digests.
+
   Invalid provenance configuration is refused before reconciliation starts.
   A post-reconciliation attestation failure never rewrites the already-durable
   run receipt or invents a different standing; the returned error includes the
@@ -61,10 +78,12 @@ defmodule GgenIgniter.EphemeralManufacture do
   @spec attest_receipt(Receipt.t(), keyword()) :: {:ok, result()} | {:error, attestation_error()}
   def attest_receipt(%Receipt{standing: :alive} = receipt, provenance_opts)
       when is_list(provenance_opts) do
-    with {:ok, graph_digest} <- graph_digest(receipt),
+    with {:ok, reads} <- read_receipted_files(receipt),
+         :ok <- verify_receipted_output_identity(receipt, reads),
+         {:ok, graph_digest} <- graph_digest(receipt),
          {:ok, receipt_hash} <- receipt_hash(receipt),
          {:ok, projections} <-
-           build_projections(receipt, graph_digest, receipt_hash, provenance_opts) do
+           build_projections(reads, graph_digest, receipt_hash, provenance_opts) do
       {:ok,
        %{
          receipt: receipt,
@@ -85,10 +104,10 @@ defmodule GgenIgniter.EphemeralManufacture do
      }}
   end
 
-  defp build_projections(receipt, graph_digest, receipt_hash, provenance_opts) do
-    receipt.files
-    |> Enum.reduce_while({:ok, []}, fn path, {:ok, acc} ->
-      case manufacture_projection(path, graph_digest, receipt_hash, provenance_opts) do
+  defp build_projections(reads, graph_digest, receipt_hash, provenance_opts) do
+    reads
+    |> Enum.reduce_while({:ok, []}, fn {path, bytes}, {:ok, acc} ->
+      case manufacture_projection(path, bytes, graph_digest, receipt_hash, provenance_opts) do
         {:ok, verified} -> {:cont, {:ok, [verified | acc]}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
@@ -99,21 +118,53 @@ defmodule GgenIgniter.EphemeralManufacture do
     end
   end
 
-  defp manufacture_projection(path, graph_digest, receipt_hash, provenance_opts) do
-    with {:ok, bytes} <- read_ephemeral_source(path),
-         opts =
-           provenance_opts
-           |> Keyword.put(:name, path)
-           |> Keyword.put(:graph_digest, graph_digest),
-         {:ok, projection} <- EphemeralProjection.manufacture(bytes, opts) do
+  defp manufacture_projection(path, bytes, graph_digest, receipt_hash, provenance_opts) do
+    opts =
+      provenance_opts
+      |> Keyword.put(:name, path)
+      |> Keyword.put(:graph_digest, graph_digest)
+
+    with {:ok, projection} <- EphemeralProjection.manufacture(bytes, opts) do
       EphemeralProjection.verify(projection, receipt_hash)
     end
   end
 
-  defp read_ephemeral_source(path) do
-    case File.read(path) do
-      {:ok, bytes} -> {:ok, bytes}
-      {:error, reason} -> {:error, {:ephemeral_projection_unreadable, path, reason}}
+  # One disk read per receipted file, taken BEFORE any projection is built:
+  # the identity check below and the artifact digests attested into
+  # provenance both consume THESE in-memory bytes, so nothing can change on
+  # disk between verification and attestation (GGEN-2601's TOCTOU closure).
+  # A missing/unreadable file reads as `nil` -- the exact same `:absent`
+  # convention `GgenIgniter.Receipt.hash_files/1` used when the receipt's
+  # `post_run_hash` was computed, so the digest comparison below -- not a
+  # separate readability refusal -- is what decides whether the current
+  # file set still matches the receipted post-state.
+  defp read_receipted_files(%Receipt{files: files}) do
+    reads =
+      Enum.map(files, fn path ->
+        case File.read(path) do
+          {:ok, bytes} -> {path, bytes}
+          {:error, _reason} -> {path, nil}
+        end
+      end)
+
+    {:ok, reads}
+  end
+
+  # GGEN-2601: prove H(current receipted file-set) == receipt.post_run_hash
+  # before anything is attested. A receipt with no `post_run_hash` cannot
+  # bind any bytes and is refused up front rather than vacuously verified.
+  defp verify_receipted_output_identity(%Receipt{post_run_hash: nil}, _reads) do
+    {:error, {:refused_ephemeral_attestation, :post_run_hash_missing, nil}}
+  end
+
+  defp verify_receipted_output_identity(%Receipt{post_run_hash: expected}, reads) do
+    observed = Receipt.hash_entries(reads)
+
+    if observed == expected do
+      :ok
+    else
+      {:error,
+       {:refused_ephemeral_attestation, :post_run_hash_mismatch, %{expected: expected, observed: observed}}}
     end
   end
 
