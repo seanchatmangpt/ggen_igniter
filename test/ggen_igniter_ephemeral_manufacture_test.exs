@@ -57,7 +57,9 @@ defmodule GgenIgniter.EphemeralManufactureTest do
   # mismatch named, never verify post-receipt-modified bytes against the
   # pre-receipt receipt. Real tmp files, real on-disk mutation.
   test "refuses to verify when a receipted output was mutated after the receipt (TOCTOU falsifier)" do
-    dir = Path.join(System.tmp_dir!(), "ggen-ephemeral-tamper-#{System.unique_integer([:positive])}")
+    dir =
+      Path.join(System.tmp_dir!(), "ggen-ephemeral-tamper-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
 
@@ -88,7 +90,9 @@ defmodule GgenIgniter.EphemeralManufactureTest do
   end
 
   test "refuses to verify when ANY one file of a multi-file receipted set was mutated" do
-    dir = Path.join(System.tmp_dir!(), "ggen-ephemeral-multi-#{System.unique_integer([:positive])}")
+    dir =
+      Path.join(System.tmp_dir!(), "ggen-ephemeral-multi-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
 
@@ -112,7 +116,9 @@ defmodule GgenIgniter.EphemeralManufactureTest do
   end
 
   test "refuses an alive receipt that carries no post_run_hash at all (nothing to bind)" do
-    dir = Path.join(System.tmp_dir!(), "ggen-ephemeral-nohash-#{System.unique_integer([:positive])}")
+    dir =
+      Path.join(System.tmp_dir!(), "ggen-ephemeral-nohash-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
 
