@@ -48,6 +48,11 @@ defmodule GgenIgniter.ReconciliationManifestTest do
 
     File.rm_rf!(dir)
     File.mkdir_p!(dir)
+
+    # macOS: System.tmp_dir!() is /var/... while the manifest/actuation
+    # layer stores realpath'd (/private/var/...) keys -- return the real
+    # path so expectations match the SUT's canonical storage everywhere.
+    dir = RealDir.real_dir!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
     dir
   end
