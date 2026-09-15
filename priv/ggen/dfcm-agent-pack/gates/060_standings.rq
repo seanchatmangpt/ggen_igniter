@@ -1,0 +1,4 @@
+PREFIX dfa: <https://ggen-igniter.dev/ontology/dfcm-agent#>
+SELECT DISTINCT ?standing WHERE {
+  ?c a dfa:Contract ; dfa:standing_term ?standing .
+}

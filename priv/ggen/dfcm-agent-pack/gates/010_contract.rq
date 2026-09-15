@@ -1,0 +1,9 @@
+PREFIX dfa: <https://ggen-igniter.dev/ontology/dfcm-agent#>
+SELECT DISTINCT ?canonical_term ?long_name ?mission ?manufactured_floor ?handwritten_cap WHERE {
+  ?c a dfa:Contract ;
+     dfa:canonical_term ?canonical_term ;
+     dfa:long_name ?long_name ;
+     dfa:mission ?mission ;
+     dfa:manufactured_floor ?manufactured_floor ;
+     dfa:handwritten_cap ?handwritten_cap .
+}

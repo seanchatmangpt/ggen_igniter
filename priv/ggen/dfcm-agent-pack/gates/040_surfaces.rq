@@ -1,0 +1,7 @@
+PREFIX dfa: <https://ggen-igniter.dev/ontology/dfcm-agent#>
+SELECT DISTINCT ?surface_name ?writing_is ?surface_where WHERE {
+  ?s a dfa:Surface ;
+     dfa:surface_name ?surface_name ;
+     dfa:writing_is ?writing_is ;
+     dfa:surface_where ?surface_where .
+}

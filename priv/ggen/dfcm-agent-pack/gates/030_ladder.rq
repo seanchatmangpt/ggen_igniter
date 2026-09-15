@@ -1,0 +1,8 @@
+PREFIX dfa: <https://ggen-igniter.dev/ontology/dfcm-agent#>
+SELECT DISTINCT ?order ?step_name ?step_rule WHERE {
+  ?s a dfa:LadderStep ;
+     dfa:order ?order ;
+     dfa:step_name ?step_name ;
+     dfa:step_rule ?step_rule .
+}
+ORDER BY ?order

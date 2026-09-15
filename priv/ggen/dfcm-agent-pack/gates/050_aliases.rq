@@ -1,0 +1,4 @@
+PREFIX dfa: <https://ggen-igniter.dev/ontology/dfcm-agent#>
+SELECT DISTINCT ?alias WHERE {
+  ?c a dfa:Contract ; dfa:alias ?alias .
+}

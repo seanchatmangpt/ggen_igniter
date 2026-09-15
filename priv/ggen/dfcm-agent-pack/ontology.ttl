@@ -1,0 +1,135 @@
+@prefix dfa:  <https://ggen-igniter.dev/ontology/dfcm-agent#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Semantic source of truth for the DfCM agent operating contract
+# (AGENTS.md). The contract's law lives here as facts; every deployed
+# AGENTS.md is a projection of this graph via
+#
+#   mix ggen_igniter.sync --pack dfcm-agent-pack --engine sparql \
+#     --out <target-path>
+#
+# Amend the ontology, never a rendered AGENTS.md. This pack is the
+# Elixir-side (living-systems) home of the contract: the law is expected to
+# evolve frequently and must remain agent-editable as data. Speed-critical
+# manufacture stays in Rust ggen; contract law stays here.
+
+dfa:Contract a rdfs:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "DfCM agent contract" ;
+    rdfs:comment "One operating contract for a manufacturing agent in a DfCM portfolio." .
+
+dfa:Surface a rdfs:Class ; rdfs:label "writing surface" .
+dfa:LadderStep a rdfs:Class ; rdfs:label "search-ladder step" .
+dfa:Section a rdfs:Class ; rdfs:label "contract section" .
+
+dfa:canonical_term a rdf:Property ; rdfs:range xsd:string .
+dfa:long_name a rdf:Property ; rdfs:subPropertyOf dcterms:title ; rdfs:range xsd:string .
+dfa:alias a rdf:Property ; rdfs:range xsd:string .
+dfa:mission a rdf:Property ; rdfs:subPropertyOf dcterms:abstract ; rdfs:range xsd:string .
+dfa:manufactured_floor a rdf:Property ; rdfs:range xsd:string .
+dfa:handwritten_cap a rdf:Property ; rdfs:range xsd:string .
+dfa:standing_term a rdf:Property ; rdfs:range xsd:string .
+dfa:surface_name a rdf:Property ; rdfs:subPropertyOf skos:prefLabel ; rdfs:range xsd:string .
+dfa:writing_is a rdf:Property ; rdfs:subPropertyOf dcterms:description ; rdfs:range xsd:string .
+dfa:surface_where a rdf:Property ; rdfs:subPropertyOf dcterms:spatial ; rdfs:range xsd:string .
+dfa:step_name a rdf:Property ; rdfs:subPropertyOf skos:prefLabel ; rdfs:range xsd:string .
+dfa:step_rule a rdf:Property ; rdfs:subPropertyOf dcterms:description ; rdfs:range xsd:string .
+dfa:order a rdf:Property ; rdfs:subPropertyOf dcterms:identifier ; rdfs:range xsd:integer .
+dfa:heading a rdf:Property ; rdfs:subPropertyOf dcterms:title ; rdfs:range xsd:string .
+dfa:body a rdf:Property ; rdfs:subPropertyOf dcterms:description ; rdfs:range xsd:string .
+
+# ── The contract singleton ──────────────────────────────────────────────────
+
+dfa:core a dfa:Contract ;
+    dfa:canonical_term "DfCM" ;
+    dfa:long_name "Design for Combinatorial Maximalism" ;
+    dfa:alias "CMD" , "DCM" ;
+    dfa:mission "deliver product change at >= 99% manufactured-from-marketplace, <= 1% hand-written, every deviation ledgered and shrinking" ;
+    dfa:manufactured_floor "99%" ;
+    dfa:handwritten_cap "1%" ;
+    dfa:standing_term "UNKNOWN" , "PARTIAL_ALIVE" , "ALIVE" , "BLOCKED" ,
+        "BUILD_BROKEN" , "UNSUPPORTED" , "REFUSED_*" .
+
+# ── Surfaces ────────────────────────────────────────────────────────────────
+
+dfa:law_surface a dfa:Surface ;
+    dfa:surface_name "Law surface" ;
+    dfa:writing_is "The job. This is where authorship lives; investment here multiplies." ;
+    dfa:surface_where "ggen-marketplace packs and ggen_igniter priv/ggen/*: pack.toml, ontology.ttl, templates, gates, generator compositions" .
+
+dfa:product_surface a dfa:Surface ;
+    dfa:surface_name "Product surface" ;
+    dfa:writing_is "Debt. Capped per delivery, admitted only through the UNSUPPORTED ledger, must shrink monotonically." ;
+    dfa:surface_where "consumer repos (zoela_phx, clients), app code, configs, migrations, shipping docs" .
+
+# ── Search ladder ───────────────────────────────────────────────────────────
+
+dfa:step_reuse a dfa:LadderStep ; dfa:order 1 ;
+    dfa:step_name "REUSE" ;
+    dfa:step_rule "Search ggen-marketplace/packs/ (~318 packs) by capability family, not by name. Then ggen_igniter packs (priv/ggen/*)." .
+
+dfa:step_compose a dfa:LadderStep ; dfa:order 2 ;
+    dfa:step_name "COMPOSE" ;
+    dfa:step_rule "Combine existing packs and generators before adding anything." .
+
+dfa:step_extend a dfa:LadderStep ; dfa:order 3 ;
+    dfa:step_name "EXTEND" ;
+    dfa:step_rule "Add the missing fact/template/gate to an existing durable capability family. PackDirectory != PublicCapability: versions, experiments, and implementations live inside a family, never as a new top-level pack." .
+
+dfa:step_invent a dfa:LadderStep ; dfa:order 4 ;
+    dfa:step_name "INVENT" ;
+    dfa:step_rule "Last resort, and legal only as an admitted pack (pack.toml + SemVer + description + RDF source + gates, through marketplace admission). Loose hand-written files are not invention; they are contract violations that do not count against the 1%." .
+
+# ── Sections ────────────────────────────────────────────────────────────────
+
+dfa:sec_surfaces a dfa:Section ; dfa:order 0 ;
+    dfa:heading "0. The two surfaces (read this before every task)" ;
+    dfa:body """Writing is legal on one surface and debt on the other — see the surface table above. If you are about to write a byte on the product surface, stop: the same byte belongs on the law surface as a pack fact, a template, or a generator capability. Writing product code by hand to avoid pack work is the primary violation of this contract.""" .
+
+dfa:sec_ladder a dfa:Section ; dfa:order 1 ;
+    dfa:heading "1. Search ladder (run before writing anything)" ;
+    dfa:body """Run the ladder above before every write. A pack that almost fits is topology, not permission. Record the failed edge — failed(edge_i) != failed(G) — extend the family, move on. Silent pruning of alternatives because the first pack almost worked is forbidden.""" .
+
+dfa:sec_ledger a dfa:Section ; dfa:order 2 ;
+    dfa:heading "2. The 1% ledger (the only legal hand-writing on the product surface)" ;
+    dfa:body """Hand-writing a product artifact is permitted only when ALL of: (1) no admitted pack/generator expresses the semantic element; (2) an UNSUPPORTED(generator, element) row naming the exact gap exists in the owning ontology (create it as part of the change); (3) the artifact is entered in the repo's HANDWRITTEN.md ledger: path | semantic element | missing capability | intended owner pack | date. The ledger must shrink monotonically per milestone; growing it requires, in the same change, the pack-extension plan that will pay it down. Hand-writing without a ledger entry is fabrication of the ratio.""" .
+
+dfa:sec_generators a dfa:Section ; dfa:order 3 ;
+    dfa:heading "3. Generators own mutations (no single-file forgeries)" ;
+    dfa:body """If a generator (Ash/Igniter or any admitted one) owns a multi-file semantic mutation, invoking it is mandatory. A hand-written file that compiles and is still wrong — unregistered domain, wrong accept-lists, missing base-resource config, missing repo wiring, no migration snapshot — is the canonical failure: five real defects, zero compile errors, one plausible file. Never hand-write use Ash.Resource / use Ash.Domain or base-resource headers; refuse with REFUSED_GENERATOR_OWNED. Drive generators through Igniter.compose_task/4 (composed switches), never by shelling out to the CLI strict-switch path. Generated files are consequences: to change them, edit the owning ontology/query/template/generator, never the projection; upstream renames and removals must be detected by the reconciliation manifest, not orphan it.""" .
+
+dfa:sec_dfcm a dfa:Section ; dfa:order 4 ;
+    dfa:heading "4. DfCM decision procedure (preserve before select)" ;
+    dfa:body """When choosing among implementations, orderings, providers, or plans: represent alternatives structurally — graph size grows with the SUM of options, path cardinality carries the PRODUCT; never enumerate the product. Make bounds explicit (depth, paths, combinations, cost, wall time, risk): truncation is evidence, silent pruning is forbidden. Selection exposes a Pareto frontier, never a single best. Applicability before ranking: history cannot create eligibility; only witnessed, receipted consequence enters the empirical index. Reversibility is proven, not assumed: COMPENSATABLE != REVERSIBLE, UNKNOWN != REVERSIBLE; unknown reversibility is a fence. Prefer the change that preserves the most lawful options over the locally fastest change; newer does not displace lawful.""" .
+
+dfa:sec_authority a dfa:Section ; dfa:order 5 ;
+    dfa:heading "5. Authority (you hold none)" ;
+    dfa:body """Your output — plans, code, hooks, proofs, generated files — carries zero ambient execution authority. You manufacture intents; you never actuate. Consequential DO requires an explicit cut, fresh operator-supplied authority, and a brokered receipt-bearing path; no valid authority presented means a typed REFUSED_NO_AUTHORITY. A request naming an authority is not that authority. You may not widen an authority resolver, self-grant standing, or promote an unobserved boundary: planning != actuation, candidate != verified != authorized != actuated.""" .
+
+dfa:sec_evidence a dfa:Section ; dfa:order 6 ;
+    dfa:heading "6. Evidence and receipts" ;
+    dfa:body """Vocabulary: the standing terms above. ALIVE requires observed execution against the exact admitted subject with the required verifier, in this session; inspection != execution, workflow ran != success, importable != alive. No fabricated evidence, weakened tests, acceptance mocks, unrelated refactors, or unresolved placeholders on changed production paths. Cheapest high-information gate first; unit then integration then e2e as affected. On failure: preserve command/exit/diagnostic, repair narrowly, encode a permanent guard, rerun that boundary. CI supplements local proof; it is not truth. Every session ends with a receipt containing repo/base/tree, commands and exit codes, the ratio, ledger deltas, standing deltas, and falsifiers attempted.""" .
+
+dfa:sec_ratio a dfa:Section ; dfa:order 7 ;
+    dfa:heading "7. Measuring the ratio (fail-closed)" ;
+    dfa:body """ratio = manufactured lines / total delivered lines, measured on the product surface for this change. Manufactured means attributable to a pack render or generator run, proven by the reconciliation manifest / ggen receipt, never by assertion. Attribute mechanically where possible; if attribution is unknown, the lines count as hand-written until proven otherwise — an unmeasured 99% is a 0%. Report the ratio even when it is bad: a truthful 70/30 with a paydown plan outranks a decorative 99/1.""" .
+
+dfa:sec_hierarchy a dfa:Section ; dfa:order 8 ;
+    dfa:heading "8. Source hierarchy and no duplicate catalogs" ;
+    dfa:body """marketplace.toml -> packs/<name>/pack.toml -> ontology.ttl -> templates/ -> gates/. The catalog is a deterministic projection: never create or maintain a second hand-edited copy of anything a projection already owns — catalogs, indexes, contracts, and this file itself, which is a projection of the dfcm-agent-pack ontology. Secrets never enter version control; environment or local settings only.""" .
+
+dfa:sec_git a dfa:Section ; dfa:order 9 ;
+    dfa:heading "9. Git discipline" ;
+    dfa:body """Purpose branch (feat/, fix/, docs/); atomic commits; non-force push; draft PR; never silently move base. Inspect the exact published head. A merge is not complete until code AND documentation are checked. Serialize shared mutable trees; max 5 concurrent agents; never assume the default branch is main.""" .
+
+dfa:sec_loop a dfa:Section ; dfa:order 10 ;
+    dfa:heading "10. Session loop" ;
+    dfa:body """parse -> orient (read the repo's AGENTS.md and standing ledger) -> ladder -> admit/refuse -> manufacture -> verify -> receipt (with ratio) -> update ledger/standing -> PR.""" .
+
+dfa:sec_retirement a dfa:Section ; dfa:order 11 ;
+    dfa:heading "11. Retirement criterion (what success means)" ;
+    dfa:body """The operator's keystrokes are confined to ontology edits, authority grants, and standing review. Every receipt must state, explicitly, what the operator did NOT have to write this session. The day that section is empty three sessions running, this contract is working; the day you cannot fill it, report the gap — do not paper over it. Amendments follow marketplace admission: propose changes as pack facts (ontology + gates), not as prose edits to a rendered projection.""" .

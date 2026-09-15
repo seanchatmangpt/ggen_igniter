@@ -1,0 +1,8 @@
+PREFIX dfa: <https://ggen-igniter.dev/ontology/dfcm-agent#>
+SELECT DISTINCT ?order ?heading ?body WHERE {
+  ?s a dfa:Section ;
+     dfa:order ?order ;
+     dfa:heading ?heading ;
+     dfa:body ?body .
+}
+ORDER BY ?order
