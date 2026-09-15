@@ -164,7 +164,8 @@ defmodule GgenIgniter.EphemeralManufacture do
       :ok
     else
       {:error,
-       {:refused_ephemeral_attestation, :post_run_hash_mismatch, %{expected: expected, observed: observed}}}
+       {:refused_ephemeral_attestation, :post_run_hash_mismatch,
+        %{expected: expected, observed: observed}}}
     end
   end
 
