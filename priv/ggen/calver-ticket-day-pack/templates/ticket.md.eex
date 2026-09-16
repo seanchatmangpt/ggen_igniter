@@ -1,0 +1,17 @@
+<!-- manufactured by ggen_igniter --pack calver-ticket-day (public ns: oslc_cm + dcterms + prov + earl + aps)
+     stage chain: 守→柲→算→除→偽→延→実  (APS OperatorGlyph — https://w3id.org/chatman/aps#) -->
+
+# <%= slug %>-<%= String.pad_leading(to_string(number), 3, "0") %>: <%= title %>
+status: OPEN
+created: <%= calver %>
+
+## Mission
+
+<%= mission %>
+
+## Acceptance
+
+<%= acceptance %>
+
+## History
+

@@ -1,0 +1,4 @@
+PREFIX ctd: <https://ggen-igniter.dev/ontology/calver-ticket-day#>
+SELECT DISTINCT ?canonical_term ?long_name ?mission WHERE {
+  ?c a ctd:Contract ; ctd:canonical_term ?canonical_term ; ctd:long_name ?long_name ; ctd:mission ?mission .
+}
