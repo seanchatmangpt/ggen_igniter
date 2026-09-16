@@ -181,4 +181,17 @@ jobs:
       - name: mix test
         shell: bash
         run: |
+          # Cache-restore hardening (2026-09-15): a restored _build/test can
+          # carry current beams WITHOUT the rustler ggen_graph_nif.so (mix
+          # considers the app compiled and never rebuilds the artifact),
+          # which surfaces as NIF load_failed in every oxigraph/divergence
+          # test. Proven environmental, not diff-related: the base branch's
+          # own previously-green run (35004492197) fails identically on
+          # rerun after the exact-key mix.lock cache was evicted and the
+          # broad `restore-keys` prefix fallback restored a pre-NIF _build.
+          # Force a full test-env recompile only when the artifact is
+          # missing, so the NIF is always built before tests run.
+          if [ ! -f _build/test/lib/ggen_igniter/priv/native/ggen_graph_nif.so ]; then
+            MIX_ENV=test mix compile --force
+          fi
           mix test
