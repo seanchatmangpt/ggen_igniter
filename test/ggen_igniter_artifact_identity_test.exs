@@ -57,6 +57,11 @@ defmodule GgenIgniter.ArtifactIdentityTest do
 
     File.rm_rf!(dir)
     File.mkdir_p!(dir)
+
+    # macOS: System.tmp_dir!() is /var/... while canonicalize/2 returns
+    # realpath'd (/private/var/...) paths -- return the real path so
+    # expectations match the SUT's canonical storage everywhere.
+    dir = RealDir.real_dir!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
     dir
   end
@@ -224,6 +229,11 @@ defmodule GgenIgniter.ArtifactIdentityTest do
 
       File.rm_rf!(dir)
       File.mkdir_p!(dir)
+
+      # macOS: System.tmp_dir!() is /var/... while canonicalize/2 returns
+      # realpath'd (/private/var/...) paths -- return the real path so
+      # expectations match the SUT's canonical storage everywhere.
+      dir = RealDir.real_dir!(dir)
       on_exit(fn -> File.rm_rf!(dir) end)
       dir
     end
