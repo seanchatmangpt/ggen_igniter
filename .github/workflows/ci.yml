@@ -96,12 +96,26 @@ jobs:
           otp-version: '27.2.4'
           rebar3-version: '3.24.0'
 
+      # Dependency downloads are reusable across source revisions. Compiled
+      # application state is not: Rustler manufactures the native NIF during
+      # Elixir compilation, so restoring _build under a mix.lock-only key can
+      # restore a BEAM that expects priv/native/ggen_graph_nif.so without the
+      # NIF artifact itself. Keep dependency and build identities separate.
       - name: Cache mix dependencies
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          restore-keys: "${{ runner.os }}-mix-27.2.4-1.18.4-\n${{ runner.os }}-mix-27.2.4-\n${{ runner.os }}-mix-\n"
-          key: ${{ runner.os }}-mix-27.2.4-1.18.4-${{ hashFiles('mix.lock') }}
-          path: "deps\n~/.hex\n~/.mix\n_build\n"
+          restore-keys: "${{ runner.os }}-mix-deps-27.2.4-1.18.4-\n${{ runner.os }}-mix-deps-27.2.4-\n${{ runner.os }}-mix-deps-\n"
+          key: ${{ runner.os }}-mix-deps-27.2.4-1.18.4-${{ hashFiles('mix.lock') }}
+          path: "deps\n~/.hex\n~/.mix\n"
+
+      # Exact build cache: no prefix restore. Any Elixir/NIF/mix input change
+      # gets a fresh compilation, while an exact-subject retry can reuse its
+      # own compiled tree.
+      - name: Cache exact compiled build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: ${{ runner.os }}-mix-build-27.2.4-1.18.4-${{ hashFiles('mix.lock', 'mix.exs', 'lib/**/*.ex', 'native/**') }}
+          path: _build
 
       - name: mix deps.get
         shell: bash
