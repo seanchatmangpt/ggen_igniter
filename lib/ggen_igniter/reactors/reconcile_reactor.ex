@@ -117,6 +117,14 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       observe_prior_manifest  -- pure read: GgenIgniter.Manifest.load/1
       load_ontology           -- pure read: GgenIgniter.Ontology.load!/1
       resolve_pack            -- pure read: GgenIgniter.Pack.resolve_dir!/1
+      admit_pack              -- pure read: GgenIgniter.Pack.admit_pack_manifest/2
+                                  (RFC-GPACK-001 §7/§8/§86.1-2/§89: Core-profile
+                                  packs must carry a strict pack.toml whose
+                                  [pack].name corresponds with the graph's
+                                  gp:name; legacy packs pass through unchanged;
+                                  refusal HERE precedes every query/render/
+                                  actuation step, as a typed
+                                  REFUSED:PACK_MANIFEST_* / REFUSED:PACK_IDENTITY_MISMATCH)
       run_queries             -- GgenIgniter.Engine.fetch!/run, per target
       render                  -- GgenIgniter.Render.render/2 PLUS
                                   GgenIgniter.Manifest lookups, produces the
@@ -455,14 +463,55 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     end)
   end
 
+  # side_effect: pure -- reads `<pack_dir>/pack.toml` (real disk read via
+  # `Pack.parse_manifest/1`) and inspects the already-loaded in-memory graph;
+  # no mutation. RFC-GPACK-001 §7/§8/§86.1-2/§89 admission gate: a Core-profile
+  # pack (gp:profile gp:Core1|Portable1 in its graph) must carry a strict §7.1
+  # pack.toml whose [pack].name corresponds with the graph's gp:name
+  # (`Project(I_S) = I_B`, §8) -- missing/invalid manifest or a mismatch
+  # refuses HERE, before any query/render/actuation, as a typed
+  # REFUSED:PACK_MANIFEST_MISSING / REFUSED:PACK_MANIFEST_INVALID /
+  # REFUSED:PACK_IDENTITY_MISMATCH (Appendix C vocabulary). Legacy packs (no
+  # gp:profile) pass through without even reading pack.toml -- today's
+  # optional-manifest behavior, byte-compat, zero new refusals (§86 step 2,
+  # §89). `:run_queries` takes this step's result as an argument purely to
+  # force the dependency edge (admission strictly precedes query work in every
+  # execution order), not to consume its value.
+  step :admit_pack do
+    argument(:reconcile_opts, input(:reconcile_opts))
+    argument(:ontology, result(:load_ontology))
+    argument(:pack, result(:resolve_pack))
+
+    run(fn %{
+             reconcile_opts: opts,
+             ontology: %{graph: graph},
+             pack: %{pack_dir: pack_dir}
+           },
+           _context ->
+      case Pack.admit_pack_manifest(pack_dir, graph) do
+        :ok ->
+          {:ok, %{pack_admission: :ok}}
+
+        {:refused, {type, [diagnostic: diagnostic]}} = refusal when is_atom(type) ->
+          OcelEmitter.emit(opts[:event_sink], "GUARD_REFUSED", [], %{
+            "reason" => "REFUSED:#{pack_refusal_code(type)}",
+            "diagnostic" => diagnostic
+          })
+
+          {:error, {:refused_pack_manifest, type, diagnostic}}
+      end
+    end)
+  end
+
   # side_effect: pure -- runs `Engine.prepare!/run` against the already-loaded
   # in-memory `graph`; no disk/network write, deterministic given the same
   # graph + query text.
   step :run_queries do
     argument(:reconcile_opts, input(:reconcile_opts))
     argument(:ontology, result(:load_ontology))
+    argument(:pack_admission, result(:admit_pack))
 
-    run(fn %{reconcile_opts: opts, ontology: %{graph: graph}}, _context ->
+    run(fn %{reconcile_opts: opts, ontology: %{graph: graph}, pack_admission: _}, _context ->
       queried =
         opts
         |> normalize_targets()
@@ -906,7 +955,13 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   implement frontmatter parsing. `{:error, reason}` for any other
   admission-time refusal (one of `admit_pending/2`'s own tagged reasons:
   `:refused_duplicate_output_path` / `:refused_path_escapes_root` /
-  `:refused_unowned_delete` / `:refused_stale_outputs`).
+  `:refused_unowned_delete` / `:refused_stale_outputs`), or
+  `{:error, {:refused_pack_manifest, type, diagnostic}}` when the resolved
+  pack itself fails RFC-GPACK-001 §7/§8 pack-manifest admission (a
+  Core-profile pack with a missing/invalid pack.toml, or a graph/manifest
+  identity mismatch -- the same gate `run/1`'s `:admit_pack` step applies;
+  `type` is `:pack_manifest_missing` | `:pack_manifest_invalid` |
+  `:pack_identity_mismatch`).
 
   Raises `ArgumentError` for an unresolvable input (missing/ambiguous
   template, ontology, or query) -- the same vocabulary `resolve_ontology_path!/1`
@@ -925,6 +980,33 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     ontology_path = resolve_ontology_path!(reconcile_opts)
     graph = Ontology.load!(ontology_path)
 
+    # Same RFC-GPACK-001 pack-manifest admission the `run/1` pipeline applies
+    # in its `:admit_pack` step -- `plan/1` is read-only, but it still RESOLVES
+    # the pack, and admission is a resolve-time property: a Core-profile pack
+    # with a missing/invalid/mismatched manifest refuses here exactly as it
+    # would on the actuating path (never a plan-only blind eye).
+    pack_dir = if pack_given?(reconcile_opts), do: Pack.resolve_dir!(reconcile_opts)
+
+    case Pack.admit_pack_manifest(pack_dir, graph) do
+      :ok ->
+        :ok
+
+      {:refused, {type, [diagnostic: diagnostic]}} when is_atom(type) ->
+        {:error, {:refused_pack_manifest, type, diagnostic}}
+    end
+    |> case do
+      :ok ->
+        plan_after_admission(reconcile_opts, manifest, manifest_dir, graph)
+
+      {:error, _refusal} = refusal ->
+        refusal
+    end
+  end
+
+  # The pre-`:actuate` body of `plan/1`, run only once pack-manifest admission
+  # (RFC-GPACK-001 §7/§8) has passed -- unchanged from the historical plan/1
+  # body apart from the graph/pack_dir being resolved by the caller.
+  defp plan_after_admission(reconcile_opts, manifest, manifest_dir, graph) do
     template_path = resolve_template_path!(reconcile_opts)
 
     {frontmatter, _frontmatter_mode, _template_string} =
@@ -1043,6 +1125,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         :observe_prior_manifest,
         :load_ontology,
         :resolve_pack,
+        :admit_pack,
         :run_queries,
         :render,
         :admit
@@ -1090,7 +1173,20 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   defp describe_failure({:actuate_failed, reasons}),
     do: "actuation failed and was reverted: #{inspect(reasons)}"
 
+  # RFC-GPACK-001 pack-manifest admission (:admit_pack step / plan/1): the
+  # refusal type atom maps 1:1 onto the Appendix C typed code
+  # (`:pack_identity_mismatch` -> `REFUSED:PACK_IDENTITY_MISMATCH`), so the
+  # stable machine-readable identifier -- not mutable prose -- reaches the
+  # receipt and the CLI error line (RFC-GPACK-001 §16).
+  defp describe_failure({:refused_pack_manifest, type, diagnostic})
+       when is_atom(type) do
+    "refused: REFUSED:#{pack_refusal_code(type)} -- #{diagnostic}"
+  end
+
   defp describe_failure(other), do: inspect(other)
+
+  defp pack_refusal_code(type) when is_atom(type),
+    do: type |> Atom.to_string() |> String.upcase()
 
   # Builds the CATASTROPHIC-standing reason string -- names, explicitly and
   # in one sentence, every fact `:compensation_failed`'s contract requires:

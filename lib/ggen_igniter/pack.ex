@@ -5,10 +5,37 @@ defmodule GgenIgniter.Pack do
   convention design:
 
       priv/ggen/<pack-name>/
-      ├── pack.toml            # optional, not read here
+      ├── pack.toml            # legacy: optional; Core profile: REQUIRED + consumed
       ├── ontology.ttl          # default --ontology
       ├── gates/*.rq            # default --query source, one query per file
       └── templates/*.{eex,tmpl} # default --template source (single-file case)
+
+  ## RFC-GPACK-001: pack.toml consumption + identity correspondence (D3)
+
+  Historically `pack.toml` was optional and never read here (RFC-GPACK-001
+  §4.2/D3: "Manifest Authority" divergence). Per RFC-GPACK-001 §86 steps 1+2
+  this module now consumes it -- compatibly, by profile:
+
+    * **Core profile** (`gp:profile gp:Core1` or `gp:Portable1` declared in the
+      pack's graph, §10/§12.1/§12.2) -- `pack.toml` is REQUIRED and strict:
+      `parse_manifest/1` enforces §7.1 exactly (`[pack]` with `name`,
+      `version`, `description`; unknown keys inside `[pack]` refuse as
+      `REFUSED:PACK_MANIFEST_INVALID`), and `admit_pack_manifest/2` enforces
+      the §8 identity correspondence `Project(I_S) = I_B` (graph `gp:name` ==
+      manifest `name`; a Core graph declaring no `gp:name` fails closed as
+      `REFUSED:PACK_IDENTITY_MISMATCH`, since a Core pack SHOULD
+      self-describe, §10 -- missing is recorded as mismatch).
+    * **Legacy** (no `gp:profile` in the graph, the GGEN-PACK-IGNITER-LEGACY-1
+      shape of §89) -- `admit_pack_manifest/2` returns `:ok` without even
+      reading `pack.toml`: today's optional-manifest behavior, byte-compat,
+      zero new refusals (§86 step 2, §89).
+
+  Enforcement seam: `GgenIgniter.Reactors.ReconcileReactor` (the single
+  dispatch path of `mix ggen_igniter.sync`) runs `admit_pack_manifest/2`
+  between pack/graph resolution and any query/render/actuation, and its
+  read-only `plan/1` applies the same check. `fetch_pack!/2` below is
+  transport only (§69: `Fetched ≠ Verified`) -- it deliberately performs no
+  manifest admission.
 
   Pure helper, no `Igniter` dependency, so both `ggen_igniter.sync` and
   `ggen_igniter.doctor` (and tests) can call it directly.
@@ -73,6 +100,302 @@ defmodule GgenIgniter.Pack do
   @doc "Default `--ontology` path for `pack_dir`: `<pack_dir>/ontology.ttl`."
   @spec default_ontology(String.t()) :: String.t()
   def default_ontology(pack_dir), do: Path.join(pack_dir, "ontology.ttl")
+
+  # -- RFC-GPACK-001 §7/§8/§10: pack.toml + identity correspondence ----------
+
+  @gp_namespace "https://ggen.dev/ns/pack#"
+
+  # §12.1/§12.2: the Core-family profiles that make pack.toml REQUIRED and
+  # strict. `gp:Portable1` is Core + portability additions, so it inherits
+  # every Core requirement (ticket scope: "gp:profile gp:Core1 or Portable1").
+  @core_profile_iris MapSet.new([
+                       @gp_namespace <> "Core1",
+                       @gp_namespace <> "Portable1"
+                     ])
+
+  # §7.1: the manifest SHALL remain exactly these three keys.
+  @manifest_required_keys MapSet.new(["name", "version", "description"])
+
+  @type pack_admission ::
+          :ok
+          | {:refused, {:pack_manifest_missing, diagnostic: String.t()}}
+          | {:refused, {:pack_manifest_invalid, diagnostic: String.t()}}
+          | {:refused, {:pack_identity_mismatch, diagnostic: String.t()}}
+
+  @doc """
+  Parses `<pack_dir>/pack.toml` strictly per RFC-GPACK-001 §7.1.
+
+  Returns:
+
+    * `{:ok, %GgenIgniter.Pack.Manifest{}}` -- a `[pack]` table carrying
+      exactly the three REQUIRED string keys `name`/`version`/`description`.
+    * `:absent` -- no `pack.toml` file at `<pack_dir>` (a neutral result: only
+      Core-profile packs turn it into `REFUSED:PACK_MANIFEST_MISSING`, via
+      `admit_pack_manifest/2`; legacy packs keep the manifest optional).
+    * `{:refused, {:pack_manifest_invalid, diagnostic: String.t()}}` -- the
+      file exists but violates §7.1: not valid TOML, no `[pack]` table,
+      missing a required key, a non-string value, or an UNKNOWN key inside
+      `[pack]` (§7.1: "A Core v1 implementation MUST reject unknown keys
+      inside `[pack]`" -- the one explicit normative MUST; keys outside
+      `[pack]` are deliberately not refused by this function because the RFC
+      attaches no MUST to them -- recorded edge, not silent acceptance of
+      inside-`[pack]` laxity).
+
+  Note this function alone does not know the pack's profile -- a legacy pack
+  may keep a nonconforming `pack.toml` (e.g. `test/fixtures/sample-pack`'s
+  top-keyed shape) because the legacy path never calls this parser; the
+  profile-aware entry point is `admit_pack_manifest/2`.
+  """
+  @spec parse_manifest(String.t()) ::
+          {:ok, GgenIgniter.Pack.Manifest.t()}
+          | :absent
+          | {:refused, {:pack_manifest_invalid, diagnostic: String.t()}}
+  def parse_manifest(pack_dir) do
+    manifest_path = Path.join(pack_dir, "pack.toml")
+
+    case File.read(manifest_path) do
+      {:error, :enoent} ->
+        :absent
+
+      {:error, reason} ->
+        {:refused,
+         {:pack_manifest_invalid,
+          diagnostic: "could not read #{manifest_path}: #{inspect(reason)}"}}
+
+      {:ok, raw} ->
+        decode_manifest(raw)
+    end
+  end
+
+  defp decode_manifest(raw) do
+    case Toml.decode(raw) do
+      {:ok, %{"pack" => pack}} when is_map(pack) ->
+        validate_pack_table(pack)
+
+      {:ok, _document} ->
+        {:refused,
+         {:pack_manifest_invalid,
+          diagnostic:
+            "pack.toml has no [pack] table -- RFC-GPACK-001 §7.1 requires " <>
+              "[pack] with exactly name, version, description"}}
+
+      {:error, reason} ->
+        {:refused,
+         {:pack_manifest_invalid, diagnostic: "pack.toml is not valid TOML: #{inspect(reason)}"}}
+    end
+  end
+
+  defp validate_pack_table(pack) do
+    present = MapSet.new(Map.keys(pack))
+
+    unknown =
+      pack
+      |> Map.keys()
+      |> Enum.reject(&MapSet.member?(@manifest_required_keys, &1))
+      |> Enum.sort()
+
+    missing =
+      @manifest_required_keys
+      |> MapSet.difference(present)
+      |> MapSet.to_list()
+      |> Enum.sort()
+
+    cond do
+      unknown != [] ->
+        {:refused,
+         {:pack_manifest_invalid,
+          diagnostic:
+            "unknown key(s) inside [pack]: #{Enum.map_join(unknown, ", ", &inspect/1)} -- " <>
+              "RFC-GPACK-001 §7.1 requires [pack] to hold exactly name, version, description " <>
+              "(unknown keys MUST be rejected); dependencies/capabilities/lifecycle belong in " <>
+              "the RDF graph (§7.2)"}}
+
+      missing != [] ->
+        {:refused,
+         {:pack_manifest_invalid,
+          diagnostic:
+            "missing required [pack] key(s): #{Enum.map_join(missing, ", ", &inspect/1)} -- " <>
+              "RFC-GPACK-001 §7.1 requires name, version, and description"}}
+
+      not Enum.all?(~w(name version description), fn key -> is_binary(Map.get(pack, key)) end) ->
+        {:refused,
+         {:pack_manifest_invalid,
+          diagnostic:
+            "every [pack] key must be a string -- got: " <>
+              "#{inspect(Map.take(pack, ~w(name version description)))}"}}
+
+      true ->
+        {:ok,
+         %GgenIgniter.Pack.Manifest{
+           name: Map.fetch!(pack, "name"),
+           version: Map.fetch!(pack, "version"),
+           description: Map.fetch!(pack, "description")
+         }}
+    end
+  end
+
+  @doc """
+  Which pack profile does the pack's own graph declare? RFC-GPACK-001 §10.
+
+  Scans the graph for `?s gp:profile ?o` and returns:
+
+    * `{:core, iri_string}` -- the object is `gp:Core1` or `gp:Portable1`
+      (`https://ggen.dev/ns/pack#...`): the Core-family, where pack.toml is
+      REQUIRED and identity correspondence is enforced.
+    * `:legacy` -- no `gp:profile` triple with a Core-family object: the
+      GGEN-PACK-IGNITER-LEGACY-1 shape (§89). A `gp:profile` naming an
+      unimplemented profile is NOT silently legacy -- it also classifies
+      `:legacy` here, but only because this function only answers "is this
+      Core-family"; an unknown-profile pack never gets Core enforcement and
+      never gets Core privileges (recorded edge: unknown profiles are a
+      §100 `UNSUPPORTED` question for a later ladder, not a D3 concern).
+
+  Accepts an `%RDF.Graph{}` (triples) or `%RDF.Dataset{}` (quads) -- the two
+  shapes `GgenIgniter.Ontology.load!/1` can return.
+  """
+  @spec declared_profile(RDF.Graph.t() | RDF.Dataset.t()) :: :legacy | {:core, String.t()}
+  def declared_profile(graph) do
+    profile_predicate = RDF.iri(@gp_namespace <> "profile")
+
+    result =
+      graph
+      |> pack_metadata_objects(profile_predicate)
+      |> Enum.find(:legacy, fn iri -> MapSet.member?(@core_profile_iris, iri) end)
+
+    case result do
+      :legacy -> :legacy
+      iri -> {:core, iri}
+    end
+  end
+
+  # All objects `o` of statements `?s <predicate> ?o` whose object is an IRI,
+  # as plain strings. Works over Graph triples and Dataset quads alike.
+  defp pack_metadata_objects(graph, predicate) do
+    graph
+    |> statements()
+    |> Enum.flat_map(fn
+      {_s, ^predicate, o} -> [iri_string(o)]
+      {_s, _p, _o} -> []
+      {_s, ^predicate, o, _graph_name} -> [iri_string(o)]
+      {_s, _p, _o, _graph_name} -> []
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  # All literal VALUES of `?s gp:name ?o` in the graph (0, 1, or many).
+  #
+  # The RFC (§8) requires `Project(I_S) = I_B` when "the semantic graph
+  # declares the corresponding identity". Multiple/zero `gp:name` triples are
+  # both real observations, so this returns the full list and lets
+  # `admit_pack_manifest/2` fail closed on zero (missing identity) or on ANY
+  # disagreement (a second, disagreeing name is still a disagreement, not a
+  # silent first-match).
+  @doc false
+  @spec declared_pack_names(RDF.Graph.t() | RDF.Dataset.t()) :: [String.t()]
+  def declared_pack_names(graph) do
+    name_predicate = RDF.iri(@gp_namespace <> "name")
+
+    graph
+    |> statements()
+    |> Enum.flat_map(fn
+      {_s, ^name_predicate, o} -> [literal_value(o)]
+      {_s, _p, _o} -> []
+      {_s, ^name_predicate, o, _graph_name} -> [literal_value(o)]
+      {_s, _p, _o, _graph_name} -> []
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp statements(%RDF.Graph{} = graph), do: RDF.Graph.triples(graph)
+  defp statements(%RDF.Dataset{} = dataset), do: RDF.Dataset.statements(dataset)
+
+  defp iri_string(%RDF.IRI{} = iri), do: RDF.IRI.to_string(iri)
+  defp iri_string(_other), do: nil
+
+  defp literal_value(%RDF.Literal{} = literal), do: RDF.Literal.value(literal)
+  defp literal_value(_other), do: nil
+
+  @doc """
+  Admission gate for a resolved pack directory against its own loaded graph
+  (RFC-GPACK-001 §7, §8, §12.1, §86 steps 1+2, §89; typed codes from
+  Appendix C).
+
+  * `pack_dir` `nil` (no `--pack`/`--pack-dir` given -- an explicit
+    `--ontology` run is not pack resolution) => `:ok`, nothing is read.
+  * Legacy graph (no Core-family `gp:profile`) => `:ok` WITHOUT reading
+    `pack.toml` -- today's optional-manifest behavior, byte-compat, zero new
+    refusals (§86 step 2, §89).
+  * Core-family graph => `pack.toml` is REQUIRED (`:absent` =>
+    `{:refused, {:pack_manifest_missing, ...}}` = `REFUSED:PACK_MANIFEST_MISSING`),
+    strict §7.1 (`parse_manifest/1` refusals propagate =
+    `REFUSED:PACK_MANIFEST_INVALID`), and the §8 correspondence
+    `Project(I_S) = I_B` must hold: every `gp:name` the graph declares must
+    equal the manifest `name`. A Core graph declaring NO `gp:name` also
+    fails closed as `REFUSED:PACK_IDENTITY_MISMATCH` (the RFC requires the
+    projection relation to hold when the graph declares identity; a Core
+    pack SHOULD self-describe, §10 -- missing identity is recorded as
+    mismatch, per the ticket).
+  """
+  @spec admit_pack_manifest(String.t() | nil, RDF.Graph.t() | RDF.Dataset.t()) ::
+          pack_admission()
+  def admit_pack_manifest(nil, _graph), do: :ok
+
+  def admit_pack_manifest(pack_dir, graph) do
+    case declared_profile(graph) do
+      # §86 step 2 / §89: legacy keeps optional-manifest behavior -- do not
+      # even read pack.toml, so a legacy pack cannot newly refuse regardless
+      # of what its manifest contains (byte-compat by construction).
+      :legacy ->
+        :ok
+
+      {:core, profile} ->
+        admit_core(pack_dir, graph, profile)
+    end
+  end
+
+  defp admit_core(pack_dir, graph, profile) do
+    case parse_manifest(pack_dir) do
+      :absent ->
+        {:refused,
+         {:pack_manifest_missing,
+          diagnostic:
+            "pack declares Core profile <#{profile}> but there is no pack.toml at " <>
+              "#{Path.join(pack_dir, "pack.toml")} -- RFC-GPACK-001 §12.1/§86.1 makes pack.toml " <>
+              "REQUIRED for Core-profile packs ([pack] with name, version, description, §7.1)"}}
+
+      {:refused, _invalid} = refusal ->
+        refusal
+
+      {:ok, manifest} ->
+        check_identity_correspondence(graph, manifest, profile)
+    end
+  end
+
+  defp check_identity_correspondence(graph, manifest, profile) do
+    declared = declared_pack_names(graph)
+
+    cond do
+      declared == [] ->
+        {:refused,
+         {:pack_identity_mismatch,
+          diagnostic:
+            "Core-profile pack (<#{profile}>) declares no gp:name in its graph while pack.toml " <>
+              "declares name #{inspect(manifest.name)} -- RFC-GPACK-001 §8 Project(I_S)=I_B fails " <>
+              "closed: a Core pack SHOULD self-describe (§10), and missing graph identity is " <>
+              "treated as mismatch"}}
+
+      Enum.any?(declared, &(&1 != manifest.name)) ->
+        {:refused,
+         {:pack_identity_mismatch,
+          diagnostic:
+            "graph gp:name #{inspect(declared |> Enum.uniq() |> Enum.sort())} does not correspond " <>
+              "with pack.toml [pack].name #{inspect(manifest.name)} -- RFC-GPACK-001 §8 " <>
+              "Project(I_S)=I_B (bootstrap identity and semantic identity MUST agree)"}}
+
+      true ->
+        :ok
+    end
+  end
 
   @doc """
   Discovers every `<pack_dir>/gates/*.rq` file, sorted lexically (so the
