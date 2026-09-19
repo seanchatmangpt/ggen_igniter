@@ -1,0 +1,67 @@
+<!-- GENERATED FILE — do not edit. This ticket is a projection of a GALL checkpoint
+     document, rendered by ggen_igniter pack `gall_work` (templates/ticket.md.eex).
+     Edit the source checkpoint TTL or priv/ggen/gall_work/ontology.ttl — never this file. -->
+
+# Work ticket: <%= label %>
+
+## Identity
+
+- Checkpoint IRI: `<%= iri %>`
+- Type: <%= checkpoint_type %>
+- Standing: **<%= standing %>**
+- Source document: `<%= source_document %>`
+
+## Repository + base SHA
+
+- Repository: <%= repository_text %>
+- Base SHA: <%= base_sha_text %>
+
+## Goal
+
+<%= goal_text %>
+
+## Dependencies
+
+<%= Enum.join(dependencies, "\n") %>
+
+## Allowed paths
+
+<%= Enum.join(allowed_paths, "\n") %>
+
+## Requires / forbids capabilities
+
+Requires:
+
+<%= Enum.join(requires_capabilities, "\n") %>
+
+Forbids:
+
+<%= Enum.join(forbids_capabilities, "\n") %>
+
+## Acceptance criteria
+
+<%= Enum.join(acceptance_criteria, "\n") %>
+
+## Falsifiers
+
+<%= Enum.join(falsifiers, "\n") %>
+
+## Verifier
+
+<%= Enum.join(verifiers, "\n") %>
+
+## Standing
+
+<%= standing %>
+
+---
+
+## Provenance
+
+- Source graph digest: `<%= source_digest %>`
+- Pack: `<%= pack_name %>` (namespace <<%= pack_namespace %>>)
+- Generator: `GgenIgniter.GallTicket` (ggen_igniter) via `templates/ticket.md.eex`
+- Generated file — edit the ontology (the checkpoint TTL named under Identity,
+  or `priv/ggen/gall_work/ontology.ttl`), not this file. Hand-edits to this
+  projection are contract violations: the digest above pins the source this
+  ticket was manufactured from.
