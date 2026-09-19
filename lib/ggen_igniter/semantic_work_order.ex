@@ -47,8 +47,12 @@ defmodule GgenIgniter.SemanticWorkOrder do
       when is_binary(base_dir) and is_list(artifacts) do
     work_order =
       case identity(base_dir, Keyword.get(opts, :work_order, @default_path)) do
-        {:ok, identity} -> identity
-        :none -> raise ArgumentError, "semantic work order is required to manufacture an execution package"
+        {:ok, identity} ->
+          identity
+
+        :none ->
+          raise ArgumentError,
+                "semantic work order is required to manufacture an execution package"
       end
 
     normalized_artifacts =
@@ -105,7 +109,8 @@ defmodule GgenIgniter.SemanticWorkOrder do
     digest = map_get(artifact, :digest)
     kind = map_get(artifact, :kind) || "artifact"
 
-    unless is_binary(id) and id != "" and is_binary(digest) and String.starts_with?(digest, "sha256:") do
+    unless is_binary(id) and id != "" and is_binary(digest) and
+             String.starts_with?(digest, "sha256:") do
       raise ArgumentError, "artifact requires non-empty id and sha256: digest"
     end
 
