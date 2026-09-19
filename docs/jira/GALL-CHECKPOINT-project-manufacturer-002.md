@@ -292,3 +292,41 @@ If Weaver owns a specialized render, the construction receipt needs exact regist
 - receipt/history/manifest/compensation substrate: `PARTIAL_ALIVE` by source inspection, no new execution evidence;
 - clean deterministic construction replay: `UNKNOWN`;
 - Weaver-specialized manufacture: `UNKNOWN`.
+
+## Four-hour conversation synthesis — ticket-to-factory handoff, 2026-09-18
+
+The last four hours make GALL-002 the bridge from a semantic Jira/work-order graph into repository-native construction.
+
+### Semantic ticket is an input; Markdown is a projection
+
+After GALL-001's MD -> TTL migration exists, GALL-002 must accept the admitted work-order graph/digest as an exact manufacturing input and generate the repository-facing artifacts that humans and coding agents use.
+
+That may include Markdown tickets, WBPR/Vision views, generator inputs, test/court manifests, implementation scaffolds, and machine execution packets. These are projections of the admitted work order, not independent sources of truth.
+
+The construction receipt must bind:
+
+- exact work-order graph digest;
+- exact project/pack/ontology inputs;
+- exact generator + specialist producer identities;
+- every generated output digest;
+- compensation/reconciliation evidence where actuation occurred.
+
+A hand edit to a generated Jira projection may not silently change the semantic work order.
+
+### XaaS / UltraCode handoff
+
+The recent XaaS work establishes a separate durable execution plane rather than something ggen_igniter should duplicate:
+
+- XaaS PR #45 proved a scoped `Run -> Epoch -> AshOban -> EpochReactor -> Receipt` unattended cycle;
+- PR #46 proved partial ggen_igniter manufacture of the Run/Epoch/EpochReactor bootstrap, while explicitly leaving unsupported generator residue;
+- PR #51 keeps application authority/delegation courts separate from manufacture.
+
+Therefore GALL-002's output for coder-agent automation is a **receipted execution package**, not the durable executor itself:
+
+`semantic work order -> ggen_igniter manufacture -> exact execution package -> XaaS/UltraCode durable run`.
+
+The package must be deterministic and independently hashable. XaaS owns durable epochs/scheduling/control; ash_a2a/GymAct own consequence authority according to the selected runtime path.
+
+### No hidden agent-framework dependency
+
+Jido, LangGraph, CrewAI and similar agent frameworks are not implementation dependencies for this checkpoint. They may be studied as competitive-intelligence specimens only. The manufacturer emits explicit semantic/process artifacts rather than embedding framework-specific agent state as authority.
