@@ -120,3 +120,131 @@ The construction receipt MUST be able to bind, when present:
 Weaver is not a second canonical ontology. Its render is an additional manufacturer over an admitted telemetry projection. Generated telemetry artifacts owned by that path MUST NOT be repaired by hand.
 
 This checkpoint still does not claim Weaver runtime validation. It establishes the deterministic manufacture/attestation boundary required by ash_a2a GALL-003 and beam4pm GALL-004/#76.
+
+## Implementation specifics — refined 2026-09-18
+
+Current docs-only PR head at this refinement: `c3a04ff000753a26352e87a2e9945062e5993413`.
+
+### Verified existing surfaces
+
+Extend these existing seams rather than inventing a parallel manufacturer:
+
+- `lib/ggen_igniter/pack/manifest.ex`
+  - `GgenIgniter.Pack.Manifest` owns the strict RFC-GPACK bootstrap `pack.toml` identity.
+  - It deliberately MUST NOT become a second ontology.
+- `lib/ggen_igniter/ephemeral_manufacture.ex`
+  - `GgenIgniter.EphemeralManufacture.attest_receipt/2` is the existing project-output attestation seam.
+- `lib/ggen_igniter/ephemeral_projection.ex`
+  - owns projection manufacture/verification/provenance.
+- `lib/ggen_igniter/receipt.ex`
+  - existing receipt/output hash primitives are the preferred identity machinery; do not introduce a second file-set hash algorithm.
+- `test/fixtures/ash_manufacture_pack/ontology.ttl`
+  - canonical fixture for the admitted Ash manufacture path named by repository doctrine.
+- the existing composed `Igniter.Mix.Task` manufacture path
+  - must continue to call real Ash/Igniter generators via `Igniter.compose_task/4`.
+
+Important evidence correction: the existence of `attest_receipt/2` is not by itself proof that current branch bytes are bound to `Receipt.post_run_hash`. The exact branch implementation must be inspected and the TOCTOU/misbinding falsifier executed. Do not inherit that closure from prose or an older PR.
+
+### Smallest coherent production diff
+
+1. **Subject admission**
+   - Extend the existing pack/admission path to produce one immutable manufacturer subject:
+     `{graph_digest, manifest_identity, profile, generator_set_identity}`.
+   - `manifest_identity` comes from the strict `GgenIgniter.Pack.Manifest`.
+   - graph facts remain authoritative for capabilities/dependencies/lifecycle.
+
+2. **Manufacturer identity**
+   - Add one deterministic manufacturer identity helper, preferably adjacent to the existing manufacture/receipt code rather than a new subsystem.
+   - Initial identity input MUST include:
+     - exact repo SHA;
+     - `mix.lock` digest;
+     - Elixir/OTP identity;
+     - selected profile;
+     - exact upstream generator task modules invoked;
+     - relevant generator/dependency versions.
+   - Hash the canonical representation with SHA-256.
+
+3. **Projection identity**
+   - Reuse `GgenIgniter.Receipt.hash_entries/1` / `hash_files/1` if present on the implementation head.
+   - The projection digest covers the exact receipted generated file set, sorted/canonicalized by the repository's existing receipt convention.
+   - Do not hash an independently discovered directory tree that may include unrelated files.
+
+4. **Attestation**
+   - `EphemeralManufacture.attest_receipt/2` is the mandatory seam.
+   - It MUST read each receipted file once, prove the current receipted file-set hash equals `receipt.post_run_hash`, and manufacture projections from those same in-memory bytes.
+   - Missing `post_run_hash` or mismatch => typed refusal.
+   - If the exact current head already implements this behavior, preserve it and make GALL-002 consume its evidence rather than rewriting it.
+
+5. **Framework-native manufacture**
+   - The GALL court MUST use the actual `ash_manufacture_pack` fixture and real Ash/Igniter generator composition.
+   - No test may satisfy the crown by hand-writing an Ash resource/domain/config/migration that the upstream generator owns.
+
+### New court
+
+Add:
+
+`test/gall_checkpoint_002_project_manufacturer_test.exs`
+
+Required cases:
+
+1. `admitted_subject_manufactures_complete_ash_projection`
+2. `manufacturer_identity_changes_when_generator_or_lock_changes`
+3. `post_receipt_projection_tamper_is_refused`
+4. `clean_regeneration_reproduces_projection_identity`
+5. `handwritten_generator_owned_projection_cannot_satisfy_court`
+6. `compile_back_uses_same_admission_and_manufacturer_path`
+7. `stale_native_build_cache_cannot_preserve_false_standing`
+
+Where a real consumer project is required, the test may delegate to the repository's existing `mix e2e` harness rather than duplicating that scaffold logic.
+
+### Exact acceptance commands
+
+```bash
+mix format --check-formatted
+mix compile --warnings-as-errors
+mix test test/ggen_igniter_ephemeral_manufacture_test.exs
+mix test test/gall_checkpoint_002_project_manufacturer_test.exs
+mix test
+```
+
+If the final claim includes real scaffolded Ash project construction:
+
+```bash
+mix e2e
+```
+
+The court receipt must record whether `mix e2e` ran. A green `mix test` MUST NOT be described as the real scaffold court if `mix e2e` was required but not executed.
+
+### Handoff artifact to GALL-003 / GALL-005
+
+Minimum handoff:
+
+```text
+repo_sha
+gall_001_receipt_digest?      # required when Rust ggen produced the pack
+graph_digest
+manifest_identity
+profile
+manufacturer_digest
+generator_tasks[]
+projection_digest
+post_run_hash
+attestation_digest
+generated_files[]
+regeneration = PASS
+standing
+```
+
+GALL-003 consumes this identity as the semantic/manufacturer subject. GALL-005 consumes the same exact receipt; neither may synthesize missing manufacturer identity.
+
+### Stop conditions
+
+Stop rather than hand-writing around the framework when:
+
+- Ash/Igniter owns a required mutation but no admitted generator path is currently composable;
+- a required generated file cannot be traced to ontology + generator;
+- project reconstruction depends on stale `_build` state;
+- projection identity cannot be bound to the receipted file set;
+- compile-back would require direct generated-source editing.
+
+The correct output is a typed `UNSUPPORTED(generator capability)`, `BLOCKED`, or refusal with the exact semantic element named.
