@@ -64,7 +64,8 @@ defmodule GgenIgniter.Gall.ProjectManufacturer do
       }
 
       {:ok,
-       struct!(__MODULE__,
+       struct!(
+         __MODULE__,
          Map.put(payload, :manufacturer_digest, digest(payload))
        )}
     else
