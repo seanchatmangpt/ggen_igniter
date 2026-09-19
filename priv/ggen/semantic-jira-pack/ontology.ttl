@@ -1,0 +1,107 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix gp: <https://ggen.dev/ns/pack#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:ggen:pack:semantic-jira-pack>
+    a gp:Pack ;
+    gp:name "semantic-jira-pack" ;
+    gp:version "26.9.19" ;
+    gp:profile gp:Core1 .
+
+# Canonical semantic work-order graph for the Semantic Jira projection pack.
+# Markdown tickets are consequences of this graph; edit this graph (or an
+# explicitly supplied --ontology override), never a generated ticket.
+
+sj:WorkOrder a rdfs:Class ;
+    rdfs:label "Semantic Jira work order" ;
+    rdfs:comment "Canonical semantic unit projected into Jira-shaped Markdown." .
+
+sj:Court a rdfs:Class ; rdfs:label "Verification court" .
+sj:EvidenceRequirement a rdfs:Class ; rdfs:label "Evidence requirement" .
+sj:AcceptanceCriterion a rdfs:Class ; rdfs:label "Acceptance criterion" .
+sj:Falsifier a rdfs:Class ; rdfs:label "Falsifier" .
+sj:Action a rdfs:Class ; rdfs:label "Next action" .
+sj:Checkpoint a rdfs:Class ; rdfs:label "Checkpoint" .
+sj:Projection a rdfs:Class ; rdfs:label "Projection" .
+
+sj:repository a rdf:Property ; rdfs:range xsd:string .
+sj:baseSha a rdf:Property ; rdfs:range xsd:string .
+sj:subject a rdf:Property ; rdfs:range xsd:string .
+sj:standing a rdf:Property ; rdfs:range xsd:string .
+sj:evidenceCeiling a rdf:Property ; rdfs:range xsd:string .
+sj:authorityCeiling a rdf:Property ; rdfs:range xsd:string .
+sj:promotionRule a rdf:Property ; rdfs:range xsd:string .
+sj:replayIdentity a rdf:Property ; rdfs:range xsd:string .
+sj:dependsOn a rdf:Property .
+sj:requiresCourt a rdf:Property .
+sj:requiresEvidence a rdf:Property .
+sj:acceptance a rdf:Property .
+sj:falsifier a rdf:Property .
+sj:nextCheckpoint a rdf:Property .
+sj:nextAction a rdf:Property .
+sj:projection a rdf:Property .
+sj:receipt a rdf:Property .
+
+# Self-dogfood work order: this pack manufactures its own first Jira projection.
+sj:semantic-jira-mvp a sj:WorkOrder ;
+    dcterms:identifier "SJ-001" ;
+    dcterms:title "Manufacture Semantic Jira work orders from RDF" ;
+    dcterms:description "Project admitted semantic work orders into deterministic Markdown without granting the projection execution authority." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira-pack:work-order-projection" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "IMPLEMENTED_UNVERIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:promotionRule "Standing may advance only from an independent exact-head court receipt for the same subject; generated Markdown cannot promote itself." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:SJ-001" ;
+    sj:requiresCourt sj:exact-head-projection-court ;
+    sj:requiresEvidence sj:graph-receipt-evidence ;
+    sj:acceptance sj:canonical-source, sj:deterministic-projection, sj:fail-closed-invalid ;
+    sj:falsifier sj:missing-required-field-renders, sj:projection-gains-authority ;
+    sj:projection sj:markdown-projection ;
+    sj:nextAction sj:add-qualified-shacl-court ;
+    sj:nextCheckpoint sj:shacl-admission-checkpoint .
+
+sj:exact-head-projection-court a sj:Court ;
+    rdfs:label "Exact-head Semantic Jira projection court" ;
+    dcterms:description "Run the repository-native pack through the real Reactor path and require an ALIVE GgenIgniter receipt bound to the graph hash and exact branch head." .
+
+sj:graph-receipt-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Graph-bound receipt" ;
+    dcterms:description "A durable GgenIgniter receipt whose metadata carries the exact semantic graph hash and generated output paths." .
+
+sj:canonical-source a sj:AcceptanceCriterion ;
+    rdfs:label "Canonical RDF source" ;
+    dcterms:description "The WorkOrder graph is canonical; generated Markdown is a disposable projection and carries no independent authority." .
+
+sj:deterministic-projection a sj:AcceptanceCriterion ;
+    rdfs:label "Deterministic projection" ;
+    dcterms:description "Re-running the same graph, gates, template, toolchain, and environment produces byte-identical Markdown." .
+
+sj:fail-closed-invalid a sj:AcceptanceCriterion ;
+    rdfs:label "Fail closed on invalid work orders" ;
+    dcterms:description "Missing required scalar fields, duplicate work-order identifiers, invalid base SHA, invalid standing, or authority above CONSTRUCT prevents actuation." .
+
+sj:missing-required-field-renders a sj:Falsifier ;
+    rdfs:label "Missing required field still renders" ;
+    dcterms:description "Delete a required WorkOrder field and observe any generated ticket; that observation falsifies admission." .
+
+sj:projection-gains-authority a sj:Falsifier ;
+    rdfs:label "Projection gains authority" ;
+    dcterms:description "Treat a generated Markdown ticket as authority to actuate, merge, publish, or deploy; that observation falsifies the projection boundary." .
+
+sj:markdown-projection a sj:Projection ;
+    rdfs:label "Jira-shaped Markdown projection" ;
+    dcterms:description "One generated Markdown file per admitted WorkOrder, intended as a human/tool projection rather than canonical state." .
+
+sj:add-qualified-shacl-court a sj:Action ;
+    rdfs:label "Add a qualified SHACL court" ;
+    dcterms:description "Integrate a real SHACL validator as an independent admission court rather than renaming SPARQL/template checks as SHACL." .
+
+sj:shacl-admission-checkpoint a sj:Checkpoint ;
+    rdfs:label "SHACL admission checkpoint" ;
+    dcterms:description "The RFC-required SHACL validation boundary is closed only after a real validator executes and emits independent evidence." .

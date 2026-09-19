@@ -1,0 +1,18 @@
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?work_order ?id ?title ?description ?repository ?base_sha ?subject
+       ?standing ?evidence_ceiling ?authority_ceiling ?promotion_rule ?replay_identity
+WHERE {
+  ?work_order a sj:WorkOrder .
+  OPTIONAL { ?work_order dcterms:identifier ?id . }
+  OPTIONAL { ?work_order dcterms:title ?title . }
+  OPTIONAL { ?work_order dcterms:description ?description . }
+  OPTIONAL { ?work_order sj:repository ?repository . }
+  OPTIONAL { ?work_order sj:baseSha ?base_sha . }
+  OPTIONAL { ?work_order sj:subject ?subject . }
+  OPTIONAL { ?work_order sj:standing ?standing . }
+  OPTIONAL { ?work_order sj:evidenceCeiling ?evidence_ceiling . }
+  OPTIONAL { ?work_order sj:authorityCeiling ?authority_ceiling . }
+  OPTIONAL { ?work_order sj:promotionRule ?promotion_rule . }
+  OPTIONAL { ?work_order sj:replayIdentity ?replay_identity . }
+}
