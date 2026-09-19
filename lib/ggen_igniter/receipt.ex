@@ -314,6 +314,7 @@ defmodule GgenIgniter.Receipt do
       |> Map.put_new(:finished_at, now)
       |> Map.put_new(:schema_version, "1")
       |> Map.put_new_lazy(:tool_version, &tool_version/0)
+      |> put_work_order_identity(opts)
       |> put_new_parent_hash(opts)
 
     explicit_receipt_hash = Map.get(attrs, :receipt_hash)
@@ -323,6 +324,23 @@ defmodule GgenIgniter.Receipt do
     receipt_hash = explicit_receipt_hash || compute_receipt_hash(receipt)
 
     %{receipt | receipt_hash: receipt_hash}
+  end
+
+  defp put_work_order_identity(attrs, opts) do
+    with base_dir when is_binary(base_dir) <- Keyword.get(opts, :base_dir),
+         {:ok, identity} <- GgenIgniter.SemanticWorkOrder.identity(base_dir) do
+      metadata =
+        attrs
+        |> Map.get(:metadata, %{})
+        |> Map.put_new("work_order", %{
+          "path" => identity.path,
+          "source_digest" => identity.source_digest
+        })
+
+      Map.put(attrs, :metadata, metadata)
+    else
+      _ -> attrs
+    end
   end
 
   defp put_new_parent_hash(attrs, opts) do
