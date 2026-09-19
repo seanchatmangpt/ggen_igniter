@@ -248,3 +248,47 @@ Stop rather than hand-writing around the framework when:
 - compile-back would require direct generated-source editing.
 
 The correct output is a typed `UNSUPPORTED(generator capability)`, `BLOCKED`, or refusal with the exact semantic element named.
+
+## 2026-09-18 exact-head code review
+
+Reviewed source subject: `a0e2ec0b10c91d04998aa945c7c5bcff0e15794b`.
+
+### Observed implementation
+
+The project-manufacture substrate is already substantial:
+
+- `GgenIgniter.Receipt` persists append-only attempt history with a closed standing set, touched-file pre/post hashes, receipt-chain hashes, tool version, commands, events, output identities, and compensation evidence.
+- `GgenIgniter.Manifest` is an atomic current-state manifest keyed by stable recipe identity and binds canonical output paths to SHA-256 of bytes re-read from disk.
+- compensation/build-broken/compensation-failed are explicitly distinct rather than collapsed.
+- `GgenIgniter.Telemetry.Ocel2Export` can deterministically render standard-shaped OCEL 2.0 when a run time is supplied and uses standard `objectId` relationship keys.
+
+These are source surfaces observed at the reviewed head; no exact-head commands were executed in this review.
+
+### Actual replay gap
+
+`mix ggen_igniter.replay` is currently a read-only **drift verifier**, not deterministic reconstruction. Its own module documentation says it compares only what the current receipt schema makes recomputable:
+
+- current output-state hash versus `post_run_hash`;
+- current ontology hash only when manifest metadata makes that comparison possible.
+
+It explicitly has no recorded baseline for template bytes, gate query bytes, whole-pack identity, query-engine version, or arbitrary run configuration. `--verify-only` is the only implemented mode.
+
+GALL-002 MUST therefore distinguish:
+
+`receipt/manifest integrity` from `replayable construction`.
+
+The missing crown is a clean project reconstruction using the exact admitted graph/manifest/generator identities and then an independent byte comparison against the attested projection.
+
+### Weaver projection implication
+
+If Weaver owns a specialized render, the construction receipt needs exact registry projection, template bytes/digests, Weaver producer identity, and generated consequence digests. Merely running the current drift command after a Weaver render is insufficient because the current schema cannot prove those inputs are the same.
+
+### Interop note for GALL-004
+
+`Ocel2Export` emits standard OCEL relationship key `objectId`. Current beam4pm network ingest at GALL-004 expects repository-native `object_id`. The cross-repo court must include an explicit normalization adapter/court rather than declaring those wire shapes identical.
+
+### Review standing
+
+- receipt/history/manifest/compensation substrate: `PARTIAL_ALIVE` by source inspection, no new execution evidence;
+- clean deterministic construction replay: `UNKNOWN`;
+- Weaver-specialized manufacture: `UNKNOWN`.
