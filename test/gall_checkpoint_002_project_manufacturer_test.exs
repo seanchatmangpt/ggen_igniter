@@ -109,8 +109,7 @@ defmodule GgenIgniter.Gall.ProjectManufacturerTest do
                Keyword.delete(subject_opts(receipt.post_run_hash), :projection_digest)
              )
 
-    assert {:error,
-            %{reason: {:refused_ephemeral_attestation, :post_run_hash_mismatch, _}}} =
+    assert {:error, %{reason: {:refused_ephemeral_attestation, :post_run_hash_mismatch, _}}} =
              EphemeralManufacture.attest_receipt(receipt, provenance_opts())
   end
 
