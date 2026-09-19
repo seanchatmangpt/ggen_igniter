@@ -5,14 +5,21 @@ defmodule GgenIgniter.SemanticWorkOrderTest do
   alias GgenIgniter.{Digest, SemanticWorkOrder}
 
   setup do
-    dir = Path.join(System.tmp_dir!(), "semantic_work_order_#{System.unique_integer([:positive, :monotonic])}")
+    dir =
+      Path.join(
+        System.tmp_dir!(),
+        "semantic_work_order_#{System.unique_integer([:positive, :monotonic])}"
+      )
+
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)
     %{dir: dir}
   end
 
   defp write_work_order!(dir, name \\ "GALL-002") do
-    ttl = "@prefix schema: <https://schema.org/> .\n<urn:gall:002> a schema:Action ; schema:name \"#{name}\" .\n"
+    ttl =
+      "@prefix schema: <https://schema.org/> .\n<urn:gall:002> a schema:Action ; schema:name \"#{name}\" .\n"
+
     File.write!(Path.join(dir, SemanticWorkOrder.default_path()), ttl)
     ttl
   end
@@ -32,6 +39,7 @@ defmodule GgenIgniter.SemanticWorkOrderTest do
 
   test "work-order mutation invalidates a previously manufactured package", %{dir: dir} do
     write_work_order!(dir)
+
     package =
       SemanticWorkOrder.execution_package(dir, [
         %{id: "artifact", digest: Digest.sha256("bytes"), kind: "generated"}
