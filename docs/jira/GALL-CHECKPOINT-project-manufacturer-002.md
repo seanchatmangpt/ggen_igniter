@@ -100,3 +100,23 @@ Downstream:
 At one exact PR head, a real admitted semantic subject manufactures a real Ash/Igniter projection through upstream generators, the output is content-addressed and attested, clean regeneration is deterministic, direct generated-source drift is refused, and compile-back cannot bypass the ordinary manufacturer path.
 
 Standing on completion: `ALIVE` only for the exact project-manufacturer subject.
+
+## 2026-09-18 semantic telemetry propagation
+
+When the admitted project graph requests OpenTelemetry / Weaver artifacts, GALL-002 treats them as subordinate generated projections of the admitted project subject.
+
+Required relation:
+
+`admitted graph + manifest -> project manufacture -> telemetry semconv projection -> pinned Weaver render -> attestation`.
+
+The construction receipt MUST be able to bind, when present:
+
+- exact semconv registry projection identity;
+- exact Weaver template inputs;
+- generated telemetry constants / support artifacts / documentation digests;
+- exact external specialist producer version or digest;
+- post-run byte identity for those generated consequences.
+
+Weaver is not a second canonical ontology. Its render is an additional manufacturer over an admitted telemetry projection. Generated telemetry artifacts owned by that path MUST NOT be repaired by hand.
+
+This checkpoint still does not claim Weaver runtime validation. It establishes the deterministic manufacture/attestation boundary required by ash_a2a GALL-003 and beam4pm GALL-004/#76.
