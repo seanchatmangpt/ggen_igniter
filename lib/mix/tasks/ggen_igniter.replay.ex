@@ -96,7 +96,7 @@ defmodule Mix.Tasks.GgenIgniter.Replay do
   """
   use Mix.Task
 
-  alias GgenIgniter.{Manifest, Receipt}
+  alias GgenIgniter.{Manifest, Receipt, SemanticWorkOrder}
 
   @shortdoc "Replays a receipt and reports real drift since it was recorded"
 
@@ -262,9 +262,10 @@ defmodule Mix.Tasks.GgenIgniter.Replay do
 
     output_drift = detect_output_drift(files, receipt["post_run_hash"])
     ontology_drift = detect_ontology_drift(receipt, recipe_key, manifest_dir)
+    work_order_drift = detect_work_order_drift(receipt, manifest_dir)
 
     categories =
-      [output_drift, ontology_drift]
+      [output_drift, ontology_drift, work_order_drift]
       |> Enum.filter(& &1)
 
     %{
@@ -333,6 +334,34 @@ defmodule Mix.Tasks.GgenIgniter.Replay do
       end
     else
       _not_checkable -> nil
+    end
+  end
+
+  defp detect_work_order_drift(receipt, manifest_dir) do
+    with %{"path" => path, "source_digest" => recorded} <-
+           get_in(receipt, ["metadata", "work_order"]) do
+      case SemanticWorkOrder.identity(manifest_dir, path) do
+        {:ok, %{source_digest: ^recorded}} ->
+          nil
+
+        {:ok, %{source_digest: current}} ->
+          %{
+            category: "work order changed",
+            recorded: recorded,
+            current: current,
+            work_order_path: Path.join(manifest_dir, path)
+          }
+
+        :none ->
+          %{
+            category: "work order absent",
+            recorded: recorded,
+            current: nil,
+            work_order_path: Path.join(manifest_dir, path)
+          }
+      end
+    else
+      _not_recorded -> nil
     end
   end
 
