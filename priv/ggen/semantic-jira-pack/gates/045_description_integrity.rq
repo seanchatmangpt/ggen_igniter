@@ -1,0 +1,20 @@
+# Semantic-node integrity gate: every node that carries rdfs:label +
+# dcterms:description (the shape a relation target must have to resolve) must
+# carry real semantic content, not a blank literal, not an echo of its own
+# identity. Guards the admission claim "relation targets lacking semantic
+# descriptions are refused": a relation target whose description is "", its
+# own label, or its own IRI string describes nothing and must not admit.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?node ?label ?description WHERE {
+  ?node rdfs:label ?label ;
+        dcterms:description ?description .
+  FILTER(
+    ?description = "" ||
+    ?label = "" ||
+    ?description = ?label ||
+    STR(?node) = ?description ||
+    STR(?node) = ?label
+  )
+}

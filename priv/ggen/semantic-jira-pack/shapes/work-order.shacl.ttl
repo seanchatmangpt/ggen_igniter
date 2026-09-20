@@ -1,0 +1,197 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# SHACL admission shapes for the semantic-jira-pack work-order graph.
+# Executed by GgenIgniter.SemanticJira.Shacl (SHACL-core + sh:sparql
+# constraints). Unsupported constructs fail closed there; this file must stay
+# inside the supported surface: minCount/maxCount, nodeKind, datatype,
+# pattern (flag i), minLength/maxLength, hasValue, class, closed,
+# ignoredProperties, and SELECT-only sh:sparql constraints.
+# sh:sparql constraint queries express absence checks with
+# OPTIONAL + FILTER(!BOUND()) because the admitted sparql engine (0.3.12)
+# parses EXISTS/NOT EXISTS filter forms to an unsupported `:"$undefined"`
+# expression (measured 2026-09-19); OPTIONAL/BOUND is equivalent and executes.
+
+sj:WorkOrderShape a sh:NodeShape ;
+    sh:targetClass sj:WorkOrder ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type rdfs:label ) ;
+    sh:property [ sh:path dcterms:identifier ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Z][A-Z0-9-]{1,63}$" ] ;
+    sh:property [ sh:path dcterms:title ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path dcterms:description ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:repository ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" ] ;
+    sh:property [ sh:path sj:baseSha ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    # Opt-in per-order git ground truth (no sh:minCount: absence is the
+    # default and changes nothing; presence must be a single boolean).
+    sh:property [ sh:path sj:requiresGitGroundTruth ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+    sh:property [ sh:path sj:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:standing ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$" ] ;
+    sh:property [ sh:path sj:evidenceCeiling ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path sj:authorityCeiling ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(OBSERVE|SELECT|CONSTRUCT)$" ] ;
+    sh:property [ sh:path sj:promotionRule ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:replayIdentity ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:pathScope ; sh:minCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:authorityRequirement ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path sj:dependsOn ; sh:nodeKind sh:IRI ; sh:class sj:DependencyEdge ] ;
+    sh:property [ sh:path sj:requiresCourt ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Court ] ;
+    sh:property [ sh:path sj:requiresEvidence ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:EvidenceRequirement ] ;
+    sh:property [ sh:path sj:acceptance ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:AcceptanceCriterion ] ;
+    sh:property [ sh:path sj:falsifier ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Falsifier ] ;
+    sh:property [ sh:path sj:projection ; sh:minCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path sj:nextAction ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Action ] ;
+    sh:property [ sh:path sj:nextCheckpoint ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Checkpoint ] ;
+    sh:property [ sh:path sj:requiresReceiptClass ; sh:minCount 1 ; sh:datatype xsd:string ; sh:pattern "^(manufacture|projection|authority_preparation|actuation|verification|postcondition|replay|publication|deployment)$" ] ;
+    sh:property [ sh:path sj:candidateSha ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    sh:property [ sh:path sj:subjectSha ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    sh:property [ sh:path sj:receipt ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Receipt ] ;
+    sh:property [ sh:path sj:authority ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path sj:lease ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path sj:worker ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:sparql [
+      sh:message "Work order identifiers must be unique across WorkOrders." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX dcterms: <http://purl.org/dc/terms/>
+        SELECT $this WHERE {
+          $this dcterms:identifier ?id .
+          ?other a sj:WorkOrder ; dcterms:identifier ?id .
+          FILTER(?other != $this)
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "ALIVE requires exact candidate/subject SHA and a durable receipt." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:standing "ALIVE" .
+          OPTIONAL { $this sj:candidateSha ?candidate . }
+          OPTIONAL { $this sj:subjectSha ?subjectSha . }
+          OPTIONAL { $this sj:receipt ?receipt . }
+          FILTER(!BOUND(?candidate) || !BOUND(?subjectSha) || !BOUND(?receipt))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Authority-requiring work must bind authority, lease, and worker identity." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:authorityRequirement ?requirement .
+          FILTER(?requirement != "NONE")
+          OPTIONAL { $this sj:authority ?authority . }
+          OPTIONAL { $this sj:lease ?lease . }
+          OPTIONAL { $this sj:worker ?worker . }
+          FILTER(!BOUND(?authority) || !BOUND(?lease) || !BOUND(?worker))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Replay identities must be unique across WorkOrders." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:replayIdentity ?id .
+          ?other a sj:WorkOrder ; sj:replayIdentity ?id .
+          FILTER(?other != $this)
+        }
+      """
+    ] .
+
+sj:DependencyEdgeShape a sh:NodeShape ;
+    sh:targetClass sj:DependencyEdge ;
+    sh:property [ sh:path sj:dependencyType ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^requires(SemanticIdentity|Projection|Capability|Receipt|Runtime|Verifier|Observation|Postcondition|Publication)$" ] ;
+    sh:property [ sh:path sj:upstreamWorkOrder ; sh:minCount 1 ; sh:maxCount 1 ; sh:class sj:WorkOrder ] .
+
+sj:ProjectionAuthorityShape a sh:NodeShape ;
+    sh:targetClass sj:ProjectionSpec ;
+    sh:property [ sh:path sj:authorityClaim ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue "NONE" ] .
+
+sj:PredictionShape a sh:NodeShape ;
+    sh:targetClass sj:Prediction ;
+    sh:property [ sh:path sj:candidateOnly ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue true ] ;
+    sh:property [ sh:path sj:authorityClaim ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue "NONE" ] ;
+    sh:property [ sh:path sj:observedStanding ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue "UNKNOWN" ] .
+
+sj:StandingTransitionShape a sh:NodeShape ;
+    sh:targetClass sj:StandingTransition ;
+    sh:property [ sh:path sj:fromStanding ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path sj:toStanding ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:sparql [
+      sh:message "Standing transition is ambiguous or skips explicit progression." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:fromStanding ?from ; sj:toStanding ?to .
+          FILTER(?from = ?to || (?from = "UNKNOWN" && ?to = "ALIVE"))
+        }
+      """
+    ] .
+
+sj:ProcessFindingShape a sh:NodeShape ;
+    sh:targetClass sj:ProcessFinding ;
+    sh:property [ sh:path sj:normativeMutation ; sh:maxCount 1 ; sh:hasValue false ] ;
+    sh:property [ sh:path sj:authorityClaim ; sh:maxCount 1 ; sh:hasValue "NONE" ] ;
+    sh:property [ sh:path sj:standing ; sh:maxCount 1 ; sh:hasValue "UNKNOWN" ] .
+
+sj:LeaseRequestShape a sh:NodeShape ;
+    sh:targetClass sj:LeaseRequest ;
+    sh:property [ sh:path sj:workOrderDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:worker ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path sj:pathScope ; sh:minCount 1 ] ;
+    sh:property [ sh:path sj:concurrencyKey ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path sj:authorityClaim ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue "NONE" ] ;
+    sh:sparql [
+      sh:message "Duplicate active exclusive lease requests for one concurrency key are refused." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:active true ; sj:exclusive true ; sj:concurrencyKey ?key .
+          ?other a sj:LeaseRequest ; sj:active true ; sj:exclusive true ;
+                 sj:concurrencyKey ?key .
+          FILTER(?other != $this)
+        }
+      """
+    ] .
+
+sj:ReceiptShape a sh:NodeShape ;
+    sh:targetClass sj:Receipt ;
+    sh:property [ sh:path sj:workOrderDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:repository ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path sj:baseSha ; sh:minCount 1 ; sh:maxCount 1 ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    sh:property [ sh:path sj:subjectSha ; sh:minCount 1 ; sh:maxCount 1 ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    sh:property [ sh:path sj:replayIdentity ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path sj:receiptClass ; sh:minCount 1 ; sh:maxCount 1 ] .
+
+sj:GlobalIntegrityShape a sh:NodeShape ;
+    sh:targetClass sj:WorkOrder ;
+    sh:sparql [
+      sh:message "Dependency identities must resolve to typed edges and upstream WorkOrders." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:dependsOn ?edge .
+          OPTIONAL {
+            ?edge a sj:DependencyEdge ; sj:upstreamWorkOrder ?upstream .
+            ?upstream a sj:WorkOrder .
+          }
+          FILTER(!BOUND(?upstream))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "ALIVE requires an independent court and durable receipt." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:standing "ALIVE" .
+          OPTIONAL { $this sj:requiresCourt ?court . ?court a sj:Court . }
+          OPTIONAL { $this sj:receipt ?receipt2 . ?receipt2 a sj:Receipt . }
+          FILTER(!BOUND(?court) || !BOUND(?receipt2))
+        }
+      """
+    ] .

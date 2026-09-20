@@ -1,0 +1,1860 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix gp: <https://ggen.dev/ns/pack#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:ggen:pack:semantic-jira-pack>
+    a gp:Pack ;
+    gp:name "semantic-jira-pack" ;
+    gp:version "26.9.19" ;
+    gp:profile gp:Core1 .
+
+# Canonical semantic work-order graph for the Semantic Jira projection pack.
+# Markdown tickets are consequences of this graph; edit this graph (or an
+# explicitly supplied --ontology override), never a generated ticket.
+
+sj:WorkOrder a rdfs:Class ;
+    rdfs:label "Semantic Jira work order" ;
+    rdfs:comment "Canonical semantic unit projected into Jira-shaped Markdown." .
+
+sj:Court a rdfs:Class ; rdfs:label "Verification court" .
+sj:EvidenceRequirement a rdfs:Class ; rdfs:label "Evidence requirement" .
+sj:AcceptanceCriterion a rdfs:Class ; rdfs:label "Acceptance criterion" .
+sj:Falsifier a rdfs:Class ; rdfs:label "Falsifier" .
+sj:Action a rdfs:Class ; rdfs:label "Next action" .
+sj:Checkpoint a rdfs:Class ; rdfs:label "Checkpoint" .
+sj:Projection a rdfs:Class ; rdfs:label "Projection" .
+
+sj:repository a rdf:Property ; rdfs:range xsd:string .
+sj:baseSha a rdf:Property ; rdfs:range xsd:string .
+# Opt-in per-order git ground truth: `sj:requiresGitGroundTruth true` on a
+# WorkOrder makes its baseSha verify against a real git work tree (commit
+# exists AND is reachable from HEAD) even without the sync task's opt-in
+# --verify-base-sha flag. Never default-on: the canonical fabric set carries
+# baseSha values that need not exist in every consumer checkout.
+sj:requiresGitGroundTruth a rdf:Property ; rdfs:range xsd:boolean .
+sj:subject a rdf:Property ; rdfs:range xsd:string .
+sj:standing a rdf:Property ; rdfs:range xsd:string .
+sj:evidenceCeiling a rdf:Property ; rdfs:range xsd:string .
+sj:authorityCeiling a rdf:Property ; rdfs:range xsd:string .
+sj:promotionRule a rdf:Property ; rdfs:range xsd:string .
+sj:replayIdentity a rdf:Property ; rdfs:range xsd:string .
+sj:dependsOn a rdf:Property .
+sj:requiresCourt a rdf:Property .
+sj:requiresEvidence a rdf:Property .
+sj:acceptance a rdf:Property .
+sj:falsifier a rdf:Property .
+sj:nextCheckpoint a rdf:Property .
+sj:nextAction a rdf:Property .
+sj:projection a rdf:Property .
+sj:receipt a rdf:Property .
+
+# Self-dogfood work order: this pack manufactures its own first Jira projection.
+sj:semantic-jira-mvp a sj:WorkOrder ;
+    dcterms:identifier "SJ-001" ;
+    dcterms:title "Manufacture Semantic Jira work orders from RDF" ;
+    dcterms:description "Project admitted semantic work orders into deterministic Markdown without granting the projection execution authority." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira-pack:work-order-projection" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "IMPLEMENTED_UNVERIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:promotionRule "Standing may advance only from an independent exact-head court receipt for the same subject; generated Markdown cannot promote itself." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:SJ-001" ;
+    sj:requiresCourt sj:exact-head-projection-court ;
+    sj:requiresEvidence sj:graph-receipt-evidence ;
+    sj:acceptance sj:canonical-source, sj:deterministic-projection, sj:fail-closed-invalid ;
+    sj:falsifier sj:missing-required-field-renders, sj:projection-gains-authority ;
+    sj:projection sj:markdown-projection ;
+    sj:nextAction sj:add-qualified-shacl-court ;
+    sj:nextCheckpoint sj:shacl-admission-checkpoint .
+
+sj:exact-head-projection-court a sj:Court ;
+    rdfs:label "Exact-head Semantic Jira projection court" ;
+    dcterms:description "Run the repository-native pack through the real Reactor path and require an ALIVE GgenIgniter receipt bound to the graph hash and exact branch head." .
+
+sj:graph-receipt-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Graph-bound receipt" ;
+    dcterms:description "A durable GgenIgniter receipt whose metadata carries the exact semantic graph hash and generated output paths." .
+
+sj:canonical-source a sj:AcceptanceCriterion ;
+    rdfs:label "Canonical RDF source" ;
+    dcterms:description "The WorkOrder graph is canonical; generated Markdown is a disposable projection and carries no independent authority." .
+
+sj:deterministic-projection a sj:AcceptanceCriterion ;
+    rdfs:label "Deterministic projection" ;
+    dcterms:description "Re-running the same graph, gates, template, toolchain, and environment produces byte-identical Markdown." .
+
+sj:fail-closed-invalid a sj:AcceptanceCriterion ;
+    rdfs:label "Fail closed on invalid work orders" ;
+    dcterms:description "Missing required scalar fields, duplicate work-order identifiers, invalid base SHA, invalid standing, or authority above CONSTRUCT prevents actuation." .
+
+sj:missing-required-field-renders a sj:Falsifier ;
+    rdfs:label "Missing required field still renders" ;
+    dcterms:description "Delete a required WorkOrder field and observe any generated ticket; that observation falsifies admission." .
+
+sj:projection-gains-authority a sj:Falsifier ;
+    rdfs:label "Projection gains authority" ;
+    dcterms:description "Treat a generated Markdown ticket as authority to actuate, merge, publish, or deploy; that observation falsifies the projection boundary." .
+
+sj:markdown-projection a sj:Projection ;
+    rdfs:label "Jira-shaped Markdown projection" ;
+    dcterms:description "One generated Markdown file per admitted WorkOrder, intended as a human/tool projection rather than canonical state." .
+
+sj:add-qualified-shacl-court a sj:Action ;
+    rdfs:label "Add a qualified SHACL court" ;
+    dcterms:description "Integrate a real SHACL validator as an independent admission court rather than renaming SPARQL/template checks as SHACL." .
+
+sj:shacl-admission-checkpoint a sj:Checkpoint ;
+    rdfs:label "SHACL admission checkpoint" ;
+    dcterms:description "The RFC-required SHACL validation boundary is closed only after a real validator executes and emits independent evidence." .
+# ── RFC v26.9.19 DfCM extension: typed work-order fabric ───────────────────
+# Semantic contracts only. XaaS/Ultracode owns issued leases; BRCE/CommandBus
+# owns consequential DO. Planner output, projections, and evidence do not gain
+# ambient authority.
+
+sj:Subject a rdfs:Class ; rdfs:label "Exact semantic subject" .
+sj:RepositorySubject a rdfs:Class ; rdfs:label "Repository/base/candidate subject" .
+sj:DependencyEdge a rdfs:Class ; rdfs:label "Typed dependency edge" .
+sj:ProjectionSpec a rdfs:Class ; rdfs:label "Deterministic projection specification" .
+sj:LeaseRequest a rdfs:Class ; rdfs:label "Bounded runtime lease request" .
+sj:PreparedAuthorityReceipt a rdfs:Class ; rdfs:label "Prepared authority receipt" .
+sj:Actuation a rdfs:Class ; rdfs:label "Consequential actuation" .
+sj:Receipt a rdfs:Class ; rdfs:label "Typed durable receipt" .
+sj:MachineExperience a rdfs:Class ; rdfs:label "Receipted machine experience" .
+sj:ProcessFinding a rdfs:Class ; rdfs:label "Observed process finding" .
+sj:RepairLineage a rdfs:Class ; rdfs:label "Failure-to-repair lineage" .
+sj:Refusal a rdfs:Class ; rdfs:label "Typed refusal" .
+sj:Prediction a rdfs:Class ; rdfs:label "Candidate prediction" .
+sj:StandingTransition a rdfs:Class ; rdfs:label "Standing transition intent" .
+
+sj:candidateSha a rdf:Property ; rdfs:range xsd:string .
+sj:subjectSha a rdf:Property ; rdfs:range xsd:string .
+sj:pathScope a rdf:Property ; rdfs:range xsd:string .
+sj:authorityRequirement a rdf:Property ; rdfs:range xsd:string .
+sj:authority a rdf:Property .
+sj:lease a rdf:Property .
+sj:worker a rdf:Property .
+sj:dependencyType a rdf:Property ; rdfs:range xsd:string .
+sj:upstreamWorkOrder a rdf:Property .
+sj:requiredStanding a rdf:Property ; rdfs:range xsd:string .
+sj:requiredReceiptDigest a rdf:Property ; rdfs:range xsd:string .
+sj:requiresReceiptClass a rdf:Property ; rdfs:range xsd:string .
+sj:projectionType a rdf:Property ; rdfs:range xsd:string .
+sj:extension a rdf:Property ; rdfs:range xsd:string .
+sj:generatorIdentity a rdf:Property ; rdfs:range xsd:string .
+sj:authorityClaim a rdf:Property ; rdfs:range xsd:string .
+sj:workOrderDigest a rdf:Property ; rdfs:range xsd:string .
+sj:receiptClass a rdf:Property ; rdfs:range xsd:string .
+sj:concurrencyKey a rdf:Property ; rdfs:range xsd:string .
+sj:active a rdf:Property ; rdfs:range xsd:boolean .
+sj:exclusive a rdf:Property ; rdfs:range xsd:boolean .
+sj:candidateOnly a rdf:Property ; rdfs:range xsd:boolean .
+sj:observedStanding a rdf:Property ; rdfs:range xsd:string .
+sj:normativeMutation a rdf:Property ; rdfs:range xsd:boolean .
+sj:fromStanding a rdf:Property ; rdfs:range xsd:string .
+sj:toStanding a rdf:Property ; rdfs:range xsd:string .
+
+sj:source-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Source evidence" ;
+    dcterms:description "Exact canonical-source identity evidence." .
+sj:generated-artifact-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Generated artifact evidence" ;
+    dcterms:description "Evidence binding a consequence to semantic source and generator." .
+sj:local-execution-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Local execution evidence" ;
+    dcterms:description "Observed repository-local exact-subject execution evidence." .
+sj:hosted-ci-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Hosted CI evidence" ;
+    dcterms:description "Hosted CI evidence kept distinct from local execution." .
+sj:runtime-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Runtime evidence" ;
+    dcterms:description "Runtime execution evidence for the exact admitted subject." .
+sj:telemetry-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Telemetry evidence" ;
+    dcterms:description "Observational telemetry evidence; never normative law by itself." .
+sj:process-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Process evidence" ;
+    dcterms:description "Observed process evidence kept separate from normative specification." .
+sj:postcondition-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Postcondition evidence" ;
+    dcterms:description "Independent evidence that the required consequence holds." .
+sj:authority-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Authority evidence" ;
+    dcterms:description "Prepared authority evidence for a consequential transition." .
+sj:receipt-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Receipt evidence" ;
+    dcterms:description "Durable receipt evidence for the exact subject and transition." .
+sj:replay-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Replay evidence" ;
+    dcterms:description "Fresh replay over pack, dependency, graph, consequence, toolchain, and environment identities." .
+sj:publication-evidence a sj:EvidenceRequirement ;
+    rdfs:label "Publication evidence" ;
+    dcterms:description "Publication evidence distinct from implementation and verification." .
+
+sj:semantic-jira-mvp
+    sj:pathScope "priv/ggen/semantic-jira-pack", "lib/ggen_igniter/semantic_jira.ex",
+                 "native/ggen_graph_nif" ;
+    sj:authorityRequirement "NONE" ;
+    sj:requiresReceiptClass "manufacture", "projection", "verification", "replay" ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay .
+
+sj:projection-jira a sj:ProjectionSpec ;
+    rdfs:label "Jira/Markdown ticket" ;
+    dcterms:description "Deterministic jira/markdown ticket projection; authority is NONE." ;
+    sj:projectionType "jira" ;
+    sj:extension "md" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-wbpr a sj:ProjectionSpec ;
+    rdfs:label "Working-backwards plan" ;
+    dcterms:description "Deterministic working-backwards plan projection; authority is NONE." ;
+    sj:projectionType "wbpr" ;
+    sj:extension "md" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-prd a sj:ProjectionSpec ;
+    rdfs:label "Product requirements document" ;
+    dcterms:description "Deterministic product requirements document projection; authority is NONE." ;
+    sj:projectionType "prd" ;
+    sj:extension "md" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-ard a sj:ProjectionSpec ;
+    rdfs:label "Architecture requirements document" ;
+    dcterms:description "Deterministic architecture requirements document projection; authority is NONE." ;
+    sj:projectionType "ard" ;
+    sj:extension "md" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-vision a sj:ProjectionSpec ;
+    rdfs:label "Vision document" ;
+    dcterms:description "Deterministic vision document projection; authority is NONE." ;
+    sj:projectionType "vision" ;
+    sj:extension "md" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-fond a sj:ProjectionSpec ;
+    rdfs:label "FOND planning projection" ;
+    dcterms:description "Deterministic fond planning projection projection; authority is NONE." ;
+    sj:projectionType "fond" ;
+    sj:extension "pddl" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-hddl a sj:ProjectionSpec ;
+    rdfs:label "HDDL task/method projection" ;
+    dcterms:description "Deterministic hddl task/method projection projection; authority is NONE." ;
+    sj:projectionType "hddl" ;
+    sj:extension "hddl" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-sa2a a sj:ProjectionSpec ;
+    rdfs:label "SA2A work/execution package" ;
+    dcterms:description "Deterministic sa2a work/execution package projection; authority is NONE." ;
+    sj:projectionType "sa2a" ;
+    sj:extension "json" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-worker a sj:ProjectionSpec ;
+    rdfs:label "Bounded worker input envelope" ;
+    dcterms:description "Deterministic bounded worker input envelope projection; authority is NONE." ;
+    sj:projectionType "worker" ;
+    sj:extension "json" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-verification a sj:ProjectionSpec ;
+    rdfs:label "Verification plan" ;
+    dcterms:description "Deterministic verification plan projection; authority is NONE." ;
+    sj:projectionType "verification" ;
+    sj:extension "json" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-executive a sj:ProjectionSpec ;
+    rdfs:label "Executive status view" ;
+    dcterms:description "Deterministic executive status view projection; authority is NONE." ;
+    sj:projectionType "executive" ;
+    sj:extension "json" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-machine a sj:ProjectionSpec ;
+    rdfs:label "Machine status view" ;
+    dcterms:description "Deterministic machine status view projection; authority is NONE." ;
+    sj:projectionType "machine" ;
+    sj:extension "json" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-receipt a sj:ProjectionSpec ;
+    rdfs:label "Receipt requirement summary" ;
+    dcterms:description "Deterministic receipt requirement summary projection; authority is NONE." ;
+    sj:projectionType "receipt" ;
+    sj:extension "json" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:projection-replay a sj:ProjectionSpec ;
+    rdfs:label "Replay manifest" ;
+    dcterms:description "Deterministic replay manifest projection; authority is NONE." ;
+    sj:projectionType "replay" ;
+    sj:extension "json" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" .
+
+sj:run-exact-head-court a sj:Action ;
+    rdfs:label "Run exact-head court" ;
+    dcterms:description "Execute an independent exact-subject court and preserve receipts/falsifiers." .
+sj:known-retirement-checkpoint a sj:Checkpoint ;
+    rdfs:label "KNOWN retirement" ;
+    dcterms:description "Fresh replay reconstructs the subject so repeated reasoning can retire to deterministic machinery." .
+
+sj:gall-001 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-001 — Semantic Pack Receipt Replay" ;
+    dcterms:identifier "GALL-001" ;
+    dcterms:title "Semantic Pack Receipt Replay" ;
+    dcterms:description "Semantic pack identity and replayable manufacture are receipted." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-001-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-001" ;
+    sj:requiresCourt sj:court-gall-001 ;
+    sj:requiresEvidence sj:source-evidence, sj:receipt-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-001 ;
+    sj:falsifier sj:falsifier-gall-001 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-001-court ;
+    sj:nextCheckpoint sj:gall-002 .
+
+sj:court-gall-001 a sj:Court ;
+    rdfs:label "GALL-001 exact-subject court" ;
+    dcterms:description "Independent court for Semantic Pack Receipt Replay; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-001 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-001 acceptance" ;
+    dcterms:description "Semantic pack identity and replayable manufacture are receipted. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-001 a sj:Falsifier ;
+    rdfs:label "GALL-001 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-001-court a sj:Action ;
+    rdfs:label "Run GALL-001 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-002-from-001 a sj:DependencyEdge ;
+    rdfs:label "GALL-002 dependency on GALL-001" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-001 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-002 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-002 — Project Manufacturer Seal" ;
+    dcterms:identifier "GALL-002" ;
+    dcterms:title "Project Manufacturer Seal" ;
+    dcterms:description "Project manufacture is deterministic and bound to canonical semantic input." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-002-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-002-from-001 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-002" ;
+    sj:requiresCourt sj:court-gall-002 ;
+    sj:requiresEvidence sj:source-evidence, sj:generated-artifact-evidence, sj:local-execution-evidence, sj:receipt-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-002 ;
+    sj:falsifier sj:falsifier-gall-002 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-002-court ;
+    sj:nextCheckpoint sj:gall-003 .
+
+sj:court-gall-002 a sj:Court ;
+    rdfs:label "GALL-002 exact-subject court" ;
+    dcterms:description "Independent court for Project Manufacturer Seal; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-002 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-002 acceptance" ;
+    dcterms:description "Project manufacture is deterministic and bound to canonical semantic input. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-002 a sj:Falsifier ;
+    rdfs:label "GALL-002 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-002-court a sj:Action ;
+    rdfs:label "Run GALL-002 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-003-from-002 a sj:DependencyEdge ;
+    rdfs:label "GALL-003 dependency on GALL-002" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-002 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-003 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-003 — Command/Authority/Receipt Seal" ;
+    dcterms:identifier "GALL-003" ;
+    dcterms:title "Command/Authority/Receipt Seal" ;
+    dcterms:description "Exact capability, prepared authority, DO, durable receipt, deduplication, crash reconciliation, and replay blocking remain separated." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-003-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-003-from-002 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-003" ;
+    sj:requiresCourt sj:court-gall-003 ;
+    sj:requiresEvidence sj:authority-evidence, sj:receipt-evidence, sj:postcondition-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "authority_preparation", "actuation", "verification", "postcondition", "replay" ;
+    sj:acceptance sj:acceptance-gall-003 ;
+    sj:falsifier sj:falsifier-gall-003 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-003-court ;
+    sj:nextCheckpoint sj:gall-004 .
+
+sj:court-gall-003 a sj:Court ;
+    rdfs:label "GALL-003 exact-subject court" ;
+    dcterms:description "Independent court for Command/Authority/Receipt Seal; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-003 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-003 acceptance" ;
+    dcterms:description "Exact capability, prepared authority, DO, durable receipt, deduplication, crash reconciliation, and replay blocking remain separated. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-003 a sj:Falsifier ;
+    rdfs:label "GALL-003 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-003-court a sj:Action ;
+    rdfs:label "Run GALL-003 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-004-from-003 a sj:DependencyEdge ;
+    rdfs:label "GALL-004 dependency on GALL-003" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-003 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-004 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-004 — Independent Observer Seal" ;
+    dcterms:identifier "GALL-004" ;
+    dcterms:title "Independent Observer Seal" ;
+    dcterms:description "Observation independently binds actuation to telemetry, OCEL, and postcondition evidence." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-004-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-004-from-003 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-004" ;
+    sj:requiresCourt sj:court-gall-004 ;
+    sj:requiresEvidence sj:telemetry-evidence, sj:postcondition-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "actuation", "verification", "postcondition", "replay" ;
+    sj:acceptance sj:acceptance-gall-004 ;
+    sj:falsifier sj:falsifier-gall-004 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-004-court ;
+    sj:nextCheckpoint sj:gall-005 .
+
+sj:court-gall-004 a sj:Court ;
+    rdfs:label "GALL-004 exact-subject court" ;
+    dcterms:description "Independent court for Independent Observer Seal; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-004 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-004 acceptance" ;
+    dcterms:description "Observation independently binds actuation to telemetry, OCEL, and postcondition evidence. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-004 a sj:Falsifier ;
+    rdfs:label "GALL-004 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-004-court a sj:Action ;
+    rdfs:label "Run GALL-004 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-005-from-004 a sj:DependencyEdge ;
+    rdfs:label "GALL-005 dependency on GALL-004" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-004 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-005 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-005 — SA2A Composition/MachineExperience Crown" ;
+    dcterms:identifier "GALL-005" ;
+    dcterms:title "SA2A Composition/MachineExperience Crown" ;
+    dcterms:description "Composition binds exact upstream identities and MachineExperience requires receipted observed execution." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-005-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-005-from-004 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-005" ;
+    sj:requiresCourt sj:court-gall-005 ;
+    sj:requiresEvidence sj:receipt-evidence, sj:postcondition-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-005 ;
+    sj:falsifier sj:falsifier-gall-005 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-005-court ;
+    sj:nextCheckpoint sj:gall-006 .
+
+sj:court-gall-005 a sj:Court ;
+    rdfs:label "GALL-005 exact-subject court" ;
+    dcterms:description "Independent court for SA2A Composition/MachineExperience Crown; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-005 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-005 acceptance" ;
+    dcterms:description "Composition binds exact upstream identities and MachineExperience requires receipted observed execution. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-005 a sj:Falsifier ;
+    rdfs:label "GALL-005 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-005-court a sj:Action ;
+    rdfs:label "Run GALL-005 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-006-from-005 a sj:DependencyEdge ;
+    rdfs:label "GALL-006 dependency on GALL-005" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-005 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-006 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-006 — Fresh Consumer Seal" ;
+    dcterms:identifier "GALL-006" ;
+    dcterms:title "Fresh Consumer Seal" ;
+    dcterms:description "A fresh consumer reconstructs and manufactures from canonical semantic artifacts." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-006-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-006-from-005 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-006" ;
+    sj:requiresCourt sj:court-gall-006 ;
+    sj:requiresEvidence sj:generated-artifact-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-006 ;
+    sj:falsifier sj:falsifier-gall-006 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-006-court ;
+    sj:nextCheckpoint sj:gall-007 .
+
+sj:court-gall-006 a sj:Court ;
+    rdfs:label "GALL-006 exact-subject court" ;
+    dcterms:description "Independent court for Fresh Consumer Seal; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-006 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-006 acceptance" ;
+    dcterms:description "A fresh consumer reconstructs and manufactures from canonical semantic artifacts. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-006 a sj:Falsifier ;
+    rdfs:label "GALL-006 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-006-court a sj:Action ;
+    rdfs:label "Run GALL-006 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-007-from-006 a sj:DependencyEdge ;
+    rdfs:label "GALL-007 dependency on GALL-006" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-006 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-007 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-007 — Chicago Standing Crown" ;
+    dcterms:identifier "GALL-007" ;
+    dcterms:title "Chicago Standing Crown" ;
+    dcterms:description "Repository-local standing requires a real exact-subject Chicago court." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-007-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-007-from-006 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-007" ;
+    sj:requiresCourt sj:court-gall-007 ;
+    sj:requiresEvidence sj:local-execution-evidence, sj:receipt-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-007 ;
+    sj:falsifier sj:falsifier-gall-007 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-007-court ;
+    sj:nextCheckpoint sj:gall-008 .
+
+sj:court-gall-007 a sj:Court ;
+    rdfs:label "GALL-007 exact-subject court" ;
+    dcterms:description "Independent court for Chicago Standing Crown; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-007 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-007 acceptance" ;
+    dcterms:description "Repository-local standing requires a real exact-subject Chicago court. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-007 a sj:Falsifier ;
+    rdfs:label "GALL-007 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-007-court a sj:Action ;
+    rdfs:label "Run GALL-007 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-008-from-007 a sj:DependencyEdge ;
+    rdfs:label "GALL-008 dependency on GALL-007" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-007 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-008 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-008 — Semantic Telemetry" ;
+    dcterms:identifier "GALL-008" ;
+    dcterms:title "Semantic Telemetry" ;
+    dcterms:description "Semantic identities project into telemetry without telemetry becoming normative law." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-008-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-008-from-007 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-008" ;
+    sj:requiresCourt sj:court-gall-008 ;
+    sj:requiresEvidence sj:telemetry-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-008 ;
+    sj:falsifier sj:falsifier-gall-008 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-008-court ;
+    sj:nextCheckpoint sj:gall-009 .
+
+sj:court-gall-008 a sj:Court ;
+    rdfs:label "GALL-008 exact-subject court" ;
+    dcterms:description "Independent court for Semantic Telemetry; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-008 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-008 acceptance" ;
+    dcterms:description "Semantic identities project into telemetry without telemetry becoming normative law. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-008 a sj:Falsifier ;
+    rdfs:label "GALL-008 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-008-court a sj:Action ;
+    rdfs:label "Run GALL-008 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-009-from-008 a sj:DependencyEdge ;
+    rdfs:label "GALL-009 dependency on GALL-008" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-008 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-009 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-009 — Runtime Feedback Admission" ;
+    dcterms:identifier "GALL-009" ;
+    dcterms:title "Runtime Feedback Admission" ;
+    dcterms:description "Runtime feedback becomes candidate evidence and requires admission before changing law." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-009-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-009-from-008 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-009" ;
+    sj:requiresCourt sj:court-gall-009 ;
+    sj:requiresEvidence sj:runtime-evidence, sj:telemetry-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-009 ;
+    sj:falsifier sj:falsifier-gall-009 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-009-court ;
+    sj:nextCheckpoint sj:gall-010 .
+
+sj:court-gall-009 a sj:Court ;
+    rdfs:label "GALL-009 exact-subject court" ;
+    dcterms:description "Independent court for Runtime Feedback Admission; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-009 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-009 acceptance" ;
+    dcterms:description "Runtime feedback becomes candidate evidence and requires admission before changing law. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-009 a sj:Falsifier ;
+    rdfs:label "GALL-009 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-009-court a sj:Action ;
+    rdfs:label "Run GALL-009 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-010-from-009 a sj:DependencyEdge ;
+    rdfs:label "GALL-010 dependency on GALL-009" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-009 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-010 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-010 — Partial Observability" ;
+    dcterms:identifier "GALL-010" ;
+    dcterms:title "Partial Observability" ;
+    dcterms:description "Unknown and partially observed runtime state remain explicit." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-010-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-010-from-009 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-010" ;
+    sj:requiresCourt sj:court-gall-010 ;
+    sj:requiresEvidence sj:telemetry-evidence, sj:process-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-010 ;
+    sj:falsifier sj:falsifier-gall-010 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-010-court ;
+    sj:nextCheckpoint sj:gall-011 .
+
+sj:court-gall-010 a sj:Court ;
+    rdfs:label "GALL-010 exact-subject court" ;
+    dcterms:description "Independent court for Partial Observability; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-010 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-010 acceptance" ;
+    dcterms:description "Unknown and partially observed runtime state remain explicit. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-010 a sj:Falsifier ;
+    rdfs:label "GALL-010 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-010-court a sj:Action ;
+    rdfs:label "Run GALL-010 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-011-from-010 a sj:DependencyEdge ;
+    rdfs:label "GALL-011 dependency on GALL-010" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-010 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-011 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-011 — Active Falsifier" ;
+    dcterms:identifier "GALL-011" ;
+    dcterms:title "Active Falsifier" ;
+    dcterms:description "Each strong claim carries an executable falsifier whose failure prevents promotion." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-011-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-011-from-010 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-011" ;
+    sj:requiresCourt sj:court-gall-011 ;
+    sj:requiresEvidence sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-011 ;
+    sj:falsifier sj:falsifier-gall-011 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-011-court ;
+    sj:nextCheckpoint sj:gall-012 .
+
+sj:court-gall-011 a sj:Court ;
+    rdfs:label "GALL-011 exact-subject court" ;
+    dcterms:description "Independent court for Active Falsifier; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-011 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-011 acceptance" ;
+    dcterms:description "Each strong claim carries an executable falsifier whose failure prevents promotion. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-011 a sj:Falsifier ;
+    rdfs:label "GALL-011 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-011-court a sj:Action ;
+    rdfs:label "Run GALL-011 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-012-from-011 a sj:DependencyEdge ;
+    rdfs:label "GALL-012 dependency on GALL-011" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-011 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-012 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-012 — Semantic Predictor" ;
+    dcterms:identifier "GALL-012" ;
+    dcterms:title "Semantic Predictor" ;
+    dcterms:description "Predictions remain candidates with zero authority and do not count as observations." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-012-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-012-from-011 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-012" ;
+    sj:requiresCourt sj:court-gall-012 ;
+    sj:requiresEvidence sj:source-evidence, sj:local-execution-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-012 ;
+    sj:falsifier sj:falsifier-gall-012 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-012-court ;
+    sj:nextCheckpoint sj:gall-013 .
+
+sj:court-gall-012 a sj:Court ;
+    rdfs:label "GALL-012 exact-subject court" ;
+    dcterms:description "Independent court for Semantic Predictor; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-012 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-012 acceptance" ;
+    dcterms:description "Predictions remain candidates with zero authority and do not count as observations. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-012 a sj:Falsifier ;
+    rdfs:label "GALL-012 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-012-court a sj:Action ;
+    rdfs:label "Run GALL-012 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-013-from-012 a sj:DependencyEdge ;
+    rdfs:label "GALL-013 dependency on GALL-012" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-012 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-013 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-013 — Autonomic Repair" ;
+    dcterms:identifier "GALL-013" ;
+    dcterms:title "Autonomic Repair" ;
+    dcterms:description "Failure evidence becomes a bounded repair hypothesis with a permanent guard." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-013-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-013-from-012 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-013" ;
+    sj:requiresCourt sj:court-gall-013 ;
+    sj:requiresEvidence sj:runtime-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-013 ;
+    sj:falsifier sj:falsifier-gall-013 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-013-court ;
+    sj:nextCheckpoint sj:gall-014 .
+
+sj:court-gall-013 a sj:Court ;
+    rdfs:label "GALL-013 exact-subject court" ;
+    dcterms:description "Independent court for Autonomic Repair; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-013 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-013 acceptance" ;
+    dcterms:description "Failure evidence becomes a bounded repair hypothesis with a permanent guard. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-013 a sj:Falsifier ;
+    rdfs:label "GALL-013 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-013-court a sj:Action ;
+    rdfs:label "Run GALL-013 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-014-from-013 a sj:DependencyEdge ;
+    rdfs:label "GALL-014 dependency on GALL-013" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-013 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-014 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-014 — Full Autonomics Crown" ;
+    dcterms:identifier "GALL-014" ;
+    dcterms:title "Full Autonomics Crown" ;
+    dcterms:description "The manufacture, authority, observation, verification, receipt, replay, and repair loop closes without boundary collapse." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-014-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-014-from-013 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-014" ;
+    sj:requiresCourt sj:court-gall-014 ;
+    sj:requiresEvidence sj:runtime-evidence, sj:telemetry-evidence, sj:postcondition-evidence, sj:receipt-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "actuation", "verification", "postcondition", "replay" ;
+    sj:acceptance sj:acceptance-gall-014 ;
+    sj:falsifier sj:falsifier-gall-014 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-014-court ;
+    sj:nextCheckpoint sj:gall-015 .
+
+sj:court-gall-014 a sj:Court ;
+    rdfs:label "GALL-014 exact-subject court" ;
+    dcterms:description "Independent court for Full Autonomics Crown; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-014 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-014 acceptance" ;
+    dcterms:description "The manufacture, authority, observation, verification, receipt, replay, and repair loop closes without boundary collapse. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-014 a sj:Falsifier ;
+    rdfs:label "GALL-014 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-014-court a sj:Action ;
+    rdfs:label "Run GALL-014 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-015-from-014 a sj:DependencyEdge ;
+    rdfs:label "GALL-015 dependency on GALL-014" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-014 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-015 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-015 — Process Reference Corpus" ;
+    dcterms:identifier "GALL-015" ;
+    dcterms:title "Process Reference Corpus" ;
+    dcterms:description "Process reference evidence is represented as typed semantic source material." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-015-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-015-from-014 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-015" ;
+    sj:requiresCourt sj:court-gall-015 ;
+    sj:requiresEvidence sj:process-evidence, sj:source-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-015 ;
+    sj:falsifier sj:falsifier-gall-015 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-015-court ;
+    sj:nextCheckpoint sj:gall-016 .
+
+sj:court-gall-015 a sj:Court ;
+    rdfs:label "GALL-015 exact-subject court" ;
+    dcterms:description "Independent court for Process Reference Corpus; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-015 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-015 acceptance" ;
+    dcterms:description "Process reference evidence is represented as typed semantic source material. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-015 a sj:Falsifier ;
+    rdfs:label "GALL-015 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-015-court a sj:Action ;
+    rdfs:label "Run GALL-015 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-016-from-015 a sj:DependencyEdge ;
+    rdfs:label "GALL-016 dependency on GALL-015" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-015 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-016 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-016 — POWL Dual Ingress" ;
+    dcterms:identifier "GALL-016" ;
+    dcterms:title "POWL Dual Ingress" ;
+    dcterms:description "Normative and observed POWL ingress remain distinct and join only through explicit comparison." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-016-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-016-from-015 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-016" ;
+    sj:requiresCourt sj:court-gall-016 ;
+    sj:requiresEvidence sj:process-evidence, sj:source-evidence, sj:local-execution-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-016 ;
+    sj:falsifier sj:falsifier-gall-016 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-016-court ;
+    sj:nextCheckpoint sj:gall-017 .
+
+sj:court-gall-016 a sj:Court ;
+    rdfs:label "GALL-016 exact-subject court" ;
+    dcterms:description "Independent court for POWL Dual Ingress; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-016 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-016 acceptance" ;
+    dcterms:description "Normative and observed POWL ingress remain distinct and join only through explicit comparison. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-016 a sj:Falsifier ;
+    rdfs:label "GALL-016 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-016-court a sj:Action ;
+    rdfs:label "Run GALL-016 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-017-from-016 a sj:DependencyEdge ;
+    rdfs:label "GALL-017 dependency on GALL-016" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-016 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-017 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-017 — OCPQ Reference Court" ;
+    dcterms:identifier "GALL-017" ;
+    dcterms:title "OCPQ Reference Court" ;
+    dcterms:description "Object-centric process query reference behavior is independently verified." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-017-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-017-from-016 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-017" ;
+    sj:requiresCourt sj:court-gall-017 ;
+    sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-017 ;
+    sj:falsifier sj:falsifier-gall-017 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-017-court ;
+    sj:nextCheckpoint sj:gall-018 .
+
+sj:court-gall-017 a sj:Court ;
+    rdfs:label "GALL-017 exact-subject court" ;
+    dcterms:description "Independent court for OCPQ Reference Court; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-017 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-017 acceptance" ;
+    dcterms:description "Object-centric process query reference behavior is independently verified. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-017 a sj:Falsifier ;
+    rdfs:label "GALL-017 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-017-court a sj:Action ;
+    rdfs:label "Run GALL-017 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-018-from-017 a sj:DependencyEdge ;
+    rdfs:label "GALL-018 dependency on GALL-017" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-017 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-018 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-018 — Rule-Constrained Discovery" ;
+    dcterms:identifier "GALL-018" ;
+    dcterms:title "Rule-Constrained Discovery" ;
+    dcterms:description "Discovered process behavior is bounded by admitted rules and cannot directly mutate normative law." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-018-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-018-from-017 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-018" ;
+    sj:requiresCourt sj:court-gall-018 ;
+    sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-018 ;
+    sj:falsifier sj:falsifier-gall-018 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-018-court ;
+    sj:nextCheckpoint sj:gall-019 .
+
+sj:court-gall-018 a sj:Court ;
+    rdfs:label "GALL-018 exact-subject court" ;
+    dcterms:description "Independent court for Rule-Constrained Discovery; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-018 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-018 acceptance" ;
+    dcterms:description "Discovered process behavior is bounded by admitted rules and cannot directly mutate normative law. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-018 a sj:Falsifier ;
+    rdfs:label "GALL-018 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-018-court a sj:Action ;
+    rdfs:label "Run GALL-018 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-019-from-018 a sj:DependencyEdge ;
+    rdfs:label "GALL-019 dependency on GALL-018" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-018 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-019 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-019 — Compliance Predictor Reference" ;
+    dcterms:identifier "GALL-019" ;
+    dcterms:title "Compliance Predictor Reference" ;
+    dcterms:description "Compliance prediction remains candidate evidence until independently verified." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-019-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-019-from-018 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-019" ;
+    sj:requiresCourt sj:court-gall-019 ;
+    sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-019 ;
+    sj:falsifier sj:falsifier-gall-019 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-019-court ;
+    sj:nextCheckpoint sj:gall-020 .
+
+sj:court-gall-019 a sj:Court ;
+    rdfs:label "GALL-019 exact-subject court" ;
+    dcterms:description "Independent court for Compliance Predictor Reference; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-019 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-019 acceptance" ;
+    dcterms:description "Compliance prediction remains candidate evidence until independently verified. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-019 a sj:Falsifier ;
+    rdfs:label "GALL-019 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-019-court a sj:Action ;
+    rdfs:label "Run GALL-019 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-020-from-019 a sj:DependencyEdge ;
+    rdfs:label "GALL-020 dependency on GALL-019" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-019 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-020 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-020 — Process Compute Boundary" ;
+    dcterms:identifier "GALL-020" ;
+    dcterms:title "Process Compute Boundary" ;
+    dcterms:description "Process computation has a typed resource/capability boundary and receipted evidence." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-020-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-020-from-019 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-020" ;
+    sj:requiresCourt sj:court-gall-020 ;
+    sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-020 ;
+    sj:falsifier sj:falsifier-gall-020 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-020-court ;
+    sj:nextCheckpoint sj:gall-021 .
+
+sj:court-gall-020 a sj:Court ;
+    rdfs:label "GALL-020 exact-subject court" ;
+    dcterms:description "Independent court for Process Compute Boundary; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-020 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-020 acceptance" ;
+    dcterms:description "Process computation has a typed resource/capability boundary and receipted evidence. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-020 a sj:Falsifier ;
+    rdfs:label "GALL-020 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-020-court a sj:Action ;
+    rdfs:label "Run GALL-020 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-021-from-020 a sj:DependencyEdge ;
+    rdfs:label "GALL-021 dependency on GALL-020" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-020 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-021 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-021 — Portable Process Determinism" ;
+    dcterms:identifier "GALL-021" ;
+    dcterms:title "Portable Process Determinism" ;
+    dcterms:description "Portable process projections reproduce identical semantic consequences under identical identities." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-021-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-021-from-020 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-021" ;
+    sj:requiresCourt sj:court-gall-021 ;
+    sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-021 ;
+    sj:falsifier sj:falsifier-gall-021 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-021-court ;
+    sj:nextCheckpoint sj:gall-022 .
+
+sj:court-gall-021 a sj:Court ;
+    rdfs:label "GALL-021 exact-subject court" ;
+    dcterms:description "Independent court for Portable Process Determinism; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-021 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-021 acceptance" ;
+    dcterms:description "Portable process projections reproduce identical semantic consequences under identical identities. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-021 a sj:Falsifier ;
+    rdfs:label "GALL-021 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-021-court a sj:Action ;
+    rdfs:label "Run GALL-021 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-022-from-021 a sj:DependencyEdge ;
+    rdfs:label "GALL-022 dependency on GALL-021" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-021 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-022 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-022 — POWL Language Preservation" ;
+    dcterms:identifier "GALL-022" ;
+    dcterms:title "POWL Language Preservation" ;
+    dcterms:description "POWL semantics survive projection without lossy reinterpretation." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-022-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-022-from-021 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-022" ;
+    sj:requiresCourt sj:court-gall-022 ;
+    sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-022 ;
+    sj:falsifier sj:falsifier-gall-022 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-022-court ;
+    sj:nextCheckpoint sj:gall-023 .
+
+sj:court-gall-022 a sj:Court ;
+    rdfs:label "GALL-022 exact-subject court" ;
+    dcterms:description "Independent court for POWL Language Preservation; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-022 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-022 acceptance" ;
+    dcterms:description "POWL semantics survive projection without lossy reinterpretation. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-022 a sj:Falsifier ;
+    rdfs:label "GALL-022 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-022-court a sj:Action ;
+    rdfs:label "Run GALL-022 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-023-from-022 a sj:DependencyEdge ;
+    rdfs:label "GALL-023 dependency on GALL-022" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-022 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-023 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-023 — OCPQ Binding Determinism" ;
+    dcterms:identifier "GALL-023" ;
+    dcterms:title "OCPQ Binding Determinism" ;
+    dcterms:description "OCPQ bindings are deterministic for an exact graph/query/toolchain subject." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-023-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-023-from-022 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-023" ;
+    sj:requiresCourt sj:court-gall-023 ;
+    sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-023 ;
+    sj:falsifier sj:falsifier-gall-023 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-023-court ;
+    sj:nextCheckpoint sj:gall-024 .
+
+sj:court-gall-023 a sj:Court ;
+    rdfs:label "GALL-023 exact-subject court" ;
+    dcterms:description "Independent court for OCPQ Binding Determinism; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-023 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-023 acceptance" ;
+    dcterms:description "OCPQ bindings are deterministic for an exact graph/query/toolchain subject. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-023 a sj:Falsifier ;
+    rdfs:label "GALL-023 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-023-court a sj:Action ;
+    rdfs:label "Run GALL-023 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-024-from-023 a sj:DependencyEdge ;
+    rdfs:label "GALL-024 dependency on GALL-023" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-023 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-024 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-024 — Object-Centric Observation" ;
+    dcterms:identifier "GALL-024" ;
+    dcterms:title "Object-Centric Observation" ;
+    dcterms:description "Observed events preserve object-centric identity and relationships." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-024-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-024-from-023 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-024" ;
+    sj:requiresCourt sj:court-gall-024 ;
+    sj:requiresEvidence sj:telemetry-evidence, sj:process-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-024 ;
+    sj:falsifier sj:falsifier-gall-024 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-024-court ;
+    sj:nextCheckpoint sj:gall-025 .
+
+sj:court-gall-024 a sj:Court ;
+    rdfs:label "GALL-024 exact-subject court" ;
+    dcterms:description "Independent court for Object-Centric Observation; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-024 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-024 acceptance" ;
+    dcterms:description "Observed events preserve object-centric identity and relationships. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-024 a sj:Falsifier ;
+    rdfs:label "GALL-024 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-024-court a sj:Action ;
+    rdfs:label "Run GALL-024 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-025-from-024 a sj:DependencyEdge ;
+    rdfs:label "GALL-025 dependency on GALL-024" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-024 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-025 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-025 — Normative/Observed Separation" ;
+    dcterms:identifier "GALL-025" ;
+    dcterms:title "Normative/Observed Separation" ;
+    dcterms:description "Normative process law and observed execution remain separate first-class objects." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-025-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-025-from-024 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-025" ;
+    sj:requiresCourt sj:court-gall-025 ;
+    sj:requiresEvidence sj:process-evidence, sj:telemetry-evidence, sj:local-execution-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-025 ;
+    sj:falsifier sj:falsifier-gall-025 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-025-court ;
+    sj:nextCheckpoint sj:gall-026 .
+
+sj:court-gall-025 a sj:Court ;
+    rdfs:label "GALL-025 exact-subject court" ;
+    dcterms:description "Independent court for Normative/Observed Separation; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-025 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-025 acceptance" ;
+    dcterms:description "Normative process law and observed execution remain separate first-class objects. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-025 a sj:Falsifier ;
+    rdfs:label "GALL-025 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-025-court a sj:Action ;
+    rdfs:label "Run GALL-025 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-026-from-025 a sj:DependencyEdge ;
+    rdfs:label "GALL-026 dependency on GALL-025" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-025 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-026 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-026 — Conformance Delta" ;
+    dcterms:identifier "GALL-026" ;
+    dcterms:title "Conformance Delta" ;
+    dcterms:description "Conformance delta is evidence rather than a silent rewrite of the normative model." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-026-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-026-from-025 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-026" ;
+    sj:requiresCourt sj:court-gall-026 ;
+    sj:requiresEvidence sj:process-evidence, sj:telemetry-evidence, sj:local-execution-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-026 ;
+    sj:falsifier sj:falsifier-gall-026 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-026-court ;
+    sj:nextCheckpoint sj:gall-027 .
+
+sj:court-gall-026 a sj:Court ;
+    rdfs:label "GALL-026 exact-subject court" ;
+    dcterms:description "Independent court for Conformance Delta; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-026 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-026 acceptance" ;
+    dcterms:description "Conformance delta is evidence rather than a silent rewrite of the normative model. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-026 a sj:Falsifier ;
+    rdfs:label "GALL-026 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-026-court a sj:Action ;
+    rdfs:label "Run GALL-026 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-027-from-026 a sj:DependencyEdge ;
+    rdfs:label "GALL-027 dependency on GALL-026" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-026 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-027 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-027 — Semantic Attribution Conservation" ;
+    dcterms:identifier "GALL-027" ;
+    dcterms:title "Semantic Attribution Conservation" ;
+    dcterms:description "Process evidence retains exact semantic attribution to subject, graph, receipt, and observation." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-027-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-027-from-026 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-027" ;
+    sj:requiresCourt sj:court-gall-027 ;
+    sj:requiresEvidence sj:process-evidence, sj:telemetry-evidence, sj:local-execution-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-027 ;
+    sj:falsifier sj:falsifier-gall-027 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-027-court ;
+    sj:nextCheckpoint sj:gall-028 .
+
+sj:court-gall-027 a sj:Court ;
+    rdfs:label "GALL-027 exact-subject court" ;
+    dcterms:description "Independent court for Semantic Attribution Conservation; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-027 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-027 acceptance" ;
+    dcterms:description "Process evidence retains exact semantic attribution to subject, graph, receipt, and observation. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-027 a sj:Falsifier ;
+    rdfs:label "GALL-027 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-027-court a sj:Action ;
+    rdfs:label "Run GALL-027 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-028-from-027 a sj:DependencyEdge ;
+    rdfs:label "GALL-028 dependency on GALL-027" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-027 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-028 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-028 — Multi-Clock Control" ;
+    dcterms:identifier "GALL-028" ;
+    dcterms:title "Multi-Clock Control" ;
+    dcterms:description "Event, processing, decision, and actuation clocks remain distinguishable." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-028-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-028-from-027 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-028" ;
+    sj:requiresCourt sj:court-gall-028 ;
+    sj:requiresEvidence sj:telemetry-evidence, sj:runtime-evidence, sj:process-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-028 ;
+    sj:falsifier sj:falsifier-gall-028 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-028-court ;
+    sj:nextCheckpoint sj:gall-029 .
+
+sj:court-gall-028 a sj:Court ;
+    rdfs:label "GALL-028 exact-subject court" ;
+    dcterms:description "Independent court for Multi-Clock Control; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-028 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-028 acceptance" ;
+    dcterms:description "Event, processing, decision, and actuation clocks remain distinguishable. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-028 a sj:Falsifier ;
+    rdfs:label "GALL-028 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-028-court a sj:Action ;
+    rdfs:label "Run GALL-028 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-029-from-028 a sj:DependencyEdge ;
+    rdfs:label "GALL-029 dependency on GALL-028" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-028 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-029 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-029 — Process Finding Admission" ;
+    dcterms:identifier "GALL-029" ;
+    dcterms:title "Process Finding Admission" ;
+    dcterms:description "A process finding must be admitted before becoming an intervention candidate." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-029-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-029-from-028 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-029" ;
+    sj:requiresCourt sj:court-gall-029 ;
+    sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-gall-029 ;
+    sj:falsifier sj:falsifier-gall-029 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-029-court ;
+    sj:nextCheckpoint sj:gall-030 .
+
+sj:court-gall-029 a sj:Court ;
+    rdfs:label "GALL-029 exact-subject court" ;
+    dcterms:description "Independent court for Process Finding Admission; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-029 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-029 acceptance" ;
+    dcterms:description "A process finding must be admitted before becoming an intervention candidate. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-029 a sj:Falsifier ;
+    rdfs:label "GALL-029 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-029-court a sj:Action ;
+    rdfs:label "Run GALL-029 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-030-from-029 a sj:DependencyEdge ;
+    rdfs:label "GALL-030 dependency on GALL-029" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-029 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-030 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-030 — Bounded Process Intervention" ;
+    dcterms:identifier "GALL-030" ;
+    dcterms:title "Bounded Process Intervention" ;
+    dcterms:description "Process intervention is scoped, authority-bound, receipted, and independently verified." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-030-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-030-from-029 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-030" ;
+    sj:requiresCourt sj:court-gall-030 ;
+    sj:requiresEvidence sj:process-evidence, sj:authority-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "actuation", "verification", "postcondition", "replay" ;
+    sj:acceptance sj:acceptance-gall-030 ;
+    sj:falsifier sj:falsifier-gall-030 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-030-court ;
+    sj:nextCheckpoint sj:gall-031 .
+
+sj:court-gall-030 a sj:Court ;
+    rdfs:label "GALL-030 exact-subject court" ;
+    dcterms:description "Independent court for Bounded Process Intervention; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-030 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-030 acceptance" ;
+    dcterms:description "Process intervention is scoped, authority-bound, receipted, and independently verified. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-030 a sj:Falsifier ;
+    rdfs:label "GALL-030 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-030-court a sj:Action ;
+    rdfs:label "Run GALL-030 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-031-from-030 a sj:DependencyEdge ;
+    rdfs:label "GALL-031 dependency on GALL-030" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-030 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-031 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-031 — Process Redesign Canary" ;
+    dcterms:identifier "GALL-031" ;
+    dcterms:title "Process Redesign Canary" ;
+    dcterms:description "A redesign is first exercised as a bounded canary with rollback and falsifier conditions." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-031-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-031-from-030 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-031" ;
+    sj:requiresCourt sj:court-gall-031 ;
+    sj:requiresEvidence sj:process-evidence, sj:runtime-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "actuation", "verification", "postcondition", "replay" ;
+    sj:acceptance sj:acceptance-gall-031 ;
+    sj:falsifier sj:falsifier-gall-031 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-031-court ;
+    sj:nextCheckpoint sj:gall-032 .
+
+sj:court-gall-031 a sj:Court ;
+    rdfs:label "GALL-031 exact-subject court" ;
+    dcterms:description "Independent court for Process Redesign Canary; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-031 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-031 acceptance" ;
+    dcterms:description "A redesign is first exercised as a bounded canary with rollback and falsifier conditions. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-031 a sj:Falsifier ;
+    rdfs:label "GALL-031 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-031-court a sj:Action ;
+    rdfs:label "Run GALL-031 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:edge-032-from-031 a sj:DependencyEdge ;
+    rdfs:label "GALL-032 dependency on GALL-031" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:gall-031 ;
+    sj:requiredStanding "ALIVE" .
+
+sj:gall-032 a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "GALL-032 — External Process Autonomics Crown" ;
+    dcterms:identifier "GALL-032" ;
+    dcterms:title "External Process Autonomics Crown" ;
+    dcterms:description "External process autonomics closes only with exact runtime, observation, postcondition, receipt, and replay evidence." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:subject "semantic-jira:gall-032-contract" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:dependsOn sj:edge-032-from-031 ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.19:GALL-032" ;
+    sj:requiresCourt sj:court-gall-032 ;
+    sj:requiresEvidence sj:process-evidence, sj:runtime-evidence, sj:telemetry-evidence, sj:postcondition-evidence, sj:receipt-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "actuation", "verification", "postcondition", "replay" ;
+    sj:acceptance sj:acceptance-gall-032 ;
+    sj:falsifier sj:falsifier-gall-032 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-gall-032-court ;
+    sj:nextCheckpoint sj:known-retirement-checkpoint .
+
+sj:court-gall-032 a sj:Court ;
+    rdfs:label "GALL-032 exact-subject court" ;
+    dcterms:description "Independent court for External Process Autonomics Crown; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-gall-032 a sj:AcceptanceCriterion ;
+    rdfs:label "GALL-032 acceptance" ;
+    dcterms:description "External process autonomics closes only with exact runtime, observation, postcondition, receipt, and replay evidence. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-gall-032 a sj:Falsifier ;
+    rdfs:label "GALL-032 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-gall-032-court a sj:Action ;
+    rdfs:label "Run GALL-032 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+# ---- HANDWRITTEN ledger: UNSUPPORTED(generator, element) row ----
+# Law: priv/ggen/dfcm-agent-pack/ontology.ttl (DfCM hand-writing gate).
+# Ledger entry: HANDWRITTEN.md (repo root). Ledger shrinks monotonically;
+# paydown = admit a pack-integration-proof test generator, then retire both rows.
+sj:ledger-unsupported-001 a rdfs:Resource ;
+    rdfs:label "UNSUPPORTED(semantic-jira-pack, integration-proof-test)" ;
+    dcterms:description "UNSUPPORTED(semantic-jira-pack, integration-proof-test): no admitted generator expresses the Chicago-style, no-mock ExUnit integration proof of this pack's own sync -> admission -> actuation -> receipt pipeline (real filesystem, real nested mix compile, durable receipts, byte-identical replay). The existing test-manufacturing families (beam4pm-bench-pack, chicago-fault-injection-pack) manufacture domain-specific benchmark/fault-injection specs, and pack gates verify admission data rather than end-to-end pipeline behaviour, so test/ggen_igniter_semantic_jira_pack_test.exs is admitted hand-authored residue. Paydown plan: extend the test-manufacturing family with a pack-integration-proof generator (ontology facts + template over the pack manifest/gates); when admitted, this row and its HANDWRITTEN.md entry retire." ;
+    dcterms:date "2026-09-19"^^xsd:date ;
+    dcterms:references <https://ggen-igniter.dev/ontology/semantic-jira#pack-integration-proof-test> .

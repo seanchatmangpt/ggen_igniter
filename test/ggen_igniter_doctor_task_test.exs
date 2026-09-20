@@ -18,6 +18,11 @@ defmodule GgenIgniter.DoctorTaskTest do
     assert output =~ ~r/✔ Elixir .* \/ OTP/
     assert output =~ "✔ rdf"
     refute output =~ "ontology.ttl"
+
+    # Check 19: the always-run semantic-jira-pack health check executes the
+    # shipped pack's gates and renders its templates for real -- this
+    # checkout ships the pack, so it must report a real ✔ with a real summary.
+    assert output =~ "✔ semantic-jira-pack:"
   end
 
   test "mix ggen_igniter.doctor --pack-dir against a real valid pack passes every pack check" do
@@ -190,6 +195,15 @@ defmodule GgenIgniter.DoctorTaskTest do
     assert payload["exit_code"] == 0
     assert is_list(payload["checks"])
     assert payload["checks"] != []
+
+    # Check 19 carries the same machine-addressable shape as every other
+    # check (AR-10): a snake_case check_id plus a real status, keyed off the
+    # check_id, never the message prose.
+    semantic_jira_check = Enum.find(payload["checks"], &(&1["check_id"] == "semantic_jira_pack"))
+    assert semantic_jira_check != nil
+    assert semantic_jira_check["status"] == "ok"
+    assert semantic_jira_check["message"] =~ "semantic-jira-pack:"
+    assert semantic_jira_check["strict_failure"] == false
 
     # A real subprocess-level regression test for the specific bug this
     # closes: Igniter's own "No proposed content changes!" footer must never
