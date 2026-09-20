@@ -12,6 +12,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   @moduletag :integration
 
   alias GgenIgniter.{Receipt, SemanticJira}
+  alias GgenIgniter.Reactors.ReconcileReactor
 
   @ontology_path "priv/ggen/semantic-jira-pack/ontology.ttl"
 
@@ -143,6 +144,15 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       refute broken == source
       File.write!(broken_ontology, broken)
+
+      assert {:error, {:refused_semantic_jira_shacl, plan_violations}} =
+               ReconcileReactor.plan(
+                 pack: "semantic-jira-pack",
+                 ontology: broken_ontology,
+                 manifest_dir: work_dir
+               )
+
+      assert Enum.any?(plan_violations, &(&1.constraint == :datatype))
 
       {output, exit_code} = run_sync(work_dir, ["--ontology", broken_ontology])
 
