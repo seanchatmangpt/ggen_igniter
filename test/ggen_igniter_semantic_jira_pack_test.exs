@@ -247,7 +247,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         |> Path.wildcard()
         |> Enum.sort()
 
-      assert length(gates) == 5
+      assert length(gates) == 7
 
       Enum.each(gates, fn gate ->
         assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),
@@ -359,6 +359,440 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     end
   end
 
+  describe "admission boundary falsifier matrix" do
+    # One test per attack, named after the rejection class it witnesses. Every
+    # attack mutates a copy of the canonical dogfood graph and drives the REAL
+    # admission path (mix ggen_igniter.sync --engine sparql --pack
+    # semantic-jira-pack:jira --ontology <mutated>): no simulated admissions.
+
+    @dogfood_title ~s(dcterms:title "Manufacture Semantic Jira work orders from RDF" ;)
+    @dogfood_identifier ~s(dcterms:identifier "SJ-001" ;)
+    @dogfood_base_sha ~s(sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;)
+    @dogfood_standing ~s(sj:standing "UNKNOWN" ;)
+    @dogfood_authority ~s(sj:authorityCeiling "CONSTRUCT" ;)
+    @dogfood_replay ~s(sj:replayIdentity "semantic-jira:v26.9.19:SJ-001" ;)
+    # The dogfood WorkOrder block ends with this final triple; appended attack
+    # subjects go after the terminator.
+    @dogfood_close "sj:nextCheckpoint sj:shacl-admission-checkpoint ."
+
+    test "class 1 incomplete scalar identity: removing dcterms:title refuses admission" do
+      assert_refused("class1_missing_title", [{@dogfood_title, ""}], "missing core field title")
+    end
+
+    test "class 1 incomplete scalar identity: removing dcterms:identifier refuses admission" do
+      assert_refused(
+        "class1_missing_identifier",
+        [{@dogfood_identifier, ""}],
+        "missing core field id"
+      )
+    end
+
+    test "class 1 ambiguous scalar identity: a duplicated dcterms:title resolves to two rows and refuses" do
+      assert_refused(
+        "class1_ambiguous_title",
+        [{@dogfood_title, @dogfood_title <> ~s(\n    dcterms:title "Shadow title" ;)}],
+        "exactly one complete scalar row"
+      )
+    end
+
+    test "class 1 ambiguous scalar identity: a duplicated sj:baseSha resolves to two rows and refuses" do
+      assert_refused(
+        "class1_ambiguous_base_sha",
+        [
+          {@dogfood_base_sha,
+           @dogfood_base_sha <> ~s(\n    sj:baseSha "#{String.duplicate("a", 40)}" ;)}
+        ],
+        "exactly one complete scalar row"
+      )
+    end
+
+    test "class 2 duplicate identity: a second WorkOrder reusing dcterms:identifier SJ-001 refuses" do
+      assert_refused(
+        "class2_duplicate_id",
+        [
+          {@dogfood_close,
+           @dogfood_close <>
+             attack_work_order("SJ-001", "semantic-jira:v26.9.19:ATTACK-DUP", "dup")}
+        ],
+        "dcterms:identifier must be unique across WorkOrders"
+      )
+    end
+
+    test "class 2 duplicate identity: two individually valid WorkOrders sharing one identifier refuse (combinational bypass)" do
+      # Each added WorkOrder is individually legal (complete and well-formed);
+      # only the combination - a shared identifier - is illegal.
+      assert_refused(
+        "class2_combo_duplicate_id",
+        [
+          {@dogfood_close,
+           @dogfood_close <>
+             attack_work_order("SJ-COMBO", "semantic-jira:v26.9.19:ATTACK-COMBO-A", "combo-a") <>
+             attack_work_order("SJ-COMBO", "semantic-jira:v26.9.19:ATTACK-COMBO-B", "combo-b")}
+        ],
+        "dcterms:identifier must be unique across WorkOrders"
+      )
+    end
+
+    test "class 3 exact baseSha: uppercase hex refuses (exact means exact)" do
+      assert_refused(
+        "class3_base_sha_uppercase",
+        [{@dogfood_base_sha, ~s(sj:baseSha "D84DA1419A6945C6A8A64B8F6CDCA9D0B2C9E0F3" ;)}],
+        "baseSha must be an exact 40-hex commit SHA"
+      )
+    end
+
+    test "class 3 exact baseSha: truncated 39-hex refuses" do
+      assert_refused(
+        "class3_base_sha_truncated",
+        [{@dogfood_base_sha, ~s(sj:baseSha "#{String.duplicate("d", 39)}" ;)}],
+        "baseSha must be an exact 40-hex commit SHA"
+      )
+    end
+
+    test "class 3 exact baseSha: extended 41-hex refuses" do
+      assert_refused(
+        "class3_base_sha_extended",
+        [{@dogfood_base_sha, ~s(sj:baseSha "#{String.duplicate("d", 41)}" ;)}],
+        "baseSha must be an exact 40-hex commit SHA"
+      )
+    end
+
+    test "class 3 exact baseSha: leading whitespace refuses (identity smuggling)" do
+      assert_refused(
+        "class3_base_sha_whitespace",
+        [{@dogfood_base_sha, ~s(sj:baseSha " #{String.duplicate("d", 40)}" ;)}],
+        "baseSha must be an exact 40-hex commit SHA"
+      )
+    end
+
+    test "class 4 standing vocabulary: lowercase and fabricated standings refuse" do
+      assert_refused(
+        "class4_standing_lowercase",
+        [{@dogfood_standing, ~s(sj:standing "unknown" ;)}],
+        "invalid standing"
+      )
+
+      assert_refused(
+        "class4_standing_fabricated",
+        [{@dogfood_standing, ~s(sj:standing "SUPER_ALIVE" ;)}],
+        "invalid standing"
+      )
+    end
+
+    test "class 4 standing vocabulary: REFUSED() with an empty reason refuses (a refusal must state its reason)" do
+      refused_empty_standing = "sj:standing \"REFUSED()\" ;"
+      # The sync output surfaces refusals through an ArgumentError inspect,
+      # which escapes quotes; match on the quote-free signal prefix.
+      refused_empty_signal = "invalid standing"
+
+      assert_refused(
+        "class4_standing_refused_empty",
+        [{@dogfood_standing, refused_empty_standing}],
+        refused_empty_signal
+      )
+    end
+
+    test "class 5 authority ceiling: MERGE and DEPLOY refuse above the CONSTRUCT boundary" do
+      assert_refused(
+        "class5_authority_merge",
+        [{@dogfood_authority, ~s(sj:authorityCeiling "MERGE" ;)}],
+        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+      )
+
+      assert_refused(
+        "class5_authority_deploy",
+        [{@dogfood_authority, ~s(sj:authorityCeiling "DEPLOY" ;)}],
+        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+      )
+    end
+
+    test "class 5 authority ceiling: CONSTRUCT typos and trailing whitespace refuse" do
+      assert_refused(
+        "class5_authority_typo",
+        [{@dogfood_authority, ~s(sj:authorityCeiling "constrct" ;)}],
+        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+      )
+
+      assert_refused(
+        "class5_authority_trailing_space",
+        [{@dogfood_authority, ~s(sj:authorityCeiling "CONSTRUCT " ;)}],
+        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+      )
+    end
+
+    test "class 5 authority ceiling control: OBSERVE stays inside the boundary and admits" do
+      assert_admitted("class5_control_observe", [
+        {@dogfood_authority, ~s(sj:authorityCeiling "OBSERVE" ;)}
+      ])
+    end
+
+    for relation <-
+          ~w(requiresCourt requiresEvidence acceptance falsifier projection nextAction nextCheckpoint) do
+      test "class 6 required relation: a graph without sj:#{relation} on SJ-001 refuses" do
+        assert_refused(
+          "class6_missing_#{unquote(relation)}",
+          remove_relation_mutations(unquote(relation)),
+          "missing required #{unquote(relation)} relation for SJ-001"
+        )
+      end
+    end
+
+    test "class 7 relation target: a target carrying only rdfs:label refuses" do
+      assert_refused(
+        "class7_target_label_only",
+        [
+          {dogfood_falsifier_statement(), ~s(sj:falsifier sj:label-only-target ;)},
+          {@dogfood_close,
+           @dogfood_close <>
+             ~s(\nsj:label-only-target a sj:Falsifier ; rdfs:label "Label only target" .\n)}
+        ],
+        "lacks rdfs:label + dcterms:description"
+      )
+    end
+
+    test "class 7 relation target: a bare IRI target with no label or description refuses" do
+      assert_refused(
+        "class7_target_bare_iri",
+        [{dogfood_falsifier_statement(), ~s(sj:falsifier sj:bare-target ;)}],
+        "lacks rdfs:label + dcterms:description"
+      )
+    end
+
+    test "class 7 relation target: a plain literal target refuses" do
+      assert_refused(
+        "class7_target_literal",
+        [
+          {~s(sj:nextAction sj:add-qualified-shacl-court ;),
+           ~s(sj:nextAction sj:add-qualified-shacl-court, "just do it" ;)}
+        ],
+        "for SJ-001 lacks rdfs:label + dcterms:description"
+      )
+    end
+
+    test "standing smuggling: ALIVE without candidateSha, subjectSha, and receipt refuses (SHACL receipt-crown law)" do
+      # shapes/work-order.shacl.ttl: "ALIVE requires exact candidate/subject SHA
+      # and a durable receipt." A graph claiming the strongest standing with
+      # zero observed-execution evidence must not admit.
+      assert_refused(
+        "extra_alive_without_receipt_crown",
+        [{@dogfood_standing, ~s(sj:standing "ALIVE" ;)}],
+        "standing ALIVE requires sj:candidateSha, sj:subjectSha, and sj:receipt evidence"
+      )
+    end
+
+    test "standing smuggling control: ALIVE with the full receipt crown admits" do
+      crown =
+        ~s(sj:standing "ALIVE" ;\n    sj:candidateSha "#{String.duplicate("c", 40)}" ;\n    sj:subjectSha "#{String.duplicate("d", 40)}" ;\n    sj:receipt sj:graph-receipt-evidence ;)
+
+      assert_admitted("extra_control_alive_with_receipt_crown", [{@dogfood_standing, crown}])
+    end
+
+    test "replay identity uniqueness: two valid WorkOrders sharing sj:replayIdentity refuse (SHACL uniqueness law)" do
+      assert_refused(
+        "extra_duplicate_replay_identity",
+        [
+          {@dogfood_close,
+           @dogfood_close <>
+             attack_work_order("SJ-REPL-A", "semantic-jira:v26.9.19:ATTACK-SHARED", "repl-a") <>
+             attack_work_order("SJ-REPL-B", "semantic-jira:v26.9.19:ATTACK-SHARED", "repl-b")}
+        ],
+        "sj:replayIdentity must be unique across WorkOrders"
+      )
+    end
+
+    test "description integrity: an empty-string description on a relation target refuses (no blank semantics)" do
+      assert_refused(
+        "extra_empty_description_target",
+        [
+          {dogfood_falsifier_statement(), ~s(sj:falsifier sj:empty-desc-target ;)},
+          {@dogfood_close,
+           @dogfood_close <>
+             ~s(\nsj:empty-desc-target a sj:Falsifier ; rdfs:label "Empty description target" ; dcterms:description "" .\n)}
+        ],
+        "lacks a real description"
+      )
+    end
+
+    test "description integrity: a whitespace-only description refuses" do
+      assert_refused(
+        "extra_whitespace_description_target",
+        [
+          {dogfood_falsifier_statement(), ~s(sj:falsifier sj:ws-desc-target ;)},
+          {@dogfood_close,
+           @dogfood_close <>
+             ~s(\nsj:ws-desc-target a sj:Falsifier ; rdfs:label "Whitespace description target" ; dcterms:description "   " .\n)}
+        ],
+        "blank or whitespace-only"
+      )
+    end
+
+    test "description integrity: a description echoing the node IRI refuses (self-reference is not semantics)" do
+      assert_refused(
+        "extra_self_echo_description_target",
+        [
+          {dogfood_falsifier_statement(), ~s(sj:falsifier sj:echo-desc-target ;)},
+          {@dogfood_close,
+           @dogfood_close <>
+             ~s(\nsj:echo-desc-target a sj:Falsifier ; rdfs:label "Echo description target" ; dcterms:description "https://ggen-igniter.dev/ontology/semantic-jira#echo-desc-target" .\n)}
+        ],
+        "lacks a real description"
+      )
+    end
+
+    test "description integrity: a description equal to the node label refuses" do
+      assert_refused(
+        "extra_description_equals_label_target",
+        [
+          {dogfood_falsifier_statement(), ~s(sj:falsifier sj:same-desc-target ;)},
+          {@dogfood_close,
+           @dogfood_close <>
+             ~s(\nsj:same-desc-target a sj:Falsifier ; rdfs:label "Same description target" ; dcterms:description "Same description target" .\n)}
+        ],
+        "lacks a real description"
+      )
+    end
+
+    test "scalar identity: a whitespace-only title refuses (whitespace is not identity)" do
+      assert_refused(
+        "extra_whitespace_title",
+        [{@dogfood_title, ~s(dcterms:title "   " ;)}],
+        "blank core field title"
+      )
+    end
+
+    test "scalar identity: a whitespace-only replayIdentity refuses" do
+      assert_refused(
+        "extra_whitespace_replay_identity",
+        [{@dogfood_replay, ~s(sj:replayIdentity "   " ;)}],
+        "blank core field replay_identity"
+      )
+    end
+
+    test "malformed ontology: a Turtle syntax error fails closed with no ticket actuated" do
+      work_dir = scratch_dir!("malformed_turtle")
+
+      mutated =
+        mutate_ontology!(work_dir, "malformed", [
+          {@dogfood_title, ~s(dcterms:title "Unclosed title ;)}
+        ])
+
+      {output, exit_code} = run_sync(work_dir, ["--ontology", mutated])
+
+      refute exit_code == 0
+      refute output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
+      refute File.exists?(Path.join(work_dir, "SJ-001.md"))
+      assert output =~ "Turtle"
+    end
+  end
+
+  defp dogfood_falsifier_statement do
+    "sj:falsifier sj:missing-required-field-renders, sj:projection-gains-authority ;"
+  end
+
+  defp attack_work_order(identifier, replay_identity, suffix) do
+    """
+    sj:attack-#{suffix} a sj:WorkOrder ;
+        dcterms:identifier "#{identifier}" ;
+        dcterms:title "Attack work order #{identifier}" ;
+        dcterms:description "Attack row reusing canonical relation targets." ;
+        sj:repository "seanchatmangpt/ggen_igniter" ;
+        sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+        sj:subject "semantic-jira-pack:attack-#{suffix}" ;
+        sj:standing "UNKNOWN" ;
+        sj:evidenceCeiling "IMPLEMENTED_UNVERIFIED" ;
+        sj:authorityCeiling "CONSTRUCT" ;
+        sj:promotionRule "Attack row; admission must refuse." ;
+        sj:replayIdentity "#{replay_identity}" ;
+        sj:requiresCourt sj:exact-head-projection-court ;
+        sj:requiresEvidence sj:graph-receipt-evidence ;
+        sj:acceptance sj:canonical-source ;
+        sj:falsifier sj:missing-required-field-renders ;
+        sj:projection sj:markdown-projection ;
+        sj:nextAction sj:add-qualified-shacl-court ;
+        sj:nextCheckpoint sj:shacl-admission-checkpoint .
+    """
+  end
+
+  # SJ-001 carries its dogfood relations and (in the v26.9.19 fabric block) a
+  # second sj:projection statement with the fourteen ProjectionSpecs; removing
+  # only one statement leaves the graph untouched from the graph's point of
+  # view, so both must go. The nextCheckpoint triple terminates the subject,
+  # so dropping it keeps the "." terminator.
+  defp remove_relation_mutations("projection") do
+    [
+      {"sj:projection sj:markdown-projection ;\n", ""},
+      {"sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay .",
+       "."}
+    ]
+  end
+
+  defp remove_relation_mutations("nextCheckpoint") do
+    [{"sj:nextCheckpoint sj:shacl-admission-checkpoint .", "."}]
+  end
+
+  defp remove_relation_mutations(relation) do
+    relation_iri =
+      case relation do
+        "requiresCourt" ->
+          "sj:requiresCourt sj:exact-head-projection-court ;"
+
+        "requiresEvidence" ->
+          "sj:requiresEvidence sj:graph-receipt-evidence ;"
+
+        "acceptance" ->
+          "sj:acceptance sj:canonical-source, sj:deterministic-projection, sj:fail-closed-invalid ;"
+
+        "falsifier" ->
+          dogfood_falsifier_statement()
+
+        "nextAction" ->
+          "sj:nextAction sj:add-qualified-shacl-court ;"
+      end
+
+    [{relation_iri, ""}]
+  end
+
+  defp mutate_ontology!(work_dir, tag, replacements) do
+    path = Path.join(work_dir, "#{tag}.ttl")
+
+    mutated =
+      Enum.reduce(replacements, File.read!(@ontology_path), fn {find, replace}, acc ->
+        String.replace(acc, find, replace, global: false)
+      end)
+
+    # Every mutation must actually change the graph; a no-op mutation would
+    # fabricate a rejection signal.
+    refute mutated == File.read!(@ontology_path)
+    File.write!(path, mutated)
+    path
+  end
+
+  defp assert_refused(tag, replacements, expected_signal) do
+    work_dir = scratch_dir!(tag)
+    mutated = mutate_ontology!(work_dir, tag, replacements)
+    {output, exit_code} = run_sync(work_dir, ["--ontology", mutated])
+
+    refute exit_code == 0, "expected refusal, got exit 0:\n#{output}"
+    assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
+    assert output =~ expected_signal
+    refute File.exists?(Path.join(work_dir, "SJ-001.md"))
+
+    receipts = Receipt.read_all!(work_dir)
+
+    assert Enum.all?(receipts, fn receipt ->
+             receipt["standing"] != "alive"
+           end)
+  end
+
+  defp assert_admitted(tag, replacements) do
+    work_dir = scratch_dir!(tag)
+    mutated = mutate_ontology!(work_dir, tag, replacements)
+    {output, exit_code} = run_sync(work_dir, ["--ontology", mutated])
+
+    assert exit_code == 0, "expected admission, got exit #{exit_code}:\n#{output}"
+    assert File.exists?(Path.join(work_dir, "SJ-001.md"))
+  end
+
   defp semantic_digest(seed), do: "sha256:" <> String.duplicate(seed, 64)
 
   defp sample_work_order(overrides \\ %{}) do
@@ -399,7 +833,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert first["work_order_digest"] == second["work_order_digest"]
       assert first["authority"] == "NONE"
 
-      assert {:error, {:invalid_sha, :base_sha, "main"}} =
+      # Kernel refusals are uniformly wrapped in the typed refusal vocabulary
+      # (the non-map clause returns {:refused_work_order, :expected_map} too).
+      assert {:error, {:refused_work_order, {:invalid_sha, :base_sha, "main"}}} =
                SemanticJira.admit_work_order(%{work_order | "base_sha" => "main"})
 
       dependent =

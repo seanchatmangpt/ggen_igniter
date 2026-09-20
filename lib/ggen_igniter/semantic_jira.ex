@@ -95,6 +95,10 @@ defmodule GgenIgniter.SemanticJira do
         |> Map.put("authority", "NONE")
 
       {:ok, Map.put(normalized, "work_order_digest", digest(normalized))}
+    else
+      # Every kernel refusal carries the typed refusal vocabulary so callers
+      # never confuse a malformed work order with an unexpected crash.
+      {:error, reason} -> {:error, {:refused_work_order, reason}}
     end
   end
 
