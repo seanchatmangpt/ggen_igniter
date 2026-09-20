@@ -1,0 +1,11 @@
+# A2A refusals: actions deliberately NOT exposed as skills, with their typed
+# reason (REFUSED forbidden capability vs UNSUPPORTED generator capability).
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+SELECT DISTINCT ?action ?skill_name ?reason WHERE {
+  ?action a sj:Action ;
+          a2a:skillName ?skill_name ;
+          a2a:exposed false ;
+          a2a:refusalReason ?reason .
+}
+ORDER BY ?skill_name

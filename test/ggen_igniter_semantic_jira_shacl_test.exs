@@ -36,7 +36,8 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
       assert MapSet.new(report.shapes_checked) ==
                MapSet.new(~w(work_order_shape global_integrity_shape dependency_edge_shape
                  projection_authority_shape prediction_shape standing_transition_shape
-                 process_finding_shape lease_request_shape receipt_shape))
+                 process_finding_shape lease_request_shape receipt_shape
+                 skill_shape task_state_shape state_mapping_shape generator_capability_shape))
     end
 
     test "gate-shaped run/2 reports one pass per node shape" do
@@ -45,7 +46,9 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
       assert {"work_order_shape", :pass} in results
       assert {"global_integrity_shape", :pass} in results
       assert {"lease_request_shape", :pass} in results
-      assert length(results) == 9
+      assert {"skill_shape", :pass} in results
+      assert {"state_mapping_shape", :pass} in results
+      assert length(results) == 13
     end
   end
 

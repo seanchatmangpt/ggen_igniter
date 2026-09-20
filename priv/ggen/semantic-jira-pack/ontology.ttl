@@ -1858,3 +1858,164 @@ sj:ledger-unsupported-001 a rdfs:Resource ;
     dcterms:description "UNSUPPORTED(semantic-jira-pack, integration-proof-test): no admitted generator expresses the Chicago-style, no-mock ExUnit integration proof of this pack's own sync -> admission -> actuation -> receipt pipeline (real filesystem, real nested mix compile, durable receipts, byte-identical replay). The existing test-manufacturing families (beam4pm-bench-pack, chicago-fault-injection-pack) manufacture domain-specific benchmark/fault-injection specs, and pack gates verify admission data rather than end-to-end pipeline behaviour, so test/ggen_igniter_semantic_jira_pack_test.exs is admitted hand-authored residue. Paydown plan: extend the test-manufacturing family with a pack-integration-proof generator (ontology facts + template over the pack manifest/gates); when admitted, this row and its HANDWRITTEN.md entry retire." ;
     dcterms:date "2026-09-19"^^xsd:date ;
     dcterms:references <https://ggen-igniter.dev/ontology/semantic-jira#pack-integration-proof-test> .
+
+# ── A2A (agent-to-agent) projection: pack-local vocabulary ─────────────────
+# No public RDF ontology for the A2A protocol was found (UNVERIFIED: a search,
+# not a proof of absence), so this pack declares the minimum `a2a:` vocabulary
+# it needs. Wire values of a2a:TaskState individuals follow the A2A v0.3 task
+# lifecycle. This graph is the SOURCE; the Ash/ash_a2a surface is a generated
+# projection of it (a2a_manufacture.ex.eex -> the real ash.gen.* generators + ash_a2a.install)
+# and the AgentCard is a golden projection (a2a_agent_card.json.eex). Authority
+# of every a2a projection is NONE: task state is never standing.
+
+@prefix a2a: <https://ggen-igniter.dev/ontology/a2a#> .
+@prefix gi: <https://ggen-igniter.dev/ontology/ggen-igniter#> .
+
+a2a:Task a rdfs:Class ; rdfs:label "A2A task" .
+a2a:Skill a rdfs:Class ; rdfs:label "A2A skill" .
+a2a:AgentCard a rdfs:Class ; rdfs:label "A2A agent card" .
+a2a:TaskState a rdfs:Class ; rdfs:label "A2A task state" .
+a2a:StateMapping a rdfs:Class ; rdfs:label "Standing to task-state mapping" .
+gi:GeneratorCapability a rdfs:Class ; rdfs:label "Generator capability" .
+
+sj:WorkOrder rdfs:subClassOf a2a:Task .
+sj:Action rdfs:subClassOf a2a:Skill .
+
+a2a:stateValue a rdf:Property ; rdfs:range xsd:string .
+a2a:fromStanding a rdf:Property ; rdfs:range xsd:string .
+a2a:toState a rdf:Property .
+a2a:reasonCode a rdf:Property ; rdfs:range xsd:string .
+a2a:withReceipt a rdf:Property ; rdfs:range xsd:boolean .
+a2a:skillName a rdf:Property ; rdfs:range xsd:string .
+a2a:ashAction a rdf:Property ; rdfs:range xsd:string .
+a2a:consequence a rdf:Property ; rdfs:range xsd:string .
+a2a:exposed a rdf:Property ; rdfs:range xsd:boolean .
+a2a:generatedBy a rdf:Property .
+a2a:requiresCapability a rdf:Property ; rdfs:range xsd:string .
+a2a:forbidsCapability a rdf:Property ; rdfs:range xsd:string .
+a2a:refusalReason a rdf:Property ; rdfs:range xsd:string .
+gi:mixTask a rdf:Property ; rdfs:range xsd:string .
+gi:standing a rdf:Property ; rdfs:range xsd:string .
+gi:refusalReason a rdf:Property ; rdfs:range xsd:string .
+
+a2a:state-submitted a a2a:TaskState ; a2a:stateValue "submitted" .
+a2a:state-working a a2a:TaskState ; a2a:stateValue "working" .
+a2a:state-input-required a a2a:TaskState ; a2a:stateValue "input-required" .
+a2a:state-auth-required a a2a:TaskState ; a2a:stateValue "auth-required" .
+a2a:state-completed a a2a:TaskState ; a2a:stateValue "completed" .
+a2a:state-canceled a a2a:TaskState ; a2a:stateValue "canceled" .
+a2a:state-failed a a2a:TaskState ; a2a:stateValue "failed" .
+a2a:state-rejected a a2a:TaskState ; a2a:stateValue "rejected" .
+
+# standing -> a2a:state. Standing is the source of truth; the state is derived
+# and never read back to infer standing. ALIVE reaches `completed` only with a
+# durable receipt; UNSUPPORTED and REFUSED are both `rejected` but keep
+# distinct reason codes (UNSUPPORTED != REFUSED).
+a2a:map-unknown a a2a:StateMapping ; a2a:fromStanding "UNKNOWN" ; a2a:toState a2a:state-submitted ; a2a:reasonCode "UNKNOWN" .
+a2a:map-partial-alive a a2a:StateMapping ; a2a:fromStanding "PARTIAL_ALIVE" ; a2a:toState a2a:state-working ; a2a:reasonCode "PARTIAL_ALIVE" .
+a2a:map-alive-receipted a a2a:StateMapping ; a2a:fromStanding "ALIVE" ; a2a:withReceipt true ; a2a:toState a2a:state-completed ; a2a:reasonCode "ALIVE_RECEIPTED" .
+a2a:map-alive-unreceipted a a2a:StateMapping ; a2a:fromStanding "ALIVE" ; a2a:withReceipt false ; a2a:toState a2a:state-working ; a2a:reasonCode "ALIVE_UNRECEIPTED" .
+a2a:map-blocked a a2a:StateMapping ; a2a:fromStanding "BLOCKED" ; a2a:toState a2a:state-failed ; a2a:reasonCode "BLOCKED" .
+a2a:map-build-broken a a2a:StateMapping ; a2a:fromStanding "BUILD_BROKEN" ; a2a:toState a2a:state-failed ; a2a:reasonCode "BUILD_BROKEN" .
+a2a:map-refused a a2a:StateMapping ; a2a:fromStanding "REFUSED" ; a2a:toState a2a:state-rejected ; a2a:reasonCode "REFUSED" .
+a2a:map-unsupported a a2a:StateMapping ; a2a:fromStanding "UNSUPPORTED" ; a2a:toState a2a:state-rejected ; a2a:reasonCode "UNSUPPORTED" .
+
+# Generator capability rows: what the real upstream generator can and cannot emit.
+gi:ash-a2a-install a gi:GeneratorCapability ;
+    gi:mixTask "ash_a2a.install" ;
+    gi:standing "ALIVE" ;
+    dcterms:description "Adds extensions: [AshA2A] to the target resource/domain and an a2a block. Public actions become skills by default: :read -> observe, :create/:update/:destroy -> change." .
+
+gi:ash-a2a-consequence-override a gi:GeneratorCapability ;
+    gi:mixTask "ash_a2a.install" ;
+    gi:standing "UNSUPPORTED" ;
+    gi:refusalReason "UNSUPPORTED(generator-capability): ash_a2a.install cannot emit an explicit a2a skill consequence: :external_do override, so no external_do skill is manufactured; it is never hand-written." ;
+    dcterms:description "external_do skills require an explicit consequence declaration that the installer does not emit." .
+
+# Skills. An sj:Action is a skill only when a2a:exposed true and a generator
+# capability admits it; forbidden capabilities are recorded as refusals.
+sj:observe-work-order a sj:Action ;
+    rdfs:label "Observe work order" ;
+    dcterms:description "Read admitted semantic work-order tasks without consequence." ;
+    a2a:skillName "observe_work_order" ;
+    a2a:ashAction "read" ;
+    a2a:consequence "observe" ;
+    a2a:exposed true ;
+    a2a:generatedBy gi:ash-a2a-install .
+
+sj:record-court-receipt a sj:Action ;
+    rdfs:label "Record court receipt" ;
+    dcterms:description "Record an exact-head court receipt against a work-order task; consequence-bearing, requires an authority grant." ;
+    a2a:skillName "record_court_receipt" ;
+    a2a:ashAction "create" ;
+    a2a:consequence "change" ;
+    a2a:exposed true ;
+    a2a:generatedBy gi:ash-a2a-install .
+
+sj:run-exact-head-court
+    a2a:skillName "run_exact_head_court" ;
+    a2a:ashAction "update" ;
+    a2a:consequence "external_do" ;
+    a2a:exposed false ;
+    a2a:generatedBy gi:ash-a2a-consequence-override ;
+    a2a:refusalReason "UNSUPPORTED(generator-capability): external_do consequence cannot be manufactured by ash_a2a.install." .
+
+sj:push-candidate a sj:Action ;
+    rdfs:label "Push candidate" ;
+    dcterms:description "Push a candidate branch; forbidden capability, never a skill." ;
+    a2a:skillName "push_candidate" ;
+    a2a:ashAction "update" ;
+    a2a:consequence "change" ;
+    a2a:exposed false ;
+    a2a:requiresCapability "Push" ;
+    a2a:generatedBy gi:ash-a2a-install ;
+    a2a:refusalReason "REFUSED(forbidden-capability): Push" .
+
+sj:publish-candidate a sj:Action ;
+    rdfs:label "Publish candidate" ;
+    dcterms:description "Publish a candidate; forbidden capability, never a skill." ;
+    a2a:skillName "publish_candidate" ;
+    a2a:ashAction "update" ;
+    a2a:consequence "change" ;
+    a2a:exposed false ;
+    a2a:requiresCapability "Publish" ;
+    a2a:generatedBy gi:ash-a2a-install ;
+    a2a:refusalReason "REFUSED(forbidden-capability): Publish" .
+
+sj:projection-a2a-card a sj:ProjectionSpec ;
+    rdfs:label "A2A AgentCard and Ash projection" ;
+    dcterms:description "Golden AgentCard plus a composed Ash/ash_a2a manufacture task; authority is NONE." ;
+    sj:projectionType "a2a_agent_card" ;
+    sj:extension "json" ;
+    sj:generatorIdentity "ggen_igniter:semantic-jira-pack@26.9.19" ;
+    sj:authorityClaim "NONE" ;
+    a2a:forbidsCapability "Push", "Publish" .
+
+# Manufacture target: the Ash surface that the composed real generators
+# (ash.gen.domain, ash.gen.resource with the ets extension, ash_a2a.install) produce. The
+# ontology stores FACTS (module names, attribute names/types/flags); the
+# generator argv is derived from them by the template, never stored here.
+a2a:ManufactureTarget a rdfs:Class ; rdfs:label "A2A manufacture target" .
+a2a:ResourceAttribute a rdfs:Class ; rdfs:label "Manufactured resource attribute" .
+a2a:otpApp a rdf:Property ; rdfs:range xsd:string .
+a2a:domainModule a rdf:Property ; rdfs:range xsd:string .
+a2a:resourceModule a rdf:Property ; rdfs:range xsd:string .
+a2a:taskName a rdf:Property ; rdfs:range xsd:string .
+a2a:agentName a rdf:Property ; rdfs:range xsd:string .
+a2a:attributeOf a rdf:Property .
+a2a:attributeName a rdf:Property ; rdfs:range xsd:string .
+a2a:attributeType a rdf:Property ; rdfs:range xsd:string .
+a2a:isPublic a rdf:Property ; rdfs:range xsd:boolean .
+a2a:isRequired a rdf:Property ; rdfs:range xsd:boolean .
+
+sj:a2a-target a a2a:ManufactureTarget ;
+    a2a:otpApp "semantic_jira" ;
+    a2a:domainModule "SemanticJira.Work" ;
+    a2a:resourceModule "SemanticJira.Work.Task" ;
+    a2a:taskName "semantic_jira.a2a.manufacture" ;
+    a2a:agentName "semantic_jira_agent" .
+
+sj:a2a-attr-task-id a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "task_id" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired true .
+sj:a2a-attr-standing a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "standing" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired true .
+sj:a2a-attr-replay-identity a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "replay_identity" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired false .
+sj:a2a-attr-receipt-digest a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "receipt_digest" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired false .

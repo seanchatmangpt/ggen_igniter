@@ -861,7 +861,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         |> Path.wildcard()
         |> Enum.sort()
 
-      assert length(gates) == 7
+      assert length(gates) == 12
 
       Enum.each(gates, fn gate ->
         assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),
@@ -1850,7 +1850,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
           {type, SemanticJira.render_projection(type, before, context)}
         end)
 
-      assert map_size(rendered) == 14
+      assert map_size(rendered) == 15
       assert Enum.all?(rendered, fn {_type, bytes} -> bytes =~ "authority=NONE" end)
 
       assert rendered ==

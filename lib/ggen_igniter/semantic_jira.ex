@@ -20,7 +20,7 @@ defmodule GgenIgniter.SemanticJira do
 
   @receipt_classes ~w(manufacture projection authority_preparation actuation verification postcondition replay publication deployment)
 
-  @projection_types ~w(jira wbpr prd ard vision fond hddl sa2a worker verification executive machine receipt replay)
+  @projection_types ~w(jira wbpr prd ard vision fond hddl sa2a a2a_agent_card worker verification executive machine receipt replay)
 
   @semantic_fields ~w(subject repository base_sha candidate_sha dependencies acceptance falsifiers authority_requirement evidence_ceiling promotion_rule required_courts required_evidence required_receipt_classes projections expected_consequence path_scope)
 
@@ -49,7 +49,7 @@ defmodule GgenIgniter.SemanticJira do
   @spec receipt_classes() :: [String.t()]
   def receipt_classes, do: @receipt_classes
 
-  @doc "The fourteen deterministic Semantic Jira projection classes."
+  @doc "The fifteen deterministic Semantic Jira projection classes."
   @spec projection_types() :: [String.t()]
   def projection_types, do: @projection_types
 
@@ -718,7 +718,7 @@ defmodule GgenIgniter.SemanticJira do
     }
   end
 
-  @doc "Renders all fourteen projection classes deterministically."
+  @doc "Renders all fifteen projection classes deterministically."
   @spec render_projection(String.t(), map(), map()) :: String.t()
   def render_projection(type, work_order, context \\ %{})
       when type in @projection_types do
@@ -787,6 +787,7 @@ defmodule GgenIgniter.SemanticJira do
   end
 
   defp projection_kind("sa2a"), do: "sa2a_work_package"
+  defp projection_kind("a2a_agent_card"), do: "a2a_task_projection"
   defp projection_kind("worker"), do: "bounded_worker_package"
   defp projection_kind("verification"), do: "verification_plan"
   defp projection_kind("executive"), do: "executive_status"

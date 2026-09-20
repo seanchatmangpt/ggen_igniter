@@ -203,6 +203,13 @@ defmodule GgenIgniter.MixProject do
       # the fixture qualification run.
       {:ash, "~> 3.0", only: [:dev, :test]},
       {:ash_postgres, "~> 2.0", only: [:dev, :test]},
+      # A2A (agent-to-agent) surface for Semantic Jira: ash_a2a is manufactured
+      # into a consumer Ash resource by `ash_a2a.install`; like Ash it is a
+      # dev/test-only dependency of this repo, never a runtime one (no lib/
+      # module references it). plug + bandit serve the real HTTP conformance test.
+      {:ash_a2a, "~> 26.9", only: [:dev, :test]},
+      {:plug, "~> 1.16", only: [:dev, :test]},
+      {:bandit, "~> 1.5", only: [:dev, :test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: [:dev, :test]},

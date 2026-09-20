@@ -195,3 +195,111 @@ sj:GlobalIntegrityShape a sh:NodeShape ;
         }
       """
     ] .
+
+# ── A2A projection shapes ──────────────────────────────────────────────────
+@prefix a2a: <https://ggen-igniter.dev/ontology/a2a#> .
+@prefix gi: <https://ggen-igniter.dev/ontology/ggen-igniter#> .
+
+a2a:TaskStateShape a sh:NodeShape ;
+    sh:targetClass a2a:TaskState ;
+    sh:property [ sh:path a2a:stateValue ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(submitted|working|input-required|auth-required|completed|canceled|failed|rejected)$" ] .
+
+a2a:StateMappingShape a sh:NodeShape ;
+    sh:targetClass a2a:StateMapping ;
+    sh:property [ sh:path a2a:fromStanding ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED)$" ] ;
+    sh:property [ sh:path a2a:toState ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class a2a:TaskState ] ;
+    sh:property [ sh:path a2a:reasonCode ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path a2a:withReceipt ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+    sh:sparql [
+      sh:message "Falsifier F1: a2a:completed requires a receipt-bound ALIVE mapping (a2a:withReceipt true, fromStanding ALIVE)." ;
+      sh:select """
+        PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+        SELECT $this WHERE {
+          $this a2a:toState a2a:state-completed ; a2a:fromStanding ?from .
+          OPTIONAL { $this a2a:withReceipt ?wr . }
+          FILTER(?from != "ALIVE" || !BOUND(?wr) || ?wr != true)
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "UNSUPPORTED and REFUSED must keep their own distinct reason code." ;
+      sh:select """
+        PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+        SELECT $this WHERE {
+          $this a2a:fromStanding ?from ; a2a:reasonCode ?reason .
+          FILTER((?from = "UNSUPPORTED" && ?reason != "UNSUPPORTED") || (?from = "REFUSED" && ?reason != "REFUSED"))
+        }
+      """
+    ] .
+
+a2a:SkillShape a sh:NodeShape ;
+    sh:targetClass sj:Action ;
+    sh:property [ sh:path a2a:skillName ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-z][a-z0-9_]*$" ] ;
+    sh:property [ sh:path a2a:ashAction ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-z][a-z0-9_]*$" ] ;
+    sh:property [ sh:path a2a:consequence ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(observe|change|external_do)$" ] ;
+    sh:property [ sh:path a2a:exposed ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+    sh:sparql [
+      sh:message "Skill ids (a2a:skillName) must be unique across Actions." ;
+      sh:select """
+        PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this a2a:skillName ?name .
+          ?other a sj:Action ; a2a:skillName ?name .
+          FILTER(?other != $this)
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Falsifier F3: an exposed skill must not be sourced from a forbidden capability (Push/Publish)." ;
+      sh:select """
+        PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this a2a:exposed true ; a2a:requiresCapability ?cap .
+          ?spec a sj:ProjectionSpec ; a2a:forbidsCapability ?cap .
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "An exposed skill must name an Ash action, a consequence, a skill name and an admitted generator capability." ;
+      sh:select """
+        PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+        PREFIX gi: <https://ggen-igniter.dev/ontology/ggen-igniter#>
+        SELECT $this WHERE {
+          $this a2a:exposed true .
+          OPTIONAL { $this a2a:skillName ?n . }
+          OPTIONAL { $this a2a:ashAction ?a . }
+          OPTIONAL { $this a2a:consequence ?c . }
+          OPTIONAL { $this a2a:generatedBy ?g . ?g gi:standing ?gs . }
+          FILTER(!BOUND(?n) || !BOUND(?a) || !BOUND(?c) || !BOUND(?gs) || ?gs = "UNSUPPORTED")
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "A not-exposed skill must carry a typed refusal reason." ;
+      sh:select """
+        PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+        SELECT $this WHERE {
+          $this a2a:exposed false .
+          OPTIONAL { $this a2a:refusalReason ?r . }
+          FILTER(!BOUND(?r))
+        }
+      """
+    ] .
+
+gi:GeneratorCapabilityShape a sh:NodeShape ;
+    sh:targetClass gi:GeneratorCapability ;
+    sh:property [ sh:path gi:mixTask ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path gi:standing ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(ALIVE|PARTIAL_ALIVE|UNSUPPORTED|BLOCKED)$" ] ;
+    sh:sparql [
+      sh:message "An UNSUPPORTED generator capability must carry an explicit UNSUPPORTED(generator-capability) reason." ;
+      sh:select """
+        PREFIX gi: <https://ggen-igniter.dev/ontology/ggen-igniter#>
+        SELECT $this WHERE {
+          $this gi:standing "UNSUPPORTED" .
+          OPTIONAL { $this gi:refusalReason ?r . }
+          FILTER(!BOUND(?r) || !CONTAINS(?r, "UNSUPPORTED(generator-capability)"))
+        }
+      """
+    ] .
