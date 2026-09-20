@@ -24,6 +24,12 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
     File.rm_rf!(dir)
     File.mkdir_p!(dir)
+
+    # The receipt layer stores realpath'd (/private/var/...) file keys while
+    # System.tmp_dir!() hands out /var/... on macOS; return the real path so
+    # path expectations match the SUT's canonical storage (bccf084 pattern).
+    dir = RealDir.real_dir!(dir)
+
     on_exit(fn -> File.rm_rf!(dir) end)
     dir
   end
@@ -141,6 +147,127 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     end
   end
 
+  describe "graph-binding tripwires" do
+    test "every pack gate executes cleanly against the canonical graph" do
+      graph = GgenIgniter.Ontology.load!(@ontology_path)
+
+      gates =
+        "priv/ggen/semantic-jira-pack/gates/*.rq"
+        |> Path.wildcard()
+        |> Enum.sort()
+
+      assert length(gates) == 5
+
+      Enum.each(gates, fn gate ->
+        assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),
+               "gate #{Path.basename(gate)} does not execute against the canonical graph"
+      end)
+
+      # The self-dogfood WorkOrder has no dependency edges, so the frontier
+      # gate (nested MINUS, not FILTER NOT EXISTS — see 050_frontier.rq) must
+      # keep it eligible; an inverted or crashing frontier loses it.
+      frontier_rows =
+        graph
+        |> GgenIgniter.Query.run(File.read!("priv/ggen/semantic-jira-pack/gates/050_frontier.rq"))
+
+      frontier_ids = Enum.map(frontier_rows, & &1["id"])
+
+      assert "SJ-001" in frontier_ids
+      refute frontier_ids == []
+    end
+
+    test "mutating a scalar fact in the graph changes the projection" do
+      work_dir = scratch_dir!("scalar_mutation")
+      mutated_ontology = Path.join(work_dir, "mutated-title.ttl")
+
+      old_title = "Manufacture Semantic Jira work orders from RDF"
+      new_title = "Manufacture Semantic Jira work orders from canonical RDF"
+
+      source = File.read!(@ontology_path)
+      mutated = String.replace(source, old_title, new_title)
+
+      refute mutated == source
+      File.write!(mutated_ontology, mutated)
+
+      {output, exit_code} = run_sync(work_dir, ["--ontology", mutated_ontology])
+
+      assert exit_code == 0, "mutated-graph sync failed:\n#{output}"
+
+      projected = File.read!(Path.join(work_dir, "SJ-001.md"))
+      assert projected =~ new_title
+      refute projected =~ old_title
+    end
+
+    test "deleting a required relation refuses before any ticket is actuated" do
+      work_dir = scratch_dir!("missing_relation")
+      broken_ontology = Path.join(work_dir, "missing-requires-court.ttl")
+
+      source = File.read!(@ontology_path)
+
+      broken =
+        String.replace(
+          source,
+          "sj:requiresCourt sj:exact-head-projection-court",
+          "sj:requiresCourtX sj:exact-head-projection-court"
+        )
+
+      refute broken == source
+      File.write!(broken_ontology, broken)
+
+      {output, exit_code} =
+        run_sync(work_dir, [
+          "--ontology",
+          broken_ontology
+        ])
+
+      refute exit_code == 0
+      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
+      assert output =~ "missing required requiresCourt relation for SJ-001"
+      assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+
+      receipts = Receipt.read_all!(work_dir)
+
+      assert Enum.all?(receipts, fn receipt ->
+               receipt["standing"] != "alive"
+             end)
+    end
+
+    test "corrupting baseSha to a non-SHA scalar refuses before any ticket is actuated" do
+      work_dir = scratch_dir!("corrupt_base_sha")
+      broken_ontology = Path.join(work_dir, "corrupt-base-sha.ttl")
+
+      source = File.read!(@ontology_path)
+
+      broken =
+        String.replace(
+          source,
+          ~r/sj:baseSha "[0-9a-f]{40}"/,
+          ~s{sj:baseSha "main"},
+          global: true
+        )
+
+      refute broken == source
+      File.write!(broken_ontology, broken)
+
+      {output, exit_code} =
+        run_sync(work_dir, [
+          "--ontology",
+          broken_ontology
+        ])
+
+      refute exit_code == 0
+      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
+      assert output =~ "baseSha must be an exact 40-hex commit SHA"
+      assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+
+      receipts = Receipt.read_all!(work_dir)
+
+      assert Enum.all?(receipts, fn receipt ->
+               receipt["standing"] != "alive"
+             end)
+    end
+  end
+
   defp semantic_digest(seed), do: "sha256:" <> String.duplicate(seed, 64)
 
   defp sample_work_order(overrides \\ %{}) do
@@ -181,7 +308,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert first["work_order_digest"] == second["work_order_digest"]
       assert first["authority"] == "NONE"
 
-      assert {:error, {:refused_work_order, {:invalid_sha, :base_sha, "main"}}} =
+      assert {:error, {:invalid_sha, :base_sha, "main"}} =
                SemanticJira.admit_work_order(%{work_order | "base_sha" => "main"})
 
       dependent =
