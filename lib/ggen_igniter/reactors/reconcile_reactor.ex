@@ -488,7 +488,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
              pack: %{pack_dir: pack_dir}
            },
            _context ->
-      case Pack.admit_pack_manifest(pack_dir, graph) do
+      case admit_pack_courts(pack_dir, graph) do
         :ok ->
           {:ok, %{pack_admission: :ok}}
 
@@ -499,6 +499,14 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           })
 
           {:error, {:refused_pack_manifest, type, diagnostic}}
+
+        {:refused_semantic_jira_shacl, violations} ->
+          OcelEmitter.emit(opts[:event_sink], "GUARD_REFUSED", [], %{
+            "reason" => "REFUSED:SEMANTIC_JIRA_SHACL",
+            "diagnostic" => inspect(violations)
+          })
+
+          {:error, {:refused_semantic_jira_shacl, violations}}
       end
     end)
   end
@@ -993,6 +1001,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
       {:refused, {type, [diagnostic: diagnostic]}} when is_atom(type) ->
         {:error, {:refused_pack_manifest, type, diagnostic}}
+
+      {:refused_semantic_jira_shacl, violations} ->
+        {:error, {:refused_semantic_jira_shacl, violations}}
     end
     |> case do
       :ok ->
@@ -1000,6 +1011,38 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
       {:error, _refusal} = refusal ->
         refusal
+    end
+  end
+
+  # One admission function for both actuating reconciliation and read-only
+  # planning. Manifest identity is admitted first; only the semantic-jira
+  # pack then runs its shipped SHACL shapes over the SAME already-loaded graph
+  # the downstream queries will consume. No second ontology read, no TOCTOU
+  # subject drift, and no direct-Reactor/plan bypass.
+  defp admit_pack_courts(pack_dir, graph) do
+    case Pack.admit_pack_manifest(pack_dir, graph) do
+      :ok -> maybe_admit_semantic_jira_shacl(pack_dir, graph)
+      {:refused, _reason} = refusal -> refusal
+    end
+  end
+
+  defp maybe_admit_semantic_jira_shacl(nil, _graph), do: :ok
+
+  defp maybe_admit_semantic_jira_shacl(pack_dir, graph) do
+    case Pack.parse_manifest(pack_dir) do
+      {:ok, %{name: "semantic-jira-pack"}} ->
+        report =
+          GgenIgniter.SemanticJira.Shacl.validate_file(
+            graph,
+            Path.join(pack_dir, "shapes/work-order.shacl.ttl")
+          )
+
+        if report.conforms,
+          do: :ok,
+          else: {:refused_semantic_jira_shacl, report.violations}
+
+      _legacy_or_other_pack ->
+        :ok
     end
   end
 
@@ -1182,6 +1225,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
        when is_atom(type) do
     "refused: REFUSED:#{pack_refusal_code(type)} -- #{diagnostic}"
   end
+
+  defp describe_failure({:refused_semantic_jira_shacl, violations}),
+    do: "refused: REFUSED:SEMANTIC_JIRA_SHACL -- #{inspect(violations)}"
 
   defp describe_failure(other), do: inspect(other)
 
