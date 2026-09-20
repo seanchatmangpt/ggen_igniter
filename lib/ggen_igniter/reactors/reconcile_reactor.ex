@@ -995,7 +995,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     # would on the actuating path (never a plan-only blind eye).
     pack_dir = if pack_given?(reconcile_opts), do: Pack.resolve_dir!(reconcile_opts)
 
-    case Pack.admit_pack_manifest(pack_dir, graph) do
+    case admit_pack_courts(pack_dir, graph) do
       :ok ->
         :ok
 
