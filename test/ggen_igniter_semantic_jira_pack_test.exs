@@ -124,6 +124,40 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     end
   end
 
+  describe "SHACL court wiring on the pack admission path" do
+    test "a SHACL-only datatype defect refuses before Reactor actuation" do
+      work_dir = scratch_dir!("shacl_wiring")
+      broken_ontology = Path.join(work_dir, "invalid-shacl-datatype.ttl")
+      source = File.read!(@ontology_path)
+
+      dogfood_base_sha =
+        ~s(sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;)
+
+      broken =
+        String.replace(
+          source,
+          dogfood_base_sha,
+          dogfood_base_sha <> ~s(\n    sj:requiresGitGroundTruth "yes" ;),
+          global: false
+        )
+
+      refute broken == source
+      File.write!(broken_ontology, broken)
+
+      {output, exit_code} = run_sync(work_dir, ["--ontology", broken_ontology])
+
+      refute exit_code == 0
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "requiresGitGroundTruth"
+      assert output =~ "datatype"
+      assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+
+      assert Enum.all?(Receipt.read_all!(work_dir), fn receipt ->
+               receipt["standing"] != "alive"
+             end)
+    end
+  end
+
   describe "PRD projection template" do
     test "manufactures the PRD projection for dogfood SJ-001 and replays byte-identically" do
       work_dir = scratch_dir!("prd_projection")
