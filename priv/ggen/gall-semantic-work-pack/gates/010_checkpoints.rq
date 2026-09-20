@@ -1,0 +1,22 @@
+PREFIX gall: <https://semantic-a2a.dev/gall#>
+
+SELECT DISTINCT
+  ?checkpoint_iri
+  ?repository
+  ?base_sha
+  ?graph_digest
+  ?goal
+  ?provider
+  ?verifier_suite
+  ?standing
+WHERE {
+  ?checkpoint_iri a gall:CodingCheckpoint ;
+      gall:repository ?repository ;
+      gall:baseSha ?base_sha ;
+      gall:graphDigest ?graph_digest ;
+      gall:goal ?goal ;
+      gall:provider ?provider ;
+      gall:verifier ?verifier_suite ;
+      gall:standing ?standing .
+}
+ORDER BY ?checkpoint_iri

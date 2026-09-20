@@ -1,0 +1,14 @@
+@prefix gall: <https://semantic-a2a.dev/gall#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:gall:checkpoint:example:001>
+    a gall:CodingCheckpoint ;
+    gall:repository "example" ;
+    gall:baseSha "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" ;
+    gall:graphDigest "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ;
+    gall:goal "Implement the admitted semantic-work subject." ;
+    gall:provider "zcode" ;
+    gall:verifier "example-dod" ;
+    gall:standing gall:UNKNOWN ;
+    gall:requiresCapability gall:Read, gall:Edit, gall:Commit ;
+    gall:forbidsCapability gall:Push, gall:Publish .

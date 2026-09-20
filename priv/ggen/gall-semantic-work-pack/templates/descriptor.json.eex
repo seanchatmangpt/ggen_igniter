@@ -1,0 +1,11 @@
+{
+  "checkpoint_iri": <%= Jason.encode!(checkpoint_iri) %>,
+  "repository": <%= Jason.encode!(repository) %>,
+  "base_sha": <%= Jason.encode!(base_sha) %>,
+  "graph_digest": <%= Jason.encode!(graph_digest) %>,
+  "goal": <%= Jason.encode!(goal) %>,
+  "provider": <%= Jason.encode!(provider) %>,
+  "verifier_suite": <%= Jason.encode!(verifier_suite) %>,
+  "standing": <%= Jason.encode!(standing) %>,
+  "dependencies": []
+}
