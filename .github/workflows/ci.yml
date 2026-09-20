@@ -25,6 +25,24 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          # Full history, NOT the default depth-1 fetch: the semantic-jira
+          # pack's opt-in git ground truth tests (test/ggen_igniter_semantic_
+          # jira_pack_test.exs, "opt-in git ground truth for baseSha") drive
+          # the REAL CLI whose `--verify-cwd` default is `File.cwd!()` -- this
+          # checkout -- and verify the canonical graph's baseSha
+          # d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3 (main's tip, 3 commits
+          # behind this branch's head) as a real ancestor of HEAD via
+          # `git cat-file -e <sha>^{commit}` + `git merge-base --is-ancestor
+          # <sha> HEAD`. A depth-1 fetch only materializes the head commit's
+          # objects, so BOTH commands exit 128 there and the honest-pass side
+          # refuses with `REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED` -- the
+          # exact 3/1051 failures in run 35504307039 (2026-09-20; the 3
+          # siblings that need no real-ancestor reachability passed). Same
+          # root cause class as the ex4pm fixture step below: shallow clones
+          # break real-git-history tests, so do not "optimize" this back to
+          # depth 1. `forbid-generated-output-dir-once.yml` already uses
+          # fetch-depth: 0 for the same reason.
+          fetch-depth: 0
 
       # Real fixture checkout: 10 real ExUnit test files
       # (test/ggen_igniter_base_*_test.exs, test/ggen_igniter_install_task_
