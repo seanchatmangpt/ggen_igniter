@@ -2,6 +2,7 @@ PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 SELECT ?work_order ?id ?title ?description ?repository ?base_sha ?subject
        ?standing ?evidence_ceiling ?authority_ceiling ?promotion_rule ?replay_identity
+       ?requires_git_ground_truth
 WHERE {
   ?work_order a sj:WorkOrder .
   OPTIONAL { ?work_order dcterms:identifier ?id . }
@@ -15,4 +16,10 @@ WHERE {
   OPTIONAL { ?work_order sj:authorityCeiling ?authority_ceiling . }
   OPTIONAL { ?work_order sj:promotionRule ?promotion_rule . }
   OPTIONAL { ?work_order sj:replayIdentity ?replay_identity . }
+  # Opt-in git ground truth (sj:requiresGitGroundTruth true): a WorkOrder
+  # carrying this triple opts ITSELF into real git verification of its
+  # baseSha (GgenIgniter.SemanticJira.GitGroundTruth) even without the sync
+  # task's --verify-base-sha flag. Absent triple = no default behavior
+  # change, so the canonical fabric set still manufactures unverified.
+  OPTIONAL { ?work_order sj:requiresGitGroundTruth ?requires_git_ground_truth . }
 }

@@ -262,6 +262,46 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
       assert violation.path == @sj_base <> "undeclaredPredicate"
     end
 
+    test "the opt-in sj:requiresGitGroundTruth triple is inside the declared WorkOrder vocabulary" do
+      # Law-change witness (v26.9.19, residual_base_sha_wrong_commit closure):
+      # WorkOrderShape gained `sj:requiresGitGroundTruth` (sh:maxCount 1,
+      # xsd:boolean, deliberately NO sh:minCount -- absence stays the default
+      # so the canonical fabric set manufactures unverified). Under sh:closed,
+      # an undeclared predicate refuses; this proves the per-order git
+      # ground-truth opt-in is lawfully declarable AND still type-checked.
+      dogfood_base_sha = "sj:baseSha \"d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3\" ;"
+
+      conforms =
+        @ontology_path
+        |> File.read!()
+        |> replace_once(
+          dogfood_base_sha,
+          dogfood_base_sha <> " sj:requiresGitGroundTruth true ;"
+        )
+        |> validate_override!()
+
+      assert conforms.conforms, "violations:\n#{inspect(conforms.violations, pretty: true)}"
+
+      non_boolean =
+        @ontology_path
+        |> File.read!()
+        |> replace_once(
+          dogfood_base_sha,
+          dogfood_base_sha <> " sj:requiresGitGroundTruth \"yes\" ;"
+        )
+        |> validate_override!()
+
+      refute non_boolean.conforms
+
+      violation =
+        fetch_violation!(non_boolean,
+          constraint: :datatype,
+          path: @sj_base <> "requiresGitGroundTruth"
+        )
+
+      assert violation.focus_node == @sj_mvp
+    end
+
     test "an ambiguous standing transition violates the StandingTransition SPARQL constraint" do
       report =
         @ontology_path

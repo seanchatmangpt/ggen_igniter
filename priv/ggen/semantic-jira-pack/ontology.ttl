@@ -29,6 +29,12 @@ sj:Projection a rdfs:Class ; rdfs:label "Projection" .
 
 sj:repository a rdf:Property ; rdfs:range xsd:string .
 sj:baseSha a rdf:Property ; rdfs:range xsd:string .
+# Opt-in per-order git ground truth: `sj:requiresGitGroundTruth true` on a
+# WorkOrder makes its baseSha verify against a real git work tree (commit
+# exists AND is reachable from HEAD) even without the sync task's opt-in
+# --verify-base-sha flag. Never default-on: the canonical fabric set carries
+# baseSha values that need not exist in every consumer checkout.
+sj:requiresGitGroundTruth a rdf:Property ; rdfs:range xsd:boolean .
 sj:subject a rdf:Property ; rdfs:range xsd:string .
 sj:standing a rdf:Property ; rdfs:range xsd:string .
 sj:evidenceCeiling a rdf:Property ; rdfs:range xsd:string .

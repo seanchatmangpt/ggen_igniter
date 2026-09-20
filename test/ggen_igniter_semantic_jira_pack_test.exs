@@ -772,6 +772,15 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     # attack mutates a copy of the canonical dogfood graph and drives the REAL
     # admission path (mix ggen_igniter.sync --engine sparql --pack
     # semantic-jira-pack:jira --ontology <mutated>): no simulated admissions.
+    #
+    # LAW CHANGE (v26.9.19, residual closure): the class-3 exact-baseSha
+    # refusals below remain the DEFAULT law and are NOT weakened. The residual
+    # this matrix witnessed -- `residual_base_sha_wrong_commit`, a format-valid
+    # 40-hex SHA that is not a real commit -- is now closed by OPT-IN git
+    # ground truth (`GgenIgniter.SemanticJira.GitGroundTruth`, the sync task's
+    # `--verify-base-sha` flag, and the per-order `sj:requiresGitGroundTruth`
+    # refinement). That ADDED law is proven in both directions by the
+    # "opt-in git ground truth for baseSha" describe block below.
 
     @dogfood_title ~s(dcterms:title "Manufacture Semantic Jira work orders from RDF" ;)
     @dogfood_identifier ~s(dcterms:identifier "SJ-001" ;)
@@ -1090,6 +1099,113 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
       refute File.exists?(Path.join(work_dir, "SJ-001.md"))
       assert output =~ "Turtle"
+    end
+  end
+
+  describe "opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure)" do
+    # Drives the REAL CLI (no simulated git): the run's --verify-cwd default
+    # is File.cwd!() -- this clone -- whose history contains the canonical
+    # baseSha d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3 as a real commit
+    # reachable from HEAD (witnessed before these tests existed:
+    # `git cat-file -e d84da141...^{commit}` -> 0 and
+    # `git merge-base --is-ancestor d84da141... HEAD` -> 0).
+
+    test "flag on over the honest graph manufactures (honest-pass side)" do
+      work_dir = scratch_dir!("git_truth_honest")
+
+      {output, exit_code} = run_sync(work_dir, ["--verify-base-sha"])
+
+      assert exit_code == 0, "git-ground-truth honest sync failed:\n#{output}"
+      assert File.exists?(Path.join(work_dir, "SJ-001.md"))
+      assert File.exists?(Path.join(work_dir, "GALL-001.md"))
+      assert File.exists?(Path.join(work_dir, "GALL-032.md"))
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+    end
+
+    test "flag on over a forged-but-well-formed 40-hex baseSha refuses before any actuation" do
+      work_dir = scratch_dir!("git_truth_forged")
+
+      mutated =
+        mutate_ontology!(work_dir, "git-truth-forged", [
+          # Format-valid (40-hex) but not a commit in any checkout: exactly
+          # the residual_base_sha_wrong_commit attack shape.
+          {@dogfood_base_sha, ~s(sj:baseSha "#{String.duplicate("d", 40)}" ;)}
+        ])
+
+      {output, exit_code} = run_sync(work_dir, ["--ontology", mutated, "--verify-base-sha"])
+
+      refute exit_code == 0, "expected git-ground-truth refusal, got exit 0:\n#{output}"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED"
+      assert output =~ "baseSha #{String.duplicate("d", 40)} is not a commit reachable in"
+      assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+
+      receipts = Receipt.read_all!(work_dir)
+
+      assert Enum.all?(receipts, fn receipt ->
+               receipt["standing"] != "alive"
+             end)
+    end
+
+    test "flag off keeps current behavior: the honest graph still manufactures (no-regression falsifier)" do
+      work_dir = scratch_dir!("git_truth_flag_off")
+
+      {output, exit_code} = run_sync(work_dir)
+
+      assert exit_code == 0, "flag-off honest sync failed:\n#{output}"
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+    end
+
+    test "flag on with a non-git --verify-cwd refuses cleanly, not a crash" do
+      work_dir = scratch_dir!("git_truth_non_git")
+
+      # A plain scratch dir: no .git anywhere up its tree. The later
+      # --verify-cwd flag wins over run_sync's own default.
+      {output, exit_code} =
+        run_sync(work_dir, ["--verify-base-sha", "--verify-cwd", work_dir])
+
+      refute exit_code == 0, "expected non-git refusal, got exit 0:\n#{output}"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED"
+      assert output =~ "#{work_dir} is not a git work tree"
+      assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+
+      receipts = Receipt.read_all!(work_dir)
+
+      assert Enum.all?(receipts, fn receipt ->
+               receipt["standing"] != "alive"
+             end)
+    end
+
+    test "per-order sj:requiresGitGroundTruth true verifies that order without the flag" do
+      work_dir = scratch_dir!("git_truth_predicate")
+
+      mutated =
+        mutate_ontology!(work_dir, "git-truth-predicate", [
+          {@dogfood_base_sha,
+           ~s(sj:baseSha "#{String.duplicate("d", 40)}" ;\n    sj:requiresGitGroundTruth true ;)}
+        ])
+
+      # No --verify-base-sha flag: only the order that opted itself in is
+      # git-verified, and its forged baseSha refuses.
+      {output, exit_code} = run_sync(work_dir, ["--ontology", mutated])
+
+      refute exit_code == 0, "expected per-order git-ground-truth refusal, got exit 0:\n#{output}"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED"
+      assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+    end
+
+    test "per-order control: requiresGitGroundTruth true over a real ancestor admits without the flag" do
+      work_dir = scratch_dir!("git_truth_predicate_ok")
+
+      mutated =
+        mutate_ontology!(work_dir, "git-truth-predicate-ok", [
+          {@dogfood_base_sha, @dogfood_base_sha <> ~s(\n    sj:requiresGitGroundTruth true ;)}
+        ])
+
+      {output, exit_code} = run_sync(work_dir, ["--ontology", mutated])
+
+      assert exit_code == 0, "per-order git-ground-truth control failed:\n#{output}"
+      assert File.exists?(Path.join(work_dir, "SJ-001.md"))
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
     end
   end
 

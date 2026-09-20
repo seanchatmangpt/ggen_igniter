@@ -25,6 +25,9 @@ sj:WorkOrderShape a sh:NodeShape ;
     sh:property [ sh:path dcterms:description ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
     sh:property [ sh:path sj:repository ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" ] ;
     sh:property [ sh:path sj:baseSha ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    # Opt-in per-order git ground truth (no sh:minCount: absence is the
+    # default and changes nothing; presence must be a single boolean).
+    sh:property [ sh:path sj:requiresGitGroundTruth ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
     sh:property [ sh:path sj:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
     sh:property [ sh:path sj:standing ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$" ] ;
     sh:property [ sh:path sj:evidenceCeiling ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
