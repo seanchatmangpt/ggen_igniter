@@ -153,6 +153,24 @@ defmodule GgenIgniter.SemanticJiraPackTest do
                )
 
       assert Enum.any?(plan_violations, &(&1.constraint == :datatype))
+      assert Receipt.read_all!(work_dir) == []
+
+      assert {:error, direct_receipt} =
+               ReconcileReactor.run(
+                 pack: "semantic-jira-pack",
+                 ontology: broken_ontology,
+                 manifest_dir: work_dir
+               )
+
+      assert direct_receipt.standing == :refused
+      assert direct_receipt.reason =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert direct_receipt.reason =~ "requiresGitGroundTruth"
+      assert direct_receipt.reason =~ "datatype"
+      assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+
+      [persisted_direct_receipt] = Receipt.read_all!(work_dir)
+      assert persisted_direct_receipt["standing"] == "refused"
+      assert persisted_direct_receipt["reason"] =~ "REFUSED:SEMANTIC_JIRA_SHACL"
 
       {output, exit_code} = run_sync(work_dir, ["--ontology", broken_ontology])
 
@@ -162,9 +180,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert output =~ "datatype"
       assert Path.wildcard(Path.join(work_dir, "*.md")) == []
 
-      assert Enum.all?(Receipt.read_all!(work_dir), fn receipt ->
-               receipt["standing"] != "alive"
-             end)
+      receipts = Receipt.read_all!(work_dir)
+      assert length(receipts) == 2
+      assert Enum.all?(receipts, &(&1["standing"] == "refused"))
     end
   end
 
