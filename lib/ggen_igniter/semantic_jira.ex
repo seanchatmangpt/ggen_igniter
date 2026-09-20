@@ -402,8 +402,7 @@ defmodule GgenIgniter.SemanticJira do
             admitted["required_courts"],
             &(get_in(evidence, ["court_results", &1, "passed"]) == true)
           ),
-        evidence:
-          subset?(admitted["required_evidence"], Map.get(evidence, "evidence_types", [])),
+        evidence: subset?(admitted["required_evidence"], Map.get(evidence, "evidence_types", [])),
         acceptance:
           Enum.all?(
             admitted["acceptance"],
@@ -508,8 +507,7 @@ defmodule GgenIgniter.SemanticJira do
     else
       composition = %{
         "kind" => "typed_composition_subject",
-        "upstreams" =>
-          Enum.sort_by(rows, &{&1["work_order_id"], &1["receipt_digest"]}),
+        "upstreams" => Enum.sort_by(rows, &{&1["work_order_id"], &1["receipt_digest"]}),
         "standing" => "UNKNOWN",
         "inherited_standing" => false,
         "authority" => "NONE"
@@ -548,8 +546,7 @@ defmodule GgenIgniter.SemanticJira do
           "kind" => "replay_receipt",
           "receipt_class" => "replay",
           "status" => "KNOWN_REPLAY",
-          "replay_identity" =>
-            observed["replay_identity"] || expected["replay_identity"],
+          "replay_identity" => observed["replay_identity"] || expected["replay_identity"],
           "subject_digest" => digest(Map.take(observed, keys)),
           "authority" => "NONE"
         }
@@ -669,8 +666,7 @@ defmodule GgenIgniter.SemanticJira do
 
     %{
       "view" => Atom.to_string(kind),
-      "canonical_work_order_digest" =>
-        work_order["work_order_digest"] || digest(work_order),
+      "canonical_work_order_digest" => work_order["work_order_digest"] || digest(work_order),
       "authority" => "NONE",
       "data" => Map.take(work_order, keys)
     }

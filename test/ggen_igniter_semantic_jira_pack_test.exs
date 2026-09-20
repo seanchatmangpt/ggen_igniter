@@ -363,9 +363,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert experience["standing"] == "CANDIDATE"
 
       assert {:error, {:refused_machine_experience, :prediction_only}} =
-               SemanticJira.machine_experience(
-                 Map.put(experience_attrs, "prediction_only", true)
-               )
+               SemanticJira.machine_experience(Map.put(experience_attrs, "prediction_only", true))
 
       assert {:ok, composition} =
                SemanticJira.composition_subject([
@@ -453,5 +451,4 @@ defmodule GgenIgniter.SemanticJiraPackTest do
                end)
     end
   end
-
 end
