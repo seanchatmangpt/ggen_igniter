@@ -11,6 +11,23 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
   @moduletag :integration
 
+  # Every test that drives `run_sync/1,2,3,4` spawns a real `mix
+  # ggen_igniter.sync` SUBPROCESS (fresh BEAM boot + compile check + graph
+  # load + admission + render + nested verify). ExUnit's 60s default timeout
+  # is smaller than one such sync under real runner load: CI run 35481344778
+  # (head dd6ac93) lost the replay test to `ExUnit.TimeoutError` at exactly
+  # 60s inside `run_sync` while the identical code passed every other run --
+  # a runner-load flake, not a product defect. These tags raise the ceiling
+  # above the loaded-runner worst case; they harden, never weaken: no
+  # assertion is relaxed and a genuinely hung subprocess still fails, only
+  # later. In-process tests (the gates tripwire and the DfCM semantic kernel
+  # describes) spawn no subprocess and keep the default timeout.
+  @sync_timeout :timer.minutes(5)
+  # The two replay-determinism tests each run the FULL sync twice (the second
+  # run is the byte-identical-replay property itself), so they carry double
+  # the subprocess budget.
+  @double_sync_timeout :timer.minutes(8)
+
   alias GgenIgniter.{Receipt, SemanticJira}
   alias GgenIgniter.Reactors.ReconcileReactor
 
@@ -79,6 +96,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "canonical WorkOrder graph -> deterministic Markdown projection -> graph-bound receipt" do
+    @tag timeout: @double_sync_timeout
     test "manufactures all canonical WorkOrders and replays byte-identically" do
       work_dir = scratch_dir!("projection")
       output_path = Path.join(work_dir, "SJ-001.md")
@@ -126,6 +144,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "SHACL court wiring on the pack admission path" do
+    @tag timeout: @sync_timeout
     test "a SHACL-only datatype defect refuses before Reactor actuation" do
       work_dir = scratch_dir!("shacl_wiring")
       broken_ontology = Path.join(work_dir, "invalid-shacl-datatype.ttl")
@@ -169,6 +188,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "PRD projection template" do
+    @tag timeout: @double_sync_timeout
     test "manufactures the PRD projection for dogfood SJ-001 and replays byte-identically" do
       work_dir = scratch_dir!("prd_projection")
       output_path = Path.join(work_dir, "SJ-001.prd.md")
@@ -221,6 +241,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert second_graph_hash == sha256_file(@ontology_path)
     end
 
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses the PRD projection before any file is actuated" do
       work_dir = scratch_dir!("prd_missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
@@ -255,6 +276,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "HDDL planning projection template" do
+    @tag timeout: @double_sync_timeout
     test "manufactures the HDDL plan projection for the dogfood set and replays byte-identically" do
       work_dir = scratch_dir!("hddl_projection")
       output_path = Path.join(work_dir, "SJ-001.hddl")
@@ -326,6 +348,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert second_graph_hash == sha256_file(@ontology_path)
     end
 
+    @tag timeout: @sync_timeout
     test "every dogfood plan is a balanced s-expression bound to its graph tokens" do
       work_dir = scratch_dir!("hddl_structure")
       {output, exit_code} = run_sync(work_dir, [], "semantic-jira-pack:plan", ".hddl")
@@ -367,6 +390,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert gall_002 =~ "(reach-checkpoint GALL-002 gall-003)"
     end
 
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses the HDDL projection before any file is actuated" do
       work_dir = scratch_dir!("hddl_missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
@@ -401,6 +425,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "OCEL event-log projection" do
+    @tag timeout: @double_sync_timeout
     test "manufactures one parseable OCEL log per run and replays byte-identically" do
       work_dir = scratch_dir!("ocel_projection")
       output_path = Path.join(work_dir, "ocel.json")
@@ -499,6 +524,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert second_graph_hash == sha256_file(@ontology_path)
     end
 
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses the OCEL projection before any file is written" do
       work_dir = scratch_dir!("ocel_missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
@@ -539,6 +565,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "ARD projection template" do
+    @tag timeout: @double_sync_timeout
     test "manufactures the ARD decision records for the dogfood set and replays byte-identically" do
       work_dir = scratch_dir!("ard_projection")
       output_path = Path.join(work_dir, "SJ-001.ard.md")
@@ -620,6 +647,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert second_graph_hash == sha256_file(@ontology_path)
     end
 
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses the ARD projection before any file is actuated" do
       work_dir = scratch_dir!("ard_missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
@@ -654,6 +682,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "semantic admission falsifier" do
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses before any ticket is actuated" do
       work_dir = scratch_dir!("missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
@@ -719,6 +748,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute frontier_ids == []
     end
 
+    @tag timeout: @sync_timeout
     test "mutating a scalar fact in the graph changes the projection" do
       work_dir = scratch_dir!("scalar_mutation")
       mutated_ontology = Path.join(work_dir, "mutated-title.ttl")
@@ -741,6 +771,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute projected =~ old_title
     end
 
+    @tag timeout: @sync_timeout
     test "deleting a required relation refuses before any ticket is actuated" do
       work_dir = scratch_dir!("missing_relation")
       broken_ontology = Path.join(work_dir, "missing-requires-court.ttl")
@@ -775,6 +806,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
              end)
     end
 
+    @tag timeout: @sync_timeout
     test "corrupting baseSha to a non-SHA scalar refuses before any ticket is actuated" do
       work_dir = scratch_dir!("corrupt_base_sha")
       broken_ontology = Path.join(work_dir, "corrupt-base-sha.ttl")
@@ -825,6 +857,13 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     # `--verify-base-sha` flag, and the per-order `sj:requiresGitGroundTruth`
     # refinement). That ADDED law is proven in both directions by the
     # "opt-in git ground truth for baseSha" describe block below.
+    #
+    # Every test in this block therefore spawns a real sync subprocess -- the
+    # @describetag raises each one's ceiling above the 60s default that cost
+    # CI run 35481344778 a runner-load timeout inside `run_sync` (see the
+    # @sync_timeout comment above). Hardening, not weakening: no assertion is
+    # touched.
+    @describetag timeout: @sync_timeout
 
     @dogfood_title ~s(dcterms:title "Manufacture Semantic Jira work orders from RDF" ;)
     @dogfood_identifier ~s(dcterms:identifier "SJ-001" ;)
@@ -1147,6 +1186,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure)" do
+    # All six tests here drive run_sync subprocesses -- same @describetag
+    # hardening as the falsifier matrix above (see the @sync_timeout comment).
+    @describetag timeout: @sync_timeout
     # Drives the REAL CLI (no simulated git): the run's --verify-cwd default
     # is File.cwd!() -- this clone -- whose history contains the canonical
     # baseSha d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3 as a real commit
