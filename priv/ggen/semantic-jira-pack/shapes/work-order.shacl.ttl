@@ -47,6 +47,12 @@ sj:WorkOrderShape a sh:NodeShape ;
     sh:property [ sh:path sj:requiresReceiptClass ; sh:minCount 1 ; sh:datatype xsd:string ; sh:pattern "^(manufacture|projection|authority_preparation|actuation|verification|postcondition|replay|publication|deployment)$" ] ;
     sh:property [ sh:path sj:candidateSha ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
     sh:property [ sh:path sj:subjectSha ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    # Opt-in immutable definition digest (event-sourced standing law): when a
+    # WorkOrder row carries it, it is single and well-formed. Kernel field set:
+    # GgenIgniter.SemanticJira @definition_fields (ontology.ttl documents the
+    # RDF-side definition). Deliberately NO sh:minCount: rows without it stay
+    # lawful, transitions always bind it on the event instead.
+    sh:property [ sh:path sj:definitionDigest ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
     sh:property [ sh:path sj:receipt ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Receipt ] ;
     sh:property [ sh:path sj:authority ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
     sh:property [ sh:path sj:lease ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
@@ -117,10 +123,30 @@ sj:PredictionShape a sh:NodeShape ;
     sh:property [ sh:path sj:authorityClaim ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue "NONE" ] ;
     sh:property [ sh:path sj:observedStanding ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue "UNKNOWN" ] .
 
+# Event-sourced standing law: a StandingTransition is an append-only event,
+# not an in-place mutation. Every event binds BOTH digests (the immutable
+# definition digest and the snapshot digest at transition time), rides a
+# typed Receipt, and carries the exact 40-hex git head. transitionId is the
+# deterministic hash of (work order id, toStanding, evidence identity,
+# final head); the uniqueness constraint below makes a second event with
+# the same id but different content refuse, which in one graph is every
+# duplicate id (two different subjects re-deriving one id necessarily
+# differ in content). The chain-anchor constraint pins each event's
+# fromStanding to the work order's declared standing (first event) or an
+# earlier event's toStanding (progression), so a projection can be
+# reconstructed from the events alone.
 sj:StandingTransitionShape a sh:NodeShape ;
     sh:targetClass sj:StandingTransition ;
-    sh:property [ sh:path sj:fromStanding ; sh:minCount 1 ; sh:maxCount 1 ] ;
-    sh:property [ sh:path sj:toStanding ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type rdfs:label ) ;
+    sh:property [ sh:path sj:transitionId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:transitionWorkOrder ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:WorkOrder ] ;
+    sh:property [ sh:path sj:fromStanding ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$" ] ;
+    sh:property [ sh:path sj:toStanding ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$" ] ;
+    sh:property [ sh:path sj:transitionEvidence ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Receipt ] ;
+    sh:property [ sh:path sj:finalHead ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    sh:property [ sh:path sj:definitionDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:snapshotDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
     sh:sparql [
       sh:message "Standing transition is ambiguous or skips explicit progression." ;
       sh:select """
@@ -128,6 +154,33 @@ sj:StandingTransitionShape a sh:NodeShape ;
         SELECT $this WHERE {
           $this sj:fromStanding ?from ; sj:toStanding ?to .
           FILTER(?from = ?to || (?from = "UNKNOWN" && ?to = "ALIVE"))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Append-only law: a transition id is immutable once present; re-deriving the same id with different content is refused." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:transitionId ?id .
+          ?other a sj:StandingTransition ; sj:transitionId ?id .
+          FILTER(?other != $this)
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Every standing transition's fromStanding must equal the work order's declared standing or an earlier event's toStanding (reconstructable append-only chain)." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:transitionWorkOrder ?wo ; sj:fromStanding ?from .
+          ?wo a sj:WorkOrder ; sj:standing ?declared .
+          FILTER(?from != ?declared)
+          MINUS {
+            ?earlier a sj:StandingTransition ;
+                     sj:transitionWorkOrder ?wo ;
+                     sj:toStanding ?from .
+          }
         }
       """
     ] .

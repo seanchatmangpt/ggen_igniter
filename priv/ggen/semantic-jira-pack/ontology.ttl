@@ -129,7 +129,9 @@ sj:ProcessFinding a rdfs:Class ; rdfs:label "Observed process finding" .
 sj:RepairLineage a rdfs:Class ; rdfs:label "Failure-to-repair lineage" .
 sj:Refusal a rdfs:Class ; rdfs:label "Typed refusal" .
 sj:Prediction a rdfs:Class ; rdfs:label "Candidate prediction" .
-sj:StandingTransition a rdfs:Class ; rdfs:label "Standing transition intent" .
+sj:StandingTransition a rdfs:Class ;
+    rdfs:label "Append-only standing transition event" ;
+    rdfs:comment "Immutable event binding a work order's standing change to receipt evidence, the exact git head, and both the immutable definition digest and the moving snapshot digest. Current standing is the projection over the event chain, never an in-place mutation." .
 
 sj:candidateSha a rdf:Property ; rdfs:range xsd:string .
 sj:subjectSha a rdf:Property ; rdfs:range xsd:string .
@@ -157,6 +159,43 @@ sj:observedStanding a rdf:Property ; rdfs:range xsd:string .
 sj:normativeMutation a rdf:Property ; rdfs:range xsd:boolean .
 sj:fromStanding a rdf:Property ; rdfs:range xsd:string .
 sj:toStanding a rdf:Property ; rdfs:range xsd:string .
+
+# ---- Event-sourced standing law (v26.9.19) ----
+# A WorkOrder's definition is IMMUTABLE: sj:definitionDigest (when present on
+# the row) hashes exactly the definition field set -- identity scalars
+# (dcterms:identifier/title/description), exact subject binding
+# (sj:subject/sj:repository/sj:baseSha), ceilings and law
+# (sj:evidenceCeiling/sj:authorityRequirement/sj:promotionRule/
+# sj:replayIdentity), required relations (sj:dependsOn/sj:requiresCourt/
+# sj:requiresEvidence/sj:requiresReceiptClass/sj:acceptance/sj:falsifier/
+# sj:projection), and bounded scope (sj:pathScope) -- EXCLUDING standing,
+# candidate SHA, dimensions, and every derived digest. The kernel's exact
+# field set lives in GgenIgniter.SemanticJira's @definition_fields.
+# sj:workOrderDigest remains the SNAPSHOT digest: it moves when standing
+# moves. Standing changes are append-only sj:StandingTransition events:
+#   sj:transition-<hash8> a sj:StandingTransition ;
+#       sj:transitionId "sha256:<64hex>" ;
+#       sj:transitionWorkOrder <wo> ;
+#       sj:fromStanding "..." ; sj:toStanding "..." ;
+#       sj:transitionEvidence <receipt-iri> ;
+#       sj:finalHead "<40-hex>" ;
+#       sj:definitionDigest "sha256:<64hex>" ;
+#       sj:snapshotDigest "sha256:<64hex>" .
+# transitionId is the deterministic hash of (work order id, toStanding,
+# evidence identity, final head); a second event with the same id but
+# different content refuses (shapes/work-order.shacl.ttl). Current standing
+# is a PROJECTION: the chain tip's toStanding per work order (latest event),
+# or the declared sj:standing when no transitions exist
+# (gates/055_standing_projection.rq; kernel project_standing/1). The
+# frontier (gates/050_frontier.rq) consults the projection: a work order
+# transitioned away from UNKNOWN is no longer frontier-eligible for the
+# same work.
+sj:definitionDigest a rdf:Property ; rdfs:range xsd:string .
+sj:snapshotDigest a rdf:Property ; rdfs:range xsd:string .
+sj:transitionId a rdf:Property ; rdfs:range xsd:string .
+sj:transitionWorkOrder a rdf:Property .
+sj:transitionEvidence a rdf:Property .
+sj:finalHead a rdf:Property ; rdfs:range xsd:string .
 
 sj:source-evidence a sj:EvidenceRequirement ;
     rdfs:label "Source evidence" ;

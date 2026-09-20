@@ -1,10 +1,17 @@
-# Frontier gate: renderable WorkOrders whose typed dependency edges are satisfied.
-# Written with nested MINUS, not FILTER NOT EXISTS: under the locked sparql
-# 0.3.12 any FILTER inside an EXISTS group compiles its expression to
-# :"$undefined" and crashes (Protocol.UndefinedError). The nested-MINUS form is
-# semantically identical here: ?work_order is the only variable shared between
-# the outer group and the unsatisfied-edge group, so MINUS removes exactly the
+# Frontier gate: renderable WorkOrders whose typed dependency edges are satisfied
+# AND whose EVENT-SOURCED standing still projects to UNKNOWN. Written with
+# nested MINUS, not FILTER NOT EXISTS: under the locked sparql 0.3.12 any
+# FILTER inside an EXISTS group compiles its expression to :"$undefined" and
+# crashes (Protocol.UndefinedError). The nested-MINUS form is semantically
+# identical here: ?work_order is the only variable shared between the outer
+# group and the unsatisfied-edge group, so MINUS removes exactly the
 # WorkOrders having an edge whose upstream lacks the required standing.
+# Event-sourced standing law: the second MINUS removes WorkOrders whose
+# StandingTransition chain tip projects to a non-UNKNOWN standing — a work
+# order with a transition to ALIVE is no longer frontier-eligible for the
+# same work, even while its declared sj:standing row still reads UNKNOWN.
+# (A chain tip is an event whose toStanding is not any other event's
+# fromStanding for the same work order; see 055_standing_projection.rq.)
 # Guarded by GgenIgniter.SemanticJiraPackTest "every pack gate executes".
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
@@ -22,6 +29,17 @@ SELECT DISTINCT ?work_order ?id ?title ?repository ?base_sha ?subject ?evidence_
     ?edge sj:upstreamWorkOrder ?upstream .
     ?edge sj:requiredStanding ?required .
     MINUS { ?upstream sj:standing ?required }
+  }
+  MINUS {
+    ?tip a sj:StandingTransition ;
+         sj:transitionWorkOrder ?work_order ;
+         sj:toStanding ?projected .
+    FILTER(?projected != "UNKNOWN")
+    MINUS {
+      ?follower a sj:StandingTransition ;
+                sj:transitionWorkOrder ?work_order ;
+                sj:fromStanding ?projected .
+    }
   }
 }
 ORDER BY ?id
