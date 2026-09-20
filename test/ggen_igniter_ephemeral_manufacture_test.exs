@@ -31,6 +31,7 @@ defmodule GgenIgniter.EphemeralManufactureTest do
       Receipt.new(%{
         standing: :alive,
         files: [path],
+        post_run_hash: Receipt.hash_files([path]),
         metadata: %{"graph_hash" => @a}
       })
 

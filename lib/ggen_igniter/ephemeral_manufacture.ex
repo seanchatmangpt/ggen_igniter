@@ -61,10 +61,12 @@ defmodule GgenIgniter.EphemeralManufacture do
   @spec attest_receipt(Receipt.t(), keyword()) :: {:ok, result()} | {:error, attestation_error()}
   def attest_receipt(%Receipt{standing: :alive} = receipt, provenance_opts)
       when is_list(provenance_opts) do
-    with {:ok, graph_digest} <- graph_digest(receipt),
+    with {:ok, reads} <- read_receipted_files(receipt),
+         :ok <- verify_receipted_output_identity(receipt, reads),
+         {:ok, graph_digest} <- graph_digest(receipt),
          {:ok, receipt_hash} <- receipt_hash(receipt),
          {:ok, projections} <-
-           build_projections(receipt, graph_digest, receipt_hash, provenance_opts) do
+           build_projections(reads, graph_digest, receipt_hash, provenance_opts) do
       {:ok,
        %{
          receipt: receipt,
@@ -85,10 +87,10 @@ defmodule GgenIgniter.EphemeralManufacture do
      }}
   end
 
-  defp build_projections(receipt, graph_digest, receipt_hash, provenance_opts) do
-    receipt.files
-    |> Enum.reduce_while({:ok, []}, fn path, {:ok, acc} ->
-      case manufacture_projection(path, graph_digest, receipt_hash, provenance_opts) do
+  defp build_projections(reads, graph_digest, receipt_hash, provenance_opts) do
+    reads
+    |> Enum.reduce_while({:ok, []}, fn {path, bytes}, {:ok, acc} ->
+      case manufacture_projection(path, bytes, graph_digest, receipt_hash, provenance_opts) do
         {:ok, verified} -> {:cont, {:ok, [verified | acc]}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
@@ -99,21 +101,45 @@ defmodule GgenIgniter.EphemeralManufacture do
     end
   end
 
-  defp manufacture_projection(path, graph_digest, receipt_hash, provenance_opts) do
-    with {:ok, bytes} <- read_ephemeral_source(path),
-         opts =
-           provenance_opts
-           |> Keyword.put(:name, path)
-           |> Keyword.put(:graph_digest, graph_digest),
-         {:ok, projection} <- EphemeralProjection.manufacture(bytes, opts) do
+  defp manufacture_projection(path, bytes, graph_digest, receipt_hash, provenance_opts) do
+    opts =
+      provenance_opts
+      |> Keyword.put(:name, path)
+      |> Keyword.put(:graph_digest, graph_digest)
+
+    with {:ok, projection} <- EphemeralProjection.manufacture(bytes, opts) do
       EphemeralProjection.verify(projection, receipt_hash)
     end
   end
 
-  defp read_ephemeral_source(path) do
-    case File.read(path) do
-      {:ok, bytes} -> {:ok, bytes}
-      {:error, reason} -> {:error, {:ephemeral_projection_unreadable, path, reason}}
+  # Read each receipted output exactly once. The same in-memory bytes feed
+  # both the post_run_hash comparison and projection provenance, closing the
+  # receipt->tamper->attest TOCTOU window rather than merely narrowing it.
+  defp read_receipted_files(%Receipt{files: files}) do
+    reads =
+      Enum.map(files, fn path ->
+        case File.read(path) do
+          {:ok, bytes} -> {path, bytes}
+          {:error, _reason} -> {path, nil}
+        end
+      end)
+
+    {:ok, reads}
+  end
+
+  defp verify_receipted_output_identity(%Receipt{post_run_hash: nil}, _reads) do
+    {:error, {:refused_ephemeral_attestation, :post_run_hash_missing, nil}}
+  end
+
+  defp verify_receipted_output_identity(%Receipt{post_run_hash: expected}, reads) do
+    observed = Receipt.hash_entries(reads)
+
+    if observed == expected do
+      :ok
+    else
+      {:error,
+       {:refused_ephemeral_attestation, :post_run_hash_mismatch,
+        %{expected: expected, observed: observed}}}
     end
   end
 

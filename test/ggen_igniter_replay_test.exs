@@ -205,4 +205,44 @@ defmodule GgenIgniterReplayTest do
 
     assert report.categories == []
   end
+
+  test "work-order identity is recorded and drift is detected during replay", %{tmp_dir: tmp_dir} do
+    work_order_path = Path.join(tmp_dir, "work-order.ttl")
+
+    File.write!(
+      work_order_path,
+      "@prefix schema: <https://schema.org/> .\n<urn:gall:002> a schema:Action ; schema:name \"GALL-002\" .\n"
+    )
+
+    out_path = write_output!(tmp_dir, "lib/resource.ex", "defmodule Resource do\nend\n")
+
+    receipt =
+      Receipt.new(
+        %{
+          standing: :alive,
+          recipe_key: "templates/resource.ex.eex=>lib/resource.ex",
+          pre_run_hash: Receipt.hash_entries([{out_path, nil}]),
+          post_run_hash: Receipt.hash_files([out_path]),
+          files: [out_path],
+          metadata: %{}
+        },
+        base_dir: tmp_dir
+      )
+
+    assert %{"path" => "work-order.ttl", "source_digest" => recorded_digest} =
+             receipt.metadata["work_order"]
+
+    File.write!(
+      work_order_path,
+      "@prefix schema: <https://schema.org/> .\n<urn:gall:002> a schema:Action ; schema:name \"changed\" .\n"
+    )
+
+    report = Replay.build_report(Receipt.to_json_map(receipt), tmp_dir)
+
+    assert [%{category: "work order changed"} = drift] =
+             Enum.filter(report.categories, &(&1.category == "work order changed"))
+
+    assert drift.recorded == recorded_digest
+    refute drift.current == recorded_digest
+  end
 end
