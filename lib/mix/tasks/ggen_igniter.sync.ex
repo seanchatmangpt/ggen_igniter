@@ -829,7 +829,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   # the ONLY dispatch path `mix ggen_igniter.sync` has -- `run_via_reactor/3`
   # always returns `{:ok, result_igniter}`.
   defp run_via_reactor(igniter, opts, pack_template_stem) do
-    maybe_run_semantic_jira_shacl!(opts)
     template_path = resolve_template!(opts, pack_template_stem)
 
     {frontmatter, frontmatter_mode, _template_string} =
@@ -1324,35 +1323,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         raise ArgumentError,
               "--for-each #{inspect(driver_name)} does not name a declared --query result " <>
                 "(known: #{Enum.map_join(named_results, ", ", &elem(&1, 0))})"
-    end
-  end
-
-  # semantic-jira-pack ships an executable SHACL court, not a documentation-only
-  # shapes file. Run it after pack resolution but before any query/render/actuation
-  # dispatch. Other packs keep byte-for-byte behavior; invalid/missing manifests
-  # remain owned by ReconcileReactor's existing pack-admission refusal.
-  defp maybe_run_semantic_jira_shacl!(opts) do
-    if pack_given?(opts) do
-      pack_dir = GgenIgniter.Pack.resolve_dir!(opts)
-
-      case GgenIgniter.Pack.parse_manifest(pack_dir) do
-        {:ok, %{name: "semantic-jira-pack"}} ->
-          ontology_path = resolve_ontology!(opts)
-
-          case GgenIgniter.SemanticJira.Shacl.run(pack_dir, ontology_path) do
-            {:ok, _results} ->
-              :ok
-
-            {:error, {:shacl_violations, violations}} ->
-              raise ArgumentError,
-                    "REFUSED:SEMANTIC_JIRA_SHACL: #{inspect(violations)}"
-          end
-
-        _other ->
-          :ok
-      end
-    else
-      :ok
     end
   end
 
