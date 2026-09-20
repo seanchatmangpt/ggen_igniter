@@ -36,10 +36,12 @@ defmodule GgenIgniter.GallSemanticWorkPackTest do
     assert descriptor["graph_digest"] == "sha256:" <> String.duplicate("a", 64)
     assert descriptor["execution_policy"] == "continuous_epoch_run"
     assert descriptor["dependencies"] == []
+
     assert Map.keys(descriptor) |> Enum.sort() ==
              ~w(base_sha checkpoint_iri dependencies execution_policy execution_repo_alias goal graph_digest provider repository_identity standing verifier_suite work_order_iri)a
              |> Enum.map(&Atom.to_string/1)
              |> Enum.sort()
+
     assert ticket =~ "Edit the ontology, not this projection"
     assert ticket =~ descriptor["checkpoint_iri"]
     assert ticket =~ descriptor["work_order_iri"]
