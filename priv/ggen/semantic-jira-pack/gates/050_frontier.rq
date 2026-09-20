@@ -1,0 +1,18 @@
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT DISTINCT ?work_order ?id ?title ?repository ?base_sha ?subject ?evidence_ceiling WHERE {
+  ?work_order a sj:WorkOrder ;
+              dcterms:identifier ?id ;
+              dcterms:title ?title ;
+              sj:repository ?repository ;
+              sj:baseSha ?base_sha ;
+              sj:subject ?subject ;
+              sj:standing "UNKNOWN" ;
+              sj:evidenceCeiling ?evidence_ceiling .
+  FILTER NOT EXISTS {
+    ?work_order sj:dependsOn ?edge .
+    ?edge sj:upstreamWorkOrder ?upstream ; sj:requiredStanding ?required .
+    FILTER NOT EXISTS { ?upstream sj:standing ?required . }
+  }
+}
+ORDER BY ?id

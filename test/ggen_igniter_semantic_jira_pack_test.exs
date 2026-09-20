@@ -11,7 +11,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
   @moduletag :integration
 
-  alias GgenIgniter.Receipt
+  alias GgenIgniter.{Receipt, SemanticJira}
 
   @ontology_path "priv/ggen/semantic-jira-pack/ontology.ttl"
 
@@ -36,7 +36,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       "--engine",
       "sparql",
       "--pack",
-      "semantic-jira-pack",
+      "semantic-jira-pack:jira",
       "--out",
       out_template,
       "--manifest-dir",
@@ -58,7 +58,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "canonical WorkOrder graph -> deterministic Markdown projection -> graph-bound receipt" do
-    test "manufactures one ticket per admitted WorkOrder and replays byte-identically" do
+    test "manufactures all canonical WorkOrders and replays byte-identically" do
       work_dir = scratch_dir!("projection")
       output_path = Path.join(work_dir, "SJ-001.md")
 
@@ -66,6 +66,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       assert first_exit == 0, "first Semantic Jira sync failed:\n#{first_output}"
       assert File.exists?(output_path)
+      assert File.exists?(Path.join(work_dir, "GALL-001.md"))
+      assert File.exists?(Path.join(work_dir, "GALL-032.md"))
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
 
       first_bytes = File.read!(output_path)
 
@@ -137,4 +140,318 @@ defmodule GgenIgniter.SemanticJiraPackTest do
              end)
     end
   end
+
+  defp semantic_digest(seed), do: "sha256:" <> String.duplicate(seed, 64)
+
+  defp sample_work_order(overrides \\ %{}) do
+    Map.merge(
+      %{
+        "identity" => "SJ-TEST-001",
+        "title" => "Bounded semantic test",
+        "description" => "Exercise the kernel without granting authority.",
+        "subject" => "urn:subject:test",
+        "repository" => "seanchatmangpt/ggen_igniter",
+        "base_sha" => String.duplicate("a", 40),
+        "standing" => "UNKNOWN",
+        "evidence_ceiling" => "repository-local",
+        "promotion_rule" => "exact subject and independent evidence",
+        "replay_identity" => "semantic-jira:test:1",
+        "dependencies" => [],
+        "required_courts" => ["court:test"],
+        "required_evidence" => ["source", "verification"],
+        "acceptance" => ["acceptance:test"],
+        "falsifiers" => ["falsifier:test"],
+        "projections" => SemanticJira.projection_types(),
+        "required_receipt_classes" => ["verification"],
+        "path_scope" => ["lib/ggen_igniter"],
+        "authority_requirement" => "NONE",
+        "replay_required" => false
+      },
+      overrides
+    )
+  end
+
+  describe "DfCM semantic kernel" do
+    test "admission, frontier, scheduling, lease requests, and worker packages preserve boundaries" do
+      work_order = sample_work_order()
+      reversed = work_order |> Enum.reverse() |> Map.new()
+
+      {:ok, first} = SemanticJira.admit_work_order(work_order)
+      {:ok, second} = SemanticJira.admit_work_order(reversed)
+      assert first["work_order_digest"] == second["work_order_digest"]
+      assert first["authority"] == "NONE"
+
+      assert {:error, {:refused_work_order, {:invalid_sha, :base_sha, "main"}}} =
+               SemanticJira.admit_work_order(%{work_order | "base_sha" => "main"})
+
+      dependent =
+        sample_work_order(%{
+          "identity" => "DOWNSTREAM",
+          "dependencies" => [
+            %{
+              "upstream" => "UPSTREAM",
+              "type" => "requiresReceipt",
+              "required_standing" => "ALIVE",
+              "required_receipt_digest" => semantic_digest("b")
+            }
+          ]
+        })
+
+      evidence = %{
+        "UPSTREAM" => %{
+          "standing" => "ALIVE",
+          "receipt_digest" => semantic_digest("b")
+        }
+      }
+
+      assert [%{"identity" => "DOWNSTREAM", "authority" => "NONE"}] =
+               SemanticJira.frontier([dependent], evidence).eligible
+
+      scheduled =
+        SemanticJira.schedule(
+          [dependent],
+          [
+            %{
+              "status" => "active",
+              "repository" => "seanchatmangpt/ggen_igniter",
+              "scope" => ["lib/ggen_igniter/semantic_jira.ex"]
+            }
+          ],
+          evidence
+        )
+
+      assert scheduled.eligible == []
+      assert Enum.any?(scheduled.blocked, &(&1["reason"] == "conflicting_active_lease"))
+
+      lease_attrs = %{
+        "run_id" => "run-1",
+        "epoch_id" => "epoch-1",
+        "worker_identity" => "zcode-cli:worker-7",
+        "scope" => ["lib/ggen_igniter/semantic_jira.ex"],
+        "allowed_operations" => ["read", "edit", "test"],
+        "expiration" => "2026-09-20T00:00:00Z",
+        "concurrency_key" => "ggen_igniter:semantic-jira"
+      }
+
+      assert {:ok, request} = SemanticJira.lease_request(work_order, lease_attrs)
+      assert request["owner"] == "XaaS/Ultracode"
+      assert request["authority"] == "NONE"
+
+      assert {:ok, package} =
+               SemanticJira.execution_package(work_order, %{
+                 "graph_digest" => semantic_digest("c"),
+                 "source_digest" => semantic_digest("d"),
+                 "worker_identity" => "zcode-cli:worker-7",
+                 "verifier_identity" => "court:independent-1"
+               })
+
+      assert package.subject_id == "urn:subject:test"
+      assert hd(package.actions)["authority"] == "NONE"
+    end
+
+    test "DO intent fails closed on claim-store error and crash windows stay explicit" do
+      work_order = sample_work_order(%{"authority_requirement" => "repo-write"})
+      {:ok, admitted} = SemanticJira.admit_work_order(work_order)
+
+      authority = %{
+        "status" => "prepared",
+        "work_order_digest" => admitted["work_order_digest"],
+        "subject" => admitted["subject"],
+        "replay_identity" => admitted["replay_identity"],
+        "authority_identity" => "authority:1"
+      }
+
+      attrs = %{
+        "claim_store_status" => "error",
+        "prepared_authority_receipt" => authority,
+        "lease_id" => "lease:1",
+        "capability_identity" => "capability:test",
+        "command_identity" => "command:test"
+      }
+
+      assert {:error, {:refused_do, :claim_store_unavailable}} =
+               SemanticJira.do_intent(work_order, attrs)
+
+      assert {:ok, intent} =
+               SemanticJira.do_intent(
+                 work_order,
+                 %{attrs | "claim_store_status" => "available"}
+               )
+
+      assert intent["executed"] == false
+      assert intent["owner"] == "BRCE/CommandBus"
+
+      assert {:ok, %{"reconciliation_state" => "EFFECT_OBSERVED_RECEIPT_MISSING"}} =
+               SemanticJira.reconcile_crash_window(%{
+                 "effect_identity" => "effect:1",
+                 "claim_state" => "committed",
+                 "consequence_observed" => true,
+                 "receipt_state" => "absent"
+               })
+    end
+
+    test "verification, promotion, MachineExperience, composition, and replay require exact evidence" do
+      {:ok, work_order} = SemanticJira.admit_work_order(sample_work_order())
+
+      assert {:ok, verification} =
+               SemanticJira.exact_head_verification_evidence(%{
+                 "repository" => work_order["repository"],
+                 "base_sha" => work_order["base_sha"],
+                 "candidate_sha" => String.duplicate("b", 40),
+                 "work_order_digest" => work_order["work_order_digest"],
+                 "projection_digest" => semantic_digest("d"),
+                 "command" => "mix test",
+                 "exit_code" => 0,
+                 "toolchain_identity" => "elixir:1.18.4-otp-27",
+                 "environment_identity" => "ubuntu:hosted",
+                 "validator_identity" => "court:test",
+                 "test_result_digest" => semantic_digest("e"),
+                 "falsifier_results" => [
+                   %{"name" => "identity", "verdict" => "survived"}
+                 ]
+               })
+
+      assert verification["passed"] == true
+      assert verification["standing_authority"] == "NONE"
+
+      evidence = %{
+        "work_order_digest" => work_order["work_order_digest"],
+        "subject" => work_order["subject"],
+        "repository" => work_order["repository"],
+        "base_sha" => work_order["base_sha"],
+        "dependency_evidence" => %{},
+        "court_results" => %{"court:test" => %{"passed" => true}},
+        "evidence_types" => ["source", "verification"],
+        "acceptance_results" => %{"acceptance:test" => true},
+        "falsifier_results" => %{"falsifier:test" => "survived"},
+        "receipt_classes" => ["verification"],
+        "evidence_ceiling" => work_order["evidence_ceiling"],
+        "observed_execution" => true,
+        "inherited_standing" => false
+      }
+
+      assert {:ok, transition} =
+               SemanticJira.promote(work_order, "ALIVE", evidence)
+
+      assert transition["authority"] == "NONE"
+
+      assert {:error, {:promotion_refused, failed}} =
+               SemanticJira.promote(
+                 work_order,
+                 "ALIVE",
+                 %{evidence | "inherited_standing" => true}
+               )
+
+      assert :no_inherited_crown in failed
+
+      experience_attrs = %{
+        "subject" => work_order["subject"],
+        "work_order_digest" => work_order["work_order_digest"],
+        "execution_receipt" => %{
+          "executed" => true,
+          "receipt_hash" => semantic_digest("a")
+        },
+        "observation_refs" => ["ocel:event:1"],
+        "verification" => %{"passed" => true},
+        "resulting_state" => %{"digest" => semantic_digest("b")},
+        "replay_identity" => work_order["replay_identity"]
+      }
+
+      assert {:ok, experience} =
+               SemanticJira.machine_experience(experience_attrs)
+
+      assert experience["standing"] == "CANDIDATE"
+
+      assert {:error, {:refused_machine_experience, :prediction_only}} =
+               SemanticJira.machine_experience(
+                 Map.put(experience_attrs, "prediction_only", true)
+               )
+
+      assert {:ok, composition} =
+               SemanticJira.composition_subject([
+                 %{
+                   "work_order_id" => "GALL-001",
+                   "repository" => "seanchatmangpt/ggen",
+                   "receipt_digest" => semantic_digest("a"),
+                   "subject_digest" => semantic_digest("b"),
+                   "subject_sha" => String.duplicate("c", 40),
+                   "standing" => "ALIVE"
+                 }
+               ])
+
+      assert composition["standing"] == "UNKNOWN"
+      assert composition["inherited_standing"] == false
+
+      replay = %{
+        "pack_subject" => "semantic-jira-pack@26.9.19",
+        "dependency_set" => [semantic_digest("a")],
+        "graph_digest" => semantic_digest("b"),
+        "consequence_set" => [semantic_digest("c")],
+        "toolchain_identity" => "elixir:1.18.4-otp-27",
+        "environment_identity" => "darwin:local",
+        "replay_identity" => "replay:1"
+      }
+
+      assert {:ok, %{"status" => "KNOWN_REPLAY"}} =
+               SemanticJira.replay_check(
+                 replay,
+                 Map.put(replay, "candidate_subjects", ["pack:1"])
+               )
+
+      assert {:error, {:replay_refused, {:ambiguous_subject_selection, 2}}} =
+               SemanticJira.replay_check(
+                 replay,
+                 Map.put(replay, "candidate_subjects", ["pack:1", "pack:2"])
+               )
+    end
+
+    test "semantic diff, repair, process findings, views, and all projections are deterministic" do
+      before = sample_work_order(%{"notes" => "old prose"})
+      after_prose = %{before | "notes" => "new prose"}
+      assert SemanticJira.semantic_diff(before, after_prose)["semantic_equal"] == true
+
+      after_semantic = %{before | "evidence_ceiling" => "hosted-ci"}
+      assert SemanticJira.semantic_diff(before, after_semantic)["semantic_change_count"] == 1
+
+      assert {:ok, repair} =
+               SemanticJira.repair_work_order(before, %{
+                 "failed_receipt_digest" => semantic_digest("a"),
+                 "hypothesis" => "graph identity was stale",
+                 "smallest_repair" => "bind the fresh graph digest",
+                 "permanent_guard" => "reject stale graph receipts",
+                 "changed_identities" => ["graph_digest"],
+                 "verifier" => "court:graph-replay"
+               })
+
+      assert repair["blind_rerun_allowed"] == false
+
+      assert {:ok, finding} =
+               SemanticJira.process_finding(%{
+                 "normative_model_digest" => semantic_digest("b"),
+                 "observed_model_digest" => semantic_digest("c"),
+                 "delta" => %{"unexpected" => ["activity:x"]},
+                 "observation_receipt_digest" => semantic_digest("d")
+               })
+
+      assert finding["normative_model_mutated"] == false
+      assert finding["authority"] == "NONE"
+      assert SemanticJira.view(before, :executive)["authority"] == "NONE"
+
+      context = %{"graph_digest" => semantic_digest("f")}
+
+      rendered =
+        Map.new(SemanticJira.projection_types(), fn type ->
+          {type, SemanticJira.render_projection(type, before, context)}
+        end)
+
+      assert map_size(rendered) == 14
+      assert Enum.all?(rendered, fn {_type, bytes} -> bytes =~ "authority=NONE" end)
+
+      assert rendered ==
+               Map.new(SemanticJira.projection_types(), fn type ->
+                 {type, SemanticJira.render_projection(type, before, context)}
+               end)
+    end
+  end
+
 end
