@@ -35,7 +35,7 @@ jobs:
       - name: Run narrow manufacturer court
         run: mix test test/gall_checkpoint_002_project_manufacturer_test.exs
       - name: Emit typed GALL-002 receipt
-        run: mix run scripts/gall_checkpoint_002_receipt.exs -- --self-test "$RUNNER_TEMP/gall-002-receipt.json"
+        run: mix run scripts/gall_checkpoint_002_receipt.exs --self-test "$RUNNER_TEMP/gall-002-receipt.json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: gall-002-receipt-${{ github.event.pull_request.head.sha || github.sha }}
