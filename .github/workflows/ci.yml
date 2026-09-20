@@ -100,13 +100,50 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           restore-keys: "${{ runner.os }}-mix-27.2.4-1.18.4-\n${{ runner.os }}-mix-27.2.4-\n${{ runner.os }}-mix-\n"
-          key: ${{ runner.os }}-mix-27.2.4-1.18.4-${{ hashFiles('mix.lock') }}
-          path: "deps\n~/.hex\n~/.mix\n_build\n"
+          # Key carries the crate's Cargo.lock hash too: it rotates whenever
+          # the NIF's rust dependencies change, so the cached cargo target
+          # dir below is saved/re-saved at the right times instead of going
+          # permanently stale under a mix.lock-only key.
+          key: ${{ runner.os }}-mix-27.2.4-1.18.4-${{ hashFiles('mix.lock') }}-${{ hashFiles('native/ggen_graph_nif/Cargo.lock') }}
+          path: "deps\n~/.hex\n~/.mix\n_build\nnative/ggen_graph_nif/target\n"
 
       - name: mix deps.get
         shell: bash
         run: |
           mix deps.get
+
+      # The `_build` cache is an immutable per-key actions/cache snapshot:
+      # since the run that first saved the current `mix.lock`-keyed snapshot
+      # (the only green run, 35021796291 on 2026-09-15 -- a cache MISS that
+      # built everything for real), every later run restores that same
+      # `_build`. Mix then marks `GgenIgniter.Native.GraphNif` (the rustler
+      # loader module) up-to-date whenever neither `graph_nif.ex` nor its
+      # `@external_resource` crate sources changed -- so rustler never runs,
+      # `ggen_graph_nif` is never compiled, and
+      # `_build/<env>/lib/ggen_igniter/priv/native/ggen_graph_nif.so` is
+      # missing. Every NIF-backed test then fails with "function
+      # GgenIgniter.Native.GraphNif.query_turtle/2 is undefined (module ...
+      # is not available)": the 9 oxigraph/ASK-CONSTRUCT failures on every
+      # run since 2026-09-18, pre-existing on main (35315548332), NOT
+      # introduced by any branch's commits. Verified 2026-09-20: in the
+      # failing runs, ggen_igniter DOES recompile its changed modules
+      # ("Compiling 4 files (.ex)" + "Generated ggen_igniter app") with no
+      # "Compiling crate ggen_graph_nif" line anywhere, and the repo's own
+      # `ggen_igniter.doctor --json` reports `nif_compiles: ok` (real cargo
+      # build) next to `oxigraph_smoke_test: error` (NIF absent) in the same
+      # JSON document. Deleting ONLY this app's build artifacts (deps' beams
+      # stay cached) forces a real ggen_igniter + NIF rebuild on every run --
+      # the state a fresh checkout gets. The cargo target dir is cached (see
+      # key above), so the forced rustler pass is incremental in steady
+      # state. Locally reproduced and verified: with the app dirs wiped,
+      # `mix compile` + `mix test test/*oxigraph*` rebuild the crate and go
+      # 24/0 green; without the wipe, a deleted .so is never restored
+      # (checksum-based manifest -- `touch` alone does not stale the module).
+      - name: Force ggen_igniter app rebuild so the rustler NIF is always (re)built
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _build/dev/lib/ggen_igniter _build/test/lib/ggen_igniter
 
       # GI-08 follow-up (2026-09-02): the disclosed CI-07 gap above is
       # closed -- `mix format` was run for real across the whole tree
