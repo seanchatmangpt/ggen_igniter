@@ -115,48 +115,59 @@ defmodule GgenIgniter.SemanticJira do
   @doc "Selects UNKNOWN work whose typed dependency requirements are satisfied."
   @spec frontier([map()], map()) :: %{eligible: [map()], blocked: [map()]}
   def frontier(work_orders, evidence_by_id \\ %{}) do
-    Enum.reduce(work_orders, %{eligible: [], blocked: []}, fn raw, acc ->
-      case admit_work_order(raw) do
-        {:error, reason} ->
-          block(acc, %{"reason" => inspect(reason)})
-
-        {:ok, %{"standing" => current} = work_order} when current != "UNKNOWN" ->
-          block(acc, %{
-            "identity" => work_order["identity"],
-            "reason" => "standing=#{current}"
-          })
-
-        {:ok, work_order} ->
-          missing =
-            Enum.reject(
-              work_order["dependencies"],
-              &dependency_satisfied?(&1, evidence_by_id)
-            )
-
-          if missing == [] do
-            candidate =
-              work_order
-              |> Map.take(
-                ~w(identity title subject repository base_sha candidate_sha path_scope work_order_digest)
-              )
-              |> Map.put("authority", "NONE")
-
-            %{acc | eligible: [candidate | acc.eligible]}
-          else
-            block(acc, %{
-              "identity" => work_order["identity"],
-              "reason" => "dependencies_unsatisfied",
-              "dependencies" => missing
-            })
-          end
-      end
-    end)
+    work_orders
+    |> Enum.reduce(%{eligible: [], blocked: []}, &frontier_one(&1, &2, evidence_by_id))
     |> then(fn result ->
       %{
         eligible: Enum.reverse(result.eligible),
         blocked: Enum.reverse(result.blocked)
       }
     end)
+  end
+
+  defp frontier_one(raw, acc, evidence_by_id) do
+    case admit_work_order(raw) do
+      {:error, reason} ->
+        block(acc, %{"reason" => inspect(reason)})
+
+      {:ok, %{"standing" => current} = work_order} when current != "UNKNOWN" ->
+        block(acc, %{
+          "identity" => work_order["identity"],
+          "reason" => "standing=#{current}"
+        })
+
+      {:ok, work_order} ->
+        frontier_admitted(work_order, acc, evidence_by_id)
+    end
+  end
+
+  defp frontier_admitted(work_order, acc, evidence_by_id) do
+    missing =
+      Enum.reject(
+        work_order["dependencies"],
+        &dependency_satisfied?(&1, evidence_by_id)
+      )
+
+    frontier_dependency_result(work_order, missing, acc)
+  end
+
+  defp frontier_dependency_result(work_order, [], acc) do
+    candidate =
+      work_order
+      |> Map.take(
+        ~w(identity title subject repository base_sha candidate_sha path_scope work_order_digest)
+      )
+      |> Map.put("authority", "NONE")
+
+    %{acc | eligible: [candidate | acc.eligible]}
+  end
+
+  defp frontier_dependency_result(work_order, missing, acc) do
+    block(acc, %{
+      "identity" => work_order["identity"],
+      "reason" => "dependencies_unsatisfied",
+      "dependencies" => missing
+    })
   end
 
   @doc "Adds active-lease conflict fencing to frontier selection."
@@ -386,55 +397,34 @@ defmodule GgenIgniter.SemanticJira do
 
     with {:ok, admitted} <- admit_work_order(work_order),
          :ok <- standing(target) do
-      checks = [
-        subject_exact:
-          evidence["work_order_digest"] == admitted["work_order_digest"] and
-            evidence["subject"] == admitted["subject"] and
-            evidence["repository"] == admitted["repository"] and
-            evidence["base_sha"] == admitted["base_sha"],
-        dependencies:
-          Enum.all?(
-            admitted["dependencies"],
-            &dependency_satisfied?(&1, Map.get(evidence, "dependency_evidence", %{}))
-          ),
-        courts:
-          Enum.all?(
-            admitted["required_courts"],
-            &(get_in(evidence, ["court_results", &1, "passed"]) == true)
-          ),
-        evidence: subset?(admitted["required_evidence"], Map.get(evidence, "evidence_types", [])),
-        acceptance:
-          Enum.all?(
-            admitted["acceptance"],
-            &(get_in(evidence, ["acceptance_results", &1]) == true)
-          ),
-        falsifiers:
-          Enum.all?(
-            admitted["falsifiers"],
-            &(get_in(evidence, ["falsifier_results", &1]) in ["survived", true])
-          ),
-        authority:
-          admitted["authority_requirement"] == "NONE" or
-            get_in(evidence, ["authority_receipt", "status"]) == "prepared",
-        receipts:
-          subset?(
-            admitted["required_receipt_classes"],
-            Map.get(evidence, "receipt_classes", [])
-          ),
-        replay:
-          not admitted["replay_required"] or
-            (evidence["replay_passed"] == true and
-               evidence["replay_identity"] == admitted["replay_identity"]),
-        ceiling:
-          target != "ALIVE" or
-            (evidence["evidence_ceiling"] == admitted["evidence_ceiling"] and
-               evidence["observed_execution"] == true),
-        no_inherited_crown: evidence["inherited_standing"] != true
-      ]
+      checks = promotion_checks(admitted, target, evidence)
+      promotion_result(admitted, target, checks)
+    end
+  end
 
-      failed = for {name, false} <- checks, do: name
+  defp promotion_checks(admitted, target, evidence) do
+    [
+      subject_exact: exact_subject?(admitted, evidence),
+      dependencies: dependencies_satisfied?(admitted, evidence),
+      courts: courts_satisfied?(admitted, evidence),
+      evidence: subset?(admitted["required_evidence"], Map.get(evidence, "evidence_types", [])),
+      acceptance: acceptance_satisfied?(admitted, evidence),
+      falsifiers: falsifiers_satisfied?(admitted, evidence),
+      authority: authority_satisfied?(admitted, evidence),
+      receipts:
+        subset?(
+          admitted["required_receipt_classes"],
+          Map.get(evidence, "receipt_classes", [])
+        ),
+      replay: replay_satisfied?(admitted, evidence),
+      ceiling: ceiling_satisfied?(admitted, target, evidence),
+      no_inherited_crown: evidence["inherited_standing"] != true
+    ]
+  end
 
-      if failed == [] do
+  defp promotion_result(admitted, target, checks) do
+    case for({name, false} <- checks, do: name) do
+      [] ->
         transition = %{
           "kind" => "standing_transition_intent",
           "work_order_digest" => admitted["work_order_digest"],
@@ -445,10 +435,62 @@ defmodule GgenIgniter.SemanticJira do
         }
 
         {:ok, Map.put(transition, "transition_digest", digest(transition))}
-      else
+
+      failed ->
         {:error, {:promotion_refused, failed}}
-      end
     end
+  end
+
+  defp exact_subject?(admitted, evidence) do
+    evidence["work_order_digest"] == admitted["work_order_digest"] and
+      evidence["subject"] == admitted["subject"] and
+      evidence["repository"] == admitted["repository"] and
+      evidence["base_sha"] == admitted["base_sha"]
+  end
+
+  defp dependencies_satisfied?(admitted, evidence) do
+    Enum.all?(
+      admitted["dependencies"],
+      &dependency_satisfied?(&1, Map.get(evidence, "dependency_evidence", %{}))
+    )
+  end
+
+  defp courts_satisfied?(admitted, evidence) do
+    Enum.all?(
+      admitted["required_courts"],
+      &(get_in(evidence, ["court_results", &1, "passed"]) == true)
+    )
+  end
+
+  defp acceptance_satisfied?(admitted, evidence) do
+    Enum.all?(
+      admitted["acceptance"],
+      &(get_in(evidence, ["acceptance_results", &1]) == true)
+    )
+  end
+
+  defp falsifiers_satisfied?(admitted, evidence) do
+    Enum.all?(
+      admitted["falsifiers"],
+      &(get_in(evidence, ["falsifier_results", &1]) in ["survived", true])
+    )
+  end
+
+  defp authority_satisfied?(admitted, evidence) do
+    admitted["authority_requirement"] == "NONE" or
+      get_in(evidence, ["authority_receipt", "status"]) == "prepared"
+  end
+
+  defp replay_satisfied?(admitted, evidence) do
+    not admitted["replay_required"] or
+      (evidence["replay_passed"] == true and
+         evidence["replay_identity"] == admitted["replay_identity"])
+  end
+
+  defp ceiling_satisfied?(admitted, target, evidence) do
+    target != "ALIVE" or
+      (evidence["evidence_ceiling"] == admitted["evidence_ceiling"] and
+         evidence["observed_execution"] == true)
   end
 
   @doc "Manufactures MachineExperience only from receipted observed execution."
@@ -684,51 +726,56 @@ defmodule GgenIgniter.SemanticJira do
         "work_order=#{work_order["identity"]}; digest=#{work_order["work_order_digest"]}; " <>
         "graph=#{context["graph_digest"] || "UNKNOWN"}; authority=NONE -->\n"
 
-    body =
-      case type do
-        "jira" ->
-          "# #{work_order["identity"]} — #{work_order["title"]}\n\n" <>
-            "Subject: #{work_order["subject"]}\n" <>
-            "Standing: #{work_order["standing"]}\n" <>
-            "Evidence ceiling: #{work_order["evidence_ceiling"]}\n"
+    header <> render_projection_body(type, work_order, context) <> "\n"
+  end
 
-        "wbpr" ->
-          "# WBPR — #{work_order["identity"]}\n\n" <>
-            "Work backward from courts, receipts, acceptance, and falsifiers.\n"
+  defp render_projection_body("jira", work_order, _context) do
+    "# #{work_order["identity"]} — #{work_order["title"]}\n\n" <>
+      "Subject: #{work_order["subject"]}\n" <>
+      "Standing: #{work_order["standing"]}\n" <>
+      "Evidence ceiling: #{work_order["evidence_ceiling"]}\n"
+  end
 
-        "prd" ->
-          "# PRD — #{work_order["identity"]}\n\n#{work_order["description"]}\n"
+  defp render_projection_body("wbpr", work_order, _context) do
+    "# WBPR — #{work_order["identity"]}\n\n" <>
+      "Work backward from courts, receipts, acceptance, and falsifiers.\n"
+  end
 
-        "ard" ->
-          "# ARD — #{work_order["identity"]}\n\n" <>
-            "SELECT != CONSTRUCT != DO. Base SHA: #{work_order["base_sha"]}.\n"
+  defp render_projection_body("prd", work_order, _context) do
+    "# PRD — #{work_order["identity"]}\n\n#{work_order["description"]}\n"
+  end
 
-        "vision" ->
-          "# Vision — #{work_order["identity"]}\n\n" <>
-            "UNKNOWN → represented → admitted → receipted → replayed → KNOWN.\n"
+  defp render_projection_body("ard", work_order, _context) do
+    "# ARD — #{work_order["identity"]}\n\n" <>
+      "SELECT != CONSTRUCT != DO. Base SHA: #{work_order["base_sha"]}.\n"
+  end
 
-        "fond" ->
-          "; candidate FOND projection; authority NONE\n" <>
-            "(define (problem #{symbol(work_order["identity"])}) " <>
-            "(:domain semantic-jira))\n"
+  defp render_projection_body("vision", work_order, _context) do
+    "# Vision — #{work_order["identity"]}\n\n" <>
+      "UNKNOWN → represented → admitted → receipted → replayed → KNOWN.\n"
+  end
 
-        "hddl" ->
-          "; candidate HDDL projection; authority NONE\n" <>
-            "(:task advance-#{symbol(work_order["identity"])} :parameters ())\n"
+  defp render_projection_body("fond", work_order, _context) do
+    "; candidate FOND projection; authority NONE\n" <>
+      "(define (problem #{symbol(work_order["identity"])}) " <>
+      "(:domain semantic-jira))\n"
+  end
 
-        other ->
-          kind = projection_kind(other)
+  defp render_projection_body("hddl", work_order, _context) do
+    "; candidate HDDL projection; authority NONE\n" <>
+      "(:task advance-#{symbol(work_order["identity"])} :parameters ())\n"
+  end
 
-          "{\n" <>
-            "  \"kind\": #{Jason.encode!(kind)},\n" <>
-            "  \"authority\": \"NONE\",\n" <>
-            "  \"work_order_pairs\": " <>
-            "#{Jason.encode!(canonical(Map.take(work_order, projection_fields())))},\n" <>
-            "  \"context_pairs\": #{Jason.encode!(canonical(context))}\n" <>
-            "}\n"
-      end
+  defp render_projection_body(type, work_order, context) do
+    kind = projection_kind(type)
 
-    header <> body <> "\n"
+    "{\n" <>
+      "  \"kind\": #{Jason.encode!(kind)},\n" <>
+      "  \"authority\": \"NONE\",\n" <>
+      "  \"work_order_pairs\": " <>
+      "#{Jason.encode!(canonical(Map.take(work_order, projection_fields())))},\n" <>
+      "  \"context_pairs\": #{Jason.encode!(canonical(context))}\n" <>
+      "}\n"
   end
 
   defp projection_fields do
