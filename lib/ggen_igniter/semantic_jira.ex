@@ -63,6 +63,34 @@ defmodule GgenIgniter.SemanticJira do
     |> Digest.sha256()
   end
 
+  @doc """
+  Digest over every field of `value` (nothing is elided, unlike `digest/1`,
+  which drops the self-referential digest fields). Ledger events use this so a
+  tampered `receipt_digest`/`evidence_digest` changes the event identity.
+  """
+  @spec digest_exact(term()) :: String.t()
+  def digest_exact(value) do
+    value
+    |> canonical()
+    |> Jason.encode!()
+    |> Digest.sha256()
+  end
+
+  @definition_excluded ~w(standing dimensions candidate_sha admitted authority work_order_digest definition_digest)
+
+  @doc """
+  Stable identity of a WorkOrder's definition. Excludes everything that a
+  standing transition may change (`standing`, `dimensions`, `candidate_sha`)
+  so the digest survives promotion, unlike the `work_order_digest` snapshot.
+  """
+  @spec definition_digest(map()) :: String.t()
+  def definition_digest(work_order) when is_map(work_order) do
+    work_order
+    |> strings()
+    |> Map.drop(@definition_excluded)
+    |> digest()
+  end
+
   @doc "Admits and normalizes one map-shaped WorkOrder without creating authority."
   @spec admit_work_order(map()) :: {:ok, json_map()} | refusal()
   def admit_work_order(value) when is_map(value) do
@@ -94,7 +122,8 @@ defmodule GgenIgniter.SemanticJira do
         |> Map.put("admitted", true)
         |> Map.put("authority", "NONE")
 
-      {:ok, Map.put(normalized, "work_order_digest", digest(normalized))}
+      snapshot = Map.put(normalized, "work_order_digest", digest(normalized))
+      {:ok, Map.put(snapshot, "definition_digest", definition_digest(snapshot))}
     else
       # Every kernel refusal carries the typed refusal vocabulary so callers
       # never confuse a malformed work order with an unexpected crash.
@@ -159,7 +188,7 @@ defmodule GgenIgniter.SemanticJira do
     candidate =
       work_order
       |> Map.take(
-        ~w(identity title subject repository base_sha candidate_sha path_scope work_order_digest)
+        ~w(identity title subject repository base_sha candidate_sha path_scope work_order_digest definition_digest)
       )
       |> Map.put("authority", "NONE")
 
@@ -963,7 +992,7 @@ defmodule GgenIgniter.SemanticJira do
   defp drop_digest_fields(value) when is_map(value) do
     Map.drop(
       value,
-      ~w(work_order_digest transition_digest evidence_digest receipt_digest experience_digest repair_digest finding_digest composition_digest)
+      ~w(work_order_digest definition_digest transition_digest evidence_digest receipt_digest experience_digest repair_digest finding_digest composition_digest)
     )
   end
 
