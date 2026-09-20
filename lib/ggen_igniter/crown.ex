@@ -445,7 +445,45 @@ defmodule GgenIgniter.Crown do
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
-  # ----------------------------------------------------------------------
+  @doc """
+  Extracts the StandingTransition events from the canonical graph as
+  kernel-shaped event maps (for `SemanticJira.project_standing/1`).
+  """
+  @spec extract_transitions(String.t()) :: {:ok, [map()]} | refusal()
+  def extract_transitions(graph_path) when is_binary(graph_path) do
+    graph = Ontology.load!(graph_path)
+
+    rows =
+      Query.run(graph, """
+      PREFIX sj: <#{@sj}>
+      PREFIX dcterms: <#{@dcterms}>
+      SELECT ?wo_id ?transition_id ?from ?to ?definition_digest ?snapshot_digest WHERE {
+        ?event a sj:StandingTransition ;
+               sj:transitionId ?transition_id ;
+               sj:transitionWorkOrder ?wo ;
+               sj:fromStanding ?from ;
+               sj:toStanding ?to ;
+               sj:definitionDigest ?definition_digest ;
+               sj:snapshotDigest ?snapshot_digest .
+        ?wo dcterms:identifier ?wo_id .
+      }
+      """)
+
+    {:ok,
+     Enum.map(rows, fn row ->
+       %{
+         "kind" => "standing_transition_event",
+         "work_order_id" => row["wo_id"],
+         "transition_id" => row["transition_id"],
+         "from_standing" => row["from"],
+         "to_standing" => row["to"],
+         "definition_digest" => row["definition_digest"],
+         "snapshot_digest" => row["snapshot_digest"]
+       }
+     end)}
+  end
+
+    # ----------------------------------------------------------------------
   # Frontier (delegating selection; pack graph gate 050 is the graph twin)
   # ----------------------------------------------------------------------
 
@@ -515,17 +553,19 @@ defmodule GgenIgniter.Crown do
   end
 
   # ----------------------------------------------------------------------
-  # Reconciler projection: receipted, stepwise standing transitions
+  # Reconciler projection: receipted, kernel-manufactured standing events
   # ----------------------------------------------------------------------
 
   @doc """
-  Renders the reconciler's graph revision for the primary work order: the
-  durable `sj:Receipt`, the two lawful stepwise `sj:StandingTransition`
-  nodes (UNKNOWN -> PARTIAL_ALIVE -> ALIVE, each produced by the kernel's
-  `promote/3` calculus), given the exact-head verification `evidence`.
+  Renders the reconciler's graph revision for the primary work order under
+  the event-sourced standing law: the durable `sj:Receipt` plus BOTH
+  `sj:StandingTransition` events manufactured by the kernel's
+  `apply_transition/2` from `promote/3` intents (UNKNOWN -> PARTIAL_ALIVE
+  -> ALIVE — the progression law refuses the single hop). The WorkOrder row
+  keeps its DECLARED standing; the events project the chain tip.
 
-  `receipt_facts` requires: work_order_digest, subject_sha, candidate_sha,
-  receipt_iri, receipt_digest, receipt_class.
+  `receipt_facts` requires: work_order_digest, candidate_sha (the exact
+  final head), receipt_iri, receipt_digest, receipt_class.
   """
   @spec transition_turtle(map(), map(), map()) :: {:ok, String.t()} | refusal()
   def transition_turtle(wo, evidence, receipt_facts)
@@ -534,6 +574,7 @@ defmodule GgenIgniter.Crown do
     receipt_facts = strings(receipt_facts)
     wo = strings(wo)
     slug = slug_of(wo["identity"])
+    final_head = receipt_facts["candidate_sha"]
 
     with :ok <-
            required(receipt_facts, ~w(work_order_digest subject_sha candidate_sha receipt_iri receipt_digest receipt_class)),
@@ -541,40 +582,45 @@ defmodule GgenIgniter.Crown do
          :ok <- sha(:subject_sha, receipt_facts["subject_sha"]),
          :ok <- sha(:candidate_sha, receipt_facts["candidate_sha"]),
          :ok <- digest(receipt_facts["receipt_digest"]),
-         {:ok, _hop1} <- SemanticJira.promote(wo, "PARTIAL_ALIVE", evidence),
-         # The kernel digest covers standing, so each hop re-binds the
-         # evidence to the digest of the exact order state being promoted.
+         {:ok, hop1_intent} <- SemanticJira.promote(wo, "PARTIAL_ALIVE", evidence),
          {:ok, partial} <- SemanticJira.admit_work_order(%{wo | "standing" => "PARTIAL_ALIVE"}),
-         {:ok, _hop2} <-
+         {:ok, hop2_intent} <-
            SemanticJira.promote(
              partial,
              "ALIVE",
              Map.put(evidence, "work_order_digest", partial["work_order_digest"])
-           ) do
+           ),
+         {:ok, event1} <-
+           SemanticJira.apply_transition(wo, %{
+             "intent" => hop1_intent,
+             "evidence_identity" => receipt_facts["receipt_digest"],
+             "final_head" => final_head
+           }),
+         {:ok, event2} <-
+           SemanticJira.apply_transition(partial, %{
+             "intent" => hop2_intent,
+             "evidence_identity" => receipt_facts["receipt_digest"],
+             "final_head" => final_head
+           }) do
       {:ok,
-       """
+       [
+         """
 
-       # ── W6-A8 crown reconciler: receipted stepwise transition ────────────
-       # Receipt #{receipt_facts["receipt_iri"]} digest #{receipt_facts["receipt_digest"]}
-       sj:receipt-#{slug} a sj:Receipt ;
-           sj:workOrderDigest "#{receipt_facts["work_order_digest"]}" ;
-           sj:repository "#{wo["repository"]}" ;
-           sj:baseSha "#{wo["base_sha"]}" ;
-           sj:subjectSha "#{receipt_facts["subject_sha"]}" ;
-           sj:replayIdentity "#{wo["replay_identity"]}" ;
-           sj:receiptClass "#{receipt_facts["receipt_class"]}" ;
-           rdfs:label "Durable fabric receipt for #{wo["identity"]}" .
-
-       sj:transition-#{slug}-partial a sj:StandingTransition ;
-           sj:fromStanding "UNKNOWN" ;
-           sj:toStanding "PARTIAL_ALIVE" ;
-           rdfs:label "#{wo["identity"]} UNKNOWN to PARTIAL_ALIVE" .
-
-       sj:transition-#{slug}-alive a sj:StandingTransition ;
-           sj:fromStanding "PARTIAL_ALIVE" ;
-           sj:toStanding "ALIVE" ;
-           rdfs:label "#{wo["identity"]} PARTIAL_ALIVE to ALIVE" .
-       """}
+         # ── W6-A8 crown reconciler: receipted kernel-manufactured events ─────
+         # Receipt #{receipt_facts["receipt_iri"]} digest #{receipt_facts["receipt_digest"]}
+         sj:receipt-#{slug} a sj:Receipt ;
+             sj:workOrderDigest "#{receipt_facts["work_order_digest"]}" ;
+             sj:repository "#{wo["repository"]}" ;
+             sj:baseSha "#{wo["base_sha"]}" ;
+             sj:subjectSha "#{receipt_facts["subject_sha"]}" ;
+             sj:replayIdentity "#{wo["replay_identity"]}" ;
+             sj:receiptClass "#{receipt_facts["receipt_class"]}" ;
+             rdfs:label "Durable fabric receipt for #{wo["identity"]}" .
+         """,
+         render_event(event1, slug, final_head),
+         render_event(event2, slug, final_head)
+       ]
+       |> Enum.join("\n")}
     else
       {:error, reason} -> {:error, reason}
     end
@@ -582,81 +628,24 @@ defmodule GgenIgniter.Crown do
 
   def transition_turtle(_, _, _), do: {:error, {:refused_transition, :expected_maps}}
 
-  @doc """
-  Produces the ALIVE-state graph text: rewrites the named work order's
-  `sj:standing` to ALIVE and binds candidateSha/subjectSha/receipt. The
-  ALIVE integrity constraints of the admission court require exactly these
-  bindings; deterministic surgery confined to the named block.
-  """
-  @spec promote_graph_text(String.t(), map(), map()) :: {:ok, String.t()} | refusal()
-  def promote_graph_text(graph_text, wo, receipt_facts) do
-    wo = strings(wo)
-    slug = slug_of(wo["identity"])
-    iri = "sj:#{slug} a sj:WorkOrder"
+  defp render_event(event, slug, _final_head) do
+    node = "transition-" <> String.slice(event["transition_id"], 7, 8)
 
-    result =
-      rewrite_block(
-        String.split(graph_text, "\n"),
-        iri,
-        "sj:standing \"UNKNOWN\" ;",
-        "sj:nextCheckpoint",
-        "        sj:standing \"ALIVE\" ;",
-        [
-          "        sj:candidateSha \"#{receipt_facts["candidate_sha"]}\" ;",
-          "        sj:subjectSha \"#{receipt_facts["subject_sha"]}\" ;",
-          "        sj:receipt sj:receipt-#{slug} ;"
-        ],
-        :outside
-      )
+    """
 
-    case result do
-      {lines, :done} ->
-        text = Enum.join(lines, "\n")
-
-        if String.contains?(text, "sj:standing \"ALIVE\"") and
-             String.contains?(text, "sj:receipt sj:receipt-#{slug}") do
-          {:ok, text}
-        else
-          {:error, {:refused_promotion_text, {:rewrite_failed, wo["identity"]}}}
-        end
-
-      {_, state} ->
-        {:error, {:refused_promotion_text, {:incomplete_block, wo["identity"], state}}}
-    end
+    sj:#{node} a sj:StandingTransition ;
+        sj:transitionId "#{event["transition_id"]}" ;
+        sj:transitionWorkOrder sj:#{slug} ;
+        sj:fromStanding "#{event["from_standing"]}" ;
+        sj:toStanding "#{event["to_standing"]}" ;
+        sj:transitionEvidence sj:receipt-#{slug} ;
+        sj:finalHead "#{event["final_head"]}" ;
+        sj:definitionDigest "#{event["definition_digest"]}" ;
+        sj:snapshotDigest "#{event["snapshot_digest"]}" ;
+        rdfs:label "#{event["work_order_id"]} #{event["from_standing"]} to #{event["to_standing"]}" .
+    """
   end
 
-  defp rewrite_block([], _iri, _standing, _anchor, _new_standing, _inserts, state),
-    do: {[], state}
-
-  defp rewrite_block([line | rest], iri, standing, anchor, new_standing, inserts, state) do
-    trimmed = String.trim(line)
-
-    cond do
-      trimmed |> String.starts_with?(iri) ->
-        {rest_lines, final_state} =
-          rewrite_block(rest, iri, standing, anchor, new_standing, inserts, :inside)
-
-        {[line | rest_lines], final_state}
-
-      state == :inside and trimmed == standing ->
-        {rest_lines, final_state} =
-          rewrite_block(rest, iri, standing, anchor, new_standing, inserts, :inside)
-
-        {[new_standing | rest_lines], final_state}
-
-      state == :inside and String.starts_with?(trimmed, anchor) ->
-        {rest_lines, final_state} =
-          rewrite_block(rest, iri, standing, anchor, new_standing, inserts, :done)
-
-        {inserts ++ [line | rest_lines], final_state}
-
-      true ->
-        {rest_lines, final_state} =
-          rewrite_block(rest, iri, standing, anchor, new_standing, inserts, state)
-
-        {[line | rest_lines], final_state}
-    end
-  end
 
   # ----------------------------------------------------------------------
   # Shared helpers

@@ -43,14 +43,52 @@ defmodule GgenIgniter.CrownTest do
 
   defp revised_graph_text do
     {:ok, manufactured} = Crown.manufacture(@sensing_doc, @attrs)
-    Crown.append_to_graph(File.read!(@ontology_path), Crown.render_turtle(manufactured))
+
+    # The canonical graph on this branch already carries the crown section
+    # (the manufacture commit); strip it so the test exercises a fresh
+    # append onto the pre-crown baseline.
+    base =
+      @ontology_path
+      |> File.read!()
+      |> String.split("# ── W6-A8 crown")
+      |> List.first()
+
+    Crown.append_to_graph(base, Crown.render_turtle(manufactured))
   end
 
-  defp write_revised_graph(tmp_ctx) do
+  defp write_revised_graph do
     text = revised_graph_text()
-    path = Path.join(tmp_ctx, "crown-graph.ttl")
+    path = Path.join(System.tmp_dir!(), "crown-graph-#{System.unique_integer([:positive])}.ttl")
     File.write!(path, text)
     path
+  end
+
+  defp receipt_facts_for(crown_001) do
+    %{
+      "work_order_digest" => crown_001["work_order_digest"],
+      "subject_sha" => String.duplicate("1", 40),
+      "candidate_sha" => String.duplicate("2", 40),
+      "receipt_iri" => "urn:xaas:ultracode:receipt:crown-test",
+      "receipt_digest" => "sha256:" <> String.duplicate("c", 64),
+      "receipt_class" => "verification"
+    }
+  end
+
+  defp evidence_for(crown_001, observed) do
+    %{
+      "work_order_digest" => crown_001["work_order_digest"],
+      "subject" => crown_001["subject"],
+      "repository" => crown_001["repository"],
+      "base_sha" => crown_001["base_sha"],
+      "court_results" => Map.new(crown_001["required_courts"], &{&1, %{"passed" => true}}),
+      "evidence_types" => crown_001["required_evidence"],
+      "acceptance_results" => Map.new(crown_001["acceptance"], &{&1, true}),
+      "falsifier_results" => Map.new(crown_001["falsifiers"], &{&1, "survived"}),
+      "receipt_classes" => crown_001["required_receipt_classes"],
+      "evidence_ceiling" => crown_001["evidence_ceiling"],
+      "observed_execution" => observed,
+      "inherited_standing" => false
+    }
   end
 
   describe "observation -> candidate work orders" do
@@ -85,7 +123,7 @@ defmodule GgenIgniter.CrownTest do
   describe "canonical graph admission (SHACL)" do
     test "the graph revised with the manufactured work orders conforms" do
       text = revised_graph_text()
-      path = Path.join(System.tmp_dir!(), "crown-shacl-#{System.unique_integer()}.ttl")
+      path = Path.join(System.tmp_dir!(), "crown-shacl-#{System.unique_integer([:positive])}.ttl")
       File.write!(path, text)
       report = Shacl.validate_file(path, @shapes_path)
       File.rm(path)
@@ -97,7 +135,7 @@ defmodule GgenIgniter.CrownTest do
 
   describe "graph -> kernel extraction -> frontier" do
     test "dependent is blocked before the upstream is ALIVE and eligible after" do
-      path = write_revised_graph(System.tmp_dir!())
+      path = write_revised_graph()
       {:ok, work_orders} = Crown.extract_work_orders(path)
 
       assert Map.has_key?(work_orders, "CROWN-001")
@@ -109,7 +147,7 @@ defmodule GgenIgniter.CrownTest do
       assert Enum.any?(before.eligible, &(&1["identity"] == "CROWN-001"))
       refute Enum.any?(before.eligible, &(&1["identity"] == "CROWN-002"))
 
-      assert blocked_002 = Enum.find(before.blocked, &(&1["identity"] == "CROWN-002"))
+      blocked_002 = Enum.find(before.blocked, &(&1["identity"] == "CROWN-002"))
       assert blocked_002["reason"] == "dependencies_unsatisfied"
 
       after_evidence = %{
@@ -131,7 +169,7 @@ defmodule GgenIgniter.CrownTest do
 
   describe "xaas execution descriptor projection" do
     test "descriptor carries every SemanticWork.admit contract field" do
-      path = write_revised_graph(System.tmp_dir!())
+      path = write_revised_graph()
       {:ok, work_orders} = Crown.extract_work_orders(path)
       crown_001 = work_orders["CROWN-001"]
 
@@ -155,73 +193,65 @@ defmodule GgenIgniter.CrownTest do
     end
   end
 
-  defp evidence_for(crown_001, observed) do
-    %{
-      "work_order_digest" => crown_001["work_order_digest"],
-      "subject" => crown_001["subject"],
-      "repository" => crown_001["repository"],
-      "base_sha" => crown_001["base_sha"],
-      "court_results" =>
-        Map.new(crown_001["required_courts"], &{&1, %{"passed" => true}}),
-      "evidence_types" => crown_001["required_evidence"],
-      "acceptance_results" => Map.new(crown_001["acceptance"], &{&1, true}),
-      "falsifier_results" => Map.new(crown_001["falsifiers"], &{&1, "survived"}),
-      "receipt_classes" => crown_001["required_receipt_classes"],
-      "evidence_ceiling" => crown_001["evidence_ceiling"],
-      "observed_execution" => observed,
-      "inherited_standing" => false
-    }
-  end
-
-  describe "reconciler: receipted stepwise transition" do
-    test "transition turtle + promotion rewrite yield a conformant ALIVE graph" do
-      path = write_revised_graph(System.tmp_dir!())
+  describe "reconciler: kernel-manufactured standing events" do
+    test "transition turtle yields kernel events and a conformant graph" do
+      path = write_revised_graph()
       {:ok, work_orders} = Crown.extract_work_orders(path)
       crown_001 = work_orders["CROWN-001"]
       evidence = evidence_for(crown_001, true)
-
-      receipt_facts = %{
-        "work_order_digest" => crown_001["work_order_digest"],
-        "subject_sha" => String.duplicate("1", 40),
-        "candidate_sha" => String.duplicate("2", 40),
-        "receipt_iri" => "urn:xaas:ultracode:receipt:crown-test",
-        "receipt_digest" => "sha256:" <> String.duplicate("c", 64),
-        "receipt_class" => "verification"
-      }
+      receipt_facts = receipt_facts_for(crown_001)
 
       {:ok, transition} = Crown.transition_turtle(crown_001, evidence, receipt_facts)
-      {:ok, promoted} = Crown.promote_graph_text(File.read!(path), crown_001, receipt_facts)
+      assert transition =~ "a sj:StandingTransition"
+      assert transition =~ "sj:transitionId \"sha256:"
+      assert transition =~ "sj:toStanding \"ALIVE\""
 
-      final_path = Path.join(System.tmp_dir!(), "crown-graph-alive-#{System.unique_integer()}.ttl")
-      File.write!(final_path, promoted <> transition)
+      final_path =
+        Path.join(System.tmp_dir!(), "crown-graph-events-#{System.unique_integer([:positive])}.ttl")
+
+      # The declared standing stays UNKNOWN; the events project the tip.
+      File.write!(final_path, File.read!(path) <> transition)
 
       report = Shacl.validate_file(final_path, @shapes_path)
       assert report.conforms, "violations:\n#{inspect(report.violations, pretty: true)}"
 
+      {:ok, events} = Crown.extract_transitions(final_path)
+      assert length(events) == 2
+
+      {:ok, projection} = GgenIgniter.SemanticJira.project_standing(events)
+      assert projection == %{"CROWN-001" => "ALIVE"}
+
+      # Frontier on PROJECTED standings: dependent becomes eligible.
       {:ok, after_work_orders} = Crown.extract_work_orders(final_path)
-      assert after_work_orders["CROWN-001"]["standing"] == "ALIVE"
-      assert after_work_orders["CROWN-001"]["candidate_sha"] == receipt_facts["candidate_sha"]
+
+      projected =
+        Map.new(after_work_orders, fn {id, wo} ->
+          {id, Map.put(wo, "standing", projection[id] || wo["standing"])}
+        end)
+
+      after_evidence = %{
+        "CROWN-001" => %{
+          "standing" => "ALIVE",
+          "receipt_digest" => receipt_facts["receipt_digest"]
+        }
+      }
+
+      after_frontier = Crown.frontier(Map.values(projected), after_evidence)
+
+      refute Enum.any?(after_frontier.eligible, &(&1["identity"] == "CROWN-001"))
+      assert Enum.any?(after_frontier.eligible, &(&1["identity"] == "CROWN-002"))
 
       File.rm(final_path)
     end
 
     test "promote refuses ALIVE without observed execution (evidence ceiling)" do
-      path = write_revised_graph(System.tmp_dir!())
+      path = write_revised_graph()
       {:ok, work_orders} = Crown.extract_work_orders(path)
       crown_001 = work_orders["CROWN-001"]
       weak_evidence = evidence_for(crown_001, false)
 
-      receipt_facts = %{
-        "work_order_digest" => crown_001["work_order_digest"],
-        "subject_sha" => String.duplicate("1", 40),
-        "candidate_sha" => String.duplicate("2", 40),
-        "receipt_iri" => "urn:xaas:ultracode:receipt:crown-test",
-        "receipt_digest" => "sha256:" <> String.duplicate("c", 64),
-        "receipt_class" => "verification"
-      }
-
       assert {:error, {:promotion_refused, failed}} =
-               Crown.transition_turtle(crown_001, weak_evidence, receipt_facts)
+               Crown.transition_turtle(crown_001, weak_evidence, receipt_facts_for(crown_001))
 
       assert :ceiling in failed
     end

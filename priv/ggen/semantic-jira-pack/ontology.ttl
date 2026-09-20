@@ -2000,3 +2000,38 @@ sj:crown-002 a sj:WorkOrder ;
     sj:projection sj:projection-worker, sj:projection-verification, sj:projection-receipt ;
     sj:nextAction sj:run-crown-002-court ;
     sj:nextCheckpoint sj:checkpoint-crown-002 .
+
+# ── W6-A8 crown reconciler: receipted kernel-manufactured events ─────
+# Receipt urn:xaas:ultracode:receipt:31fdd134-2970-4432-9e0d-6ec5e99b75ce digest sha256:732dae899582a30e5017bf1b3ec2b2a6e6f218ae6ea2f77767eb501c69cbd312
+sj:receipt-crown-001 a sj:Receipt ;
+    sj:workOrderDigest "sha256:bacdcf0d1211c1aa5a8749b164db599136e953bb2dd2da9a4b867b19a8bbb864" ;
+    sj:repository "local/eds" ;
+    sj:baseSha "b40964e70a8f87296fe7d69bad999aad02e06f19" ;
+    sj:subjectSha "02f7c9844a607ce663539f93bca4fdce7678f7a8" ;
+    sj:replayIdentity "crown:v26.9.19:CROWN-001" ;
+    sj:receiptClass "verification" ;
+    rdfs:label "Durable fabric receipt for CROWN-001" .
+
+
+sj:transition-d8146461 a sj:StandingTransition ;
+    sj:transitionId "sha256:d8146461a88d37b25e3d4fe6679eea80d6ecc8b1ee6ba17e6b00a433af07cfa0" ;
+    sj:transitionWorkOrder sj:crown-001 ;
+    sj:fromStanding "UNKNOWN" ;
+    sj:toStanding "PARTIAL_ALIVE" ;
+    sj:transitionEvidence sj:receipt-crown-001 ;
+    sj:finalHead "02f7c9844a607ce663539f93bca4fdce7678f7a8" ;
+    sj:definitionDigest "sha256:8ef95f75bae625ea324f68cde32ea783f7425b2c356ef2a08fee7c331aea221b" ;
+    sj:snapshotDigest "sha256:bacdcf0d1211c1aa5a8749b164db599136e953bb2dd2da9a4b867b19a8bbb864" ;
+    rdfs:label "CROWN-001 UNKNOWN to PARTIAL_ALIVE" .
+
+
+sj:transition-94bce0c9 a sj:StandingTransition ;
+    sj:transitionId "sha256:94bce0c9bca129675404881bdbdad03b008891fc276a04e3389d82858a06a727" ;
+    sj:transitionWorkOrder sj:crown-001 ;
+    sj:fromStanding "PARTIAL_ALIVE" ;
+    sj:toStanding "ALIVE" ;
+    sj:transitionEvidence sj:receipt-crown-001 ;
+    sj:finalHead "02f7c9844a607ce663539f93bca4fdce7678f7a8" ;
+    sj:definitionDigest "sha256:8ef95f75bae625ea324f68cde32ea783f7425b2c356ef2a08fee7c331aea221b" ;
+    sj:snapshotDigest "sha256:724a0c9c64423e2c463d9bee88b606ecee629d65100313110a65617f43f9564c" ;
+    rdfs:label "CROWN-001 PARTIAL_ALIVE to ALIVE" .
