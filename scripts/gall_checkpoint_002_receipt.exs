@@ -74,7 +74,12 @@ defmodule GgenIgniter.Gall.Receipt002Court do
       dependency_digest: source_digest,
       builder_id: "https://github.com/seanchatmangpt/ggen_igniter",
       invocation_id: "GALL-002",
-      resolved_dependencies: [%{name: "GALL-001", digest: source_digest}]
+      resolved_dependencies: [
+        %{
+          "uri" => "urn:sa2a:gall:001:replay-receipt",
+          "digest" => %{"sha256" => String.replace_prefix(source_digest, "sha256:", "")}
+        }
+      ]
     ]
 
     {:ok, attestation} = EphemeralManufacture.attest_receipt(receipt, provenance_opts)
