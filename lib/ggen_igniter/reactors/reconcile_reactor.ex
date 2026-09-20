@@ -1,8 +1,8 @@
 defmodule GgenIgniter.Reactors.ReconcileReactor do
   @moduledoc """
   The real Reactor coordination pipeline for `ggen_igniter`'s reconciliation
-  spine: observe -> load -> resolve -> query -> render -> admit -> actuate ->
-  verify -> finalize evidence. `use Reactor` (plain `Reactor`, NOT
+  spine: observe -> load -> resolve -> manifest admission -> SHACL admission ->
+  query -> render -> admit -> actuate -> verify -> finalize evidence. `use Reactor` (plain `Reactor`, NOT
   `Ash.Reactor` -- `ggen_igniter` must stay usable without Ash as a mandatory
   runtime dependency).
 
@@ -122,9 +122,12 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
                                   packs must carry a strict pack.toml whose
                                   [pack].name corresponds with the graph's
                                   gp:name; legacy packs pass through unchanged;
-                                  refusal HERE precedes every query/render/
-                                  actuation step, as a typed
-                                  REFUSED:PACK_MANIFEST_* / REFUSED:PACK_IDENTITY_MISMATCH)
+                                  refusal HERE precedes every later court)
+      admit_semantic_jira_shacl
+                                -- pure read: semantic-jira-pack's shipped SHACL
+                                   court over the SAME loaded graph; a typed
+                                   REFUSED:SEMANTIC_JIRA_SHACL refusal precedes
+                                   query/render/actuation and is receipted by run/1
       run_queries             -- GgenIgniter.Engine.fetch!/run, per target
       render                  -- GgenIgniter.Render.render/2 PLUS
                                   GgenIgniter.Manifest lookups, produces the
@@ -474,9 +477,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # REFUSED:PACK_IDENTITY_MISMATCH (Appendix C vocabulary). Legacy packs (no
   # gp:profile) pass through without even reading pack.toml -- today's
   # optional-manifest behavior, byte-compat, zero new refusals (§86 step 2,
-  # §89). `:run_queries` takes this step's result as an argument purely to
-  # force the dependency edge (admission strictly precedes query work in every
-  # execution order), not to consume its value.
+  # §89). The SHACL court below depends on this result solely to force the
+  # ordering edge: bootstrap identity must admit before semantic shape law.
   step :admit_pack do
     argument(:reconcile_opts, input(:reconcile_opts))
     argument(:ontology, result(:load_ontology))
@@ -488,17 +490,41 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
              pack: %{pack_dir: pack_dir}
            },
            _context ->
-      case admit_pack_courts(pack_dir, graph) do
+      case Pack.admit_pack_manifest(pack_dir, graph) do
         :ok ->
           {:ok, %{pack_admission: :ok}}
 
-        {:refused, {type, [diagnostic: diagnostic]}} = refusal when is_atom(type) ->
+        {:refused, {type, [diagnostic: diagnostic]}} when is_atom(type) ->
           OcelEmitter.emit(opts[:event_sink], "GUARD_REFUSED", [], %{
             "reason" => "REFUSED:#{pack_refusal_code(type)}",
             "diagnostic" => diagnostic
           })
 
           {:error, {:refused_pack_manifest, type, diagnostic}}
+      end
+    end)
+  end
+
+  # side_effect: pure -- semantic-jira-pack only. Executes its shipped SHACL
+  # law over the SAME in-memory graph admitted above. This is deliberately a
+  # distinct Reactor step: manifest identity and semantic shape conformity are
+  # independent courts with independent typed refusals and replayable topology.
+  step :admit_semantic_jira_shacl do
+    argument(:reconcile_opts, input(:reconcile_opts))
+    argument(:ontology, result(:load_ontology))
+    argument(:pack, result(:resolve_pack))
+    argument(:pack_admission, result(:admit_pack))
+
+    run(fn %{
+             reconcile_opts: opts,
+             ontology: %{graph: graph},
+             pack: %{pack_dir: pack_dir},
+             pack_admission: _
+           },
+           _context ->
+      case maybe_admit_semantic_jira_shacl(pack_dir, graph) do
+        :ok ->
+          {:ok, %{shacl_admission: :ok}}
 
         {:refused_semantic_jira_shacl, violations} ->
           OcelEmitter.emit(opts[:event_sink], "GUARD_REFUSED", [], %{
@@ -517,9 +543,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   step :run_queries do
     argument(:reconcile_opts, input(:reconcile_opts))
     argument(:ontology, result(:load_ontology))
-    argument(:pack_admission, result(:admit_pack))
+    argument(:shacl_admission, result(:admit_semantic_jira_shacl))
 
-    run(fn %{reconcile_opts: opts, ontology: %{graph: graph}, pack_admission: _}, _context ->
+    run(fn %{reconcile_opts: opts, ontology: %{graph: graph}, shacl_admission: _}, _context ->
       queried =
         opts
         |> normalize_targets()
@@ -1169,6 +1195,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         :load_ontology,
         :resolve_pack,
         :admit_pack,
+        :admit_semantic_jira_shacl,
         :run_queries,
         :render,
         :admit
