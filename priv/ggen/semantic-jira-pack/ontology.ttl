@@ -1897,3 +1897,106 @@ sj:ledger-unsupported-001 a rdfs:Resource ;
     dcterms:description "UNSUPPORTED(semantic-jira-pack, integration-proof-test): no admitted generator expresses the Chicago-style, no-mock ExUnit integration proof of this pack's own sync -> admission -> actuation -> receipt pipeline (real filesystem, real nested mix compile, durable receipts, byte-identical replay). The existing test-manufacturing families (beam4pm-bench-pack, chicago-fault-injection-pack) manufacture domain-specific benchmark/fault-injection specs, and pack gates verify admission data rather than end-to-end pipeline behaviour, so test/ggen_igniter_semantic_jira_pack_test.exs is admitted hand-authored residue. Paydown plan: extend the test-manufacturing family with a pack-integration-proof generator (ontology facts + template over the pack manifest/gates); when admitted, this row and its HANDWRITTEN.md entry retire." ;
     dcterms:date "2026-09-19"^^xsd:date ;
     dcterms:references <https://ggen-igniter.dev/ontology/semantic-jira#pack-integration-proof-test> .
+
+# ── W6-A8 crown: closed-loop manufactured work orders ──────────────────
+# Manufactured by ggen_igniter:crown-glue@26.9.19 from sensing document
+# digest sha256:2d84d57eaf6ded08c78aafc7ca65e015269fa949a030efcc391fa1cb9dc69c79 (schema xaas-sensing/1,
+# head b40964e70a8f87296fe7d69bad999aad02e06f19, item fail-test-normalize-label-collapses-inner-whi-41cea4).
+# The graph revision IS the manufacture path; no ticket was edited.
+
+sj:court-crown-001 a sj:Court ;
+    rdfs:label "CROWN-001 exact-head court" ;
+    dcterms:description "Independent exact-head court for CROWN-001; execution binds exact base, verifier/tool/environment identity, and durable receipt identity." .
+
+
+sj:court-crown-002 a sj:Court ;
+    rdfs:label "CROWN-002 exact-head court" ;
+    dcterms:description "Independent exact-head court for CROWN-002; execution binds exact base, verifier/tool/environment identity, and durable receipt identity." .
+
+
+sj:acceptance-crown-001 a sj:AcceptanceCriterion ;
+    rdfs:label "CROWN-001 acceptance" ;
+    dcterms:description "Repair observed failing condition fail-test-normalize-label-collapses-inner-whi-41cea4 is receipted at the exact head. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-crown-001 a sj:Falsifier ;
+    rdfs:label "CROWN-001 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-crown-001-court a sj:Action ;
+    rdfs:label "Run CROWN-001 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:checkpoint-crown-001 a sj:Checkpoint ;
+    rdfs:label "CROWN-001 checkpoint" ;
+    dcterms:description "Closed only by the reconciler recording a receipted standing transition." .
+
+
+sj:acceptance-crown-002 a sj:AcceptanceCriterion ;
+    rdfs:label "CROWN-002 acceptance" ;
+    dcterms:description "Receipt-bound regression guard for CROWN-001 is receipted at the exact head. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-crown-002 a sj:Falsifier ;
+    rdfs:label "CROWN-002 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-crown-002-court a sj:Action ;
+    rdfs:label "Run CROWN-002 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:checkpoint-crown-002 a sj:Checkpoint ;
+    rdfs:label "CROWN-002 checkpoint" ;
+    dcterms:description "Closed only by the reconciler recording a receipted standing transition." .
+
+
+sj:edge-crown-002-from-001 a sj:DependencyEdge ;
+    rdfs:label "CROWN-002 dependency on CROWN-001" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:crown-001 ;
+    sj:requiredStanding "ALIVE" .
+
+
+sj:crown-001 a sj:WorkOrder ;
+    dcterms:identifier "CROWN-001" ;
+    dcterms:title "Repair observed failing condition fail-test-normalize-label-collapses-inner-whi-41cea4" ;
+    dcterms:description "The test suite reports this failure when sensed:\n\n    test_normalize_label_collapses_inner_whitespace -- tests/test_w6_crown_seed.py\n\nMake the failing test pass WITHOUT weakening, skipping, or deleting it\n(and without weakening any other test). Fix the production or test code\nthe failure points at, commit, and close through the normal lease protocol\nwith your final head.\n\nThe test suite exited with code 1 when this item was sensed." ;
+    sj:repository "local/eds" ;
+    sj:baseSha "b40964e70a8f87296fe7d69bad999aad02e06f19" ;
+    sj:subject "eds:crown-001-observed-condition" ;    sj:pathScope "src/eds/crown.py", "tests/test_w6_crown_seed.py" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Standing may advance only from an independent exact-head court receipt for the same subject at the same base; sensed failure text is a signal, never evidence." ;
+    sj:replayIdentity "crown:v26.9.19:CROWN-001" ;
+    sj:requiresCourt sj:court-crown-001 ;
+    sj:requiresEvidence sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification" ;
+    sj:acceptance sj:acceptance-crown-001 ;
+    sj:falsifier sj:falsifier-crown-001 ;
+    sj:projection sj:projection-worker, sj:projection-verification, sj:projection-receipt ;
+    sj:nextAction sj:run-crown-001-court ;
+    sj:nextCheckpoint sj:checkpoint-crown-001 .
+
+sj:crown-002 a sj:WorkOrder ;
+    dcterms:identifier "CROWN-002" ;
+    dcterms:title "Receipt-bound regression guard for CROWN-001" ;
+    dcterms:description "Encode a permanent regression guard for the repaired condition in CROWN-001; eligibility requires the upstream receipt." ;
+    sj:repository "local/eds" ;
+    sj:baseSha "b40964e70a8f87296fe7d69bad999aad02e06f19" ;
+    sj:subject "eds:crown-002-regression-guard" ;    sj:dependsOn sj:edge-crown-002-from-001 ;
+    sj:pathScope "src/eds/crown.py", "tests/test_w6_crown_seed.py" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Standing may advance only from an independent exact-head court receipt for the same subject at the same base; sensed failure text is a signal, never evidence." ;
+    sj:replayIdentity "crown:v26.9.19:CROWN-002" ;
+    sj:requiresCourt sj:court-crown-002 ;
+    sj:requiresEvidence sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification" ;
+    sj:acceptance sj:acceptance-crown-002 ;
+    sj:falsifier sj:falsifier-crown-002 ;
+    sj:projection sj:projection-worker, sj:projection-verification, sj:projection-receipt ;
+    sj:nextAction sj:run-crown-002-court ;
+    sj:nextCheckpoint sj:checkpoint-crown-002 .
