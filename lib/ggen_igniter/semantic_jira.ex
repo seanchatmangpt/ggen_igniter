@@ -565,22 +565,26 @@ defmodule GgenIgniter.SemanticJira do
 
   @doc "Typed semantic diff; prose-only fields are deliberately excluded."
   @spec semantic_diff(map(), map()) :: json_map()
-  def semantic_diff(before, after) do
-    before = strings(before)
-    after = strings(after)
+  def semantic_diff(before_value, after_value) do
+    before_value = strings(before_value)
+    after_value = strings(after_value)
 
     changes =
       for key <- @semantic_fields,
-          canonical(before[key]) != canonical(after[key]) do
-        %{"field" => key, "before" => before[key], "after" => after[key]}
+          canonical(before_value[key]) != canonical(after_value[key]) do
+        %{
+          "field" => key,
+          "before" => before_value[key],
+          "after" => after_value[key]
+        }
       end
 
     %{
       "semantic_changes" => changes,
       "semantic_change_count" => length(changes),
       "semantic_equal" => changes == [],
-      "before_digest" => digest(Map.take(before, @semantic_fields)),
-      "after_digest" => digest(Map.take(after, @semantic_fields))
+      "before_digest" => digest(Map.take(before_value, @semantic_fields)),
+      "after_digest" => digest(Map.take(after_value, @semantic_fields))
     }
   end
 
