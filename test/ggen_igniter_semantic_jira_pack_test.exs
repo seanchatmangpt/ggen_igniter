@@ -1061,9 +1061,23 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
     test "standing smuggling control: ALIVE with the full receipt crown admits" do
       crown =
-        ~s(sj:standing "ALIVE" ;\n    sj:candidateSha "#{String.duplicate("c", 40)}" ;\n    sj:subjectSha "#{String.duplicate("d", 40)}" ;\n    sj:receipt sj:graph-receipt-evidence ;)
+        ~s(sj:standing "ALIVE" ;\n    sj:candidateSha "#{String.duplicate("c", 40)}" ;\n    sj:subjectSha "#{String.duplicate("d", 40)}" ;\n    sj:receipt sj:test-alive-receipt ;)
 
-      assert_admitted("extra_control_alive_with_receipt_crown", [{@dogfood_standing, crown}])
+      receipt =
+        """
+        sj:test-alive-receipt a sj:Receipt ;
+            sj:workOrderDigest "#{semantic_digest("a")}" ;
+            sj:repository "seanchatmangpt/ggen_igniter" ;
+            sj:baseSha "#{String.duplicate("c", 40)}" ;
+            sj:subjectSha "#{String.duplicate("d", 40)}" ;
+            sj:replayIdentity "semantic-jira:v26.9.19:TEST-ALIVE-RECEIPT" ;
+            sj:receiptClass "verification" .
+        """
+
+      assert_admitted("extra_control_alive_with_receipt_crown", [
+        {@dogfood_standing, crown},
+        {@dogfood_close, @dogfood_close <> "\n" <> receipt}
+      ])
     end
 
     test "replay identity uniqueness: two valid WorkOrders sharing sj:replayIdentity refuse (SHACL uniqueness law)" do
