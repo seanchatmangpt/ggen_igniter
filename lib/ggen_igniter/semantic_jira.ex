@@ -104,6 +104,56 @@ defmodule GgenIgniter.SemanticJira do
 
   def admit_work_order(_), do: {:error, {:refused_work_order, :expected_map}}
 
+  @doc """
+  Stable identity of a WorkOrder's definition: the admitted work order minus its
+  mutable projection (`standing`, `dimensions`) and snapshot digest. Standing
+  changes never change it; `work_order_digest` remains the snapshot digest.
+  """
+  @spec definition_digest(map()) :: {:ok, String.t()} | refusal()
+  def definition_digest(work_order) do
+    with {:ok, admitted} <- admit_work_order(work_order) do
+      {:ok, digest(Map.drop(admitted, ~w(standing dimensions work_order_digest)))}
+    end
+  end
+
+  @doc """
+  Frontier over the projection of an append-only transition log: each work
+  order's standing is the latest logged `to`, and dependency evidence is the
+  logged standing/receipt of each upstream (caller evidence is overridden).
+  """
+  @spec frontier_from_events([map()], [map()], map()) :: %{eligible: [map()], blocked: [map()]}
+  def frontier_from_events(work_orders, events, evidence_by_id \\ %{}) do
+    {projected, logged} = project(work_orders, events)
+    frontier(projected, Map.merge(evidence_by_id, logged))
+  end
+
+  @doc "Projects standing over work orders from events (ordered by `seq`); pure."
+  @spec project([map()], [map()]) :: {[map()], map()}
+  def project(work_orders, events) do
+    latest =
+      events
+      |> Enum.map(&strings/1)
+      |> Enum.sort_by(&{&1["seq"] || 0, &1["event_digest"]})
+      |> Enum.reduce(%{}, fn e, acc -> Map.put(acc, e["identity"], e) end)
+
+    projected =
+      Enum.map(work_orders, fn wo ->
+        wo = strings(wo)
+
+        case latest[wo["identity"]] do
+          nil -> wo
+          e -> Map.put(wo, "standing", e["to"])
+        end
+      end)
+
+    evidence =
+      Map.new(latest, fn {id, e} ->
+        {id, %{"standing" => e["to"], "receipt_digest" => e["receipt_digest"]}}
+      end)
+
+    {projected, evidence}
+  end
+
   @doc "Raising admission helper for deterministic manufacture boundaries."
   @spec admit_work_order!(map()) :: json_map()
   def admit_work_order!(value) do
