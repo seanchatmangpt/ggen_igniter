@@ -38,9 +38,18 @@ defmodule GgenIgniter.SemanticJiraPackTest do
          work_dir,
          extra_args \\ [],
          pack \\ "semantic-jira-pack:jira",
-         out_suffix \\ ".md"
+         out_suffix \\ ".md",
+         out_file \\ nil
        ) do
-    out_template = Path.join(work_dir, "<%= id %>#{out_suffix}")
+    # Per-row templates fan out through `<%= id %>`; per-run templates (the
+    # OCEL log) render ONE fixed file, so the caller passes a literal
+    # `out_file` instead.
+    out_template =
+      if out_file do
+        Path.join(work_dir, out_file)
+      else
+        Path.join(work_dir, "<%= id %>#{out_suffix}")
+      end
 
     args = [
       "ggen_igniter.sync",
@@ -338,6 +347,144 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
       assert output =~ "missing core field base_sha"
       refute File.exists?(Path.join(work_dir, "SJ-001.hddl"))
+
+      receipts = Receipt.read_all!(work_dir)
+
+      assert Enum.all?(receipts, fn receipt ->
+               receipt["standing"] != "alive"
+             end)
+    end
+  end
+
+  describe "OCEL event-log projection" do
+    test "manufactures one parseable OCEL log per run and replays byte-identically" do
+      work_dir = scratch_dir!("ocel_projection")
+      output_path = Path.join(work_dir, "ocel.json")
+
+      {first_output, first_exit} =
+        run_sync(work_dir, [], "semantic-jira-pack:ocel", "", "ocel.json")
+
+      assert first_exit == 0, "first OCEL sync failed:\n#{first_output}"
+
+      # ONE log document per manufacture run, not one file per WorkOrder.
+      assert [^output_path] = Path.wildcard(Path.join(work_dir, "*.json"))
+
+      first_bytes = File.read!(output_path)
+      assert {:ok, log} = JSON.decode(first_bytes)
+
+      assert log["authority"] == "NONE"
+      assert log["generated_by"] =~ "semantic-jira-pack"
+      assert log["authority_statement"] =~ "zero independent"
+
+      objects = log["ocel:objects"]
+      events = log["ocel:events"]
+      relationships = log["ocel:relationships"]
+
+      # One WorkOrder object per canonical WorkOrder, boundary attributes bound.
+      work_order_objects = Enum.filter(objects, &(&1["ocel:type"] == "WorkOrder"))
+      assert length(work_order_objects) == 33
+
+      object_ids = Enum.map(objects, & &1["ocel:id"])
+      assert length(object_ids) == length(Enum.uniq(object_ids))
+
+      identifiers = Enum.map(work_order_objects, & &1["ocel:attributes"]["id"])
+      assert "SJ-001" in identifiers
+      assert "GALL-001" in identifiers
+      assert "GALL-032" in identifiers
+
+      dogfood = Enum.find(work_order_objects, &(&1["ocel:attributes"]["id"] == "SJ-001"))
+      dogfood_attrs = dogfood["ocel:attributes"]
+
+      assert dogfood_attrs["standing"] == "UNKNOWN"
+      assert dogfood_attrs["baseSha"] == "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3"
+      assert dogfood_attrs["authorityCeiling"] == "CONSTRUCT"
+      assert is_binary(dogfood_attrs["evidenceCeiling"])
+
+      # Exactly the five admission-relevant event families, every event typed.
+      event_types = events |> Enum.map(& &1["ocel:type"]) |> Enum.uniq() |> Enum.sort()
+
+      assert event_types == [
+               "checkpoint-set",
+               "court-required",
+               "evidence-required",
+               "falsifier-registered",
+               "projection-listed"
+             ]
+
+      # A parseable object-event graph: unique ids, every relationship
+      # endpoint resolves to a real object, every flattened relationship
+      # references a real event.
+      assert length(events) == length(Enum.uniq(Enum.map(events, & &1["ocel:id"])))
+
+      object_id_set = MapSet.new(object_ids)
+      event_id_set = MapSet.new(Enum.map(events, & &1["ocel:id"]))
+
+      Enum.each(events, fn event ->
+        assert event["ocel:relationships"] != []
+
+        Enum.each(event["ocel:relationships"], fn relationship ->
+          assert MapSet.member?(object_id_set, relationship["ocel:object"])
+        end)
+      end)
+
+      assert length(relationships) >= 2 * length(events)
+
+      Enum.each(relationships, fn relationship ->
+        assert MapSet.member?(event_id_set, relationship["ocel:event"])
+        assert MapSet.member?(object_id_set, relationship["ocel:object"])
+      end)
+
+      [first_receipt] = Receipt.read_all!(work_dir)
+      assert first_receipt["standing"] == "alive"
+      assert output_path in first_receipt["files"]
+      assert first_receipt["metadata"]["graph_hash"] == sha256_file(@ontology_path)
+
+      {second_output, second_exit} =
+        run_sync(work_dir, [], "semantic-jira-pack:ocel", "", "ocel.json")
+
+      assert second_exit == 0, "second OCEL sync failed:\n#{second_output}"
+      assert File.read!(output_path) == first_bytes
+
+      receipts = Receipt.read_all!(work_dir)
+      assert length(receipts) == 2
+
+      [first_graph_hash, second_graph_hash] =
+        Enum.map(receipts, &get_in(&1, ["metadata", "graph_hash"]))
+
+      assert first_graph_hash == second_graph_hash
+      assert second_graph_hash == sha256_file(@ontology_path)
+    end
+
+    test "removing a required baseSha refuses the OCEL projection before any file is written" do
+      work_dir = scratch_dir!("ocel_missing_base_sha")
+      broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
+
+      source = File.read!(@ontology_path)
+
+      broken =
+        String.replace(
+          source,
+          ~r/^    sj:baseSha "[0-9a-f]+" ;\n/m,
+          "",
+          global: false
+        )
+
+      refute broken == source
+      File.write!(broken_ontology, broken)
+
+      {output, exit_code} =
+        run_sync(
+          work_dir,
+          ["--ontology", broken_ontology],
+          "semantic-jira-pack:ocel",
+          "",
+          "ocel.json"
+        )
+
+      refute exit_code == 0
+      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
+      assert output =~ "missing core field base_sha"
+      refute File.exists?(Path.join(work_dir, "ocel.json"))
 
       receipts = Receipt.read_all!(work_dir)
 
