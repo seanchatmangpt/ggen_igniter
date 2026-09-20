@@ -1842,3 +1842,13 @@ sj:falsifier-gall-032 a sj:Falsifier ;
 sj:run-gall-032-court a sj:Action ;
     rdfs:label "Run GALL-032 court" ;
     dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+# ---- HANDWRITTEN ledger: UNSUPPORTED(generator, element) row ----
+# Law: priv/ggen/dfcm-agent-pack/ontology.ttl (DfCM hand-writing gate).
+# Ledger entry: HANDWRITTEN.md (repo root). Ledger shrinks monotonically;
+# paydown = admit a pack-integration-proof test generator, then retire both rows.
+sj:ledger-unsupported-001 a rdfs:Resource ;
+    rdfs:label "UNSUPPORTED(semantic-jira-pack, integration-proof-test)" ;
+    dcterms:description "UNSUPPORTED(semantic-jira-pack, integration-proof-test): no admitted generator expresses the Chicago-style, no-mock ExUnit integration proof of this pack's own sync -> admission -> actuation -> receipt pipeline (real filesystem, real nested mix compile, durable receipts, byte-identical replay). The existing test-manufacturing families (beam4pm-bench-pack, chicago-fault-injection-pack) manufacture domain-specific benchmark/fault-injection specs, and pack gates verify admission data rather than end-to-end pipeline behaviour, so test/ggen_igniter_semantic_jira_pack_test.exs is admitted hand-authored residue. Paydown plan: extend the test-manufacturing family with a pack-integration-proof generator (ontology facts + template over the pack manifest/gates); when admitted, this row and its HANDWRITTEN.md entry retire." ;
+    dcterms:date "2026-09-19"^^xsd:date ;
+    dcterms:references <https://ggen-igniter.dev/ontology/semantic-jira#pack-integration-proof-test> .
