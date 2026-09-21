@@ -188,6 +188,11 @@ Observed hazards, not claimed away:
 4. UNVERIFIED: `oslc_rm:Requirement` and `oslc_qm:TestPlan` are named in residue reasons as
    adjacent candidates from prior knowledge; their namespaces were not fetched this pass.
    The oslc_cm namespace contents were fetched and checked.
+5. Engine defect observed (sparql 0.3.12): `VALUES ?kind { rdfs:Class rdf:Property }` returns
+   wrong rows (unrelated individuals such as `sj:acceptance-gall-018` on the canonical graph,
+   where the correct result is empty) while oxigraph returns the right ones.
+   Gate 047 therefore uses a nested group instead; other gates should not use `VALUES` while the
+   pack still runs under `--engine sparql`.
 
 ## Prior art consulted
 
