@@ -284,8 +284,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         run_sync(work_dir, ["--ontology", broken_ontology], "semantic-jira-pack:prd", ".prd.md")
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing core field base_sha"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "https://ggen-igniter.dev/ontology/semantic-jira#baseSha"
       refute File.exists?(Path.join(work_dir, "SJ-001.prd.md"))
 
       receipts = Receipt.read_all!(work_dir)
@@ -430,8 +430,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         run_sync(work_dir, ["--ontology", broken_ontology], "semantic-jira-pack:plan", ".hddl")
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing core field base_sha"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "https://ggen-igniter.dev/ontology/semantic-jira#baseSha"
       refute File.exists?(Path.join(work_dir, "SJ-001.hddl"))
 
       receipts = Receipt.read_all!(work_dir)
@@ -568,8 +568,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         )
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing core field base_sha"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "https://ggen-igniter.dev/ontology/semantic-jira#baseSha"
       refute File.exists?(Path.join(work_dir, "ocel.json"))
 
       receipts = Receipt.read_all!(work_dir)
@@ -683,8 +683,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         run_sync(work_dir, ["--ontology", broken_ontology], "semantic-jira-pack:ard", ".ard.md")
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing core field base_sha"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "https://ggen-igniter.dev/ontology/semantic-jira#baseSha"
       refute File.exists?(Path.join(work_dir, "SJ-001.ard.md"))
 
       receipts = Receipt.read_all!(work_dir)
@@ -720,8 +720,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         ])
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing core field base_sha"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "https://ggen-igniter.dev/ontology/semantic-jira#baseSha"
       refute File.exists?(Path.join(work_dir, "SJ-001.md"))
 
       receipts = Receipt.read_all!(work_dir)
@@ -806,8 +806,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         ])
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing required requiresCourt relation for SJ-001"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "https://ggen-igniter.dev/ontology/semantic-jira#requiresCourt"
       assert Path.wildcard(Path.join(work_dir, "*.md")) == []
 
       receipts = Receipt.read_all!(work_dir)
@@ -841,8 +841,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         ])
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "baseSha must be an exact 40-hex commit SHA"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "https://ggen-igniter.dev/ontology/semantic-jira#baseSha"
       assert Path.wildcard(Path.join(work_dir, "*.md")) == []
 
       receipts = Receipt.read_all!(work_dir)
@@ -879,52 +879,52 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     @dogfood_close "sj:nextCheckpoint sj:shacl-admission-checkpoint ."
 
     test "class 1 incomplete scalar identity: removing dcterms:title refuses admission" do
-      assert_refused("class1_missing_title", [{@dogfood_title, ""}], "missing core field title")
+      assert_shacl_refused("class1_missing_title", [{@dogfood_title, ""}], "http://purl.org/dc/terms/title")
     end
 
     test "class 1 incomplete scalar identity: removing dcterms:identifier refuses admission" do
-      assert_refused(
+      assert_shacl_refused(
         "class1_missing_identifier",
         [{@dogfood_identifier, ""}],
-        "missing core field id"
+        "http://purl.org/dc/terms/identifier"
       )
     end
 
     test "class 1 ambiguous scalar identity: a duplicated dcterms:title resolves to two rows and refuses" do
-      assert_refused(
+      assert_shacl_refused(
         "class1_ambiguous_title",
         [{@dogfood_title, @dogfood_title <> ~s(\n    dcterms:title "Shadow title" ;)}],
-        "exactly one complete scalar row"
+        "maxCount 1 violated (2 values)"
       )
     end
 
     test "class 1 ambiguous scalar identity: a duplicated sj:baseSha resolves to two rows and refuses" do
-      assert_refused(
+      assert_shacl_refused(
         "class1_ambiguous_base_sha",
         [
           {@dogfood_base_sha,
            @dogfood_base_sha <> ~s(\n    sj:baseSha "#{String.duplicate("a", 40)}" ;)}
         ],
-        "exactly one complete scalar row"
+        "maxCount 1 violated (2 values)"
       )
     end
 
     test "class 2 duplicate identity: a second WorkOrder reusing dcterms:identifier SJ-001 refuses" do
-      assert_refused(
+      assert_shacl_refused(
         "class2_duplicate_id",
         [
           {@dogfood_close,
            @dogfood_close <>
              attack_work_order("SJ-001", "semantic-jira:v26.9.19:ATTACK-DUP", "dup")}
         ],
-        "dcterms:identifier must be unique across WorkOrders"
+        "Work order identifiers must be unique across WorkOrders."
       )
     end
 
     test "class 2 duplicate identity: two individually valid WorkOrders sharing one identifier refuse (combinational bypass)" do
       # Each added WorkOrder is individually legal (complete and well-formed);
       # only the combination - a shared identifier - is illegal.
-      assert_refused(
+      assert_shacl_refused(
         "class2_combo_duplicate_id",
         [
           {@dogfood_close,
@@ -932,53 +932,53 @@ defmodule GgenIgniter.SemanticJiraPackTest do
              attack_work_order("SJ-COMBO", "semantic-jira:v26.9.19:ATTACK-COMBO-A", "combo-a") <>
              attack_work_order("SJ-COMBO", "semantic-jira:v26.9.19:ATTACK-COMBO-B", "combo-b")}
         ],
-        "dcterms:identifier must be unique across WorkOrders"
+        "Work order identifiers must be unique across WorkOrders."
       )
     end
 
     test "class 3 exact baseSha: uppercase hex refuses (exact means exact)" do
-      assert_refused(
+      assert_shacl_refused(
         "class3_base_sha_uppercase",
         [{@dogfood_base_sha, ~s(sj:baseSha "D84DA1419A6945C6A8A64B8F6CDCA9D0B2C9E0F3" ;)}],
-        "baseSha must be an exact 40-hex commit SHA"
+        "https://ggen-igniter.dev/ontology/semantic-jira#baseSha"
       )
     end
 
     test "class 3 exact baseSha: truncated 39-hex refuses" do
-      assert_refused(
+      assert_shacl_refused(
         "class3_base_sha_truncated",
         [{@dogfood_base_sha, ~s(sj:baseSha "#{String.duplicate("d", 39)}" ;)}],
-        "baseSha must be an exact 40-hex commit SHA"
+        "https://ggen-igniter.dev/ontology/semantic-jira#baseSha"
       )
     end
 
     test "class 3 exact baseSha: extended 41-hex refuses" do
-      assert_refused(
+      assert_shacl_refused(
         "class3_base_sha_extended",
         [{@dogfood_base_sha, ~s(sj:baseSha "#{String.duplicate("d", 41)}" ;)}],
-        "baseSha must be an exact 40-hex commit SHA"
+        "https://ggen-igniter.dev/ontology/semantic-jira#baseSha"
       )
     end
 
     test "class 3 exact baseSha: leading whitespace refuses (identity smuggling)" do
-      assert_refused(
+      assert_shacl_refused(
         "class3_base_sha_whitespace",
         [{@dogfood_base_sha, ~s(sj:baseSha " #{String.duplicate("d", 40)}" ;)}],
-        "baseSha must be an exact 40-hex commit SHA"
+        "https://ggen-igniter.dev/ontology/semantic-jira#baseSha"
       )
     end
 
     test "class 4 standing vocabulary: lowercase and fabricated standings refuse" do
-      assert_refused(
+      assert_shacl_refused(
         "class4_standing_lowercase",
         [{@dogfood_standing, ~s(sj:standing "unknown" ;)}],
-        "invalid standing"
+        "https://ggen-igniter.dev/ontology/semantic-jira#standing"
       )
 
-      assert_refused(
+      assert_shacl_refused(
         "class4_standing_fabricated",
         [{@dogfood_standing, ~s(sj:standing "SUPER_ALIVE" ;)}],
-        "invalid standing"
+        "https://ggen-igniter.dev/ontology/semantic-jira#standing"
       )
     end
 
@@ -986,9 +986,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refused_empty_standing = "sj:standing \"REFUSED()\" ;"
       # The sync output surfaces refusals through an ArgumentError inspect,
       # which escapes quotes; match on the quote-free signal prefix.
-      refused_empty_signal = "invalid standing"
+      refused_empty_signal = "https://ggen-igniter.dev/ontology/semantic-jira#standing"
 
-      assert_refused(
+      assert_shacl_refused(
         "class4_standing_refused_empty",
         [{@dogfood_standing, refused_empty_standing}],
         refused_empty_signal
@@ -996,30 +996,30 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     end
 
     test "class 5 authority ceiling: MERGE and DEPLOY refuse above the CONSTRUCT boundary" do
-      assert_refused(
+      assert_shacl_refused(
         "class5_authority_merge",
         [{@dogfood_authority, ~s(sj:authorityCeiling "MERGE" ;)}],
-        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+        "https://ggen-igniter.dev/ontology/semantic-jira#authorityCeiling"
       )
 
-      assert_refused(
+      assert_shacl_refused(
         "class5_authority_deploy",
         [{@dogfood_authority, ~s(sj:authorityCeiling "DEPLOY" ;)}],
-        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+        "https://ggen-igniter.dev/ontology/semantic-jira#authorityCeiling"
       )
     end
 
     test "class 5 authority ceiling: CONSTRUCT typos and trailing whitespace refuse" do
-      assert_refused(
+      assert_shacl_refused(
         "class5_authority_typo",
         [{@dogfood_authority, ~s(sj:authorityCeiling "constrct" ;)}],
-        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+        "https://ggen-igniter.dev/ontology/semantic-jira#authorityCeiling"
       )
 
-      assert_refused(
+      assert_shacl_refused(
         "class5_authority_trailing_space",
         [{@dogfood_authority, ~s(sj:authorityCeiling "CONSTRUCT " ;)}],
-        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+        "https://ggen-igniter.dev/ontology/semantic-jira#authorityCeiling"
       )
     end
 
@@ -1032,10 +1032,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     for relation <-
           ~w(requiresCourt requiresEvidence acceptance falsifier projection nextAction nextCheckpoint) do
       test "class 6 required relation: a graph without sj:#{relation} on SJ-001 refuses" do
-        assert_refused(
+        assert_shacl_refused(
           "class6_missing_#{unquote(relation)}",
           remove_relation_mutations(unquote(relation)),
-          "missing required #{unquote(relation)} relation for SJ-001"
+          "https://ggen-igniter.dev/ontology/semantic-jira##{unquote(relation)}"
         )
       end
     end
@@ -1054,21 +1054,21 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     end
 
     test "class 7 relation target: a bare IRI target with no label or description refuses" do
-      assert_refused(
+      assert_shacl_refused(
         "class7_target_bare_iri",
         [{dogfood_falsifier_statement(), ~s(sj:falsifier sj:bare-target ;)}],
-        "lacks rdfs:label + dcterms:description"
+        "value is not an instance of https://ggen-igniter.dev/ontology/semantic-jira#Falsifier"
       )
     end
 
     test "class 7 relation target: a plain literal target refuses" do
-      assert_refused(
+      assert_shacl_refused(
         "class7_target_literal",
         [
           {~s(sj:nextAction sj:add-qualified-shacl-court ;),
            ~s(sj:nextAction sj:add-qualified-shacl-court, "just do it" ;)}
         ],
-        "for SJ-001 lacks rdfs:label + dcterms:description"
+        "value is not sh:IRI"
       )
     end
 
@@ -1076,10 +1076,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       # shapes/work-order.shacl.ttl: "ALIVE requires exact candidate/subject SHA
       # and a durable receipt." A graph claiming the strongest standing with
       # zero observed-execution evidence must not admit.
-      assert_refused(
+      assert_shacl_refused(
         "extra_alive_without_receipt_crown",
         [{@dogfood_standing, ~s(sj:standing "ALIVE" ;)}],
-        "standing ALIVE requires sj:candidateSha, sj:subjectSha, and sj:receipt evidence"
+        "ALIVE requires exact candidate/subject SHA and a durable receipt."
       )
     end
 
@@ -1105,7 +1105,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     end
 
     test "replay identity uniqueness: two valid WorkOrders sharing sj:replayIdentity refuse (SHACL uniqueness law)" do
-      assert_refused(
+      assert_shacl_refused(
         "extra_duplicate_replay_identity",
         [
           {@dogfood_close,
@@ -1113,7 +1113,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
              attack_work_order("SJ-REPL-A", "semantic-jira:v26.9.19:ATTACK-SHARED", "repl-a") <>
              attack_work_order("SJ-REPL-B", "semantic-jira:v26.9.19:ATTACK-SHARED", "repl-b")}
         ],
-        "sj:replayIdentity must be unique across WorkOrders"
+        "Replay identities must be unique across WorkOrders."
       )
     end
 
@@ -1327,6 +1327,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         sj:authorityCeiling "CONSTRUCT" ;
         sj:promotionRule "Attack row; admission must refuse." ;
         sj:replayIdentity "#{replay_identity}" ;
+        sj:pathScope "test/ggen_igniter_semantic_jira_pack_test.exs" ;
+        sj:authorityRequirement "NONE" ;
+        sj:requiresReceiptClass "verification" ;
         sj:requiresCourt sj:exact-head-projection-court ;
         sj:requiresEvidence sj:graph-receipt-evidence ;
         sj:acceptance sj:canonical-source ;
@@ -1391,13 +1394,27 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     path
   end
 
-  defp assert_refused(tag, replacements, expected_signal) do
+  defp assert_shacl_refused(tag, replacements, expected_signal) do
+    assert_refused(
+      tag,
+      replacements,
+      expected_signal,
+      "REFUSED:SEMANTIC_JIRA_SHACL"
+    )
+  end
+
+  defp assert_refused(
+         tag,
+         replacements,
+         expected_signal,
+         refusal_code \\ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
+       ) do
     work_dir = scratch_dir!(tag)
     mutated = mutate_ontology!(work_dir, tag, replacements)
     {output, exit_code} = run_sync(work_dir, ["--ontology", mutated])
 
     refute exit_code == 0, "expected refusal, got exit 0:\n#{output}"
-    assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
+    assert output =~ refusal_code
     assert output =~ expected_signal
     refute File.exists?(Path.join(work_dir, "SJ-001.md"))
 
