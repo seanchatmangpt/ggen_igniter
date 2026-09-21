@@ -732,8 +732,15 @@ defmodule GgenIgniter.SemanticJiraEventSourcingTest do
       refute report.conforms
 
       assert Enum.any?(report.violations, fn v ->
-               v.shape == "standing_transition_shape" and v.constraint == :class and
-                 v.path == @sj_base <> "transitionEvidence"
+               # Dual-path law (W7-A4): the typed-receipt requirement is a
+               # SPARQL constraint (sj:Receipt OR prov:Entity — sh:or is
+               # outside the supported surface), so the violation surfaces
+               # as :sparql with the receipt-class message; the legacy
+               # sh:class form is kept as an accepted alternative so the
+               # matcher stays honest about what it accepts.
+               (v.shape == "standing_transition_shape" and
+                  (v.constraint == :sparql and v.message =~ "typed receipt")) or
+                 (v.constraint == :class and v.path == @sj_base <> "transitionEvidence")
              end),
              "no receipt-class violation:\n#{inspect(report.violations, pretty: true)}"
     end
@@ -812,23 +819,36 @@ defmodule GgenIgniter.SemanticJiraEventSourcingTest do
       assert {:ok, kernel_projection} = SemanticJira.project_standing([first, second])
 
       # Graph side: the same manufactured events rendered into the dogfood graph.
+      # The canonical graph also carries the CROWN-001 standing chain landed by
+      # wave 6, so the SPARQL projection covers BOTH chains; the kernel/SPARQL
+      # agreement is asserted on the manufactured SJ-001 chain.
       path = ontology_with_events!("equivalence", [event_ttl(first), event_ttl(second)])
       {graph, sparql_projection} = projected_from_graph(path)
 
-      assert sparql_projection == %{"SJ-001" => "ALIVE"}
+      assert sparql_projection["SJ-001"] == "ALIVE"
+      assert sparql_projection["CROWN-001"] == "ALIVE"
 
-      assert sparql_projection ==
-               Map.new(kernel_projection, fn {id, standing} -> {id, standing} end)
+      assert Map.new(kernel_projection, fn {id, standing} -> {id, standing} end) ==
+               Map.take(sparql_projection, Map.keys(kernel_projection))
 
       # The transitioned work order left the frontier.
       frontier_ids = graph |> run_gate("050_frontier") |> Enum.map(& &1["id"])
       refute "SJ-001" in frontier_ids
+      refute "CROWN-001" in frontier_ids
 
-      # Canonical graph: no transitions, SJ-001 stays frontier-eligible and
-      # the projection gate returns no rows.
+      # Canonical graph: the dogfood SJ-001 stays transition-free (its
+      # projection falls back to the declared standing), while the landed
+      # CROWN-001 chain projects ALIVE.
       canonical = Ontology.load!(@ontology_path)
       assert "SJ-001" in (canonical |> run_gate("050_frontier") |> Enum.map(& &1["id"]))
-      assert run_gate(canonical, "055_standing_projection") == []
+
+      assert canonical
+             |> run_gate("055_standing_projection")
+             |> Enum.any?(&(&1["id"] == "CROWN-001" and &1["projected"] == "ALIVE"))
+
+      refute canonical
+             |> run_gate("055_standing_projection")
+             |> Enum.any?(&(&1["id"] == "SJ-001"))
     end
 
     test "the jira projection renders the projected standing and refuses forked chains" do

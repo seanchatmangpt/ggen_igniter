@@ -1,5 +1,7 @@
 @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix oslc_cm: <http://open-services.net/ns/cm#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -10,14 +12,24 @@
 # constraints). Unsupported constructs fail closed there; this file must stay
 # inside the supported surface: minCount/maxCount, nodeKind, datatype,
 # pattern (flag i), minLength/maxLength, hasValue, class, closed,
-# ignoredProperties, and SELECT-only sh:sparql constraints.
+# ignoredProperties, targetSubjectsOf, and SELECT-only sh:sparql constraints.
 # sh:sparql constraint queries express absence checks with
 # OPTIONAL + FILTER(!BOUND()) because the admitted sparql engine (0.3.12)
 # parses EXISTS/NOT EXISTS filter forms to an unsupported `:"$undefined"`
 # expression (measured 2026-09-19); OPTIONAL/BOUND is equivalent and executes.
+#
+# DUAL-PATH LAW (v26.9.19 W7-A4 vocabulary reduction, see VOCABULARY.md):
+# carried facts are dual-asserted (sj: + public terms). Shapes target BOTH
+# typings (sj:WorkOrder / oslc_cm:ChangeRequest; sj:Receipt / prov:Entity;
+# sj:StandingTransition / subjects of the residue anchor sj:transitionId) and
+# every cross-reference law accepts either form — so a PUBLIC-ONLY graph
+# (carried facts asserted only via public terms) and a legacy sj-only graph
+# both admit. This widens TARGETING, never the law itself: every constraint
+# that applied to the sj-typed form applies verbatim to the public form, and
+# the closed-shape refusals are unchanged.
 
 sj:WorkOrderShape a sh:NodeShape ;
-    sh:targetClass sj:WorkOrder ;
+    sh:targetClass sj:WorkOrder, oslc_cm:ChangeRequest ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type rdfs:label ) ;
     sh:property [ sh:path dcterms:identifier ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Z][A-Z0-9-]{1,63}$" ] ;
@@ -53,18 +65,37 @@ sj:WorkOrderShape a sh:NodeShape ;
     # RDF-side definition). Deliberately NO sh:minCount: rows without it stay
     # lawful, transitions always bind it on the event instead.
     sh:property [ sh:path sj:definitionDigest ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
-    sh:property [ sh:path sj:receipt ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Receipt ] ;
+    sh:property [ sh:path sj:receipt ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
     sh:property [ sh:path sj:authority ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
     sh:property [ sh:path sj:lease ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
     sh:property [ sh:path sj:worker ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    # Dual-path resolution: the bound receipt must be sj:Receipt OR
+    # prov:Entity typed (sh:or is outside the supported surface).
     sh:sparql [
-      sh:message "Work order identifiers must be unique across WorkOrders." ;
+      sh:message "A bound sj:receipt must resolve to a typed receipt (sj:Receipt or prov:Entity)." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX prov: <http://www.w3.org/ns/prov#>
+        SELECT $this WHERE {
+          $this sj:receipt ?boundReceipt .
+          OPTIONAL {
+            ?boundReceipt a ?receiptType .
+            FILTER(?receiptType = sj:Receipt || ?receiptType = prov:Entity)
+          }
+          FILTER(!BOUND(?receiptType))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Work order identifiers must be unique across WorkOrders (sj:WorkOrder or oslc_cm:ChangeRequest typed)." ;
       sh:select """
         PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
         PREFIX dcterms: <http://purl.org/dc/terms/>
+        PREFIX oslc_cm: <http://open-services.net/ns/cm#>
         SELECT $this WHERE {
           $this dcterms:identifier ?id .
-          ?other a sj:WorkOrder ; dcterms:identifier ?id .
+          { ?other a sj:WorkOrder } UNION { ?other a oslc_cm:ChangeRequest }
+          ?other dcterms:identifier ?id .
           FILTER(?other != $this)
         }
       """
@@ -97,12 +128,14 @@ sj:WorkOrderShape a sh:NodeShape ;
       """
     ] ;
     sh:sparql [
-      sh:message "Replay identities must be unique across WorkOrders." ;
+      sh:message "Replay identities must be unique across WorkOrders (sj:WorkOrder or oslc_cm:ChangeRequest typed)." ;
       sh:select """
         PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX oslc_cm: <http://open-services.net/ns/cm#>
         SELECT $this WHERE {
           $this sj:replayIdentity ?id .
-          ?other a sj:WorkOrder ; sj:replayIdentity ?id .
+          { ?other a sj:WorkOrder } UNION { ?other a oslc_cm:ChangeRequest }
+          ?other sj:replayIdentity ?id .
           FILTER(?other != $this)
         }
       """
@@ -111,7 +144,26 @@ sj:WorkOrderShape a sh:NodeShape ;
 sj:DependencyEdgeShape a sh:NodeShape ;
     sh:targetClass sj:DependencyEdge ;
     sh:property [ sh:path sj:dependencyType ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^requires(SemanticIdentity|Projection|Capability|Receipt|Runtime|Verifier|Observation|Postcondition|Publication)$" ] ;
-    sh:property [ sh:path sj:upstreamWorkOrder ; sh:minCount 1 ; sh:maxCount 1 ; sh:class sj:WorkOrder ] .
+    # Dual-path resolution (sh:or is outside the supported surface, so the
+    # upstream-must-be-a-work-order law is a SPARQL constraint accepting
+    # either typing): the upstream must be sj:WorkOrder OR
+    # oslc_cm:ChangeRequest typed.
+    sh:property [ sh:path sj:upstreamWorkOrder ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:sparql [
+      sh:message "Dependency upstream must resolve to a work order (sj:WorkOrder or oslc_cm:ChangeRequest typed)." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX oslc_cm: <http://open-services.net/ns/cm#>
+        SELECT $this WHERE {
+          $this sj:upstreamWorkOrder ?upstream .
+          OPTIONAL {
+            ?upstream a ?woType .
+            FILTER(?woType = sj:WorkOrder || ?woType = oslc_cm:ChangeRequest)
+          }
+          FILTER(!BOUND(?woType))
+        }
+      """
+    ] .
 
 sj:ProjectionAuthorityShape a sh:NodeShape ;
     sh:targetClass sj:ProjectionSpec ;
@@ -135,18 +187,48 @@ sj:PredictionShape a sh:NodeShape ;
 # fromStanding to the work order's declared standing (first event) or an
 # earlier event's toStanding (progression), so a projection can be
 # reconstructed from the events alone.
+#
+# Dual-path targeting (v26.9.19 W7-A4): sj:StandingTransition typed OR any
+# subject of the residue anchor sj:transitionId. Targeting prov:Activity
+# instead would over-target the provenance-only fabric/worker run
+# Activities, which carry no transition fields — see VOCABULARY.md.
+# The carried public predicates (prov:used, prov:wasAssociatedWith,
+# dcterms:title) are constrained when present: prov:used must point at a
+# prov:Entity and wasAssociatedWith at a prov:Agent, so carrying the public
+# relation while refusing the public typing on the target is a violation.
 sj:StandingTransitionShape a sh:NodeShape ;
     sh:targetClass sj:StandingTransition ;
+    sh:targetSubjectsOf sj:transitionId ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type rdfs:label ) ;
     sh:property [ sh:path sj:transitionId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
-    sh:property [ sh:path sj:transitionWorkOrder ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:WorkOrder ] ;
+    sh:property [ sh:path sj:transitionWorkOrder ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
     sh:property [ sh:path sj:fromStanding ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$" ] ;
     sh:property [ sh:path sj:toStanding ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$" ] ;
-    sh:property [ sh:path sj:transitionEvidence ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Receipt ] ;
+    sh:property [ sh:path sj:transitionEvidence ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
     sh:property [ sh:path sj:finalHead ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
     sh:property [ sh:path sj:definitionDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
     sh:property [ sh:path sj:snapshotDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path prov:used ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class prov:Entity ] ;
+    sh:property [ sh:path prov:wasAssociatedWith ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class prov:Agent ] ;
+    sh:property [ sh:path dcterms:title ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    # Dual-path resolution: the transition evidence must be a typed receipt
+    # (sj:Receipt OR prov:Entity — sh:or is outside the supported surface).
+    sh:sparql [
+      sh:message "Transition evidence must resolve to a typed receipt (sj:Receipt or prov:Entity)." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX prov: <http://www.w3.org/ns/prov#>
+        SELECT $this WHERE {
+          $this sj:transitionEvidence ?evidence .
+          OPTIONAL {
+            ?evidence a ?evidenceType .
+            FILTER(?evidenceType = sj:Receipt || ?evidenceType = prov:Entity)
+          }
+          FILTER(!BOUND(?evidenceType))
+        }
+      """
+    ] ;
     sh:sparql [
       sh:message "Standing transition is ambiguous or skips explicit progression." ;
       sh:select """
@@ -163,7 +245,7 @@ sj:StandingTransitionShape a sh:NodeShape ;
         PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
         SELECT $this WHERE {
           $this sj:transitionId ?id .
-          ?other a sj:StandingTransition ; sj:transitionId ?id .
+          ?other sj:transitionId ?id .
           FILTER(?other != $this)
         }
       """
@@ -172,15 +254,32 @@ sj:StandingTransitionShape a sh:NodeShape ;
       sh:message "Every standing transition's fromStanding must equal the work order's declared standing or an earlier event's toStanding (reconstructable append-only chain)." ;
       sh:select """
         PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX oslc_cm: <http://open-services.net/ns/cm#>
         SELECT $this WHERE {
           $this sj:transitionWorkOrder ?wo ; sj:fromStanding ?from .
-          ?wo a sj:WorkOrder ; sj:standing ?declared .
+          { ?wo a sj:WorkOrder } UNION { ?wo a oslc_cm:ChangeRequest }
+          ?wo sj:standing ?declared .
           FILTER(?from != ?declared)
           MINUS {
-            ?earlier a sj:StandingTransition ;
+            ?earlier sj:transitionId ?earlierId ;
                      sj:transitionWorkOrder ?wo ;
                      sj:toStanding ?from .
           }
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Standing transition must bind a lawful work order (sj:WorkOrder or oslc_cm:ChangeRequest typed)." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX oslc_cm: <http://open-services.net/ns/cm#>
+        SELECT $this WHERE {
+          $this sj:transitionWorkOrder ?wo .
+          OPTIONAL {
+            ?wo a ?woType .
+            FILTER(?woType = sj:WorkOrder || ?woType = oslc_cm:ChangeRequest)
+          }
+          FILTER(!BOUND(?woType))
         }
       """
     ] .
@@ -211,28 +310,36 @@ sj:LeaseRequestShape a sh:NodeShape ;
       """
     ] .
 
+# Dual-path targeting (v26.9.19 W7-A4): sj:Receipt typed OR prov:Entity
+# typed. The carried public predicates are constrained when present:
+# prov:wasGeneratedBy must point at a prov:Activity, so a receipt cannot
+# carry the public generation relation while its generator is untyped.
 sj:ReceiptShape a sh:NodeShape ;
-    sh:targetClass sj:Receipt ;
+    sh:targetClass sj:Receipt, prov:Entity ;
     sh:property [ sh:path sj:workOrderDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
     sh:property [ sh:path sj:repository ; sh:minCount 1 ; sh:maxCount 1 ] ;
     sh:property [ sh:path sj:baseSha ; sh:minCount 1 ; sh:maxCount 1 ; sh:pattern "^[0-9a-f]{40}$" ] ;
     sh:property [ sh:path sj:subjectSha ; sh:minCount 1 ; sh:maxCount 1 ; sh:pattern "^[0-9a-f]{40}$" ] ;
     sh:property [ sh:path sj:replayIdentity ; sh:minCount 1 ; sh:maxCount 1 ] ;
-    sh:property [ sh:path sj:receiptClass ; sh:minCount 1 ; sh:maxCount 1 ] .
+    sh:property [ sh:path sj:receiptClass ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path prov:wasGeneratedBy ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class prov:Activity ] ;
+    sh:property [ sh:path dcterms:title ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] .
 
 sj:GlobalIntegrityShape a sh:NodeShape ;
-    sh:targetClass sj:WorkOrder ;
+    sh:targetClass sj:WorkOrder, oslc_cm:ChangeRequest ;
     sh:sparql [
-      sh:message "Dependency identities must resolve to typed edges and upstream WorkOrders." ;
+      sh:message "Dependency identities must resolve to typed edges and upstream WorkOrders (sj:WorkOrder or oslc_cm:ChangeRequest typed)." ;
       sh:select """
         PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX oslc_cm: <http://open-services.net/ns/cm#>
         SELECT $this WHERE {
           $this sj:dependsOn ?edge .
           OPTIONAL {
             ?edge a sj:DependencyEdge ; sj:upstreamWorkOrder ?upstream .
-            ?upstream a sj:WorkOrder .
+            ?upstream a ?woType .
+            FILTER(?woType = sj:WorkOrder || ?woType = oslc_cm:ChangeRequest)
           }
-          FILTER(!BOUND(?upstream))
+          FILTER(!BOUND(?woType))
         }
       """
     ] ;
@@ -240,10 +347,15 @@ sj:GlobalIntegrityShape a sh:NodeShape ;
       sh:message "ALIVE requires an independent court and durable receipt." ;
       sh:select """
         PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX prov: <http://www.w3.org/ns/prov#>
         SELECT $this WHERE {
           $this sj:standing "ALIVE" .
           OPTIONAL { $this sj:requiresCourt ?court . ?court a sj:Court . }
-          OPTIONAL { $this sj:receipt ?receipt2 . ?receipt2 a sj:Receipt . }
+          OPTIONAL {
+            $this sj:receipt ?receipt2 .
+            ?receipt2 a ?receiptType .
+            FILTER(?receiptType = sj:Receipt || ?receiptType = prov:Entity)
+          }
           FILTER(!BOUND(?court) || !BOUND(?receipt2))
         }
       """

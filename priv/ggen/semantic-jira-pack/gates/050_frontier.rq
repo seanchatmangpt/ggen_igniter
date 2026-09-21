@@ -12,12 +12,17 @@
 # same work, even while its declared sj:standing row still reads UNKNOWN.
 # (A chain tip is an event whose toStanding is not any other event's
 # fromStanding for the same work order; see 055_standing_projection.rq.)
+# Dual-path (W7-A4): work orders are sj:WorkOrder OR oslc_cm:ChangeRequest
+# typed; transitions are located through the residue anchor sj:transitionId
+# (present on every lawful transition in legacy, dual, and public-only
+# graphs — see VOCABULARY.md). Nested MINUS blocks stay UNION-free on purpose.
 # Guarded by GgenIgniter.SemanticJiraPackTest "every pack gate executes".
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX oslc_cm: <http://open-services.net/ns/cm#>
 SELECT DISTINCT ?work_order ?id ?title ?repository ?base_sha ?subject ?evidence_ceiling WHERE {
-  ?work_order a sj:WorkOrder ;
-              dcterms:identifier ?id ;
+  { ?work_order a sj:WorkOrder } UNION { ?work_order a oslc_cm:ChangeRequest }
+  ?work_order dcterms:identifier ?id ;
               dcterms:title ?title ;
               sj:repository ?repository ;
               sj:baseSha ?base_sha ;
@@ -31,12 +36,12 @@ SELECT DISTINCT ?work_order ?id ?title ?repository ?base_sha ?subject ?evidence_
     MINUS { ?upstream sj:standing ?required }
   }
   MINUS {
-    ?tip a sj:StandingTransition ;
+    ?tip sj:transitionId ?tipId ;
          sj:transitionWorkOrder ?work_order ;
          sj:toStanding ?projected .
     FILTER(?projected != "UNKNOWN")
     MINUS {
-      ?follower a sj:StandingTransition ;
+      ?follower sj:transitionId ?followerId ;
                 sj:transitionWorkOrder ?work_order ;
                 sj:fromStanding ?projected .
     }

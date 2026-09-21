@@ -52,6 +52,16 @@ defmodule GgenIgniter.SemanticJira do
   # attempt), dimensions (mutable observation flags), and the admission stamps
   # (admitted, authority) plus every derived digest. A promotion therefore
   # moves work_order_digest while definition_digest stays fixed.
+  #
+  # DIGEST STABILITY UNDER THE PUBLIC VOCABULARY CARRY (v26.9.19 W7-A4, see
+  # priv/ggen/semantic-jira-pack/VOCABULARY.md): this list is a CLOSED take
+  # (Map.take/2), so the OSLC CM 3.0 / PROV-O dual-assertions (`rdf:type
+  # oslc_cm:ChangeRequest`, `prov:used`, `prov:wasAssociatedWith`,
+  # `prov:wasGeneratedBy`, dcterms title mirrors on receipts/events) can never
+  # enter the definition digest — there is no field they could occupy. Adding
+  # a public triple to a work order leaves its definition digest byte-identical;
+  # changing a residue/identity fact moves it exactly as this field set dictates.
+  # Proven both ways by ggen_igniter_semantic_jira_vocabulary_test.exs.
   @definition_fields ~w(identity title description subject repository base_sha evidence_ceiling authority_requirement promotion_rule replay_identity replay_required dependencies required_courts required_evidence required_receipt_classes acceptance falsifiers projections path_scope)
 
   @required ~w(identity title description subject repository base_sha standing evidence_ceiling promotion_rule replay_identity required_courts required_evidence acceptance falsifiers projections)

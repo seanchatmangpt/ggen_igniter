@@ -107,7 +107,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -200,7 +200,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.prd.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.prd.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.prd.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.prd.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -288,7 +288,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.hddl"))
       assert File.exists?(Path.join(work_dir, "GALL-032.hddl"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.hddl"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.hddl"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -356,7 +356,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert exit_code == 0, "HDDL sync failed:\n#{output}"
 
       paths = Path.wildcard(Path.join(work_dir, "*.hddl"))
-      assert length(paths) == 33
+      assert length(paths) == 35
 
       for path <- paths do
         id = Path.basename(path, ".hddl")
@@ -451,7 +451,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       # One WorkOrder object per canonical WorkOrder, boundary attributes bound.
       work_order_objects = Enum.filter(objects, &(&1["ocel:type"] == "WorkOrder"))
-      assert length(work_order_objects) == 33
+      assert length(work_order_objects) == 35
 
       object_ids = Enum.map(objects, & &1["ocel:id"])
       assert length(object_ids) == length(Enum.uniq(object_ids))
@@ -577,7 +577,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.ard.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.ard.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.ard.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.ard.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -697,7 +697,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.wbpr.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.wbpr.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.wbpr.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.wbpr.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -970,7 +970,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.vision.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.vision.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.vision.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.vision.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -1420,11 +1420,35 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     # reachable from HEAD (witnessed before these tests existed:
     # `git cat-file -e d84da141...^{commit}` -> 0 and
     # `git merge-base --is-ancestor d84da141... HEAD` -> 0).
+    #
+    # The two --verify-base-sha (verify-EVERY-row) tests run against the
+    # PRE-CROWN baseline graph: the wave-6 CROWN-001/002 rows are sensed
+    # `local/eds` work whose baseSha (b40964e7...) is by construction NOT a
+    # commit of this repository, so flag-on verification over the full
+    # canonical graph REFUSES here -- the documented opt-in default holding
+    # exactly as designed. The honest-pass and forged-refusal properties are
+    # therefore proven over the same verifiable row set these tests were
+    # written against (SJ-001 + GALL-001..032, 33 rows).
+
+    defp pre_crown_baseline_ontology!(work_dir, tag) do
+      path = Path.join(work_dir, "#{tag}.ttl")
+      File.write!(path, pre_crown_baseline_text())
+      path
+    end
+
+    defp pre_crown_baseline_text do
+      @ontology_path
+      |> File.read!()
+      |> String.split("# ── W6-A8 crown: closed-loop manufactured work orders")
+      |> List.first()
+    end
 
     test "flag on over the honest graph manufactures (honest-pass side)" do
       work_dir = scratch_dir!("git_truth_honest")
+      baseline = pre_crown_baseline_ontology!(work_dir, "git-truth-honest")
 
-      {output, exit_code} = run_sync(work_dir, ["--verify-base-sha"])
+      {output, exit_code} =
+        run_sync(work_dir, ["--ontology", baseline, "--verify-base-sha"])
 
       assert exit_code == 0, "git-ground-truth honest sync failed:\n#{output}"
       assert File.exists?(Path.join(work_dir, "SJ-001.md"))
@@ -1433,11 +1457,27 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
     end
 
+    test "flag on over the full canonical graph refuses the foreign crown baseSha (verifier honesty)" do
+      # CROWN-001/002 carry the sensed local/eds head as baseSha; verify-every
+      # must refuse it in this checkout, never silently pass a foreign SHA.
+      work_dir = scratch_dir!("git_truth_crown_foreign")
+
+      {output, exit_code} = run_sync(work_dir, ["--verify-base-sha"])
+
+      refute exit_code == 0, "expected foreign-baseSha refusal, got exit 0:\n#{output}"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED"
+
+      assert output =~
+               "baseSha b40964e70a8f87296fe7d69bad999aad02e06f19 is not a commit reachable in"
+
+      assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+    end
+
     test "flag on over a forged-but-well-formed 40-hex baseSha refuses before any actuation" do
       work_dir = scratch_dir!("git_truth_forged")
 
       mutated =
-        mutate_ontology!(work_dir, "git-truth-forged", [
+        mutate_ontology_from!(work_dir, "git-truth-forged", pre_crown_baseline_text(), [
           # Format-valid (40-hex) but not a commit in any checkout: exactly
           # the residual_base_sha_wrong_commit attack shape.
           {@dogfood_base_sha, ~s(sj:baseSha "#{String.duplicate("d", 40)}" ;)}
@@ -1463,7 +1503,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       {output, exit_code} = run_sync(work_dir)
 
       assert exit_code == 0, "flag-off honest sync failed:\n#{output}"
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
     end
 
     test "flag on with a non-git --verify-cwd refuses cleanly, not a crash" do
@@ -1516,7 +1556,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       assert exit_code == 0, "per-order git-ground-truth control failed:\n#{output}"
       assert File.exists?(Path.join(work_dir, "SJ-001.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
     end
   end
 
@@ -1588,16 +1628,20 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   defp mutate_ontology!(work_dir, tag, replacements) do
+    mutate_ontology_from!(work_dir, tag, File.read!(@ontology_path), replacements)
+  end
+
+  defp mutate_ontology_from!(work_dir, tag, source, replacements) do
     path = Path.join(work_dir, "#{tag}.ttl")
 
     mutated =
-      Enum.reduce(replacements, File.read!(@ontology_path), fn {find, replace}, acc ->
+      Enum.reduce(replacements, source, fn {find, replace}, acc ->
         String.replace(acc, find, replace, global: false)
       end)
 
     # Every mutation must actually change the graph; a no-op mutation would
     # fabricate a rejection signal.
-    refute mutated == File.read!(@ontology_path)
+    refute mutated == source
     File.write!(path, mutated)
     path
   end

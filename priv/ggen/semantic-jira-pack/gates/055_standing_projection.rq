@@ -12,17 +12,23 @@
 # silently picking a branch. Guarded by GgenIgniter.SemanticJiraPackTest
 # "every pack gate executes" and the event-sourcing suite's kernel-vs-SPARQL
 # equivalence proof.
+# Dual-path (W7-A4): work orders are sj:WorkOrder OR oslc_cm:ChangeRequest
+# typed; transitions are located through the residue anchor sj:transitionId
+# (present on every lawful transition in legacy, dual, and public-only
+# graphs — see VOCABULARY.md dual-typing law #3). DISTINCT collapses
+# dual-typed rows.
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
-SELECT ?work_order ?id ?declared ?projected WHERE {
-  ?work_order a sj:WorkOrder ;
-              dcterms:identifier ?id ;
+PREFIX oslc_cm: <http://open-services.net/ns/cm#>
+SELECT DISTINCT ?work_order ?id ?declared ?projected WHERE {
+  { ?work_order a sj:WorkOrder } UNION { ?work_order a oslc_cm:ChangeRequest }
+  ?work_order dcterms:identifier ?id ;
               sj:standing ?declared .
-  ?tip a sj:StandingTransition ;
+  ?tip sj:transitionId ?tipId ;
        sj:transitionWorkOrder ?work_order ;
        sj:toStanding ?projected .
   MINUS {
-    ?follower a sj:StandingTransition ;
+    ?follower sj:transitionId ?followerId ;
               sj:transitionWorkOrder ?work_order ;
               sj:fromStanding ?projected .
   }

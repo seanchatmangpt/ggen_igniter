@@ -207,7 +207,10 @@ defmodule GgenIgniter.CrownTest do
       assert transition =~ "sj:toStanding \"ALIVE\""
 
       final_path =
-        Path.join(System.tmp_dir!(), "crown-graph-events-#{System.unique_integer([:positive])}.ttl")
+        Path.join(
+          System.tmp_dir!(),
+          "crown-graph-events-#{System.unique_integer([:positive])}.ttl"
+        )
 
       # The declared standing stays UNKNOWN; the events project the tip.
       File.write!(final_path, File.read!(path) <> transition)
