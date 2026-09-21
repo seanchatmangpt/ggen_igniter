@@ -12,9 +12,29 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterTest do
 
   alias GgenIgniter.{Digest, Receipt, SemanticJira}
   alias GgenIgniter.SemanticJira.{ReceiptEmitter, Reconciler, TransitionLog}
+  alias GgenIgniter.TestSupport.SubjectRepo
 
-  @sha String.duplicate("a", 40)
   @digest "sha256:" <> String.duplicate("c", 64)
+
+  # A real git repository (real commits) is the WorkOrder subject: ALIVE needs a
+  # run against a checkout of the WorkOrder's exact commit, see the emitter's
+  # moduledoc.
+  setup_all do
+    dir = Path.join(System.tmp_dir!(), "sj_emit_subject_#{System.unique_integer([:positive])}")
+    subject = SubjectRepo.create!(dir)
+    :persistent_term.put({__MODULE__, :subject}, subject)
+    on_exit(fn -> File.rm_rf!(dir) end)
+    :ok
+  end
+
+  defp subject, do: :persistent_term.get({__MODULE__, :subject})
+
+  # The WorkOrder pins its acceptance command (part of its definition digest).
+  defp pinned(work_order, argv, expect_exit \\ 0) do
+    Map.put(work_order, "expected_consequence", %{
+      "commands" => [%{"argv" => argv, "expect_exit" => expect_exit}]
+    })
+  end
 
   defp wo(id, overrides \\ %{}) do
     Map.merge(
@@ -24,7 +44,7 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterTest do
         "description" => "d",
         "subject" => "subj-#{id}",
         "repository" => "o/r",
-        "base_sha" => @sha,
+        "base_sha" => subject().sha,
         "standing" => "UNKNOWN",
         "evidence_ceiling" => "observed",
         "promotion_rule" => "all_courts",
@@ -75,17 +95,17 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterTest do
   describe "emit/4 + Reconciler.reconcile/4 (end to end)" do
     test "admit -> real command -> sealed receipt -> reconcile -> transition logged -> dependent eligible",
          %{log: log} do
-      root = wo("ROOT")
-      b = wo("B", %{"dependencies" => [dep("ROOT")]})
+      root_argv = ["sh", "-c", "cat marker.txt > out.txt; printf built"]
+      b_argv = ["sh", "-c", "exit 0"]
+      root = "ROOT" |> wo() |> pinned(root_argv)
+      b = "B" |> wo(%{"dependencies" => [dep("ROOT")]}) |> pinned(b_argv)
       graph = [root, b]
 
       assert %{eligible: [%{"identity" => "ROOT"}], blocked: [%{"identity" => "B"}]} =
                SemanticJira.frontier_from_events(graph, TransitionLog.read(log))
 
       receipt =
-        emit_ok(root, ["sh", "-c", "printf 'hello\\n' > out.txt; printf built"],
-          watch: ["out.txt"]
-        )
+        emit_ok(root, root_argv, watch: ["out.txt"], subject_source: subject().path)
 
       # identity
       {:ok, definition_digest} = SemanticJira.definition_digest(root)
@@ -109,13 +129,26 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterTest do
       assert step["stdout_digest"] == Digest.sha256("built")
       assert step["stderr_digest"] == Digest.sha256("")
 
+      # the command ran against a checkout of the WorkOrder's exact commit
       assert [%{"path" => "out.txt", "before" => "absent", "changed" => true} = file] = c["files"]
-      assert file["after"] == Digest.sha256("hello\n")
-      assert c["portable_files_digest"] == Receipt.hash_entries([{"out.txt", "hello\n"}])
+      assert file["after"] == Digest.sha256("subject-head\n")
+      assert c["portable_files_digest"] == Receipt.hash_entries([{"out.txt", "subject-head\n"}])
+
+      assert %{"bound" => true, "sha" => sha, "tree" => tree} = c["subject"]
+      assert sha == subject().sha
+      assert tree == subject().tree
+
+      assert receipt["evidence"]["binding"] == %{
+               "subject" => true,
+               "commands_pinned" => true,
+               "authority" => true
+             }
+
       assert "sha256:" <> _ = c["files_after_digest"]
 
       # replay data and standing (proposal only)
-      assert receipt["replay"]["plan"]["steps"] |> hd() |> Map.fetch!("argv") |> hd() == "sh"
+      assert receipt["replay"]["plan"]["steps"] |> hd() |> Map.fetch!("argv") == root_argv
+      assert receipt["replay"]["plan"]["subject_source"] == subject().path
       assert receipt["replay"]["toolchain_identity"] =~ "elixir:"
 
       assert receipt["standing"] == %{
@@ -146,7 +179,7 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterTest do
       assert Enum.map(front.eligible, & &1["identity"]) == ["B"]
 
       # dependent runs its own real command and transitions
-      b_receipt = emit_ok(b, ["sh", "-c", "exit 0"])
+      b_receipt = emit_ok(b, b_argv, subject_source: subject().path)
       assert {:ok, _, :appended} = Reconciler.reconcile(b, b_receipt, log, require_sealed: true)
 
       {projected, _} = SemanticJira.project(graph, TransitionLog.read(log))
@@ -548,14 +581,32 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterTest do
 
       refute File.exists?(marker)
 
-      assert {:ok, receipt} =
+      # No verifier: the prepared receipt is recorded, but it is a claim, not
+      # evidence (see test/ggen_igniter_semantic_jira_receipt_emitter_binding_test.exs).
+      assert {:ok, unverified} =
                ReceiptEmitter.emit_command(root, package(root), ["sh", "-c", "exit 0"],
                  authority_receipt: prepared
+               )
+
+      assert unverified["authority"]["level"] == "NONE"
+      assert unverified["authority"]["verified"] == false
+      refute Map.has_key?(unverified["evidence"], "authority_receipt")
+
+      # The caller's verifier is the trust anchor: with it the receipt attests it.
+      verifier = fn receipt, _admitted ->
+        if receipt["authority_identity"] == "authority:1", do: :ok, else: {:error, :unknown}
+      end
+
+      assert {:ok, receipt} =
+               ReceiptEmitter.emit_command(root, package(root), ["sh", "-c", "exit 0"],
+                 authority_receipt: prepared,
+                 authority_verifier: verifier
                )
 
       # the emitter attests a prepared authority; it never grants any
       assert receipt["authority"]["level"] == "NONE"
       assert receipt["authority"]["requirement"] == "repo-write"
+      assert receipt["authority"]["verified"] == true
       assert receipt["authority"]["prepared_receipt"]["authority_identity"] == "authority:1"
       assert receipt["evidence"]["authority_receipt"]["status"] == "prepared"
     end
@@ -564,13 +615,14 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterTest do
   describe "evidence ceiling" do
     test "a local run cannot attest a hosted-ci ceiling: proposes PARTIAL_ALIVE; forcing ALIVE is refused",
          %{log: log} do
-      root = wo("ROOT", %{"evidence_ceiling" => "hosted-ci"})
-      receipt = emit_ok(root, ["sh", "-c", "exit 0"])
+      argv = ["sh", "-c", "exit 0"]
+      root = "ROOT" |> wo(%{"evidence_ceiling" => "hosted-ci"}) |> pinned(argv)
+      receipt = emit_ok(root, argv, subject_source: subject().path)
 
       assert receipt["target"] == "PARTIAL_ALIVE"
       assert receipt["evidence"]["evidence_ceiling"] == "observed"
 
-      forced = emit_ok(root, ["sh", "-c", "exit 0"], target: "ALIVE")
+      forced = emit_ok(root, argv, target: "ALIVE", subject_source: subject().path)
 
       assert {:error, {:refused, {:promotion_refused, [:ceiling]}}} =
                Reconciler.reconcile(root, forced, log)
@@ -584,10 +636,10 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterTest do
 
   describe "replay" do
     test "deterministic plan replays inline; the receipt records the replay verdict", %{log: log} do
-      root = wo("ROOT", %{"replay_required" => true})
+      argv = ["sh", "-c", "cat marker.txt > out.txt; printf stable"]
+      root = "ROOT" |> wo(%{"replay_required" => true}) |> pinned(argv)
 
-      receipt =
-        emit_ok(root, ["sh", "-c", "printf stable > out.txt; printf stable"], watch: ["out.txt"])
+      receipt = emit_ok(root, argv, watch: ["out.txt"], subject_source: subject().path)
 
       assert receipt["replay"]["requested"] == true
       assert receipt["replay"]["passed"] == true
@@ -655,6 +707,7 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterTest do
         end)
 
       comparable = %{
+        "subject" => Map.take(real["consequence"]["subject"], ~w(bound sha tree)),
         "steps" =>
           Enum.map(
             forged_steps,

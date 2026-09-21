@@ -27,6 +27,12 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
       (`:seal_mismatch`), a derived field (per-step `passed`, `success`,
       `exit_code`, `evidence`) does not re-derive from the consequence, or the
       requirements do not match the WorkOrder (`ReceiptEmitter.verify/2`).
+    * `{:refused, {:receipt_invalid, :stripped_seal}}` -- the receipt carries
+      emitter-only sections (`consequence`, `stages`, `replay`, `requirements`,
+      `identity`, `emitted_by`, `emitted_at`, `receipt_class`) but neither
+      `"kind"` nor `"receipt_digest"`: an emitted receipt whose seal was deleted
+      to make it look hand-built. Deleting the two trigger fields never
+      downgrades a receipt out of verification.
     * `{:refused, {:non_success_receipt, exit_code}}` -- a valid receipt of a run
       that did not succeed never transitions standing.
 
@@ -34,7 +40,10 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
 
     * `require_sealed: true` -- refuse any receipt that is not an emitted,
       verified one (`{:refused, :unsealed_receipt}`): caller-supplied receipts
-      are eliminated for this call.
+      are eliminated for this call. Without it, a hand-built receipt that has
+      NONE of the emitter's sections is still admitted (it is structurally
+      identical to the pre-emitter caller-supplied shape); only this option
+      closes that path.
     * `replay_plan: plan` -- additionally re-run the caller-TRUSTED `plan` (its
       digest must equal the receipt's `replay.plan_digest`) and refuse with
       `{:refused, {:replay_refused, reason}}` when the fresh consequence differs.
@@ -45,6 +54,10 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
 
   alias GgenIgniter.SemanticJira
   alias GgenIgniter.SemanticJira.{ReceiptEmitter, TransitionLog}
+
+  # Sections only `ReceiptEmitter` produces. A hand-built receipt (definition
+  # digest, snapshot digest, target, candidate sha, evidence) has none of them.
+  @emitter_only_keys ~w(emitted_by emitted_at receipt_class consequence replay stages requirements identity)
 
   @spec reconcile(map(), map(), Path.t(), keyword()) ::
           {:ok, map(), :appended | :already_recorded} | {:error, {:refused, term()}}
@@ -108,6 +121,9 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
           verify_replay(receipt, work_order, opts)
         end
 
+      emitter_shaped?(receipt) ->
+        {:error, {:refused, {:receipt_invalid, :stripped_seal}}}
+
       Keyword.get(opts, :require_sealed, false) ->
         {:error, {:refused, :unsealed_receipt}}
 
@@ -115,6 +131,8 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
         :ok
     end
   end
+
+  defp emitter_shaped?(receipt), do: Enum.any?(@emitter_only_keys, &Map.has_key?(receipt, &1))
 
   defp verify_replay(receipt, work_order, opts) do
     case Keyword.fetch(opts, :replay_plan) do

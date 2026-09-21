@@ -10,22 +10,34 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
   marked in every receipt's `"stages"` ledger as `executed`, `skipped` or
   `UNSUPPORTED(...)`, never narrated:
 
-    * parse: `normalize_plan/2` (steps, seed files, watched files) -- executed.
+    * parse: `normalize_plan/2` (steps, seed files, watched files, optional
+      subject source) -- executed.
     * route: UNSUPPORTED(single-route) -- one route only, local `sh` subprocess.
-    * admit/refuse: `emit/4` admits the WorkOrder (`SemanticJira.admit_work_order/1`),
-      the `RuntimeShape` execution package (digest + `work_order_digest`/`subject`
-      binding), the plan (bindings must name real acceptance/falsifier/court/
-      evidence ids of the WorkOrder) and authority (a non-`NONE`
-      `authority_requirement` needs a matching prepared authority receipt) BEFORE
-      anything runs; any failure is `{:error, {:refused, reason}}`.
+    * admit/refuse: `emit/4` admits, BEFORE anything runs and with every value
+      proven JSON-encodable (invalid UTF-8 or non-JSON terms anywhere in the
+      WorkOrder, package, plan, authority receipt or options are a refusal,
+      never a post-run crash): the WorkOrder (`SemanticJira.admit_work_order/1`);
+      the `RuntimeShape` execution package (digest, `work_order_digest`,
+      subject, and its `bindings`/`policies`/`actions`/`provenance` content
+      against the WorkOrder: `worker_not_verifier`, `base_must_not_move`,
+      repository/base binding); the plan (bindings must name real acceptance/
+      falsifier/court/evidence ids; when the WorkOrder pins commands in
+      `expected_consequence.commands` the plan must be exactly those commands);
+      the subject source (the WorkOrder's exact commit must exist there); and
+      authority (a non-`NONE` `authority_requirement` needs a matching prepared
+      authority receipt). Any failure is `{:error, {:refused, reason}}`.
     * diagnose/repair: UNSUPPORTED -- a failing run yields a non-success
       receipt; `SemanticJira.repair_work_order/2` lineage is not driven from here.
-    * construct: a fresh scratch dir under `System.tmp_dir!/0`, seeded with the
-      plan's `seed_files` -- executed.
-    * actuate: each step is a real `System.cmd("sh", ...)` subprocess in the
-      scratch dir (`exec "$0" "$@"` wrapper so stdout and stderr are captured
-      separately; POSIX `sh` required). Fail-fast: steps after a failed step are
-      recorded `ran: false`. Only cwd is scoped -- there is no filesystem
+    * construct: a fresh PRIVATE run directory (exclusive `mkdir`, mode 0700,
+      name carrying the OS pid and random bytes) under `System.tmp_dir!/0`. Its
+      `work/` subdirectory is the command cwd, seeded with the plan's
+      `seed_files` or with `git archive` of the WorkOrder's exact commit from the
+      plan's `subject_source` -- executed.
+    * actuate: each step is a real `System.cmd("sh", ...)` subprocess in `work/`
+      (`exec "$0" "$@"` wrapper so stdout and stderr are captured separately;
+      each step's stderr file lives in the private run directory, outside the
+      command's cwd; POSIX `sh` required). Fail-fast: steps after a failed step
+      are recorded `ran: false`. Only cwd is scoped -- there is no filesystem
       sandbox and a timeout kills the Elixir task, not the OS process group
       (UNSUPPORTED(isolation)).
     * receipt: `emit/4` builds a digest-sealed map (`"receipt_digest"`, the same
@@ -33,25 +45,46 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
       `requirements`, `consequence` (per-step exit code, stdout/stderr digests,
       watched-file before/after content digests plus
       `GgenIgniter.Receipt.hash_files/1` and a portable
-      `GgenIgniter.Receipt.hash_entries/1` digest), `replay` (the normalized plan,
-      toolchain/environment identity, replay verdict), `evidence` (DERIVED from
-      the consequence, never asserted) and `standing` (the target the receipt
-      supports; `transition_applied` is always false).
-    * replay: `replay/2` re-runs a trusted plan in a fresh scratch dir and
+      `GgenIgniter.Receipt.hash_entries/1` digest, the materialized `subject`),
+      `replay` (the normalized plan, toolchain/environment identity, replay
+      verdict), `evidence` (DERIVED from the consequence, never asserted) and
+      `standing` (the target the receipt supports; `transition_applied` is
+      always false).
+    * replay: `replay/2` re-runs a trusted plan in a fresh run directory and
       compares the comparable consequence via `SemanticJira.replay_check/2`;
       `emit/4` does it inline when `replay: true` or the WorkOrder has
       `replay_required`.
     * standing: not applied here -- `Reconciler.reconcile/4` owns the transition.
+
+  ## What an ALIVE proposal means
+
+  ALIVE is proposed (and `evidence.observed_execution` / `evidence_ceiling`
+  `"observed"` derived) only when ALL of these hold; otherwise the target is
+  `PARTIAL_ALIVE` and the evidence ceiling is `"none"`, so `SemanticJira.promote/3`
+  refuses a forced `ALIVE` with `[:ceiling]`:
+
+    1. Subject bound: the plan named a `subject_source` (a local git repository)
+       and the command ran against a checkout of exactly the WorkOrder's
+       `candidate_sha` (else `base_sha`), `consequence.subject.bound == true`.
+    2. Commands pinned: the WorkOrder's `expected_consequence` is
+       `%{"commands" => [%{"argv" => [...], "expect_exit" => 0}]}` and the plan's
+       steps are exactly those commands. The WorkOrder (part of its definition
+       digest) says what the acceptance commands are; the plan cannot choose.
+    3. Authority: `authority_requirement` is `NONE`, or the prepared authority
+       receipt passed the caller-supplied `:authority_verifier`.
+    4. The WorkOrder's own `evidence_ceiling` is `observed` (the only ceiling a
+       local run can attest).
 
   ## Verification
 
   `verify/2` refuses a receipt whose seal does not match its body, whose
   derived fields (per-step `passed`, `success`, `exit_code`,
   `consequence_digest`, `evidence`, `standing.proposed`) do not re-derive from
-  its consequence, or (with a WorkOrder) whose requirements/identity do not
-  match. `check_success/1` refuses a sealed receipt of a run that did not
-  succeed. `Reconciler.reconcile/4` calls both for any emitted/sealed receipt
-  and, with `require_sealed: true`, refuses hand-built receipts.
+  its consequence, or (with a WorkOrder) whose requirements/identity/pinned
+  steps do not match. `check_success/1` refuses a sealed receipt of a run that
+  did not succeed. `Reconciler.reconcile/4` calls both for any emitted/sealed
+  receipt, refuses an emitter-shaped receipt whose seal was stripped, and with
+  `require_sealed: true` refuses hand-built receipts.
 
   ## Disclosed limits
 
@@ -62,18 +95,30 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
       embedded argv) is the mitigation for deterministic plans: a forged
       consequence will not reproduce. Nondeterministic plans (timestamps, pids in
       stdout) fail replay.
+    * A hand-built receipt with NONE of the emitter's fields is still admitted
+      by default (it is indistinguishable from the pre-emitter caller-supplied
+      shape). `require_sealed: true` is what eliminates caller-supplied receipts.
+    * Repository identity is UNSUPPORTED: the subject is bound by commit sha
+      (content-addressed) from a caller-named local git repository; the
+      WorkOrder's `repository` name is copied, not verified against it.
+    * A WorkOrder that does not pin `expected_consequence.commands` gets
+      `PARTIAL_ALIVE` at most: which command backs which claim is then asserted
+      by the plan author (UNSUPPORTED(acceptance-relevance)).
+    * Authority provenance is UNSUPPORTED(authority-issuer): the emitter has no
+      claim store or signer. A prepared authority receipt is only structurally
+      matched unless the caller supplies `:authority_verifier`; an unverified one
+      is recorded but never enters `evidence`, so promotion is refused with
+      `[:authority]`.
     * A failing run cannot lawfully move standing to BLOCKED/BUILD_BROKEN:
       `SemanticJira.promote/3` requires every check for every target. The
       receipt is refused for transition and standing stays.
-    * The only evidence ceiling this emitter can attest is `"observed"`; for a
-      WorkOrder with another ceiling the receipt proposes `PARTIAL_ALIVE`.
     * Authority stays NONE; the emitter grants nothing.
   """
 
   alias GgenIgniter.{Digest, Receipt, RuntimeShape, SemanticJira}
 
   @kind "brce_receipt"
-  @schema "semantic-jira/brce-receipt/v1"
+  @schema "semantic-jira/brce-receipt/v2"
   @emitter "GgenIgniter.SemanticJira.ReceiptEmitter"
   @attainable_ceilings ["observed"]
   @default_timeout_ms 60_000
@@ -97,7 +142,9 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
   requires (all acceptance ids, falsifiers, courts and evidence types). The
   binding is part of the sealed plan, so a reader sees exactly which command
   backs which claim. Options: `:expect_exit` (default 0), `:timeout_ms`,
-  `:seed_files` (`%{relative_path => text}`), `:watch` (relative paths).
+  `:seed_files` (`%{relative_path => text}`), `:watch` (relative paths),
+  `:subject_source` (absolute path of a local git repository holding the
+  WorkOrder's exact commit; see the moduledoc's ALIVE conditions).
   """
   @spec command_plan(map(), [String.t()], keyword()) ::
           {:ok, map()} | {:error, {:refused, reason()}}
@@ -121,9 +168,13 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
          ],
          "seed_files" => Keyword.get(opts, :seed_files, %{}),
          "watch" => Keyword.get(opts, :watch, [])
-       }}
+       }
+       |> put_subject_source(Keyword.get(opts, :subject_source))}
     end
   end
+
+  defp put_subject_source(plan, nil), do: plan
+  defp put_subject_source(plan, source), do: Map.put(plan, "subject_source", source)
 
   @doc "`command_plan/3` then `emit/4`: run one real acceptance command and seal the receipt."
   @spec emit_command(map(), RuntimeShape.t(), [String.t()], keyword()) ::
@@ -141,11 +192,14 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
   `SemanticJira.execution_package/2` result for it, `plan` a map with string
   or atom keys: `steps` (each `id`, `argv`, optional `expect_exit`,
   `timeout_ms`, `binds` with any of `acceptance`/`falsifiers`/`courts`/
-  `evidence`), optional `seed_files` and `watch`.
+  `evidence`), optional `seed_files` (refused together with `subject_source`),
+  `watch` and `subject_source`.
 
   Options: `:target` (default derived), `:replay` (default: WorkOrder's
   `replay_required`), `:authority_receipt` (prepared authority receipt for a
-  WorkOrder whose `authority_requirement` is not `NONE`), `:emitter_identity`.
+  WorkOrder whose `authority_requirement` is not `NONE`), `:authority_verifier`
+  (`(prepared_receipt, admitted_work_order -> :ok | {:error, reason})`, the
+  caller's trust anchor for that receipt), `:emitter_identity`.
 
   Returns `{:ok, receipt}` for every admitted run (a failing command yields a
   valid, sealed, non-success receipt), `{:error, {:refused, reason}}` when
@@ -157,10 +211,12 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
   def emit(work_order, package, plan, opts \\ []) do
     with {:ok, admitted} <- admit(work_order),
          {:ok, def_digest} <- refuse(SemanticJira.definition_digest(work_order)),
+         :ok <- admit_options(opts),
          :ok <- admit_package(admitted, package),
          {:ok, authority} <- admit_authority(admitted, opts),
          {:ok, plan} <- normalize_plan(plan, admitted),
-         {:ok, run} <- execute(plan) do
+         :ok <- admit_subject(admitted, plan),
+         {:ok, run} <- execute(plan, subject_sha(admitted)) do
       replay = replay_section(plan, run, admitted, package, opts)
       {:ok, seal(build(admitted, def_digest, package, plan, run, replay, authority, opts))}
     end
@@ -187,7 +243,7 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
 
     with :ok <- verify(receipt),
          {:ok, plan} <- replay_plan(receipt, opts),
-         {:ok, run} <- execute(plan) do
+         {:ok, run} <- execute(plan, identity_sha(receipt["identity"])) do
       compare(receipt_context(receipt), run)
     end
   end
@@ -273,10 +329,38 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
 
   # -- admission -------------------------------------------------------------
 
+  # `SemanticJira.digest/1` (used for the WorkOrder and, later, to seal) is
+  # `Jason.encode!/1`: a value with no JSON encoding must be refused HERE, never
+  # discovered after a command ran.
   defp admit(work_order) do
-    case SemanticJira.admit_work_order(work_order) do
-      {:ok, admitted} -> {:ok, admitted}
-      {:error, reason} -> {:error, {:refused, {:work_order, reason}}}
+    if json_safe?(work_order) do
+      case SemanticJira.admit_work_order(work_order) do
+        {:ok, admitted} -> {:ok, admitted}
+        {:error, reason} -> {:error, {:refused, {:work_order, reason}}}
+      end
+    else
+      {:error, {:refused, {:work_order, :not_json_safe}}}
+    end
+  end
+
+  defp admit_options(opts) do
+    with :ok <- check(Keyword.keyword?(opts), {:refused, :invalid_options}),
+         :ok <-
+           check(
+             is_nil(opts[:target]) or opts[:target] in SemanticJira.standings(),
+             {:refused, {:invalid_target, opts[:target]}}
+           ),
+         :ok <-
+           check(
+             is_nil(opts[:emitter_identity]) or
+               (is_binary(opts[:emitter_identity]) and opts[:emitter_identity] != "" and
+                  String.valid?(opts[:emitter_identity])),
+             {:refused, :invalid_emitter_identity}
+           ) do
+      check(
+        is_nil(opts[:replay]) or is_boolean(opts[:replay]),
+        {:refused, :invalid_replay_option}
+      )
     end
   end
 
@@ -284,46 +368,157 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
   defp refuse({:error, reason}), do: {:error, {:refused, {:work_order, reason}}}
 
   defp admit_package(admitted, %RuntimeShape{} = package) do
-    cond do
-      RuntimeShape.digest(package) != package.shape_digest ->
-        {:error, {:refused, :package_digest_mismatch}}
-
-      package.admission["work_order_digest"] != admitted["work_order_digest"] ->
-        {:error, {:refused, :package_work_order_mismatch}}
-
-      package.subject_id != admitted["subject"] ->
-        {:error, {:refused, :package_subject_mismatch}}
-
-      true ->
-        :ok
+    with :ok <-
+           check(
+             json_safe?(RuntimeShape.semantic_map(package)),
+             {:refused, :package_not_json_safe}
+           ),
+         :ok <-
+           check(
+             RuntimeShape.digest(package) == package.shape_digest,
+             {:refused, :package_digest_mismatch}
+           ),
+         :ok <-
+           check(
+             package.admission["work_order_digest"] == admitted["work_order_digest"],
+             {:refused, :package_work_order_mismatch}
+           ),
+         :ok <-
+           check(package.subject_id == admitted["subject"], {:refused, :package_subject_mismatch}),
+         :ok <- check(package.admission["admitted"] == true, {:refused, :package_not_admitted}),
+         :ok <- admit_package_bindings(admitted, package),
+         :ok <- admit_package_policies(admitted, package),
+         :ok <- admit_package_actions(admitted, package) do
+      check(
+        package.provenance["replay_identity"] == admitted["replay_identity"] and
+          package.relationships == admitted["dependencies"],
+        {:refused, :package_content_mismatch}
+      )
     end
   end
 
   defp admit_package(_admitted, _other), do: {:error, {:refused, :package_not_runtime_shape}}
 
+  # The package's digest only proves it is self-consistent. Its CONTENT must
+  # also say what the WorkOrder says: one repository/base binding, exactly the
+  # WorkOrder's, and no binding naming another repository or base.
+  defp admit_package_bindings(admitted, package) do
+    bindings =
+      Enum.filter(package.bindings, &(is_map(&1) and (&1["repository"] || &1["base_sha"])))
+
+    check(
+      bindings != [] and
+        Enum.all?(
+          bindings,
+          &(&1["repository"] == admitted["repository"] and &1["base_sha"] == admitted["base_sha"])
+        ),
+      {:refused, :package_binding_mismatch}
+    )
+  end
+
+  # `base_must_not_move` and `worker_not_verifier` are enforced, not merely
+  # carried: both must be present, the base must be the WorkOrder's, and worker
+  # and verifier must be distinct non-empty identities.
+  defp admit_package_policies(admitted, package) do
+    policies = Enum.filter(package.policies, &is_map/1)
+    base_rules = Enum.filter(policies, &(&1["rule"] == "base_must_not_move"))
+    separation_rules = Enum.filter(policies, &(&1["rule"] == "worker_not_verifier"))
+
+    with :ok <-
+           check(
+             base_rules != [] and Enum.all?(base_rules, &(&1["base_sha"] == admitted["base_sha"])),
+             {:refused, :package_base_policy_mismatch}
+           ) do
+      check(
+        separation_rules != [] and Enum.all?(separation_rules, &separated?/1),
+        {:refused, :package_worker_not_verifier_violated}
+      )
+    end
+  end
+
+  defp separated?(%{"worker" => worker, "verifier" => verifier}),
+    do: identity?(worker) and identity?(verifier) and worker != verifier
+
+  defp separated?(_), do: false
+
+  defp identity?(v), do: is_binary(v) and v != ""
+
+  defp admit_package_actions(admitted, package) do
+    actions = Enum.filter(package.actions, &is_map/1)
+
+    check(
+      Enum.any?(actions, &(&1["kind"] == "bounded_transition")) and
+        Enum.all?(
+          actions,
+          &(&1["work_order_id"] == admitted["identity"] and &1["authority"] == "NONE")
+        ),
+      {:refused, :package_action_mismatch}
+    )
+  end
+
   defp admit_authority(%{"authority_requirement" => "NONE"}, _opts),
-    do: {:ok, %{"requirement" => "NONE", "prepared_receipt" => nil}}
+    do: {:ok, %{"requirement" => "NONE", "prepared_receipt" => nil, "verified" => true}}
 
   defp admit_authority(admitted, opts) do
     prepared = opts |> Keyword.get(:authority_receipt) |> stringify()
 
-    if is_map(prepared) and prepared["status"] == "prepared" and
-         prepared["work_order_digest"] == admitted["work_order_digest"] and
-         prepared["subject"] == admitted["subject"] and
-         prepared["replay_identity"] == admitted["replay_identity"] do
-      {:ok, %{"requirement" => admitted["authority_requirement"], "prepared_receipt" => prepared}}
+    if prepared?(prepared, admitted) do
+      with {:ok, verified} <- verify_authority(prepared, admitted, opts[:authority_verifier]) do
+        {:ok,
+         %{
+           "requirement" => admitted["authority_requirement"],
+           "prepared_receipt" => prepared,
+           "verified" => verified
+         }}
+      end
     else
       {:error, {:refused, :authority_not_prepared}}
     end
   end
 
+  defp prepared?(prepared, admitted) do
+    is_map(prepared) and json_safe?(prepared) and prepared["status"] == "prepared" and
+      prepared["work_order_digest"] == admitted["work_order_digest"] and
+      prepared["subject"] == admitted["subject"] and
+      prepared["replay_identity"] == admitted["replay_identity"] and
+      identity?(prepared["authority_identity"])
+  end
+
+  # The emitter has no claim store or signer (UNSUPPORTED(authority-issuer)), so
+  # the trust anchor is the caller's verifier. Without one the prepared receipt
+  # is recorded but `verified` is false and it never enters `evidence`.
+  defp verify_authority(_prepared, _admitted, nil), do: {:ok, false}
+
+  defp verify_authority(prepared, admitted, verifier) when is_function(verifier, 2) do
+    case verifier.(prepared, admitted) do
+      :ok -> {:ok, true}
+      {:error, reason} -> {:error, {:refused, {:authority_unverified, inspect(reason)}}}
+      other -> {:error, {:refused, {:authority_verifier_invalid, inspect(other)}}}
+    end
+  rescue
+    error -> {:error, {:refused, {:authority_verifier_failed, Exception.message(error)}}}
+  end
+
+  defp verify_authority(_prepared, _admitted, other),
+    do: {:error, {:refused, {:authority_verifier_invalid, inspect(other)}}}
+
   defp normalize_plan(plan, admitted) when is_map(plan) do
     plan = stringify(plan)
 
-    with {:ok, steps} <- normalize_steps(plan["steps"], admitted),
+    with {:ok, pinned} <- pinned_commands(admitted),
+         {:ok, steps} <- normalize_steps(plan["steps"], admitted),
+         {:ok, steps} <- apply_pin(steps, pinned, admitted),
          {:ok, seed} <- normalize_seed(plan["seed_files"] || %{}),
-         {:ok, watch} <- normalize_watch(plan["watch"] || []) do
-      {:ok, %{"steps" => steps, "seed_files" => seed, "watch" => watch}}
+         {:ok, watch} <- normalize_watch(plan["watch"] || []),
+         {:ok, source} <- normalize_subject_source(plan["subject_source"], seed) do
+      normalized =
+        put_subject_source(%{"steps" => steps, "seed_files" => seed, "watch" => watch}, source)
+
+      # Every byte that will later be JSON-encoded to seal the receipt (step
+      # ids, argv, seed paths and content, watched paths, the subject source)
+      # must have an encoding NOW. Invalid UTF-8 has none, and discovering that
+      # after `execute/3` would be an actuation with neither receipt nor refusal.
+      with :ok <- check(json_safe?(normalized), {:refused, :plan_not_utf8}), do: {:ok, normalized}
     end
   end
 
@@ -444,26 +639,173 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
       ".." not in Path.split(path)
   end
 
+  # -- pinned commands (WorkOrder-declared acceptance commands) --------------
+
+  # `expected_consequence` is free-form in the kernel. Only the shape
+  # `%{"commands" => [%{"argv" => [...], "expect_exit" => int}]}` pins commands;
+  # any other shape leaves them unpinned; a malformed `commands` is refused.
+  defp pinned_commands(%{"expected_consequence" => %{"commands" => [_ | _] = commands}}) do
+    pinned =
+      Enum.map(commands, fn
+        %{"argv" => argv} = command ->
+          %{"argv" => argv, "expect_exit" => Map.get(command, "expect_exit", 0)}
+
+        _ ->
+          :invalid
+      end)
+
+    if Enum.all?(
+         pinned,
+         &(&1 != :invalid and valid_argv?(&1["argv"]) and is_integer(&1["expect_exit"]))
+       ),
+       do: {:ok, pinned},
+       else: {:error, {:refused, :invalid_expected_consequence}}
+  end
+
+  defp pinned_commands(%{"expected_consequence" => %{"commands" => _}}),
+    do: {:error, {:refused, :invalid_expected_consequence}}
+
+  defp pinned_commands(_), do: {:ok, nil}
+
+  # A pinned WorkOrder decides the commands AND which claims they back: the
+  # plan may not add, drop, reorder or edit steps, and may not choose bindings.
+  defp apply_pin(steps, nil, _admitted), do: {:ok, steps}
+
+  defp apply_pin(steps, pinned, admitted) do
+    all = all_binds(admitted)
+
+    cond do
+      Enum.map(steps, &Map.take(&1, ~w(argv expect_exit))) != pinned ->
+        {:error, {:refused, :plan_not_pinned}}
+
+      not Enum.all?(steps, &(&1["binds"] in [all, empty_binds()])) ->
+        {:error, {:refused, :pinned_binds_mismatch}}
+
+      true ->
+        {:ok, Enum.map(steps, &Map.put(&1, "binds", all))}
+    end
+  end
+
+  defp all_binds(admitted) do
+    %{
+      "acceptance" => admitted["acceptance"] |> Enum.uniq() |> Enum.sort(),
+      "falsifiers" => admitted["falsifiers"] |> Enum.uniq() |> Enum.sort(),
+      "courts" => admitted["required_courts"] |> Enum.uniq() |> Enum.sort(),
+      "evidence" => admitted["required_evidence"] |> Enum.uniq() |> Enum.sort()
+    }
+  end
+
+  defp empty_binds, do: Map.new(@bind_kinds, &{&1, []})
+
+  # -- subject (the WorkOrder's exact commit, materialized) -------------------
+
+  defp normalize_subject_source(nil, _seed), do: {:ok, nil}
+
+  defp normalize_subject_source(source, seed) do
+    cond do
+      not (is_binary(source) and Path.type(source) == :absolute and String.valid?(source)) ->
+        {:error, {:refused, :invalid_subject_source}}
+
+      seed != %{} ->
+        {:error, {:refused, :seed_files_with_subject}}
+
+      true ->
+        {:ok, source}
+    end
+  end
+
+  # The WorkOrder names one commit: `candidate_sha` when set, else `base_sha`.
+  defp subject_sha(admitted), do: admitted["candidate_sha"] || admitted["base_sha"]
+  defp identity_sha(identity), do: identity["candidate_sha"] || identity["base_sha"]
+
+  # Before anything runs: the WorkOrder's exact commit must exist in the named
+  # repository, so a run against a subject that is not there is a refusal.
+  defp admit_subject(admitted, %{"subject_source" => source}) do
+    sha = subject_sha(admitted)
+
+    case resolve_commit(source, sha) do
+      {:ok, ^sha} -> :ok
+      _ -> {:error, {:refused, {:subject_unavailable, sha}}}
+    end
+  end
+
+  defp admit_subject(_admitted, _plan), do: :ok
+
+  # `false` for anything that has no JSON encoding: invalid UTF-8 binaries,
+  # tuples, pids, refs, functions, structs. Atoms and numbers encode.
+  defp json_safe?(v) when is_binary(v), do: String.valid?(v)
+  defp json_safe?(v) when is_number(v) or is_boolean(v) or is_nil(v) or is_atom(v), do: true
+  defp json_safe?(v) when is_list(v), do: Enum.all?(v, &json_safe?/1)
+
+  defp json_safe?(v) when is_map(v) and not is_struct(v),
+    do:
+      Enum.all?(v, fn {k, x} ->
+        (is_binary(k) or is_atom(k)) and json_safe?(k) and json_safe?(x)
+      end)
+
+  defp json_safe?(_), do: false
+
   # -- construct + actuate ---------------------------------------------------
 
-  defp execute(plan) do
+  # One PRIVATE run directory per execution: created with an exclusive `mkdir`
+  # (an existing name is `:eexist`, never shared), mode 0700, named with the OS
+  # pid and random bytes because `System.unique_integer/1` is unique per VM only
+  # and concurrent VMs share `System.tmp_dir!/0`. `work/` is the command's cwd;
+  # per-step stderr files live beside it, outside the command's cwd, and die
+  # with the run directory, so no run can read, truncate or delete another's.
+  defp execute(plan, sha) do
+    case make_run_root(16) do
+      {:ok, run_root} ->
+        try do
+          construct_and_observe(run_root, plan, sha)
+        after
+          File.rm_rf(run_root)
+        end
+
+      {:error, reason} ->
+        {:error, {:construct_failed, reason}}
+    end
+  end
+
+  defp construct_and_observe(run_root, plan, sha) do
+    work = Path.join(run_root, "work")
+
+    with :ok <- mkdir(work),
+         :ok <- seed(work, plan["seed_files"]),
+         {:ok, subject} <- materialize(plan["subject_source"], sha, run_root, work) do
+      {:ok, observe(run_root, work, plan, subject)}
+    else
+      {:error, reason} -> {:error, {:construct_failed, reason}}
+    end
+  end
+
+  defp make_run_root(0), do: {:error, {:mkdir, :no_unique_run_dir}}
+
+  defp make_run_root(attempts) do
+    unique = Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
+
     root =
       Path.join(
         System.tmp_dir!(),
-        "brce_run_#{System.unique_integer([:positive])}_#{System.system_time(:microsecond)}"
+        "brce_run_#{System.pid()}_#{System.unique_integer([:positive])}_#{unique}"
       )
 
-    with :ok <- mkdir(root),
-         :ok <- seed(root, plan["seed_files"]) do
-      try do
-        {:ok, observe(root, plan)}
-      after
-        File.rm_rf(root)
-      end
-    else
+    case File.mkdir(root) do
+      :ok ->
+        case File.chmod(root, 0o700) do
+          :ok ->
+            {:ok, root}
+
+          {:error, reason} ->
+            File.rm_rf(root)
+            {:error, {:mkdir, reason}}
+        end
+
+      {:error, :eexist} ->
+        make_run_root(attempts - 1)
+
       {:error, reason} ->
-        File.rm_rf(root)
-        {:error, {:construct_failed, reason}}
+        {:error, {:mkdir, reason}}
     end
   end
 
@@ -487,10 +829,57 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
     end)
   end
 
-  defp observe(root, plan) do
-    before_state = file_state(root, plan["watch"])
-    steps = run_steps(root, plan["steps"])
-    after_state = file_state(root, plan["watch"])
+  # -- subject materialization (real `git`, real `tar`) ----------------------
+
+  defp materialize(nil, _sha, _run_root, _work), do: {:ok, %{"bound" => false}}
+
+  defp materialize(source, sha, run_root, work) do
+    tar = Path.join(run_root, "subject.tar")
+
+    with {:ok, commit} <- resolve_commit(source, sha),
+         {:ok, tree} <- git(source, ["rev-parse", "--verify", "--quiet", sha <> "^{tree}"]),
+         {:ok, _} <- git(source, ["archive", "--format=tar", "-o", tar, sha]),
+         {:ok, _} <- untar(tar, work) do
+      {:ok, %{"bound" => commit == sha, "sha" => commit, "tree" => tree, "source" => source}}
+    end
+  end
+
+  defp resolve_commit(source, sha),
+    do: git(source, ["rev-parse", "--verify", "--quiet", sha <> "^{commit}"])
+
+  defp git(source, args) do
+    case System.find_executable("git") do
+      nil ->
+        {:error, {:subject, :git_unavailable}}
+
+      git ->
+        # Ambient repository selection would silently point `-C` at another repo.
+        env = [{"GIT_TERMINAL_PROMPT", "0"}, {"GIT_DIR", nil}, {"GIT_WORK_TREE", nil}]
+
+        case System.cmd(git, ["-C", source | args], stderr_to_stdout: true, env: env) do
+          {out, 0} -> {:ok, String.trim(out)}
+          {out, status} -> {:error, {:subject, hd(args), status, excerpt(out)}}
+        end
+    end
+  end
+
+  defp untar(tar, work) do
+    case System.find_executable("tar") do
+      nil ->
+        {:error, {:subject, :tar_unavailable}}
+
+      tar_exe ->
+        case System.cmd(tar_exe, ["-xf", tar, "-C", work], stderr_to_stdout: true) do
+          {out, 0} -> {:ok, out}
+          {out, status} -> {:error, {:subject, :untar, status, excerpt(out)}}
+        end
+    end
+  end
+
+  defp observe(run_root, work, plan, subject) do
+    before_state = file_state(work, plan["watch"])
+    steps = run_steps(run_root, work, plan["steps"])
+    after_state = file_state(work, plan["watch"])
 
     files =
       Enum.map(plan["watch"], fn rel ->
@@ -505,8 +894,9 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
     %{
       "steps" => steps,
       "files" => files,
-      "files_after_digest" => files_after_digest(root, plan["watch"]),
-      "portable_files_digest" => portable_files_digest(root, plan["watch"])
+      "files_after_digest" => files_after_digest(work, plan["watch"]),
+      "portable_files_digest" => portable_files_digest(work, plan["watch"]),
+      "subject" => subject
     }
   end
 
@@ -540,13 +930,15 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
     |> Receipt.hash_entries()
   end
 
-  defp run_steps(root, steps) do
+  defp run_steps(run_root, work, steps) do
     {records, _halted} =
-      Enum.map_reduce(steps, false, fn step, halted ->
+      steps
+      |> Enum.with_index()
+      |> Enum.map_reduce(false, fn {step, index}, halted ->
         if halted do
           {skipped(step), true}
         else
-          record = run_step(root, step)
+          record = run_step(work, Path.join(run_root, "stderr_#{index}"), step)
           {record, not record["passed"]}
         end
       end)
@@ -571,16 +963,10 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
     })
   end
 
-  defp run_step(root, %{"argv" => [exe | args]} = step) do
-    err = Path.join(System.tmp_dir!(), "brce_err_#{System.unique_integer([:positive])}")
-
-    try do
-      {status, out} = exec(root, exe, args, err, step["timeout_ms"])
-      stderr = err |> File.read() |> read_or_empty()
-      step_record(step, status, out, stderr)
-    after
-      File.rm(err)
-    end
+  defp run_step(work, err, %{"argv" => [exe | args]} = step) do
+    {status, out} = exec(work, exe, args, err, step["timeout_ms"])
+    stderr = err |> File.read() |> read_or_empty()
+    step_record(step, status, out, stderr)
   end
 
   defp read_or_empty({:ok, body}), do: body
@@ -646,16 +1032,7 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
   defp build(admitted, def_digest, package, plan, run, replay, authority, opts) do
     steps = run["steps"]
     success = steps != [] and Enum.all?(steps, & &1["passed"])
-
-    requirements = %{
-      "acceptance" => admitted["acceptance"],
-      "falsifiers" => admitted["falsifiers"],
-      "courts" => admitted["required_courts"],
-      "evidence" => admitted["required_evidence"],
-      "receipt_classes" => admitted["required_receipt_classes"],
-      "replay_required" => admitted["replay_required"],
-      "evidence_ceiling" => admitted["evidence_ceiling"]
-    }
+    requirements = requirements(admitted)
 
     identity = %{
       "work_order_id" => admitted["identity"],
@@ -677,9 +1054,10 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
       "files" => run["files"],
       "files_after_digest" => run["files_after_digest"],
       "portable_files_digest" => run["portable_files_digest"],
+      "subject" => run["subject"],
       "exit_code" => aggregate_exit(steps),
       "success" => success,
-      "consequence_digest" => SemanticJira.digest(comparable(steps, run["files"]))
+      "consequence_digest" => SemanticJira.digest(comparable(steps, run["files"], run["subject"]))
     }
 
     replay_block =
@@ -700,7 +1078,9 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
       "definition_digest" => def_digest,
       "snapshot_digest" => admitted["work_order_digest"],
       "candidate_sha" => admitted["candidate_sha"],
-      "target" => Keyword.get(opts, :target) || default_target(admitted),
+      "target" =>
+        Keyword.get(opts, :target) ||
+          default_target(admitted, binding_of(identity, requirements, consequence, authority)),
       "identity" => identity,
       "authority" => Map.put(authority, "level", "NONE"),
       "requirements" => requirements,
@@ -721,9 +1101,46 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
 
   defp seal(body), do: Map.put(body, "receipt_digest", SemanticJira.digest(body))
 
-  defp default_target(admitted),
-    do:
-      if(admitted["evidence_ceiling"] in @attainable_ceilings, do: "ALIVE", else: "PARTIAL_ALIVE")
+  # What a receipt binds the WorkOrder's claims to (see the moduledoc). ALIVE
+  # needs every binding; a local run without them is at most PARTIAL_ALIVE.
+  defp default_target(admitted, binding) do
+    if admitted["evidence_ceiling"] in @attainable_ceilings and exact?(binding),
+      do: "ALIVE",
+      else: "PARTIAL_ALIVE"
+  end
+
+  defp requirements(admitted) do
+    %{
+      "acceptance" => admitted["acceptance"],
+      "falsifiers" => admitted["falsifiers"],
+      "courts" => admitted["required_courts"],
+      "evidence" => admitted["required_evidence"],
+      "receipt_classes" => admitted["required_receipt_classes"],
+      "replay_required" => admitted["replay_required"],
+      "evidence_ceiling" => admitted["evidence_ceiling"],
+      "pinned_commands" =>
+        case pinned_commands(admitted) do
+          {:ok, pinned} -> pinned
+          {:error, _} -> :invalid
+        end
+    }
+  end
+
+  # Derived ONLY from the consequence, identity, requirements and authority
+  # sections, so `verify/2` re-derives the same answer.
+  defp binding_of(identity, requirements, consequence, authority) do
+    subject = consequence["subject"]
+
+    %{
+      "subject" =>
+        is_map(subject) and subject["bound"] == true and
+          subject["sha"] == identity_sha(identity),
+      "commands_pinned" => is_list(requirements["pinned_commands"]),
+      "authority" => authority["requirement"] == "NONE" or authority["verified"] == true
+    }
+  end
+
+  defp exact?(binding), do: Enum.all?(Map.values(binding), &(&1 == true))
 
   defp aggregate_exit(steps) do
     case Enum.find(steps, &(not &1["passed"])) do
@@ -754,7 +1171,13 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
     id = receipt["identity"]
     success = receipt["consequence"]["success"] == true
     replay_passed = success and receipt["replay"]["passed"] == true
-    observed = Enum.any?(steps, & &1["ran"])
+
+    binding =
+      binding_of(id, req, receipt["consequence"], receipt["authority"])
+
+    # `observed_execution` means an observed run of the exact admitted subject
+    # under the WorkOrder's own commands and authority, not merely a run.
+    observed = Enum.any?(steps, & &1["ran"]) and exact?(binding)
 
     bound = fn kind ->
       steps |> Enum.filter(& &1["passed"]) |> Enum.flat_map(&(&1["binds"][kind] || []))
@@ -772,13 +1195,17 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
       "receipt_classes" => receipt_classes(success, replay_passed),
       "evidence_ceiling" => if(observed, do: "observed", else: "none"),
       "observed_execution" => observed,
+      "binding" => binding,
       "replay_passed" => replay_passed,
       "replay_identity" => if(replay_passed, do: id["replay_identity"], else: nil)
     }
 
-    case receipt["authority"]["prepared_receipt"] do
-      nil -> evidence
-      prepared -> Map.put(evidence, "authority_receipt", prepared)
+    # An authority receipt nobody verified is recorded in `authority` but is not
+    # evidence: promotion then fails its `authority` check.
+    case {receipt["authority"]["prepared_receipt"], receipt["authority"]["verified"]} do
+      {nil, _} -> evidence
+      {prepared, true} -> Map.put(evidence, "authority_receipt", prepared)
+      {_, _} -> evidence
     end
   end
 
@@ -803,7 +1230,7 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
         "environment_identity" => environment_identity()
       }
 
-      case execute(plan) do
+      case execute(plan, subject_sha(admitted)) do
         {:ok, again} -> replay_verdict(compare(context, again))
         {:error, reason} -> %{"requested" => true, "passed" => false, "error" => inspect(reason)}
       end
@@ -873,12 +1300,14 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
     }
   end
 
-  defp consequence_digest(run), do: SemanticJira.digest(comparable(run["steps"], run["files"]))
+  defp consequence_digest(run),
+    do: SemanticJira.digest(comparable(run["steps"], run["files"], run["subject"]))
 
   # Comparable = what a faithful re-run must reproduce. stderr and excerpts are
   # recorded but not compared (they may carry scratch paths).
-  defp comparable(steps, files) do
+  defp comparable(steps, files, subject) do
     %{
+      "subject" => Map.take(subject || %{}, ~w(bound sha tree)),
       "steps" =>
         Enum.map(
           steps,
@@ -934,7 +1363,8 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
          :ok <- check(c["exit_code"] == aggregate_exit(steps), :exit_code_mismatch),
          :ok <-
            check(
-             c["consequence_digest"] == SemanticJira.digest(comparable(steps, c["files"] || [])),
+             c["consequence_digest"] ==
+               SemanticJira.digest(comparable(steps, c["files"] || [], c["subject"])),
              :consequence_digest_mismatch
            ) do
       check(r["evidence"] == derive_evidence(r), :evidence_not_derived_from_consequence)
@@ -946,20 +1376,24 @@ defmodule GgenIgniter.SemanticJira.ReceiptEmitter do
   defp check_work_order(receipt, work_order) do
     with {:ok, admitted} <- SemanticJira.admit_work_order(work_order),
          {:ok, def_digest} <- SemanticJira.definition_digest(work_order),
-         :ok <- check(receipt["definition_digest"] == def_digest, :definition_mismatch) do
-      check(
-        receipt["requirements"] ==
-          %{
-            "acceptance" => admitted["acceptance"],
-            "falsifiers" => admitted["falsifiers"],
-            "courts" => admitted["required_courts"],
-            "evidence" => admitted["required_evidence"],
-            "receipt_classes" => admitted["required_receipt_classes"],
-            "replay_required" => admitted["replay_required"],
-            "evidence_ceiling" => admitted["evidence_ceiling"]
-          },
-        :requirements_mismatch
-      )
+         :ok <- check(receipt["definition_digest"] == def_digest, :definition_mismatch),
+         :ok <- check(receipt["requirements"] == requirements(admitted), :requirements_mismatch) do
+      check_pinned_steps(receipt, admitted)
+    end
+  end
+
+  # A pinned WorkOrder's receipt must have run exactly the pinned commands.
+  defp check_pinned_steps(receipt, admitted) do
+    case pinned_commands(admitted) do
+      {:ok, nil} ->
+        :ok
+
+      {:ok, pinned} ->
+        ran = Enum.map(receipt["consequence"]["steps"], &Map.take(&1, ~w(argv expect_exit)))
+        check(ran == pinned, :steps_not_pinned)
+
+      {:error, _} ->
+        {:error, :requirements_mismatch}
     end
   end
 

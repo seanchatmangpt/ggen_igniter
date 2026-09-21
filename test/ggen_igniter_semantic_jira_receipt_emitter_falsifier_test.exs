@@ -3,10 +3,12 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterFalsifierTest do
   Qualifier falsifiers for `GgenIgniter.SemanticJira.ReceiptEmitter` and the
   `Reconciler` options added with it (stream `brce-receipt-emitter`).
 
-  Each test states the claim it attacks. A test in this file that FAILS is a
-  reproduced counterexample to that claim at the tested commit, not a flaky
-  test: the inputs are deterministic except the multi-process race, whose
-  passing direction is deterministic (a fix cannot make it flake red).
+  Each test states the claim it attacks. The first six tests were RED at commit
+  98ee9d9 (6 tests, 6 failures: reproduced counterexamples, not flakes) and are
+  the permanent regression guards for the repair that followed; the rest extend
+  the same claims to every input class the counterexamples generalize to. The
+  inputs are deterministic except the multi-process race, whose passing
+  direction is deterministic (a fix cannot make it flake red).
 
   Chicago style: real WorkOrders, real `SemanticJira.execution_package/2`
   packages, real `sh` subprocesses, real files, the real file-backed
@@ -21,25 +23,28 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterFalsifierTest do
   @sha String.duplicate("a", 40)
   @digest "sha256:" <> String.duplicate("c", 64)
 
-  defp wo(id) do
-    %{
-      "identity" => id,
-      "title" => id,
-      "description" => "d",
-      "subject" => "subj-#{id}",
-      "repository" => "o/r",
-      "base_sha" => @sha,
-      "standing" => "UNKNOWN",
-      "evidence_ceiling" => "observed",
-      "promotion_rule" => "all_courts",
-      "replay_identity" => "rid-#{id}",
-      "required_courts" => ["ci"],
-      "required_evidence" => ["exec"],
-      "acceptance" => ["a1"],
-      "falsifiers" => ["f1"],
-      "projections" => ["jira"],
-      "dependencies" => []
-    }
+  defp wo(id, overrides \\ %{}) do
+    Map.merge(
+      %{
+        "identity" => id,
+        "title" => id,
+        "description" => "d",
+        "subject" => "subj-#{id}",
+        "repository" => "o/r",
+        "base_sha" => @sha,
+        "standing" => "UNKNOWN",
+        "evidence_ceiling" => "observed",
+        "promotion_rule" => "all_courts",
+        "replay_identity" => "rid-#{id}",
+        "required_courts" => ["ci"],
+        "required_evidence" => ["exec"],
+        "acceptance" => ["a1"],
+        "falsifiers" => ["f1"],
+        "projections" => ["jira"],
+        "dependencies" => []
+      },
+      overrides
+    )
   end
 
   defp package(work_order) do
@@ -65,9 +70,9 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterFalsifierTest do
   # -- claim: the plan is admitted BEFORE anything runs -------------------------
   #
   # A plan the emitter cannot digest (invalid UTF-8 has no JSON encoding) must
-  # be refused at admission. At the tested commit the command RUNS and `emit/4`
-  # then raises `Jason.EncodeError` while sealing the plan: an actuation with
-  # neither a receipt nor a refusal.
+  # be refused at admission. Before the repair the command RAN and `emit/4` then
+  # raised `Jason.EncodeError` while sealing the plan: an actuation with neither
+  # a receipt nor a refusal.
 
   defp step(marker, extra_argv) do
     %{
@@ -134,10 +139,10 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterFalsifierTest do
   # -- claim: a tampered/edited receipt is refused ------------------------------
   #
   # Editing the exit code, digest, evidence or requirements of an emitted
-  # receipt is refused. Deleting the seal and the kind marker turns the same
-  # body into a "hand-built receipt", which `Reconciler.reconcile/3` admits by
-  # default, so the refusal is bypassable by removing the two fields that
-  # trigger it.
+  # receipt is refused. Deleting the seal and the kind marker used to turn the
+  # same body into a "hand-built receipt", which `Reconciler.reconcile/3` admits
+  # by default, so the refusal was bypassable by removing the two fields that
+  # trigger it. An emitter-shaped receipt without its seal is now refused.
 
   test "a failing run's receipt with edited evidence and its seal + kind stripped is not admitted",
        %{log: log} do
@@ -175,12 +180,13 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterFalsifierTest do
 
   # -- claim: the receipt attests the stdout/stderr digests of THIS run ----------
   #
-  # `ReceiptEmitter` redirects each step's stderr to
+  # `ReceiptEmitter` used to redirect each step's stderr to
   # `System.tmp_dir!()/brce_err_<System.unique_integer/1>`. `unique_integer` is
   # unique per VM only (fresh VMs return small, overlapping values), and the
-  # emitter deletes that file after reading it. Concurrent OS processes
-  # (parallel CI shards, concurrent `mix` invocations) therefore share stderr
-  # files, and a sealed receipt can carry ANOTHER run's stderr, or none.
+  # emitter deleted that file after reading it. Concurrent OS processes
+  # (parallel CI shards, concurrent `mix` invocations) therefore shared stderr
+  # files, and a sealed receipt could carry ANOTHER run's stderr, or none. Each
+  # run now has a private directory (exclusive mkdir, OS pid + random bytes).
 
   @vm_script ~S"""
   alias GgenIgniter.SemanticJira
@@ -259,5 +265,182 @@ defmodule GgenIgniter.SemanticJiraReceiptEmitterFalsifierTest do
 
     assert wrong == [],
            "receipts attest stderr that is not their own run's (tag, recorded stderr): #{inspect(wrong)}"
+  end
+
+  # -- the same claims, generalized ---------------------------------------------
+
+  defp assert_refused_before_run(result, marker, expected_reason) do
+    assert {:error, {:refused, ^expected_reason}} = result
+    refute File.exists?(marker), "a refused emission must not run its command"
+  end
+
+  describe "admission precedes actuation (every other value that is sealed later)" do
+    test "a WorkOrder, options or authority receipt with no JSON encoding is a refusal", %{
+      dir: dir
+    } do
+      marker = Path.join(dir, "ran_generalized")
+      touch = ["touch", marker]
+
+      bad_title = Map.put(wo("U-TITLE"), "title", <<255>>)
+
+      assert_refused_before_run(
+        ReceiptEmitter.emit_command(bad_title, package(wo("U-TITLE")), touch),
+        marker,
+        {:work_order, :not_json_safe}
+      )
+
+      w = wo("U-OPTS")
+
+      for {opt, reason} <- [
+            {[target: {:not, :a, :standing}], {:invalid_target, {:not, :a, :standing}}},
+            {[target: "NOT_A_STANDING"], {:invalid_target, "NOT_A_STANDING"}},
+            {[emitter_identity: <<255>>], :invalid_emitter_identity},
+            {[emitter_identity: 42], :invalid_emitter_identity},
+            {[replay: "yes"], :invalid_replay_option}
+          ] do
+        assert_refused_before_run(
+          ReceiptEmitter.emit_command(w, package(w), touch, opt),
+          marker,
+          reason
+        )
+      end
+
+      auth = wo("U-AUTH", %{"authority_requirement" => "repo-write"})
+      {:ok, admitted} = SemanticJira.admit_work_order(auth)
+
+      prepared = %{
+        "status" => "prepared",
+        "work_order_digest" => admitted["work_order_digest"],
+        "subject" => admitted["subject"],
+        "replay_identity" => admitted["replay_identity"]
+      }
+
+      for identity <- [<<255>>, {:tuple, :identity}, self()] do
+        assert_refused_before_run(
+          ReceiptEmitter.emit_command(auth, package(auth), touch,
+            authority_receipt: Map.put(prepared, "authority_identity", identity)
+          ),
+          marker,
+          :authority_not_prepared
+        )
+      end
+    end
+  end
+
+  describe "an emitter-shaped receipt never loses its verification by losing its seal" do
+    defp hand_built(work_order) do
+      {:ok, definition_digest} = SemanticJira.definition_digest(work_order)
+      {:ok, admitted} = SemanticJira.admit_work_order(work_order)
+
+      %{
+        "definition_digest" => definition_digest,
+        "snapshot_digest" => admitted["work_order_digest"],
+        "target" => "ALIVE",
+        "evidence" => %{
+          "subject" => work_order["subject"],
+          "repository" => work_order["repository"],
+          "base_sha" => work_order["base_sha"],
+          "evidence_types" => ["exec"],
+          "court_results" => %{"ci" => %{"passed" => true}},
+          "acceptance_results" => %{"a1" => true},
+          "falsifier_results" => %{"f1" => "survived"},
+          "receipt_classes" => [],
+          "evidence_ceiling" => "observed",
+          "observed_execution" => true
+        }
+      }
+    end
+
+    test "each emitter-only section, alone, marks a receipt as stripped", %{log: log} do
+      w = wo("STRIP")
+
+      for {key, value} <- [
+            {"consequence", %{}},
+            {"stages", %{}},
+            {"replay", %{}},
+            {"requirements", %{}},
+            {"identity", %{}},
+            {"emitted_by", "someone"},
+            {"emitted_at", "2026-09-21T00:00:00Z"},
+            {"receipt_class", "verification"}
+          ] do
+        receipt = w |> hand_built() |> Map.put(key, value)
+
+        assert {:error, {:refused, {:receipt_invalid, :stripped_seal}}} =
+                 Reconciler.reconcile(w, receipt, log)
+
+        assert {:error, {:refused, {:receipt_invalid, :stripped_seal}}} =
+                 Reconciler.reconcile(w, receipt, log, require_sealed: true)
+      end
+
+      assert TransitionLog.read(log) == []
+    end
+
+    test "control: a plain hand-built receipt is still admitted by default, refused when sealed is required",
+         %{log: log} do
+      w = wo("PLAIN")
+      receipt = hand_built(w)
+
+      assert {:error, {:refused, :unsealed_receipt}} =
+               Reconciler.reconcile(w, receipt, log, require_sealed: true)
+
+      assert {:ok, %{"to" => "ALIVE"}, :appended} = Reconciler.reconcile(w, receipt, log)
+    end
+  end
+
+  describe "each run has a private directory" do
+    test "the run directory is mode 0700, the cwd is its `work/`, and none survives the run" do
+      w = wo("PRIVATE")
+      prefix = "brce_run_#{System.pid()}_"
+
+      leftovers = fn ->
+        System.tmp_dir!() |> File.ls!() |> Enum.filter(&String.starts_with?(&1, prefix))
+      end
+
+      before = leftovers.()
+
+      assert {:ok, r} =
+               ReceiptEmitter.emit_command(
+                 w,
+                 package(w),
+                 ["sh", "-c", "ls -ld .. | cut -c1-10; basename \"$(pwd)\""]
+               )
+
+      assert [%{"stdout_excerpt" => out}] = r["consequence"]["steps"]
+      assert out == "drwx------\nwork\n"
+
+      # failing, timed-out and refused-after-admission runs leave nothing behind either
+      assert {:ok, _} = ReceiptEmitter.emit_command(w, package(w), ["sh", "-c", "exit 3"])
+
+      assert {:ok, _} =
+               ReceiptEmitter.emit_command(w, package(w), ["sleep", "3"], timeout_ms: 100)
+
+      assert leftovers.() == before
+    end
+
+    test "concurrent emits inside ONE VM each attest their own stderr" do
+      results =
+        1..16
+        |> Task.async_stream(
+          fn i ->
+            tag = "vm-local-#{i}"
+            w = wo("LOCAL-#{i}")
+
+            {:ok, r} =
+              ReceiptEmitter.emit_command(w, package(w), [
+                "sh",
+                "-c",
+                "sleep 0.3; echo #{tag} >&2; sleep 0.3"
+              ])
+
+            {tag, hd(r["consequence"]["steps"])["stderr_excerpt"]}
+          end,
+          max_concurrency: 16,
+          timeout: 60_000
+        )
+        |> Enum.map(fn {:ok, r} -> r end)
+
+      assert Enum.all?(results, fn {tag, stderr} -> stderr == tag <> "\n" end), inspect(results)
+    end
   end
 end
