@@ -9,6 +9,23 @@ defmodule GgenIgniter.SemanticJira do
   It does not issue runtime leases, grant authority, perform BRCE/CommandBus
   DO, merge, publish, deploy, or self-promote standing. Lease objects remain
   XaaS/Ultracode-owned; consequential DO remains BRCE-owned.
+
+  ## Event-sourced standing
+
+  A WorkOrder's definition is immutable: `definition_digest/1` hashes exactly
+  the `@definition_fields` set (identity scalars, exact subject binding,
+  ceilings and law, required relations, bounded scope) and never the mutable
+  snapshot state (`standing`, `candidate_sha`, `dimensions`, admission flags,
+  digests). `work_order_digest` remains the SNAPSHOT digest — it moves when
+  `standing` moves — while `definition_digest` is stable across the whole
+  life of the work order. Standing changes are append-only
+  `standing_transition_event`s (`promote/3` stays the pure admission
+  calculus; `apply_transition/2` manufactures the event; `append_transition/2`
+  appends it to a log; `project_standing/1` derives current standing as the
+  latest `to_standing` per work order). The graph-side rendering is
+  `sj:transition-<hash8> a sj:StandingTransition` admitted by
+  `priv/ggen/semantic-jira-pack/shapes/work-order.shacl.ttl`; the SPARQL
+  derivation lives in `gates/055_standing_projection.rq`.
   """
 
   alias GgenIgniter.{Digest, RuntimeShape}
@@ -23,6 +40,29 @@ defmodule GgenIgniter.SemanticJira do
   @projection_types ~w(jira wbpr prd ard vision fond hddl sa2a worker verification executive machine receipt replay)
 
   @semantic_fields ~w(subject repository base_sha candidate_sha dependencies acceptance falsifiers authority_requirement evidence_ceiling promotion_rule required_courts required_evidence required_receipt_classes projections expected_consequence path_scope)
+
+  # The IMMUTABLE WorkOrder definition field set hashed by definition_digest/1.
+  # Exactly: identity scalars (identity, title, description), exact subject
+  # binding (subject, repository, base_sha), ceilings and law (evidence_ceiling,
+  # authority_requirement, promotion_rule, replay_identity, replay_required),
+  # required relations (dependencies, required_courts, required_evidence,
+  # required_receipt_classes, acceptance, falsifiers, projections), and bounded
+  # scope (path_scope). Deliberately EXCLUDED as mutable snapshot state:
+  # standing (the event-sourced projection), candidate_sha (moves with each
+  # attempt), dimensions (mutable observation flags), and the admission stamps
+  # (admitted, authority) plus every derived digest. A promotion therefore
+  # moves work_order_digest while definition_digest stays fixed.
+  #
+  # DIGEST STABILITY UNDER THE PUBLIC VOCABULARY CARRY (v26.9.19 W7-A4, see
+  # priv/ggen/semantic-jira-pack/VOCABULARY.md): this list is a CLOSED take
+  # (Map.take/2), so the OSLC CM 3.0 / PROV-O dual-assertions (`rdf:type
+  # oslc_cm:ChangeRequest`, `prov:used`, `prov:wasAssociatedWith`,
+  # `prov:wasGeneratedBy`, dcterms title mirrors on receipts/events) can never
+  # enter the definition digest — there is no field they could occupy. Adding
+  # a public triple to a work order leaves its definition digest byte-identical;
+  # changing a residue/identity fact moves it exactly as this field set dictates.
+  # Proven both ways by ggen_igniter_semantic_jira_vocabulary_test.exs.
+  @definition_fields ~w(identity title description subject repository base_sha evidence_ceiling authority_requirement promotion_rule replay_identity replay_required dependencies required_courts required_evidence required_receipt_classes acceptance falsifiers projections path_scope)
 
   @required ~w(identity title description subject repository base_sha standing evidence_ceiling promotion_rule replay_identity required_courts required_evidence acceptance falsifiers projections)
 
@@ -63,6 +103,19 @@ defmodule GgenIgniter.SemanticJira do
     |> Digest.sha256()
   end
 
+  @doc """
+  Immutable definition digest: hashes exactly the `@definition_fields` set,
+  excluding standing and all mutable snapshot state. Stable across standing
+  changes; `work_order_digest` (the snapshot digest) moves instead.
+  """
+  @spec definition_digest(map()) :: String.t()
+  def definition_digest(work_order) do
+    work_order
+    |> strings()
+    |> Map.take(@definition_fields)
+    |> digest()
+  end
+
   @doc "Admits and normalizes one map-shaped WorkOrder without creating authority."
   @spec admit_work_order(map()) :: {:ok, json_map()} | refusal()
   def admit_work_order(value) when is_map(value) do
@@ -94,7 +147,10 @@ defmodule GgenIgniter.SemanticJira do
         |> Map.put("admitted", true)
         |> Map.put("authority", "NONE")
 
-      {:ok, Map.put(normalized, "work_order_digest", digest(normalized))}
+      {:ok,
+       normalized
+       |> Map.put("work_order_digest", digest(normalized))
+       |> Map.put("definition_digest", definition_digest(normalized))}
     else
       # Every kernel refusal carries the typed refusal vocabulary so callers
       # never confuse a malformed work order with an unexpected crash.
@@ -116,32 +172,58 @@ defmodule GgenIgniter.SemanticJira do
     end
   end
 
-  @doc "Selects UNKNOWN work whose typed dependency requirements are satisfied."
-  @spec frontier([map()], map()) :: %{eligible: [map()], blocked: [map()]}
-  def frontier(work_orders, evidence_by_id \\ %{}) do
-    work_orders
-    |> Enum.reduce(%{eligible: [], blocked: []}, &frontier_one(&1, &2, evidence_by_id))
-    |> then(fn result ->
-      %{
-        eligible: Enum.reverse(result.eligible),
-        blocked: Enum.reverse(result.blocked)
-      }
-    end)
+  @doc """
+  Selects UNKNOWN work whose typed dependency requirements are satisfied.
+
+  Standing is consulted through the event-sourced projection: with a
+  transition log, a work order's current standing is its latest transition's
+  `to_standing` (falling back to the declared `standing` when it has no
+  transitions), so a work order with a transition to ALIVE is no longer
+  frontier-eligible for the same work. A malformed transition log fails the
+  whole selection closed.
+  """
+  @spec frontier([map()], map(), [map()]) :: %{eligible: [map()], blocked: [map()]}
+  def frontier(work_orders, evidence_by_id \\ %{}, transitions \\ [])
+
+  def frontier(work_orders, evidence_by_id, transitions) do
+    case project_standing(transitions) do
+      {:ok, projected} ->
+        work_orders
+        |> Enum.reduce(
+          %{eligible: [], blocked: []},
+          &frontier_one(&1, &2, evidence_by_id, projected)
+        )
+        |> then(fn result ->
+          %{
+            eligible: Enum.reverse(result.eligible),
+            blocked: Enum.reverse(result.blocked)
+          }
+        end)
+
+      {:error, reason} ->
+        %{
+          eligible: [],
+          blocked: [%{"reason" => "malformed_transition_log", "detail" => inspect(reason)}]
+        }
+    end
   end
 
-  defp frontier_one(raw, acc, evidence_by_id) do
+  defp frontier_one(raw, acc, evidence_by_id, projected) do
     case admit_work_order(raw) do
       {:error, reason} ->
         block(acc, %{"reason" => inspect(reason)})
 
-      {:ok, %{"standing" => current} = work_order} when current != "UNKNOWN" ->
-        block(acc, %{
-          "identity" => work_order["identity"],
-          "reason" => "standing=#{current}"
-        })
-
       {:ok, work_order} ->
-        frontier_admitted(work_order, acc, evidence_by_id)
+        current = Map.get(projected, work_order["identity"], work_order["standing"])
+
+        if current == "UNKNOWN" do
+          frontier_admitted(work_order, acc, evidence_by_id)
+        else
+          block(acc, %{
+            "identity" => work_order["identity"],
+            "reason" => "standing=#{current}"
+          })
+        end
     end
   end
 
@@ -159,7 +241,7 @@ defmodule GgenIgniter.SemanticJira do
     candidate =
       work_order
       |> Map.take(
-        ~w(identity title subject repository base_sha candidate_sha path_scope work_order_digest)
+        ~w(identity title subject repository base_sha candidate_sha path_scope definition_digest work_order_digest)
       )
       |> Map.put("authority", "NONE")
 
@@ -497,6 +579,190 @@ defmodule GgenIgniter.SemanticJira do
          evidence["observed_execution"] == true)
   end
 
+  @doc """
+  Applies an admitted promotion intent by manufacturing the append-only
+  StandingTransition event. Pure: nothing is persisted here — appending the
+  event to a log is `append_transition/2`, and the graph-side rendering is
+  `sj:transition-<hash8> a sj:StandingTransition` under the pack's SHACL
+  shapes.
+
+  Required attrs: `intent` (a `promote/3` `standing_transition_intent`),
+  `evidence_identity` (the durable receipt identity the transition rides),
+  and `final_head` (the exact 40-hex git head at the transition). The intent
+  must be genuine (recomputed transition digest), bound to this exact
+  work-order snapshot, and not stale (`from` must equal the declared
+  standing). The event id is the deterministic hash of (work order id,
+  to_standing, evidence identity, final head).
+  """
+  @spec apply_transition(map(), map()) :: {:ok, json_map()} | refusal()
+  def apply_transition(work_order, attrs) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         %{} = intent <- attrs["intent"],
+         "standing_transition_intent" <- intent["kind"],
+         :ok <- genuine_intent?(intent),
+         :ok <- bound_intent?(intent, admitted),
+         :ok <- progression(intent["from"], intent["to"]),
+         :ok <- evidence_identity(attrs["evidence_identity"]),
+         :ok <- sha(:final_head, attrs["final_head"]) do
+      identity = %{
+        "work_order_id" => admitted["identity"],
+        "to_standing" => intent["to"],
+        "evidence_identity" => attrs["evidence_identity"],
+        "final_head" => attrs["final_head"]
+      }
+
+      event =
+        Map.merge(identity, %{
+          "kind" => "standing_transition_event",
+          "transition_id" => digest(identity),
+          "from_standing" => intent["from"],
+          "definition_digest" => definition_digest(admitted),
+          "snapshot_digest" => admitted["work_order_digest"],
+          "authority" => "NONE"
+        })
+
+      {:ok, event}
+    else
+      {:error, reason} ->
+        {:error, {:refused_transition, reason}}
+
+      other ->
+        {:error, {:refused_transition, {:malformed_intent_or_attrs, other}}}
+    end
+  end
+
+  def apply_transition(_, _), do: {:error, {:refused_transition, :expected_map}}
+
+  # The intent is genuine when its content re-derives its own transition
+  # digest: a tampered or hand-forged intent carries a stale digest and refuses.
+  defp genuine_intent?(intent) do
+    if valid_digest?(intent["transition_digest"]) and
+         digest(intent) == intent["transition_digest"] do
+      :ok
+    else
+      {:error, :intent_digest_mismatch}
+    end
+  end
+
+  # The intent belongs to exactly this work-order snapshot and has not been
+  # overtaken by another transition (its `from` is the declared standing).
+  # Staleness is checked FIRST: a re-admitted work order whose standing
+  # moved produces a snapshot-digest mismatch as a SIDE EFFECT of the move,
+  # and the precise refusal is the stale `from`, not the digest.
+  defp bound_intent?(intent, admitted) do
+    cond do
+      intent["from"] != admitted["standing"] ->
+        {:error, :stale_intent}
+
+      intent["work_order_digest"] != admitted["work_order_digest"] ->
+        {:error, :intent_not_bound_to_work_order}
+
+      true ->
+        :ok
+    end
+  end
+
+  # Mirrors the SHACL progression law on StandingTransition: no self-loop,
+  # and the strongest standing is never skipped from UNKNOWN in one event
+  # (explicit progression UNKNOWN -> PARTIAL_ALIVE -> ALIVE).
+  defp progression(from, to) when from == to, do: {:error, {:illegal_progression, from, to}}
+
+  defp progression("UNKNOWN", "ALIVE"), do: {:error, {:illegal_progression, "UNKNOWN", "ALIVE"}}
+
+  defp progression(_, _), do: :ok
+
+  defp evidence_identity(value) when is_binary(value) and value != "", do: :ok
+  defp evidence_identity(value), do: {:error, {:invalid_evidence_identity, value}}
+
+  @doc """
+  Appends one manufactured StandingTransition event to an append-only log.
+
+  Append-only law: the event must be complete and well-formed; a re-derivation
+  of the same transition id with different content refuses
+  (`:transition_id_immutable` — ids are immutable once present); replaying the
+  byte-identical event is an idempotent no-op returning the unchanged log.
+  """
+  @spec append_transition([map()], map()) :: {:ok, [json_map()]} | refusal()
+  def append_transition(events, event) when is_list(events) and is_map(event) do
+    event = strings(event)
+
+    case Enum.find(events, fn existing ->
+           strings(existing)["transition_id"] == event["transition_id"]
+         end) do
+      # Idempotent replay of a byte-identical event: the log is already
+      # append-complete and stays unchanged.
+      collision when is_map(collision) ->
+        if canonical(strings(collision)) == canonical(event) do
+          {:ok, events}
+        else
+          {:error, {:refused_transition, :transition_id_immutable}}
+        end
+
+      nil ->
+        with :ok <-
+               required(
+                 event,
+                 ~w(kind transition_id work_order_id from_standing to_standing evidence_identity final_head definition_digest snapshot_digest)
+               ),
+             "standing_transition_event" <- event["kind"],
+             :ok <- digest_value(:transition_id, event["transition_id"]),
+             :ok <- digest_value(:definition_digest, event["definition_digest"]),
+             :ok <- digest_value(:snapshot_digest, event["snapshot_digest"]),
+             :ok <- standing(event["from_standing"]),
+             :ok <- standing(event["to_standing"]),
+             :ok <- progression(event["from_standing"], event["to_standing"]),
+             :ok <- evidence_identity(event["evidence_identity"]),
+             :ok <- sha(:final_head, event["final_head"]) do
+          {:ok, events ++ [event]}
+        else
+          {:error, reason} ->
+            {:error, {:refused_transition, reason}}
+
+          other ->
+            {:error, {:refused_transition, {:malformed_event, other}}}
+        end
+    end
+  end
+
+  def append_transition(_, _), do: {:error, {:refused_transition, :expected_event_list_and_map}}
+
+  @doc """
+  Projects current standing from the append-only transition log: the latest
+  `to_standing` per work order id (log order is time). Absent ids default to
+  the graph's declared standing at the call site. A malformed log refuses
+  instead of silently dropping events.
+  """
+  @spec project_standing([map()]) :: {:ok, %{String.t() => String.t()}} | refusal()
+  def project_standing(transitions) when is_list(transitions) do
+    Enum.reduce_while(transitions, {:ok, %{}}, fn event, {:ok, acc} ->
+      case projected_transition(event) do
+        {:ok, {id, to}} ->
+          {:cont, {:ok, Map.put(acc, id, to)}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:refused_standing_projection, reason}}}
+      end
+    end)
+  end
+
+  def project_standing(_), do: {:error, {:refused_standing_projection, :expected_transition_list}}
+
+  defp projected_transition(%{} = event) do
+    event = strings(event)
+
+    case {event["work_order_id"], event["to_standing"]} do
+      {id, to} when is_binary(id) and id != "" and is_binary(to) and to != "" ->
+        {:ok, {id, to}}
+
+      _ ->
+        {:error, {:malformed_transition, event}}
+    end
+  end
+
+  defp projected_transition(other), do: {:error, {:malformed_transition, other}}
+
   @doc "Manufactures MachineExperience only from receipted observed execution."
   @spec machine_experience(map()) :: {:ok, json_map()} | refusal()
   def machine_experience(attrs) when is_map(attrs) do
@@ -565,7 +831,17 @@ defmodule GgenIgniter.SemanticJira do
 
   def composition_subject(_), do: {:error, {:refused_composition, :requires_upstreams}}
 
-  @doc "Fresh replay compares exact manufacture identities and subject selection."
+  @doc """
+  Fresh replay compares exact manufacture identities and subject selection.
+
+  Replay identity laws extended for event-sourced standing: when both sides
+  carry `standing_transitions` (the append-only log) the current standing is
+  reconstructed purely from the log — the projections must match or the
+  replay refuses, and a matching receipt binds `standing_projection`. When
+  either side also carries `definition_digest`, every replayed transition
+  must bind exactly that definition digest, so events can never bleed across
+  definition generations.
+  """
   @spec replay_check(map(), map()) :: {:ok, json_map()} | refusal()
   def replay_check(expected, observed) when is_map(expected) and is_map(observed) do
     expected = strings(expected)
@@ -576,7 +852,10 @@ defmodule GgenIgniter.SemanticJira do
 
     with :ok <- required(expected, keys),
          :ok <- required(observed, keys),
-         :ok <- single_subject(observed) do
+         :ok <- single_subject(observed),
+         :ok <- transition_log_pair(expected, observed),
+         :ok <- replay_log_integrity(expected),
+         :ok <- replay_log_integrity(observed) do
       mismatches =
         for key <- keys,
             canonical(expected[key]) != canonical(observed[key]) do
@@ -587,22 +866,111 @@ defmodule GgenIgniter.SemanticJira do
           }
         end
 
-      if mismatches == [] do
-        receipt = %{
-          "kind" => "replay_receipt",
-          "receipt_class" => "replay",
-          "status" => "KNOWN_REPLAY",
-          "replay_identity" => observed["replay_identity"] || expected["replay_identity"],
-          "subject_digest" => digest(Map.take(observed, keys)),
-          "authority" => "NONE"
-        }
+      mismatches = mismatches ++ standing_projection_mismatches(expected, observed)
 
-        {:ok, Map.put(receipt, "receipt_digest", digest(receipt))}
+      if mismatches == [] do
+        {:ok,
+         replay_receipt(
+           observed,
+           observed["replay_identity"] || expected["replay_identity"],
+           keys
+         )}
       else
         {:error, {:replay_refused, {:identity_mismatch, mismatches}}}
       end
     else
       {:error, reason} -> {:error, {:replay_refused, reason}}
+    end
+  end
+
+  # The KNOWN_REPLAY receipt: when the replayed side carries a transition
+  # log, the receipt binds the standing projection reconstructed from it.
+  defp replay_receipt(observed, replay_identity, keys) do
+    receipt = %{
+      "kind" => "replay_receipt",
+      "receipt_class" => "replay",
+      "status" => "KNOWN_REPLAY",
+      "replay_identity" => replay_identity,
+      "subject_digest" => digest(Map.take(observed, keys)),
+      "authority" => "NONE"
+    }
+
+    receipt =
+      case Map.fetch(observed, "standing_transitions") do
+        {:ok, log} ->
+          {:ok, projection} = project_standing(log)
+          Map.put(receipt, "standing_projection", projection)
+
+        :error ->
+          receipt
+      end
+
+    Map.put(receipt, "receipt_digest", digest(receipt))
+  end
+
+  # The transition log is replay evidence: it is supplied on both sides or
+  # neither — a half-supplied log is an identity mismatch, not a default.
+  defp transition_log_pair(expected, observed) do
+    if Map.has_key?(expected, "standing_transitions") ==
+         Map.has_key?(observed, "standing_transitions") do
+      :ok
+    else
+      {:error, :transition_log_half_supplied}
+    end
+  end
+
+  # A supplied log must be well-formed and, when the replay binds a
+  # definition_digest, every transition must carry exactly that definition
+  # identity — otherwise events from a superseded definition generation could
+  # forge a projection.
+  defp replay_log_integrity(side) do
+    with {:ok, log} <- Map.fetch(side, "standing_transitions"),
+         {:ok, _projection} <- project_standing(log),
+         :ok <- replay_log_definition_law(side, log) do
+      :ok
+    else
+      # No log on this side: nothing to reconstruct.
+      :error -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp replay_log_definition_law(side, log) do
+    case Map.fetch(side, "definition_digest") do
+      :error ->
+        :ok
+
+      {:ok, definition} ->
+        if valid_digest?(definition) and
+             Enum.all?(log, &(strings(&1)["definition_digest"] == definition)) do
+          :ok
+        else
+          {:error, {:transition_definition_mismatch, definition}}
+        end
+    end
+  end
+
+  defp standing_projection_mismatches(expected, observed) do
+    case {Map.fetch(expected, "standing_transitions"),
+          Map.fetch(observed, "standing_transitions")} do
+      {{:ok, expected_log}, {:ok, observed_log}} ->
+        {:ok, expected_projection} = project_standing(expected_log)
+        {:ok, observed_projection} = project_standing(observed_log)
+
+        if canonical(expected_projection) == canonical(observed_projection) do
+          []
+        else
+          [
+            %{
+              "field" => "standing_projection",
+              "expected" => expected_projection,
+              "observed" => observed_projection
+            }
+          ]
+        end
+
+      _ ->
+        []
     end
   end
 
@@ -963,7 +1331,7 @@ defmodule GgenIgniter.SemanticJira do
   defp drop_digest_fields(value) when is_map(value) do
     Map.drop(
       value,
-      ~w(work_order_digest transition_digest evidence_digest receipt_digest experience_digest repair_digest finding_digest composition_digest)
+      ~w(work_order_digest definition_digest snapshot_digest transition_digest transition_id evidence_digest receipt_digest experience_digest repair_digest finding_digest composition_digest)
     )
   end
 

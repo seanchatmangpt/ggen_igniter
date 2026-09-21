@@ -11,6 +11,23 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
   @moduletag :integration
 
+  # Every test that drives `run_sync/1,2,3,4` spawns a real `mix
+  # ggen_igniter.sync` SUBPROCESS (fresh BEAM boot + compile check + graph
+  # load + admission + render + nested verify). ExUnit's 60s default timeout
+  # is smaller than one such sync under real runner load: CI run 35481344778
+  # (head dd6ac93) lost the replay test to `ExUnit.TimeoutError` at exactly
+  # 60s inside `run_sync` while the identical code passed every other run --
+  # a runner-load flake, not a product defect. These tags raise the ceiling
+  # above the loaded-runner worst case; they harden, never weaken: no
+  # assertion is relaxed and a genuinely hung subprocess still fails, only
+  # later. In-process tests (the gates tripwire and the DfCM semantic kernel
+  # describes) spawn no subprocess and keep the default timeout.
+  @sync_timeout :timer.minutes(5)
+  # The two replay-determinism tests each run the FULL sync twice (the second
+  # run is the byte-identical-replay property itself), so they carry double
+  # the subprocess budget.
+  @double_sync_timeout :timer.minutes(8)
+
   alias GgenIgniter.{Receipt, SemanticJira}
   alias GgenIgniter.Reactors.ReconcileReactor
 
@@ -79,6 +96,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "canonical WorkOrder graph -> deterministic Markdown projection -> graph-bound receipt" do
+    @tag timeout: @double_sync_timeout
     test "manufactures all canonical WorkOrders and replays byte-identically" do
       work_dir = scratch_dir!("projection")
       output_path = Path.join(work_dir, "SJ-001.md")
@@ -89,7 +107,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -126,6 +144,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "SHACL court wiring on the pack admission path" do
+    @tag timeout: @sync_timeout
     test "a SHACL-only datatype defect refuses before Reactor actuation" do
       work_dir = scratch_dir!("shacl_wiring")
       broken_ontology = Path.join(work_dir, "invalid-shacl-datatype.ttl")
@@ -211,6 +230,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "PRD projection template" do
+    @tag timeout: @double_sync_timeout
     test "manufactures the PRD projection for dogfood SJ-001 and replays byte-identically" do
       work_dir = scratch_dir!("prd_projection")
       output_path = Path.join(work_dir, "SJ-001.prd.md")
@@ -222,7 +242,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.prd.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.prd.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.prd.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.prd.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -263,6 +283,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert second_graph_hash == sha256_file(@ontology_path)
     end
 
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses the PRD projection before any file is actuated" do
       work_dir = scratch_dir!("prd_missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
@@ -284,8 +305,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         run_sync(work_dir, ["--ontology", broken_ontology], "semantic-jira-pack:prd", ".prd.md")
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing core field base_sha"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "semantic-jira#baseSha"
       refute File.exists?(Path.join(work_dir, "SJ-001.prd.md"))
 
       receipts = Receipt.read_all!(work_dir)
@@ -297,6 +318,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "HDDL planning projection template" do
+    @tag timeout: @double_sync_timeout
     test "manufactures the HDDL plan projection for the dogfood set and replays byte-identically" do
       work_dir = scratch_dir!("hddl_projection")
       output_path = Path.join(work_dir, "SJ-001.hddl")
@@ -308,7 +330,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.hddl"))
       assert File.exists?(Path.join(work_dir, "GALL-032.hddl"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.hddl"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.hddl"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -368,6 +390,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert second_graph_hash == sha256_file(@ontology_path)
     end
 
+    @tag timeout: @sync_timeout
     test "every dogfood plan is a balanced s-expression bound to its graph tokens" do
       work_dir = scratch_dir!("hddl_structure")
       {output, exit_code} = run_sync(work_dir, [], "semantic-jira-pack:plan", ".hddl")
@@ -375,7 +398,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert exit_code == 0, "HDDL sync failed:\n#{output}"
 
       paths = Path.wildcard(Path.join(work_dir, "*.hddl"))
-      assert length(paths) == 33
+      assert length(paths) == 35
 
       for path <- paths do
         id = Path.basename(path, ".hddl")
@@ -409,6 +432,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert gall_002 =~ "(reach-checkpoint GALL-002 gall-003)"
     end
 
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses the HDDL projection before any file is actuated" do
       work_dir = scratch_dir!("hddl_missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
@@ -430,8 +454,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         run_sync(work_dir, ["--ontology", broken_ontology], "semantic-jira-pack:plan", ".hddl")
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing core field base_sha"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "semantic-jira#baseSha"
       refute File.exists?(Path.join(work_dir, "SJ-001.hddl"))
 
       receipts = Receipt.read_all!(work_dir)
@@ -443,6 +467,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "OCEL event-log projection" do
+    @tag timeout: @double_sync_timeout
     test "manufactures one parseable OCEL log per run and replays byte-identically" do
       work_dir = scratch_dir!("ocel_projection")
       output_path = Path.join(work_dir, "ocel.json")
@@ -468,7 +493,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       # One WorkOrder object per canonical WorkOrder, boundary attributes bound.
       work_order_objects = Enum.filter(objects, &(&1["ocel:type"] == "WorkOrder"))
-      assert length(work_order_objects) == 33
+      assert length(work_order_objects) == 35
 
       object_ids = Enum.map(objects, & &1["ocel:id"])
       assert length(object_ids) == length(Enum.uniq(object_ids))
@@ -541,6 +566,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert second_graph_hash == sha256_file(@ontology_path)
     end
 
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses the OCEL projection before any file is written" do
       work_dir = scratch_dir!("ocel_missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
@@ -568,8 +594,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         )
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing core field base_sha"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "semantic-jira#baseSha"
       refute File.exists?(Path.join(work_dir, "ocel.json"))
 
       receipts = Receipt.read_all!(work_dir)
@@ -581,6 +607,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "ARD projection template" do
+    @tag timeout: @double_sync_timeout
     test "manufactures the ARD decision records for the dogfood set and replays byte-identically" do
       work_dir = scratch_dir!("ard_projection")
       output_path = Path.join(work_dir, "SJ-001.ard.md")
@@ -592,7 +619,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.ard.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.ard.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.ard.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.ard.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -662,6 +689,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert second_graph_hash == sha256_file(@ontology_path)
     end
 
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses the ARD projection before any file is actuated" do
       work_dir = scratch_dir!("ard_missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
@@ -683,8 +711,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         run_sync(work_dir, ["--ontology", broken_ontology], "semantic-jira-pack:ard", ".ard.md")
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing core field base_sha"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "semantic-jira#baseSha"
       refute File.exists?(Path.join(work_dir, "SJ-001.ard.md"))
 
       receipts = Receipt.read_all!(work_dir)
@@ -695,7 +723,123 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     end
   end
 
+  describe "WBPR projection template" do
+    # Two real sync subprocesses per happy-path test (render + replay) over 33
+    # WorkOrders; a cold MIX_ENV=test build inside the subprocess exceeds the
+    # 60s default (same headroom the doctor e2e suite grants via @moduletag).
+    @tag timeout: 300_000
+    test "manufactures the WBPR work breakdown for dogfood SJ-001 and replays byte-identically" do
+      work_dir = scratch_dir!("wbpr_projection")
+      output_path = Path.join(work_dir, "SJ-001.wbpr.md")
+
+      {first_output, first_exit} =
+        run_sync(work_dir, [], "semantic-jira-pack:wbpr", ".wbpr.md")
+
+      assert first_exit == 0, "first WBPR sync failed:\n#{first_output}"
+      assert File.exists?(output_path)
+      assert File.exists?(Path.join(work_dir, "GALL-001.wbpr.md"))
+      assert File.exists?(Path.join(work_dir, "GALL-032.wbpr.md"))
+      assert length(Path.wildcard(Path.join(work_dir, "*.wbpr.md"))) == 35
+
+      first_bytes = File.read!(output_path)
+
+      assert first_bytes =~
+               "<!-- GENERATED by semantic-jira-pack from canonical RDF WorkOrder"
+
+      assert first_bytes =~ "# WBPR: SJ-001 — Manufacture Semantic Jira work orders from RDF"
+      assert first_bytes =~ "**Base SHA:** d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3"
+      assert first_bytes =~ "**Standing:** UNKNOWN"
+      assert first_bytes =~ "**Exact subject:** semantic-jira-pack:work-order-projection"
+      assert first_bytes =~ "zero independent actuation"
+
+      # The breakdown is derived from graph facts only: one WBS unit per
+      # sj:acceptance criterion, numbered by sorted target IRI, with the
+      # WorkOrder-scoped falsifier/checkpoint/action chain repeated per unit.
+      assert first_bytes =~ "## Work breakdown structure"
+      assert first_bytes =~ "### WBS 1 — Canonical RDF source"
+      assert first_bytes =~ "### WBS 2 — Deterministic projection"
+      assert first_bytes =~ "### WBS 3 — Fail closed on invalid work orders"
+      assert first_bytes =~ "- **Requirement:** **Canonical RDF source** —"
+      assert first_bytes =~ "- **Falsifier:** **Missing required field still renders** —"
+      assert first_bytes =~ "- **Falsifier:** **Projection gains authority** —"
+      assert first_bytes =~ "- **Closure checkpoint:** **SHACL admission checkpoint** —"
+      assert first_bytes =~ "- **Next action:** **Add a qualified SHACL court** —"
+      assert first_bytes =~ "- Requirements: 3"
+      assert first_bytes =~ "- Falsifiers: 2"
+
+      # Court spine and boundary scalars are graph-bound too.
+      assert first_bytes =~ "**Exact-head Semantic Jira projection court**"
+      assert first_bytes =~ "**Graph-bound receipt**"
+      assert first_bytes =~ "- manufacture"
+      assert first_bytes =~ "- NONE"
+      assert first_bytes =~ "priv/ggen/semantic-jira-pack"
+      refute first_bytes =~ "TODO"
+      refute first_bytes =~ "PLACEHOLDER"
+
+      # GALL-032 closes at the canonical KNOWN-retirement checkpoint reached
+      # through its own sj:nextCheckpoint/sj:nextAction relations.
+      gall_032 = File.read!(Path.join(work_dir, "GALL-032.wbpr.md"))
+      assert gall_032 =~ "### WBS 1 — GALL-032 acceptance"
+      assert gall_032 =~ "- **Closure checkpoint:** **KNOWN retirement** —"
+      assert gall_032 =~ "- **Next action:** **Run GALL-032 court** —"
+
+      [first_receipt] = Receipt.read_all!(work_dir)
+      assert first_receipt["standing"] == "alive"
+      assert output_path in first_receipt["files"]
+      assert first_receipt["metadata"]["graph_hash"] == sha256_file(@ontology_path)
+
+      {second_output, second_exit} =
+        run_sync(work_dir, [], "semantic-jira-pack:wbpr", ".wbpr.md")
+
+      assert second_exit == 0, "second WBPR sync failed:\n#{second_output}"
+      assert File.read!(output_path) == first_bytes
+
+      receipts = Receipt.read_all!(work_dir)
+      assert length(receipts) == 2
+
+      [first_graph_hash, second_graph_hash] =
+        Enum.map(receipts, &get_in(&1, ["metadata", "graph_hash"]))
+
+      assert first_graph_hash == second_graph_hash
+      assert second_graph_hash == sha256_file(@ontology_path)
+    end
+
+    @tag timeout: 300_000
+    test "removing a required baseSha refuses the WBPR projection before any file is actuated" do
+      work_dir = scratch_dir!("wbpr_missing_base_sha")
+      broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
+
+      source = File.read!(@ontology_path)
+
+      broken =
+        String.replace(
+          source,
+          ~r/^    sj:baseSha "[0-9a-f]+" ;\n/m,
+          "",
+          global: false
+        )
+
+      refute broken == source
+      File.write!(broken_ontology, broken)
+
+      {output, exit_code} =
+        run_sync(work_dir, ["--ontology", broken_ontology], "semantic-jira-pack:wbpr", ".wbpr.md")
+
+      refute exit_code == 0
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "semantic-jira#baseSha"
+      refute File.exists?(Path.join(work_dir, "SJ-001.wbpr.md"))
+
+      receipts = Receipt.read_all!(work_dir)
+
+      assert Enum.all?(receipts, fn receipt ->
+               receipt["standing"] != "alive"
+             end)
+    end
+  end
+
   describe "semantic admission falsifier" do
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses before any ticket is actuated" do
       work_dir = scratch_dir!("missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
@@ -720,8 +864,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         ])
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing core field base_sha"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "semantic-jira#baseSha"
       refute File.exists?(Path.join(work_dir, "SJ-001.md"))
 
       receipts = Receipt.read_all!(work_dir)
@@ -741,7 +885,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         |> Path.wildcard()
         |> Enum.sort()
 
-      assert length(gates) == 7
+      assert length(gates) == 8
 
       Enum.each(gates, fn gate ->
         assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),
@@ -761,6 +905,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute frontier_ids == []
     end
 
+    @tag timeout: @sync_timeout
     test "mutating a scalar fact in the graph changes the projection" do
       work_dir = scratch_dir!("scalar_mutation")
       mutated_ontology = Path.join(work_dir, "mutated-title.ttl")
@@ -783,6 +928,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute projected =~ old_title
     end
 
+    @tag timeout: @sync_timeout
     test "deleting a required relation refuses before any ticket is actuated" do
       work_dir = scratch_dir!("missing_relation")
       broken_ontology = Path.join(work_dir, "missing-requires-court.ttl")
@@ -806,8 +952,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         ])
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "missing required requiresCourt relation for SJ-001"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "semantic-jira#requiresCourt"
       assert Path.wildcard(Path.join(work_dir, "*.md")) == []
 
       receipts = Receipt.read_all!(work_dir)
@@ -817,6 +963,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
              end)
     end
 
+    @tag timeout: @sync_timeout
     test "corrupting baseSha to a non-SHA scalar refuses before any ticket is actuated" do
       work_dir = scratch_dir!("corrupt_base_sha")
       broken_ontology = Path.join(work_dir, "corrupt-base-sha.ttl")
@@ -841,9 +988,113 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         ])
 
       refute exit_code == 0
-      assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
-      assert output =~ "baseSha must be an exact 40-hex commit SHA"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "does not match pattern"
       assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+
+      receipts = Receipt.read_all!(work_dir)
+
+      assert Enum.all?(receipts, fn receipt ->
+               receipt["standing"] != "alive"
+             end)
+    end
+  end
+
+  describe "Vision projection template" do
+    test "manufactures the Vision projection for dogfood SJ-001 and replays byte-identically" do
+      work_dir = scratch_dir!("vision_projection")
+      output_path = Path.join(work_dir, "SJ-001.vision.md")
+
+      {first_output, first_exit} =
+        run_sync(work_dir, [], "semantic-jira-pack:vision", ".vision.md")
+
+      assert first_exit == 0, "first Vision sync failed:\n#{first_output}"
+      assert File.exists?(output_path)
+      assert File.exists?(Path.join(work_dir, "GALL-001.vision.md"))
+      assert File.exists?(Path.join(work_dir, "GALL-032.vision.md"))
+      assert length(Path.wildcard(Path.join(work_dir, "*.vision.md"))) == 35
+
+      first_bytes = File.read!(output_path)
+
+      assert first_bytes =~
+               "<!-- GENERATED by semantic-jira-pack from canonical RDF WorkOrder"
+
+      assert first_bytes =~ "# Vision: SJ-001 — Manufacture Semantic Jira work orders from RDF"
+      assert first_bytes =~ "**Base SHA:** d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3"
+      assert first_bytes =~ "**Standing:** UNKNOWN"
+      assert first_bytes =~ "**Evidence ceiling:** IMPLEMENTED_UNVERIFIED"
+      assert first_bytes =~ "**Exact subject:** semantic-jira-pack:work-order-projection"
+      assert first_bytes =~ "zero independent actuation"
+      # Promotion path is the graph's own promotionRule plus receipt classes.
+      assert first_bytes =~
+               "Standing may advance only from an independent exact-head court receipt"
+
+      assert first_bytes =~ "- manufacture"
+      assert first_bytes =~ "- projection"
+      assert first_bytes =~ "- replay"
+      assert first_bytes =~ "- verification"
+      # Checkpoint ladder is the graph's own nextCheckpoint/nextAction targets.
+      assert first_bytes =~ "**SHACL admission checkpoint**"
+      assert first_bytes =~ "**Add a qualified SHACL court**"
+      # Scope is the graph's own pathScope values.
+      assert first_bytes =~ "- lib/ggen_igniter/semantic_jira.ex"
+      assert first_bytes =~ "- native/ggen_graph_nif"
+      assert first_bytes =~ "- priv/ggen/semantic-jira-pack"
+      # Projection surface names the graph's own sj:projection-vision spec.
+      assert first_bytes =~ "**Vision document**"
+      refute first_bytes =~ "TODO"
+      refute first_bytes =~ "PLACEHOLDER"
+
+      [first_receipt] = Receipt.read_all!(work_dir)
+      assert first_receipt["standing"] == "alive"
+      assert output_path in first_receipt["files"]
+      assert first_receipt["metadata"]["graph_hash"] == sha256_file(@ontology_path)
+
+      {second_output, second_exit} =
+        run_sync(work_dir, [], "semantic-jira-pack:vision", ".vision.md")
+
+      assert second_exit == 0, "second Vision sync failed:\n#{second_output}"
+      assert File.read!(output_path) == first_bytes
+
+      receipts = Receipt.read_all!(work_dir)
+      assert length(receipts) == 2
+
+      [first_graph_hash, second_graph_hash] =
+        Enum.map(receipts, &get_in(&1, ["metadata", "graph_hash"]))
+
+      assert first_graph_hash == second_graph_hash
+      assert second_graph_hash == sha256_file(@ontology_path)
+    end
+
+    test "removing a required baseSha refuses the Vision projection before any file is actuated" do
+      work_dir = scratch_dir!("vision_missing_base_sha")
+      broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
+
+      source = File.read!(@ontology_path)
+
+      broken =
+        String.replace(
+          source,
+          ~r/^    sj:baseSha "[0-9a-f]+" ;\n/m,
+          "",
+          global: false
+        )
+
+      refute broken == source
+      File.write!(broken_ontology, broken)
+
+      {output, exit_code} =
+        run_sync(
+          work_dir,
+          ["--ontology", broken_ontology],
+          "semantic-jira-pack:vision",
+          ".vision.md"
+        )
+
+      refute exit_code == 0
+      assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert output =~ "semantic-jira#baseSha"
+      refute File.exists?(Path.join(work_dir, "SJ-001.vision.md"))
 
       receipts = Receipt.read_all!(work_dir)
 
@@ -867,6 +1118,13 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     # `--verify-base-sha` flag, and the per-order `sj:requiresGitGroundTruth`
     # refinement). That ADDED law is proven in both directions by the
     # "opt-in git ground truth for baseSha" describe block below.
+    #
+    # Every test in this block therefore spawns a real sync subprocess -- the
+    # @describetag raises each one's ceiling above the 60s default that cost
+    # CI run 35481344778 a runner-load timeout inside `run_sync` (see the
+    # @sync_timeout comment above). Hardening, not weakening: no assertion is
+    # touched.
+    @describetag timeout: @sync_timeout
 
     @dogfood_title ~s(dcterms:title "Manufacture Semantic Jira work orders from RDF" ;)
     @dogfood_identifier ~s(dcterms:identifier "SJ-001" ;)
@@ -879,14 +1137,14 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     @dogfood_close "sj:nextCheckpoint sj:shacl-admission-checkpoint ."
 
     test "class 1 incomplete scalar identity: removing dcterms:title refuses admission" do
-      assert_refused("class1_missing_title", [{@dogfood_title, ""}], "missing core field title")
+      assert_refused("class1_missing_title", [{@dogfood_title, ""}], "dc/terms/title")
     end
 
     test "class 1 incomplete scalar identity: removing dcterms:identifier refuses admission" do
       assert_refused(
         "class1_missing_identifier",
         [{@dogfood_identifier, ""}],
-        "missing core field id"
+        "dc/terms/identifier"
       )
     end
 
@@ -894,7 +1152,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert_refused(
         "class1_ambiguous_title",
         [{@dogfood_title, @dogfood_title <> ~s(\n    dcterms:title "Shadow title" ;)}],
-        "exactly one complete scalar row"
+        "maxCount 1 violated (2 values)"
       )
     end
 
@@ -905,7 +1163,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
           {@dogfood_base_sha,
            @dogfood_base_sha <> ~s(\n    sj:baseSha "#{String.duplicate("a", 40)}" ;)}
         ],
-        "exactly one complete scalar row"
+        "maxCount 1 violated (2 values)"
       )
     end
 
@@ -917,7 +1175,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
            @dogfood_close <>
              attack_work_order("SJ-001", "semantic-jira:v26.9.19:ATTACK-DUP", "dup")}
         ],
-        "dcterms:identifier must be unique across WorkOrders"
+        "Work order identifiers must be unique"
       )
     end
 
@@ -932,7 +1190,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
              attack_work_order("SJ-COMBO", "semantic-jira:v26.9.19:ATTACK-COMBO-A", "combo-a") <>
              attack_work_order("SJ-COMBO", "semantic-jira:v26.9.19:ATTACK-COMBO-B", "combo-b")}
         ],
-        "dcterms:identifier must be unique across WorkOrders"
+        "Work order identifiers must be unique"
       )
     end
 
@@ -940,7 +1198,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert_refused(
         "class3_base_sha_uppercase",
         [{@dogfood_base_sha, ~s(sj:baseSha "D84DA1419A6945C6A8A64B8F6CDCA9D0B2C9E0F3" ;)}],
-        "baseSha must be an exact 40-hex commit SHA"
+        "does not match pattern"
       )
     end
 
@@ -948,7 +1206,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert_refused(
         "class3_base_sha_truncated",
         [{@dogfood_base_sha, ~s(sj:baseSha "#{String.duplicate("d", 39)}" ;)}],
-        "baseSha must be an exact 40-hex commit SHA"
+        "does not match pattern"
       )
     end
 
@@ -956,7 +1214,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert_refused(
         "class3_base_sha_extended",
         [{@dogfood_base_sha, ~s(sj:baseSha "#{String.duplicate("d", 41)}" ;)}],
-        "baseSha must be an exact 40-hex commit SHA"
+        "does not match pattern"
       )
     end
 
@@ -964,7 +1222,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert_refused(
         "class3_base_sha_whitespace",
         [{@dogfood_base_sha, ~s(sj:baseSha " #{String.duplicate("d", 40)}" ;)}],
-        "baseSha must be an exact 40-hex commit SHA"
+        "does not match pattern"
       )
     end
 
@@ -972,13 +1230,13 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert_refused(
         "class4_standing_lowercase",
         [{@dogfood_standing, ~s(sj:standing "unknown" ;)}],
-        "invalid standing"
+        "does not match pattern"
       )
 
       assert_refused(
         "class4_standing_fabricated",
         [{@dogfood_standing, ~s(sj:standing "SUPER_ALIVE" ;)}],
-        "invalid standing"
+        "does not match pattern"
       )
     end
 
@@ -986,7 +1244,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refused_empty_standing = "sj:standing \"REFUSED()\" ;"
       # The sync output surfaces refusals through an ArgumentError inspect,
       # which escapes quotes; match on the quote-free signal prefix.
-      refused_empty_signal = "invalid standing"
+      refused_empty_signal = "does not match pattern"
 
       assert_refused(
         "class4_standing_refused_empty",
@@ -999,13 +1257,13 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert_refused(
         "class5_authority_merge",
         [{@dogfood_authority, ~s(sj:authorityCeiling "MERGE" ;)}],
-        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+        "does not match pattern"
       )
 
       assert_refused(
         "class5_authority_deploy",
         [{@dogfood_authority, ~s(sj:authorityCeiling "DEPLOY" ;)}],
-        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+        "does not match pattern"
       )
     end
 
@@ -1013,13 +1271,13 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert_refused(
         "class5_authority_typo",
         [{@dogfood_authority, ~s(sj:authorityCeiling "constrct" ;)}],
-        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+        "does not match pattern"
       )
 
       assert_refused(
         "class5_authority_trailing_space",
         [{@dogfood_authority, ~s(sj:authorityCeiling "CONSTRUCT " ;)}],
-        "exceeds Semantic Jira's OBSERVE/SELECT/CONSTRUCT boundary"
+        "does not match pattern"
       )
     end
 
@@ -1035,7 +1293,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         assert_refused(
           "class6_missing_#{unquote(relation)}",
           remove_relation_mutations(unquote(relation)),
-          "missing required #{unquote(relation)} relation for SJ-001"
+          "##{unquote(relation)}"
         )
       end
     end
@@ -1057,7 +1315,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert_refused(
         "class7_target_bare_iri",
         [{dogfood_falsifier_statement(), ~s(sj:falsifier sj:bare-target ;)}],
-        "lacks rdfs:label + dcterms:description"
+        "is not an instance of"
       )
     end
 
@@ -1068,7 +1326,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
           {~s(sj:nextAction sj:add-qualified-shacl-court ;),
            ~s(sj:nextAction sj:add-qualified-shacl-court, "just do it" ;)}
         ],
-        "for SJ-001 lacks rdfs:label + dcterms:description"
+        "is not sh:IRI"
       )
     end
 
@@ -1079,28 +1337,20 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert_refused(
         "extra_alive_without_receipt_crown",
         [{@dogfood_standing, ~s(sj:standing "ALIVE" ;)}],
-        "standing ALIVE requires sj:candidateSha, sj:subjectSha, and sj:receipt evidence"
+        "ALIVE requires exact candidate/subject SHA"
       )
     end
 
     test "standing smuggling control: ALIVE with the full receipt crown admits" do
       crown =
-        ~s(sj:standing "ALIVE" ;\n    sj:candidateSha "#{String.duplicate("c", 40)}" ;\n    sj:subjectSha "#{String.duplicate("d", 40)}" ;\n    sj:receipt sj:test-alive-receipt ;)
+        ~s(sj:standing "ALIVE" ;\n    sj:candidateSha "#{String.duplicate("c", 40)}" ;\n    sj:subjectSha "#{String.duplicate("d", 40)}" ;\n    sj:receipt sj:control-receipt ;)
 
-      receipt =
-        """
-        sj:test-alive-receipt a sj:Receipt ;
-            sj:workOrderDigest "#{semantic_digest("a")}" ;
-            sj:repository "seanchatmangpt/ggen_igniter" ;
-            sj:baseSha "#{String.duplicate("c", 40)}" ;
-            sj:subjectSha "#{String.duplicate("d", 40)}" ;
-            sj:replayIdentity "semantic-jira:v26.9.19:TEST-ALIVE-RECEIPT" ;
-            sj:receiptClass "verification" .
-        """
+      receipt_block =
+        ~s(\nsj:control-receipt a sj:Receipt ;\n    rdfs:label "Control receipt" ;\n    dcterms:description "Typed receipt satisfying ReceiptShape for the ALIVE crown control." ;\n    sj:workOrderDigest "sha256:#{String.duplicate("0", 64)}" ;\n    sj:repository "seanchatmangpt/ggen_igniter" ;\n    sj:baseSha "#{String.duplicate("b", 40)}" ;\n    sj:subjectSha "#{String.duplicate("d", 40)}" ;\n    sj:replayIdentity "semantic-jira:v26.9.19:CONTROL-RECEIPT" ;\n    sj:receiptClass "manufacture" .\n)
 
       assert_admitted("extra_control_alive_with_receipt_crown", [
         {@dogfood_standing, crown},
-        {@dogfood_close, @dogfood_close <> "\n" <> receipt}
+        {@dogfood_close, @dogfood_close <> receipt_block}
       ])
     end
 
@@ -1113,7 +1363,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
              attack_work_order("SJ-REPL-A", "semantic-jira:v26.9.19:ATTACK-SHARED", "repl-a") <>
              attack_work_order("SJ-REPL-B", "semantic-jira:v26.9.19:ATTACK-SHARED", "repl-b")}
         ],
-        "sj:replayIdentity must be unique across WorkOrders"
+        "Replay identities must be unique"
       )
     end
 
@@ -1196,24 +1446,51 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       {output, exit_code} = run_sync(work_dir, ["--ontology", mutated])
 
       refute exit_code == 0
-      refute output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
+      refute output =~ "REFUSED:SEMANTIC_JIRA_"
       refute File.exists?(Path.join(work_dir, "SJ-001.md"))
       assert output =~ "Turtle"
     end
   end
 
   describe "opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure)" do
+    # All six tests here drive run_sync subprocesses -- same @describetag
+    # hardening as the falsifier matrix above (see the @sync_timeout comment).
+    @describetag timeout: @sync_timeout
     # Drives the REAL CLI (no simulated git): the run's --verify-cwd default
     # is File.cwd!() -- this clone -- whose history contains the canonical
     # baseSha d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3 as a real commit
     # reachable from HEAD (witnessed before these tests existed:
     # `git cat-file -e d84da141...^{commit}` -> 0 and
     # `git merge-base --is-ancestor d84da141... HEAD` -> 0).
+    #
+    # The two --verify-base-sha (verify-EVERY-row) tests run against the
+    # PRE-CROWN baseline graph: the wave-6 CROWN-001/002 rows are sensed
+    # `local/eds` work whose baseSha (b40964e7...) is by construction NOT a
+    # commit of this repository, so flag-on verification over the full
+    # canonical graph REFUSES here -- the documented opt-in default holding
+    # exactly as designed. The honest-pass and forged-refusal properties are
+    # therefore proven over the same verifiable row set these tests were
+    # written against (SJ-001 + GALL-001..032, 33 rows).
+
+    defp pre_crown_baseline_ontology!(work_dir, tag) do
+      path = Path.join(work_dir, "#{tag}.ttl")
+      File.write!(path, pre_crown_baseline_text())
+      path
+    end
+
+    defp pre_crown_baseline_text do
+      @ontology_path
+      |> File.read!()
+      |> String.split("# ── W6-A8 crown: closed-loop manufactured work orders")
+      |> List.first()
+    end
 
     test "flag on over the honest graph manufactures (honest-pass side)" do
       work_dir = scratch_dir!("git_truth_honest")
+      baseline = pre_crown_baseline_ontology!(work_dir, "git-truth-honest")
 
-      {output, exit_code} = run_sync(work_dir, ["--verify-base-sha"])
+      {output, exit_code} =
+        run_sync(work_dir, ["--ontology", baseline, "--verify-base-sha"])
 
       assert exit_code == 0, "git-ground-truth honest sync failed:\n#{output}"
       assert File.exists?(Path.join(work_dir, "SJ-001.md"))
@@ -1222,11 +1499,27 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
     end
 
+    test "flag on over the full canonical graph refuses the foreign crown baseSha (verifier honesty)" do
+      # CROWN-001/002 carry the sensed local/eds head as baseSha; verify-every
+      # must refuse it in this checkout, never silently pass a foreign SHA.
+      work_dir = scratch_dir!("git_truth_crown_foreign")
+
+      {output, exit_code} = run_sync(work_dir, ["--verify-base-sha"])
+
+      refute exit_code == 0, "expected foreign-baseSha refusal, got exit 0:\n#{output}"
+      assert output =~ "REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED"
+
+      assert output =~
+               "baseSha b40964e70a8f87296fe7d69bad999aad02e06f19 is not a commit reachable in"
+
+      assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+    end
+
     test "flag on over a forged-but-well-formed 40-hex baseSha refuses before any actuation" do
       work_dir = scratch_dir!("git_truth_forged")
 
       mutated =
-        mutate_ontology!(work_dir, "git-truth-forged", [
+        mutate_ontology_from!(work_dir, "git-truth-forged", pre_crown_baseline_text(), [
           # Format-valid (40-hex) but not a commit in any checkout: exactly
           # the residual_base_sha_wrong_commit attack shape.
           {@dogfood_base_sha, ~s(sj:baseSha "#{String.duplicate("d", 40)}" ;)}
@@ -1252,7 +1545,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       {output, exit_code} = run_sync(work_dir)
 
       assert exit_code == 0, "flag-off honest sync failed:\n#{output}"
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
     end
 
     test "flag on with a non-git --verify-cwd refuses cleanly, not a crash" do
@@ -1305,7 +1598,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       assert exit_code == 0, "per-order git-ground-truth control failed:\n#{output}"
       assert File.exists?(Path.join(work_dir, "SJ-001.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
     end
   end
 
@@ -1377,16 +1670,20 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   defp mutate_ontology!(work_dir, tag, replacements) do
+    mutate_ontology_from!(work_dir, tag, File.read!(@ontology_path), replacements)
+  end
+
+  defp mutate_ontology_from!(work_dir, tag, source, replacements) do
     path = Path.join(work_dir, "#{tag}.ttl")
 
     mutated =
-      Enum.reduce(replacements, File.read!(@ontology_path), fn {find, replace}, acc ->
+      Enum.reduce(replacements, source, fn {find, replace}, acc ->
         String.replace(acc, find, replace, global: false)
       end)
 
     # Every mutation must actually change the graph; a no-op mutation would
     # fabricate a rejection signal.
-    refute mutated == File.read!(@ontology_path)
+    refute mutated == source
     File.write!(path, mutated)
     path
   end
@@ -1397,7 +1694,12 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     {output, exit_code} = run_sync(work_dir, ["--ontology", mutated])
 
     refute exit_code == 0, "expected refusal, got exit 0:\n#{output}"
-    assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
+    # Converged to the SHACL admission court vocabulary (aac892c..c74f409):
+    # graph-law refusals surface as REFUSED:SEMANTIC_JIRA_SHACL; kernel-owned
+    # semantic-integrity checks still refuse as REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER.
+    # Both are the law's refusal family; per-class evidence is the
+    # expected_signal discriminator below.
+    assert output =~ "REFUSED:SEMANTIC_JIRA_"
     assert output =~ expected_signal
     refute File.exists?(Path.join(work_dir, "SJ-001.md"))
 

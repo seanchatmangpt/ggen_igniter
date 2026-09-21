@@ -1,9 +1,19 @@
 @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
 @prefix gp: <https://ggen.dev/ns/pack#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix oslc_cm: <http://open-services.net/ns/cm#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Vocabulary reduction law (v26.9.19, W7-A4): work/change/provenance facts
+# are dual-asserted in PUBLIC vocabularies (OSLC CM 3.0, dcterms, PROV-O);
+# sj: is retained only as documented residue. The full mapping table
+# (dispositions, authority citations, failed public edges, residue list) is
+# priv/ggen/semantic-jira-pack/VOCABULARY.md; the vocabulary test
+# (ggen_igniter_semantic_jira_vocabulary_test.exs) compares that residue
+# table against this graph and fails on drift in either direction.
 
 <urn:ggen:pack:semantic-jira-pack>
     a gp:Pack ;
@@ -15,9 +25,14 @@
 # Markdown tickets are consequences of this graph; edit this graph (or an
 # explicitly supplied --ontology override), never a generated ticket.
 
+# PUBLIC CARRY (OSLC CM 3.0 Part 2 Vocabulary, class ChangeRequest): every
+# work order is dual-typed `a sj:WorkOrder, oslc_cm:ChangeRequest`. The dcterms
+# identifier/title/description the rows already carry are exactly the core
+# ChangeRequest properties of CM 3.0 Part 3 §2.1. sj:WorkOrder stays the
+# canonical anchor; the public type is carried, never load-bearing alone.
 sj:WorkOrder a rdfs:Class ;
     rdfs:label "Semantic Jira work order" ;
-    rdfs:comment "Canonical semantic unit projected into Jira-shaped Markdown." .
+    rdfs:comment "Canonical semantic unit projected into Jira-shaped Markdown; dual-typed oslc_cm:ChangeRequest (see VOCABULARY.md)." .
 
 sj:Court a rdfs:Class ; rdfs:label "Verification court" .
 sj:EvidenceRequirement a rdfs:Class ; rdfs:label "Evidence requirement" .
@@ -52,7 +67,7 @@ sj:projection a rdf:Property .
 sj:receipt a rdf:Property .
 
 # Self-dogfood work order: this pack manufactures its own first Jira projection.
-sj:semantic-jira-mvp a sj:WorkOrder ;
+sj:semantic-jira-mvp a sj:WorkOrder, oslc_cm:ChangeRequest ;
     dcterms:identifier "SJ-001" ;
     dcterms:title "Manufacture Semantic Jira work orders from RDF" ;
     dcterms:description "Project admitted semantic work orders into deterministic Markdown without granting the projection execution authority." ;
@@ -123,13 +138,25 @@ sj:ProjectionSpec a rdfs:Class ; rdfs:label "Deterministic projection specificat
 sj:LeaseRequest a rdfs:Class ; rdfs:label "Bounded runtime lease request" .
 sj:PreparedAuthorityReceipt a rdfs:Class ; rdfs:label "Prepared authority receipt" .
 sj:Actuation a rdfs:Class ; rdfs:label "Consequential actuation" .
+# PUBLIC CARRY (PROV-O): every receipt is dual-typed `a sj:Receipt,
+# prov:Entity` and carries `prov:wasGeneratedBy` the fabric run Activity that
+# produced it (that run `prov:wasAssociatedWith` the worker agent).
 sj:Receipt a rdfs:Class ; rdfs:label "Typed durable receipt" .
 sj:MachineExperience a rdfs:Class ; rdfs:label "Receipted machine experience" .
 sj:ProcessFinding a rdfs:Class ; rdfs:label "Observed process finding" .
 sj:RepairLineage a rdfs:Class ; rdfs:label "Failure-to-repair lineage" .
 sj:Refusal a rdfs:Class ; rdfs:label "Typed refusal" .
 sj:Prediction a rdfs:Class ; rdfs:label "Candidate prediction" .
-sj:StandingTransition a rdfs:Class ; rdfs:label "Standing transition intent" .
+# PUBLIC CARRY (PROV-O): every StandingTransition event is dual-typed
+# `a sj:StandingTransition, prov:Activity`, carries `prov:used` mirroring
+# `sj:transitionEvidence` (same receipt, same subject), and
+# `prov:wasAssociatedWith sj:reconciler-agent` (the Activity -> Agent slot;
+# prov:wasGeneratedBy cannot legally point at an Agent). prov:atTime is NOT
+# asserted: the kernel event has no persisted timestamp (log order is time)
+# and fabricating one is forbidden — see VOCABULARY.md open carries.
+sj:StandingTransition a rdfs:Class ;
+    rdfs:label "Append-only standing transition event" ;
+    rdfs:comment "Immutable event binding a work order's standing change to receipt evidence, the exact git head, and both the immutable definition digest and the moving snapshot digest. Current standing is the projection over the event chain, never an in-place mutation. Dual-typed prov:Activity." .
 
 sj:candidateSha a rdf:Property ; rdfs:range xsd:string .
 sj:subjectSha a rdf:Property ; rdfs:range xsd:string .
@@ -157,6 +184,56 @@ sj:observedStanding a rdf:Property ; rdfs:range xsd:string .
 sj:normativeMutation a rdf:Property ; rdfs:range xsd:boolean .
 sj:fromStanding a rdf:Property ; rdfs:range xsd:string .
 sj:toStanding a rdf:Property ; rdfs:range xsd:string .
+
+# ---- Event-sourced standing law (v26.9.19) ----
+# A WorkOrder's definition is IMMUTABLE: sj:definitionDigest (when present on
+# the row) hashes exactly the definition field set -- identity scalars
+# (dcterms:identifier/title/description), exact subject binding
+# (sj:subject/sj:repository/sj:baseSha), ceilings and law
+# (sj:evidenceCeiling/sj:authorityRequirement/sj:promotionRule/
+# sj:replayIdentity), required relations (sj:dependsOn/sj:requiresCourt/
+# sj:requiresEvidence/sj:requiresReceiptClass/sj:acceptance/sj:falsifier/
+# sj:projection), and bounded scope (sj:pathScope) -- EXCLUDING standing,
+# candidate SHA, dimensions, and every derived digest. The kernel's exact
+# field set lives in GgenIgniter.SemanticJira's @definition_fields.
+# sj:workOrderDigest remains the SNAPSHOT digest: it moves when standing
+# moves. Standing changes are append-only sj:StandingTransition events:
+#   sj:transition-<hash8> a sj:StandingTransition ;
+#       sj:transitionId "sha256:<64hex>" ;
+#       sj:transitionWorkOrder <wo> ;
+#       sj:fromStanding "..." ; sj:toStanding "..." ;
+#       sj:transitionEvidence <receipt-iri> ;
+#       sj:finalHead "<40-hex>" ;
+#       sj:definitionDigest "sha256:<64hex>" ;
+#       sj:snapshotDigest "sha256:<64hex>" .
+# transitionId is the deterministic hash of (work order id, toStanding,
+# evidence identity, final head); a second event with the same id but
+# different content refuses (shapes/work-order.shacl.ttl). Current standing
+# is a PROJECTION: the chain tip's toStanding per work order (latest event),
+# or the declared sj:standing when no transitions exist
+# (gates/055_standing_projection.rq; kernel project_standing/1). The
+# frontier (gates/050_frontier.rq) consults the projection: a work order
+# transitioned away from UNKNOWN is no longer frontier-eligible for the
+# same work.
+#
+# DIGEST-STABILITY LAW (public dual-assertion, v26.9.19 W7-A4): the
+# definition digest is BLIND to the public vocabulary carry. The kernel's
+# exact field set (@definition_fields) is a closed take over kernel fields,
+# and the graph->kernel extraction reads only the enumerated sj:/dcterms:
+# definition predicates, so `a oslc_cm:ChangeRequest`, `a prov:Activity`,
+# `a prov:Entity`, `prov:used`, `prov:wasAssociatedWith`,
+# `prov:wasGeneratedBy`, and dcterms:title mirrors on receipts/events can
+# NEVER enter the definition digest. Adding a public triple to a row leaves
+# its definition digest byte-identical; changing a residue/identity fact
+# (dcterms:title, sj:promotionRule, ...) moves it exactly as the field set
+# dictates. Proven both ways by
+# test/ggen_igniter_semantic_jira_vocabulary_test.exs.
+sj:definitionDigest a rdf:Property ; rdfs:range xsd:string .
+sj:snapshotDigest a rdf:Property ; rdfs:range xsd:string .
+sj:transitionId a rdf:Property ; rdfs:range xsd:string .
+sj:transitionWorkOrder a rdf:Property .
+sj:transitionEvidence a rdf:Property .
+sj:finalHead a rdf:Property ; rdfs:range xsd:string .
 
 sj:source-evidence a sj:EvidenceRequirement ;
     rdfs:label "Source evidence" ;
@@ -321,7 +398,7 @@ sj:known-retirement-checkpoint a sj:Checkpoint ;
     rdfs:label "KNOWN retirement" ;
     dcterms:description "Fresh replay reconstructs the subject so repeated reasoning can retire to deterministic machinery." .
 
-sj:gall-001 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-001 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-001 — Semantic Pack Receipt Replay" ;
     dcterms:identifier "GALL-001" ;
     dcterms:title "Semantic Pack Receipt Replay" ;
@@ -368,7 +445,7 @@ sj:edge-002-from-001 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-001 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-002 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-002 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-002 — Project Manufacturer Seal" ;
     dcterms:identifier "GALL-002" ;
     dcterms:title "Project Manufacturer Seal" ;
@@ -416,7 +493,7 @@ sj:edge-003-from-002 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-002 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-003 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-003 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-003 — Command/Authority/Receipt Seal" ;
     dcterms:identifier "GALL-003" ;
     dcterms:title "Command/Authority/Receipt Seal" ;
@@ -464,7 +541,7 @@ sj:edge-004-from-003 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-003 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-004 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-004 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-004 — Independent Observer Seal" ;
     dcterms:identifier "GALL-004" ;
     dcterms:title "Independent Observer Seal" ;
@@ -512,7 +589,7 @@ sj:edge-005-from-004 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-004 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-005 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-005 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-005 — SA2A Composition/MachineExperience Crown" ;
     dcterms:identifier "GALL-005" ;
     dcterms:title "SA2A Composition/MachineExperience Crown" ;
@@ -560,7 +637,7 @@ sj:edge-006-from-005 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-005 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-006 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-006 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-006 — Fresh Consumer Seal" ;
     dcterms:identifier "GALL-006" ;
     dcterms:title "Fresh Consumer Seal" ;
@@ -608,7 +685,7 @@ sj:edge-007-from-006 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-006 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-007 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-007 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-007 — Chicago Standing Crown" ;
     dcterms:identifier "GALL-007" ;
     dcterms:title "Chicago Standing Crown" ;
@@ -656,7 +733,7 @@ sj:edge-008-from-007 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-007 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-008 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-008 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-008 — Semantic Telemetry" ;
     dcterms:identifier "GALL-008" ;
     dcterms:title "Semantic Telemetry" ;
@@ -704,7 +781,7 @@ sj:edge-009-from-008 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-008 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-009 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-009 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-009 — Runtime Feedback Admission" ;
     dcterms:identifier "GALL-009" ;
     dcterms:title "Runtime Feedback Admission" ;
@@ -752,7 +829,7 @@ sj:edge-010-from-009 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-009 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-010 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-010 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-010 — Partial Observability" ;
     dcterms:identifier "GALL-010" ;
     dcterms:title "Partial Observability" ;
@@ -800,7 +877,7 @@ sj:edge-011-from-010 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-010 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-011 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-011 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-011 — Active Falsifier" ;
     dcterms:identifier "GALL-011" ;
     dcterms:title "Active Falsifier" ;
@@ -848,7 +925,7 @@ sj:edge-012-from-011 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-011 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-012 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-012 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-012 — Semantic Predictor" ;
     dcterms:identifier "GALL-012" ;
     dcterms:title "Semantic Predictor" ;
@@ -896,7 +973,7 @@ sj:edge-013-from-012 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-012 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-013 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-013 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-013 — Autonomic Repair" ;
     dcterms:identifier "GALL-013" ;
     dcterms:title "Autonomic Repair" ;
@@ -944,7 +1021,7 @@ sj:edge-014-from-013 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-013 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-014 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-014 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-014 — Full Autonomics Crown" ;
     dcterms:identifier "GALL-014" ;
     dcterms:title "Full Autonomics Crown" ;
@@ -992,7 +1069,7 @@ sj:edge-015-from-014 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-014 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-015 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-015 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-015 — Process Reference Corpus" ;
     dcterms:identifier "GALL-015" ;
     dcterms:title "Process Reference Corpus" ;
@@ -1040,7 +1117,7 @@ sj:edge-016-from-015 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-015 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-016 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-016 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-016 — POWL Dual Ingress" ;
     dcterms:identifier "GALL-016" ;
     dcterms:title "POWL Dual Ingress" ;
@@ -1088,7 +1165,7 @@ sj:edge-017-from-016 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-016 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-017 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-017 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-017 — OCPQ Reference Court" ;
     dcterms:identifier "GALL-017" ;
     dcterms:title "OCPQ Reference Court" ;
@@ -1136,7 +1213,7 @@ sj:edge-018-from-017 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-017 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-018 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-018 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-018 — Rule-Constrained Discovery" ;
     dcterms:identifier "GALL-018" ;
     dcterms:title "Rule-Constrained Discovery" ;
@@ -1184,7 +1261,7 @@ sj:edge-019-from-018 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-018 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-019 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-019 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-019 — Compliance Predictor Reference" ;
     dcterms:identifier "GALL-019" ;
     dcterms:title "Compliance Predictor Reference" ;
@@ -1232,7 +1309,7 @@ sj:edge-020-from-019 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-019 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-020 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-020 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-020 — Process Compute Boundary" ;
     dcterms:identifier "GALL-020" ;
     dcterms:title "Process Compute Boundary" ;
@@ -1280,7 +1357,7 @@ sj:edge-021-from-020 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-020 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-021 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-021 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-021 — Portable Process Determinism" ;
     dcterms:identifier "GALL-021" ;
     dcterms:title "Portable Process Determinism" ;
@@ -1328,7 +1405,7 @@ sj:edge-022-from-021 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-021 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-022 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-022 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-022 — POWL Language Preservation" ;
     dcterms:identifier "GALL-022" ;
     dcterms:title "POWL Language Preservation" ;
@@ -1376,7 +1453,7 @@ sj:edge-023-from-022 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-022 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-023 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-023 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-023 — OCPQ Binding Determinism" ;
     dcterms:identifier "GALL-023" ;
     dcterms:title "OCPQ Binding Determinism" ;
@@ -1424,7 +1501,7 @@ sj:edge-024-from-023 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-023 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-024 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-024 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-024 — Object-Centric Observation" ;
     dcterms:identifier "GALL-024" ;
     dcterms:title "Object-Centric Observation" ;
@@ -1472,7 +1549,7 @@ sj:edge-025-from-024 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-024 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-025 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-025 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-025 — Normative/Observed Separation" ;
     dcterms:identifier "GALL-025" ;
     dcterms:title "Normative/Observed Separation" ;
@@ -1520,7 +1597,7 @@ sj:edge-026-from-025 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-025 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-026 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-026 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-026 — Conformance Delta" ;
     dcterms:identifier "GALL-026" ;
     dcterms:title "Conformance Delta" ;
@@ -1568,7 +1645,7 @@ sj:edge-027-from-026 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-026 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-027 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-027 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-027 — Semantic Attribution Conservation" ;
     dcterms:identifier "GALL-027" ;
     dcterms:title "Semantic Attribution Conservation" ;
@@ -1616,7 +1693,7 @@ sj:edge-028-from-027 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-027 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-028 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-028 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-028 — Multi-Clock Control" ;
     dcterms:identifier "GALL-028" ;
     dcterms:title "Multi-Clock Control" ;
@@ -1664,7 +1741,7 @@ sj:edge-029-from-028 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-028 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-029 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-029 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-029 — Process Finding Admission" ;
     dcterms:identifier "GALL-029" ;
     dcterms:title "Process Finding Admission" ;
@@ -1712,7 +1789,7 @@ sj:edge-030-from-029 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-029 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-030 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-030 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-030 — Bounded Process Intervention" ;
     dcterms:identifier "GALL-030" ;
     dcterms:title "Bounded Process Intervention" ;
@@ -1760,7 +1837,7 @@ sj:edge-031-from-030 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-030 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-031 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-031 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-031 — Process Redesign Canary" ;
     dcterms:identifier "GALL-031" ;
     dcterms:title "Process Redesign Canary" ;
@@ -1808,7 +1885,7 @@ sj:edge-032-from-031 a sj:DependencyEdge ;
     sj:upstreamWorkOrder sj:gall-031 ;
     sj:requiredStanding "ALIVE" .
 
-sj:gall-032 a sj:WorkOrder, sj:Checkpoint ;
+sj:gall-032 a sj:WorkOrder, sj:Checkpoint, oslc_cm:ChangeRequest ;
     rdfs:label "GALL-032 — External Process Autonomics Crown" ;
     dcterms:identifier "GALL-032" ;
     dcterms:title "External Process Autonomics Crown" ;
@@ -1858,3 +1935,170 @@ sj:ledger-unsupported-001 a rdfs:Resource ;
     dcterms:description "UNSUPPORTED(semantic-jira-pack, integration-proof-test): no admitted generator expresses the Chicago-style, no-mock ExUnit integration proof of this pack's own sync -> admission -> actuation -> receipt pipeline (real filesystem, real nested mix compile, durable receipts, byte-identical replay). The existing test-manufacturing families (beam4pm-bench-pack, chicago-fault-injection-pack) manufacture domain-specific benchmark/fault-injection specs, and pack gates verify admission data rather than end-to-end pipeline behaviour, so test/ggen_igniter_semantic_jira_pack_test.exs is admitted hand-authored residue. Paydown plan: extend the test-manufacturing family with a pack-integration-proof generator (ontology facts + template over the pack manifest/gates); when admitted, this row and its HANDWRITTEN.md entry retire." ;
     dcterms:date "2026-09-19"^^xsd:date ;
     dcterms:references <https://ggen-igniter.dev/ontology/semantic-jira#pack-integration-proof-test> .
+
+# ── W6-A8 crown: closed-loop manufactured work orders ──────────────────
+# Manufactured by ggen_igniter:crown-glue@26.9.19 from sensing document
+# digest sha256:2d84d57eaf6ded08c78aafc7ca65e015269fa949a030efcc391fa1cb9dc69c79 (schema xaas-sensing/1,
+# head b40964e70a8f87296fe7d69bad999aad02e06f19, item fail-test-normalize-label-collapses-inner-whi-41cea4).
+# The graph revision IS the manufacture path; no ticket was edited.
+
+sj:court-crown-001 a sj:Court ;
+    rdfs:label "CROWN-001 exact-head court" ;
+    dcterms:description "Independent exact-head court for CROWN-001; execution binds exact base, verifier/tool/environment identity, and durable receipt identity." .
+
+
+sj:court-crown-002 a sj:Court ;
+    rdfs:label "CROWN-002 exact-head court" ;
+    dcterms:description "Independent exact-head court for CROWN-002; execution binds exact base, verifier/tool/environment identity, and durable receipt identity." .
+
+
+sj:acceptance-crown-001 a sj:AcceptanceCriterion ;
+    rdfs:label "CROWN-001 acceptance" ;
+    dcterms:description "Repair observed failing condition fail-test-normalize-label-collapses-inner-whi-41cea4 is receipted at the exact head. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-crown-001 a sj:Falsifier ;
+    rdfs:label "CROWN-001 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-crown-001-court a sj:Action ;
+    rdfs:label "Run CROWN-001 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:checkpoint-crown-001 a sj:Checkpoint ;
+    rdfs:label "CROWN-001 checkpoint" ;
+    dcterms:description "Closed only by the reconciler recording a receipted standing transition." .
+
+
+sj:acceptance-crown-002 a sj:AcceptanceCriterion ;
+    rdfs:label "CROWN-002 acceptance" ;
+    dcterms:description "Receipt-bound regression guard for CROWN-001 is receipted at the exact head. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-crown-002 a sj:Falsifier ;
+    rdfs:label "CROWN-002 falsifier" ;
+    dcterms:description "Subject, receipt, evidence, authority, replay, or contrary-observation mismatch falsifies promotion." .
+
+sj:run-crown-002-court a sj:Action ;
+    rdfs:label "Run CROWN-002 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:checkpoint-crown-002 a sj:Checkpoint ;
+    rdfs:label "CROWN-002 checkpoint" ;
+    dcterms:description "Closed only by the reconciler recording a receipted standing transition." .
+
+
+sj:edge-crown-002-from-001 a sj:DependencyEdge ;
+    rdfs:label "CROWN-002 dependency on CROWN-001" ;
+    dcterms:description "Typed semantic-identity dependency; runtime may strengthen it with exact receipt/digest identity." ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:crown-001 ;
+    sj:requiredStanding "ALIVE" .
+
+
+sj:crown-001 a sj:WorkOrder, oslc_cm:ChangeRequest ;
+    dcterms:identifier "CROWN-001" ;
+    dcterms:title "Repair observed failing condition fail-test-normalize-label-collapses-inner-whi-41cea4" ;
+    dcterms:description "The test suite reports this failure when sensed:\n\n    test_normalize_label_collapses_inner_whitespace -- tests/test_w6_crown_seed.py\n\nMake the failing test pass WITHOUT weakening, skipping, or deleting it\n(and without weakening any other test). Fix the production or test code\nthe failure points at, commit, and close through the normal lease protocol\nwith your final head.\n\nThe test suite exited with code 1 when this item was sensed." ;
+    sj:repository "local/eds" ;
+    sj:baseSha "b40964e70a8f87296fe7d69bad999aad02e06f19" ;
+    sj:subject "eds:crown-001-observed-condition" ;    sj:pathScope "src/eds/crown.py", "tests/test_w6_crown_seed.py" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Standing may advance only from an independent exact-head court receipt for the same subject at the same base; sensed failure text is a signal, never evidence." ;
+    sj:replayIdentity "crown:v26.9.19:CROWN-001" ;
+    sj:requiresCourt sj:court-crown-001 ;
+    sj:requiresEvidence sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification" ;
+    sj:acceptance sj:acceptance-crown-001 ;
+    sj:falsifier sj:falsifier-crown-001 ;
+    sj:projection sj:projection-worker, sj:projection-verification, sj:projection-receipt ;
+    sj:nextAction sj:run-crown-001-court ;
+    sj:nextCheckpoint sj:checkpoint-crown-001 .
+
+sj:crown-002 a sj:WorkOrder, oslc_cm:ChangeRequest ;
+    dcterms:identifier "CROWN-002" ;
+    dcterms:title "Receipt-bound regression guard for CROWN-001" ;
+    dcterms:description "Encode a permanent regression guard for the repaired condition in CROWN-001; eligibility requires the upstream receipt." ;
+    sj:repository "local/eds" ;
+    sj:baseSha "b40964e70a8f87296fe7d69bad999aad02e06f19" ;
+    sj:subject "eds:crown-002-regression-guard" ;    sj:dependsOn sj:edge-crown-002-from-001 ;
+    sj:pathScope "src/eds/crown.py", "tests/test_w6_crown_seed.py" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Standing may advance only from an independent exact-head court receipt for the same subject at the same base; sensed failure text is a signal, never evidence." ;
+    sj:replayIdentity "crown:v26.9.19:CROWN-002" ;
+    sj:requiresCourt sj:court-crown-002 ;
+    sj:requiresEvidence sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification" ;
+    sj:acceptance sj:acceptance-crown-002 ;
+    sj:falsifier sj:falsifier-crown-002 ;
+    sj:projection sj:projection-worker, sj:projection-verification, sj:projection-receipt ;
+    sj:nextAction sj:run-crown-002-court ;
+    sj:nextCheckpoint sj:checkpoint-crown-002 .
+
+# ── W6-A8 crown reconciler: receipted kernel-manufactured events ─────
+# Receipt urn:xaas:ultracode:receipt:31fdd134-2970-4432-9e0d-6ec5e99b75ce digest sha256:732dae899582a30e5017bf1b3ec2b2a6e6f218ae6ea2f77767eb501c69cbd312
+#
+# PUBLIC CARRY (PROV-O): the receipt is dual-typed prov:Entity, generated by
+# the fabric verification run that produced it; the run is associated with
+# the worker agent; each transition Activity is associated with the
+# reconciler agent and prov:used the receipt Entity. prov:atTime is not
+# asserted (no persisted timestamp; see VOCABULARY.md).
+prov:SoftwareAgent rdfs:subClassOf prov:Agent .  # public PROV-O axiom, so sh:class prov:Agent resolves SoftwareAgent agents
+
+sj:reconciler-agent a prov:SoftwareAgent ;
+    rdfs:label "Semantic Jira graph reconciler" ;
+    dcterms:description "The graph reconciler (GgenIgniter crown/reconcile path) that manufactures and appends receipted standing-transition events; associated with each transition Activity via prov:wasAssociatedWith." .
+
+sj:fabric-worker-agent a prov:SoftwareAgent ;
+    rdfs:label "Fabric verification worker" ;
+    dcterms:description "The fabric/worker execution context that ran the exact-head verification producing the durable CROWN-001 receipt; associated with the fabric run Activity via prov:wasAssociatedWith." .
+
+sj:fabric-run-crown-001 a prov:Activity ;
+    rdfs:label "Fabric verification run for CROWN-001" ;
+    dcterms:description "The exact-head fabric verification execution that generated sj:receipt-crown-001 (prov:wasGeneratedBy) at final head 02f7c9844a607ce663539f93bca4fdce7678f7a8." ;
+    prov:wasAssociatedWith sj:fabric-worker-agent .
+
+sj:receipt-crown-001 a sj:Receipt, prov:Entity ;
+    sj:workOrderDigest "sha256:bacdcf0d1211c1aa5a8749b164db599136e953bb2dd2da9a4b867b19a8bbb864" ;
+    sj:repository "local/eds" ;
+    sj:baseSha "b40964e70a8f87296fe7d69bad999aad02e06f19" ;
+    sj:subjectSha "02f7c9844a607ce663539f93bca4fdce7678f7a8" ;
+    sj:replayIdentity "crown:v26.9.19:CROWN-001" ;
+    sj:receiptClass "verification" ;
+    prov:wasGeneratedBy sj:fabric-run-crown-001 ;
+    rdfs:label "Durable fabric receipt for CROWN-001" ;
+    dcterms:title "Durable fabric receipt for CROWN-001" .
+
+
+sj:transition-d8146461 a sj:StandingTransition, prov:Activity ;
+    sj:transitionId "sha256:d8146461a88d37b25e3d4fe6679eea80d6ecc8b1ee6ba17e6b00a433af07cfa0" ;
+    sj:transitionWorkOrder sj:crown-001 ;
+    sj:fromStanding "UNKNOWN" ;
+    sj:toStanding "PARTIAL_ALIVE" ;
+    sj:transitionEvidence sj:receipt-crown-001 ;
+    prov:used sj:receipt-crown-001 ;
+    prov:wasAssociatedWith sj:reconciler-agent ;
+    sj:finalHead "02f7c9844a607ce663539f93bca4fdce7678f7a8" ;
+    sj:definitionDigest "sha256:8ef95f75bae625ea324f68cde32ea783f7425b2c356ef2a08fee7c331aea221b" ;
+    sj:snapshotDigest "sha256:bacdcf0d1211c1aa5a8749b164db599136e953bb2dd2da9a4b867b19a8bbb864" ;
+    rdfs:label "CROWN-001 UNKNOWN to PARTIAL_ALIVE" ;
+    dcterms:title "CROWN-001 UNKNOWN to PARTIAL_ALIVE" .
+
+
+sj:transition-94bce0c9 a sj:StandingTransition, prov:Activity ;
+    sj:transitionId "sha256:94bce0c9bca129675404881bdbdad03b008891fc276a04e3389d82858a06a727" ;
+    sj:transitionWorkOrder sj:crown-001 ;
+    sj:fromStanding "PARTIAL_ALIVE" ;
+    sj:toStanding "ALIVE" ;
+    sj:transitionEvidence sj:receipt-crown-001 ;
+    prov:used sj:receipt-crown-001 ;
+    prov:wasAssociatedWith sj:reconciler-agent ;
+    sj:finalHead "02f7c9844a607ce663539f93bca4fdce7678f7a8" ;
+    sj:definitionDigest "sha256:8ef95f75bae625ea324f68cde32ea783f7425b2c356ef2a08fee7c331aea221b" ;
+    sj:snapshotDigest "sha256:724a0c9c64423e2c463d9bee88b606ecee629d65100313110a65617f43f9564c" ;
+    rdfs:label "CROWN-001 PARTIAL_ALIVE to ALIVE" ;
+    dcterms:title "CROWN-001 PARTIAL_ALIVE to ALIVE" .

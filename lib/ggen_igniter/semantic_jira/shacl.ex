@@ -196,7 +196,13 @@ defmodule GgenIgniter.SemanticJira.Shacl do
       |> Enum.flat_map(fn predicate ->
         data
         |> RDF.Graph.descriptions()
-        |> Enum.filter(&RDF.Description.include?(&1, predicate))
+        # rdf 3.0.1 has no Description.include?/2 clause for a bare predicate
+        # IRI (measured: FunctionClauseError — the supported inputs are triple
+        # tuples or descriptions), so presence is checked via get/3. This line
+        # was dead code until the W7-A4 dual-path shapes first targeted
+        # sh:targetSubjectsOf; guarded by the vocabulary test's public-only
+        # targeting proof.
+        |> Enum.filter(&(RDF.Description.get(&1, predicate, []) != []))
         |> Enum.map(& &1.subject)
       end)
 
