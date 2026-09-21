@@ -20,6 +20,14 @@ Search graph, with what each edge produced:
    and by the `refuse-handwritten-ash.sh` hook. Never used.
 4. Text splice of the resource source: rejected; the Igniter AST edit is idempotent and
    drift-correcting, a splice is neither.
+5. `ash.gen.resource --conflicts replace` to add the missing `update` action to an existing
+   resource: not adopted. By its source (`add_actions_to_resource/4`) it removes the whole
+   `defaults` call and re-adds every attribute, which discards a consumer's own defaults.
+   Not executed in this stream (UNVERIFIED as a run); the additive AST edit was chosen instead.
+6. Retirement by deleting the `skill` line or the Ash action: rejected. ash_a2a exposes every
+   public Ash action by default (`AshA2A.Dsl` moduledoc, `CapabilityIndex.Compiler`), so removing
+   the line leaves the action exposed as a plain `:change` skill, and deleting the action may
+   break code this repo does not own. `expose?: false` revokes exposure and keeps the action.
 
 ## Change
 
@@ -34,17 +42,32 @@ Search graph, with what each edge produced:
   - `--default-actions` is derived from the exposed skills' Ash actions (`read,create,update`)
     instead of the literal `read,create`. An exposed skill naming an action
     `ash.gen.resource` cannot produce is refused at render as UNSUPPORTED(generator-capability).
-  - a `@consequences` list, one explicit `consequence:` per exposed skill, rendered from gate
-    060, plus `declare_consequences/3`: after the plan it edits the resource's `a2a` block with
-    `Igniter.Code.Function` / `Igniter.Code.Common` / `Igniter.Code.Keyword`. It adds a missing
-    `skill`, corrects a drifted consequence, appends the option to a bare `skill`, leaves a
-    correct block untouched, and reports a typed issue when the resource has no `a2a` block.
-  - the `@plan` (three upstream tasks) and the F5 assertions are unchanged.
+  - after the unchanged three-task `@plan`, the composed task runs five idempotent Igniter AST
+    edits, each rendered from ontology facts (see "Repair round" for the falsifier behind each):
+    `ensure_actions/3`, `declare_consequences/3`, `retire_actions/3` plus
+    `reject_unmodeled_skills/3`, `declare_invariants/3`, `configure_runtime/2`.
+    `declare_consequences/3` adds a missing `skill`, corrects a drifted consequence, lifts
+    `expose?: false`, appends the option to a bare `skill`, leaves a correct block untouched,
+    reports a typed issue when there is no `a2a` block, and REFUSES (typed issue, not declared)
+    a skill over an Ash action the resource lacks.
+- `priv/ggen/semantic-jira-pack/gates/065_a2a_retired_actions.rq`, `066_a2a_invariants.rq`,
+  `067_a2a_runtime_config.rq`: new gates feeding the template (`a2a_retired_actions`,
+  `a2a_invariants`, `a2a_runtime_config`).
+- `priv/ggen/semantic-jira-pack/shapes/work-order.shacl.ttl`: Q3 shape on `a2a:SkillShape`, new
+  `a2a:ResourceInvariantShape` and `a2a:RuntimeConfigShape`.
+- `priv/ggen/semantic-jira-pack/ontology.ttl` (a2a sections again): `sj:push-candidate` and
+  `sj:publish-candidate` now name Ash actions `push` and `publish`; new `a2a:ResourceInvariant`
+  (`sj:a2a-inv-alive-needs-digest`) and `a2a:RuntimeConfig` (`sj:a2a-config-receipt-store`).
 - `lib/ggen_igniter/semantic_a2a.ex`: `external_do_skills/1` and a moduledoc boundary note.
   No existing function changed.
-- Tests: `test/ggen_igniter_semantic_a2a_external_do_test.exs` (new, 14),
-  `test/ggen_igniter_semantic_a2a_dispatch_test.exs` (12 -> 20),
-  `test/ggen_igniter_semantic_a2a_pack_test.exs` (21 -> 24). Manufacture test unchanged (8).
+- Tests (counts are `test "..."` definitions): `external_do_test` 26 (new file),
+  `external_do_falsifier_test` 2, `external_do_ontology_falsifier_test` 1,
+  `external_do_runtime_falsifier_test` 11 (the last three added by the qualification round and
+  repaired here), `dispatch_test` 12 -> 20, `pack_test` 21 -> 34, `manufacture_test` 8 -> 9.
+  Pinned counts moved because shapes and gates were added: `semantic_jira_shacl_test` 13 -> 15
+  node shapes, `semantic_jira_pack_test` 12 -> 15 gates.
+- `test/support/semantic_a2a_manufactured.ex`: `M.compose/3` and the new `M.apply!/1` restore the
+  `:ash_a2a` application env around each Igniter run (see "Igniter env leak" below).
 
 Generated versus handwritten: the resource, domain and every consequence declaration are
 generated (real `ash.gen.*`, real `ash_a2a.install`, then the rendered patch step). Handwritten
@@ -61,7 +84,14 @@ default change cannot move a skill silently.
 | F10 | `external_do` executes only for a principal holding a grant of that exact capability, and then leaves a committed `:external_do` receipt; nil actor, ungranted principal and a principal granted a different capability (`create`) are refused with no state change and no receipt; the reverse grant asymmetry holds; the same message replayed does not run the court twice; same over real HTTP (Bandit + Req) | `dispatch_test` describe F10 (8 tests) |
 | F11 | raw `ash_a2a.install` (26.9.17): option schema is `[:target, :type]`; `--consequence` and `--skill` are silently ignored (no issue, no warning, identical source); used alone the court compiles as `:change` | `external_do_test` describe F11 (4) |
 | F12 | second run is byte-identical; missing declaration restored; drifted consequence corrected in place; bare `skill` gains its consequence; missing `a2a` block is a typed issue | `external_do_test` describe F12 (7) |
-| F13 | changing or retiring the skill in the ontology changes the manufactured resource and re-converges; an unproducible Ash action is refused at render | `external_do_test` describe F13 (3) |
+| F13 | changing the skill's consequence in the ontology re-converges an existing project; a FRESH manufacture from an ontology that retires the skill declares neither the skill nor its Ash action; an unproducible Ash action is refused at render. (Retirement over an EXISTING project is F14 and Q2, not F13.) | `external_do_test` describe F13 (3) |
+| F14 | reconciliation over an existing resource: missing keyword and atom default actions added, an explicit action counts as present, a non-literal `defaults` and an unmodeled `skill` are typed issues, the ALIVE-needs-digest validations are restored / corrected / pruned, the receipt-store config is set and drift-corrected, and composing does not leak config into the VM env | `external_do_test` describe F14 (12) |
+| Q1 | a project built by the previous plan (`--default-actions read,create`) upgrades to an `update` action with ash.gen.resource's accept list, compiles with no `REFUSED_ACTION_NOT_FOUND`, and is stable on the next run | `external_do_falsifier_test` Q1 |
+| Q2 | retiring the court in the ontology over an existing project declares `skill(:update, :update, expose?: false)`, the compiled capability index is `[:create, :read]`, the Ash action stays, the second run is inert, and re-exposing round-trips exactly | `external_do_falsifier_test` Q2 |
+| Q3 | no not-exposed skill shares an Ash action with an exposed one (Push and Publish now name `push` and `publish`); a SHACL shape and gate 065's `MINUS` keep it so | `external_do_ontology_falsifier_test` Q3, `pack_test` (gates 065-067, shapes) |
+| Q4 | the manufactured resource refuses standing ALIVE without a `sha256:<64 hex>` `receipt_digest` on both the court (`update`) and the receipt-recording (`create`) skill; any other standing needs none | `external_do_runtime_falsifier_test` Q4 (5) |
+| R2d | with the EKV receipt store the manufacture step configures, replay after the EKV instance is stopped and restarted on the same data dir does not execute the court again (an out-of-band `BLOCKED` state survives, receipt id unchanged) | `external_do_runtime_falsifier_test` R2d |
+| R2m, C1-C4, C3b | characterizations that pin the bounds: default Memory store loses replay protection on a store restart (R2m); a fresh message id re-executes unless `actuation_dedup: :strict` (C1); a failed granted update still commits `terminal_status: :executed` (C2); the digest is format-checked, never verified against a receipt (C3b); a forged judge identity is refused over real HTTP (C4) | `external_do_runtime_falsifier_test` |
 | F3 (updated) | no Push/Publish skill on the card; the only `external_do` skill is the court | `dispatch_test` |
 | SHACL | an exposed skill generated by the UNSUPPORTED raw-installer capability is a violation | `pack_test` |
 
@@ -70,13 +100,57 @@ tests fail (the compiled-consequence, agent-card, granted-receipt and HTTP tests
 refusal tests still pass under that mutation because `:change` is refused without a grant
 too; the bite is on the consequence class and the receipt, which is the claim.
 
+## Repair round: qualification findings
+
+The qualifiers filed nine reports (three lenses, overlapping) that reduce to six distinct
+findings. All were reproduced by a real
+run before any change (`mix test` of the falsifier files: 3 tests, 3 failures at `d7995ae`), and
+each is now closed with a root-cause fix and a guard that fails without it.
+
+| Finding | Verdict | Root cause | Fix | Guard (fails without the fix) |
+|---|---|---|---|---|
+| Q1 upgrade path (blocker/major, 3 reports) | confirmed | `ash.gen.resource` adds `defaults` only to a resource with no `defaults` call, so a resource built by the previous plan (`read,create`) never gained `update`; the patch step declared `skill :update` anyway and ash_a2a's verifier raised `REFUSED_ACTION_NOT_FOUND` at compile time | `ensure_actions/3` adds the missing default action to the existing `defaults` list with ash.gen.resource's accept list; `declare_consequence/3` refuses (typed issue) to declare a skill over an action the resource lacks | Q1, F14 (5 tests). Mutation executed: removing `ensure_actions` fails Q1 with `REFUSED_ACTION_NOT_FOUND` surfaced as an Igniter issue |
+| Q2 retirement (major, 2 reports) | confirmed, and worse than reported | ash_a2a exposes EVERY public Ash action by default (`AshA2A.Dsl` moduledoc, `CapabilityIndex.Compiler`), so deleting the `skill` line would leave `update` exposed as a plain `:change` skill | `retire_actions/3` declares `expose?: false` for a retired action the resource still carries (the Ash action stays); `reject_unmodeled_skills/3` turns any `skill` the ontology neither exposes nor retires into a typed issue; `declare_consequence/3` lifts `expose?: false` when the ontology re-exposes | Q2 asserts the declaration, the compiled capability index (`[:create, :read]`), the kept action, an inert second run and an exact round trip. Mutation executed: removing `retire_actions` fails Q2 |
+| F13 title/doc overclaim (major) | confirmed | the F13 retirement test builds a fresh project | test renamed, F13 row narrowed to "fresh"; retirement over an existing project is F14 and Q2 | doc and test title |
+| Q3 ontology conflation (major) | confirmed | Push and Publish mapped to Ash action `update`, the capability id and consequence key ash_a2a uses for the exposed court | `sj:push-candidate` and `sj:publish-candidate` name `push` and `publish`; `a2a:SkillShape` gets a SHACL shape refusing a not-exposed skill that shares an Ash action with an exposed one; gate 065 drops such a row by `MINUS` | Q3, `pack_test` (shape violation, gate MINUS on a mutated ontology) |
+| C3 standing laundering (major) | confirmed | the manufactured resource had no invariant tying standing ALIVE to a digest | ontology fact `sj:a2a-inv-alive-needs-digest`; the manufacture step generates two Ash validations (`present` and `match ~r/^sha256:[0-9a-f]{64}$/`, guarded by `attribute_equals(:standing, "ALIVE")`) on both `create` and `update`; the SHACL shape refuses an invariant naming an undeclared attribute, so an attribute rename cannot orphan it (F8b) | Q4 (5 tests) over real A2A, F14 (restore, drift, prune), F8/F8b, `pack_test`. Bound, stated not hidden: C3b pins that the digest is FORMAT-checked, not verified against a receipt |
+| R2 replay across restart (major) | confirmed | ash_a2a's default `ReceiptStore.Memory` keeps claim/commit state in one process; F10 proved dedup only for that lifetime | ontology fact `sj:a2a-config-receipt-store`; the manufacture step sets `config :ash_a2a, receipt_store: AshA2A.ReceiptStore.Ekv` (EKV, SQLite on disk) | R2d: real EKV stopped and restarted on the same data dir, replay does not execute again (out-of-band `BLOCKED` survives, same receipt id). R2m pins that the default Memory store re-executes after a restart |
+
+Remaining bounds after the repair, none hidden:
+
+- EKV's `data_dir` defaults to `System.tmp_dir!()/ash_a2a_receipt_store_ekv` (ash_a2a's own
+  comment: fine for local use, not guaranteed across a host reboot). A deployment sets
+  `config :ash_a2a, receipt_store_ekv_opts: [data_dir: ...]`; the ontology does not carry a
+  data dir, so exactly-once across a HOST reboot is not claimed.
+- C1: a client retry that mints a fresh message id re-executes the court unless
+  `config :ash_a2a, actuation_dedup: :strict`; the manufacture step does not set it (not asked,
+  not a finding of this round; pinned by C1).
+- C2: a granted court call whose Ash update fails still commits a receipt with
+  `terminal_status: :executed`; the honest field is `status`.
+- The `update` action still records a claim; A2A does not execute a court process.
+
+### Igniter env leak (found while repairing R2, upstream candidate)
+
+`Igniter.with_evaled_configs/2` (igniter 0.8.3, `lib/igniter.ex`) evaluates the project's
+`config/config.exs` into the running VM's application env while it edits, then restores a
+snapshot with `Application.put_all_env/1`. `put_all_env` merges, so a key the edit ADDED is
+never removed. Composing the manufacture task therefore leaves
+`Application.get_env(:ash_a2a, :receipt_store) == AshA2A.ReceiptStore.Ekv` in the calling VM;
+in this repo's suite that made every later A2A call fail with `receipt_store_unavailable`
+(observed: 8 dispatch tests failed before the guard). Harmless in a real `mix` task VM that
+exits; not harmless in a long-lived VM. Repo-local guard: `M.compose/3` and `M.apply!/1` restore
+the exact `:ash_a2a` env, proven by the F14 no-leak test (mutation executed: with the guard
+disabled that test fails). Proposed upstream change: restore by `delete_env` for keys absent
+from the snapshot.
+
 ## Status rows for docs/status.md
 
 | Capability | Status | Evidence |
 |---|---|---|
-| `external_do` skill `run_exact_head_court` through the manufactured ash_a2a surface | PARTIAL_ALIVE | Composed consequence-patch step, F10-F13 above. PARTIAL_ALIVE, not ALIVE: the data layer is ETS, and the skill's Ash `update` records the outcome of a court; A2A does not itself execute an external court process. |
+| `external_do` skill `run_exact_head_court` through the manufactured ash_a2a surface | PARTIAL_ALIVE | Composed reconciliation, F10-F14, Q1-Q4, R2d. PARTIAL_ALIVE, not ALIVE: the data layer is ETS; the skill's Ash `update` records the outcome of a court and A2A does not itself execute an external court process; standing ALIVE needs a `sha256:` receipt digest but the digest is format-checked, never verified against a receipt (C3b). Replay is exactly-once for the lifetime of the configured receipt store: the manufacture step configures the durable EKV store (R2d), whose `data_dir` defaults to the OS tmp dir; with ash_a2a's default Memory store it is process-bound (R2m). A fresh message id re-executes unless `actuation_dedup: :strict` (C1). |
 | Raw `ash_a2a.install` declaring a skill consequence | UNSUPPORTED(generator-capability) | F11; upstream gap below. Retired by the proposed upstream option. |
-| Manufacture step idempotence with the consequence patch | ALIVE | F12 second-run test and `assert_unchanged` on the whole project. |
+| Manufacture step idempotence and reconciliation of an EXISTING project (missing actions, retired exposure, invariants, runtime config) | ALIVE (Igniter.Test in-memory project plus real compile, not an on-disk scaffolded app) | F12, F14, Q1, Q2 second-run `assert_unchanged` on the whole project; `mix e2e` not run for this stream (UNKNOWN). |
+| Retiring an exposed skill over an existing project | ALIVE (same scope) | Q2: `expose?: false`, compiled capability index, Ash action kept. |
 
 The prior rows "A2A dispatch and HTTP" and "Manufactured Ash/ash_a2a surface" change test counts
 (12 -> 20 and 8 -> 8) and drop the sentence "`external_do` skills are
@@ -129,6 +203,11 @@ Kept and untouched: `SemanticJira.promote/3`, `definition_digest/1`, `project/2`
   (retained, accurate).
 - REFUSED(forbidden-capability): `push_candidate`, `publish_candidate` (unchanged).
 - UNKNOWN: no live claude.ai/A2A peer was exercised; the wire is local Bandit + Req only.
+- UNKNOWN: `mix e2e` (a scaffolded on-disk Ash + Phoenix app) was not run for this stream, and
+  neither was the full `mix test` (another session's run owns the primary tree); the narrow
+  suites in the receipt were run.
+- UNKNOWN: `ash.gen.resource --conflicts replace` as an alternative upgrade path was not
+  executed (see the search graph, edge 5).
 
 ## Receipts
 

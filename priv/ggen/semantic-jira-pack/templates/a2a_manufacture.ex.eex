@@ -67,6 +67,69 @@ mode: file
     Enum.map(skills, fn s ->
       "%{name: :#{s["ash_action"]}, action: :#{s["ash_action"]}, consequence: :#{s["consequence"]}}"
     end)
+
+  # Identifiers that reach `String.to_atom`-shaped source are checked at render
+  # time; a fact outside the shape is refused, never interpolated.
+  ident = fn value, what ->
+    unless is_binary(value) and Regex.match?(~r/^[a-z][a-z0-9_]*$/, value) do
+      raise ArgumentError, "#{what} #{inspect(value)} is not a lower_snake identifier"
+    end
+
+    value
+  end
+
+  # ash.gen.resource gives create/update the public attributes as their accept
+  # list, sorted by name (the attr_args above are sorted). An action this task
+  # adds to an existing resource takes the same accept list, so a fresh and an
+  # upgraded resource converge on the same source.
+  public_accept =
+    a2a_attributes
+    |> Enum.filter(&truthy.(&1["is_public"]))
+    |> Enum.map(&ident.(&1["attribute_name"], "a2a:attributeName"))
+    |> Enum.sort()
+    |> Enum.map(&String.to_atom/1)
+
+  action_decls =
+    Enum.map(skills, fn s ->
+      accept = if s["ash_action"] in ~w(create update), do: inspect(public_accept), else: "[]"
+      "%{name: :#{s["ash_action"]}, accept: #{accept}}"
+    end)
+
+  retired_decls =
+    a2a_retired_actions
+    |> Enum.sort_by(&{&1["ash_action"], &1["skill_name"]})
+    |> Enum.map(fn r ->
+      "%{action: :#{ident.(r["ash_action"], "a2a:ashAction")}, skill_name: #{inspect(r["skill_name"])}}"
+    end)
+
+  invariant_decls =
+    a2a_invariants
+    |> Enum.sort_by(&{&1["when_attribute"], &1["requires_attribute"]})
+    |> Enum.map(fn i ->
+      if String.contains?(i["requires_pattern"], "/") do
+        raise ArgumentError,
+              "UNSUPPORTED(generator-capability): a2a:requiresPattern #{inspect(i["requires_pattern"])} contains \"/\", " <>
+                "which the ~r/.../ sigil the generated validation uses cannot carry"
+      end
+
+      "%{when_attribute: :#{ident.(i["when_attribute"], "a2a:whenAttribute")}, " <>
+        "when_equals: #{inspect(i["when_equals"])}, " <>
+        "requires_attribute: :#{ident.(i["requires_attribute"], "a2a:requiresAttribute")}, " <>
+        "pattern: #{inspect(i["requires_pattern"])}, message: #{inspect(i["message"])}}"
+    end)
+
+  config_decls =
+    a2a_runtime_config
+    |> Enum.sort_by(&{&1["config_app"], &1["config_key"]})
+    |> Enum.map(fn c ->
+      unless Regex.match?(~r/^[A-Z][A-Za-z0-9]*(\.[A-Z][A-Za-z0-9]*)*$/, c["config_module"]) do
+        raise ArgumentError, "a2a:configModule #{inspect(c["config_module"])} is not a module name"
+      end
+
+      "%{app: :#{ident.(c["config_app"], "a2a:configApp")}, key: :#{ident.(c["config_key"], "a2a:configKey")}, module: #{c["config_module"]}}"
+    end)
+
+  list_lit = fn decls -> if decls == [], do: "[]", else: "[\n    " <> Enum.join(decls, ",\n    ") <> "\n  ]" end
 %>defmodule <%= task_module %> do
   @shortdoc "Manufactures the <%= resource %> Ash resource and its ash_a2a surface from the Semantic Jira ontology."
   @moduledoc """
@@ -82,11 +145,27 @@ mode: file
   `a2a:ResourceAttribute`); the ontology stores no CLI strings. This file never
   declares an Ash resource itself: `ash.gen.resource` writes the resource and
   `ash_a2a.install` adds `extensions: [AshA2A]` to it. `ash_a2a.install`
-  (26.9.17) has no option that declares a skill `consequence:`, so a final
-  composed step -- an Igniter AST edit of the resource's `a2a` block -- declares
-  one for every exposed skill (`a2a:consequence`), which is what lifts an
-  `external_do` skill off the fail-closed default. That step adds a missing
-  declaration, corrects a drifted one, and leaves a correct block untouched.
+  (26.9.17) has no option that declares a skill `consequence:`, and
+  `ash.gen.resource` never adds an action to a resource that already exists,
+  so a final run of composed Igniter AST edits reconciles the resource with the
+  ontology. Each edit is idempotent and leaves an already-correct project
+  byte-identical:
+
+    1. `ensure_actions/3` -- adds the default Ash action of every exposed skill
+       that an existing resource lacks (an upgrade from an older plan);
+    2. `declare_consequences/3` -- declares `consequence:` for every exposed
+       skill (`a2a:consequence`), which lifts an `external_do` skill off the
+       fail-closed default, and refuses to declare a skill over an Ash action
+       that does not exist;
+    3. `retire_actions/3` -- ash_a2a exposes every public Ash action by default,
+       so an action the ontology retires (`a2a:exposed false`) that an existing
+       resource still carries is declared `expose?: false`; a `skill`
+       declaration the ontology does not model is a typed issue, never kept;
+    4. `declare_invariants/3` -- Ash validations for each `a2a:ResourceInvariant`
+       (standing ALIVE requires a `sha256:` receipt digest);
+    5. `configure_runtime/2` -- `a2a:RuntimeConfig` in `config/config.exs`
+       (the durable EKV receipt store, so an `external_do` replay is
+       exactly-once across a store restart, not only inside one process).
 
   Authority of this projection is NONE. Skills, task states and the AgentCard
   are consequences of the ontology; standing is never inferred from A2A task
@@ -126,6 +205,11 @@ mode: file
     }
   ]
 
+  # The Ash default action of every exposed skill, with the accept list
+  # ash.gen.resource would have generated. `ensure_actions/3` adds one an
+  # existing resource lacks (ash.gen.resource does not).
+  @actions <%= list_lit.(action_decls) %>
+
   # One explicit `consequence:` declaration per exposed skill (a2a:consequence),
   # applied AFTER the plan. ash_a2a.install (26.9.17) has no option that
   # declares a skill consequence, so this is a post-install AST edit of the
@@ -138,11 +222,39 @@ mode: file
     <%= Enum.join(consequence_decls, ",\n    ") %>
   ]
 
+  # Ash actions the ontology retires (a2a:exposed false) and no exposed skill
+  # names. ash_a2a exposes EVERY public Ash action by default, so one that an
+  # existing resource still carries must be declared `expose?: false`.
+  @retired <%= list_lit.(retired_decls) %>
+
+  # Ash validations generated from a2a:ResourceInvariant facts. Each generated
+  # validation carries @invariant_marker in its message, which is how a
+  # validation whose invariant the ontology later drops is recognized and pruned.
+  @invariant_marker "REFUSED(a2a-invariant): "
+  @invariants <%= list_lit.(invariant_decls) %>
+
+  # Application-environment values from a2a:RuntimeConfig, set in config.exs.
+  @runtime_config <%= list_lit.(config_decls) %>
+
+  @action_kinds [:read, :create, :update, :destroy, :action]
+
   @doc false
   def plan, do: @plan
 
   @doc false
+  def actions, do: @actions
+
+  @doc false
   def consequences, do: @consequences
+
+  @doc false
+  def retired, do: @retired
+
+  @doc false
+  def invariants, do: @invariants
+
+  @doc false
+  def runtime_config, do: @runtime_config
 
   @impl Igniter.Mix.Task
   def info(_argv, _parent) do
@@ -155,46 +267,166 @@ mode: file
 
   @impl Igniter.Mix.Task
   def igniter(igniter) do
+    resource = <%= resource %>
+
+    modeled = Enum.map(@consequences, & &1.name) ++ Enum.map(@retired, & &1.action)
+
     igniter
     |> then(&Enum.reduce(@plan, &1, fn step, acc -> apply_step(step, acc) end))
-    |> declare_consequences(<%= resource %>, @consequences)
+    |> ensure_actions(resource, @actions)
+    |> declare_consequences(resource, @consequences)
+    |> retire_actions(resource, @retired)
+    |> reject_unmodeled_skills(resource, modeled)
+    |> declare_invariants(resource, @invariants)
+    |> configure_runtime(@runtime_config)
   end
+
+  ## Navigation helpers
+
+  # `section :a2a` -> the zipper at the contents of the resource's `a2a do ... end`.
+  defp section(zipper, name) do
+    with {:ok, call} <-
+           Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, name, 1),
+         {:ok, block} <- Igniter.Code.Common.move_to_do_block(call) do
+      {:ok, block}
+    else
+      _ -> :error
+    end
+  end
+
+  # The node as plain quoted code (no Sourceror position wrappers), for predicates.
+  defp plain_ast(zipper) do
+    zipper |> Sourceror.Zipper.node() |> Sourceror.to_string() |> Code.string_to_quoted!()
+  end
+
+  defp normalized(code) when is_binary(code),
+    do: code |> Sourceror.parse_string!() |> Sourceror.to_string()
+
+  defp normalized_node(zipper), do: zipper |> Sourceror.Zipper.node() |> Sourceror.to_string()
+
+  # Is `name` an action of the resource? Recognizes the `defaults [...]` forms
+  # (`:read`, `create: [...]`, `update: :*`) and an explicit `read :name do`,
+  # `create :name`, `update :name`, `destroy :name` or `action :name`.
+  defp action_declared?(zipper, name) do
+    case section(zipper, :actions) do
+      {:ok, actions} ->
+        {_, found?} =
+          Macro.prewalk(plain_ast(actions), false, fn
+            {:defaults, _, [list]} = node, acc when is_list(list) ->
+              {node, acc or Enum.any?(list, &default_names?(&1, name))}
+
+            {kind, _, [declared | _]} = node, acc
+            when kind in @action_kinds and is_atom(declared) ->
+              {node, acc or declared == name}
+
+            node, acc ->
+              {node, acc}
+          end)
+
+        found?
+
+      :error ->
+        false
+    end
+  end
+
+  defp default_names?(atom, name) when is_atom(atom), do: atom == name
+  defp default_names?({key, _}, name) when is_atom(key), do: key == name
+  defp default_names?(_other, _name), do: false
+
+  defp find_skill(a2a, name) do
+    Igniter.Code.Function.move_to_function_call_in_current_scope(
+      a2a,
+      :skill,
+      [2, 3],
+      &Igniter.Code.Function.argument_equals?(&1, 0, name)
+    )
+  end
+
+  defp edit(igniter, resource, fun) do
+    Igniter.Project.Module.find_and_update_module!(igniter, resource, fun)
+  end
+
+  ## 1. Actions an existing resource lacks
+
+  defp ensure_actions(igniter, resource, actions) do
+    Enum.reduce(actions, igniter, fn action, acc ->
+      edit(acc, resource, &ensure_action(&1, resource, action))
+    end)
+  end
+
+  # ash.gen.resource adds `defaults` only to a resource without a `defaults`
+  # call, so a resource built by an older plan keeps its old action set. Add the
+  # missing default action to the existing `defaults` list (or create the call).
+  defp ensure_action(zipper, resource, %{name: name, accept: accept}) do
+    with false <- action_declared?(zipper, name),
+         {:ok, actions} <- section(zipper, :actions),
+         {:ok, added} <- add_default_action(actions, name, accept) do
+      {:ok, added}
+    else
+      true ->
+        {:ok, zipper}
+
+      _ ->
+        {:error,
+         "REFUSED_ACTION_NOT_FOUND: #{inspect(resource)} lacks the Ash action #{inspect(name)} an exposed skill needs, " <>
+           "and it has no `actions do ... end` block with a literal `defaults` list to add it to"}
+    end
+  end
+
+  defp add_default_action(actions, name, accept) do
+    case Igniter.Code.Function.move_to_function_call_in_current_scope(actions, :defaults, 1) do
+      {:ok, defaults} ->
+        with {:ok, list} <- Igniter.Code.Function.move_to_nth_argument(defaults, 0) do
+          if name in [:create, :update],
+            do: Igniter.Code.List.append_to_list(list, {name, accept}),
+            else: Igniter.Code.List.prepend_to_list(list, name)
+        end
+
+      _ ->
+        code =
+          if name in [:create, :update],
+            do: "defaults [#{name}: #{inspect(accept)}]",
+            else: "defaults [#{inspect(name)}]"
+
+        {:ok, Igniter.Code.Common.add_code(actions, code)}
+    end
+  end
+
+  ## 2. Consequences of exposed skills
 
   defp declare_consequences(igniter, resource, declarations) do
     Enum.reduce(declarations, igniter, fn declaration, acc ->
-      Igniter.Project.Module.find_and_update_module!(acc, resource, fn zipper ->
-        declare_consequence(zipper, resource, declaration)
-      end)
+      edit(acc, resource, &declare_consequence(&1, resource, declaration))
     end)
   end
 
   # Adds `skill :name, :action, consequence: c` to the resource's `a2a` block,
-  # or brings an existing declaration of that skill to `consequence: c`. A block
-  # that already declares it correctly is returned untouched (idempotent).
+  # or brings an existing declaration of that skill to `consequence: c` (and
+  # lifts a retirement, `expose?: false`). A block that already declares it
+  # correctly is returned untouched (idempotent). A skill over an Ash action the
+  # resource does not have is REFUSED here, not declared: ash_a2a's verifier
+  # would reject it at compile time, fatally under --warnings-as-errors.
   defp declare_consequence(zipper, resource, %{name: name, action: action, consequence: c}) do
-    with {:ok, a2a} <-
-           Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :a2a, 1),
-         {:ok, block} <- Igniter.Code.Common.move_to_do_block(a2a) do
-      declared =
-        Igniter.Code.Function.move_to_function_call_in_current_scope(
-          block,
-          :skill,
-          [2, 3],
-          &Igniter.Code.Function.argument_equals?(&1, 0, name)
-        )
-
-      case declared do
+    with true <- action_declared?(zipper, action),
+         {:ok, a2a} <- section(zipper, :a2a) do
+      case find_skill(a2a, name) do
         {:ok, skill} ->
           set_consequence(skill, c)
 
         _ ->
           {:ok,
            Igniter.Code.Common.add_code(
-             block,
+             a2a,
              "skill #{inspect(name)}, #{inspect(action)}, consequence: #{inspect(c)}"
            )}
       end
     else
+      false ->
+        {:error,
+         "REFUSED_ACTION_NOT_FOUND: skill #{inspect(name)} names action #{inspect(action)} on #{inspect(resource)}, " <>
+           "but no such action exists on that resource"}
+
       _ ->
         {:error,
          "#{inspect(resource)} has no `a2a do ... end` block to declare skill consequences in"}
@@ -210,22 +442,209 @@ mode: file
         end
       end)
 
-    if declared? do
-      {:ok, skill}
-    else
-      updated =
-        Igniter.Code.Function.update_nth_argument(skill, 2, fn opts ->
-          Igniter.Code.Keyword.set_keyword_key(opts, :consequence, consequence, fn value ->
-            {:ok, Sourceror.Zipper.replace(value, consequence)}
-          end)
-        end)
+    retired? = has_option?(skill, :expose?)
 
-      case updated do
-        {:ok, zipper} -> {:ok, zipper}
-        _ -> Igniter.Code.Function.append_argument(skill, consequence: consequence)
-      end
+    cond do
+      declared? and not retired? ->
+        {:ok, skill}
+
+      true ->
+        with {:ok, with_consequence} <- put_consequence(skill, consequence, declared?) do
+          drop_option(with_consequence, :expose?)
+        end
     end
   end
+
+  defp put_consequence(skill, _consequence, true), do: {:ok, skill}
+
+  defp put_consequence(skill, consequence, false) do
+    updated =
+      Igniter.Code.Function.update_nth_argument(skill, 2, fn opts ->
+        Igniter.Code.Keyword.set_keyword_key(opts, :consequence, consequence, fn value ->
+          {:ok, Sourceror.Zipper.replace(value, consequence)}
+        end)
+      end)
+
+    case updated do
+      {:ok, zipper} -> {:ok, zipper}
+      _ -> Igniter.Code.Function.append_argument(skill, consequence: consequence)
+    end
+  end
+
+  defp has_option?(skill, key) do
+    Igniter.Code.Function.argument_matches_predicate?(skill, 2, fn opts ->
+      match?({:ok, _}, Igniter.Code.Keyword.get_key(opts, key))
+    end)
+  end
+
+  defp drop_option(skill, key) do
+    if has_option?(skill, key) do
+      Igniter.Code.Function.update_nth_argument(skill, 2, fn opts ->
+        Igniter.Code.Keyword.remove_keyword_key(opts, key)
+      end)
+    else
+      {:ok, skill}
+    end
+  end
+
+  ## 3. Retired actions and unmodeled skill declarations
+
+  defp retire_actions(igniter, resource, retired) do
+    Enum.reduce(retired, igniter, fn entry, acc ->
+      edit(acc, resource, &retire_action(&1, resource, entry))
+    end)
+  end
+
+  # ash_a2a exposes every public Ash action by default; the way to revoke an
+  # action's exposure without deleting the action (which may back other code) is
+  # `skill :a, :a, expose?: false`. An action the resource does not have needs
+  # nothing: a fresh manufacture never generated it.
+  defp retire_action(zipper, resource, %{action: action}) do
+    if action_declared?(zipper, action) do
+      retired = "skill #{inspect(action)}, #{inspect(action)}, expose?: false"
+
+      with {:ok, a2a} <- section(zipper, :a2a) do
+        case find_skill(a2a, action) do
+          {:ok, skill} ->
+            if normalized_node(skill) == normalized(retired),
+              do: {:ok, zipper},
+              else: {:ok, Igniter.Code.Common.replace_code(skill, retired)}
+
+          _ ->
+            {:ok, Igniter.Code.Common.add_code(a2a, retired)}
+        end
+      else
+        _ ->
+          {:error,
+           "#{inspect(resource)} has no `a2a do ... end` block to retire the skill #{inspect(action)} in"}
+      end
+    else
+      {:ok, zipper}
+    end
+  end
+
+  # A `skill` declaration the ontology neither exposes nor retires is drift the
+  # ontology cannot see. It is never silently kept: retiring is expressed as
+  # `a2a:exposed false` in the ontology, and this refuses until it is.
+  defp reject_unmodeled_skills(igniter, resource, modeled) do
+    edit(igniter, resource, fn zipper ->
+      with {:ok, a2a} <- section(zipper, :a2a) do
+        {_, names} =
+          Macro.prewalk(plain_ast(a2a), [], fn
+            {:skill, _, [name | _]} = node, acc when is_atom(name) -> {node, [name | acc]}
+            node, acc -> {node, acc}
+          end)
+
+        case names |> Enum.uniq() |> Enum.reject(&(&1 in modeled)) |> Enum.sort() do
+          [] ->
+            {:ok, zipper}
+
+          unmodeled ->
+            {:error,
+             "#{inspect(resource)} declares skill(s) #{inspect(unmodeled)} in its a2a block that the ontology " <>
+               "neither exposes nor retires; retire one with `a2a:exposed false` and a `a2a:refusalReason`"}
+        end
+      else
+        _ -> {:ok, zipper}
+      end
+    end)
+  end
+
+  ## 4. Invariants as Ash validations
+
+  defp validation_codes(invariant) do
+    message = @invariant_marker <> invariant.message
+    guard = "where: [attribute_equals(#{inspect(invariant.when_attribute)}, #{inspect(invariant.when_equals)})]"
+
+    [
+      "validate present(#{inspect(invariant.requires_attribute)}), #{guard}, message: #{inspect(message)}",
+      "validate match(#{inspect(invariant.requires_attribute)}, ~r/#{invariant.pattern}/), #{guard}, message: #{inspect(message)}"
+    ]
+  end
+
+  defp declare_invariants(igniter, resource, invariants) do
+    desired = Enum.flat_map(invariants, &validation_codes/1)
+
+    igniter
+    |> then(&Enum.reduce(desired, &1, fn code, acc -> edit(acc, resource, fn z -> ensure_validation(z, code) end) end))
+    |> prune_stale_validations(resource, Enum.map(desired, &normalized/1))
+  end
+
+  defp ensure_validation(zipper, code) do
+    case section(zipper, :validations) do
+      {:ok, block} ->
+        wanted = normalized(code)
+
+        present? =
+          match?(
+            {:ok, _},
+            Igniter.Code.Function.move_to_function_call_in_current_scope(
+              block,
+              :validate,
+              [1, 2],
+              &(normalized_node(&1) == wanted)
+            )
+          )
+
+        if present?, do: {:ok, zipper}, else: {:ok, Igniter.Code.Common.add_code(block, code)}
+
+      :error ->
+        {:ok, Igniter.Code.Common.add_code(zipper, "validations do\n  #{code}\nend")}
+    end
+  end
+
+  # A generated validation (its message carries @invariant_marker) whose
+  # invariant the ontology no longer states is removed. Re-run until a pass
+  # changes nothing: each pass removes at most one.
+  defp prune_stale_validations(igniter, resource, desired, budget \\ 32) do
+    before = resource_source(igniter, resource)
+
+    pruned =
+      edit(igniter, resource, fn zipper ->
+        with {:ok, block} <- section(zipper, :validations),
+             {:ok, stale} <-
+               Igniter.Code.Function.move_to_function_call_in_current_scope(
+                 block,
+                 :validate,
+                 [1, 2],
+                 fn call ->
+                   text = normalized_node(call)
+                   String.contains?(text, @invariant_marker) and text not in desired
+                 end
+               ) do
+          {:ok, Sourceror.Zipper.remove(stale)}
+        else
+          _ -> {:ok, zipper}
+        end
+      end)
+
+    if budget > 0 and resource_source(pruned, resource) != before,
+      do: prune_stale_validations(pruned, resource, desired, budget - 1),
+      else: pruned
+  end
+
+  defp resource_source(igniter, resource) do
+    case Igniter.Project.Module.find_module(igniter, resource) do
+      {:ok, {_igniter, source, _zipper}} -> Rewrite.Source.get(source, :content)
+      {:error, _igniter} -> nil
+    end
+  end
+
+  ## 5. Runtime configuration
+
+  defp configure_runtime(igniter, configs) do
+    Enum.reduce(configs, igniter, fn %{app: app, key: key, module: module}, acc ->
+      Igniter.Project.Config.configure(
+        acc,
+        "config.exs",
+        app,
+        [key],
+        {:code, Sourceror.parse_string!(inspect(module))}
+      )
+    end)
+  end
+
+  ## The plan
 
   defp apply_step(%{skip_if_installed: {module, marker}} = step, igniter) do
     {igniter, installed?} =

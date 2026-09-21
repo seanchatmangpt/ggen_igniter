@@ -115,7 +115,7 @@ defmodule GgenIgniter.SemanticA2AManufactureTest do
   end
 
   test "F9: a second run over the already-manufactured project changes nothing", %{m: m} do
-    applied = apply_igniter!(m.igniter)
+    applied = M.apply!(m.igniter)
 
     previous = Application.fetch_env(M.app(), :ash_domains)
     Application.put_env(M.app(), :ash_domains, [SemanticJira.Work])
@@ -136,7 +136,7 @@ defmodule GgenIgniter.SemanticA2AManufactureTest do
 
   test "negative control: the raw upstream ash_a2a.install is NOT idempotent (why the step is guarded)",
        %{m: m} do
-    applied = apply_igniter!(m.igniter)
+    applied = M.apply!(m.igniter)
 
     raw =
       M.compose(applied, "ash_a2a.install", [
@@ -151,11 +151,17 @@ defmodule GgenIgniter.SemanticA2AManufactureTest do
 
   test "F8: renaming an attribute in the ontology changes the derived plan (drift is visible, not silent)",
        %{m: m} do
+    # A faithful rename edits the attribute fact AND the invariant that names it
+    # (see F8b for what happens when only the attribute moves).
     renamed =
-      String.replace(
-        File.read!(@ontology),
+      File.read!(@ontology)
+      |> String.replace(
         ~s|a2a:attributeName "receipt_digest"|,
         ~s|a2a:attributeName "receipt_hash"|
+      )
+      |> String.replace(
+        ~s|a2a:requiresAttribute "receipt_digest"|,
+        ~s|a2a:requiresAttribute "receipt_hash"|
       )
 
     refute renamed == File.read!(@ontology)
@@ -192,5 +198,48 @@ defmodule GgenIgniter.SemanticA2AManufactureTest do
     assert rendered =~ "receipt_hash:string:public"
     refute rendered =~ "receipt_digest"
     assert m.source =~ "receipt_digest:string:public"
+  end
+
+  test "F8b: renaming only the attribute orphans the invariant, and the SHACL court refuses the render" do
+    orphaned =
+      String.replace(
+        File.read!(@ontology),
+        ~s|a2a:attributeName "receipt_digest"|,
+        ~s|a2a:attributeName "receipt_hash"|
+      )
+
+    refute orphaned == File.read!(@ontology)
+
+    dir = Path.join(System.tmp_dir!(), "a2a_orphan_#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf!(dir) end)
+    onto = Path.join(dir, "orphaned.ttl")
+    File.write!(onto, orphaned)
+
+    {output, status} =
+      System.cmd(
+        "mix",
+        [
+          "ggen_igniter.sync",
+          "--engine",
+          "sparql",
+          "--pack",
+          "semantic-jira-pack:a2a_manufacture",
+          "--ontology",
+          onto,
+          "--out",
+          Path.join(dir, "<%= task_name %>.ex"),
+          "--manifest-dir",
+          dir,
+          "--verify-cwd",
+          File.cwd!()
+        ],
+        cd: File.cwd!(),
+        stderr_to_stdout: true
+      )
+
+    assert status != 0
+    assert output =~ "may only name attributes the manufacture target declares"
+    refute File.exists?(Path.join(dir, "semantic_jira.a2a.manufacture.ex"))
   end
 end

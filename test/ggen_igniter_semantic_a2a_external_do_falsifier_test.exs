@@ -12,10 +12,13 @@ defmodule GgenIgniter.SemanticA2AExternalDoFalsifierTest do
       generator step does not add the `update` action to the existing resource,
       the composed result references an Ash action that does not exist.
     * Q2 (retirement): retiring the skill in the ontology (`a2a:exposed false`)
-      over a project that already carries the declaration must retire the
-      declaration. The patch step only adds and corrects, so a stale
-      `consequence: :external_do` skill would keep the retired capability
-      exposed on the A2A surface.
+      over a project that already carries the declaration must revoke it.
+      ash_a2a exposes EVERY public Ash action by default, so removing the
+      `skill` line would leave the retired capability exposed as a plain
+      `:change` skill; the reconciliation declares `expose?: false` instead,
+      keeping the Ash action (which may back other code). Verified on the real
+      compiled resource's capability index, with a stable second run and an exact
+      round trip back to the exposed court.
   """
 
   use ExUnit.Case, async: false
@@ -64,7 +67,7 @@ defmodule GgenIgniter.SemanticA2AExternalDoFalsifierTest do
 
       M.compose(acc, step.task, argv)
     end)
-    |> apply_igniter!()
+    |> M.apply!()
   end
 
   defp compile_variant!(source, from, to) do
@@ -137,6 +140,12 @@ defmodule GgenIgniter.SemanticA2AExternalDoFalsifierTest do
       upgraded = M.compose(old, m.module, [])
       source = resource(upgraded)
 
+      assert upgraded.issues == []
+      assert source =~ "update: [:receipt_digest, :replay_identity, :standing, :task_id]"
+
+      # The upgrade converges: a second run over the upgraded project is inert.
+      assert_unchanged(M.compose(M.apply!(upgraded), m.module, []))
+
       # The patch step declares the court skill ...
       assert skill_lines(source)
              |> Enum.member?("skill(:update, :update, consequence: :external_do)")
@@ -180,7 +189,7 @@ defmodule GgenIgniter.SemanticA2AExternalDoFalsifierTest do
       retired = M.load_task!(File.read!(path), path)
       refute Enum.any?(retired.consequences(), &(&1.name == :update))
 
-      existing = apply_igniter!(m.igniter)
+      existing = M.apply!(m.igniter)
       assert resource(existing) =~ "consequence: :external_do"
 
       converged = M.compose(existing, retired, [])
@@ -188,6 +197,32 @@ defmodule GgenIgniter.SemanticA2AExternalDoFalsifierTest do
       refute resource(converged) =~ "consequence: :external_do",
              "retired skill is still declared (exposed) on the existing resource:\n" <>
                resource(converged)
+
+      assert converged.issues == []
+
+      # Exposure is revoked with an explicit declaration, and the Ash action stays.
+      assert skill_lines(resource(converged))
+             |> Enum.member?("skill(:update, :update, expose?: false)")
+
+      assert resource(converged) =~ "update: ["
+
+      # The real compiled resource no longer offers the retired capability.
+      compile_variant!(
+        M.content!(converged, m.domain_path) <> "\n" <> resource(converged),
+        "SemanticJira.Work",
+        "SemanticJira.Q2Work"
+      )
+
+      names = SemanticJira.Q2Work.Task |> AshA2A.Info.capability_index() |> Enum.map(& &1.name)
+      assert Enum.sort(names) == [:create, :read]
+
+      # Stable, and re-exposing through the original ontology restores the court exactly.
+      applied = M.apply!(converged)
+      assert_unchanged(M.compose(applied, retired, []))
+
+      restored = M.compose(applied, m.module, [])
+      assert restored.issues == []
+      assert resource(M.apply!(restored)) == resource(existing)
     end
   end
 end

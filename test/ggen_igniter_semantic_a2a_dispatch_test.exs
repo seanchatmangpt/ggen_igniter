@@ -309,10 +309,18 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
       record
     end
 
+    # The manufactured resource refuses standing ALIVE without a `sha256:` receipt
+    # digest (ontology invariant sj:a2a-inv-alive-needs-digest), so the court
+    # message carries one; a caller-chosen digest overrides it.
     defp court_message(record, digest \\ nil) do
-      data = %{"id" => record.id, "standing" => "ALIVE"}
-      data = if digest, do: Map.put(data, "receipt_digest", digest), else: data
-      data_message(data, "update")
+      digest =
+        digest ||
+          SemanticA2A.receipt(%{"court" => "exact-head", "subject" => record.task_id})["digest"]
+
+      data_message(
+        %{"id" => record.id, "standing" => "ALIVE", "receipt_digest" => digest},
+        "update"
+      )
     end
 
     defp as_principal(id), do: [metadata: %{"a2a.auth" => %{identity: %{id: id}}}]

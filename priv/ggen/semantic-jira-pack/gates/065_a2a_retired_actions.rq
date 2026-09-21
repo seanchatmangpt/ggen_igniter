@@ -1,0 +1,23 @@
+# Retired A2A actions: Ash actions named by a not-exposed sj:Action (a2a:exposed
+# false) that no exposed skill also names. ash_a2a exposes EVERY public Ash
+# action by default and keys capability id and consequence on the Ash action, so
+# an action that the ontology retires but an existing resource still carries
+# stays on the A2A surface unless the resource declares `expose?: false`. The
+# manufacture task derives that declaration from these rows. Q3 (a SHACL shape)
+# refuses an ontology where a retired action shares its Ash action with an
+# exposed skill; MINUS keeps this gate correct even if the court is bypassed.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+SELECT DISTINCT ?skill_name ?ash_action ?reason WHERE {
+  ?action a sj:Action ;
+          a2a:skillName ?skill_name ;
+          a2a:ashAction ?ash_action ;
+          a2a:exposed false ;
+          a2a:refusalReason ?reason .
+  MINUS {
+    ?other a sj:Action ;
+           a2a:exposed true ;
+           a2a:ashAction ?ash_action .
+  }
+}
+ORDER BY ?ash_action ?skill_name

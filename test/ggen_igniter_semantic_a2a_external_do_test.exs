@@ -65,7 +65,7 @@ defmodule GgenIgniter.SemanticA2AExternalDoTest do
   # committed as the new baseline. Never hand-written Ash: the baseline is what
   # the real generators produced, edited by a string replacement.
   defp mutated_project(m, mutator) do
-    applied = apply_igniter!(m.igniter)
+    applied = M.apply!(m.igniter)
     original = M.content!(applied, @resource_path)
     mutated = mutator.(original)
     refute mutated == original, "fixture mutation did not change the resource"
@@ -74,7 +74,7 @@ defmodule GgenIgniter.SemanticA2AExternalDoTest do
     |> Igniter.update_file(@resource_path, fn source ->
       Rewrite.Source.update(source, :content, mutated)
     end)
-    |> apply_igniter!()
+    |> M.apply!()
   end
 
   defp resource(igniter), do: M.content!(igniter, @resource_path)
@@ -265,7 +265,7 @@ defmodule GgenIgniter.SemanticA2AExternalDoTest do
     test "second run: the whole project is byte-identical, including the consequence block", %{
       m: m
     } do
-      applied = apply_igniter!(m.igniter)
+      applied = M.apply!(m.igniter)
       second = M.compose(applied, m.module, [])
 
       assert second.issues == []
@@ -303,7 +303,7 @@ defmodule GgenIgniter.SemanticA2AExternalDoTest do
       assert length(skill_lines(resource(fixed))) == 3
 
       # and the correction is itself stable
-      assert_unchanged(M.compose(apply_igniter!(fixed), m.module, []))
+      assert_unchanged(M.compose(M.apply!(fixed), m.module, []))
     end
 
     test "a bare skill declaration gains its consequence", %{m: m} do
@@ -357,7 +357,7 @@ defmodule GgenIgniter.SemanticA2AExternalDoTest do
       refute source =~ "consequence: :external_do"
 
       # Run the changed ontology's task over the project the old ontology built.
-      converged = M.compose(apply_igniter!(m.igniter), module, [])
+      converged = M.compose(M.apply!(m.igniter), module, [])
 
       assert converged.issues == []
 
@@ -367,10 +367,11 @@ defmodule GgenIgniter.SemanticA2AExternalDoTest do
       refute resource(converged) =~ "external_do"
       assert length(skill_lines(resource(converged))) == 3
 
-      assert_unchanged(M.compose(apply_igniter!(converged), module, []))
+      assert_unchanged(M.compose(M.apply!(converged), module, []))
     end
 
-    test "retiring the skill in the ontology retires its declaration and its Ash action", %{m: m} do
+    test "a FRESH manufacture from an ontology that retires the skill declares neither it nor its Ash action (retirement over an existing project is F14 and Q2)",
+         %{m: m} do
       {0, _output, path} =
         render_variant(
           fn onto ->
@@ -411,6 +412,201 @@ defmodule GgenIgniter.SemanticA2AExternalDoTest do
       refute status == 0
       assert output =~ "UNSUPPORTED(generator-capability)"
       assert output =~ "run_court"
+    end
+  end
+
+  # -- F14: reconciling an EXISTING project with the ontology ---------------------
+  #
+  # ash.gen.resource never adds an action to a resource that exists, and ash_a2a
+  # exposes every public Ash action. So the manufacture task also reconciles:
+  # missing actions, retired exposure, unmodeled declarations, invariants and
+  # runtime config (Q1, Q2, Q3, Q4, R2 of the qualification round).
+
+  describe "F14: the composed reconciliation over an existing resource" do
+    test "the Ash actions of the exposed skills are derived facts, with ash.gen.resource's accept list",
+         %{m: m} do
+      assert Enum.map(m.module.actions(), & &1.name) == [:read, :create, :update]
+
+      assert %{accept: [:receipt_digest, :replay_identity, :standing, :task_id]} =
+               Enum.find(m.module.actions(), &(&1.name == :update))
+
+      assert %{accept: []} = Enum.find(m.module.actions(), &(&1.name == :read))
+    end
+
+    test "a keyword default action (update) missing from an existing resource is added, then stable",
+         %{m: m} do
+      project = mutated_project(m, &String.replace(&1, ~r/,\n\s+update: \[[^\]]*\]/, ""))
+      refute resource(project) =~ "update: ["
+
+      fixed = M.compose(project, m.module, [])
+
+      assert fixed.issues == []
+      assert resource(fixed) =~ "update: [:receipt_digest, :replay_identity, :standing, :task_id]"
+      assert length(skill_lines(resource(fixed))) == 3
+
+      applied = M.apply!(fixed)
+      assert_unchanged(M.compose(applied, m.module, []))
+      assert resource(applied) == resource(M.apply!(m.igniter))
+    end
+
+    test "an atom default action (read) missing from an existing resource is added in front of the keyword entries",
+         %{m: m} do
+      project = mutated_project(m, &String.replace(&1, ~r/\n\s+:read,/, ""))
+      refute resource(project) =~ ~r/defaults\(\[\s*:read,/
+
+      fixed = M.compose(project, m.module, [])
+
+      assert fixed.issues == []
+      assert resource(fixed) =~ ~r/defaults\(\[\s*:read,/
+      assert_unchanged(M.compose(M.apply!(fixed), m.module, []))
+    end
+
+    test "an explicit action declaration counts as present, and the others are added as a new defaults call",
+         %{m: m} do
+      project =
+        mutated_project(m, &String.replace(&1, ~r/defaults\(\[.*?\n    \]\)/s, "read(:read)"))
+
+      refute resource(project) =~ "defaults("
+
+      fixed = M.compose(project, m.module, [])
+
+      assert fixed.issues == []
+      assert resource(fixed) =~ "read(:read)"
+      assert length(Regex.scan(~r/defaults\(/, resource(fixed))) == 1
+      assert resource(fixed) =~ "create: [:receipt_digest, :replay_identity, :standing, :task_id]"
+      assert resource(fixed) =~ "update: [:receipt_digest, :replay_identity, :standing, :task_id]"
+      assert_unchanged(M.compose(M.apply!(fixed), m.module, []))
+    end
+
+    test "a `defaults` that is not a literal list makes the missing action a typed issue, and the skill is never declared",
+         %{m: m} do
+      project =
+        mutated_project(m, fn source ->
+          source
+          |> String.replace(~r/defaults\(\[.*?\n    \]\)/s, "defaults(custom_actions())")
+          |> String.replace("    #{@court}\n", "")
+        end)
+
+      result = M.compose(project, m.module, [])
+
+      assert Enum.any?(result.issues, &(&1 =~ "REFUSED_ACTION_NOT_FOUND"))
+      refute resource(result) =~ "external_do"
+    end
+
+    test "a skill declaration the ontology neither exposes nor retires is a typed issue, not kept silently",
+         %{m: m} do
+      project =
+        mutated_project(
+          m,
+          &String.replace(
+            &1,
+            "    #{@court}\n",
+            "    #{@court}\n    skill(:destroy, :destroy, consequence: :change)\n"
+          )
+        )
+
+      result = M.compose(project, m.module, [])
+
+      assert Enum.any?(result.issues, &(&1 =~ "declares skill(s) [:destroy]"))
+    end
+
+    test "the resource carries the ALIVE-needs-digest invariant as Ash validations", %{m: m} do
+      assert [inv] = m.module.invariants()
+      assert inv.requires_attribute == :receipt_digest
+      assert m.resource_source =~ "validations do"
+      assert m.resource_source =~ "present(:receipt_digest)"
+      assert m.resource_source =~ ~S|~r/^sha256:[0-9a-f]{64}$/|
+      assert m.resource_source =~ ~S|attribute_equals(:standing, "ALIVE")|
+      assert length(Regex.scan(~r/REFUSED\(a2a-invariant\)/, m.resource_source)) == 2
+    end
+
+    test "a deleted validations block is restored", %{m: m} do
+      project =
+        mutated_project(m, &String.replace(&1, ~r/\n  validations do\n.*?\n  end\n/s, "\n"))
+
+      refute resource(project) =~ "validations do"
+
+      fixed = M.compose(project, m.module, [])
+
+      assert fixed.issues == []
+      assert resource(M.apply!(fixed)) == resource(M.apply!(m.igniter))
+    end
+
+    test "a drifted validation is replaced, not duplicated", %{m: m} do
+      project =
+        mutated_project(m, &String.replace(&1, "sha256:[0-9a-f]{64}", "sha256:.*"))
+
+      refute resource(project) =~ "[0-9a-f]{64}"
+
+      fixed = M.compose(project, m.module, [])
+
+      assert fixed.issues == []
+      assert resource(M.apply!(fixed)) == resource(M.apply!(m.igniter))
+      assert length(Regex.scan(~r/validate\(/, resource(fixed))) == 2
+    end
+
+    test "an invariant the ontology drops is pruned from an existing resource", %{m: m} do
+      {0, _output, path} =
+        render_variant(
+          fn onto ->
+            String.replace(
+              onto,
+              "sj:a2a-inv-alive-needs-digest a a2a:ResourceInvariant ;",
+              "sj:a2a-inv-alive-needs-digest a rdfs:Resource ;"
+            )
+          end,
+          "semantic_jira.a2a.manufacture_no_invariant"
+        )
+
+      module = M.load_task!(File.read!(path), path)
+      assert module.invariants() == []
+
+      converged = M.compose(M.apply!(m.igniter), module, [])
+
+      assert converged.issues == []
+      refute resource(converged) =~ "REFUSED(a2a-invariant)"
+      refute resource(converged) =~ "validate("
+      assert_unchanged(M.compose(M.apply!(converged), module, []))
+    end
+
+    test "the receipt store is configured from the ontology, and a drifted value is corrected",
+         %{m: m} do
+      configured = "config :ash_a2a, receipt_store: AshA2A.ReceiptStore.Ekv"
+      assert M.content!(m.igniter, "config/config.exs") =~ configured
+      assert [%{app: :ash_a2a, key: :receipt_store}] = m.module.runtime_config()
+
+      project =
+        m.igniter
+        |> M.apply!()
+        |> Igniter.update_file("config/config.exs", fn source ->
+          Rewrite.Source.update(
+            source,
+            :content,
+            String.replace(
+              Rewrite.Source.get(source, :content),
+              "AshA2A.ReceiptStore.Ekv",
+              "AshA2A.ReceiptStore.Memory"
+            )
+          )
+        end)
+        |> M.apply!()
+
+      refute M.content!(project, "config/config.exs") =~ "Ekv"
+
+      fixed = M.compose(project, m.module, [])
+
+      assert fixed.issues == []
+      assert M.content!(fixed, "config/config.exs") =~ configured
+      assert_unchanged(M.compose(M.apply!(fixed), m.module, []))
+    end
+
+    test "composing the task does not leak its config into the running VM's :ash_a2a env", %{m: m} do
+      before = Application.get_all_env(:ash_a2a)
+
+      _ = M.compose(Igniter.Test.test_project(app_name: M.app()), m.module, [])
+
+      assert Application.get_all_env(:ash_a2a) == before
+      refute Application.get_env(:ash_a2a, :receipt_store) == AshA2A.ReceiptStore.Ekv
     end
   end
 

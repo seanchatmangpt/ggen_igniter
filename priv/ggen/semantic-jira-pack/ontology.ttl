@@ -1935,7 +1935,7 @@ gi:ash-a2a-consequence-override a gi:GeneratorCapability ;
 gi:ash-a2a-consequence-patch a gi:GeneratorCapability ;
     gi:mixTask "semantic_jira.a2a.manufacture" ;
     gi:standing "ALIVE" ;
-    dcterms:description "Composed post-install step of the rendered manufacture task: after the real ash_a2a.install, it declares a2a skill consequence: for every exposed skill (a2a:consequence) inside the resource's a2a block by Igniter.Code.Function/Igniter.Code.Common AST edit, adding a missing skill, correcting a drifted consequence, and leaving an already-correct block byte-identical. The step is rendered from these ontology facts by a2a_manufacture.ex.eex; no Ash source is hand-written." .
+    dcterms:description "Composed post-install reconciliation of the rendered manufacture task. After the real ash.gen.resource and ash_a2a.install it (1) adds any exposed skill's default Ash action that an existing resource lacks, (2) declares a2a skill consequence: for every exposed skill (a2a:consequence), adding a missing skill, correcting a drifted consequence and lifting expose?: false, (3) revokes exposure of a retired action (a2a:exposed false) that an existing resource still carries by declaring expose?: false, refusing an unmodeled skill declaration, (4) generates the Ash validations of every a2a:ResourceInvariant and (5) sets the a2a:RuntimeConfig values. Each edit is an Igniter.Code.Function/Common/List/Keyword AST edit rendered from these ontology facts by a2a_manufacture.ex.eex, is idempotent, and leaves an already-correct project byte-identical; no Ash source is hand-written." .
 
 # Skills. An sj:Action is a skill only when a2a:exposed true and a generator
 # capability admits it; forbidden capabilities are recorded as refusals.
@@ -1973,7 +1973,7 @@ sj:push-candidate a sj:Action ;
     rdfs:label "Push candidate" ;
     dcterms:description "Push a candidate branch; forbidden capability, never a skill." ;
     a2a:skillName "push_candidate" ;
-    a2a:ashAction "update" ;
+    a2a:ashAction "push" ;
     a2a:consequence "change" ;
     a2a:exposed false ;
     a2a:requiresCapability "Push" ;
@@ -1984,7 +1984,7 @@ sj:publish-candidate a sj:Action ;
     rdfs:label "Publish candidate" ;
     dcterms:description "Publish a candidate; forbidden capability, never a skill." ;
     a2a:skillName "publish_candidate" ;
-    a2a:ashAction "update" ;
+    a2a:ashAction "publish" ;
     a2a:consequence "change" ;
     a2a:exposed false ;
     a2a:requiresCapability "Publish" ;
@@ -2028,3 +2028,47 @@ sj:a2a-attr-task-id a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2
 sj:a2a-attr-standing a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "standing" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired true .
 sj:a2a-attr-replay-identity a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "replay_identity" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired false .
 sj:a2a-attr-receipt-digest a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "receipt_digest" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired false .
+
+# Resource invariants: facts the manufacture step turns into Ash validations on
+# the generated resource. `a2a:whenAttribute`/`a2a:whenEquals` is the guard,
+# `a2a:requiresAttribute` must be present and match `a2a:requiresPattern` when
+# the guard holds. Without this, A2A skills that write the resource can record
+# standing ALIVE with no receipt digest at all (falsifier C3): the court skill
+# writes a claim, and A2A does not run the court. The pattern is the digest
+# convention of GgenIgniter.Digest.sha256/1. A format check is NOT verification
+# of the digest against a real receipt; authority of the projection stays NONE.
+a2a:ResourceInvariant a rdfs:Class ; rdfs:label "Manufactured resource invariant" .
+a2a:invariantOf a rdf:Property .
+a2a:whenAttribute a rdf:Property ; rdfs:range xsd:string .
+a2a:whenEquals a rdf:Property ; rdfs:range xsd:string .
+a2a:requiresAttribute a rdf:Property ; rdfs:range xsd:string .
+a2a:requiresPattern a rdf:Property ; rdfs:range xsd:string .
+a2a:invariantMessage a rdf:Property ; rdfs:range xsd:string .
+
+sj:a2a-inv-alive-needs-digest a a2a:ResourceInvariant ;
+    a2a:invariantOf sj:a2a-target ;
+    a2a:whenAttribute "standing" ;
+    a2a:whenEquals "ALIVE" ;
+    a2a:requiresAttribute "receipt_digest" ;
+    a2a:requiresPattern "^sha256:[0-9a-f]{64}$" ;
+    a2a:invariantMessage "standing ALIVE requires a receipt digest of the form sha256:<64 hex>" .
+
+# Runtime config: application-environment values the manufactured surface needs
+# at runtime, set by the manufacture step (config/config.exs). ash_a2a's default
+# receipt store (AshA2A.ReceiptStore.Memory) keeps command dedup only for the
+# lifetime of one store process, so a replayed external_do message would run the
+# court again after a restart (falsifier R2). The EKV-backed store persists the
+# claim/commit state on disk and is what makes replay exactly-once across
+# restarts; its data_dir defaults to the OS tmp dir and a deployment sets a
+# persistent one through :receipt_store_ekv_opts.
+a2a:RuntimeConfig a rdfs:Class ; rdfs:label "Manufactured runtime configuration" .
+a2a:configOf a rdf:Property .
+a2a:configApp a rdf:Property ; rdfs:range xsd:string .
+a2a:configKey a rdf:Property ; rdfs:range xsd:string .
+a2a:configModule a rdf:Property ; rdfs:range xsd:string .
+
+sj:a2a-config-receipt-store a a2a:RuntimeConfig ;
+    a2a:configOf sj:a2a-target ;
+    a2a:configApp "ash_a2a" ;
+    a2a:configKey "receipt_store" ;
+    a2a:configModule "AshA2A.ReceiptStore.Ekv" .

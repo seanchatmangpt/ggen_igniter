@@ -1,0 +1,14 @@
+# Invariants of the manufactured Ash resource, as facts. The manufacture task
+# turns each row into Ash validations (present + match, guarded by
+# attribute_equals) on the generated resource.
+PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+SELECT DISTINCT ?invariant ?when_attribute ?when_equals ?requires_attribute ?requires_pattern ?message WHERE {
+  ?invariant a a2a:ResourceInvariant ;
+             a2a:invariantOf ?target ;
+             a2a:whenAttribute ?when_attribute ;
+             a2a:whenEquals ?when_equals ;
+             a2a:requiresAttribute ?requires_attribute ;
+             a2a:requiresPattern ?requires_pattern ;
+             a2a:invariantMessage ?message .
+}
+ORDER BY ?when_attribute ?requires_attribute

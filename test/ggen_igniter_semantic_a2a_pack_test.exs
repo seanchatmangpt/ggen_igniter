@@ -426,4 +426,145 @@ defmodule GgenIgniter.SemanticA2APackTest do
       assert [%{"a" => "NONE"}] = rows
     end
   end
+
+  describe "reconciliation facts: retired actions, invariants, runtime config (gates 065-067)" do
+    test "retired actions are the Ash actions of not-exposed skills, on both engines", %{
+      graph: graph
+    } do
+      for engine <- @engines do
+        rows = gate(graph, engine, "065_a2a_retired_actions.rq")
+
+        assert rows |> Enum.map(&{&1["skill_name"], &1["ash_action"]}) |> Enum.sort() == [
+                 {"publish_candidate", "publish"},
+                 {"push_candidate", "push"}
+               ],
+               "engine #{inspect(engine)}"
+
+        assert Enum.all?(rows, &(&1["reason"] =~ "REFUSED(forbidden-capability)"))
+      end
+    end
+
+    test "Q3: no retired action shares its Ash action with an exposed skill", %{graph: graph} do
+      exposed =
+        gate(graph, GgenIgniter.Query, "060_a2a_skills.rq") |> Enum.map(& &1["ash_action"])
+
+      retired =
+        gate(graph, GgenIgniter.Query, "065_a2a_retired_actions.rq")
+        |> Enum.map(& &1["ash_action"])
+
+      assert MapSet.disjoint?(MapSet.new(exposed), MapSet.new(retired))
+      refute "update" in retired
+    end
+
+    test "gate 065 drops a retired action that an exposed skill also names (MINUS, court bypassed)" do
+      mutated =
+        String.replace(
+          File.read!(@ontology),
+          ~s|a2a:ashAction "push" ;|,
+          ~s|a2a:ashAction "update" ;|
+        )
+
+      refute mutated == File.read!(@ontology)
+      path = Path.join(System.tmp_dir!(), "a2a_q3_gate_#{System.unique_integer([:positive])}.ttl")
+      File.write!(path, mutated)
+      on_exit(fn -> File.rm(path) end)
+
+      graph = Ontology.load!(path)
+
+      for engine <- @engines do
+        rows = gate(graph, engine, "065_a2a_retired_actions.rq")
+
+        assert rows |> Enum.map(& &1["ash_action"]) |> Enum.sort() == ["publish"],
+               "engine #{inspect(engine)}"
+      end
+    end
+
+    test "the ALIVE-needs-digest invariant and the receipt-store config are facts, on both engines",
+         %{graph: graph} do
+      for engine <- @engines do
+        assert [inv] = gate(graph, engine, "066_a2a_invariants.rq")
+        assert inv["when_attribute"] == "standing"
+        assert inv["when_equals"] == "ALIVE"
+        assert inv["requires_attribute"] == "receipt_digest"
+        assert inv["requires_pattern"] == "^sha256:[0-9a-f]{64}$"
+
+        assert [config] = gate(graph, engine, "067_a2a_runtime_config.rq")
+
+        assert Map.take(config, ["config_app", "config_key", "config_module"]) == %{
+                 "config_app" => "ash_a2a",
+                 "config_key" => "receipt_store",
+                 "config_module" => "AshA2A.ReceiptStore.Ekv"
+               }
+      end
+    end
+
+    test "the invariant's digest pattern is the GgenIgniter.Digest.sha256/1 convention", %{
+      graph: graph
+    } do
+      [inv] = gate(graph, GgenIgniter.Query, "066_a2a_invariants.rq")
+      pattern = Regex.compile!(inv["requires_pattern"])
+
+      assert Regex.match?(pattern, GgenIgniter.Digest.sha256("anything"))
+      refute Regex.match?(pattern, "not-a-digest")
+      refute Regex.match?(pattern, "sha256:" <> String.duplicate("A", 64))
+    end
+  end
+
+  describe "SHACL court: Q3, invariant and runtime-config shapes" do
+    test "the reconciliation shapes were actually checked" do
+      report = Shacl.validate_file(@ontology)
+      assert report.conforms, inspect(report.violations)
+      checked = Enum.map(report.shapes_checked, &to_string/1)
+
+      for shape <- ~w(resource_invariant_shape runtime_config_shape) do
+        assert shape in checked
+      end
+    end
+
+    test "Q3: a REFUSED action sharing an Ash action with an exposed skill is a violation" do
+      report =
+        violating_report!(fn src ->
+          String.replace(src, ~s|a2a:ashAction "push" ;|, ~s|a2a:ashAction "update" ;|)
+        end)
+
+      refute report.conforms
+      assert Enum.any?(report.violations, &(&1.message =~ "Falsifier Q3"))
+    end
+
+    test "C3: an invariant naming an attribute the target does not declare is a violation" do
+      report =
+        violating_report!(fn src ->
+          String.replace(
+            src,
+            ~s|a2a:requiresAttribute "receipt_digest"|,
+            ~s|a2a:requiresAttribute "receipt_hash"|
+          )
+        end)
+
+      refute report.conforms
+      assert Enum.any?(report.violations, &(&1.message =~ "may only name attributes"))
+    end
+
+    test "an invariant without a pattern is a violation" do
+      report =
+        violating_report!(fn src ->
+          String.replace(src, ~s|    a2a:requiresPattern "^sha256:[0-9a-f]{64}$" ;\n|, "")
+        end)
+
+      refute report.conforms
+    end
+
+    test "a runtime config whose module is not a module name is a violation" do
+      report =
+        violating_report!(fn src ->
+          String.replace(
+            src,
+            ~s|a2a:configModule "AshA2A.ReceiptStore.Ekv"|,
+            ~s|a2a:configModule "ash_a2a.receipt-store"|
+          )
+        end)
+
+      refute report.conforms
+    end
+  end
 end

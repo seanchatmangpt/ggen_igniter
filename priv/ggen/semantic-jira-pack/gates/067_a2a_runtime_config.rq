@@ -1,0 +1,11 @@
+# Application-environment values the manufactured surface needs at runtime, as
+# facts. The manufacture task sets each in config/config.exs.
+PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+SELECT DISTINCT ?config ?config_app ?config_key ?config_module WHERE {
+  ?config a a2a:RuntimeConfig ;
+          a2a:configOf ?target ;
+          a2a:configApp ?config_app ;
+          a2a:configKey ?config_key ;
+          a2a:configModule ?config_module .
+}
+ORDER BY ?config_app ?config_key

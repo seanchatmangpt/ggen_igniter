@@ -115,6 +115,10 @@ defmodule GgenIgniter.Test.SemanticA2AManufactured do
 
   @doc "Compose `task` (module or name) on `igniter`, capturing generator chatter."
   def compose(igniter, task, argv) do
+    preserving_env(fn -> compose_captured(igniter, task, argv) end)
+  end
+
+  defp compose_captured(igniter, task, argv) do
     parent = self()
 
     _stderr =
@@ -129,6 +133,36 @@ defmodule GgenIgniter.Test.SemanticA2AManufactured do
       {:igniter, value} -> value
     after
       5_000 -> raise "compose timed out"
+    end
+  end
+
+  @doc "`Igniter.Test.apply_igniter!/1` with the same application-env guard as `compose/3`."
+  def apply!(igniter), do: preserving_env(fn -> Igniter.Test.apply_igniter!(igniter) end)
+
+  # Igniter evaluates a project's `config/config.exs` while it edits it
+  # (`Igniter.with_evaled_configs/2`): it `put_all_env`s the evaluated values,
+  # runs, then `put_all_env`s a snapshot back. `put_all_env` merges, so a key the
+  # edit ADDED (here `config :ash_a2a, receipt_store: ...`, set by the manufacture
+  # step) is never removed and leaks into the running VM. A leaked
+  # `receipt_store: AshA2A.ReceiptStore.Ekv` makes every later A2A call in the
+  # same VM fail with `receipt_store_unavailable`. This restores the exact env
+  # of the guarded apps around each Igniter run.
+  @guarded_apps [:ash_a2a]
+
+  @doc false
+  def preserving_env(fun) do
+    snapshot = Map.new(@guarded_apps, &{&1, Application.get_all_env(&1)})
+
+    try do
+      fun.()
+    after
+      for {app, env} <- snapshot do
+        for {key, _} <- Application.get_all_env(app), not Keyword.has_key?(env, key) do
+          Application.delete_env(app, key)
+        end
+
+        for {key, value} <- env, do: Application.put_env(app, key, value)
+      end
     end
   end
 
