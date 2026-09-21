@@ -1929,8 +1929,13 @@ gi:ash-a2a-install a gi:GeneratorCapability ;
 gi:ash-a2a-consequence-override a gi:GeneratorCapability ;
     gi:mixTask "ash_a2a.install" ;
     gi:standing "UNSUPPORTED" ;
-    gi:refusalReason "UNSUPPORTED(generator-capability): ash_a2a.install cannot emit an explicit a2a skill consequence: :external_do override, so no external_do skill is manufactured; it is never hand-written." ;
-    dcterms:description "external_do skills require an explicit consequence declaration that the installer does not emit." .
+    gi:refusalReason "UNSUPPORTED(generator-capability): ash_a2a.install cannot emit an explicit a2a skill consequence: :external_do override; the composed manufacture step gi:ash-a2a-consequence-patch supplies it after install, and it is never hand-written." ;
+    dcterms:description "UPSTREAM LIMITATION, still true: the raw ash_a2a.install (26.9.17) has no option that declares a skill consequence, so used alone it manufactures no external_do skill (pinned by test/ggen_igniter_semantic_a2a_external_do_test.exs). No exposed skill may name this capability as its generator; the SHACL court refuses one that does. Paydown: an upstream ash_a2a.install --skill name:action:consequence option retires the patch step (docs/jira/v26.9.20/streams/external-do-capability.md)." .
+
+gi:ash-a2a-consequence-patch a gi:GeneratorCapability ;
+    gi:mixTask "semantic_jira.a2a.manufacture" ;
+    gi:standing "ALIVE" ;
+    dcterms:description "Composed post-install step of the rendered manufacture task: after the real ash_a2a.install, it declares a2a skill consequence: for every exposed skill (a2a:consequence) inside the resource's a2a block by Igniter.Code.Function/Igniter.Code.Common AST edit, adding a missing skill, correcting a drifted consequence, and leaving an already-correct block byte-identical. The step is rendered from these ontology facts by a2a_manufacture.ex.eex; no Ash source is hand-written." .
 
 # Skills. An sj:Action is a skill only when a2a:exposed true and a generator
 # capability admits it; forbidden capabilities are recorded as refusals.
@@ -1952,13 +1957,17 @@ sj:record-court-receipt a sj:Action ;
     a2a:exposed true ;
     a2a:generatedBy gi:ash-a2a-install .
 
+# External-consequence skill. Exposed since v26.9.20: the manufacture task's
+# post-install consequence patch (gi:ash-a2a-consequence-patch, ALIVE) declares
+# `skill :update, :update, consequence: :external_do` on the generated resource.
+# At runtime ash_a2a routes it through the CommandBus: no authority grant means
+# :authority_required, and a granted call yields an AshA2A.Receipt.
 sj:run-exact-head-court
     a2a:skillName "run_exact_head_court" ;
     a2a:ashAction "update" ;
     a2a:consequence "external_do" ;
-    a2a:exposed false ;
-    a2a:generatedBy gi:ash-a2a-consequence-override ;
-    a2a:refusalReason "UNSUPPORTED(generator-capability): external_do consequence cannot be manufactured by ash_a2a.install." .
+    a2a:exposed true ;
+    a2a:generatedBy gi:ash-a2a-consequence-patch .
 
 sj:push-candidate a sj:Action ;
     rdfs:label "Push candidate" ;

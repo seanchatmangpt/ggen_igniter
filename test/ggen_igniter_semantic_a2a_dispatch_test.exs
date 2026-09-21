@@ -20,6 +20,14 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
   F3 (Push/Publish never on the card), the forged-identity fail-closed case,
   REFUSED_ACTION_NOT_FOUND for an unknown skill, -32601 for an unknown method,
   and `completed` for a work-order task only with a court receipt.
+
+  F10 (the `external_do` skill `run_exact_head_court`, manufactured by the
+  composed consequence-patch step): it executes ONLY for a principal holding a
+  grant of that exact capability, and only then with a committed `:external_do`
+  receipt; a nil actor, an ungranted principal, and a principal granted a
+  DIFFERENT capability (`create`) are refused with no state change and no
+  receipt. The grants are asymmetric on purpose: the clerk holds `create` only,
+  the judge holds `update` only.
   """
 
   use ExUnit.Case, async: false
@@ -32,6 +40,7 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
   @resource SemanticJira.Work.Task
   @agent SemanticJira.Work.TaskAgent
   @clerk_token "clerk-token"
+  @judge_token "judge-token"
   @intruder_token "intruder-token"
 
   defmodule Pipeline do
@@ -60,6 +69,7 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
 
     @doc false
     def verify("bearer_auth", "clerk-token", _conn), do: {:ok, %{id: "court-clerk"}}
+    def verify("bearer_auth", "judge-token", _conn), do: {:ok, %{id: "court-judge"}}
     def verify("bearer_auth", "intruder-token", _conn), do: {:ok, %{id: "intruder"}}
     def verify(_scheme, _credential, _conn), do: {:error, "invalid token"}
   end
@@ -96,6 +106,11 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
 
     clerk = Identity.principal(%{id: "court-clerk"})
     {:ok, %Authority{}} = Authority.Grant.grant(clerk, capability_id!("create"))
+
+    # Asymmetric on purpose: the judge may run the external_do court skill and
+    # nothing else; the clerk may record receipts and nothing else.
+    judge = Identity.principal(%{id: "court-judge"})
+    {:ok, %Authority{}} = Authority.Grant.grant(judge, capability_id!("update"))
 
     {:ok, _} = Application.ensure_all_started(:bandit)
     {:ok, _} = Application.ensure_all_started(:req)
@@ -172,18 +187,23 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
       end
     end
 
-    test "F3: no Push/Publish/external_do skill is on the card", %{m: _m} do
+    test "F3: no Push/Publish skill is on the card; the only external_do skill is the court", %{
+      m: _m
+    } do
       card = AshA2A.Info.agent_card(@resource, url: "http://localhost")
       names = Enum.map(card.skills, &to_string(&1.name))
 
-      for forbidden <- ~w(push_candidate publish_candidate run_exact_head_court push publish) do
+      for forbidden <- ~w(push_candidate publish_candidate push publish) do
         refute forbidden in names
       end
 
-      for skill <- card.skills do
-        {:ok, compiled} = AshA2A.Info.skill(@resource, skill.name)
-        assert compiled.consequence in [:observe, :change]
-      end
+      consequences =
+        Map.new(card.skills, fn skill ->
+          {:ok, compiled} = AshA2A.Info.skill(@resource, skill.name)
+          {to_string(skill.name), compiled.consequence}
+        end)
+
+      assert consequences == %{"read" => :observe, "create" => :change, "update" => :external_do}
     end
 
     test "the golden AgentCard projection and the real served card agree on skill ids", %{
@@ -224,7 +244,11 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
       assert golden["skills"] |> Enum.map(& &1["id"]) |> Enum.sort() == served_ids
 
       assert golden["refusedSkills"] |> Enum.map(& &1["name"]) |> Enum.sort() ==
-               ["publish_candidate", "push_candidate", "run_exact_head_court"]
+               ["publish_candidate", "push_candidate"]
+
+      court = Enum.find(golden["skills"], &(&1["semanticSkill"] == "run_exact_head_court"))
+      assert court["consequence"] == "external_do"
+      assert court["id"] == "SemanticJira.Work.Task.update"
     end
   end
 
@@ -269,11 +293,145 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
     end
   end
 
+  describe "F10: the manufactured external_do skill (run_exact_head_court)" do
+    defp seed_task!(task_id) do
+      granted = [metadata: %{"a2a.auth" => %{identity: %{id: "court-clerk"}}}]
+
+      assert {:ok, task} =
+               apply(@agent, :call, [
+                 @agent,
+                 data_message(%{"task_id" => task_id, "standing" => "UNKNOWN"}, "create"),
+                 granted
+               ])
+
+      assert task.status.state == :completed
+      [record] = Enum.filter(records(), &(&1.task_id == task_id))
+      record
+    end
+
+    defp court_message(record, digest \\ nil) do
+      data = %{"id" => record.id, "standing" => "ALIVE"}
+      data = if digest, do: Map.put(data, "receipt_digest", digest), else: data
+      data_message(data, "update")
+    end
+
+    defp as_principal(id), do: [metadata: %{"a2a.auth" => %{identity: %{id: id}}}]
+
+    defp standing_of(record), do: Enum.find(records(), &(&1.id == record.id)).standing
+
+    defp receipt_for(message) do
+      AshA2A.ReceiptStore.Memory.fetch(Identity.command(message.message_id))
+    end
+
+    test "the skill is compiled as :external_do under the exact capability id the grant names" do
+      assert {:ok, skill} = AshA2A.Info.skill(@resource, "update")
+      assert skill.consequence == :external_do
+      assert skill.id == "SemanticJira.Work.Task.update"
+
+      assert [%{"skill_name" => "run_exact_head_court", "consequence" => "external_do"}] =
+               Enum.filter(SemanticA2A.skills(), &(&1["consequence"] == "external_do"))
+    end
+
+    test "nil actor: refused, state unchanged, no receipt" do
+      record = seed_task!("court-nil")
+      message = court_message(record)
+
+      assert {:ok, task} = apply(@agent, :call, [@agent, message])
+      assert task.status.state == :failed
+      assert standing_of(record) == "UNKNOWN"
+      assert :error = receipt_for(message)
+    end
+
+    test "authenticated principal WITHOUT any grant: refused, state unchanged, no receipt" do
+      record = seed_task!("court-ungranted")
+      message = court_message(record)
+
+      assert {:ok, task} = apply(@agent, :call, [@agent, message, as_principal("intruder")])
+      assert task.status.state == :failed
+      assert standing_of(record) == "UNKNOWN"
+      assert :error = receipt_for(message)
+    end
+
+    test "a grant of a DIFFERENT capability does not authorize it (clerk holds create only)" do
+      record = seed_task!("court-clerk")
+      message = court_message(record)
+
+      assert {:ok, task} = apply(@agent, :call, [@agent, message, as_principal("court-clerk")])
+      assert task.status.state == :failed
+      assert standing_of(record) == "UNKNOWN"
+      assert :error = receipt_for(message)
+    end
+
+    test "the reverse holds too: the judge (update grant only) cannot run the change skill" do
+      message = data_message(%{"task_id" => "judge-create", "standing" => "UNKNOWN"}, "create")
+
+      assert {:ok, task} = apply(@agent, :call, [@agent, message, as_principal("court-judge")])
+      assert task.status.state == :failed
+      assert records() == []
+      assert :error = receipt_for(message)
+    end
+
+    test "granted judge: executes, the state really changes, and a committed :external_do receipt exists" do
+      record = seed_task!("court-judge-run")
+      digest = SemanticA2A.receipt(%{"court" => "exact-head", "subject" => "court-judge-run"})
+      message = court_message(record, digest["digest"])
+
+      assert {:ok, task} = apply(@agent, :call, [@agent, message, as_principal("court-judge")])
+      assert task.status.state == :completed
+      assert standing_of(record) == "ALIVE"
+
+      updated = Enum.find(records(), &(&1.id == record.id))
+      assert updated.receipt_digest == digest["digest"]
+
+      assert {:ok, %AshA2A.Receipt{} = receipt} = receipt_for(message)
+      assert receipt.consequence == :external_do
+      assert receipt.capability_id == "SemanticJira.Work.Task.update"
+      assert receipt.principal_id == Identity.principal(%{id: "court-judge"})
+      assert receipt.terminal_status == :executed
+    end
+
+    test "replaying the same message does not run the court twice" do
+      record = seed_task!("court-replay")
+      message = court_message(record)
+
+      assert {:ok, first} = apply(@agent, :call, [@agent, message, as_principal("court-judge")])
+      assert first.status.state == :completed
+      assert {:ok, %AshA2A.Receipt{receipt_id: id}} = receipt_for(message)
+
+      assert {:ok, again} = apply(@agent, :call, [@agent, message, as_principal("court-judge")])
+      assert again.status.state == :completed
+      assert {:ok, %AshA2A.Receipt{receipt_id: ^id}} = receipt_for(message)
+      assert standing_of(record) == "ALIVE"
+    end
+
+    test "over real HTTP: intruder and clerk are refused, only the judge executes", %{base: base} do
+      record = seed_task!("court-http")
+      message = court_message(record)
+
+      for token <- [@intruder_token, @clerk_token] do
+        denied = send_message(base, message, token)
+        assert task_state(denied) == SemanticA2A.wire_state("failed"), "token #{token}"
+        assert standing_of(record) == "UNKNOWN"
+      end
+
+      assert :error = receipt_for(message)
+
+      unauth = send_message(base, message, nil)
+      assert unauth.status == 401
+      assert standing_of(record) == "UNKNOWN"
+
+      ok = send_message(base, message, @judge_token)
+      assert task_state(ok) == SemanticA2A.wire_state("completed")
+      assert standing_of(record) == "ALIVE"
+      assert {:ok, %AshA2A.Receipt{consequence: :external_do}} = receipt_for(message)
+    end
+  end
+
   describe "real HTTP: Bandit on an ephemeral port + Req" do
     test "GET agent card, then message/send observe skill, then tasks/get", %{base: base} do
       card = Req.get!(base <> "/.well-known/agent-card.json", retry: false)
       assert card.status == 200
-      assert is_list(card.body["skills"]) and length(card.body["skills"]) == 2
+      assert is_list(card.body["skills"]) and length(card.body["skills"]) == 3
 
       resp = send_message(base, data_message(%{}, "read"), @clerk_token)
       assert task_state(resp) == SemanticA2A.wire_state("completed")

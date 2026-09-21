@@ -49,7 +49,7 @@ defmodule GgenIgniter.SemanticA2APackTest do
         skills = gate(graph, engine, "060_a2a_skills.rq")
 
         assert skills |> Enum.map(& &1["skill_name"]) |> Enum.sort() ==
-                 ["observe_work_order", "record_court_receipt"],
+                 ["observe_work_order", "record_court_receipt", "run_exact_head_court"],
                "engine #{inspect(engine)}"
 
         by_name = Map.new(skills, &{&1["skill_name"], &1})
@@ -57,28 +57,69 @@ defmodule GgenIgniter.SemanticA2APackTest do
         assert by_name["observe_work_order"]["consequence"] == "observe"
         assert by_name["record_court_receipt"]["ash_action"] == "create"
         assert by_name["record_court_receipt"]["consequence"] == "change"
+        # The external_do skill is exposed: its generator capability is ALIVE.
+        assert by_name["run_exact_head_court"]["ash_action"] == "update"
+        assert by_name["run_exact_head_court"]["consequence"] == "external_do"
       end
     end
 
-    test "Push, Publish and the UNSUPPORTED external_do skill are refusals, not skills", %{
+    test "Push and Publish are the refusals; the external_do skill is exposed, not refused", %{
       graph: graph
     } do
       for engine <- @engines do
         refusals =
           gate(graph, engine, "062_a2a_refusals.rq") |> Map.new(&{&1["skill_name"], &1["reason"]})
 
-        assert Map.keys(refusals) |> Enum.sort() ==
-                 ["publish_candidate", "push_candidate", "run_exact_head_court"]
-
+        assert Map.keys(refusals) |> Enum.sort() == ["publish_candidate", "push_candidate"]
         assert refusals["push_candidate"] =~ "REFUSED(forbidden-capability)"
         assert refusals["publish_candidate"] =~ "REFUSED(forbidden-capability)"
-        # UNSUPPORTED(generator-capability) is a different type from REFUSED.
-        assert refusals["run_exact_head_court"] =~ "UNSUPPORTED(generator-capability)"
-        refute refusals["run_exact_head_court"] =~ "REFUSED"
 
         skill_names = gate(graph, engine, "060_a2a_skills.rq") |> Enum.map(& &1["skill_name"])
+        assert "run_exact_head_court" in skill_names
         refute Enum.any?(Map.keys(refusals), &(&1 in skill_names))
       end
+    end
+
+    test "UNSUPPORTED(generator-capability) stays accurate for the raw installer and no exposed skill uses it",
+         %{graph: graph} do
+      for engine <- @engines do
+        capabilities =
+          engine.run(graph, """
+          PREFIX gi: <https://ggen-igniter.dev/ontology/ggen-igniter#>
+          SELECT ?cap ?standing ?task WHERE {
+            ?cap a gi:GeneratorCapability ; gi:standing ?standing ; gi:mixTask ?task .
+          }
+          """)
+
+        standing = Map.new(capabilities, &{&1["cap"], &1["standing"]})
+
+        assert standing["https://ggen-igniter.dev/ontology/ggen-igniter#ash-a2a-install"] ==
+                 "ALIVE"
+
+        assert standing[
+                 "https://ggen-igniter.dev/ontology/ggen-igniter#ash-a2a-consequence-patch"
+               ] == "ALIVE"
+
+        # The raw installer's limitation is real, so the UNSUPPORTED row stays ...
+        assert standing[
+                 "https://ggen-igniter.dev/ontology/ggen-igniter#ash-a2a-consequence-override"
+               ] == "UNSUPPORTED"
+
+        # ... and is never the generator of anything exposed.
+        assert [] ==
+                 engine.run(graph, """
+                 PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+                 PREFIX gi: <https://ggen-igniter.dev/ontology/ggen-igniter#>
+                 SELECT ?s WHERE {
+                   ?s a2a:exposed true ; a2a:generatedBy gi:ash-a2a-consequence-override .
+                 }
+                 """)
+      end
+    end
+
+    test "external_do_skills/0 names exactly the consequence-bearing external skills" do
+      assert [%{"skill_name" => "run_exact_head_court", "ash_action" => "update"}] =
+               SemanticA2A.external_do_skills()
     end
 
     test "the two engines agree on the state map (order-insensitive)", %{graph: graph} do
@@ -183,6 +224,20 @@ defmodule GgenIgniter.SemanticA2APackTest do
         end)
 
       refute report.conforms
+    end
+
+    test "F10: an exposed external_do skill sourced from the UNSUPPORTED raw installer is a violation" do
+      report =
+        violating_report!(fn src ->
+          String.replace(
+            src,
+            "a2a:exposed true ;\n    a2a:generatedBy gi:ash-a2a-consequence-patch .",
+            "a2a:exposed true ;\n    a2a:generatedBy gi:ash-a2a-consequence-override ."
+          )
+        end)
+
+      refute report.conforms
+      assert Enum.any?(report.violations, &(&1.message =~ "admitted generator capability"))
     end
 
     test "UNSUPPORTED without an UNSUPPORTED(generator-capability) reason is a violation" do

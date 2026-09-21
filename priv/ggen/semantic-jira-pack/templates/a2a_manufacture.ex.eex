@@ -31,6 +31,42 @@ mode: file
     |> Enum.flat_map(fn a -> ["--attribute", attr_flag.(a)] end)
 
   lit = fn list -> Enum.map_join(list, ", ", &inspect/1) end
+
+  # Exposed skills (gate 060) drive two things, both derived from ontology
+  # facts and never stored as CLI strings there: the Ash default actions the
+  # resource must carry, and one explicit `consequence:` declaration per skill.
+  canonical_actions = ~w(read create update destroy)
+  known_consequences = ~w(observe change external_do)
+
+  skills =
+    a2a_skills
+    |> Enum.sort_by(fn s ->
+      Enum.find_index(canonical_actions, &(&1 == s["ash_action"])) || length(canonical_actions)
+    end)
+
+  for s <- skills do
+    if s["ash_action"] not in canonical_actions do
+      raise ArgumentError,
+            "UNSUPPORTED(generator-capability): ash.gen.resource --default-actions cannot manufacture " <>
+              "the Ash action #{inspect(s["ash_action"])} (skill #{inspect(s["skill_name"])})"
+    end
+
+    if s["consequence"] not in known_consequences do
+      raise ArgumentError,
+            "unknown a2a:consequence #{inspect(s["consequence"])} on skill #{inspect(s["skill_name"])}"
+    end
+  end
+
+  if length(Enum.uniq_by(skills, & &1["ash_action"])) != length(skills) do
+    raise ArgumentError, "two exposed skills name the same Ash action; a2a skill names must stay unique"
+  end
+
+  default_actions = skills |> Enum.map(& &1["ash_action"]) |> Enum.join(",")
+
+  consequence_decls =
+    Enum.map(skills, fn s ->
+      "%{name: :#{s["ash_action"]}, action: :#{s["ash_action"]}, consequence: :#{s["consequence"]}}"
+    end)
 %>defmodule <%= task_module %> do
   @shortdoc "Manufactures the <%= resource %> Ash resource and its ash_a2a surface from the Semantic Jira ontology."
   @moduledoc """
@@ -45,7 +81,12 @@ mode: file
   argument is DERIVED from ontology facts (`a2a:ManufactureTarget`,
   `a2a:ResourceAttribute`); the ontology stores no CLI strings. This file never
   declares an Ash resource itself: `ash.gen.resource` writes the resource and
-  `ash_a2a.install` adds `extensions: [AshA2A]` to it.
+  `ash_a2a.install` adds `extensions: [AshA2A]` to it. `ash_a2a.install`
+  (26.9.17) has no option that declares a skill `consequence:`, so a final
+  composed step -- an Igniter AST edit of the resource's `a2a` block -- declares
+  one for every exposed skill (`a2a:consequence`), which is what lifts an
+  `external_do` skill off the fail-closed default. That step adds a missing
+  declaration, corrects a drifted one, and leaves a correct block untouched.
 
   Authority of this projection is NONE. Skills, task states and the AgentCard
   are consequences of the ontology; standing is never inferred from A2A task
@@ -69,7 +110,7 @@ mode: file
     %{
       step: "gen_resource",
       task: "ash.gen.resource",
-      argv: [<%= lit.([resource, "--uuid-primary-key", "id"] ++ attr_args ++ ["--default-actions", "read,create", "--extend", "ets", "--domain", domain]) %>]
+      argv: [<%= lit.([resource, "--uuid-primary-key", "id"] ++ attr_args ++ ["--default-actions", default_actions, "--extend", "ets", "--domain", domain]) %>]
     },
     %{
       step: "install_ash_a2a",
@@ -85,8 +126,23 @@ mode: file
     }
   ]
 
+  # One explicit `consequence:` declaration per exposed skill (a2a:consequence),
+  # applied AFTER the plan. ash_a2a.install (26.9.17) has no option that
+  # declares a skill consequence, so this is a post-install AST edit of the
+  # resource's `a2a` block. Declaring it for every skill, not only the
+  # non-default ones, pins each consequence to the ontology instead of to
+  # ash_a2a's per-action-type defaults, so an upstream default change cannot
+  # silently move a skill. `:external_do` has no default at all and must be
+  # declared: it is what routes the skill through the CommandBus.
+  @consequences [
+    <%= Enum.join(consequence_decls, ",\n    ") %>
+  ]
+
   @doc false
   def plan, do: @plan
+
+  @doc false
+  def consequences, do: @consequences
 
   @impl Igniter.Mix.Task
   def info(_argv, _parent) do
@@ -99,7 +155,76 @@ mode: file
 
   @impl Igniter.Mix.Task
   def igniter(igniter) do
-    Enum.reduce(@plan, igniter, &apply_step/2)
+    igniter
+    |> then(&Enum.reduce(@plan, &1, fn step, acc -> apply_step(step, acc) end))
+    |> declare_consequences(<%= resource %>, @consequences)
+  end
+
+  defp declare_consequences(igniter, resource, declarations) do
+    Enum.reduce(declarations, igniter, fn declaration, acc ->
+      Igniter.Project.Module.find_and_update_module!(acc, resource, fn zipper ->
+        declare_consequence(zipper, resource, declaration)
+      end)
+    end)
+  end
+
+  # Adds `skill :name, :action, consequence: c` to the resource's `a2a` block,
+  # or brings an existing declaration of that skill to `consequence: c`. A block
+  # that already declares it correctly is returned untouched (idempotent).
+  defp declare_consequence(zipper, resource, %{name: name, action: action, consequence: c}) do
+    with {:ok, a2a} <-
+           Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :a2a, 1),
+         {:ok, block} <- Igniter.Code.Common.move_to_do_block(a2a) do
+      declared =
+        Igniter.Code.Function.move_to_function_call_in_current_scope(
+          block,
+          :skill,
+          [2, 3],
+          &Igniter.Code.Function.argument_equals?(&1, 0, name)
+        )
+
+      case declared do
+        {:ok, skill} ->
+          set_consequence(skill, c)
+
+        _ ->
+          {:ok,
+           Igniter.Code.Common.add_code(
+             block,
+             "skill #{inspect(name)}, #{inspect(action)}, consequence: #{inspect(c)}"
+           )}
+      end
+    else
+      _ ->
+        {:error,
+         "#{inspect(resource)} has no `a2a do ... end` block to declare skill consequences in"}
+    end
+  end
+
+  defp set_consequence(skill, consequence) do
+    declared? =
+      Igniter.Code.Function.argument_matches_predicate?(skill, 2, fn opts ->
+        case Igniter.Code.Keyword.get_key(opts, :consequence) do
+          {:ok, value} -> Igniter.Code.Common.nodes_equal?(value, consequence)
+          :error -> false
+        end
+      end)
+
+    if declared? do
+      {:ok, skill}
+    else
+      updated =
+        Igniter.Code.Function.update_nth_argument(skill, 2, fn opts ->
+          Igniter.Code.Keyword.set_keyword_key(opts, :consequence, consequence, fn value ->
+            {:ok, Sourceror.Zipper.replace(value, consequence)}
+          end)
+        end)
+
+      case updated do
+        {:ok, zipper} -> {:ok, zipper}
+        _ -> Igniter.Code.Function.append_argument(skill, consequence: consequence)
+      end
+    end
   end
 
   defp apply_step(%{skip_if_installed: {module, marker}} = step, igniter) do

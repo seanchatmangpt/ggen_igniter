@@ -28,6 +28,14 @@ defmodule GgenIgniter.SemanticA2A do
     * `UNSUPPORTED` and `REFUSED` both map to `rejected` but keep distinct
       reason codes.
     * Authority of every projection here is `NONE`.
+    * An `external_do` skill (`external_do_skills/1`) is exposed only because
+      its generator capability is ALIVE: the manufacture task's composed
+      consequence-patch step, since `ash_a2a.install` alone cannot declare a
+      consequence (that raw-installer limitation stays recorded as
+      UNSUPPORTED(generator-capability); SHACL refuses an exposed skill that
+      names it). Exposure is not authority: ash_a2a routes the skill through
+      its CommandBus, which refuses a nil or ungranted actor and receipts a
+      granted call.
   """
 
   alias GgenIgniter.{Digest, Ontology, Query, SemanticWorkOrder}
@@ -77,6 +85,17 @@ defmodule GgenIgniter.SemanticA2A do
   @doc "Exposed skills (gate 060): actions admitted as A2A skills, minus forbidden capabilities."
   @spec skills(RDF.Graph.t() | String.t()) :: [map()]
   def skills(graph \\ ontology_path()), do: gate_rows(graph, "060_a2a_skills.rq")
+
+  @doc """
+  Exposed skills whose consequence is `external_do` (gate 060 rows): ash_a2a's
+  class for an effect outside the Ash data layer. Like `change`, it is refused
+  without an authority grant; unlike `change` it has no per-action-type
+  default, so it must be declared explicitly on the resource.
+  """
+  @spec external_do_skills(RDF.Graph.t() | String.t()) :: [map()]
+  def external_do_skills(graph \\ ontology_path()) do
+    graph |> skills() |> Enum.filter(&(&1["consequence"] == "external_do"))
+  end
 
   @doc "Typed refusals (gate 062): actions deliberately not exposed as skills."
   @spec refusals(RDF.Graph.t() | String.t()) :: [map()]
