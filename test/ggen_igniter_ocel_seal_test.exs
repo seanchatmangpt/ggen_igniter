@@ -116,6 +116,10 @@ defmodule GgenIgniterOcelSealTest do
 
   defp seal!(argv), do: capture_io(fn -> Seal.run(argv) end)
 
+  # Contract with the code under test (`ggen_igniter.ocel.seal.ex:166`):
+  # the persisted GgenIgniter.EDS.Receipt sits next to the OCEL log.
+  defp eds_receipt_path(path), do: path <> ".eds-receipt.json"
+
   test "exit 0 appends exactly one applied event and restamps nothing", ctx do
     observed = Faker.Lorem.sentence()
 
@@ -143,6 +147,13 @@ defmodule GgenIgniterOcelSealTest do
     assert %{"name" => @observed_attr, "value" => observed} in appended["attributes"]
 
     assert output =~ ctx.applied
+
+    eds = read!(eds_receipt_path(ctx.path))
+    assert eds["state"] == "verified"
+    assert eds["source_identity"] == ctx.path
+    assert eds["inputs"]["exit"] == 0
+    assert eds["inputs"]["observed"] == observed
+    assert eds["inputs"]["run_id"] == ctx.run_id
   end
 
   test "the seal event is related to the run it was derived from, exactly once", ctx do
@@ -216,6 +227,57 @@ defmodule GgenIgniterOcelSealTest do
     missing = Path.join(Path.dirname(ctx.path), Faker.File.file_name(:text))
 
     assert_raise Mix.Error, ~r/no OCEL log at/, fn -> seal!([missing, "--exit", "0"]) end
+  end
+
+  test "a successful seal writes a verified GgenIgniter.EDS.Receipt with real evidence fields",
+       ctx do
+    observed = Faker.Lorem.sentence()
+
+    seal!([ctx.path, "--exit", "0", "--observed", observed])
+
+    eds = read!(eds_receipt_path(ctx.path))
+
+    # Real, checkable state -- not a boolean flag. EvidenceState.states/0
+    # includes "verified" as one of its atoms; here it is asserted as the
+    # persisted string form, since JSON has no atoms.
+    assert eds["state"] == "verified"
+    assert eds["fingerprint"] =~ ~r/^[0-9a-f]{64}$/
+    assert is_binary(eds["hypothesis"]) and eds["hypothesis"] != ""
+    assert eds["source_identity"] == ctx.path
+    assert eds["execution"]["protocol"] =~ "Ocel2Export"
+
+    # Every falsifier this closure wires in must have genuinely run and
+    # survived against the real sealed log -- not a fixed-pass stub.
+    assert length(eds["falsifier_verdicts"]) == 3
+
+    assert Enum.all?(eds["falsifier_verdicts"], fn v ->
+             v["verdict"] == "survived" and is_binary(v["name"])
+           end)
+
+    # The real seal event this exact run produced is what got checked.
+    sealed_last_event = List.last(read!(ctx.path)["events"])
+    assert sealed_last_event["type"] == ctx.applied
+
+    assert sealed_last_event["relationships"] == [
+             %{"objectId" => ctx.run_id, "qualifier" => "run"}
+           ]
+  end
+
+  test "a non-zero --exit also produces a verified GgenIgniter.EDS.Receipt, sealed aborted",
+       ctx do
+    code = Faker.random_between(1, 255)
+
+    seal!([ctx.path, "--exit", to_string(code)])
+
+    eds = read!(eds_receipt_path(ctx.path))
+
+    assert eds["state"] == "verified"
+    assert eds["inputs"]["exit"] == code
+    assert eds["inputs"]["activity"] == ctx.aborted
+
+    assert Enum.any?(eds["falsifier_verdicts"], fn v ->
+             String.contains?(v["name"], ctx.aborted)
+           end)
   end
 
   test "the log path is required and must be unambiguous", ctx do
