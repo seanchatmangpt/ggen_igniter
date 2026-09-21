@@ -177,11 +177,14 @@ ontology/manufacturer surface.** PR #19 (head `0d87dfe`,
 descriptor shape courts are absorbed in
 `test/ggen_igniter_crown_descriptor_court_test.exs`; the disposition is
 guarded permanently by `test/ggen_igniter_semantic_jira_sole_canonical_test.exs`.
-One-canonical evidence (this session, at `bba0592`):
-`git grep -l "semantic-a2a.dev/gall" HEAD --` → 0 files;
+One-canonical evidence (observed at the folded head): the superseded pack
+directory `priv/ggen/gall-semantic-work-pack/` does not exist on the branch;
+`git grep -l "semantic-a2a.dev/gall" HEAD --` yields exactly the two lawful
+mentions — the tripwire test that forbids the namespace (an enforcement
+anchor must name what it forbids) and this document's citation of that
+check — and NO ontology, gate, template, or lib source references it;
 exactly one pack ontology (`priv/ggen/semantic-jira-pack/ontology.ttl`, 37
-subjects) declares `a sj:WorkOrder` / `a oslc_cm:ChangeRequest`; the
-superseded pack directory does not exist on the branch.
+subjects) declares `a sj:WorkOrder` / `a oslc_cm:ChangeRequest`.
 
 Status of the former §7 items, re-checked at `bba0592`:
 
@@ -251,7 +254,7 @@ Status of the former §7 items, re-checked at `bba0592`:
 | Hand-writing ≤1% with ledger | `HANDWRITTEN.md` + `sj:ledger-unsupported-001` | Both read this session; commit `7676730` | SATISFIED (ledger row admitted with paydown plan) |
 | RFC exists in-repo | this file | commit `docs(rfc): re-manufacture semantic-jira RFC from live artifacts` (SHA recorded in the PR #20 body append) | CLOSED by this re-manufacture |
 | `baseSha` git ground truth | `semantic_jira/git_ground_truth.ex` (opt-in, `8fe0e9a`) + CI full history (`2f26c0b`) | Read this session at `bba0592`; §7 item 4 | SATISFIED (opt-in real-ancestor court; `REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED` on shallow checkouts) |
-| ONE-CANONICAL sole source (#19/#23 superseded) | `pack.toml` sole-canonical note + `test/ggen_igniter_semantic_jira_sole_canonical_test.exs` + `test/ggen_igniter_crown_descriptor_court_test.exs` | `git grep -l "semantic-a2a.dev/gall" HEAD --` = 0; one declaring ontology; superseded pack dir absent (§7 header) | SATISFIED (fold landed this session) |
+| ONE-CANONICAL sole source (#19/#23 superseded) | `pack.toml` sole-canonical note + `test/ggen_igniter_semantic_jira_sole_canonical_test.exs` + `test/ggen_igniter_crown_descriptor_court_test.exs` | gall URI only in the tripwire + its citations (see §7 header); one declaring ontology; superseded pack dir absent | SATISFIED (fold landed this session) |
 
 ## 9. Evidence boundary + receipt
 
