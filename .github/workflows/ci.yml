@@ -233,6 +233,25 @@ jobs:
         run: |
           mix compile
 
+      # gi-verify-task closure: `mix ggen_igniter.verify` (lib/mix/tasks/
+      # ggen_igniter.verify.ex) had zero callers anywhere in this repo before
+      # this step -- confirmed by `grep -rn "ggen_igniter.verify"
+      # --exclude-dir=deps --exclude-dir=_build .` returning only the task's
+      # own source and docs. Runs the task's real fail-CLOSED checks (the
+      # inverted `verify/*.unbound.rq` companion queries plus the per-gate
+      # cardinality contract) against the real, checked-in
+      # `test/fixtures/ash_manufacture_pack` fixture on every PR, independent
+      # of `test/mix/tasks/ggen_igniter_verify_task_test.exs`'s own coverage
+      # below -- so a regression that broke the task itself (not just its
+      # test) still fails CI even if the test file were ever skipped or
+      # reverted. That fixture is kept lawful by
+      # `test/ggen_igniter_gate_verify_test.exs` and this step, so `--json`
+      # here must exit 0; a nonzero exit fails the job.
+      - name: mix ggen_igniter.verify (fail-CLOSED pack check)
+        shell: bash
+        run: |
+          mix ggen_igniter.verify --pack test/fixtures/ash_manufacture_pack --json
+
       - name: mix test
         shell: bash
         run: |
