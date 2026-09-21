@@ -258,5 +258,58 @@ defmodule GgenIgniter.CrownTest do
 
       assert :ceiling in failed
     end
+
+    test "extraction returns transition events in progression-chain order" do
+      path = write_revised_graph()
+      {:ok, work_orders} = Crown.extract_work_orders(path)
+      crown_001 = work_orders["CROWN-001"]
+
+      {:ok, transition} =
+        Crown.transition_turtle(
+          crown_001,
+          evidence_for(crown_001, true),
+          receipt_facts_for(crown_001)
+        )
+
+      final_path =
+        Path.join(
+          System.tmp_dir!(),
+          "crown-graph-order-#{System.unique_integer([:positive])}.ttl"
+        )
+
+      File.write!(final_path, File.read!(path) <> transition)
+
+      {:ok, events} = Crown.extract_transitions(final_path)
+      assert length(events) == 2
+
+      # A SPARQL SELECT DISTINCT carries no row order, and the engine's row
+      # permutation is platform- and data-dependent: hosted run 35551436997
+      # returned the ALIVE hop BEFORE its PARTIAL_ALIVE predecessor, so the
+      # last-write-wins projection in `SemanticJira.project_standing/1` read
+      # the chain tip as PARTIAL_ALIVE and red-ed both events for head
+      # 79ab25f. Log order is carried by the progression linkage, never by
+      # engine row order — extract_transitions therefore reconstructs the
+      # chain topologically (root = the event whose from_standing is no
+      # unemitted event's to_standing, deterministic transitionId
+      # tiebreak). Pin the reconstructed order exactly so any regression
+      # back to raw engine order trips here on any platform.
+      assert [
+               %{
+                 "work_order_id" => "CROWN-001",
+                 "from_standing" => "UNKNOWN",
+                 "to_standing" => "PARTIAL_ALIVE"
+               },
+               %{
+                 "work_order_id" => "CROWN-001",
+                 "from_standing" => "PARTIAL_ALIVE",
+                 "to_standing" => "ALIVE"
+               }
+             ] = events
+
+      {:ok, projection} = GgenIgniter.SemanticJira.project_standing(events)
+      assert projection == %{"CROWN-001" => "ALIVE"}
+
+      File.rm(final_path)
+    end
   end
 end
