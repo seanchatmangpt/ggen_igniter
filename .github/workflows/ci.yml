@@ -178,6 +178,15 @@ jobs:
         run: |
           mix compile
 
+      # DfCM projection court: this is deliberately isolated from the broader
+      # Oxigraph/NIF-sensitive suite. It proves the RDF -> SPARQL -> EEx
+      # execution descriptor boundary without importing lease/epoch/worker/
+      # receipt/authority/standing manufacture into ggen_igniter.
+      - name: semantic-work execution descriptor court
+        shell: bash
+        run: |
+          mix test test/gall_semantic_work_pack_test.exs
+
       - name: mix test
         shell: bash
         run: |

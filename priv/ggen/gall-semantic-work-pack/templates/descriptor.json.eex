@@ -9,6 +9,5 @@
   "provider": <%= Jason.encode!(provider) %>,
   "verifier_suite": <%= Jason.encode!(verifier_suite) %>,
   "execution_policy": <%= Jason.encode!(execution_policy) %>,
-  "standing": <%= Jason.encode!(standing) %>,
   "dependencies": []
 }

@@ -30,17 +30,27 @@ defmodule GgenIgniter.GallSemanticWorkPackTest do
 
     assert descriptor["work_order_iri"] == "urn:gall:work-order:example:001"
     assert descriptor["checkpoint_iri"] == "urn:gall:checkpoint:example:001"
+    refute descriptor["work_order_iri"] == descriptor["checkpoint_iri"]
+
     assert descriptor["repository_identity"] == "seanchatmangpt/ggen_igniter"
     assert descriptor["execution_repo_alias"] == "ggen_igniter"
     assert descriptor["base_sha"] == String.duplicate("b", 40)
+    assert descriptor["base_sha"] =~ ~r/^[0-9a-f]{40}$/
     assert descriptor["graph_digest"] == "sha256:" <> String.duplicate("a", 64)
+    assert descriptor["graph_digest"] =~ ~r/^sha256:[0-9a-f]{64}$/
+    assert descriptor["provider"] == "zcode"
+    assert descriptor["verifier_suite"] == "example-dod"
     assert descriptor["execution_policy"] == "continuous_epoch_run"
     assert descriptor["dependencies"] == []
 
-    assert Map.keys(descriptor) |> Enum.sort() ==
-             ~w(base_sha checkpoint_iri dependencies execution_policy execution_repo_alias goal graph_digest provider repository_identity standing verifier_suite work_order_iri)a
-             |> Enum.map(&Atom.to_string/1)
-             |> Enum.sort()
+    expected_keys =
+      ~w(base_sha checkpoint_iri dependencies execution_policy execution_repo_alias goal graph_digest provider repository_identity verifier_suite work_order_iri)
+
+    assert Map.keys(descriptor) |> Enum.sort() == Enum.sort(expected_keys)
+
+    for forbidden <- ~w(lease lease_token epoch epoch_id worker worker_id receipt receipt_iri receipt_digest authority standing) do
+      refute Map.has_key?(descriptor, forbidden)
+    end
 
     assert ticket =~ "Edit the ontology, not this projection"
     assert ticket =~ descriptor["checkpoint_iri"]
