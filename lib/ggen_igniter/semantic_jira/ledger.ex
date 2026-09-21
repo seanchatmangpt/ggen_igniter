@@ -98,25 +98,23 @@ defmodule GgenIgniter.SemanticJira.Ledger do
   def reconcile_and_append(work_orders, path, receipt, retries \\ 25) do
     with {:ok, events} <- read(path) do
       case Reconciler.reconcile(work_orders, events, receipt) do
-        {:ok, :already_applied, _event} = applied ->
-          applied
-
-        {:ok, event} ->
-          case append(path, event) do
-            :ok ->
-              {:ok, event}
-
-            {:error, {:ledger_conflict, _tail}} when retries > 0 ->
-              Process.sleep(:rand.uniform(10))
-              reconcile_and_append(work_orders, path, receipt, retries - 1)
-
-            other ->
-              other
-          end
-
-        other ->
-          other
+        {:ok, event} -> append_reconciled(event, work_orders, path, receipt, retries)
+        other -> other
       end
+    end
+  end
+
+  defp append_reconciled(event, work_orders, path, receipt, retries) do
+    case append(path, event) do
+      :ok ->
+        {:ok, event}
+
+      {:error, {:ledger_conflict, _tail}} when retries > 0 ->
+        Process.sleep(:rand.uniform(10))
+        reconcile_and_append(work_orders, path, receipt, retries - 1)
+
+      other ->
+        other
     end
   end
 
