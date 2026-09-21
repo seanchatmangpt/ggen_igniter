@@ -166,11 +166,24 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert direct_receipt.reason =~ "REFUSED:SEMANTIC_JIRA_SHACL"
       assert direct_receipt.reason =~ "requiresGitGroundTruth"
       assert direct_receipt.reason =~ "datatype"
+      assert direct_receipt.files == []
+
+      refute Enum.any?(
+               direct_receipt.events,
+               &(&1["activity"] in ["ACTUATION_STARTED", "FILES_CHANGED"])
+             )
+
       assert Path.wildcard(Path.join(work_dir, "*.md")) == []
 
       [persisted_direct_receipt] = Receipt.read_all!(work_dir)
       assert persisted_direct_receipt["standing"] == "refused"
       assert persisted_direct_receipt["reason"] =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert persisted_direct_receipt["files"] == []
+
+      refute Enum.any?(
+               persisted_direct_receipt["events"],
+               &(&1["activity"] in ["ACTUATION_STARTED", "FILES_CHANGED"])
+             )
 
       {output, exit_code} = run_sync(work_dir, ["--ontology", broken_ontology])
 
@@ -183,6 +196,14 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       receipts = Receipt.read_all!(work_dir)
       assert length(receipts) == 2
       assert Enum.all?(receipts, &(&1["standing"] == "refused"))
+      assert Enum.all?(receipts, &(&1["files"] == []))
+
+      refute Enum.any?(receipts, fn receipt ->
+               Enum.any?(
+                 receipt["events"],
+                 &(&1["activity"] in ["ACTUATION_STARTED", "FILES_CHANGED"])
+               )
+             end)
     end
   end
 
