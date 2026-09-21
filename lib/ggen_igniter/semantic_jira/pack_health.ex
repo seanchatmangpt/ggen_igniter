@@ -26,10 +26,28 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
      resolving to ZERO rows still refuses outright (a pack that manufactures
      nothing is not healthy).
 
-  Violation gates (`@zero_row_gates`, currently the ADR-011
-  `public_vocab_alignment` anti-join) invert phase 1's contract: they select
-  breaches only, so a health-passing pack must return ZERO rows from them, and
-  any row is a health failure naming the offending sj: terms.
+  Violation gates invert phase 1's contract: they select breaches only, so a
+  health-passing pack must return ZERO rows from them, and any row is a health
+  failure naming the offending sj: terms. A gate is a violation gate when its
+  stripped name is in `@zero_row_gates` (currently the ADR-011
+  `public_vocab_alignment` anti-join) OR its file carries the line marker
+  `# ggen:zero-row-gate`, so the contract travels with the file and survives a
+  renumber or rename. Three fail-closed guards keep the enforcement from being
+  removed silently (falsifiers:
+  `test/ggen_igniter_semantic_jira_public_alignment_falsifier_test.exs`):
+
+  1. **Presence.** Every name in `@zero_row_gates` must be among the
+     discovered gates; deleting or renaming the required gate is an error
+     naming it, not a clean run (a gate that is absent selects no breach).
+  2. **Zero rows.** Any row from a violation gate is an error.
+  3. **Vacuity self-test.** After the gates execute, probe sj: terms are
+     appended to the in-memory packaged graph and the gate is run again: it
+     MUST return every probe term. The probes are the unaligned class plus the
+     bypasses gate 047 was hardened against (blank and one-character reasons,
+     a string-literal alignment target, an `owl:Class`-typed term, an
+     unregistered public target). A gate that has been emptied, filtered to
+     nothing, or regressed to a bypassable form is refused even though it
+     returns zero rows on the real graph.
 
   Fail-closed contract: `check/1` never raises. Any failure anywhere in the
   pipeline -- missing ontology, Turtle syntax error, a gate that crashes the
@@ -55,6 +73,27 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
   # `public_vocab_alignment` (`047_public_vocab_alignment.rq`) is the ADR-011
   # anti-join over sj: terms.
   @zero_row_gates ~w(public_vocab_alignment)
+
+  # In-file declaration that a gate is a violation gate, on a line of its own
+  # (a SPARQL comment, invisible to the engines). Lets a gate keep its
+  # zero-row contract under any file name; `@zero_row_gates` additionally
+  # requires the ADR-011 gate to EXIST, so the marker cannot be the only
+  # thing standing between a deleted gate and a clean run.
+  @zero_row_marker "# ggen:zero-row-gate"
+
+  # Vacuity self-test probes. For a violation gate, each probe is one sj: term
+  # that MUST be a violation (unaligned, or aligned/residue only by a bypass
+  # the gate was hardened against). Appended to a COPY of the packaged graph,
+  # every probe must come back as a violation row; a gate that misses any one
+  # has been emptied, broken, or regressed to a known-bypassable form. Keyed by
+  # gate name; each probe is a `{local_name, triples}` builder below.
+  @sj "https://ggen-igniter.dev/ontology/semantic-jira#"
+  @rdfs "http://www.w3.org/2000/01/rdf-schema#"
+  @owl "http://www.w3.org/2002/07/owl#"
+  @self_test_probes %{
+    "public_vocab_alignment" =>
+      ~w(bare blank_reason stub_reason literal_target owl_kind unregistered_target)
+  }
 
   @doc """
   Runs the full health probe against the pack directory `pack_dir` (the
@@ -90,10 +129,18 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
             "no *.eex/*.tmpl templates found in #{Path.join(pack_dir, "templates")}"
     end
 
+    # Phase 0: the required violation gates are present. Without this, an
+    # absent gate selects no breach and the pack reads as healthy.
+    require_zero_row_gates!(gates, pack_dir)
+
     # Phase 1: every gate EXECUTES clean, attributed to the gate itself --
     # a broken gate is reported as a broken gate, not wrapped in whichever
     # template happened to resolve it first.
     Enum.each(gates, fn {name, path} -> execute_gate!(engine, context, name, path) end)
+
+    # Phase 1b: every violation gate that has a probe is non-vacuous -- it
+    # must surface a deliberately unaligned sj: term appended to the graph.
+    Enum.each(gates, fn {name, path} -> self_test_gate!(engine, graph, name, path) end)
 
     # Phase 2: every template renders through the sync pipeline's own binding
     # convention on sampled real driver rows (first + last -- the disclosed
@@ -130,7 +177,7 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
   defp execute_gate!(engine, context, name, path) do
     case capture_gate_error(engine, context, path) do
       {:ok, rows} ->
-        refuse_violation_rows!(name, path, rows)
+        refuse_violation_rows!(name, path, rows, zero_row_gate?(name, path))
 
       {:error, error} ->
         raise ArgumentError,
@@ -149,8 +196,8 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
   # (ADR-011: an sj: term neither aligned to a public vocabulary nor declared
   # sj-native residue, or claimed as both). Every other gate is a projection
   # driver whose rows are legitimate content, so only execution is checked.
-  defp refuse_violation_rows!(name, path, rows) do
-    if name in @zero_row_gates and rows != [] do
+  defp refuse_violation_rows!(name, path, rows, zero_row?) do
+    if zero_row? and rows != [] do
       shown = rows |> Enum.take(5) |> Enum.map_join("; ", &violation_summary/1)
       more = if length(rows) > 5, do: " (+#{length(rows) - 5} more)", else: ""
 
@@ -161,6 +208,110 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
     end
 
     :ok
+  end
+
+  # A gate is a violation gate by name (`@zero_row_gates`) or by the in-file
+  # `@zero_row_marker` line.
+  defp zero_row_gate?(name, path) do
+    name in @zero_row_gates or
+      path
+      |> File.read!()
+      |> String.split("\n")
+      |> Enum.any?(&(String.trim(&1) == @zero_row_marker))
+  end
+
+  defp require_zero_row_gates!(gates, pack_dir) do
+    present = Enum.map(gates, &elem(&1, 0))
+
+    case Enum.reject(@zero_row_gates, &(&1 in present)) do
+      [] ->
+        :ok
+
+      missing ->
+        raise ArgumentError,
+              "required violation gate#{if length(missing) == 1, do: "", else: "s"} " <>
+                "#{Enum.join(missing, ", ")} missing from #{Path.join(pack_dir, "gates")} " <>
+                "(found: #{Enum.join(present, ", ")}) -- an absent gate selects no breach, " <>
+                "so the ADR-011 alignment enforcement would be silently off"
+    end
+  end
+
+  # Runs a violation gate's probes (if it has any) against a COPY of the
+  # packaged graph plus the probe terms, and refuses the gate when any probe
+  # term does not come back as a violation row. Rows are engine-shaped maps
+  # keyed by the projected variable name.
+  defp self_test_gate!(engine, graph, name, path) do
+    case Map.fetch(@self_test_probes, name) do
+      :error -> :ok
+      {:ok, kinds} -> run_probes!(engine, graph, name, path, Enum.map(kinds, &probe/1))
+    end
+  end
+
+  defp run_probes!(engine, graph, name, path, probes) do
+    probed =
+      Enum.reduce(probes, graph, fn {_iri, triples}, acc -> RDF.Graph.add(acc, triples) end)
+
+    rows = engine.run(engine.prepare!(probed, []), File.read!(path))
+    surfaced = MapSet.new(rows, & &1["term"])
+    missed = Enum.reject(probes, fn {iri, _triples} -> iri in surfaced end)
+
+    refuse_missed_probes!(name, path, missed, rows)
+  end
+
+  defp refuse_missed_probes!(_name, _path, [], _rows), do: :ok
+
+  defp refuse_missed_probes!(name, path, missed, rows) do
+    raise ArgumentError,
+          "gate #{name} (#{path}) is vacuous: probe sj: term" <>
+            "#{if length(missed) == 1, do: "", else: "s"} " <>
+            "#{Enum.map_join(missed, ", ", &elem(&1, 0))} appended to the packaged " <>
+            "graph did not surface as a violation row (returned #{length(rows)} " <>
+            "row#{if length(rows) == 1, do: "", else: "s"})"
+  end
+
+  # One probe: `{term_iri, triples}`. Each is a term the ADR-011 gate must
+  # flag; the local name records which bypass it stands for.
+  defp probe(kind) do
+    iri = @sj <> "PackHealthProbe_" <> kind
+    s = RDF.iri(iri)
+    class = RDF.iri(@rdfs <> "Class")
+    reason = RDF.iri(@sj <> "residueReason")
+    sub_class = RDF.iri(@rdfs <> "subClassOf")
+
+    triples =
+      case kind do
+        # neither aligned nor residue
+        "bare" ->
+          [{s, RDF.type(), class}]
+
+        # whitespace-only reason
+        "blank_reason" ->
+          [{s, RDF.type(), class}, {s, reason, RDF.literal("   ")}]
+
+        # one-character stub reason
+        "stub_reason" ->
+          [{s, RDF.type(), class}, {s, reason, RDF.literal("x")}]
+
+        # a string literal is not a public term
+        "literal_target" ->
+          [
+            {s, RDF.type(), class},
+            {s, sub_class, RDF.literal("http://www.w3.org/ns/prov#Entity")}
+          ]
+
+        # owl:Class typing must not exempt a term from the partition
+        "owl_kind" ->
+          [{s, RDF.type(), RDF.iri(@owl <> "Class")}]
+
+        # an invented, unregistered term inside an accepted namespace
+        "unregistered_target" ->
+          [
+            {s, RDF.type(), class},
+            {s, sub_class, RDF.iri("http://www.w3.org/ns/prov#PackHealthUnregisteredTarget")}
+          ]
+      end
+
+    {iri, triples}
   end
 
   defp violation_summary(row) do

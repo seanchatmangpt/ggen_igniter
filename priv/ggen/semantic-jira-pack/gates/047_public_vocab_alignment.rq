@@ -1,46 +1,73 @@
+# ggen:zero-row-gate
 # ADR-011 public-vocabulary alignment gate (anti-join). Every declared sj:
-# class (rdfs:Class) and property (rdf:Property) must be EITHER aligned to a
-# public term by an additive axiom (rdfs:subClassOf, rdfs:subPropertyOf,
-# owl:equivalentClass, owl:equivalentProperty, skos:exactMatch, or
-# skos:closeMatch, targeting oslc_cm / oslc core / dcterms / PROV-O / SKOS /
-# SHACL -- pack-local a2a: targets do NOT count) OR declared sj-native residue
-# with a non-empty sj:residueReason -- never both, never neither.
+# class and property (typed rdfs:Class, owl:Class, rdfs:Datatype, rdf:Property,
+# owl:ObjectProperty, owl:DatatypeProperty or owl:AnnotationProperty) must be
+# EITHER aligned to a public term by an additive axiom OR declared sj-native
+# residue with a substantive sj:residueReason -- never both, never neither.
+#
+# "Aligned" means ALL of:
+#   - the axiom predicate is rdfs:subClassOf, rdfs:subPropertyOf,
+#     owl:equivalentClass, owl:equivalentProperty, skos:exactMatch or
+#     skos:closeMatch;
+#   - the target is an IRI (a string literal naming a public IRI is not a term);
+#   - the target lives in oslc_cm / oslc core / dcterms / PROV-O / SKOS / SHACL
+#     (pack-local a2a: targets do NOT count); and
+#   - the target is DECLARED in the graph by `<term> rdfs:isDefinedBy <vocab>`
+#     with the target IRI inside <vocab> -- the closed registry of admitted
+#     public terms. An alignment to a term nobody registered (a typo, an
+#     invented term inside an accepted namespace) does not count. LIMIT: the
+#     gate checks the pack declares the target, not that the public vocabulary
+#     defines it (that would need the vocabulary document; UNSUPPORTED offline).
+# "Substantive reason" means the sj:residueReason value is a literal with at
+# least 12 non-whitespace characters (blank, "\n" and a one-character stub are
+# not reasons).
+#
 # Selected rows are violations; PackHealth (doctor's semantic_jira_pack check)
-# refuses on any row. The gate is deliberately not wired into a projection
-# template: an operator --ontology override that declares its own sj: terms
-# must not lose ticket manufacture over an alignment audit.
+# refuses on any row, refuses when this gate is absent (the `ggen:zero-row-gate`
+# marker on line 1 declares the zero-row contract), and refuses when a probe
+# term appended to the packaged graph does not surface here (vacuity self-test).
+# The gate is deliberately not wired into a projection template: an operator
+# --ontology override that declares its own sj: terms must not lose ticket
+# manufacture over an alignment audit.
 #   ?public bound, ?reason unbound  -> aligned: filtered out (healthy)
 #   ?public unbound, ?reason bound  -> declared residue: filtered out (healthy)
 #   both unbound                    -> VIOLATION: unaligned sj: term with no
-#                                      residue reason
+#                                      substantive residue reason
 #   both bound                      -> VIOLATION: residue claimed although a
 #                                      public alignment exists
 # Written with OPTIONAL + FILTER(!BOUND()) and no NOT EXISTS / UNION / property
 # paths so it executes identically on the oxigraph and sparql engines (the
 # admitted sparql engine 0.3.12 does not evaluate EXISTS filters; measured
-# 2026-09-19, see shapes/work-order.shacl.ttl).
+# 2026-09-19, see shapes/work-order.shacl.ttl). DISTINCT collapses the extra
+# solutions a term typed with two kinds (say rdfs:Class and owl:Class) or
+# registered under two vocab IRIs would otherwise produce.
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 # The term universe is its own nested group so the sparql engine filters it down
-# to the ~67 declared sj: terms BEFORE the two OPTIONAL joins run per solution
+# to the declared sj: terms BEFORE the two OPTIONAL joins run per solution
 # (measured 2026-09-21 on the canonical graph: 3-6x faster than the flat form,
 # identical rows). VALUES ?kind { ... } was tried for the same purpose and
 # returns WRONG rows on the sparql engine (0.3.12): do not use it here.
-SELECT ?term ?public ?reason WHERE {
+SELECT DISTINCT ?term ?public ?reason WHERE {
   {
     ?term a ?kind .
-    FILTER(?kind = rdfs:Class || ?kind = rdf:Property)
+    FILTER(?kind = rdfs:Class || ?kind = owl:Class || ?kind = rdfs:Datatype ||
+           ?kind = rdf:Property || ?kind = owl:ObjectProperty ||
+           ?kind = owl:DatatypeProperty || ?kind = owl:AnnotationProperty)
     FILTER(STRSTARTS(STR(?term), "https://ggen-igniter.dev/ontology/semantic-jira#"))
   }
   OPTIONAL {
     ?term ?align ?public .
+    ?public rdfs:isDefinedBy ?vocab .
     FILTER(
+      isIRI(?public) && isIRI(?vocab) &&
       (?align = rdfs:subClassOf || ?align = rdfs:subPropertyOf ||
        ?align = owl:equivalentClass || ?align = owl:equivalentProperty ||
        ?align = skos:exactMatch || ?align = skos:closeMatch) &&
+      STRSTARTS(STR(?public), STR(?vocab)) &&
       (STRSTARTS(STR(?public), "http://open-services.net/ns/cm#") ||
        STRSTARTS(STR(?public), "http://open-services.net/ns/core#") ||
        STRSTARTS(STR(?public), "http://purl.org/dc/terms/") ||
@@ -51,7 +78,7 @@ SELECT ?term ?public ?reason WHERE {
   }
   OPTIONAL {
     ?term sj:residueReason ?reason .
-    FILTER(STR(?reason) != "")
+    FILTER(isLiteral(?reason) && REGEX(STR(?reason), "(\\S\\s*){12}"))
   }
   FILTER((!BOUND(?public) && !BOUND(?reason)) || (BOUND(?public) && BOUND(?reason)))
 }

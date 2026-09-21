@@ -54,7 +54,9 @@ defmodule GgenIgniter.SemanticJiraPublicAlignmentTest do
                  """
                  SELECT DISTINCT ?term WHERE {
                    ?term a ?kind .
-                   FILTER(?kind = rdfs:Class || ?kind = rdf:Property)
+                   FILTER(?kind = rdfs:Class || ?kind = owl:Class || ?kind = rdfs:Datatype ||
+                          ?kind = rdf:Property || ?kind = owl:ObjectProperty ||
+                          ?kind = owl:DatatypeProperty || ?kind = owl:AnnotationProperty)
                    FILTER(STRSTARTS(STR(?term), "#{@sj}"))
                  }
                  """
@@ -76,6 +78,28 @@ defmodule GgenIgniter.SemanticJiraPublicAlignmentTest do
                      ?term sj:residueReason ?reason .
                    }
                    """
+
+  @registry_query @prefixes <>
+                    """
+                    SELECT ?term ?vocab WHERE {
+                      ?term rdfs:isDefinedBy ?vocab .
+                    }
+                    """
+
+  # The closed, independently written list of public terms the shipped
+  # alignment block may target (each checked by hand against its public
+  # vocabulary when written). The ontology's own registry must equal this list
+  # exactly: adding an alignment target means editing BOTH places.
+  @expected_registry [
+    {"http://open-services.net/ns/cm#ChangeRequest", "http://open-services.net/ns/cm#"},
+    {"http://www.w3.org/ns/prov#Entity", "http://www.w3.org/ns/prov#"},
+    {"http://www.w3.org/ns/prov#Activity", "http://www.w3.org/ns/prov#"},
+    {"http://purl.org/dc/terms/subject", "http://purl.org/dc/terms/"},
+    {"http://purl.org/dc/terms/requires", "http://purl.org/dc/terms/"},
+    {"http://purl.org/dc/terms/type", "http://purl.org/dc/terms/"},
+    {"http://purl.org/dc/terms/format", "http://purl.org/dc/terms/"},
+    {"http://www.w3.org/2004/02/skos/core#note", "http://www.w3.org/2004/02/skos/core#"}
+  ]
 
   @used_predicates_query @prefixes <>
                            """
@@ -269,7 +293,7 @@ defmodule GgenIgniter.SemanticJiraPublicAlignmentTest do
         "aligned.ttl",
         """
         sj:AlignedProbeA a rdfs:Class ; rdfs:subClassOf prov:Entity .
-        sj:AlignedProbeB a rdf:Property ; skos:closeMatch dcterms:relation .
+        sj:AlignedProbeB a rdf:Property ; skos:closeMatch dcterms:format .
         """,
         []
       )
@@ -349,6 +373,151 @@ defmodule GgenIgniter.SemanticJiraPublicAlignmentTest do
         assert gate_rows(engine, path) == [%{"term" => @sj <> "WorkOrder"}],
                "#{engine}: deleting the WorkOrder alignment must flag exactly sj:WorkOrder"
       end
+    end
+  end
+
+  describe "gate 047 hardening: bypasses found by the qualifiers stay closed (both engines, identical rows)" do
+    test "a one-character sj:residueReason is a stub, not a reason" do
+      dir = scratch_dir!("stub_reason")
+
+      assert_gate!(
+        dir,
+        "stub_reason.ttl",
+        ~s(sj:StubReasonProbe a rdfs:Class ; sj:residueReason "x" .),
+        [%{"term" => @sj <> "StubReasonProbe"}]
+      )
+    end
+
+    test "a whitespace-padded stub is still a stub (the floor counts non-whitespace characters)" do
+      dir = scratch_dir!("padded_stub")
+
+      assert_gate!(
+        dir,
+        "padded_stub.ttl",
+        ~s(sj:PaddedStubProbe a rdfs:Class ; sj:residueReason "x                                        y" .),
+        [%{"term" => @sj <> "PaddedStubProbe"}]
+      )
+    end
+
+    test "an IRI-valued sj:residueReason is not a reason (the reason must be a literal)" do
+      dir = scratch_dir!("iri_reason")
+
+      assert_gate!(
+        dir,
+        "iri_reason.ttl",
+        "sj:IriReasonProbe a rdfs:Class ; sj:residueReason <http://example.org/a-long-enough-iri-value> .",
+        [%{"term" => @sj <> "IriReasonProbe"}]
+      )
+    end
+
+    for {kind, local} <- [
+          {"owl:ObjectProperty", "ObjPropProbe"},
+          {"owl:DatatypeProperty", "DtPropProbe"},
+          {"owl:AnnotationProperty", "AnnPropProbe"},
+          {"rdfs:Datatype", "DatatypeProbe"}
+        ] do
+      test "an sj: term typed #{kind} is inside the gate's term universe" do
+        dir = scratch_dir!("kind_#{unquote(local)}")
+
+        assert_gate!(
+          dir,
+          "kind_#{unquote(local)}.ttl",
+          "sj:#{unquote(local)} a #{unquote(kind)} .",
+          [%{"term" => @sj <> unquote(local)}]
+        )
+      end
+    end
+
+    test "a term typed with two kinds yields one violation row, not two" do
+      dir = scratch_dir!("two_kinds")
+
+      assert_gate!(
+        dir,
+        "two_kinds.ttl",
+        "sj:TwoKindsProbe a rdfs:Class, owl:Class .",
+        [%{"term" => @sj <> "TwoKindsProbe"}]
+      )
+    end
+
+    test "an alignment to a term nobody registered is not an alignment (invented term in an accepted namespace)" do
+      dir = scratch_dir!("unregistered_target")
+
+      assert_gate!(
+        dir,
+        "unregistered_target.ttl",
+        "sj:BogusPublicProbe a rdfs:Class ; rdfs:subClassOf prov:ThisTermDoesNotExist .",
+        [%{"term" => @sj <> "BogusPublicProbe"}]
+      )
+    end
+
+    test "registering the target is what admits it (same axiom, registry line added)" do
+      dir = scratch_dir!("registered_target")
+
+      assert_gate!(
+        dir,
+        "registered_target.ttl",
+        """
+        sj:RegisteredProbe a rdfs:Class ; rdfs:subClassOf prov:Agent .
+        prov:Agent rdfs:isDefinedBy <http://www.w3.org/ns/prov#> .
+        """,
+        []
+      )
+    end
+
+    test "a registry entry naming a vocabulary the target is not inside does not admit it" do
+      dir = scratch_dir!("wrong_vocab")
+
+      assert_gate!(
+        dir,
+        "wrong_vocab.ttl",
+        """
+        sj:WrongVocabProbe a rdfs:Class ; rdfs:subClassOf prov:Agent .
+        prov:Agent rdfs:isDefinedBy <http://purl.org/dc/terms/> .
+        """,
+        [%{"term" => @sj <> "WrongVocabProbe"}]
+      )
+    end
+
+    test "a registered target outside every accepted namespace is still not public" do
+      dir = scratch_dir!("foreign_namespace")
+
+      assert_gate!(
+        dir,
+        "foreign_namespace.ttl",
+        """
+        sj:ForeignProbe a rdfs:Class ; rdfs:subClassOf <http://example.org/vocab#Thing> .
+        <http://example.org/vocab#Thing> rdfs:isDefinedBy <http://example.org/vocab#> .
+        """,
+        [%{"term" => @sj <> "ForeignProbe"}]
+      )
+    end
+
+    test "the shipped public-term registry equals the closed expected list, and every alignment target is in it" do
+      registry =
+        run("oxigraph", @ontology_path, @registry_query)
+        |> Enum.map(&{&1["term"], &1["vocab"]})
+        |> Enum.sort()
+
+      assert registry == Enum.sort(@expected_registry)
+
+      for {term, vocab} <- registry do
+        assert String.starts_with?(term, vocab), "#{term} is registered under foreign #{vocab}"
+        assert public?(term)
+      end
+
+      registered = registry |> Enum.map(&elem(&1, 0)) |> MapSet.new()
+
+      targets =
+        run("oxigraph", @ontology_path, @alignments_query)
+        |> Enum.filter(&public?(&1["public"]))
+        |> values("public")
+
+      assert MapSet.subset?(targets, registered),
+             "alignment targets not in the registry: #{inspect(MapSet.difference(targets, registered))}"
+
+      # No dead registry entry: every registered term is a real alignment target.
+      assert MapSet.subset?(registered, targets),
+             "registered but never targeted: #{inspect(MapSet.difference(registered, targets))}"
     end
   end
 
@@ -491,6 +660,118 @@ defmodule GgenIgniter.SemanticJiraPublicAlignmentTest do
 
       assert {:error, detail} = PackHealth.check(pack_dir)
       assert detail =~ "#{@sj}HealthContradiction (aligned AND declared residue)"
+    end
+
+    test "fail-closed: a missing required violation gate is an error naming it (deleted alone, ontology untouched)" do
+      pack_dir = pack_copy!("gate_missing")
+      File.rm!(Path.join(pack_dir, "gates/047_public_vocab_alignment.rq"))
+
+      assert {:error, detail} = PackHealth.check(pack_dir)
+      assert detail =~ "required violation gate public_vocab_alignment missing"
+      assert detail =~ "gates"
+    end
+
+    test "control: renumbering the gate (same stripped name) keeps it a violation gate that still refuses" do
+      pack_dir = pack_copy!("gate_renumbered")
+
+      File.rename!(
+        Path.join(pack_dir, "gates/047_public_vocab_alignment.rq"),
+        Path.join(pack_dir, "gates/057_public_vocab_alignment.rq")
+      )
+
+      ontology = Path.join(pack_dir, "ontology.ttl")
+
+      File.write!(
+        ontology,
+        File.read!(ontology) <>
+          "\n<#{@sj}RenumberedProbe> a <http://www.w3.org/2000/01/rdf-schema#Class> .\n"
+      )
+
+      assert {:error, detail} = PackHealth.check(pack_dir)
+      assert detail =~ "1 violation row"
+      assert detail =~ "RenumberedProbe"
+    end
+
+    test "fail-closed: a vacuous gate (kept in place, filtered to return nothing) is refused by the self-test" do
+      pack_dir = pack_copy!("gate_vacuous")
+
+      File.write!(
+        Path.join(pack_dir, "gates/047_public_vocab_alignment.rq"),
+        """
+        # ggen:zero-row-gate
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        SELECT ?term ?public ?reason WHERE { ?term a rdfs:Class . FILTER(false) }
+        """
+      )
+
+      # On the real graph this gate returns zero rows -- exactly what a
+      # healthy gate returns. Only the probe distinguishes it.
+      assert {:error, detail} = PackHealth.check(pack_dir)
+      assert detail =~ "gate public_vocab_alignment"
+      assert detail =~ "is vacuous"
+      assert detail =~ "PackHealthProbe_bare"
+    end
+
+    # Each regression re-opens one bypass the qualifiers found, by editing the
+    # SHIPPED gate text. On the real (healthy) graph every regressed gate still
+    # returns zero rows -- exactly what a healthy gate returns -- so only the
+    # vacuity self-test can refuse it, and it must name the missed probe.
+    for {label, edits, probe} <- [
+          {"blank/stub reasons accepted",
+           [
+             {~s|FILTER(isLiteral(?reason) && REGEX(STR(?reason), "(\\\\S\\\\s*){12}"))|,
+              ~s|FILTER(STR(?reason) != "")|}
+           ], "blank_reason"},
+          {"owl:Class dropped from the term universe", [{"?kind = owl:Class || ", ""}],
+           "owl_kind"},
+          {"public-term registry join dropped",
+           [
+             {"    ?public rdfs:isDefinedBy ?vocab .\n", ""},
+             {"isIRI(?vocab) &&\n", "\n"},
+             {"STRSTARTS(STR(?public), STR(?vocab)) &&\n", "\n"}
+           ], "unregistered_target"}
+        ] do
+      test "fail-closed: a gate regressed to a bypassable form is refused by the vacuity self-test (#{label})" do
+        pack_dir = pack_copy!("gate_regressed_#{unquote(probe)}")
+        gate = Path.join(pack_dir, "gates/047_public_vocab_alignment.rq")
+        source = File.read!(gate)
+
+        regressed =
+          Enum.reduce(unquote(edits), source, fn {from, to}, acc ->
+            assert String.contains?(acc, from), "edit target not found in shipped gate: #{from}"
+            String.replace(acc, from, to)
+          end)
+
+        refute regressed == source
+
+        # Control: the shipped gate on this pack copy is healthy.
+        assert {:ok, _} = PackHealth.check(pack_dir)
+
+        File.write!(gate, regressed)
+
+        assert {:error, detail} = PackHealth.check(pack_dir)
+        assert detail =~ "gate public_vocab_alignment"
+        assert detail =~ "is vacuous"
+        assert detail =~ "PackHealthProbe_#{unquote(probe)}"
+      end
+    end
+
+    test "the in-file marker makes ANY gate a violation gate (extra gate returning rows refuses; same gate without the marker is a driver query)" do
+      pack_dir = pack_copy!("marker_gate")
+      extra = Path.join(pack_dir, "gates/090_extra_audit.rq")
+
+      body = """
+      PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+      SELECT ?c WHERE { ?c a rdfs:Class } ORDER BY ?c LIMIT 3
+      """
+
+      File.write!(extra, body)
+      assert {:ok, _} = PackHealth.check(pack_dir), "unmarked, its rows are legitimate content"
+
+      File.write!(extra, "# ggen:zero-row-gate\n" <> body)
+      assert {:error, detail} = PackHealth.check(pack_dir)
+      assert detail =~ "gate extra_audit ("
+      assert detail =~ "3 violation rows"
     end
   end
 end

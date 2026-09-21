@@ -164,7 +164,9 @@ sj:toStanding a rdf:Property ; rdfs:range xsd:string .
 # (oslc_cm / dcterms / PROV-O / SKOS) by an additive axiom, OR declared
 # sj-native residue with an explicit sj:residueReason -- never both, never
 # neither (gates/047_public_vocab_alignment.rq returns a row for each breach;
-# PackHealth refuses on any row). No sj: term is renamed or removed here:
+# PackHealth refuses on any row; a reason must be substantive, and only a
+# target in the public-term registry below counts as public). No sj: term is
+# renamed or removed here:
 # generated code, gates and SHACL shapes keep addressing the sj: IRIs, and no
 # engine in this pipeline materializes RDFS entailment, so these axioms are
 # declarations, not new asserted triples on WorkOrders. A consumer that
@@ -198,6 +200,22 @@ sj:projectionType rdfs:subPropertyOf dcterms:type .
 sj:extension rdfs:subPropertyOf dcterms:format .
 sj:residueReason a rdf:Property ; rdfs:range xsd:string ;
     rdfs:subPropertyOf skos:note .
+
+# -- public-term registry: the closed set of alignment targets the gate admits --
+# gates/047_public_vocab_alignment.rq counts an alignment only when its target
+# is registered here (`rdfs:isDefinedBy` its vocabulary IRI, target inside it),
+# so a typo or an invented term inside an accepted namespace is a violation.
+# Register a target in this list in the same edit that aligns to it. The gate
+# checks the pack DECLARES the target; it cannot check the vocabulary defines
+# it (needs the vocabulary document, UNSUPPORTED offline).
+oslc_cm:ChangeRequest rdfs:isDefinedBy <http://open-services.net/ns/cm#> .
+prov:Entity rdfs:isDefinedBy <http://www.w3.org/ns/prov#> .
+prov:Activity rdfs:isDefinedBy <http://www.w3.org/ns/prov#> .
+dcterms:subject rdfs:isDefinedBy <http://purl.org/dc/terms/> .
+dcterms:requires rdfs:isDefinedBy <http://purl.org/dc/terms/> .
+dcterms:type rdfs:isDefinedBy <http://purl.org/dc/terms/> .
+dcterms:format rdfs:isDefinedBy <http://purl.org/dc/terms/> .
+skos:note rdfs:isDefinedBy <http://www.w3.org/2004/02/skos/core#> .
 
 # -- sj-native residue: classes --
 sj:Court sj:residueReason "Independent verification procedure bound to an exact-head receipt; prov:Plan (intended steps) and oslc_qm:TestPlan (test scope) are adjacent, not equivalent. ADR-011 names Court irreducible." .

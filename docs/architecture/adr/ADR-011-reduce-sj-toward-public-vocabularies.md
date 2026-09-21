@@ -40,11 +40,20 @@ shapes under `shapes/`).
 
 ## Enforcement
 
-- `gates/047_public_vocab_alignment.rq` anti-joins every declared `sj:` class and property:
-  each must be aligned to a public namespace XOR carry a non-empty `sj:residueReason`. Any
-  row is a violation.
+- `gates/047_public_vocab_alignment.rq` anti-joins every declared `sj:` term (typed
+  `rdfs:Class`, `owl:Class`, `rdfs:Datatype`, `rdf:Property`, `owl:ObjectProperty`,
+  `owl:DatatypeProperty` or `owl:AnnotationProperty`): each must be aligned to a public term
+  XOR carry a substantive `sj:residueReason`. Any row is a violation.
+  - "Aligned" needs an IRI target inside an accepted public namespace that the ontology
+    registers (`<term> rdfs:isDefinedBy <vocab>`, target inside `<vocab>`): a string literal, a
+    pack-local `a2a:` target, or an invented/mistyped term nobody registered does not count.
+  - "Substantive" is a literal with at least 12 non-whitespace characters: blank, `"\n"` and a
+    one-character stub are not reasons.
 - `GgenIgniter.SemanticJira.PackHealth` (`mix ggen_igniter.doctor` `semantic_jira_pack`)
-  refuses when that gate returns any row.
+  refuses when: the gate returns any row; the gate is absent or renamed (the required name must
+  be present; a file carrying the line `# ggen:zero-row-gate` is also held to zero rows under
+  any name); or the gate is vacuous (probe terms for the unaligned case and each hardened
+  bypass, appended to a copy of the packaged graph, must all come back as violation rows).
 
 ## Result
 
@@ -53,6 +62,11 @@ residue. Full table: `docs/jira/v26.9.20/streams/sj-vocab-reduction.md`.
 
 ## Not claimed
 
+- The gate checks the ontology REGISTERS each public alignment target, not that the public
+  vocabulary defines it: a false `rdfs:isDefinedBy` line for an invented term would pass. The
+  offline check is the closed expected-registry list in the test; fetching the vocabularies is
+  UNSUPPORTED here. A reason that is 12+ characters of nonsense also passes: substance is a
+  floor, not a semantic check.
 - Term-by-term equivalence is a semantic judgment, UNVERIFIED beyond the per-term arguments
   and the executed falsifier below. "No public counterpart" is a search, not a proof of absence.
 - No `sj:` term is replaced or removed; generated code, gates and shapes still address the
@@ -75,4 +89,7 @@ falsified so far; it remains the standing falsifier for any future replacement s
 `priv/ggen/semantic-jira-pack/ontology.ttl` (block `sj-public-alignment`),
 `priv/ggen/semantic-jira-pack/gates/047_public_vocab_alignment.rq`,
 `lib/ggen_igniter/semantic_jira/pack_health.ex`,
-`test/ggen_igniter_semantic_jira_public_alignment_test.exs`.
+`test/ggen_igniter_semantic_jira_public_alignment_test.exs`,
+`test/ggen_igniter_semantic_jira_public_alignment_falsifier_test.exs` (qualifier falsifiers
+for the enforcement itself: blank and literal-target bypasses, `owl:Class` typing, gate
+deletion/rename; 8 tests, all green after the enforcement hardening).

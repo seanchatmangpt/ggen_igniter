@@ -14,7 +14,7 @@ Consolidate into `docs/status.md` (this stream does not edit it):
 | Capability | Status | Evidence |
 |---|---|---|
 | Reduce `sj:` toward oslc_cm/dcterms/PROV-O/SHACL (ADR-011), additive phase | PARTIAL_ALIVE | 16 of 67 declared sj: terms aligned by additive axioms, 51 declared sj-native residue with reasons; gate `047_public_vocab_alignment.rq` returns 0 rows on both engines; `mix test test/ggen_igniter_semantic_jira_public_alignment_test.exs`. Not done: no sj: term replaced or removed; no SHACL shape rewritten against the public form; a2a:/gi: terms not covered. |
-| Alignment gate wired into doctor's `semantic_jira_pack` check | ALIVE | `PackHealth` refuses on any `public_vocab_alignment` row; forced-failure tests copy the real pack and break exactly one component. |
+| Alignment gate wired into doctor's `semantic_jira_pack` check | ALIVE | `PackHealth` refuses on any `public_vocab_alignment` row, on the gate being absent/renamed, and on the gate being vacuous (six-probe self-test); forced-failure tests copy the real pack and break exactly one component; qualifier falsifier file `test/ggen_igniter_semantic_jira_public_alignment_falsifier_test.exs` 8 tests, 0 failures after hardening (was 8 failures at 7cb6845). |
 
 ADR-011 status: PLANNED -> PARTIAL (additive alignment + gate IMPLEMENTED; term
 replacement/removal NOT done, by design).
@@ -32,9 +32,14 @@ sound specialization:
   refutation is data, not commentary.
 
 Alignment kinds the gate accepts: `rdfs:subClassOf`, `rdfs:subPropertyOf`, `owl:equivalentClass`,
-`owl:equivalentProperty`, `skos:exactMatch`, `skos:closeMatch`, targeting the oslc_cm, OSLC core,
-dcterms, PROV-O, SKOS or SHACL namespaces. Pack-local targets (`a2a:`) do not count.
-`skos:relatedMatch` is not an alignment.
+`owl:equivalentProperty`, `skos:exactMatch`, `skos:closeMatch`, targeting an IRI in the oslc_cm,
+OSLC core, dcterms, PROV-O, SKOS or SHACL namespaces that the ontology registers as a public
+term (`<term> rdfs:isDefinedBy <vocab>`, the closed 8-term registry inside the
+`sj-public-alignment` block). Pack-local targets (`a2a:`), string-literal targets and
+unregistered (invented or mistyped) targets do not count. `skos:relatedMatch` is not an
+alignment. Term universe: any `sj:` term typed `rdfs:Class`, `owl:Class`, `rdfs:Datatype`,
+`rdf:Property`, `owl:ObjectProperty`, `owl:DatatypeProperty` or `owl:AnnotationProperty`.
+A residue reason must be a literal with at least 12 non-whitespace characters.
 
 ## Aligned terms and the argument for each
 
@@ -149,15 +154,23 @@ ontology and regenerate, never this table. Cell text is the ontology's own `sj:r
 
 - `priv/ggen/semantic-jira-pack/gates/047_public_vocab_alignment.rq` follows the existing
   numbering (040 nodes, 045-046 integrity gates, 050 frontier). It anti-joins every declared
-  `sj:` class/property against (a) an accepted alignment to a public namespace and (b) a
-  non-empty `sj:residueReason`. Rows are violations: neither, or both.
+  `sj:` term against (a) an accepted alignment (IRI target, accepted namespace, registered in
+  the ontology) and (b) a substantive `sj:residueReason`. Rows are violations: neither, or
+  both. Line 1 carries the marker `# ggen:zero-row-gate`.
 - Written with `OPTIONAL` + `FILTER(!BOUND())` (no `NOT EXISTS`, `UNION`, property paths) so it
   returns identical rows on the `oxigraph` and `sparql` engines; the pack test asserts that
-  equality on every mutation.
-- `GgenIgniter.SemanticJira.PackHealth` gained `@zero_row_gates`: `public_vocab_alignment` must
-  return zero rows or `mix ggen_igniter.doctor`'s `semantic_jira_pack` check reports an error
-  naming each offending term. The gate is intentionally not consumed by a projection template,
-  so an operator `--ontology` override that adds its own `sj:` terms keeps manufacturing tickets.
+  equality on every mutation. `SELECT DISTINCT` collapses a term typed with two kinds.
+- `GgenIgniter.SemanticJira.PackHealth` refuses (doctor's `semantic_jira_pack` reports an error
+  naming the gate and each offending term) when: (1) a required violation gate
+  (`@zero_row_gates`: `public_vocab_alignment`) is absent from `gates/`, so deleting or renaming
+  it is no longer a clean run; (2) any violation gate (by name or by the in-file
+  `# ggen:zero-row-gate` marker) returns a row; (3) the vacuity self-test fails: six probe
+  terms (bare, blank reason, one-character reason, string-literal target, `owl:Class`-typed,
+  unregistered target) appended to a copy of the packaged graph must ALL come back as
+  violation rows, so a gate emptied, filtered to nothing, or regressed to a bypassable form
+  is refused although it returns zero rows on the real graph. The gate is intentionally not
+  consumed by a projection template, so an operator `--ontology` override that adds its own
+  `sj:` terms keeps manufacturing tickets.
 - Existing tripwire `test/ggen_igniter_semantic_jira_pack_test.exs` "every pack gate executes
   cleanly" now expects 13 gates (was 12). Integration hazard: another stream that also adds a
   gate must reconcile this count on merge.
@@ -194,6 +207,23 @@ Observed hazards, not claimed away:
    Gate 047 therefore uses a nested group instead; other gates should not use `VALUES` while the
    pack still runs under `--engine sparql`.
 
+6. Enforcement hardening after qualification (repair pass). Qualifiers found the first gate
+   bypassable and `PackHealth` fail-open: a whitespace-only or one-character reason, a string
+   literal as alignment target, `owl:Class`/`owl:ObjectProperty`-typed terms, an invented term in
+   an accepted namespace, and deletion or rename of the gate file all read as healthy. Each is
+   now a permanent test on both engines (falsifier file plus the "gate 047 hardening" and
+   PackHealth describes in the alignment test) and, for the gate-content bypasses, a runtime
+   probe in `PackHealth`. Residual limits, not claimed away: the gate checks the ontology
+   registers a public target, not that the public vocabulary defines it (fetching vocabularies
+   is UNSUPPORTED here; the test pins the registry to a closed expected list); a 12+ character
+   nonsense reason passes (a floor, not a semantic check); an author who rewrites the gate AND
+   the probes AND the ontology together is out of reach of any in-repo check. The pre-existing
+   alignment test `aligning to a public term clears the violation` now targets registered
+   `dcterms:format` instead of unregistered `dcterms:relation`: the contract tightened.
+7. Concurrency. Two qualifier agents were pointed at this one worktree (commits 2348f01,
+   7cb6845 landed on top of builder head fd700f5). The falsifier file was red on purpose at
+   7cb6845 and is green at the repair head; serialize qualifier runs per worktree.
+
 ## Prior art consulted
 
 - `~/ggen-marketplace/packs/receipt-provenance-unification-pack/ontology.ttl` aligns its own
@@ -210,7 +240,7 @@ Observed hazards, not claimed away:
   judgment; no generator in the pack can derive it. `UNSUPPORTED(generator-capability)`: there
   is no ggen template that projects an alignment axiom set from a public-ontology registry.
 - Generated: the mapping table above (one-off script over the real graph, not a pack template).
-- Handwritten and tested: gate query, `PackHealth` violation-gate hook.
+- Handwritten and tested: gate query, `PackHealth` violation-gate hook, presence check and vacuity self-test probes.
 
 ## Not done
 
