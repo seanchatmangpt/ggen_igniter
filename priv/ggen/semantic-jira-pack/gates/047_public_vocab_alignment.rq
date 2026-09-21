@@ -24,10 +24,17 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+# The term universe is its own nested group so the sparql engine filters it down
+# to the ~67 declared sj: terms BEFORE the two OPTIONAL joins run per solution
+# (measured 2026-09-21 on the canonical graph: 3-6x faster than the flat form,
+# identical rows). VALUES ?kind { ... } was tried for the same purpose and
+# returns WRONG rows on the sparql engine (0.3.12): do not use it here.
 SELECT ?term ?public ?reason WHERE {
-  ?term a ?kind .
-  FILTER(?kind = rdfs:Class || ?kind = rdf:Property)
-  FILTER(STRSTARTS(STR(?term), "https://ggen-igniter.dev/ontology/semantic-jira#"))
+  {
+    ?term a ?kind .
+    FILTER(?kind = rdfs:Class || ?kind = rdf:Property)
+    FILTER(STRSTARTS(STR(?term), "https://ggen-igniter.dev/ontology/semantic-jira#"))
+  }
   OPTIONAL {
     ?term ?align ?public .
     FILTER(
