@@ -1921,9 +1921,15 @@ sj:obs-0f28c1c08d6c
     a sj:WorkOrder ;
     dcterms:identifier "CROWN2-002" ;
     dcterms:title "Receipt-bound regression guard for CROWN2-001" ;
-    dcterms:description "Observed delta: Repair candidate CROWN2-001 is admitted but no receipt-bound regression guard work order exists for the repaired condition yet." ;
+    dcterms:description "Observed delta: Repair candidate CROWN2-001 is admitted but no receipt-bound regression guard work order exists for the repaired condition yet. Provisioned condition (W9-G5 recursion crown): tests/test_w7_crown_seed.py::test_dedup_labels_receipt_guard_casefolds_caseless_equivalents is RED at the base head — the repaired normalize-before-dedup contract does not yet hold under Unicode caseless matching (str.casefold()-strength folding is missing from eds.crown.normalize_label). The worker must make the guard pass WITHOUT weakening, skipping, or deleting it." ;
     sj:repository "local/eds" ;
-    sj:baseSha "912b505480589c31d4f3234500949437e9fdf8fb" ;
+    # W9-G5 dependency-advance: the base moves from the pre-repair sensing head
+    # 912b505480589c31d4f3234500949437e9fdf8fb to the guarded base
+    # 60128e638f94b75b82e82ab7e74f3d75e59593c6 (CROWN2-001's ALIVE fix head
+    # 0132a24 + the committed witness condition) — note: no statement-
+    # terminating period may appear inside this comment block, the pack's
+    # conservative Turtle statement reader splits on dot+newline
+    sj:baseSha "60128e638f94b75b82e82ab7e74f3d75e59593c6" ;
     sj:subject "semantic-jira:observation:0f28c1c08d6c4b156357029a28666eda9474e7e3f5c984fe5df7953882f8fec2" ;
     sj:standing "UNKNOWN" ;
     sj:evidenceCeiling "repository-local" ;
@@ -1943,11 +1949,13 @@ sj:obs-0f28c1c08d6c
 
 <https://ggen-igniter.dev/ontology/semantic-jira#obs-0f28c1c08d6c-acceptance-delta> a sj:AcceptanceCriterion ;
     rdfs:label "Observation acceptance 0f28c1c08d6c" ;
-    dcterms:description "The observed delta 0f28c1c08d6c no longer reproduces at the candidate head, or the permanent guard for it exists and passes." .
+    dcterms:description "The observed delta 0f28c1c08d6c no longer reproduces at the candidate head, or the permanent guard for it exists and passes." ;
+    sj:witnessedBy "tests/test_w7_crown_seed.py::test_dedup_labels_receipt_guard_casefolds_caseless_equivalents" .
 
 <https://ggen-igniter.dev/ontology/semantic-jira#obs-0f28c1c08d6c-falsifier-delta> a sj:Falsifier ;
     rdfs:label "Observation falsifier 0f28c1c08d6c" ;
-    dcterms:description "Re-observe the delta 0f28c1c08d6c at the candidate head; a reproduction falsifies the repair." .
+    dcterms:description "Re-observe the delta 0f28c1c08d6c at the candidate head; a reproduction falsifies the repair." ;
+    sj:witnessedBy "tests/test_w7_crown_seed.py::test_dedup_labels_receipt_guard_casefolds_caseless_equivalents" .
 
 <https://ggen-igniter.dev/ontology/semantic-jira#obs-0f28c1c08d6c-action> a sj:Action ;
     rdfs:label "Resolve observed delta 0f28c1c08d6c" ;
