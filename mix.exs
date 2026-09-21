@@ -76,7 +76,9 @@ defmodule GgenIgniter.MixProject do
         # real type error in this project's code. Verified: adding this and
         # rebuilding the PLT eliminates all 12 of those warnings with zero new
         # findings.
-        plt_add_apps: [:mix]
+        plt_add_apps: [:mix],
+        # Enumerated, justified suppressions -- see the file's header.
+        ignore_warnings: ".dialyzer_ignore.exs"
       ],
       elixirc_paths: elixirc_paths(Mix.env())
     ]

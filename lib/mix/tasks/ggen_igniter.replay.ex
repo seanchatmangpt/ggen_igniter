@@ -338,30 +338,35 @@ defmodule Mix.Tasks.GgenIgniter.Replay do
   end
 
   defp detect_work_order_drift(receipt, manifest_dir) do
-    with %{"path" => path, "source_digest" => recorded} <-
-           get_in(receipt, ["metadata", "work_order"]) do
-      case SemanticWorkOrder.identity(manifest_dir, path) do
-        {:ok, %{source_digest: ^recorded}} ->
-          nil
+    case get_in(receipt, ["metadata", "work_order"]) do
+      %{"path" => path, "source_digest" => recorded} ->
+        work_order_drift(manifest_dir, path, recorded)
 
-        {:ok, %{source_digest: current}} ->
-          %{
-            category: "work order changed",
-            recorded: recorded,
-            current: current,
-            work_order_path: Path.join(manifest_dir, path)
-          }
+      _not_recorded ->
+        nil
+    end
+  end
 
-        :none ->
-          %{
-            category: "work order absent",
-            recorded: recorded,
-            current: nil,
-            work_order_path: Path.join(manifest_dir, path)
-          }
-      end
-    else
-      _not_recorded -> nil
+  defp work_order_drift(manifest_dir, path, recorded) do
+    case SemanticWorkOrder.identity(manifest_dir, path) do
+      {:ok, %{source_digest: ^recorded}} ->
+        nil
+
+      {:ok, %{source_digest: current}} ->
+        %{
+          category: "work order changed",
+          recorded: recorded,
+          current: current,
+          work_order_path: Path.join(manifest_dir, path)
+        }
+
+      :none ->
+        %{
+          category: "work order absent",
+          recorded: recorded,
+          current: nil,
+          work_order_path: Path.join(manifest_dir, path)
+        }
     end
   end
 
