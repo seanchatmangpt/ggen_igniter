@@ -166,6 +166,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert direct_receipt.reason =~ "REFUSED:SEMANTIC_JIRA_SHACL"
       assert direct_receipt.reason =~ "requiresGitGroundTruth"
       assert direct_receipt.reason =~ "datatype"
+      assert direct_receipt.metadata["failed_step"] == ":admit_semantic_jira_shacl"
       assert direct_receipt.files == []
 
       refute Enum.any?(
@@ -178,6 +179,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       [persisted_direct_receipt] = Receipt.read_all!(work_dir)
       assert persisted_direct_receipt["standing"] == "refused"
       assert persisted_direct_receipt["reason"] =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert persisted_direct_receipt["metadata"]["failed_step"] == ":admit_semantic_jira_shacl"
       assert persisted_direct_receipt["files"] == []
 
       refute Enum.any?(
@@ -196,6 +198,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       receipts = Receipt.read_all!(work_dir)
       assert length(receipts) == 2
       assert Enum.all?(receipts, &(&1["standing"] == "refused"))
+      assert Enum.all?(receipts, &(&1["metadata"]["failed_step"] == ":admit_semantic_jira_shacl"))
       assert Enum.all?(receipts, &(&1["files"] == []))
 
       refute Enum.any?(receipts, fn receipt ->
