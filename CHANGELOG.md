@@ -1,5 +1,21 @@
 # Changelog
 
+## v26.9.20
+
+- **Version bump** `26.9.15` -> `26.9.20` (`mix.exs` version and docs
+  `source_ref`).
+- **Semantic Jira** (merged from `feat/calver-ticket-day-pack`): work-order
+  pack, SHACL shapes, git ground-truth and pack-health checks, the
+  verified-receipt -> canonical-state `Reconciler` with `TransitionLog` and
+  `definition_digest` (ADR-010), and the `ash_a2a` projection with a
+  manufactured Ash surface (PARTIAL_ALIVE, ETS data layer; see
+  `docs/status.md`).
+- **ADRs**: ADR-010 (event-sourced standing, implemented); ADR-011 (reduce
+  `sj:` toward oslc_cm/dcterms/PROV-O/SHACL, PLANNED only, not implemented).
+- **Tickets**: `docs/jira/v26.9.19/` survey and branch/PR tickets committed.
+- **CI**: verified `.github/workflows/ci.yml` parses and already caches the rustler
+  `native/ggen_graph_nif` cargo target dir.
+
 ## v26.9.15
 
 The v26.9.15 epoch (reserved by `epoch/v26.9.15-graph-ephemerals`, carried to
