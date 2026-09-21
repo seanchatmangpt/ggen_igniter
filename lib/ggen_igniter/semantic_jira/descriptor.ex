@@ -16,7 +16,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
     * `graph_digest`      - digest of the ontology graph
 
   The same values are copied verbatim into the descriptor, its rendered JSON
-  (`templates/descriptor.json.eex` of `semantic-jira-pack`) and the A2A task
+  (`runtime-templates/descriptor.json.eex` of `semantic-jira-pack`) and the A2A task
   metadata (`to_a2a_task/3`). Authority is always `NONE`; the descriptor grants
   no lease, does no DO, and never promotes standing.
   """
@@ -99,7 +99,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
       |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
       |> Map.put(:package_json, Jason.encode!(descriptor["package"]))
 
-    [SemanticA2A.pack_dir(), "templates", "descriptor.json.eex"]
+    [SemanticA2A.pack_dir(), "runtime-templates", "descriptor.json.eex"]
     |> Path.join()
     |> File.read!()
     |> Render.render(bindings)
