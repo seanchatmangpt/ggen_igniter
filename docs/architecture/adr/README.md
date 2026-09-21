@@ -30,7 +30,7 @@ table below directly (a future re-run would just overwrite a hand-edit).
 | [0007](0007-sync-always-attempts-receipts.md) | `mix ggen_igniter.sync` Always Attempts the Reactor Pipeline (Receipts on Every Run), Gated Only by Delegatability | Accepted |
 | [0008](0008-evidence-ranked-multi-engine-registry.md) | Evidence-Ranked Multi-Engine Registry for `--engine` Comparison Mode | Accepted |
 | [ADR-010](ADR-010-event-sourced-standing.md) | Event-sourced standing (definition_digest + append-only log) | Accepted |
-| [ADR-011](ADR-011-reduce-sj-toward-public-vocabularies.md) | Reduce `sj:` toward oslc_cm/dcterms/PROV-O/SHACL | PLANNED |
+| [ADR-011](ADR-011-reduce-sj-toward-public-vocabularies.md) | Reduce `sj:` toward oslc_cm/dcterms/PROV-O/SHACL | PARTIAL |
 
 See `docs/status.md` for the current implementation status of the systems
 these decisions govern, and `docs/architecture/overview.md` for how they fit
