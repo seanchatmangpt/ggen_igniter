@@ -1858,3 +1858,105 @@ sj:ledger-unsupported-001 a rdfs:Resource ;
     dcterms:description "UNSUPPORTED(semantic-jira-pack, integration-proof-test): no admitted generator expresses the Chicago-style, no-mock ExUnit integration proof of this pack's own sync -> admission -> actuation -> receipt pipeline (real filesystem, real nested mix compile, durable receipts, byte-identical replay). The existing test-manufacturing families (beam4pm-bench-pack, chicago-fault-injection-pack) manufacture domain-specific benchmark/fault-injection specs, and pack gates verify admission data rather than end-to-end pipeline behaviour, so test/ggen_igniter_semantic_jira_pack_test.exs is admitted hand-authored residue. Paydown plan: extend the test-manufacturing family with a pack-integration-proof generator (ontology facts + template over the pack manifest/gates); when admitted, this row and its HANDWRITTEN.md entry retire." ;
     dcterms:date "2026-09-19"^^xsd:date ;
     dcterms:references <https://ggen-igniter.dev/ontology/semantic-jira#pack-integration-proof-test> .
+
+# ── W7-A8 crown v2: manufactured work orders (CROWN2-001/CROWN2-002) ──
+# Manufactured by GgenIgniter.SemanticJira.Observation.candidate from sensing
+# document digest sha256:9970de4fe1776e1a0b4711b28f80e2c5e7e8b0bd5ee6030c387e37e75670d1a5 (head 912b505480589c31d4f3234500949437e9fdf8fb).
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+sj:obs-275a1f5e4de7
+    a sj:WorkOrder ;
+    dcterms:identifier "CROWN2-001" ;
+    dcterms:title "Repair observed failing condition fail-test-dedup-labels-normalizes-before-comp-327360" ;
+    dcterms:description "Observed delta: eds pytest red at 912b50548058: fail-test-dedup-labels-normalizes-before-comp-327360; fail-test-dedup-labels-preserves-first-occurr-7f8c39 Hypothesis: eds.crown.dedup_labels lowercases without normalizing, so labels differing only in surrounding/inner whitespace are not collapsed before dedup. Smallest repair: Route every label through eds.crown.normalize_label before the first-occurrence dedup so both seed assertions hold with the test file untouched. Permanent guard: tests/test_w7_crown_seed.py already pins the contract (normalize-before-dedup, first-occurrence order) and the README test-count sync guard holds the suite count." ;
+    sj:repository "local/eds" ;
+    sj:baseSha "912b505480589c31d4f3234500949437e9fdf8fb" ;
+    sj:subject "semantic-jira:observation:275a1f5e4de707e9037bf692e580e5f0ae080a18d58b48e3e05e2b3db7393f4e" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "repository-local" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:promotionRule "Standing may advance only from an independent exact-head court receipt for the same subject at the same base; sensed failure text is a signal, never evidence." ;
+    sj:replayIdentity "semantic-jira:observation:275a1f5e4de707e9037bf692e580e5f0ae080a18d58b48e3e05e2b3db7393f4e" ;
+    sj:authorityRequirement "NONE" ;
+    sj:nextAction sj:obs-275a1f5e4de7-action ;
+    sj:nextCheckpoint sj:obs-275a1f5e4de7-checkpoint ;
+    sj:pathScope "src/eds/crown.py", "tests/test_w7_crown_seed.py" ;
+    sj:requiresReceiptClass "verification" ;
+    sj:requiresCourt <https://ggen-igniter.dev/ontology/semantic-jira#exact-head-projection-court> ;
+    sj:requiresEvidence <https://ggen-igniter.dev/ontology/semantic-jira#local-execution-evidence>, <https://ggen-igniter.dev/ontology/semantic-jira#receipt-evidence> ;
+    sj:acceptance <https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-acceptance-delta>, <https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-acceptance-guard> ;
+    sj:falsifier <https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-falsifier-delta> ;
+    sj:projection <https://ggen-igniter.dev/ontology/semantic-jira#projection-worker>, <https://ggen-igniter.dev/ontology/semantic-jira#projection-verification>, <https://ggen-igniter.dev/ontology/semantic-jira#projection-receipt> .
+
+<https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-acceptance-delta> a sj:AcceptanceCriterion ;
+    rdfs:label "Observation acceptance 275a1f5e4de7" ;
+    dcterms:description "The observed delta 275a1f5e4de7 no longer reproduces at the candidate head, or the permanent guard for it exists and passes." .
+
+<https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-acceptance-guard> a sj:AcceptanceCriterion ;
+    rdfs:label "Observation acceptance 275a1f5e4de7" ;
+    dcterms:description "The observed delta 275a1f5e4de7 no longer reproduces at the candidate head, or the permanent guard for it exists and passes." .
+
+<https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-falsifier-delta> a sj:Falsifier ;
+    rdfs:label "Observation falsifier 275a1f5e4de7" ;
+    dcterms:description "Re-observe the delta 275a1f5e4de7 at the candidate head; a reproduction falsifies the repair." .
+
+<https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-action> a sj:Action ;
+    rdfs:label "Resolve observed delta 275a1f5e4de7" ;
+    dcterms:description "Repair the repository condition behind the observed delta within the declared path scope." .
+
+<https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-checkpoint> a sj:Checkpoint ;
+    rdfs:label "Delta 275a1f5e4de7 re-observed clean" ;
+    dcterms:description "Closed only by an independent exact-head court receipt for this subject." .
+
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+sj:obs-0f28c1c08d6c
+    a sj:WorkOrder ;
+    dcterms:identifier "CROWN2-002" ;
+    dcterms:title "Receipt-bound regression guard for CROWN2-001" ;
+    dcterms:description "Observed delta: Repair candidate CROWN2-001 is admitted but no receipt-bound regression guard work order exists for the repaired condition yet." ;
+    sj:repository "local/eds" ;
+    sj:baseSha "912b505480589c31d4f3234500949437e9fdf8fb" ;
+    sj:subject "semantic-jira:observation:0f28c1c08d6c4b156357029a28666eda9474e7e3f5c984fe5df7953882f8fec2" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "repository-local" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:promotionRule "Standing may advance only from an independent exact-head court receipt for the same subject at the same base; sensed failure text is a signal, never evidence." ;
+    sj:replayIdentity "semantic-jira:observation:0f28c1c08d6c4b156357029a28666eda9474e7e3f5c984fe5df7953882f8fec2" ;
+    sj:authorityRequirement "NONE" ;
+    sj:nextAction sj:obs-0f28c1c08d6c-action ;
+    sj:nextCheckpoint sj:obs-0f28c1c08d6c-checkpoint ;
+    sj:pathScope "src/eds/crown.py", "tests/test_w7_crown_seed.py" ;
+    sj:requiresReceiptClass "verification" ;
+    sj:requiresCourt <https://ggen-igniter.dev/ontology/semantic-jira#exact-head-projection-court> ;
+    sj:requiresEvidence <https://ggen-igniter.dev/ontology/semantic-jira#local-execution-evidence>, <https://ggen-igniter.dev/ontology/semantic-jira#receipt-evidence> ;
+    sj:acceptance <https://ggen-igniter.dev/ontology/semantic-jira#obs-0f28c1c08d6c-acceptance-delta> ;
+    sj:falsifier <https://ggen-igniter.dev/ontology/semantic-jira#obs-0f28c1c08d6c-falsifier-delta> ;
+    sj:projection <https://ggen-igniter.dev/ontology/semantic-jira#projection-worker>, <https://ggen-igniter.dev/ontology/semantic-jira#projection-verification>, <https://ggen-igniter.dev/ontology/semantic-jira#projection-receipt> .
+
+<https://ggen-igniter.dev/ontology/semantic-jira#obs-0f28c1c08d6c-acceptance-delta> a sj:AcceptanceCriterion ;
+    rdfs:label "Observation acceptance 0f28c1c08d6c" ;
+    dcterms:description "The observed delta 0f28c1c08d6c no longer reproduces at the candidate head, or the permanent guard for it exists and passes." .
+
+<https://ggen-igniter.dev/ontology/semantic-jira#obs-0f28c1c08d6c-falsifier-delta> a sj:Falsifier ;
+    rdfs:label "Observation falsifier 0f28c1c08d6c" ;
+    dcterms:description "Re-observe the delta 0f28c1c08d6c at the candidate head; a reproduction falsifies the repair." .
+
+<https://ggen-igniter.dev/ontology/semantic-jira#obs-0f28c1c08d6c-action> a sj:Action ;
+    rdfs:label "Resolve observed delta 0f28c1c08d6c" ;
+    dcterms:description "Repair the repository condition behind the observed delta within the declared path scope." .
+
+<https://ggen-igniter.dev/ontology/semantic-jira#obs-0f28c1c08d6c-checkpoint> a sj:Checkpoint ;
+    rdfs:label "Delta 0f28c1c08d6c re-observed clean" ;
+    dcterms:description "Closed only by an independent exact-head court receipt for this subject." .
+
+sj:obs-0f28c1c08d6c sj:dependsOn sj:dep-crown2-002-from-001 .
+
+sj:dep-crown2-002-from-001 a sj:DependencyEdge ;
+    rdfs:label "CROWN2-002 dependency on CROWN2-001" ;
+    sj:dependencyType "requiresSemanticIdentity" ;
+    sj:upstreamWorkOrder sj:obs-275a1f5e4de7 .
