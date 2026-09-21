@@ -115,7 +115,8 @@ defmodule GgenIgniter.SemanticA2A do
 
   Options: `:graph_digest` (required), `:package` (an
   `execution-package/v1` map), `:receipts` (default `[]`), `:state_map`
-  (default: loaded from the ontology).
+  (default: loaded from the ontology), `:identity` (descriptor graph identity;
+  `definition_digest` and `snapshot_digest` land in metadata).
   """
   @spec task_from_work_order(map(), keyword()) :: {:ok, map()} | {:error, term()}
   def task_from_work_order(work_order, opts) when is_map(work_order) and is_list(opts) do
@@ -123,6 +124,7 @@ defmodule GgenIgniter.SemanticA2A do
     receipts = Keyword.get(opts, :receipts, [])
     map = Keyword.get_lazy(opts, :state_map, &state_map/0)
     package = Keyword.get(opts, :package)
+    identity = opts |> Keyword.get(:identity, %{}) |> stringify()
 
     with {:ok, replay} <- fetch(work_order, "replay_identity"),
          {:ok, standing} <- fetch(work_order, "standing"),
@@ -134,12 +136,15 @@ defmodule GgenIgniter.SemanticA2A do
          "contextId" => graph_digest,
          "status" => %{"state" => state, "reasonCode" => reason},
          "input" => input_parts(package),
-         "metadata" => %{
-           "baseSha" => base_sha,
-           "graphDigest" => graph_digest,
-           "schema" => package_schema(package),
-           "authority" => "NONE"
-         }
+         "metadata" =>
+           %{
+             "baseSha" => base_sha,
+             "graphDigest" => graph_digest,
+             "schema" => package_schema(package),
+             "authority" => "NONE"
+           }
+           |> put_if("definitionDigest", identity["definition_digest"])
+           |> put_if("snapshotDigest", identity["snapshot_digest"])
        }}
     end
   end
@@ -220,6 +225,10 @@ defmodule GgenIgniter.SemanticA2A do
       _ -> {:error, {:missing_field, key}}
     end
   end
+
+  # Descriptor graph identity travels verbatim in task metadata.
+  defp put_if(map, _key, nil), do: map
+  defp put_if(map, key, value), do: Map.put(map, key, value)
 
   defp input_parts(nil), do: []
   defp input_parts(package), do: [%{"kind" => "data", "data" => stringify(package)}]
