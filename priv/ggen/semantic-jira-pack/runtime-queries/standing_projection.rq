@@ -1,0 +1,30 @@
+# Current standing per work order, straight from the PROV-O event graph: the
+# latest event (greatest integer seq) for each sj:workOrderId, with the digest
+# of the receipt it used. This is the SPARQL twin of SemanticJira.project/2's
+# evidence map; the test suite asserts the two agree on a real log.
+#
+# Runtime-only query (event graph, not the work-order ontology): see
+# transition_events.rq for why it is not under gates/.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?work_order_id ?to ?receipt_digest ?seq ?event_digest
+WHERE {
+  ?event a sj:StandingTransitionEvent ;
+         dcterms:identifier ?event_digest ;
+         sj:workOrderId ?work_order_id ;
+         sj:seq ?seq ;
+         sj:toStanding ?to .
+  OPTIONAL {
+    ?event prov:used ?receipt .
+    ?receipt a sj:TransitionReceipt ;
+             dcterms:identifier ?receipt_digest .
+  }
+  FILTER NOT EXISTS {
+    ?later a sj:StandingTransitionEvent ;
+           sj:workOrderId ?work_order_id ;
+           sj:seq ?later_seq .
+    FILTER(?later_seq > ?seq)
+  }
+}
+ORDER BY ?seq

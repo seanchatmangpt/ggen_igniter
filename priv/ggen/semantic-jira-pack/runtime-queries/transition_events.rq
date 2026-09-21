@@ -1,0 +1,54 @@
+# Recovers every standing-transition event from its PROV-O serialization
+# (GgenIgniter.SemanticJira.Provenance). One row per event; OPTIONAL groups are
+# the fields an event may legitimately lack (non-digest-shaped values are
+# carried in sj:extra instead). The engine's ORDER BY is a convenience only:
+# Provenance re-sorts by integer seq itself, so row order is never trusted.
+#
+# Runtime-only query: it runs against an EVENT graph, not the canonical
+# work-order graph, so it lives outside gates/ (pack health and the pack suite
+# execute every gates/*.rq against the work-order ontology).
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?event ?event_digest ?seq ?kind ?work_order_id ?from ?to ?transition_digest
+       ?started_at ?informed_by ?seal ?extra ?definition ?definition_id ?snapshot
+       ?snapshot_id ?receipt ?receipt_id ?state ?agent ?state_work_order_id ?state_standing
+       ?state_derived_from
+WHERE {
+  ?event a sj:StandingTransitionEvent ;
+         dcterms:identifier ?event_digest ;
+         sj:seq ?seq .
+  OPTIONAL { ?event sj:eventKind ?kind }
+  OPTIONAL { ?event sj:workOrderId ?work_order_id }
+  OPTIONAL { ?event sj:fromStanding ?from }
+  OPTIONAL { ?event sj:toStanding ?to }
+  OPTIONAL { ?event sj:transitionDigest ?transition_digest }
+  OPTIONAL { ?event prov:startedAtTime ?started_at }
+  OPTIONAL { ?event prov:wasInformedBy ?informed_by }
+  OPTIONAL { ?event sj:contentSeal ?seal }
+  OPTIONAL { ?event sj:extra ?extra }
+  OPTIONAL {
+    ?event prov:used ?definition .
+    ?definition a sj:WorkOrderDefinition ;
+                dcterms:identifier ?definition_id .
+  }
+  OPTIONAL {
+    ?event prov:used ?snapshot .
+    ?snapshot a sj:WorkOrderSnapshot ;
+              dcterms:identifier ?snapshot_id .
+  }
+  OPTIONAL {
+    ?event prov:used ?receipt .
+    ?receipt a sj:TransitionReceipt ;
+             dcterms:identifier ?receipt_id .
+  }
+  OPTIONAL {
+    ?state a sj:StandingState ;
+           prov:wasGeneratedBy ?event .
+    OPTIONAL { ?state prov:wasAttributedTo ?agent }
+    OPTIONAL { ?state sj:workOrderId ?state_work_order_id }
+    OPTIONAL { ?state sj:standing ?state_standing }
+    OPTIONAL { ?state prov:wasDerivedFrom ?state_derived_from }
+  }
+}
+ORDER BY ?seq

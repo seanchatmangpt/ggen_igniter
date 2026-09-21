@@ -17,6 +17,17 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
   """
 
   alias GgenIgniter.SemanticJira
+  alias GgenIgniter.SemanticJira.Provenance
+
+  @doc """
+  PROV-O Turtle export of the log at `dir` (or of an already-read event list):
+  a delegation to `GgenIgniter.SemanticJira.Provenance.to_turtle/1`, which also
+  owns the verifying `replay/1` back to these exact events.
+  """
+  @spec export_turtle(Path.t() | [map()]) ::
+          {:ok, String.t()} | {:error, {:refused_export, term()}}
+  def export_turtle(dir) when is_binary(dir), do: dir |> read() |> Provenance.to_turtle()
+  def export_turtle(events) when is_list(events), do: Provenance.to_turtle(events)
 
   @spec read(Path.t()) :: [map()]
   def read(dir) do
