@@ -31,14 +31,18 @@ defmodule GgenIgniter.SemanticJira.Provenance do
   | `definition_digest`, `snapshot_digest`, `receipt_digest` | `prov:used` of a `prov:Entity` (`sj:WorkOrderDefinition` / `sj:WorkOrderSnapshot` / `sj:TransitionReceipt`) whose IRI embeds the digest and whose `dcterms:identifier` repeats it |
   | resulting standing | `sj:StandingState` entity: `prov:wasGeneratedBy` the event, `prov:wasDerivedFrom` the receipt, `sj:standing` |
   | `authority` | the state entity's `prov:wasAttributedTo` a `prov:Agent` `<urn:ggen:sj:authority:NONE>` |
-  | `started_at` (optional) | `prov:startedAtTime` (`xsd:dateTime`); emitted only when the event carries it |
+  | `started_at` (optional) | `prov:startedAtTime` (`xsd:dateTime`); emitted only when the event carries it AND it is already in canonical xsd:dateTime lexical form (fraction without trailing zero, `Z` rather than `+00:00`); any other value rides in `sj:extra` |
   | log order | `prov:wasInformedBy` the previous event by `seq` |
-  | integrity | `sj:contentSeal` (sha256 over the canonical full event) |
+  | integrity | `sj:contentSeal` (sha256 over the canonical full event AND the digest of the event it chains from, so the `prov:wasInformedBy` link is sealed) |
   | any other key | `sj:extra` (one JSON literal), so the round trip is lossless |
 
   `TransitionLog`/`Reconciler` events carry no wall-clock time today (stamping
   one would change event digests and break idempotent replay), so
   `prov:startedAtTime` appears only for events that supply `started_at`.
+
+  String literals are written as pure ASCII (every non-ASCII codepoint as a
+  Turtle `\\uXXXX` / `\\UXXXXXXXX` escape) because RDF.ex's Turtle decoder drops a
+  leading Grapheme_Extend codepoint that directly follows the opening quote.
 
   ## Replay refusals (`{:error, {:refused, reason}}`)
 
@@ -46,17 +50,24 @@ defmodule GgenIgniter.SemanticJira.Provenance do
   (an entity IRI disagrees with its `dcterms:identifier` literal),
   `:missing_state` / `:state_mismatch` (the `sj:StandingState` entity is absent, or its
   work order, standing or `prov:wasDerivedFrom` receipt disagrees with the event),
-  `:invalid_seq`, `:invalid_extra`, `:extra_shadows_field`,
+  `:invalid_seq` (`sj:seq` missing, not an integer, or not typed `xsd:integer`),
+  `:invalid_extra`, `:extra_shadows_field`,
   `:event_digest_mismatch` (recomputed `SemanticJira.digest/1` over the event
   body differs), `:missing_content_seal`, `:content_seal_mismatch`,
   `:duplicate_seq`, `:broken_chain` (an event's `prov:wasInformedBy` is not the
-  previous event by `seq`, e.g. an event was deleted from the middle).
+  previous event by `seq`, e.g. an event was deleted from the middle). The chain
+  link is part of each event's `sj:contentSeal`, so deleting a middle or first
+  event AND re-pointing or dropping the successor's `prov:wasInformedBy` triple is
+  refused too (`:content_seal_mismatch`). An `sj:StandingTransitionEvent` node
+  lacking `dcterms:identifier` or `sj:seq` is refused (`:iri_literal_mismatch` /
+  `:invalid_seq`), never ignored.
 
   ## Not claimed
 
   Tamper EVIDENCE, not tamper PROOF: the digests are unkeyed (ADR-010: no
   signing), so a coordinated rewrite that also recomputes `sj:contentSeal`
-  (and, for `to`/`from`/`identity`, `event_digest`) is undetectable.
+  (and, for `to`/`from`/`identity`, `event_digest`) is undetectable, as is a
+  coordinated deletion that also recomputes the successors' seals.
   `SemanticJira.digest/1` deliberately ignores top-level `receipt_digest` and
   `transition_digest`, so `event_digest` alone does not cover them; the IRI
   cross-check and `sj:contentSeal` do. Truncating the log's tail is not
@@ -75,7 +86,12 @@ defmodule GgenIgniter.SemanticJira.Provenance do
 
   @digest_re ~r/\Asha256:[0-9a-f]{64}\z/
   @token_re ~r/\A[A-Za-z0-9_.-]+\z/
-  @datetime_re ~r/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})\z/
+  # Canonical xsd:dateTime lexical form only, i.e. exactly what oxigraph hands
+  # back on replay: a fraction, when present, has no trailing zero, and a zero
+  # offset is written `Z` (`+00:00` is not canonical). Every other datetime string
+  # rides in sj:extra, so the round trip stays lossless for it too.
+  @datetime_re ~r/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d*[1-9])?(Z|[+-]\d{2}:\d{2})\z/
+  @xsd_integer "http://www.w3.org/2001/XMLSchema#integer"
 
   @event_ns "urn:ggen:sj:event:"
   @standing_ns "urn:ggen:sj:standing:"
@@ -189,7 +205,7 @@ defmodule GgenIgniter.SemanticJira.Provenance do
         used_po(event) ++
         started_po(event) ++
         chain_po(prev) ++
-        [{"sj:contentSeal", literal(seal(event))}] ++
+        [{"sj:contentSeal", literal(seal(event, prev))}] ++
         extra_po(event)
 
     %{subject: iri(@event_ns, digest), types: "prov:Activity, sj:StandingTransitionEvent", po: po}
@@ -316,12 +332,18 @@ defmodule GgenIgniter.SemanticJira.Provenance do
   Each work order's current standing recovered from the RDF by SPARQL, after
   `replay/1`-grade verification. Same shape as the evidence map returned by
   `SemanticJira.project/2`: `%{identity => %{"standing" => _, "receipt_digest" => _}}`.
+
+  The SPARQL never sees the caller's raw graph: the verified events are
+  re-rendered canonically (`to_turtle/1`) and the query runs over THAT graph,
+  so no unverified triple (a phantom event, a retyped `sj:seq`) can reach the
+  projection after replay verified something else.
   """
   @spec standing_projection(String.t()) :: {:ok, map()} | refusal()
   def standing_projection(turtle) when is_binary(turtle) do
     with {:ok, graph} <- parse(turtle),
-         {:ok, _events} <- replay_graph(graph),
-         {:ok, rows} <- sparql(graph, "standing_projection.rq") do
+         {:ok, events} <- replay_graph(graph),
+         {:ok, canonical} <- canonical_graph(events),
+         {:ok, rows} <- sparql(canonical, "standing_projection.rq") do
       {:ok,
        rows
        |> Enum.sort_by(&String.to_integer(&1["seq"]))
@@ -336,6 +358,13 @@ defmodule GgenIgniter.SemanticJira.Provenance do
     {:ok, RDF.Turtle.read_string!(turtle)}
   rescue
     error -> refused({:invalid_turtle, Exception.message(error)})
+  end
+
+  defp canonical_graph(events) do
+    case to_turtle(events) do
+      {:ok, turtle} -> parse(turtle)
+      {:error, {:refused_export, reason}} -> refused({:not_reexportable, reason})
+    end
   end
 
   defp replay_graph(graph) do
@@ -376,7 +405,7 @@ defmodule GgenIgniter.SemanticJira.Provenance do
          {:ok, typed, prev} <- typed_fields(iri, row),
          {:ok, event} <- merge_extra(iri, typed, value(row, "extra")),
          :ok <- verify_event_digest(iri, event),
-         :ok <- verify_seal(iri, event, value(row, "seal")),
+         :ok <- verify_seal(iri, event, prev, value(row, "seal")),
          :ok <- verify_state(iri, row, event["event_digest"]) do
       {:ok, {event, prev}}
     end
@@ -393,7 +422,7 @@ defmodule GgenIgniter.SemanticJira.Provenance do
     digest = row["event_digest"]
 
     with :ok <- same_iri(:event, iri, @event_ns, digest),
-         {:ok, seq} <- seq(iri, row["seq"]),
+         {:ok, seq} <- seq(iri, row),
          {:ok, entities} <- entity_fields(row),
          {:ok, authority} <- authority(value(row, "agent")),
          {:ok, prev} <- previous(value(row, "informed_by")) do
@@ -466,9 +495,14 @@ defmodule GgenIgniter.SemanticJira.Provenance do
       value(row, "state_derived_from") == value(row, "receipt")
   end
 
-  defp seq(iri, lexical) do
-    case Integer.parse(lexical || "") do
-      {n, ""} -> {:ok, n}
+  # sj:seq must be a real xsd:integer: a retyped (plain-string) seq still parses
+  # here but would sort lexicographically ("10" < "9") in any SPARQL that
+  # compares it, so it is refused rather than trusted.
+  defp seq(iri, row) do
+    with @xsd_integer <- value(row, "seq_datatype"),
+         {n, ""} <- Integer.parse(row["seq"] || "") do
+      {:ok, n}
+    else
       _ -> refused({:invalid_seq, iri})
     end
   end
@@ -516,10 +550,10 @@ defmodule GgenIgniter.SemanticJira.Provenance do
       else: refused({:event_digest_mismatch, iri})
   end
 
-  defp verify_seal(iri, _event, nil), do: refused({:missing_content_seal, iri})
+  defp verify_seal(iri, _event, _prev, nil), do: refused({:missing_content_seal, iri})
 
-  defp verify_seal(iri, event, seal) do
-    if seal(event) == seal, do: :ok, else: refused({:content_seal_mismatch, iri})
+  defp verify_seal(iri, event, prev, seal) do
+    if seal(event, prev) == seal, do: :ok, else: refused({:content_seal_mismatch, iri})
   end
 
   defp ordered(pairs) do
@@ -559,7 +593,18 @@ defmodule GgenIgniter.SemanticJira.Provenance do
   defp escape(c) when c < 0x20 or c == 0x7F,
     do: "\\u" <> (c |> Integer.to_string(16) |> String.pad_leading(4, "0"))
 
-  defp escape(c), do: <<c::utf8>>
+  # Every non-ASCII codepoint is written as a UCHAR escape (`\uXXXX` /
+  # `\UXXXXXXXX`), so the emitted Turtle is pure ASCII. RDF.ex's decoder splits
+  # a string into grapheme clusters, and a literal whose first character is a
+  # Grapheme_Extend / SpacingMark codepoint (combining mark, ZWJ, variation
+  # selector, emoji modifier, ...) would otherwise fuse with the opening quote
+  # and be dropped; a trailing Prepend codepoint would fuse with the closing one.
+  defp escape(c) when c < 0x80, do: <<c::utf8>>
+
+  defp escape(c) when c <= 0xFFFF,
+    do: "\\u" <> (c |> Integer.to_string(16) |> String.pad_leading(4, "0"))
+
+  defp escape(c), do: "\\U" <> (c |> Integer.to_string(16) |> String.pad_leading(8, "0"))
 
   defp iri(ns, suffix), do: "<" <> ns <> suffix <> ">"
 
@@ -575,8 +620,17 @@ defmodule GgenIgniter.SemanticJira.Provenance do
   defp typed?(_key, _value), do: false
 
   # sha256 over the canonical FULL event (unlike SemanticJira.digest/1, which
-  # drops top-level receipt_digest/transition_digest).
-  defp seal(event), do: event |> canonical() |> Jason.encode!() |> Digest.sha256()
+  # drops top-level receipt_digest/transition_digest) TOGETHER WITH the digest
+  # of the event it chains from (nil for the first), so the prov:wasInformedBy
+  # link is covered: editing or dropping one chain triple changes what the seal
+  # must equal. A deleted event therefore cannot be papered over by re-pointing
+  # its successor.
+  defp seal(event, prev),
+    do:
+      %{"event" => event, "informed_by" => prev}
+      |> canonical()
+      |> Jason.encode!()
+      |> Digest.sha256()
 
   defp canonical(%{} = map) when not is_struct(map) do
     map
@@ -599,6 +653,7 @@ defmodule GgenIgniter.SemanticJira.Provenance do
 
   defp datetime?(value) do
     is_binary(value) and Regex.match?(@datetime_re, value) and
+      not String.ends_with?(value, "+00:00") and
       match?({:ok, _, _}, DateTime.from_iso8601(value))
   end
 

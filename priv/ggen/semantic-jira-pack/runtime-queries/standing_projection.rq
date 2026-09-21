@@ -3,11 +3,17 @@
 # of the receipt it used. This is the SPARQL twin of SemanticJira.project/2's
 # evidence map; the test suite asserts the two agree on a real log.
 #
+# Provenance.standing_projection/1 runs this over the canonical re-rendering of
+# the VERIFIED events, never over the caller's raw graph. The query is still
+# hardened on its own: ?later must be an identified event (an unidentified node
+# is not evidence) and seq is compared as xsd:integer, not as a string.
+#
 # Runtime-only query (event graph, not the work-order ontology): see
 # transition_events.rq for why it is not under gates/.
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 SELECT ?work_order_id ?to ?receipt_digest ?seq ?event_digest
 WHERE {
   ?event a sj:StandingTransitionEvent ;
@@ -22,9 +28,10 @@ WHERE {
   }
   FILTER NOT EXISTS {
     ?later a sj:StandingTransitionEvent ;
+           dcterms:identifier ?later_digest ;
            sj:workOrderId ?work_order_id ;
            sj:seq ?later_seq .
-    FILTER(?later_seq > ?seq)
+    FILTER(xsd:integer(?later_seq) > xsd:integer(?seq))
   }
 }
-ORDER BY ?seq
+ORDER BY xsd:integer(?seq)

@@ -1,8 +1,10 @@
 defmodule GgenIgniter.SemanticJiraProvenanceQualifierTest do
   @moduledoc """
   QUALIFIER falsifiers for `GgenIgniter.SemanticJira.Provenance` at c402a46.
-  Both tests are EXPECTED TO FAIL against that head: each pins a defect the
-  builder's own suite does not reach. They stay red until the defect is fixed.
+  These tests FAILED against that head (5 red): each pinned a defect the
+  builder's own suite did not reach. They are now permanent regression guards
+  (repair: only canonical xsd:dateTime forms are emitted typed; `sj:seq` must be
+  xsd:integer and the projection queries verified content only).
 
   Chicago-style like the builder's suite: real `TransitionLog` on disk, the real
   PROV-O template, real RDF.ex parsing, the real oxigraph NIF, state-based

@@ -1,8 +1,12 @@
 defmodule GgenIgniter.SemanticJiraProvenanceFalsifierTest do
   @moduledoc """
   QUALIFIER falsifiers for `GgenIgniter.SemanticJira.Provenance` at c402a46.
-  Every test here is EXPECTED TO FAIL against that head: each pins a defect the
-  builder's own suite does not reach, and stays red until the defect is fixed.
+  Every test here FAILED against that head (13 red across this file and the
+  qualifier file); each pins a defect the builder's own suite did not reach.
+  They are now permanent regression guards: the repair commit fixed the root
+  causes (chain digest sealed into `sj:contentSeal`, unidentified event nodes
+  refused, non-ASCII escaped in Turtle literals) and
+  `..._provenance_repair_test.exs` guards the same classes at their own layer.
 
   1. Chain triples are not covered by any digest or seal. Deleting a middle (or
      the first) event and editing ONE `prov:wasInformedBy` triple is accepted by

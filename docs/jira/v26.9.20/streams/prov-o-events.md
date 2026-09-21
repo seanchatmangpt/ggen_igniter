@@ -10,9 +10,9 @@ to consolidate into `docs/status.md`; this stream does not edit that file.
 | Capability | Status | Evidence |
 |---|---|---|
 | `SemanticJira.Provenance.to_turtle/1` + `TransitionLog.export_turtle/1`: receipt -> canonical-state transition events as `prov:Activity` / `prov:Entity` / `prov:wasGeneratedBy` / `prov:used` / `prov:wasAttributedTo` / `prov:wasDerivedFrom` / `prov:wasInformedBy` / `prov:startedAtTime` (when the event carries `started_at`) + `dcterms:identifier`, rendered by pack template `runtime-templates/transition_log.ttl.eex` | PARTIAL_ALIVE | `mix test test/ggen_igniter_semantic_jira_provenance_test.exs` (32 tests, real log via `Reconciler`, real RDF.ex parser, real oxigraph NIF, no test doubles). Not ALIVE: no CLI/mix task, no consumer in the sync/BRCE path, `started_at` is never stamped by `Reconciler`/`TransitionLog` today. |
-| `Provenance.replay/1`, `replay_file/1`: Turtle -> event maps via real SPARQL (`runtime-queries/transition_events.rq`, engine `oxigraph` through `GgenIgniter.Engine`); round-trip equality with `TransitionLog.read/1` | PARTIAL_ALIVE | Same suite: replay equals the log for 3-event Reconciler logs, odd literals (quotes, backslash, control chars, unicode, non-digest fields, nested JSON), statement-order permutations, and export is a fixed point of replay. |
-| `Provenance.standing_projection/1`: current standing per work order recovered by SPARQL (`runtime-queries/standing_projection.rq`, latest `sj:seq` per `sj:workOrderId`) after verification | PARTIAL_ALIVE | Same suite: equals `SemanticJira.project/2`'s evidence map on a real log and on a two-transition (PARTIAL_ALIVE then ALIVE) log. `frontier_from_events/3` over RDF-replayed events equals the frontier over the JSON log. |
-| Tamper refusal (falsifier) | PARTIAL_ALIVE | Each of these returns a typed `{:error, {:refused, _}}` (tests in the same suite): one altered `event_digest` / `definition_digest` / `snapshot_digest` / `receipt_digest` literal (`:iri_literal_mismatch`), altered `to` literal (`:event_digest_mismatch`), altered `transition_digest` literal or a consistent IRI+literal receipt rewrite (`:content_seal_mismatch`), a deleted middle event (`:broken_chain`), an altered or re-derived or deleted standing-state entity (`:state_mismatch`, `:missing_state`, or `:event_digest_mismatch` when its authority carrier is lost), an `sj:extra` shadowing a field (`:extra_shadows_field`), a duplicate `sj:seq` (`:ambiguous_event`), invalid Turtle (`:invalid_turtle`). Mutation check: disabling each of the seal / chain / event-digest / IRI-literal / state checks fails exactly the tests aimed at it (2 / 1 / 1 / 4 / 3 failures). |
+| `Provenance.replay/1`, `replay_file/1`: Turtle -> event maps via real SPARQL (`runtime-queries/transition_events.rq`, engine `oxigraph` through `GgenIgniter.Engine`); round-trip equality with `TransitionLog.read/1` | PARTIAL_ALIVE | Same suite: replay equals the log for 3-event Reconciler logs, odd literals (quotes, backslash, control chars, unicode, non-digest fields, nested JSON), statement-order permutations, and export is a fixed point of replay. Repair round (`test/ggen_igniter_semantic_jira_provenance_repair_test.exs`): 332 `started_at` shapes (fractions with trailing zeros, `+00:00`, `-00:00`, invalid dates, ...) replay equal in one log; all 2577 codepoints that fuse with a leading quote and all 28 that fuse with a trailing quote on Elixir 1.19.5 (computed from `String.length/1`) round-trip. |
+| `Provenance.standing_projection/1`: current standing per work order recovered by SPARQL (`runtime-queries/standing_projection.rq`, latest `sj:seq` per `sj:workOrderId`) after verification | PARTIAL_ALIVE | Same suite: equals `SemanticJira.project/2`'s evidence map on a real log and on a two-transition (PARTIAL_ALIVE then ALIVE) log, and on a 12-transition log (seq crossing 9 -> 10). The SPARQL runs over the canonical re-rendering of the VERIFIED events, never the raw graph; `standing_projection.rq` is also hardened on its own (identified `?later`, `xsd:integer` seq compare) and guarded against a raw unverified graph. `frontier_from_events/3` over RDF-replayed events equals the frontier over the JSON log. |
+| Tamper refusal (falsifier) | PARTIAL_ALIVE | Each of these returns a typed `{:error, {:refused, _}}` (tests in the same suite): one altered `event_digest` / `definition_digest` / `snapshot_digest` / `receipt_digest` literal (`:iri_literal_mismatch`), altered `to` literal (`:event_digest_mismatch`), altered `transition_digest` literal or a consistent IRI+literal receipt rewrite (`:content_seal_mismatch`), a deleted middle event left with a stale chain triple (`:broken_chain`), a deleted middle or first event WITH the successor's `prov:wasInformedBy` re-pointed or dropped (`:content_seal_mismatch`; the predecessor digest is inside each seal), a retyped `sj:seq` (`:invalid_seq`), an event node lacking `dcterms:identifier` or `sj:seq` (`:iri_literal_mismatch` / `:invalid_seq`, never ignored), an altered or re-derived or deleted standing-state entity (`:state_mismatch`, `:missing_state`, or `:event_digest_mismatch` when its authority carrier is lost), an `sj:extra` shadowing a field (`:extra_shadows_field`), a duplicate `sj:seq` (`:ambiguous_event`), invalid Turtle (`:invalid_turtle`). Mutation check (builder): disabling each of the seal / chain / event-digest / IRI-literal / state checks fails exactly the tests aimed at it (2 / 1 / 1 / 4 / 3 failures). Mutation check (repair round, 64 tests across the four provenance files): datetime canonicality off -> 7 red, seal ignoring the predecessor -> 5 red, `sj:seq` datatype check off -> 1 red, non-ASCII literals unescaped -> 9 red, unidentified nodes ignored again -> 2 red, `standing_projection.rq` un-hardened -> 3 red. Projecting from the raw graph instead of the re-rendered verified events -> 0 red (defence in depth with no distinguishing falsifier found; the layers above it are guarded independently). |
 | PROV-O serializer generated by ggen | UNSUPPORTED(generator-capability) | No pack under `~/ggen-marketplace/packs/` serializes an append-only JSON event log to PROV-O (packs that mention `prov:` use it as vocabulary only). The event-field -> predicate mapping and the verifier are hand-written Elixir; the Turtle layout and the additive `sj:` -> `prov:` vocabulary header are the pack template. |
 
 ## Design
@@ -24,7 +24,13 @@ to consolidate into `docs/status.md`; this stream does not edit that file.
   `prov:wasAttributedTo` `<urn:ggen:sj:authority:NONE>`.
 - Log order is `sj:seq` (typed integer) plus a `prov:wasInformedBy` chain to the previous event.
 - Any field outside the typed set (or with a non-conforming value) rides in one `sj:extra` JSON
-  literal, so replay equals the log for arbitrary JSON-shaped events.
+  literal, so replay equals the log for arbitrary JSON-shaped events. `started_at` is typed only
+  when it is already canonical xsd:dateTime (fraction without trailing zero, `Z` not `+00:00`);
+  oxigraph returns the canonical form, so any other string would not survive replay typed.
+- `sj:contentSeal` covers the canonical event AND the digest of the event it chains from, so the
+  `prov:wasInformedBy` triple is sealed, not just cross-checked.
+- Turtle string literals are pure ASCII (non-ASCII as `\uXXXX` / `\UXXXXXXXX`): RDF.ex's decoder
+  drops a Grapheme_Extend / SpacingMark codepoint that directly follows the opening quote.
 - Runtime-only assets live outside `gates/` and `templates/`: `runtime-queries/*.rq` and
   `runtime-templates/transition_log.ttl.eex`.
 
@@ -42,6 +48,28 @@ to consolidate into `docs/status.md`; this stream does not edit that file.
   `event_digest` and break idempotent replay), so it is emitted only when an event supplies
   `started_at`.
 
+## Repair round (qualifier and falsifier findings at 9e07472)
+
+Thirteen tests were red at 9e07472 (5 in `..._provenance_qualifier_test.exs`, 8 in
+`..._provenance_falsifier_test.exs`); after the repair the four provenance suites are green. Each
+root cause was fixed at its layer and guarded by `..._provenance_repair_test.exs`:
+
+| Finding | Root cause | Fix | Layer guard |
+|---|---|---|---|
+| `started_at` `.000Z` / `.500Z` / `.123450Z` / `+00:00` refused on honest export | `datetime?/1` admitted any ISO-8601 string as typed `xsd:dateTime`; oxigraph returns the canonical lexical form | typed only when canonical, else `sj:extra` | 332-shape sweep, typed/extra partition, shadowing refusal |
+| standing S9 vs S11 after `sj:seq` retyped | replay parsed the lexical seq ignoring its datatype; the SPARQL compared strings | replay requires `xsd:integer` (`?seq_datatype`); projection query casts and requires an identified `?later`; projection runs over the re-rendered verified events | retyped seq (plain, decimal, double, int), raw-graph query test, 12-transition projection |
+| deleted middle/first event accepted after one chain-triple edit | the chain predecessor was in no digest or seal | predecessor digest bound into `sj:contentSeal` | 4 chain tests with exact refusal reasons |
+| phantom event changes the projection while replay verifies | replay ignored an event node lacking `dcterms:identifier` / `sj:seq` while the projection counted it | such nodes are returned by the query and refused | both phantom shapes refused by replay and projection |
+| leading Grapheme_Extend character lost | RDF.ex decodes quote + mark as one grapheme | literals are pure ASCII (UCHAR escapes) | exhaustive leading (2577) and trailing (28) fusing codepoints |
+
+False positives: none; every finding was reproduced red before the fix.
+
+Residual, disclosed: the refusal set is unchanged in kind (unkeyed digests, ADR-010). A coordinated
+rewrite that recomputes the affected seals (and `event_digest` for the fields it covers) is
+undetected, as is truncating the tail of the log. A derived integer type on `sj:seq`
+(`"2"^^xsd:int`) is widened to `xsd:integer` by the RDF.ex -> oxigraph path, so it replays as the
+same integer; the repair test asserts it is either equal to the log or refused, never different.
+
 ## Findings about pre-existing behavior (not changed here)
 
 - `SemanticJira.digest/1` drops top-level `receipt_digest` and `transition_digest`
@@ -53,8 +81,9 @@ to consolidate into `docs/status.md`; this stream does not edit that file.
 ## Not claimed
 
 Tamper evidence, not tamper proof: digests are unkeyed (ADR-010 "no signing"). A coordinated rewrite
-that also recomputes `sj:contentSeal` (and `event_digest` for fields it covers) is undetected, and
-truncating the tail of the log is undetectable from the Turtle alone.
+that also recomputes `sj:contentSeal` (and `event_digest` for fields it covers) is undetected, as is
+a coordinated deletion that recomputes the successors' seals, and truncating the tail of the log is
+undetectable from the Turtle alone.
 
 ## See Also
 
@@ -62,3 +91,4 @@ truncating the tail of the log is undetectable from the Turtle alone.
 - `docs/architecture/adr/ADR-011-reduce-sj-toward-public-vocabularies.md`
 - `lib/ggen_igniter/semantic_jira/provenance.ex`
 - `test/ggen_igniter_semantic_jira_provenance_test.exs`
+- `test/ggen_igniter_semantic_jira_provenance_repair_test.exs`
