@@ -154,7 +154,6 @@ defmodule GgenIgniter.EphemeralManufacture do
     {:ok, reads}
   end
 
-
   # GGEN-2601: prove H(current receipted file-set) == receipt.post_run_hash
   # before anything is attested. A receipt with no `post_run_hash` cannot
   # bind any bytes and is refused up front rather than vacuously verified.

@@ -157,18 +157,17 @@ defmodule GgenIgniter.GallTicket do
          checkpoint_type: checkpoint.type_label,
          standing: local_name(standing_iri),
          source_document: source_path,
-         repository_text: format_or(repository, &"<" <> &1 <> ">"),
-         base_sha_text: format_or(base_sha, &"`" <> &1 <> "`"),
+         repository_text: format_or(repository, &("<" <> &1 <> ">")),
+         base_sha_text: format_or(base_sha, &("`" <> &1 <> "`")),
          goal_text: goal || "(not declared)",
          dependencies:
            multi(graph, iri, "dependsOn", fn dep ->
              "`" <> dep <> "`" <> label_suffix(graph, dep)
            end),
-         allowed_paths: multi(graph, iri, "allowedPath", &"`" <> &1 <> "`"),
+         allowed_paths: multi(graph, iri, "allowedPath", &("`" <> &1 <> "`")),
          requires_capabilities:
            multi(graph, iri, "requiresCapability", &label_or_local(graph, &1)),
-         forbids_capabilities:
-           multi(graph, iri, "forbidsCapability", &label_or_local(graph, &1)),
+         forbids_capabilities: multi(graph, iri, "forbidsCapability", &label_or_local(graph, &1)),
          acceptance_criteria: hop(graph, iri, "hasAcceptance", "criterion"),
          falsifiers: hop(graph, iri, "hasFalsifier", "statement"),
          verifiers: verifiers(graph, iri),
@@ -212,7 +211,7 @@ defmodule GgenIgniter.GallTicket do
     graph
     |> subject_rows(iri, "<#{@gall}#{property}> ?a . ?a <#{@gall}#{value_property}> ?v")
     |> values()
-    |> Enum.map(&"- " <> to_string(&1))
+    |> Enum.map(&("- " <> to_string(&1)))
     |> Enum.sort()
     |> or_none()
   end

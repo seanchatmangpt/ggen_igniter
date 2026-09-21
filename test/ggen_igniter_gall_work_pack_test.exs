@@ -16,7 +16,12 @@ defmodule GgenIgniter.GallWorkPackTest do
   @pack_dir Path.join([__DIR__, "..", "priv", "ggen", "gall_work"])
   @pack_ontology Path.join(@pack_dir, "ontology.ttl")
   @fixture Path.join([__DIR__, "fixtures", "gall_work", "checkpoint-001.ttl"])
-  @missing_standing Path.join([__DIR__, "fixtures", "gall_work", "checkpoint-missing-standing.ttl"])
+  @missing_standing Path.join([
+                      __DIR__,
+                      "fixtures",
+                      "gall_work",
+                      "checkpoint-missing-standing.ttl"
+                    ])
   @ambiguous_standing Path.join([
                         __DIR__,
                         "fixtures",
