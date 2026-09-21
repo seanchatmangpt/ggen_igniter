@@ -8,6 +8,23 @@ defmodule GgenIgniter.EphemeralManufacture do
   durable `:alive` receipt, this module reads the exact admitted output bytes
   and constructs verified provenance plus authority-free retirement intents.
 
+  ## Receipt-bound output identity (GGEN-2601)
+
+  Before any projection may reach `:verified`, the CURRENT bytes of the
+  receipted file set are proven to equal the receipt's committed post-state:
+
+      H(current receipted file-set) == receipt.post_run_hash
+
+  via the SAME `GgenIgniter.Receipt.hash_entries/1` primitive that built
+  `post_run_hash` at finalize time (`hash_files/1`'s disk-reading twin).
+  The bytes are read from disk exactly ONCE, verified as a set, and the
+  projections are manufactured from those same in-memory bytes -- there is
+  no second disk read between verification and attestation, so a receipt
+  `t0` -> mutate output `t1` -> attest `t2` sequence cannot bind
+  post-receipt-modified bytes to a pre-receipt verification receipt. A
+  mismatch (or a receipt carrying no `post_run_hash` at all) is a typed
+  refusal that names both digests.
+
   Invalid provenance configuration is refused before reconciliation starts.
   A post-reconciliation attestation failure never rewrites the already-durable
   run receipt or invents a different standing; the returned error includes the
@@ -115,6 +132,16 @@ defmodule GgenIgniter.EphemeralManufacture do
   # Read each receipted output exactly once. The same in-memory bytes feed
   # both the post_run_hash comparison and projection provenance, closing the
   # receipt->tamper->attest TOCTOU window rather than merely narrowing it.
+
+  # One disk read per receipted file, taken BEFORE any projection is built:
+  # the identity check below and the artifact digests attested into
+  # provenance both consume THESE in-memory bytes, so nothing can change on
+  # disk between verification and attestation (GGEN-2601's TOCTOU closure).
+  # A missing/unreadable file reads as `nil` -- the exact same `:absent`
+  # convention `GgenIgniter.Receipt.hash_files/1` used when the receipt's
+  # `post_run_hash` was computed, so the digest comparison below -- not a
+  # separate readability refusal -- is what decides whether the current
+  # file set still matches the receipted post-state.
   defp read_receipted_files(%Receipt{files: files}) do
     reads =
       Enum.map(files, fn path ->
@@ -127,6 +154,10 @@ defmodule GgenIgniter.EphemeralManufacture do
     {:ok, reads}
   end
 
+
+  # GGEN-2601: prove H(current receipted file-set) == receipt.post_run_hash
+  # before anything is attested. A receipt with no `post_run_hash` cannot
+  # bind any bytes and is refused up front rather than vacuously verified.
   defp verify_receipted_output_identity(%Receipt{post_run_hash: nil}, _reads) do
     {:error, {:refused_ephemeral_attestation, :post_run_hash_missing, nil}}
   end
