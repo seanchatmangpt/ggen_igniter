@@ -17,15 +17,27 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
   5. On admit an event is appended to the `TransitionLog`; replaying the same
      receipt is idempotent (`:already_recorded`).
 
+  ## Options
+
+    * `admission: :kernel` (default) - only the kernel court above.
+    * `admission: :shacl` - additionally admit the WorkOrder through the FULL
+      shipped SHACL shape (`GgenIgniter.SemanticJira.Admission`) before
+      `promote/3`. A violation refuses as
+      `{:error, {:refused, {:refused_work_order, {:shacl_violations, violations}}}}`
+      and nothing is appended. `work_orders: [map()]` supplies the surrounding
+      graph (upstreams, siblings) the cross-order constraints need; `shapes_path:`
+      overrides the shape file. Receipts already in the log are replayed
+      idempotently without re-admission.
+
   Authority stays NONE; this module does not perform DO.
   """
 
   alias GgenIgniter.SemanticJira
-  alias GgenIgniter.SemanticJira.TransitionLog
+  alias GgenIgniter.SemanticJira.{Admission, TransitionLog}
 
   @spec reconcile(map(), map(), Path.t(), keyword()) ::
           {:ok, map(), :appended | :already_recorded} | {:error, {:refused, term()}}
-  def reconcile(work_order, receipt, dir, _opts \\ []) do
+  def reconcile(work_order, receipt, dir, opts \\ []) do
     receipt = stringify(receipt)
     events = TransitionLog.read(dir)
 
@@ -34,6 +46,7 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
          :ok <- check(digest?(receipt["snapshot_digest"]), :invalid_snapshot_digest),
          nil <- recorded(events, receipt),
          {:ok, admitted} <- refuse(SemanticJira.admit_work_order(work_order)),
+         :ok <- shacl_admission(work_order, opts),
          :ok <-
            check(
              is_nil(admitted["candidate_sha"]) or
@@ -68,6 +81,22 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
     else
       {:already, event} -> {:ok, event, :already_recorded}
       other -> other
+    end
+  end
+
+  defp shacl_admission(work_order, opts) do
+    case Keyword.get(opts, :admission, :kernel) do
+      :kernel ->
+        :ok
+
+      :shacl ->
+        case Admission.admit(work_order, Keyword.take(opts, [:work_orders, :shapes_path])) do
+          {:ok, _report} -> :ok
+          {:error, reason} -> {:error, {:refused, reason}}
+        end
+
+      other ->
+        {:error, {:refused, {:unknown_admission_mode, other}}}
     end
   end
 
