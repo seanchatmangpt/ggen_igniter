@@ -63,6 +63,26 @@ defmodule GgenIgniter.SemanticJira do
     |> Digest.sha256()
   end
 
+  @doc """
+  Like `digest/1` but commits to EVERY top-level key, including the reserved
+  digest fields `digest/1` drops (`receipt_digest`, `transition_digest`, ...).
+
+  `digest/1` drops those keys so a record can carry the digest of its own
+  content. A record that merely REFERENCES another artifact's digest (a
+  transition event names the receipt that justified it) must not drop it, or
+  two events that differ only in the receipt they cite share one digest: the
+  second is answered as already recorded with the first's event, and a swapped
+  citation is invisible to any re-derivation. `TransitionLog.append/2` derives
+  `event_digest` with this function.
+  """
+  @spec digest_exact(term()) :: String.t()
+  def digest_exact(value) do
+    value
+    |> canonical()
+    |> Jason.encode!()
+    |> Digest.sha256()
+  end
+
   @doc "Admits and normalizes one map-shaped WorkOrder without creating authority."
   @spec admit_work_order(map()) :: {:ok, json_map()} | refusal()
   def admit_work_order(value) when is_map(value) do
