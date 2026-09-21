@@ -44,11 +44,38 @@ defmodule GgenIgniter.GallSemanticWorkPackTest do
     assert descriptor["dependencies"] == []
 
     expected_keys =
-      ~w(base_sha checkpoint_iri dependencies execution_policy execution_repo_alias goal graph_digest provider repository_identity verifier_suite work_order_iri)
+      ~w(
+        base_sha
+        checkpoint_iri
+        dependencies
+        execution_policy
+        execution_repo_alias
+        goal
+        graph_digest
+        provider
+        repository_identity
+        verifier_suite
+        work_order_iri
+      )
 
     assert Map.keys(descriptor) |> Enum.sort() == Enum.sort(expected_keys)
 
-    for forbidden <- ~w(lease lease_token epoch epoch_id worker worker_id receipt receipt_iri receipt_digest authority standing) do
+    forbidden_keys =
+      ~w(
+        lease
+        lease_token
+        epoch
+        epoch_id
+        worker
+        worker_id
+        receipt
+        receipt_iri
+        receipt_digest
+        authority
+        standing
+      )
+
+    for forbidden <- forbidden_keys do
       refute Map.has_key?(descriptor, forbidden)
     end
 
