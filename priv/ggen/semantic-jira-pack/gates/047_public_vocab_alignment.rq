@@ -1,0 +1,51 @@
+# ADR-011 public-vocabulary alignment gate (anti-join). Every declared sj:
+# class (rdfs:Class) and property (rdf:Property) must be EITHER aligned to a
+# public term by an additive axiom (rdfs:subClassOf, rdfs:subPropertyOf,
+# owl:equivalentClass, owl:equivalentProperty, skos:exactMatch, or
+# skos:closeMatch, targeting oslc_cm / oslc core / dcterms / PROV-O / SKOS /
+# SHACL -- pack-local a2a: targets do NOT count) OR declared sj-native residue
+# with a non-empty sj:residueReason -- never both, never neither.
+# Selected rows are violations; PackHealth (doctor's semantic_jira_pack check)
+# refuses on any row. The gate is deliberately not wired into a projection
+# template: an operator --ontology override that declares its own sj: terms
+# must not lose ticket manufacture over an alignment audit.
+#   ?public bound, ?reason unbound  -> aligned: filtered out (healthy)
+#   ?public unbound, ?reason bound  -> declared residue: filtered out (healthy)
+#   both unbound                    -> VIOLATION: unaligned sj: term with no
+#                                      residue reason
+#   both bound                      -> VIOLATION: residue claimed although a
+#                                      public alignment exists
+# Written with OPTIONAL + FILTER(!BOUND()) and no NOT EXISTS / UNION / property
+# paths so it executes identically on the oxigraph and sparql engines (the
+# admitted sparql engine 0.3.12 does not evaluate EXISTS filters; measured
+# 2026-09-19, see shapes/work-order.shacl.ttl).
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT ?term ?public ?reason WHERE {
+  ?term a ?kind .
+  FILTER(?kind = rdfs:Class || ?kind = rdf:Property)
+  FILTER(STRSTARTS(STR(?term), "https://ggen-igniter.dev/ontology/semantic-jira#"))
+  OPTIONAL {
+    ?term ?align ?public .
+    FILTER(
+      (?align = rdfs:subClassOf || ?align = rdfs:subPropertyOf ||
+       ?align = owl:equivalentClass || ?align = owl:equivalentProperty ||
+       ?align = skos:exactMatch || ?align = skos:closeMatch) &&
+      (STRSTARTS(STR(?public), "http://open-services.net/ns/cm#") ||
+       STRSTARTS(STR(?public), "http://open-services.net/ns/core#") ||
+       STRSTARTS(STR(?public), "http://purl.org/dc/terms/") ||
+       STRSTARTS(STR(?public), "http://www.w3.org/ns/prov#") ||
+       STRSTARTS(STR(?public), "http://www.w3.org/2004/02/skos/core#") ||
+       STRSTARTS(STR(?public), "http://www.w3.org/ns/shacl#"))
+    )
+  }
+  OPTIONAL {
+    ?term sj:residueReason ?reason .
+    FILTER(STR(?reason) != "")
+  }
+  FILTER((!BOUND(?public) && !BOUND(?reason)) || (BOUND(?public) && BOUND(?reason)))
+}
+ORDER BY ?term

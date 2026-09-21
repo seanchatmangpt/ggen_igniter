@@ -861,7 +861,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         |> Path.wildcard()
         |> Enum.sort()
 
-      assert length(gates) == 12
+      # 12 pre-ADR-011 gates + 047_public_vocab_alignment.rq.
+      assert length(gates) == 13
 
       Enum.each(gates, fn gate ->
         assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),

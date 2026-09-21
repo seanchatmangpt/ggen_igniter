@@ -158,6 +158,103 @@ sj:normativeMutation a rdf:Property ; rdfs:range xsd:boolean .
 sj:fromStanding a rdf:Property ; rdfs:range xsd:string .
 sj:toStanding a rdf:Property ; rdfs:range xsd:string .
 
+# BEGIN sj-public-alignment (ADR-011)
+# ── ADR-011: additive alignment of sj: to public vocabularies ──────────────
+# Every declared sj: class and property is EITHER aligned to a public term
+# (oslc_cm / dcterms / PROV-O / SKOS) by an additive axiom, OR declared
+# sj-native residue with an explicit sj:residueReason -- never both, never
+# neither (gates/047_public_vocab_alignment.rq returns a row for each breach;
+# PackHealth refuses on any row). No sj: term is renamed or removed here:
+# generated code, gates and SHACL shapes keep addressing the sj: IRIs, and no
+# engine in this pipeline materializes RDFS entailment, so these axioms are
+# declarations, not new asserted triples on WorkOrders. A consumer that
+# materializes them must do so AFTER SHACL admission (sh:closed shapes do not
+# list the entailed dcterms: properties).
+# Residue means no admissible public counterpart was found (a search, not a
+# proof of absence). Falsifier: a public term whose semantics cover the
+# pack's gates and shapes for a residue term. Equivalence table and the
+# per-term argument: docs/jira/v26.9.20/streams/sj-vocab-reduction.md.
+@prefix oslc_cm: <http://open-services.net/ns/cm#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+# -- aligned classes (specialization: every sj: instance is a public instance) --
+sj:WorkOrder rdfs:subClassOf oslc_cm:ChangeRequest .
+sj:Receipt rdfs:subClassOf prov:Entity .
+sj:PreparedAuthorityReceipt rdfs:subClassOf prov:Entity .
+sj:MachineExperience rdfs:subClassOf prov:Entity .
+sj:ProcessFinding rdfs:subClassOf prov:Entity .
+sj:Projection rdfs:subClassOf prov:Entity .
+sj:Subject rdfs:subClassOf prov:Entity .
+sj:RepositorySubject rdfs:subClassOf prov:Entity .
+sj:Actuation rdfs:subClassOf prov:Activity .
+
+# -- aligned properties (specialization of a dcterms:/skos: property) --
+sj:subject rdfs:subPropertyOf dcterms:subject .
+sj:requiresCourt rdfs:subPropertyOf dcterms:requires .
+sj:requiresEvidence rdfs:subPropertyOf dcterms:requires .
+sj:receiptClass rdfs:subPropertyOf dcterms:type .
+sj:projectionType rdfs:subPropertyOf dcterms:type .
+sj:extension rdfs:subPropertyOf dcterms:format .
+sj:residueReason a rdf:Property ; rdfs:range xsd:string ;
+    rdfs:subPropertyOf skos:note .
+
+# -- sj-native residue: classes --
+sj:Court sj:residueReason "Independent verification procedure bound to an exact-head receipt; prov:Plan (intended steps) and oslc_qm:TestPlan (test scope) are adjacent, not equivalent. ADR-011 names Court irreducible." .
+sj:EvidenceRequirement sj:residueReason "Individuals denote evidence KINDS a court must observe, not produced evidence; a prov:Entity subclass would assert each requirement is itself evidence. The ADR-011 prov hypothesis is falsified for this class." .
+sj:AcceptanceCriterion sj:residueReason "Checkable predicate a WorkOrder must satisfy to be accepted; oslc_rm:Requirement is a stated need, not an acceptance predicate. No oslc_cm/dcterms/PROV-O class found." .
+sj:Falsifier sj:residueReason "Observation that defeats a claim; no public class found. ADR-011 names Falsifier irreducible." .
+sj:Action sj:residueReason "Admitted next step already specializing a2a:Skill; no oslc_cm/dcterms/PROV-O class for an admitted next action found." .
+sj:Checkpoint sj:residueReason "Admission boundary that closes only after a real court executes; oslc_cm:State (workflow lifecycle value) and prov:Plan (steps) are adjacent, neither is a closable boundary." .
+sj:DependencyEdge sj:residueReason "Reified typed edge carrying dependencyType, requiredStanding and upstreamWorkOrder; dcterms:requires is a plain binary property and cannot carry a required standing." .
+sj:ProjectionSpec sj:residueReason "Deterministic generator recipe with projectionType, extension, generatorIdentity and authorityClaim NONE; prov:Plan (intended steps) does not carry a generator identity or an authority claim." .
+sj:LeaseRequest sj:residueReason "Bounded runtime authority REQUEST that grants nothing; prov:Delegation records an assignment already made, so the subclass axiom would be false." .
+sj:Refusal sj:residueReason "Typed admission refusal record (REFUSED with a class); no oslc_cm/dcterms/PROV-O class for a typed refusal found." .
+sj:Prediction sj:residueReason "Candidate-only prediction with observed standing UNKNOWN; no oslc_cm/dcterms/PROV-O class for a forecast found." .
+sj:RepairLineage sj:residueReason "Failure-to-repair derivation record; prov:Bundle and prov:wasDerivedFrom are candidates but no instance or consumer exists to confirm bundle semantics (UNVERIFIED)." .
+sj:StandingTransition sj:residueReason "Intent to move a WorkOrder between evidence-bounded standings (from/to/observed); oslc_cm:state is workflow lifecycle, not epistemic standing." .
+
+# -- sj-native residue: properties --
+sj:repository sj:residueReason "owner/name repository slug string for the base; no oslc_cm/dcterms/PROV-O property for a source-repository slug found (dcterms:source expects a related resource, not a slug)." .
+sj:baseSha sj:residueReason "Exact git commit identity of the base; no public git-revision property in the four vocabularies (prov:wasRevisionOf links entities, it does not carry a SHA)." .
+sj:requiresGitGroundTruth sj:residueReason "Opt-in flag forcing a real git work-tree check of baseSha; pack-specific admission switch with no public counterpart." .
+sj:standing sj:residueReason "Evidence-bounded epistemic standing (UNKNOWN, PARTIAL_ALIVE, ALIVE, BLOCKED, ...); oslc_cm:status/oslc_cm:state are workflow lifecycle, and a closed change is not ALIVE. ADR-011 names standing residue." .
+sj:evidenceCeiling sj:residueReason "Highest evidence class an order may claim; no public counterpart. ADR-011 names evidence ceiling residue." .
+sj:authorityCeiling sj:residueReason "Authority lattice ceiling (OBSERVE, SELECT, CONSTRUCT); oslc_cm:authorizer names an agent, not a ceiling on consequence." .
+sj:promotionRule sj:residueReason "Normative text stating when standing may advance; dcterms:conformsTo names a standard, not a promotion rule." .
+sj:replayIdentity sj:residueReason "Replay identity string; a dcterms:identifier subproperty would give a WorkOrder two identifiers and violate the single-identifier shape under entailment." .
+sj:dependsOn sj:residueReason "Range is a DependencyEdge node, not the required resource; dcterms:requires would assert the edge itself is required, which is false." .
+sj:acceptance sj:residueReason "Links a WorkOrder to the criterion that defines acceptance; dcterms:requires is a need, not an accepted-when-satisfied relation." .
+sj:falsifier sj:residueReason "Links a WorkOrder to the observation that would defeat its claim; no public counterpart (class Falsifier is residue)." .
+sj:nextCheckpoint sj:residueReason "Range includes non-WorkOrder Checkpoint individuals, so oslc_cm:relatedChangeRequest (change request to change request) would be false for those values." .
+sj:nextAction sj:residueReason "Links a WorkOrder to its admitted next Action; no oslc_cm/dcterms/PROV-O property found." .
+sj:projection sj:residueReason "Value is a ProjectionSpec recipe, not the projected resource; dcterms:hasFormat needs the format variant itself and prov:wasDerivedFrom runs in the opposite direction." .
+sj:receipt sj:residueReason "Order-to-receipt evidence link; PROV-O relations run entity to generator or derivation source and a receipt is neither, so prov:wasGeneratedBy and prov:wasDerivedFrom would be false." .
+sj:authority sj:residueReason "Points at a prepared authority; prov:qualifiedDelegation has a different domain and asserts a completed delegation." .
+sj:lease sj:residueReason "Points at a bounded runtime lease request; no public counterpart (LeaseRequest is residue)." .
+sj:worker sj:residueReason "Runtime worker assignment; prov:wasAssociatedWith has domain prov:Activity, so a subproperty axiom would entail every WorkOrder is an Activity." .
+sj:candidateSha sj:residueReason "Exact git identity of the candidate head; no public git-revision property." .
+sj:subjectSha sj:residueReason "Exact git identity of the subject; a dcterms:identifier subproperty would violate the single-identifier shape under entailment." .
+sj:pathScope sj:residueReason "Repository-relative path prefixes a work order may touch; dcterms:spatial and prov:atLocation denote places, not file scopes." .
+sj:authorityRequirement sj:residueReason "Authority level a work order requires (NONE, SELECT, CONSTRUCT, ...); part of the pack authority lattice, no public counterpart." .
+sj:authorityClaim sj:residueReason "Authority a projection claims (always NONE); no public counterpart, gate 046 and the projection shape enforce it." .
+sj:requiredStanding sj:residueReason "Standing an upstream order must hold for a dependency to be satisfied; standing vocabulary is residue." .
+sj:requiredReceiptDigest sj:residueReason "sha256 digest of the receipt a dependency requires; no public counterpart." .
+sj:requiresReceiptClass sj:residueReason "Receipt classes a WorkOrder requires; dcterms:type describes the resource itself, and this constrains a different resource (the receipt)." .
+sj:dependencyType sj:residueReason "Kind of dependency carried by a DependencyEdge; no public counterpart (DependencyEdge is residue)." .
+sj:upstreamWorkOrder sj:residueReason "Domain is the DependencyEdge, not the dependent order, so dcterms:requires would be asserted from the wrong subject; a property chain from sj:dependsOn is future work." .
+sj:generatorIdentity sj:residueReason "Literal generator identity string; prov:wasGeneratedBy and prov:wasAttributedTo need resource values, and minting agent nodes is a rename-class change out of scope." .
+sj:workOrderDigest sj:residueReason "sha256 definition digest of a WorkOrder; a dcterms:identifier subproperty would violate the single-identifier shape under entailment." .
+sj:concurrencyKey sj:residueReason "Exclusivity scope key for lease requests; no public counterpart." .
+sj:active sj:residueReason "Lease-in-force flag; oslc_cm:closed and oslc_cm:inProgress are change-request workflow booleans with different domain and semantics." .
+sj:exclusive sj:residueReason "Lease exclusivity flag; no public counterpart." .
+sj:candidateOnly sj:residueReason "Marks a Prediction as candidate-only (never standing); no public counterpart." .
+sj:observedStanding sj:residueReason "Observed standing recorded on a Prediction or transition; standing vocabulary is residue." .
+sj:normativeMutation sj:residueReason "Flag stating an observation must not mutate normative law; no public counterpart." .
+sj:fromStanding sj:residueReason "Source standing of a StandingTransition; standing vocabulary is residue (a2a:fromStanding is a separate a2a: term)." .
+sj:toStanding sj:residueReason "Target standing of a StandingTransition; standing vocabulary is residue." .
+# END sj-public-alignment (ADR-011)
+
 sj:source-evidence a sj:EvidenceRequirement ;
     rdfs:label "Source evidence" ;
     dcterms:description "Exact canonical-source identity evidence." .

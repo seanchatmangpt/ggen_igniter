@@ -26,6 +26,11 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
      resolving to ZERO rows still refuses outright (a pack that manufactures
      nothing is not healthy).
 
+  Violation gates (`@zero_row_gates`, currently the ADR-011
+  `public_vocab_alignment` anti-join) invert phase 1's contract: they select
+  breaches only, so a health-passing pack must return ZERO rows from them, and
+  any row is a health failure naming the offending sj: terms.
+
   Fail-closed contract: `check/1` never raises. Any failure anywhere in the
   pipeline -- missing ontology, Turtle syntax error, a gate that crashes the
   engine, a template with an undefined binding, a driver query resolving to
@@ -43,6 +48,13 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
   # disclosed ORDER BY defect (`GgenIgniter.Query`'s moduledoc) makes it the
   # wrong engine to certify gate health with.
   @engine "oxigraph"
+
+  # Gates (by name, i.e. `gates/NNN_<name>.rq` with the digit prefix stripped,
+  # as `GgenIgniter.Pack.discover_queries/1` names them) whose contract is
+  # "returns ZERO rows on a healthy pack": they select violations only.
+  # `public_vocab_alignment` (`047_public_vocab_alignment.rq`) is the ADR-011
+  # anti-join over sj: terms.
+  @zero_row_gates ~w(public_vocab_alignment)
 
   @doc """
   Runs the full health probe against the pack directory `pack_dir` (the
@@ -117,8 +129,8 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
   # health report (the message is the product).
   defp execute_gate!(engine, context, name, path) do
     case capture_gate_error(engine, context, path) do
-      :ok ->
-        :ok
+      {:ok, rows} ->
+        refuse_violation_rows!(name, path, rows)
 
       {:error, error} ->
         raise ArgumentError,
@@ -128,10 +140,36 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
   end
 
   defp capture_gate_error(engine, context, path) do
-    engine.run(context, File.read!(path))
-    :ok
+    {:ok, engine.run(context, File.read!(path))}
   rescue
     error -> {:error, error}
+  end
+
+  # A violation gate selects only breaches, so ANY row is a health failure
+  # (ADR-011: an sj: term neither aligned to a public vocabulary nor declared
+  # sj-native residue, or claimed as both). Every other gate is a projection
+  # driver whose rows are legitimate content, so only execution is checked.
+  defp refuse_violation_rows!(name, path, rows) do
+    if name in @zero_row_gates and rows != [] do
+      shown = rows |> Enum.take(5) |> Enum.map_join("; ", &violation_summary/1)
+      more = if length(rows) > 5, do: " (+#{length(rows) - 5} more)", else: ""
+
+      raise ArgumentError,
+            "gate #{name} (#{path}) returned #{length(rows)} violation " <>
+              "row#{if length(rows) == 1, do: "", else: "s"} against the packaged ontology: " <>
+              shown <> more
+    end
+
+    :ok
+  end
+
+  defp violation_summary(row) do
+    kind =
+      if row["public"] && row["reason"],
+        do: "aligned AND declared residue",
+        else: "neither aligned nor declared residue"
+
+    "#{row["term"] || inspect(row)} (#{kind})"
   end
 
   defp template_paths(pack_dir) do
