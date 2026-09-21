@@ -13,7 +13,7 @@ defmodule GgenIgniter.SemanticJiraDescriptorBridgeTest do
   use ExUnit.Case, async: false
 
   alias GgenIgniter.SemanticJira
-  alias GgenIgniter.SemanticJira.{Descriptor, Ledger, Observation, Reconciler}
+  alias GgenIgniter.SemanticJira.{CourtMap, Descriptor, Ledger, Observation, Reconciler}
 
   @moduletag timeout: 600_000
 
@@ -207,7 +207,8 @@ defmodule GgenIgniter.SemanticJiraDescriptorBridgeTest do
       assert bridge["requires"] == %{
                "courts" => ["court:test"],
                "acceptance" => ["acceptance:test"],
-               "falsifiers" => ["falsifier:test"]
+               "falsifiers" => ["falsifier:test"],
+               "evidence" => ["verification"]
              }
     end
 
@@ -908,6 +909,351 @@ defmodule GgenIgniter.SemanticJiraDescriptorBridgeTest do
                mix_task(dir, ["semantic_jira.observe", "--finding", finding_path])
 
       assert File.read!("priv/ggen/semantic-jira-pack/ontology.ttl") == before_ontology
+    end
+  end
+
+  # --- fabric court receipt (IRI-keyed verdicts witnessed by the fabric) -----
+
+  describe "return edge: fabric court receipt binding" do
+    @evidence ~w(https://sj.test#local-execution-evidence https://sj.test#receipt-evidence)
+
+    defp witnessed_wo(id, overrides \\ %{}) do
+      work_order(
+        id,
+        Map.merge(
+          %{
+            "required_courts" => [@sj <> "exact-head-projection-court"],
+            "required_evidence" => @evidence,
+            "acceptance" => [@sj <> "obs-acc-delta"],
+            "falsifiers" => [@sj <> "obs-fal-delta"]
+          },
+          overrides
+        )
+      )
+    end
+
+    # A1 court-receipt producer shape: the suite step is named "test"; the
+    # fabric court receipt binds each court IRI to that step at the sealed head.
+    defp court_sealed_receipt(bridge, overrides \\ %{}) do
+      head = sha("head:" <> bridge["identity"])
+
+      court_receipt = %{
+        "binding" => %{"suite" => "eds-dod", "step_id" => "test", "head" => head},
+        "acceptance_results" => %{(@sj <> "obs-acc-delta") => true},
+        "falsifier_results" => %{(@sj <> "obs-fal-delta") => "survived"},
+        "court_results" => %{
+          (@sj <> "exact-head-projection-court") => %{
+            "passed" => true,
+            "suite" => "eds-dod",
+            "step_id" => "test",
+            "head" => head
+          }
+        }
+      }
+
+      fabric =
+        Map.merge(
+          %{
+            "status" => "pass",
+            "steps" => [%{"id" => "test", "status" => "pass"}],
+            "court_receipt" => court_receipt
+          },
+          overrides[:fabric] || %{}
+        )
+
+      base =
+        Map.merge(
+          %{
+            "epoch_id" => uuid(),
+            "run_id" => uuid(),
+            "receipt_id" => uuid(),
+            "outcome" => "alive",
+            "final_head" => head,
+            "head_verified" => true,
+            "fabric_verifier" => fabric,
+            "bridge" => bridge
+          },
+          Map.delete(overrides, :fabric)
+        )
+
+      Map.put(base, "receipt_digest", Descriptor.receipt_digest(base))
+    end
+
+    # Tampering helper: recompute the sealed digest over the tampered contents
+    # (the digest must cover the map it seals -- same as the fabric does).
+    defp resealed(receipt),
+      do: Map.put(receipt, "receipt_digest", Descriptor.receipt_digest(receipt))
+
+    test "a fabric court receipt with a passing binding witnesses the court and elevates the required evidence" do
+      wo = witnessed_wo("SJ-W1")
+      assert {:ok, descriptor} = Descriptor.build([wo], [], "SJ-W1", opts())
+      bridge = descriptor["bridge"]
+      assert {:ok, receipt} = Descriptor.receipt_from_xaas(court_sealed_receipt(bridge), bridge)
+
+      court_iri = @sj <> "exact-head-projection-court"
+      assert get_in(receipt, ["court_results", court_iri, "passed"]) == true
+      assert receipt["acceptance_results"][@sj <> "obs-acc-delta"] == true
+      assert receipt["falsifier_results"][@sj <> "obs-fal-delta"] == "survived"
+
+      for evidence_iri <- @evidence do
+        assert evidence_iri in receipt["evidence_types"]
+      end
+    end
+
+    test "a court receipt bound to a DIFFERENT head does not witness the court nor elevate evidence" do
+      wo = witnessed_wo("SJ-W2")
+      assert {:ok, descriptor} = Descriptor.build([wo], [], "SJ-W2", opts())
+      bridge = descriptor["bridge"]
+
+      tampered =
+        court_sealed_receipt(bridge)
+        |> put_in(
+          ["fabric_verifier", "court_receipt", "court_results"],
+          %{
+            (@sj <> "exact-head-projection-court") => %{
+              "passed" => true,
+              "suite" => "eds-dod",
+              "step_id" => "test",
+              "head" => sha("some-other-head")
+            }
+          }
+        )
+        |> resealed()
+
+      assert {:ok, receipt} = Descriptor.receipt_from_xaas(tampered, bridge)
+      court_iri = @sj <> "exact-head-projection-court"
+      assert get_in(receipt, ["court_results", court_iri, "passed"]) == false
+
+      for evidence_iri <- @evidence do
+        refute evidence_iri in receipt["evidence_types"]
+      end
+    end
+
+    test "a court receipt bound to a FAILING step does not witness the court" do
+      wo = witnessed_wo("SJ-W3")
+      assert {:ok, descriptor} = Descriptor.build([wo], [], "SJ-W3", opts())
+      bridge = descriptor["bridge"]
+
+      failing_step =
+        court_sealed_receipt(bridge)
+        |> put_in(["fabric_verifier", "steps"], [%{"id" => "test", "status" => "fail"}])
+        |> put_in(["fabric_verifier", "status"], "fail")
+        |> Map.put("outcome", "build_broken")
+        |> resealed()
+
+      assert {:ok, receipt} = Descriptor.receipt_from_xaas(failing_step, bridge)
+      court_iri = @sj <> "exact-head-projection-court"
+      assert get_in(receipt, ["court_results", court_iri, "passed"]) == false
+    end
+
+    test "the original step-id binding (step id IS the court IRI) still witnesses" do
+      wo = witnessed_wo("SJ-W4")
+
+      assert {:ok, descriptor} = Descriptor.build([wo], [], "SJ-W4", opts())
+      bridge = descriptor["bridge"]
+
+      legacy =
+        xaas_receipt(bridge, %{
+          "fabric_verifier" => %{
+            "status" => "pass",
+            "steps" => [%{"id" => @sj <> "exact-head-projection-court", "status" => "pass"}],
+            "court_receipt" => %{
+              "acceptance_results" => %{(@sj <> "obs-acc-delta") => true},
+              "falsifier_results" => %{(@sj <> "obs-fal-delta") => "survived"}
+            }
+          }
+        })
+
+      assert {:ok, receipt} = Descriptor.receipt_from_xaas(legacy, bridge)
+      court_iri = @sj <> "exact-head-projection-court"
+      assert get_in(receipt, ["court_results", court_iri, "passed"]) == true
+
+      for evidence_iri <- @evidence do
+        assert evidence_iri in receipt["evidence_types"]
+      end
+    end
+  end
+
+  # --- descriptor court_map (upstream mint, fabric consumes) -----------------
+
+  describe "descriptor court_map option" do
+    @court_map %{
+      "acceptance" => %{"acceptance:test" => %{"test" => "tests/p.py::t_one"}},
+      "falsifiers" => %{"falsifier:test" => %{"test" => "tests/p.py::t_two"}},
+      "courts" => ["court:test"]
+    }
+
+    test "a valid court map projects onto the descriptor and survives JSON round-trip" do
+      descriptor = build!(fleet(), [], "SJ-A", court_map: @court_map)
+      assert descriptor["court_map"] == @court_map
+      assert descriptor == descriptor |> Jason.encode!() |> Jason.decode!()
+    end
+
+    test "no court map option means no court_map key (today's behavior)" do
+      descriptor = build!(fleet(), [], "SJ-A")
+      refute Map.has_key?(descriptor, "court_map")
+    end
+
+    test "a foreign acceptance IRI is refused, never trimmed" do
+      foreign = Map.put(@court_map, "acceptance", %{"foreign:iri" => %{"test" => "t"}})
+
+      assert {:error,
+              {:descriptor_refused,
+               {:court_map_refused, {:foreign_iri, "acceptance", "foreign:iri"}}}} =
+               Descriptor.build(fleet(), [], "SJ-A", opts(court_map: foreign))
+    end
+
+    test "an unknown key is refused" do
+      rogue = Map.put(@court_map, "punishment", %{})
+
+      assert {:error,
+              {:descriptor_refused, {:court_map_refused, {:unknown_keys, ["punishment"]}}}} =
+               Descriptor.build(fleet(), [], "SJ-A", opts(court_map: rogue))
+    end
+
+    test "an all-empty court map is refused" do
+      assert {:error, {:descriptor_refused, {:court_map_refused, :empty}}} =
+               Descriptor.build(fleet(), [], "SJ-A", opts(court_map: %{"courts" => []}))
+    end
+
+    test "a malformed predicate is refused" do
+      bad = %{"acceptance" => %{"acceptance:test" => %{"regex" => ".*"}}}
+
+      assert {:error,
+              {:descriptor_refused,
+               {:court_map_refused,
+                {:invalid_predicate, "acceptance", "acceptance:test", %{"regex" => ".*"}}}}} =
+               Descriptor.build(fleet(), [], "SJ-A", opts(court_map: bad))
+    end
+  end
+
+  # --- end-to-end: court-mapped descriptor -> fabric receipt -> transition ---
+
+  describe "end-to-end: court map closes the loop the wave-7 crown refused" do
+    test "court receipt with binding -> reconcile -> ONE ALIVE transition -> dependent eligible" do
+      ledger =
+        Path.join(System.tmp_dir!(), "sj-court-e2e-#{System.unique_integer([:positive])}.ndjson")
+
+      upstream = witnessed_wo("SJ-E1")
+
+      dependent =
+        work_order("SJ-E2", %{
+          "dependencies" => [
+            %{
+              "upstream" => "SJ-E1",
+              "type" => "requiresSemanticIdentity",
+              "required_standing" => "ALIVE"
+            }
+          ]
+        })
+
+      wos = [upstream, dependent]
+
+      assert {:ok, descriptor} = Descriptor.build(wos, [], "SJ-E1", opts())
+      xaas = court_sealed_receipt(descriptor["bridge"])
+      assert {:ok, receipt} = Descriptor.receipt_from_xaas(xaas, descriptor["bridge"])
+      assert {:ok, event} = Ledger.reconcile_and_append(wos, ledger, receipt)
+      assert event["identity"] == "SJ-E1"
+      assert event["from"] == "UNKNOWN"
+      assert event["to"] == "ALIVE"
+
+      # ONE transition only; replaying the same receipt is idempotent.
+      assert {:ok, :already_applied, ^event} = Ledger.reconcile_and_append(wos, ledger, receipt)
+      assert {:ok, events} = Ledger.read(ledger)
+      assert length(events) == 1
+
+      {:ok, %{eligible: eligible, blocked: blocked}} = Reconciler.frontier(wos, events)
+      assert Enum.any?(eligible, &(&1["identity"] == "SJ-E2"))
+      assert Enum.any?(blocked, &(&1["identity"] == "SJ-E1" and &1["reason"] == "standing=ALIVE"))
+    end
+  end
+
+  # --- court map minting from the ontology -----------------------------------
+
+  describe "mix semantic_jira.court_map: ontology witness facts become the court map" do
+    @ttl """
+    @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+    @prefix dcterms: <http://purl.org/dc/terms/> .
+
+    sj:obs-abc123
+        a sj:WorkOrder ;
+        dcterms:identifier "CROWN-X-001" ;
+        sj:requiresCourt <https://ggen-igniter.dev/ontology/semantic-jira#exact-head-projection-court> ;
+        sj:acceptance <https://ggen-igniter.dev/ontology/semantic-jira#obs-abc123-acc-a>, <https://ggen-igniter.dev/ontology/semantic-jira#obs-abc123-acc-b> ;
+        sj:falsifier <https://ggen-igniter.dev/ontology/semantic-jira#obs-abc123-fal-a> .
+
+    <https://ggen-igniter.dev/ontology/semantic-jira#obs-abc123-acc-a> a sj:AcceptanceCriterion ;
+        dcterms:description "acc a" ;
+        sj:witnessedBy "tests/test_seed.py::test_a" .
+
+    <https://ggen-igniter.dev/ontology/semantic-jira#obs-abc123-acc-b> a sj:AcceptanceCriterion ;
+        dcterms:description "acc b" ;
+        sj:witnessedBy "tests/test_seed.py::test_b" .
+
+    <https://ggen-igniter.dev/ontology/semantic-jira#obs-abc123-fal-a> a sj:Falsifier ;
+        dcterms:description "fal a" ;
+        sj:witnessedBy "tests/test_seed.py::test_a" .
+    """
+
+    test "witnessed acceptance/falsifier nodes project to the fabric court-map shape" do
+      assert {:ok, court_map} = CourtMap.from_ontology(@ttl, "CROWN-X-001")
+
+      assert court_map == %{
+               "acceptance" => %{
+                 "https://ggen-igniter.dev/ontology/semantic-jira#obs-abc123-acc-a" => %{
+                   "test" => "tests/test_seed.py::test_a"
+                 },
+                 "https://ggen-igniter.dev/ontology/semantic-jira#obs-abc123-acc-b" => %{
+                   "test" => "tests/test_seed.py::test_b"
+                 }
+               },
+               "falsifiers" => %{
+                 "https://ggen-igniter.dev/ontology/semantic-jira#obs-abc123-fal-a" => %{
+                   "test" => "tests/test_seed.py::test_a"
+                 }
+               },
+               "courts" => [
+                 "https://ggen-igniter.dev/ontology/semantic-jira#exact-head-projection-court"
+               ]
+             }
+    end
+
+    test "an unwitnessed acceptance IRI is a typed refusal, never a partial map" do
+      unwitnessed =
+        String.replace(@ttl, "sj:witnessedBy \"tests/test_seed.py::test_b\" .", ".")
+
+      assert {:error, {:court_map_refused, {:unwitnessed, iri}}} =
+               CourtMap.from_ontology(unwitnessed, "CROWN-X-001")
+
+      assert iri == "https://ggen-igniter.dev/ontology/semantic-jira#obs-abc123-acc-b"
+    end
+
+    test "an unknown identity is refused" do
+      assert {:error, {:court_map_refused, {:work_order_not_found, "NOPE"}}} =
+               CourtMap.from_ontology(@ttl, "NOPE")
+    end
+
+    test "the mix task emits the map over a real ontology file" do
+      dir = System.tmp_dir!()
+      ttl_path = Path.join(dir, "ontology-#{System.unique_integer([:positive])}.ttl")
+      File.write!(ttl_path, @ttl)
+
+      {code, out, err} =
+        mix_task(dir, [
+          "semantic_jira.court_map",
+          "--ontology",
+          ttl_path,
+          "--identity",
+          "CROWN-X-001"
+        ])
+
+      assert code == 0, "stderr: #{inspect(err)}"
+
+      assert out["courts"] == [
+               "https://ggen-igniter.dev/ontology/semantic-jira#exact-head-projection-court"
+             ]
+
+      assert map_size(out["acceptance"]) == 2
     end
   end
 end

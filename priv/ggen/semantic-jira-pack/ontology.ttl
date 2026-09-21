@@ -1892,15 +1892,18 @@ sj:obs-275a1f5e4de7
 
 <https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-acceptance-delta> a sj:AcceptanceCriterion ;
     rdfs:label "Observation acceptance 275a1f5e4de7" ;
-    dcterms:description "The observed delta 275a1f5e4de7 no longer reproduces at the candidate head, or the permanent guard for it exists and passes." .
+    dcterms:description "The observed delta 275a1f5e4de7 no longer reproduces at the candidate head, or the permanent guard for it exists and passes." ;
+    sj:witnessedBy "tests/test_w7_crown_seed.py::test_dedup_labels_normalizes_before_comparing" .
 
 <https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-acceptance-guard> a sj:AcceptanceCriterion ;
     rdfs:label "Observation acceptance 275a1f5e4de7" ;
-    dcterms:description "The observed delta 275a1f5e4de7 no longer reproduces at the candidate head, or the permanent guard for it exists and passes." .
+    dcterms:description "The observed delta 275a1f5e4de7 no longer reproduces at the candidate head, or the permanent guard for it exists and passes." ;
+    sj:witnessedBy "tests/test_w7_crown_seed.py::test_dedup_labels_preserves_first_occurrence_order" .
 
 <https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-falsifier-delta> a sj:Falsifier ;
     rdfs:label "Observation falsifier 275a1f5e4de7" ;
-    dcterms:description "Re-observe the delta 275a1f5e4de7 at the candidate head; a reproduction falsifies the repair." .
+    dcterms:description "Re-observe the delta 275a1f5e4de7 at the candidate head; a reproduction falsifies the repair." ;
+    sj:witnessedBy "tests/test_w7_crown_seed.py::test_dedup_labels_normalizes_before_comparing" .
 
 <https://ggen-igniter.dev/ontology/semantic-jira#obs-275a1f5e4de7-action> a sj:Action ;
     rdfs:label "Resolve observed delta 275a1f5e4de7" ;

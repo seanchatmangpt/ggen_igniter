@@ -61,12 +61,14 @@ defmodule GgenIgniter.SemanticJira.Cli do
          {:ok, ledger} <- required(opts, :ledger),
          {:ok, identity} <- required(opts, :identity),
          {:ok, suite} <- required(opts, :verifier_suite),
-         {:ok, aliases} <- aliases(opts) do
+         {:ok, aliases} <- aliases(opts),
+         {:ok, court_map} <- optional_court_map(opts) do
       with {:ok, events} <- Ledger.read(ledger),
            {:ok, descriptor} <-
              Descriptor.build(work_orders, events, identity,
                verifier_suite: suite,
-               aliases: aliases
+               aliases: aliases,
+               court_map: court_map
              ) do
         {0, descriptor}
       else
@@ -131,6 +133,17 @@ defmodule GgenIgniter.SemanticJira.Cli do
 
   defp optional_json(opts, key) do
     if Keyword.get(opts, key), do: json_file(opts, key), else: {:ok, nil}
+  end
+
+  # --court-map PATH: the minted court map JSON (mix semantic_jira.court_map).
+  # Absent = no court receipt contract; present but non-JSON = invalid.
+  defp optional_court_map(opts) do
+    case optional_json(opts, :court_map) do
+      {:ok, nil} -> {:ok, nil}
+      {:ok, value} when is_map(value) -> {:ok, value}
+      {:ok, _other} -> {:invalid, "--court-map must be a JSON object"}
+      {:invalid, _} = invalid -> invalid
+    end
   end
 
   defp aliases(opts) do

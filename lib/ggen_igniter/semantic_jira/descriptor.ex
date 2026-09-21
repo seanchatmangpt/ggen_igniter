@@ -18,14 +18,27 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   `build/4` returns the exact XaaS key set (`work_order_iri`, `checkpoint_iri`,
   `graph_digest`, `repository_identity`, `execution_repo_alias`, `base_sha`,
   `goal`, `provider`, `verifier_suite`, `execution_policy`, `dependencies`)
-  plus one extra key, `"bridge"`. `SemanticWork.admit/1` keeps unknown keys and
-  `materialize/2` ignores them, so the whole JSON object can be handed to XaaS
-  unchanged. XaaS must echo `"bridge"` verbatim in its receipt export; the
-  return edge refuses any receipt whose echo differs.
+  plus one extra key, `"bridge"`, and -- when a `:court_map` option is
+  supplied -- the optional `"court_map"` field. `SemanticWork.admit/1` keeps
+  unknown keys and `materialize/2` ignores them, so the whole JSON object can
+  be handed to XaaS unchanged. XaaS must echo `"bridge"` verbatim in its
+  receipt export; the return edge refuses any receipt whose echo differs.
 
   `bridge` = `identity`, `definition_digest`, `source_snapshot_digest`,
   `ledger_tail`, `repository`, `base_sha`, `subject`, `evidence_ceiling`,
-  `replay_identity`, `requires` (`courts`, `acceptance`, `falsifiers`).
+  `replay_identity`, `requires` (`courts`, `acceptance`, `falsifiers`,
+  `evidence`).
+
+  `court_map` binds the work order's minted acceptance/falsifier IRIs to the
+  one suite test whose outcome decides each verdict, plus the required court
+  IRIs (`%{"acceptance" => %{iri => %{"test" => id}}, "falsifiers" => ...,
+  "courts" => [iri]}` -- exactly the shape `Xaas.Ultracode.CourtReceipt`
+  admits). It is UPSTREAM data minted with the work order
+  (`mix semantic_jira.court_map` projects it from the pack ontology's
+  `sj:witnessedBy` facts); the fabric persists it on the Run at
+  materialization and uses it at close time to WITNESS IRI-keyed verdicts
+  into the sealed receipt. Without a court map the descriptor is unchanged
+  and the fabric behaves exactly as before.
 
   ## XaaS receipt contract (input of `receipt_from_xaas/2`)
 
@@ -38,8 +51,13 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
           "status" => "pass" | "fail" | "timeout" | "error",
           "steps" => [%{"id", "status"}],
           "court_receipt" => %{               # optional, structured observations only
+            "binding" => %{                   # optional fabric court binding
+              "suite" => "...", "step_id" => "...", "head" => "40-hex",
+              "argv_sha256" => "sha256:..."},
             "acceptance_results" => %{acceptance => true | false},
             "falsifier_results" => %{falsifier => "survived" | "killed" | true | false},
+            "court_results" => %{court => %{"passed" => bool, "step_id" => "...",
+                                            "head" => "...", ...}},
             "evidence_types" => [...], "receipt_classes" => [...],
             "evidence_ceiling" => "...", "replay_passed" => bool,
             "replay_identity" => "...", "authority_receipt" => %{...}
@@ -51,8 +69,16 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
 
   Standing is never inferred from `outcome` alone. Acceptance and falsifier
   results come only from `court_receipt` and only count when the fabric
-  verifier passed; a required court passes only when a fabric-verifier step
-  with that exact `id` passed. Fabric-only evidence reaches at most the
+  verifier passed. A required court passes one of two ways, BOTH witnessed by
+  the verifier's own step list: a step whose `id` IS the court IRI passed, or
+  the fabric court receipt binds the court to a passing step at the sealed
+  head (`court_results[court]` with `"passed": true` and a `step_id` that
+  resolves to a passing step in THIS receipt, at `head == final_head`). When
+  a required court is witnessed, the bridge's `requires.evidence` IRIs (the
+  work order's own `required_evidence`, echoed verbatim, never invented)
+  count as declared evidence types: the witnessed court is exactly what
+  elevates the fabric's local execution + sealed receipt into the work
+  order's evidence classes. Fabric-only evidence reaches at most the
   `"repository-local"` ceiling.
   """
 
@@ -93,24 +119,26 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
          {:ok, work_order} <- eligible(projected, evidence, identity),
          {:ok, suite} <- verifier_suite(opts),
          {:ok, exec_alias} <- execution_alias(work_order, opts),
-         {:ok, dependencies} <- dependencies(work_order, events, prefix) do
+         {:ok, dependencies} <- dependencies(work_order, events, prefix),
+         {:ok, court_map} <- court_map(opts, work_order) do
       tail = Reconciler.tail_digest(events)
 
-      {:ok,
-       %{
-         "work_order_iri" => prefix <> identity,
-         "checkpoint_iri" => @checkpoint_prefix <> tail,
-         "graph_digest" => graph_digest(projected),
-         "repository_identity" => work_order["repository"],
-         "execution_repo_alias" => exec_alias,
-         "base_sha" => work_order["base_sha"],
-         "goal" => goal(work_order),
-         "provider" => "zcode",
-         "verifier_suite" => suite,
-         "execution_policy" => "autonomic_wave_attempt",
-         "dependencies" => dependencies,
-         "bridge" => bridge(work_order, tail)
-       }}
+      descriptor = %{
+        "work_order_iri" => prefix <> identity,
+        "checkpoint_iri" => @checkpoint_prefix <> tail,
+        "graph_digest" => graph_digest(projected),
+        "repository_identity" => work_order["repository"],
+        "execution_repo_alias" => exec_alias,
+        "base_sha" => work_order["base_sha"],
+        "goal" => goal(work_order),
+        "provider" => "zcode",
+        "verifier_suite" => suite,
+        "execution_policy" => "autonomic_wave_attempt",
+        "dependencies" => dependencies,
+        "bridge" => bridge(work_order, tail)
+      }
+
+      {:ok, maybe_put_court_map(descriptor, court_map)}
     end
   end
 
@@ -193,6 +221,90 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
       value -> match_option(value, @alias_re, :execution_repo_alias)
     end
   end
+
+  @court_map_keys ~w(acceptance falsifiers courts)
+
+  # The optional court map: upstream, minted with the work order (mix
+  # semantic_jira.court_map projects it from the ontology's sj:witnessedBy
+  # facts) and consumed by the fabric's court-receipt producer. Every IRI it
+  # binds must belong to THIS work order; every predicate is v1-exactly one
+  # named test. A malformed or foreign map is refused, never trimmed.
+  defp court_map(opts, work_order) do
+    case Keyword.get(opts, :court_map) do
+      nil ->
+        {:ok, nil}
+
+      raw when is_map(raw) ->
+        raw = stringify(raw)
+
+        with :ok <- court_map_keys(raw),
+             :ok <- court_map_nonempty(raw),
+             :ok <- court_map_group(raw["acceptance"], work_order["acceptance"], "acceptance"),
+             :ok <- court_map_group(raw["falsifiers"], work_order["falsifiers"], "falsifiers"),
+             :ok <- court_map_courts(raw["courts"], work_order["required_courts"]) do
+          {:ok, Map.take(raw, @court_map_keys)}
+        end
+
+      _ ->
+        descriptor_refused({:court_map_refused, :not_a_map})
+    end
+  end
+
+  defp court_map_keys(raw) do
+    case Map.keys(raw) -- @court_map_keys do
+      [] -> :ok
+      unknown -> descriptor_refused({:court_map_refused, {:unknown_keys, unknown}})
+    end
+  end
+
+  defp court_map_nonempty(raw) do
+    if raw["acceptance"] in [nil, %{}] and raw["falsifiers"] in [nil, %{}] and
+         raw["courts"] in [nil, []] do
+      descriptor_refused({:court_map_refused, :empty})
+    else
+      :ok
+    end
+  end
+
+  defp court_map_group(group, _allowed, _kind) when group in [nil, %{}], do: :ok
+
+  defp court_map_group(group, allowed, kind) when is_map(group) do
+    Enum.reduce_while(group, :ok, fn
+      {iri, %{"test" => test_id}}, :ok when is_binary(test_id) and test_id != "" ->
+        if iri in allowed do
+          {:cont, :ok}
+        else
+          {:halt, descriptor_refused({:court_map_refused, {:foreign_iri, kind, iri}})}
+        end
+
+      {iri, predicate}, :ok ->
+        {:halt,
+         descriptor_refused({:court_map_refused, {:invalid_predicate, kind, iri, predicate}})}
+
+      _, _acc ->
+        {:halt, descriptor_refused({:court_map_refused, {:invalid_group, kind}})}
+    end)
+  end
+
+  defp court_map_group(_group, _allowed, kind),
+    do: descriptor_refused({:court_map_refused, {:invalid_group, kind}})
+
+  defp court_map_courts(courts, _allowed) when courts in [nil, []], do: :ok
+
+  defp court_map_courts(courts, allowed) when is_list(courts) do
+    if Enum.all?(courts, &(&1 in allowed)) do
+      :ok
+    else
+      foreign = Enum.reject(courts, &(&1 in allowed))
+      descriptor_refused({:court_map_refused, {:foreign_iri, "courts", foreign}})
+    end
+  end
+
+  defp court_map_courts(_courts, _allowed),
+    do: descriptor_refused({:court_map_refused, {:invalid_group, "courts"}})
+
+  defp maybe_put_court_map(descriptor, nil), do: descriptor
+  defp maybe_put_court_map(descriptor, court_map), do: Map.put(descriptor, "court_map", court_map)
 
   defp match_option(value, regex, key) do
     if is_binary(value) and Regex.match?(regex, value),
@@ -281,7 +393,8 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
       "requires" => %{
         "courts" => work_order["required_courts"],
         "acceptance" => work_order["acceptance"],
-        "falsifiers" => work_order["falsifiers"]
+        "falsifiers" => work_order["falsifiers"],
+        "evidence" => work_order["required_evidence"]
       }
     }
   end
@@ -297,7 +410,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
         refuse({:bridge_invalid, missing})
 
       not (is_map(requires) and
-               Enum.all?(~w(courts acceptance falsifiers), &is_list(requires[&1]))) ->
+               Enum.all?(~w(courts acceptance falsifiers evidence), &is_list(requires[&1]))) ->
         refuse({:bridge_invalid, ["requires"]})
 
       true ->
@@ -342,6 +455,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
     observed = passed and receipt["head_verified"] == true and receipt["outcome"] == "alive"
     court = court_receipt(receipt)
     requires = bridge["requires"]
+    courts = court_results(receipt, requires["courts"])
 
     base = %{
       "identity" => bridge["identity"],
@@ -353,8 +467,8 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
       "candidate_sha" => receipt["final_head"],
       "target" => target,
       "receipt_digest" => receipt["receipt_digest"],
-      "court_results" => court_results(receipt, requires["courts"]),
-      "evidence_types" => evidence_types(receipt, court, passed),
+      "court_results" => courts,
+      "evidence_types" => evidence_types(receipt, court, passed, requires["evidence"], courts),
       "acceptance_results" => acceptance_results(court, requires["acceptance"], passed),
       "falsifier_results" => falsifier_results(court, requires["falsifiers"], passed),
       "receipt_classes" => receipt_classes(court, passed),
@@ -381,23 +495,52 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   defp court_results(receipt, courts) do
     steps = get_in(receipt, ["fabric_verifier", "steps"]) || []
     overall = verifier_status(receipt) == "pass"
+    sealed = court_receipt(receipt)
 
     Map.new(courts, fn court ->
       step_passed =
         Enum.any?(steps, &(is_map(&1) and &1["id"] == court and &1["status"] == "pass"))
 
-      {court, %{"passed" => overall and step_passed}}
+      witnessed = step_passed or witnessed_court?(sealed, court, steps, receipt)
+
+      {court, %{"passed" => overall and witnessed}}
     end)
   end
 
-  defp evidence_types(receipt, court, passed) do
+  # The fabric's own court receipt (produced by a `receipt:` verifier step and
+  # published by Lease.close -- worker-supplied values are dropped at close, so
+  # this map is fabric-owned) binds each court IRI to the suite step that judged
+  # it. The binding is verified against THIS receipt's own step list and sealed
+  # head: a court receipt whose binding does not resolve here is not a court
+  # pass, and an unwitnessed required court is a promote/3 refusal, never a
+  # silent omission.
+  defp witnessed_court?(sealed, court, steps, receipt) do
+    case get_in(sealed, ["court_results", court]) do
+      %{"passed" => true, "step_id" => step_id, "head" => head} when is_binary(step_id) ->
+        head == receipt["final_head"] and
+          Enum.any?(steps, &(is_map(&1) and &1["id"] == step_id and &1["status"] == "pass"))
+
+      _ ->
+        false
+    end
+  end
+
+  defp evidence_types(receipt, court, passed, required_evidence, courts) do
     declared = strings(court["evidence_types"])
+
+    # A witnessed required court is what elevates the fabric's local execution
+    # + sealed receipt into the work order's own evidence classes; the IRIs are
+    # the bridge's echo of required_evidence, never invented here.
+    witnessed =
+      if Enum.any?(Map.values(courts), &(&1["passed"] == true)),
+        do: strings(required_evidence),
+        else: []
 
     derived =
       if(passed, do: ["verification"], else: []) ++
         if passed and receipt["head_verified"] == true, do: ["exact_head_verification"], else: []
 
-    Enum.uniq(declared ++ derived) |> Enum.sort()
+    Enum.uniq(declared ++ witnessed ++ derived) |> Enum.sort()
   end
 
   defp receipt_classes(court, passed) do

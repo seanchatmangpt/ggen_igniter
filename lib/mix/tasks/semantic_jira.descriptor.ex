@@ -6,12 +6,15 @@ defmodule Mix.Tasks.SemanticJira.Descriptor do
   work order that is on the current frontier.
 
       mix semantic_jira.descriptor --work-orders PATH --ledger PATH --identity ID \\
-        --alias owner/repo=alias --verifier-suite NAME [--out PATH]
+        --alias owner/repo=alias --verifier-suite NAME [--court-map PATH] [--out PATH]
 
   `--alias` (repeatable) maps a WorkOrder's `repository` to the XaaS
   `execution_repo_alias`; `--verifier-suite` names the registered XaaS suite.
-  Nothing is defaulted. The JSON object printed on stdout is the descriptor plus
-  a `"bridge"` key that XaaS must echo back in its receipt.
+  `--court-map` is the minted court map JSON (`mix semantic_jira.court_map`)
+  binding the work order's acceptance/falsifier IRIs to witnessing tests; the
+  fabric uses it at close time to witness IRI-keyed verdicts. Nothing is
+  defaulted. The JSON object printed on stdout is the descriptor plus a
+  `"bridge"` key that XaaS must echo back in its receipt.
 
   Exit `0` on success; `1` with typed refusal JSON on stderr (identity not on
   the frontier, tampered ledger, missing alias, ...); `2` for invalid invocation.
@@ -31,6 +34,7 @@ defmodule Mix.Tasks.SemanticJira.Descriptor do
           identity: :string,
           alias: :keep,
           verifier_suite: :string,
+          court_map: :string,
           out: :string
         ]
       )
