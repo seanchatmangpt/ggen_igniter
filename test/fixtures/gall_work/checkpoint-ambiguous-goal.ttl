@@ -1,0 +1,22 @@
+# gall_work test fixture — MALFORMED checkpoint: the declared-single-valued
+# gall:goal slot carries TWO literals. Standing is fine, so gate 010 still
+# passes; GgenIgniter.GallTicket refuses with
+# {:refused, {:ambiguous_slot, :goal, iri, values}} — silent pruning of
+# alternatives is forbidden, so ambiguity is a refusal, not a pick.
+
+@prefix gall: <https://semantic-a2a.dev/gall#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<urn:gall:checkpoint:ggen_igniter:ticket-001>
+  a gall:Checkpoint, gall:CodingCheckpoint ;
+  rdfs:label "gall_work pack slice: TTL to Markdown ticket projection" ;
+  gall:targetsRepository <urn:repo:seanchatmangpt:ggen_igniter> ;
+  gall:baseSha "d018ed4b407b6e3d0ed747e7076fe55f0c254804" ;
+  gall:goal "First goal." ;
+  gall:goal "Second goal." ;
+  gall:requiresCapability gall:Read, gall:Edit, gall:Commit ;
+  gall:requiresVerifier gall:ChicagoCourt ;
+  gall:hasStanding gall:UNKNOWN .
+
+gall:ChicagoCourt a gall:Verifier ;
+  rdfs:label "Chicago court" .

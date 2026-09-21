@@ -1,0 +1,188 @@
+# gall_work — GALL Semantic Work Fabric checkpoint vocabulary (v26.9.18, PRD §43.4).
+#
+# Namespace: https://semantic-a2a.dev/gall# (prefix gall:). This graph is the
+# SCHEMA (vocabulary) home: classes, relationships, standing individuals, and
+# the standard GALL capability/verifier individuals. Instance data (actual
+# checkpoints) lives in per-repo checkpoint TTL documents; every rendered
+# work ticket is a PROJECTION of such a document via
+# GgenIgniter.GallTicket (Ontology.load! -> Query.run -> Render).
+#
+# No-hand-edit law: generated tickets carry a provenance footer binding the
+# source graph digest; amend the source TTL or this ontology, never the
+# rendered artifact.
+
+@prefix gall:  <https://semantic-a2a.dev/gall#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+<https://semantic-a2a.dev/gall> a skos:ConceptScheme ;
+  dcterms:title "GALL Semantic Work Fabric checkpoint vocabulary" ;
+  dcterms:description "Classes and relationships for GALL work checkpoints, their verification ladder, and standing. Tickets rendered from checkpoint documents are projections; readers know them by their provenance footer (PRD v26.9.18 §42)." .
+
+# ── Classes ─────────────────────────────────────────────────────────────────
+
+gall:Checkpoint a rdfs:Class ;
+  rdfs:label "checkpoint" ;
+  rdfs:comment "One bounded unit of manufactured work with a declared base, capabilities, verifier, and standing." .
+
+gall:CodingCheckpoint a rdfs:Class ;
+  rdfs:subClassOf gall:Checkpoint ;
+  rdfs:label "coding checkpoint" ;
+  rdfs:comment "A checkpoint whose consequence is repository change. NOTE: RDF has no open-world reasoning here, so documents type coding checkpoints with BOTH gall:Checkpoint and gall:CodingCheckpoint; gate queries anchor explicitly." .
+
+gall:Dependency a rdfs:Class ;
+  rdfs:label "dependency" ;
+  rdfs:comment "Something a checkpoint depends on that is not itself a checkpoint (a pack, a capsule, an admitted ontology fact)." .
+
+gall:AcceptancePredicate a rdfs:Class ;
+  rdfs:label "acceptance predicate" ;
+  rdfs:comment "One observable condition that must hold for the checkpoint to count as done." .
+
+gall:Falsifier a rdfs:Class ;
+  rdfs:label "falsifier" ;
+  rdfs:comment "One attempt to falsify the checkpoint's claimed outcome before it is claimed." .
+
+gall:Verifier a rdfs:Class ;
+  rdfs:label "verifier" ;
+  rdfs:comment "The (suite, command) that independently judges a closed head. A checkpoint names its verifier via gall:requiresVerifier." .
+
+gall:Capability a rdfs:Class ;
+  rdfs:label "capability" ;
+  rdfs:comment "An action class a checkpoint either requires or forbids (Read, Edit, Commit, Push, Publish, ...)." .
+
+gall:WorkLease a rdfs:Class ;
+  rdfs:label "work lease" ;
+  rdfs:comment "A claim on a (repository, path-scope) pair that serializes concurrent workers." .
+
+gall:ExecutionAttempt a rdfs:Class ;
+  rdfs:label "execution attempt" ;
+  rdfs:comment "One observed attempt to execute a checkpoint; may produce a candidate." .
+
+gall:CandidateArtifact a rdfs:Class ;
+  rdfs:label "candidate artifact" ;
+  rdfs:comment "A produced-but-not-yet-verified artifact. candidate ≠ verified ≠ authorized ≠ actuated." .
+
+gall:VerificationObservation a rdfs:Class ;
+  rdfs:label "verification observation" ;
+  rdfs:comment "One observed run of a verifier against a candidate artifact." .
+
+gall:Receipt a rdfs:Class ;
+  rdfs:label "receipt" ;
+  rdfs:comment "The evidence record binding subject identity, command, exit, digest, and standing. A receipt is not execution; it records execution." .
+
+gall:Standing a rdfs:Class ;
+  rdfs:label "standing" ;
+  rdfs:comment "The standing vocabulary: UNKNOWN | PARTIAL_ALIVE | ALIVE | BLOCKED | BUILD_BROKEN | UNSUPPORTED. Individuals below are the closed set." .
+
+gall:Counterexample a rdfs:Class ;
+  rdfs:label "counterexample" ;
+  rdfs:comment "A witnessed case that falsifies a claim or a surviving falsifier's guarded law." .
+
+gall:Repair a rdfs:Class ;
+  rdfs:label "repair" ;
+  rdfs:comment "A narrow repair applied after a failed gate: preserve command/exit/diagnostic, repair, re-run the boundary." .
+
+# ── Relationships (object properties) ───────────────────────────────────────
+
+gall:dependsOn a rdf:Property ; rdfs:label "depends on" ;
+  rdfs:domain gall:Checkpoint ; rdfs:range gall:Checkpoint ;
+  rdfs:comment "Ordering edge between checkpoints; a checkpoint is not dispatched before its dependencies close." .
+
+gall:targetsRepository a rdf:Property ; rdfs:label "targets repository" ;
+  rdfs:domain gall:Checkpoint ;
+  rdfs:comment "The repository the checkpoint's consequence lands in, as an IRI (e.g. <urn:repo:owner:name>)." .
+
+gall:targetsBase a rdf:Property ; rdfs:label "targets base" ;
+  rdfs:domain gall:Checkpoint ;
+  rdfs:comment "The exact base (branch/SHA identity IRI) the checkpoint's work tree is cut from. Never silently moved." .
+
+gall:requiresCapability a rdf:Property ; rdfs:label "requires capability" ;
+  rdfs:domain gall:Checkpoint ; rdfs:range gall:Capability ;
+  rdfs:comment "Capability the worker must hold to execute the checkpoint." .
+
+gall:forbidsCapability a rdf:Property ; rdfs:label "forbids capability" ;
+  rdfs:domain gall:Checkpoint ; rdfs:range gall:Capability ;
+  rdfs:comment "Capability explicitly withheld from the worker (e.g. Push, Publish)." .
+
+gall:requiresVerifier a rdf:Property ; rdfs:label "requires verifier" ;
+  rdfs:domain gall:Checkpoint ; rdfs:range gall:Verifier ;
+  rdfs:comment "Every checkpoint declares the verifier that will judge its closed head." .
+
+gall:hasAcceptance a rdf:Property ; rdfs:label "has acceptance" ;
+  rdfs:domain gall:Checkpoint ; rdfs:range gall:AcceptancePredicate .
+
+gall:hasFalsifier a rdf:Property ; rdfs:label "has falsifier" ;
+  rdfs:domain gall:Checkpoint ; rdfs:range gall:Falsifier .
+
+gall:producedCandidate a rdf:Property ; rdfs:label "produced candidate" ;
+  rdfs:domain gall:ExecutionAttempt ; rdfs:range gall:CandidateArtifact .
+
+gall:verifiedBy a rdf:Property ; rdfs:label "verified by" ;
+  rdfs:domain gall:CandidateArtifact ; rdfs:range gall:VerificationObservation .
+
+gall:producedReceipt a rdf:Property ; rdfs:label "produced receipt" ;
+  rdfs:domain gall:VerificationObservation ; rdfs:range gall:Receipt ;
+  rdfs:comment "A completed verification observation seals a receipt. Provider stop never implies closure." .
+
+gall:hasStanding a rdf:Property ; rdfs:label "has standing" ;
+  rdfs:range gall:Standing ;
+  rdfs:comment "Exactly one standing per checkpoint. Gate 010 enforces the exactly-one shape in existence form." .
+
+gall:repairs a rdf:Property ; rdfs:label "repairs" ;
+  rdfs:domain gall:Repair ; rdfs:range gall:Checkpoint ;
+  rdfs:comment "A narrow repair targets exactly the checkpoint whose gate failed." .
+
+gall:falsifies a rdf:Property ; rdfs:label "falsifies" ;
+  rdfs:comment "A falsifier or counterexample falsifies an acceptance predicate (or, for a counterexample, a promoted law)." .
+
+gall:unlocks a rdf:Property ; rdfs:label "unlocks" ;
+  rdfs:domain gall:Checkpoint ; rdfs:range gall:Checkpoint ;
+  rdfs:comment "Closing this checkpoint unblocks the dependent one." .
+
+# ── Datatype properties ─────────────────────────────────────────────────────
+
+gall:goal a rdf:Property ; rdfs:label "goal" ; rdfs:range xsd:string ;
+  rdfs:comment "Single mission statement of the checkpoint." .
+gall:allowedPath a rdf:Property ; rdfs:label "allowed path" ; rdfs:range xsd:string ;
+  rdfs:comment "Repeatable path/glob the checkpoint may write; anything outside scope is out of bounds." .
+gall:baseSha a rdf:Property ; rdfs:label "base SHA" ; rdfs:range xsd:string ;
+  rdfs:comment "The 40-hex commit SHA the checkpoint's base is pinned to." .
+gall:criterion a rdf:Property ; rdfs:label "criterion" ; rdfs:range xsd:string ;
+  rdfs:comment "Human-readable acceptance criterion text on a gall:AcceptancePredicate." .
+gall:statement a rdf:Property ; rdfs:label "statement" ; rdfs:range xsd:string ;
+  rdfs:comment "Human-readable falsification statement on a gall:Falsifier." .
+gall:command a rdf:Property ; rdfs:label "command" ; rdfs:range xsd:string ;
+  rdfs:comment "The exact acceptance command a gall:Verifier executes." .
+
+# ── Standing individuals (closed set) ───────────────────────────────────────
+
+gall:UNKNOWN a gall:Standing ; rdfs:label "UNKNOWN" ;
+  skos:definition "No observed execution; nothing is claimed." .
+gall:PARTIAL_ALIVE a gall:Standing ; rdfs:label "PARTIAL_ALIVE" ;
+  skos:definition "Some rungs of the verification ladder observed; not all." .
+gall:ALIVE a gall:Standing ; rdfs:label "ALIVE" ;
+  skos:definition "The exact admitted subject executed the exact acceptance command with the required verifier, observed this session." .
+gall:BLOCKED a gall:Standing ; rdfs:label "BLOCKED" ;
+  skos:definition "Progress stopped on an external condition; the condition is named." .
+gall:BUILD_BROKEN a gall:Standing ; rdfs:label "BUILD_BROKEN" ;
+  skos:definition "The build or a boundary check fails; command/exit/diagnostic preserved." .
+gall:UNSUPPORTED a gall:Standing ; rdfs:label "UNSUPPORTED" ;
+  skos:definition "No admitted pack/generator expresses the semantic element; hand-write only through the ledger." .
+
+# ── Standard GALL capability individuals ────────────────────────────────────
+
+gall:Read a gall:Capability ; rdfs:label "Read" .
+gall:Edit a gall:Capability ; rdfs:label "Edit" .
+gall:Commit a gall:Capability ; rdfs:label "Commit" .
+gall:Push a gall:Capability ; rdfs:label "Push" .
+gall:Publish a gall:Capability ; rdfs:label "Publish" .
+
+# ── Standard GALL verifier individual ───────────────────────────────────────
+# The verifier individual is vocabulary; its per-checkpoint acceptance command
+# (gall:command) is declared in the checkpoint document that requires it.
+
+gall:ChicagoCourt a gall:Verifier ; rdfs:label "Chicago court" ;
+  rdfs:comment "Adversarial falsification-first verification: cheapest high-information gate first, exact commands and exit codes preserved." .

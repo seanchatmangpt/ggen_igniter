@@ -1,0 +1,65 @@
+# gall_work test fixture — one COMPLETE CodingCheckpoint, modeled on the
+# v26.9.18 PRD §53 checkpoint fixture:
+#
+#   <urn:gall:checkpoint:ggen_igniter:ticket-001> a gall:CodingCheckpoint ;
+#     gall:repository <urn:repo:seanchatmangpt:ggen_igniter> ;
+#     gall:baseSha "<40-hex>" ; gall:requiresCapability gall:Read, gall:Edit,
+#     gall:Commit ; gall:forbidsCapability gall:Push, gall:Publish ;
+#     gall:requiresVerifier gall:ChicagoCourt ; gall:hasStanding gall:UNKNOWN ;
+#     gall:dependsOn <urn:gall:checkpoint:ggen_igniter:ontology-001> .
+#
+# Deviations from the shorthand (declared, not silent): the canonical
+# relationships gall:targetsRepository and gall:hasStanding are used (the
+# PRD shorthand's gall:repository/gall:standing are not declared properties
+# of the vocabulary), the checkpoint is typed with BOTH
+# gall:Checkpoint and gall:CodingCheckpoint (no reasoning in this engine —
+# see the CodingCheckpoint note in priv/ggen/gall_work/ontology.ttl), and
+# goal/allowedPath/acceptance/falsifier/verifier-command are populated so
+# every ticket section has real content.
+
+@prefix gall: <https://semantic-a2a.dev/gall#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<urn:gall:checkpoint:ggen_igniter:ticket-001>
+  a gall:Checkpoint, gall:CodingCheckpoint ;
+  rdfs:label "gall_work pack slice: TTL to Markdown ticket projection" ;
+  gall:targetsRepository <urn:repo:seanchatmangpt:ggen_igniter> ;
+  gall:baseSha "d018ed4b407b6e3d0ed747e7076fe55f0c254804" ;
+  gall:goal "Implement the gall_work pack: GALL checkpoint vocabulary, TTL-to-ticket rendering with provenance footer, and standing/verifier gates." ;
+  gall:allowedPath "priv/ggen/gall_work/**" ;
+  gall:allowedPath "lib/ggen_igniter/gall_ticket.ex" ;
+  gall:allowedPath "test/**" ;
+  gall:requiresCapability gall:Read, gall:Edit, gall:Commit ;
+  gall:forbidsCapability gall:Push, gall:Publish ;
+  gall:requiresVerifier gall:ChicagoCourt ;
+  gall:hasAcceptance <urn:gall:acceptance:ticket-001:renders> ;
+  gall:hasAcceptance <urn:gall:acceptance:ticket-001:provenance> ;
+  gall:hasFalsifier <urn:gall:falsifier:ticket-001:determinism> ;
+  gall:hasFalsifier <urn:gall:falsifier:ticket-001:no-hand-edit> ;
+  gall:hasStanding gall:UNKNOWN ;
+  gall:dependsOn <urn:gall:checkpoint:ggen_igniter:ontology-001> .
+
+<urn:gall:checkpoint:ggen_igniter:ontology-001>
+  a gall:Checkpoint ;
+  rdfs:label "gall checkpoint vocabulary admitted" ;
+  gall:hasStanding gall:ALIVE .
+
+<urn:gall:acceptance:ticket-001:renders>
+  a gall:AcceptancePredicate ;
+  gall:criterion "render_ticket/3 on this document returns {:ok, markdown} containing every required ticket section." .
+
+<urn:gall:acceptance:ticket-001:provenance>
+  a gall:AcceptancePredicate ;
+  gall:criterion "The rendered ticket embeds the source graph digest and pack identity in its provenance footer." .
+
+<urn:gall:falsifier:ticket-001:determinism>
+  a gall:Falsifier ;
+  gall:statement "Render the same checkpoint twice; any byte differing between the two renders falsifies the determinism claim." .
+
+<urn:gall:falsifier:ticket-001:no-hand-edit>
+  a gall:Falsifier ;
+  gall:statement "A ticket lacking the generated-file marker or the source digest is a hand-edited projection: refuse it." .
+
+gall:ChicagoCourt a gall:Verifier ;
+  rdfs:label "Chicago court" ;
+  gall:command "mix test test/ggen_igniter_gall_work_pack_test.exs test/ggen_igniter_gall_ticket_test.exs" .

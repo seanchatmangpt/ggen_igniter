@@ -1,0 +1,21 @@
+PREFIX gall: <https://semantic-a2a.dev/gall#>
+
+# Every CodingCheckpoint carries EXACTLY ONE gall:hasStanding.
+#
+# Existence convention (priv/ggen/CLAUDE.md, GgenIgniter.GateVerify): a gate
+# PASSES when its query returns >= 1 row. Each row here is a (checkpoint,
+# standing) pair whose checkpoint has NO second, distinct standing: the
+# OPTIONAL + !BOUND shape (SPARQL 1.0 core, proven by this engine in
+# priv/ggen/reactor-scaffold-pack/gates/010_steps.rq) refutes a second value,
+# so a checkpoint carrying two standings contributes ZERO rows, and a graph
+# with no exactly-one-standing CodingCheckpoint fails the gate.
+
+SELECT DISTINCT ?checkpoint ?standing WHERE {
+  ?checkpoint a gall:CodingCheckpoint ;
+              gall:hasStanding ?standing .
+  OPTIONAL {
+    ?checkpoint gall:hasStanding ?other .
+    FILTER ( ?other != ?standing )
+  }
+  FILTER ( !BOUND(?other) )
+}
