@@ -253,6 +253,13 @@ Merged from a branch (`main` had drifted to a separate lineage still tagged
 -- both real histories are folded into this release rather than one being
 discarded):
 
+## Unreleased (post-v26.9.3, four real merged fixes, no version bump)
+
+Four small, real fixes merged to `main` after the v26.9.3 tag below, none
+changing `mix.exs`'s `version:` (still `26.9.3`) since none is a feature or
+behavior change in the sense the prior entries below describe -- each closes
+a real, live-observed defect or documents a real decision:
+
 - **docs(ocel-emitter): decide and record relationship to autofde-lab's
   `ocp:` vocabulary** (`ceebb2e`, PR #4). Real, previously-open cross-repo
   question raised in an autofde-lab session 2026-09-04: should
@@ -327,6 +334,7 @@ Generative Ash Manufacturing certification and zero vocabulary drift release:
 - Added OCEL v2 process export telemetry (`GgenIgniter.Telemetry.Ocel2Export`) and `mix ggen_igniter.ocel.seal` task.
 - Eliminated documented vocabulary drift across `AGENTS.md` and test coverage suites (`test/ggen_igniter_ash_task_coverage_test.exs`).
 - Verified end-to-end integration and cutover against real PostgreSQL databases.
+
 
 ## v26.9.3
 

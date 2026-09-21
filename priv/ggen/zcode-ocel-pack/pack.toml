@@ -1,0 +1,14 @@
+[pack]
+name = "zcode-ocel-pack"
+version = "0.1.0"
+description = "OCEL 2.0 event/object-type registry for the zcode agent loop (TypeScript projection)"
+ontology = "ontology.ttl"
+
+[gates]
+event_types = "gates/010_event_types.rq"
+object_types = "gates/020_object_types.rq"
+qualifiers = "gates/030_qualifiers.rq"
+transitions = "gates/040_transitions.rq"
+
+[templates]
+registry = "templates/registry.ts.eex"
