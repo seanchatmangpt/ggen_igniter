@@ -65,9 +65,8 @@ defmodule GgenIgniter.SemanticJira.Cli do
 
   defp json_file(opts, key) do
     with {:ok, path} <- required(opts, key),
-         {:ok, body} <- File.read(path) |> or_invalid(path),
-         {:ok, decoded} <- Jason.decode(body) |> or_invalid(path) do
-      {:ok, decoded}
+         {:ok, body} <- File.read(path) |> or_invalid(path) do
+      Jason.decode(body) |> or_invalid(path)
     end
   end
 

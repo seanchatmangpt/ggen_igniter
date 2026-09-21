@@ -252,30 +252,20 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
         seq: 0
       }
 
-      Enum.reduce_while(events, {:ok, state}, fn raw, {:ok, acc} ->
-        case apply_event(stringify(raw), acc) do
-          {:ok, next} -> {:cont, {:ok, next}}
-          {:error, _} = error -> {:halt, error}
-        end
-      end)
+      Enum.reduce_while(events, {:ok, state}, &fold_event/2)
+    end
+  end
+
+  defp fold_event(raw, {:ok, acc}) do
+    case apply_event(stringify(raw), acc) do
+      {:ok, next} -> {:cont, {:ok, next}}
+      {:error, _} = error -> {:halt, error}
     end
   end
 
   defp admit_all(work_orders) when is_list(work_orders) do
     work_orders
-    |> Enum.reduce_while({:ok, [], MapSet.new()}, fn raw, {:ok, acc, seen} ->
-      case SemanticJira.admit_work_order(raw) do
-        {:ok, wo} ->
-          if MapSet.member?(seen, wo["identity"]) do
-            {:halt, {:error, {:work_orders_invalid, {:duplicate_identity, wo["identity"]}}}}
-          else
-            {:cont, {:ok, [wo | acc], MapSet.put(seen, wo["identity"])}}
-          end
-
-        {:error, reason} ->
-          {:halt, {:error, {:work_orders_invalid, reason}}}
-      end
-    end)
+    |> Enum.reduce_while({:ok, [], MapSet.new()}, &admit_step/2)
     |> case do
       {:ok, acc, _} -> {:ok, Enum.reverse(acc)}
       {:error, _} = error -> error
@@ -283,6 +273,21 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
   end
 
   defp admit_all(_), do: {:error, {:work_orders_invalid, :expected_list}}
+
+  defp admit_step(raw, {:ok, acc, seen}) do
+    case SemanticJira.admit_work_order(raw) do
+      {:ok, wo} -> track_identity(wo, acc, seen)
+      {:error, reason} -> {:halt, {:error, {:work_orders_invalid, reason}}}
+    end
+  end
+
+  defp track_identity(wo, acc, seen) do
+    if MapSet.member?(seen, wo["identity"]) do
+      {:halt, {:error, {:work_orders_invalid, {:duplicate_identity, wo["identity"]}}}}
+    else
+      {:cont, {:ok, [wo | acc], MapSet.put(seen, wo["identity"])}}
+    end
+  end
 
   defp apply_event(event, state) do
     seq = state.seq + 1
