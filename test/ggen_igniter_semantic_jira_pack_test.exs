@@ -153,6 +153,39 @@ defmodule GgenIgniter.SemanticJiraPackTest do
                )
 
       assert Enum.any?(plan_violations, &(&1.constraint == :datatype))
+      assert Receipt.read_all!(work_dir) == []
+
+      assert {:error, direct_receipt} =
+               ReconcileReactor.run(
+                 pack: "semantic-jira-pack",
+                 ontology: broken_ontology,
+                 manifest_dir: work_dir
+               )
+
+      assert direct_receipt.standing == :refused
+      assert direct_receipt.reason =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert direct_receipt.reason =~ "requiresGitGroundTruth"
+      assert direct_receipt.reason =~ "datatype"
+      assert direct_receipt.metadata["failed_step"] == ":admit_semantic_jira_shacl"
+      assert direct_receipt.files == []
+
+      refute Enum.any?(
+               direct_receipt.events,
+               &(&1["activity"] in ["ACTUATION_STARTED", "FILES_CHANGED"])
+             )
+
+      assert Path.wildcard(Path.join(work_dir, "*.md")) == []
+
+      [persisted_direct_receipt] = Receipt.read_all!(work_dir)
+      assert persisted_direct_receipt["standing"] == "refused"
+      assert persisted_direct_receipt["reason"] =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+      assert persisted_direct_receipt["metadata"]["failed_step"] == ":admit_semantic_jira_shacl"
+      assert persisted_direct_receipt["files"] == []
+
+      refute Enum.any?(
+               persisted_direct_receipt["events"],
+               &(&1["activity"] in ["ACTUATION_STARTED", "FILES_CHANGED"])
+             )
 
       {output, exit_code} = run_sync(work_dir, ["--ontology", broken_ontology])
 
@@ -162,8 +195,17 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert output =~ "datatype"
       assert Path.wildcard(Path.join(work_dir, "*.md")) == []
 
-      assert Enum.all?(Receipt.read_all!(work_dir), fn receipt ->
-               receipt["standing"] != "alive"
+      receipts = Receipt.read_all!(work_dir)
+      assert length(receipts) == 2
+      assert Enum.all?(receipts, &(&1["standing"] == "refused"))
+      assert Enum.all?(receipts, &(&1["metadata"]["failed_step"] == ":admit_semantic_jira_shacl"))
+      assert Enum.all?(receipts, &(&1["files"] == []))
+
+      refute Enum.any?(receipts, fn receipt ->
+               Enum.any?(
+                 receipt["events"],
+                 &(&1["activity"] in ["ACTUATION_STARTED", "FILES_CHANGED"])
+               )
              end)
     end
   end
@@ -1043,9 +1085,23 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
     test "standing smuggling control: ALIVE with the full receipt crown admits" do
       crown =
-        ~s(sj:standing "ALIVE" ;\n    sj:candidateSha "#{String.duplicate("c", 40)}" ;\n    sj:subjectSha "#{String.duplicate("d", 40)}" ;\n    sj:receipt sj:graph-receipt-evidence ;)
+        ~s(sj:standing "ALIVE" ;\n    sj:candidateSha "#{String.duplicate("c", 40)}" ;\n    sj:subjectSha "#{String.duplicate("d", 40)}" ;\n    sj:receipt sj:test-alive-receipt ;)
 
-      assert_admitted("extra_control_alive_with_receipt_crown", [{@dogfood_standing, crown}])
+      receipt =
+        """
+        sj:test-alive-receipt a sj:Receipt ;
+            sj:workOrderDigest "#{semantic_digest("a")}" ;
+            sj:repository "seanchatmangpt/ggen_igniter" ;
+            sj:baseSha "#{String.duplicate("c", 40)}" ;
+            sj:subjectSha "#{String.duplicate("d", 40)}" ;
+            sj:replayIdentity "semantic-jira:v26.9.19:TEST-ALIVE-RECEIPT" ;
+            sj:receiptClass "verification" .
+        """
+
+      assert_admitted("extra_control_alive_with_receipt_crown", [
+        {@dogfood_standing, crown},
+        {@dogfood_close, @dogfood_close <> "\n" <> receipt}
+      ])
     end
 
     test "replay identity uniqueness: two valid WorkOrders sharing sj:replayIdentity refuse (SHACL uniqueness law)" do
