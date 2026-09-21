@@ -19,8 +19,13 @@ if Code.ensure_loaded?(Postgrex) do
     |---|---|
     | `seq bigint` | `UNIQUE`, `CHECK (seq > 0)` -- exclusive per-seq claim |
     | `digest text` | `UNIQUE` -- exclusive per-digest claim (idempotent replay) |
-    | `event jsonb` | `CHECK` that `event->>'event_digest' = digest` and `event->>'seq' = seq` |
+    | `event json` | total `CHECK`: a JSON object whose `event_digest` equals `digest` and whose numeric `seq` equals `seq`; a document missing either key is rejected, not accepted as NULL |
     | `recorded_at timestamptz` | informational; never read by projection |
+
+    `event` is `json`, not `jsonb`: the stored text is the record. `jsonb`
+    normalises numbers (`1.0e16` reads back as the integer `10000000000000000`,
+    `-0.0` as `0.0`), which would make an event's `event_digest` impossible to
+    re-derive from the stored event on this store while it is on `FileStore`.
 
     Append-only is enforced by triggers that reject every `UPDATE`, `DELETE`
     and `TRUNCATE` (SQLSTATE `23001`, `restrict_violation`). `migrate!/1` also
@@ -28,8 +33,24 @@ if Code.ensure_loaded?(Postgrex) do
     matters if `ALTER DEFAULT PRIVILEGES` had granted them to PUBLIC. A
     superuser or table owner can still `DROP TRIGGER`/`DROP TABLE`;
     tamper-*evidence* (signing, hash chain) is not claimed, same as the file
-    store. `connect/1` and `new/2` fail closed: a table missing any invariant
-    is refused (`{:error, {:missing_invariants, [...]}}`), never adopted.
+    store.
+
+    ## Fail closed: definitions, not names
+
+    `connect/1` and `new/2` verify the *definition* of every invariant against
+    the catalog (`invariants/1`) and refuse a table that lacks any of them
+    (`{:error, {:missing_invariants, [...]}}`), never adopt it. Constraints
+    are compared with `pg_get_constraintdef/1` against a `TEMP` reference
+    table built by the same DDL in the same session, so the comparison is
+    exact and does not depend on how a Postgres version deparses a `CHECK`.
+    Columns (name, type, `NOT NULL`) are compared the same way. Triggers are
+    checked structurally: `pg_trigger.tgtype` (timing, row/statement, events),
+    enabled, no `WHEN`, no column list, and the trigger function's language
+    and exact source. A table that carries the right constraint and trigger
+    names over hollow definitions (`UNIQUE` on another column, `CHECK (true)`,
+    a no-op trigger function, a trigger on the wrong event) is refused.
+    Not verified: `pg_rewrite` rules, `session_replication_role`, roles and
+    grants.
 
     ## Optimistic concurrency
 
@@ -54,7 +75,7 @@ if Code.ensure_loaded?(Postgrex) do
 
     @behaviour GgenIgniter.SemanticJira.TransitionLog.Store
 
-    alias GgenIgniter.SemanticJira
+    alias GgenIgniter.SemanticJira.TransitionLog.Store
 
     @default_table "semantic_jira_transition_log"
     @page 500
@@ -108,43 +129,48 @@ if Code.ensure_loaded?(Postgrex) do
     def close(%__MODULE__{conn: conn}) when is_pid(conn), do: GenServer.stop(conn)
     def close(%__MODULE__{}), do: :ok
 
+    # The trigger function body is part of the invariant: `invariants/1`
+    # compares `pg_proc.prosrc` with this exact text, so a same-named function
+    # that does not raise is not accepted.
+    @reject_body """
+
+    BEGIN
+      RAISE EXCEPTION 'transition log % is append-only: % rejected', TG_TABLE_NAME, TG_OP
+        USING ERRCODE = 'restrict_violation';
+    END
+    """
+
+    # pg_trigger.tgtype bits: ROW=1 BEFORE=2 INSERT=4 DELETE=8 UPDATE=16 TRUNCATE=32
+    @triggers [
+      {:append_only_row, "_append_only_row", "BEFORE UPDATE OR DELETE", "ROW", 1 + 2 + 8 + 16},
+      {:append_only_truncate, "_append_only_truncate", "BEFORE TRUNCATE", "STATEMENT", 2 + 32}
+    ]
+
+    @ref_table "ggen_transition_log_reference"
+
     @doc """
     Creates the log table, its unique constraints, check constraints and
     append-only triggers if absent. Idempotent and safe to run concurrently
-    (serialised by a transaction-scoped advisory lock).
+    (serialised by a transaction-scoped advisory lock). An existing table is
+    not altered: `connect/1`/`new/2` then refuse it if its definitions differ
+    (see `invariants/1`); only the trigger *function* is re-created.
     """
     @spec migrate!(t()) :: :ok
     def migrate!(%__MODULE__{conn: conn, table: table}) do
       t = ident!(table)
 
-      statements = [
-        "SELECT pg_advisory_xact_lock(hashtext($1::text))",
-        """
-        CREATE TABLE IF NOT EXISTS #{t} (
-          seq bigint NOT NULL,
-          digest text NOT NULL,
-          event jsonb NOT NULL,
-          recorded_at timestamptz NOT NULL DEFAULT now(),
-          CONSTRAINT #{ident!(table <> "_seq_uniq")} UNIQUE (seq),
-          CONSTRAINT #{ident!(table <> "_digest_uniq")} UNIQUE (digest),
-          CONSTRAINT #{ident!(table <> "_seq_positive")} CHECK (seq > 0),
-          CONSTRAINT #{ident!(table <> "_event_consistent")}
-            CHECK ((event->>'event_digest') = digest AND (event->>'seq')::bigint = seq)
-        )
-        """,
-        """
-        CREATE OR REPLACE FUNCTION #{ident!(table <> "_reject_mutation")}() RETURNS trigger
-        LANGUAGE plpgsql AS $fn$
-        BEGIN
-          RAISE EXCEPTION 'transition log % is append-only: % rejected', TG_TABLE_NAME, TG_OP
-            USING ERRCODE = 'restrict_violation';
-        END
-        $fn$
-        """,
-        trigger_sql(table, "_append_only_row", "BEFORE UPDATE OR DELETE", "ROW"),
-        trigger_sql(table, "_append_only_truncate", "BEFORE TRUNCATE", "STATEMENT"),
-        "REVOKE UPDATE, DELETE, TRUNCATE ON #{t} FROM PUBLIC"
-      ]
+      statements =
+        [
+          "SELECT pg_advisory_xact_lock(hashtext($1::text))",
+          table_ddl(table, table, false),
+          """
+          CREATE OR REPLACE FUNCTION #{ident!(table <> "_reject_mutation")}() RETURNS trigger
+          LANGUAGE plpgsql AS $fn$#{@reject_body}$fn$
+          """
+        ] ++
+          Enum.map(@triggers, fn {_key, suffix, event, granularity, _tgtype} ->
+            trigger_sql(table, suffix, event, granularity)
+          end) ++ ["REVOKE UPDATE, DELETE, TRUNCATE ON #{t} FROM PUBLIC"]
 
       {:ok, :ok} =
         Postgrex.transaction(conn, fn tx ->
@@ -155,6 +181,28 @@ if Code.ensure_loaded?(Postgrex) do
         end)
 
       :ok
+    end
+
+    # One DDL for the real table and for the reference table `invariants/1`
+    # compares it with; constraint names always derive from the real table.
+    defp table_ddl(name, table, temp?) do
+      """
+      CREATE #{if temp?, do: "TEMP TABLE", else: "TABLE IF NOT EXISTS"} #{ident!(name)} (
+        seq bigint NOT NULL,
+        digest text NOT NULL,
+        event json NOT NULL,
+        recorded_at timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT #{ident!(table <> "_seq_uniq")} UNIQUE (seq),
+        CONSTRAINT #{ident!(table <> "_digest_uniq")} UNIQUE (digest),
+        CONSTRAINT #{ident!(table <> "_seq_positive")} CHECK (seq > 0),
+        CONSTRAINT #{ident!(table <> "_event_consistent")} CHECK (COALESCE(
+          json_typeof(event) = 'object'
+          AND json_typeof(event -> 'seq') = 'number'
+          AND (event ->> 'event_digest') = digest
+          AND (event ->> 'seq')::bigint = seq,
+          false))
+      )#{if temp?, do: " ON COMMIT DROP"}
+      """
     end
 
     defp trigger_sql(table, suffix, event, granularity) do
@@ -176,51 +224,105 @@ if Code.ensure_loaded?(Postgrex) do
     end
 
     @doc """
-    Inspects the catalog and reports which invariants the table really has:
-    `%{unique_seq: bool, unique_digest: bool, append_only_row: bool,
-    append_only_truncate: bool, event_consistent: bool}`.
+    Inspects the catalog and reports which invariants the table really has,
+    by definition and not by name:
+
+        %{columns: bool, unique_seq: bool, unique_digest: bool, seq_positive: bool,
+          event_consistent: bool, append_only_row: bool, append_only_truncate: bool}
+
+    Constraints and columns must equal what `migrate!/1` would create (compared
+    against a `TEMP` reference table built in the same session); triggers must
+    have the expected timing, granularity and events, be enabled, carry no
+    `WHEN`/column list, and call a `plpgsql` function whose source is the
+    exact append-only rejection body.
     """
     @spec invariants(t()) :: %{atom() => boolean()}
     def invariants(%__MODULE__{conn: conn, table: table}) do
       ident!(table)
+      {:ok, result} = Postgrex.transaction(conn, &catalog_invariants(&1, table))
+      result
+    end
 
-      constraint = fn suffix, type ->
-        Postgrex.query!(
-          conn,
-          "SELECT count(*) FROM pg_constraint WHERE conname = $1 AND contype::text = $2 " <>
-            "AND conrelid = to_regclass($3)",
-          [table <> suffix, type, ident!(table)]
-        ).rows == [[1]]
+    defp catalog_invariants(tx, table) do
+      Postgrex.query!(tx, table_ddl(@ref_table, table, true), [])
+
+      expected = constraint_defs(tx, @ref_table)
+      actual = constraint_defs(tx, table)
+
+      triggers =
+        Map.new(@triggers, fn {key, suffix, _event, _granularity, tgtype} ->
+          {key, trigger_ok?(tx, table, suffix, tgtype)}
+        end)
+
+      Map.merge(triggers, %{
+        columns: column_defs(tx, table) == column_defs(tx, @ref_table),
+        unique_seq: same_definition?(actual, expected, table <> "_seq_uniq"),
+        unique_digest: same_definition?(actual, expected, table <> "_digest_uniq"),
+        seq_positive: same_definition?(actual, expected, table <> "_seq_positive"),
+        event_consistent: same_definition?(actual, expected, table <> "_event_consistent")
+      })
+    end
+
+    defp same_definition?(actual, expected, name) do
+      case {Map.fetch(actual, name), Map.fetch(expected, name)} do
+        {{:ok, definition}, {:ok, definition}} -> true
+        _ -> false
       end
+    end
 
-      trigger = fn suffix ->
+    defp constraint_defs(conn, relation) do
+      conn
+      |> Postgrex.query!(
+        "SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint " <>
+          "WHERE conrelid = to_regclass($1)",
+        [ident!(relation)]
+      )
+      |> Map.fetch!(:rows)
+      |> Map.new(fn [name, definition] -> {name, definition} end)
+    end
+
+    defp column_defs(conn, relation) do
+      Postgrex.query!(
+        conn,
+        "SELECT a.attname::text, format_type(a.atttypid, a.atttypmod), a.attnotnull " <>
+          "FROM pg_attribute a WHERE a.attrelid = to_regclass($1) AND a.attnum > 0 " <>
+          "AND NOT a.attisdropped ORDER BY a.attname",
+        [ident!(relation)]
+      ).rows
+    end
+
+    defp trigger_ok?(conn, table, suffix, tgtype) do
+      %{rows: rows} =
         Postgrex.query!(
           conn,
-          "SELECT count(*) FROM pg_trigger WHERE tgname = $1 AND tgrelid = to_regclass($2) " <>
-            "AND tgenabled = 'O'",
+          """
+          SELECT t.tgtype::int, t.tgenabled::text, t.tgnargs::int, (t.tgqual IS NOT NULL),
+                 t.tgattr::text, p.proname::text, p.prosrc, l.lanname::text
+          FROM pg_trigger t
+          JOIN pg_proc p ON p.oid = t.tgfoid
+          JOIN pg_language l ON l.oid = p.prolang
+          WHERE t.tgname = $1 AND t.tgrelid = to_regclass($2) AND NOT t.tgisinternal
+          """,
           [table <> suffix, ident!(table)]
-        ).rows == [[1]]
-      end
+        )
 
-      %{
-        unique_seq: constraint.("_seq_uniq", "u"),
-        unique_digest: constraint.("_digest_uniq", "u"),
-        event_consistent: constraint.("_event_consistent", "c"),
-        append_only_row: trigger.("_append_only_row"),
-        append_only_truncate: trigger.("_append_only_truncate")
-      }
+      rows == [
+        [tgtype, "O", 0, false, "", table <> "_reject_mutation", @reject_body, "plpgsql"]
+      ]
     end
 
     # -- Store callbacks ---------------------------------------------------
 
     @impl true
     def append(%__MODULE__{} = store, event, opts \\ []) do
-      event = Map.put(event, "event_digest", SemanticJira.digest(Map.delete(event, "seq")))
-      digest = event["event_digest"]
+      with :ok <- Store.admit(event) do
+        event = Map.put(event, "event_digest", Store.event_digest(event))
+        digest = event["event_digest"]
 
-      case get(store, digest) do
-        {:ok, existing} -> {:ok, existing, :already_recorded}
-        :error -> attempt(store, event, digest, Keyword.get(opts, :expected_seq), 1)
+        case get(store, digest) do
+          {:ok, existing} -> {:ok, existing, :already_recorded}
+          :error -> attempt(store, event, digest, Keyword.get(opts, :expected_seq), 1)
+        end
       end
     end
 

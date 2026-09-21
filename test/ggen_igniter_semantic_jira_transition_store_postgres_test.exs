@@ -104,6 +104,25 @@ defmodule GgenIgniter.SemanticJiraTransitionStorePostgresTest do
     :exit, _ -> :ok
   end
 
+  # A fully migrated table (so every invariant holds), then weakened by `statements`
+  # (`%T` is the quoted table name, `%T_x` a quoted derived name).
+  defp hollow_table(store, statements) do
+    hollow = "tl_hollow_#{System.system_time(:millisecond)}_#{System.unique_integer([:positive])}"
+    on_exit(fn -> drop_table(hollow) end)
+    {:ok, _} = PostgresStore.new(store.conn, table: hollow)
+
+    for sql <- statements do
+      sql =
+        sql
+        |> String.replace(~r/%T_(\w+)/, ~s|"#{hollow}_\\1"|)
+        |> String.replace("%T", ~s|"#{hollow}"|)
+
+      Postgrex.query!(store.conn, sql, [])
+    end
+
+    hollow
+  end
+
   defp consistent_event(seq, digest),
     do: %{"event_digest" => digest, "seq" => seq, "to" => "ALIVE"}
 
@@ -114,8 +133,10 @@ defmodule GgenIgniter.SemanticJiraTransitionStorePostgresTest do
   describe "schema invariants (enforced by the database)" do
     test "connect verifies every invariant against the catalog", %{store: store} do
       assert PostgresStore.invariants(store) == %{
+               columns: true,
                unique_seq: true,
                unique_digest: true,
+               seq_positive: true,
                event_consistent: true,
                append_only_row: true,
                append_only_truncate: true
@@ -165,7 +186,7 @@ defmodule GgenIgniter.SemanticJiraTransitionStorePostgresTest do
       before_rows = raw_rows(store)
 
       for sql <- [
-            ~s|UPDATE "#{table}" SET event = '{}'::jsonb|,
+            ~s|UPDATE "#{table}" SET event = '{}'::json|,
             ~s|UPDATE "#{table}" SET seq = seq + 10|,
             ~s|UPDATE "#{table}" SET digest = 'x'|,
             ~s|DELETE FROM "#{table}"|,
@@ -221,8 +242,10 @@ defmodule GgenIgniter.SemanticJiraTransitionStorePostgresTest do
 
       assert Enum.sort(missing) ==
                Enum.sort([
+                 :columns,
                  :unique_seq,
                  :unique_digest,
+                 :seq_positive,
                  :event_consistent,
                  :append_only_row,
                  :append_only_truncate
@@ -246,7 +269,131 @@ defmodule GgenIgniter.SemanticJiraTransitionStorePostgresTest do
 
       assert :unique_seq in missing
       assert :event_consistent in missing
+      # jsonb, not json: a column with the wrong type is not our schema either
+      assert :columns in missing
       refute :unique_digest in missing
+    end
+
+    test "CHECK is total: a document lacking event_digest or a numeric seq is rejected, not NULL-accepted",
+         %{store: store, table: table} do
+      docs = [
+        {"empty object", %{}},
+        {"array", []},
+        {"event_digest only", %{"event_digest" => dg(1)}},
+        {"seq only", %{"seq" => 1}},
+        {"seq as a string", %{"event_digest" => dg(1), "seq" => "1"}},
+        {"event_digest as a number", %{"event_digest" => 1, "seq" => 1}}
+      ]
+
+      for {label, doc} <- docs do
+        res = raw_insert(store, 1, dg(1), doc)
+        assert match?({:error, %Postgrex.Error{}}, res), "#{label} was stored: #{inspect(res)}"
+        assert pg_constraint(res) == "#{table}_event_consistent", "#{label}: #{inspect(res)}"
+      end
+
+      assert row_count(store) == 0
+      assert {:ok, _} = raw_insert(store, 1, dg(1), consistent_event(1, dg(1)))
+    end
+
+    # Each mutation weakens exactly one definition while keeping every constraint and
+    # trigger NAME, which is what a name-only catalog check cannot tell apart.
+    for {label, key, statements} <- [
+          {"UNIQUE(seq) over another column", :unique_seq,
+           [
+             "ALTER TABLE %T DROP CONSTRAINT %T_seq_uniq, ADD CONSTRAINT %T_seq_uniq UNIQUE (recorded_at)"
+           ]},
+          {"UNIQUE(digest) over (digest, seq)", :unique_digest,
+           [
+             "ALTER TABLE %T DROP CONSTRAINT %T_digest_uniq, ADD CONSTRAINT %T_digest_uniq UNIQUE (digest, seq)"
+           ]},
+          {"seq_positive replaced by CHECK (true)", :seq_positive,
+           [
+             "ALTER TABLE %T DROP CONSTRAINT %T_seq_positive, ADD CONSTRAINT %T_seq_positive CHECK (true)"
+           ]},
+          {"event_consistent replaced by CHECK (true)", :event_consistent,
+           [
+             "ALTER TABLE %T DROP CONSTRAINT %T_event_consistent, ADD CONSTRAINT %T_event_consistent CHECK (true)"
+           ]},
+          {"event_consistent NULL-accepting (the original definition)", :event_consistent,
+           [
+             "ALTER TABLE %T DROP CONSTRAINT %T_event_consistent, ADD CONSTRAINT %T_event_consistent " <>
+               "CHECK ((event->>'event_digest') = digest AND (event->>'seq')::bigint = seq)"
+           ]},
+          {"row trigger on UPDATE only (DELETE unguarded)", :append_only_row,
+           [
+             "DROP TRIGGER %T_append_only_row ON %T",
+             "CREATE TRIGGER %T_append_only_row BEFORE UPDATE ON %T FOR EACH ROW EXECUTE FUNCTION %T_reject_mutation()"
+           ]},
+          {"row trigger AFTER instead of BEFORE", :append_only_row,
+           [
+             "DROP TRIGGER %T_append_only_row ON %T",
+             "CREATE TRIGGER %T_append_only_row AFTER UPDATE OR DELETE ON %T FOR EACH ROW EXECUTE FUNCTION %T_reject_mutation()"
+           ]},
+          {"row trigger disabled", :append_only_row,
+           ["ALTER TABLE %T DISABLE TRIGGER %T_append_only_row"]},
+          {"row trigger with WHEN (false)", :append_only_row,
+           [
+             "DROP TRIGGER %T_append_only_row ON %T",
+             "CREATE TRIGGER %T_append_only_row BEFORE UPDATE OR DELETE ON %T FOR EACH ROW WHEN (false) EXECUTE FUNCTION %T_reject_mutation()"
+           ]},
+          {"truncate trigger on the wrong event", :append_only_truncate,
+           [
+             "DROP TRIGGER %T_append_only_truncate ON %T",
+             "CREATE TRIGGER %T_append_only_truncate BEFORE UPDATE ON %T FOR EACH ROW EXECUTE FUNCTION %T_reject_mutation()"
+           ]},
+          {"trigger function that does not raise", :append_only_row,
+           [
+             "CREATE OR REPLACE FUNCTION %T_reject_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN OLD; END $$"
+           ]}
+        ] do
+      test "a same-named table with a hollow definition is refused, not adopted: #{label}",
+           %{store: store} do
+        hollow = hollow_table(store, unquote(statements))
+
+        assert {:error, {:missing_invariants, missing}} =
+                 PostgresStore.new(store.conn, table: hollow, migrate: false)
+
+        assert unquote(key) in missing
+
+        # everything else about the table is intact, so exactly this definition is the finding
+        assert Enum.all?(PostgresStore.invariants(%{store | table: hollow}), fn {k, ok?} ->
+                 ok? or k == unquote(key) or unquote(key) in [:append_only_row]
+               end)
+      end
+    end
+
+    test "connect with migrate: true also refuses a hollow constraint or trigger, and repairs only the trigger function",
+         %{store: store} do
+      weak_unique =
+        hollow_table(store, [
+          "ALTER TABLE %T DROP CONSTRAINT %T_seq_uniq, ADD CONSTRAINT %T_seq_uniq UNIQUE (recorded_at)"
+        ])
+
+      assert {:error, {:missing_invariants, [:unique_seq]}} =
+               PostgresStore.new(store.conn, table: weak_unique)
+
+      wrong_event =
+        hollow_table(store, [
+          "DROP TRIGGER %T_append_only_row ON %T",
+          "CREATE TRIGGER %T_append_only_row BEFORE UPDATE ON %T FOR EACH ROW EXECUTE FUNCTION %T_reject_mutation()"
+        ])
+
+      assert {:error, {:missing_invariants, [:append_only_row]}} =
+               PostgresStore.new(store.conn, table: wrong_event)
+
+      # the trigger function is ours by name: migrate! re-creates it, so a no-op body is repaired
+      noop_fn =
+        hollow_table(store, [
+          "CREATE OR REPLACE FUNCTION %T_reject_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN OLD; END $$"
+        ])
+
+      assert {:ok, repaired} = PostgresStore.new(store.conn, table: noop_fn)
+
+      assert {:ok, _, :appended} =
+               TransitionLog.append(repaired, %{"identity" => "R", "to" => "ALIVE"})
+
+      res = q(repaired, ~s|DELETE FROM "#{noop_fn}"|)
+      assert pg_code(res) == :restrict_violation
     end
 
     test "a hostile table name is refused before any SQL is built", %{store: store} do
@@ -269,7 +416,7 @@ defmodule GgenIgniter.SemanticJiraTransitionStorePostgresTest do
         """
         INSERT INTO "#{table}" (seq, digest, event)
         SELECT s, 'sha256:' || lpad(to_hex(s), 64, '0'),
-               jsonb_build_object('event_digest', 'sha256:' || lpad(to_hex(s), 64, '0'), 'seq', s)
+               json_build_object('event_digest', 'sha256:' || lpad(to_hex(s), 64, '0'), 'seq', s)
         FROM generate_series(1, #{n}) AS s
         """,
         []

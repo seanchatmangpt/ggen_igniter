@@ -14,6 +14,7 @@ defmodule GgenIgniter.SemanticJiraTransitionStoreFileTest do
 
   import GgenIgniter.TestSupport.SemanticJiraFixtures
 
+  alias GgenIgniter.SemanticJira
   alias GgenIgniter.SemanticJira.Reconciler
   alias GgenIgniter.SemanticJira.TransitionLog.{FileStore, Store}
 
@@ -95,6 +96,171 @@ defmodule GgenIgniter.SemanticJiraTransitionStoreFileTest do
       assert {:ok, %{"seq" => 1}, :appended} = TransitionLog.append({FileStore, dir}, gold(1))
       assert [%{"seq" => 1}] = TransitionLog.read(dir)
       assert [%{"seq" => 1}] = TransitionLog.read({FileStore, dir})
+    end
+  end
+
+  describe "claim protocol: released, orphaned and contended digest claims" do
+    defp marker(dir, event) do
+      digest = SemanticJira.digest(event)
+      Path.join(dir, "digest-#{String.slice(digest, 7, 64)}.claim")
+    end
+
+    test "a duplicate parked on a claim that is then released re-claims and stores the event",
+         %{dir: dir} do
+      File.mkdir_p!(dir)
+      claim = marker(dir, event(1))
+      File.write!(claim, "")
+
+      lenient = Task.async(fn -> TransitionLog.append(dir, event(1)) end)
+      strict = Task.async(fn -> TransitionLog.append(dir, event(1), expected_seq: 5) end)
+      Process.sleep(150)
+      assert Task.yield(lenient, 0) == nil, "must be waiting on the claim, not returning"
+
+      # what a strict writer that lost its seq race does
+      File.rm!(claim)
+
+      assert {:ok, %{"seq" => 1, "identity" => "X1"}, :appended} = Task.await(lenient, 30_000)
+      # the strict waiter re-checked its expectation against the head it now finds
+      assert {:error, {:seq_conflict, head}} = Task.await(strict, 30_000)
+      assert head in [0, 1]
+      assert [%{"identity" => "X1"}] = TransitionLog.read(dir)
+    end
+
+    @tag timeout: 120_000
+    test "strict and lenient duplicates of losing events never see a nil event and never diverge",
+         %{dir: dir} do
+      for round <- 1..4 do
+        d = dir <> "_r#{round}"
+        on_exit(fn -> File.rm_rf!(d) end)
+
+        jobs =
+          for i <- [1, 2, 3], dup <- 1..6 do
+            # a third of the duplicates are lenient, the rest strict on the same seq
+            {i, if(rem(dup, 3) == 0, do: [], else: [expected_seq: 1])}
+          end
+
+        results =
+          jobs
+          |> Task.async_stream(
+            fn {i, opts} -> {i, opts, TransitionLog.append(d, event(i), opts)} end,
+            max_concurrency: length(jobs),
+            timeout: 60_000
+          )
+          |> Enum.map(fn {:ok, r} -> r end)
+
+        stored = TransitionLog.read(d)
+
+        for {i, opts, res} <- results do
+          case res do
+            {:ok, ev, _} ->
+              assert ev in stored,
+                     "round #{round}: event #{i} returned but not in the log: #{inspect(ev)}"
+
+            {:error, {:seq_conflict, _}} ->
+              assert opts != [], "a lenient writer must never be refused"
+          end
+        end
+
+        # every event that had a lenient duplicate is stored, exactly once, seq contiguous
+        assert stored |> Enum.map(& &1["identity"]) |> Enum.sort() == ["X1", "X2", "X3"]
+        assert Enum.map(stored, & &1["seq"]) == [1, 2, 3]
+        assert d |> File.ls!() |> Enum.reject(&(&1 =~ ~r/\.(json|claim)\z/)) == []
+      end
+    end
+
+    test "a claim orphaned by a killed writer is taken over: N duplicates store the event once",
+         %{dir: dir} do
+      File.mkdir_p!(dir)
+      File.write!(marker(dir, event(1)), "")
+
+      results =
+        1..16
+        |> Task.async_stream(
+          fn _ -> TransitionLog.append(dir, event(1), claim_stale_ms: 1_000) end,
+          max_concurrency: 16,
+          timeout: 60_000
+        )
+        |> Enum.map(fn {:ok, r} -> r end)
+
+      assert Enum.count(results, &match?({:ok, %{"identity" => "X1"}, :appended}, &1)) == 1
+
+      assert Enum.count(results, &match?({:ok, %{"identity" => "X1"}, :already_recorded}, &1)) ==
+               15
+
+      assert [%{"seq" => 1}] = TransitionLog.read(dir)
+      # the takeover lock is released and the layout is the usual one
+      assert dir
+             |> File.ls!()
+             |> Enum.sort()
+             |> Enum.map(&String.replace(&1, ~r/-[0-9a-f]+/, "-X")) ==
+               ["00000001-X.json", "digest-X.claim", "seq-X.claim"]
+    end
+
+    test "an orphaned takeover lock does not block a later takeover", %{dir: dir} do
+      File.mkdir_p!(dir)
+      claim = marker(dir, event(1))
+      File.write!(claim, "")
+      File.write!(claim <> ".takeover", "")
+      # a lock left by a waiter killed mid-takeover, long ago
+      File.touch!(claim <> ".takeover", System.os_time(:second) - 60)
+
+      assert {:ok, %{"seq" => 1}, :appended} =
+               TransitionLog.append(dir, event(1), claim_stale_ms: 1_000)
+    end
+
+    @tag timeout: 60_000
+    test "an owner that keeps touching its claim is not taken over", %{dir: dir} do
+      File.mkdir_p!(dir)
+      claim = marker(dir, event(1))
+      File.write!(claim, "")
+      # mtime has one-second resolution, so a live owner is one whose claim keeps changing
+      toucher =
+        Task.async(fn ->
+          for _ <- 1..30 do
+            File.touch!(claim)
+            Process.sleep(200)
+          end
+        end)
+
+      waiter = Task.async(fn -> TransitionLog.append(dir, event(1), claim_stale_ms: 2_500) end)
+      assert Task.yield(waiter, 4_500) == nil, "a live owner's claim was taken over"
+      Task.await(toucher, 30_000)
+      assert {:ok, %{"seq" => 1}, :appended} = Task.await(waiter, 30_000)
+    end
+  end
+
+  describe "events every store can hold (Store.admit/1)" do
+    test "a U+0000 anywhere in an event is refused and nothing is stored", %{dir: dir} do
+      for bad <- [
+            %{"identity" => "a\u0000b"},
+            %{"identity" => "ok", "nested" => %{"deep" => ["x", %{"k" => "y\u0000"}]}},
+            %{"ke\u0000y" => "v"}
+          ] do
+        assert {:error, {:unstorable_event, :nul_character}} = TransitionLog.append(dir, bad)
+      end
+
+      assert TransitionLog.read(dir) == []
+      assert TransitionLog.head(dir) == 0
+    end
+  end
+
+  describe "Path.t() is IO.chardata: a charlist directory is a valid store spec" do
+    test "TransitionLog and Reconciler accept it as before the refactor", %{dir: dir} do
+      chars = String.to_charlist(dir)
+      a = wo("A")
+
+      assert TransitionLog.read(chars) == []
+      assert {:ok, %{"seq" => 1} = first, :appended} = TransitionLog.append(chars, gold(1))
+      assert {:ok, ^first, :already_recorded} = TransitionLog.append(dir, gold(1))
+      assert TransitionLog.head(chars) == 1
+      assert {:ok, ^first} = TransitionLog.get(chars, first["event_digest"])
+      assert {:ok, %{"seq" => 2}, :appended} = Reconciler.reconcile(a, receipt(a), chars)
+
+      assert {:ok, %{"seq" => 3}, :appended} =
+               Reconciler.reconcile(wo("B"), receipt(wo("B")), chars, store: FileStore)
+
+      assert Store.resolve(chars) == {FileStore, dir}
+      assert Store.resolve(["x", ?/, "y"]) == {FileStore, "x/y"}
     end
   end
 
