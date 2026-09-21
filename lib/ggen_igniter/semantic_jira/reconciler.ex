@@ -41,7 +41,8 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
     receipt = stringify(receipt)
     events = TransitionLog.read(dir)
 
-    with {:ok, def_digest} <- refuse(SemanticJira.definition_digest(work_order)),
+    with :ok <- admission_mode(opts),
+         {:ok, def_digest} <- refuse(SemanticJira.definition_digest(work_order)),
          :ok <- check(receipt["definition_digest"] == def_digest, :definition_mismatch),
          :ok <- check(digest?(receipt["snapshot_digest"]), :invalid_snapshot_digest),
          nil <- recorded(events, receipt),
@@ -84,6 +85,15 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
     end
   end
 
+  # An unknown mode is a caller error, refused before any other work so that
+  # it cannot be masked by an idempotent replay of an already-recorded receipt.
+  defp admission_mode(opts) do
+    case Keyword.get(opts, :admission, :kernel) do
+      mode when mode in [:kernel, :shacl] -> :ok
+      other -> {:error, {:refused, {:unknown_admission_mode, other}}}
+    end
+  end
+
   defp shacl_admission(work_order, opts) do
     case Keyword.get(opts, :admission, :kernel) do
       :kernel ->
@@ -94,9 +104,6 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
           {:ok, _report} -> :ok
           {:error, reason} -> {:error, {:refused, reason}}
         end
-
-      other ->
-        {:error, {:refused, {:unknown_admission_mode, other}}}
     end
   end
 

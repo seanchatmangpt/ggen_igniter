@@ -26,6 +26,10 @@ defmodule GgenIgniter.SemanticJira.Shacl do
   while `BIND` filters correctly. A row returned by a constraint's SELECT is
   one violation for that focus node, per the SPARQL-constraint component spec.
 
+  `sh:pattern` is evaluated with XPath-style anchoring: `$` matches only at the
+  very end of the lexical form (PCRE `:dollar_endonly`), never before a trailing
+  newline, so `"ROOT\\n"` does not satisfy `^[A-Z]+$`.
+
   UNSUPPORTED (never silently skipped -- encountering any of these is itself a
   violation, so an unknown construct fails closed instead of passing):
 
@@ -428,8 +432,14 @@ defmodule GgenIgniter.SemanticJira.Shacl do
       else: {:error, "unsupported sh:flags #{inspect(flags(property_shape))}"}
   end
 
-  defp compile_pattern(pattern, "i"), do: Regex.compile(pattern, "i")
-  defp compile_pattern(pattern, ""), do: Regex.compile(pattern)
+  # `:dollar_endonly` is load-bearing: PCRE's default `$` also matches just
+  # before a trailing "\n", but SHACL `sh:pattern` uses XPath/XSD regex
+  # semantics where `$` matches only at the very end of the string. Without it
+  # a value such as "ROOT\n" satisfies "^[A-Z][A-Z0-9-]{1,63}$" and a
+  # pattern-violating literal is admitted (measured: Regex.match?(~r/^A$/,
+  # "A\n") is true; with :dollar_endonly it is false).
+  defp compile_pattern(pattern, "i"), do: Regex.compile(pattern, [:dollar_endonly, :caseless])
+  defp compile_pattern(pattern, ""), do: Regex.compile(pattern, [:dollar_endonly])
 
   defp length_check(property_shape, term, constraint, values) do
     case integer_param(property_shape, term) do

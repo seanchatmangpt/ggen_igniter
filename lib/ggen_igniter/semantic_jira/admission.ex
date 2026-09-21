@@ -7,21 +7,37 @@ defmodule GgenIgniter.SemanticJira.Admission do
   projects candidate WorkOrder maps into the ontology graph the pack's own
   shape file describes and runs the FULL shipped shape
   (`priv/ggen/semantic-jira-pack/shapes/work-order.shacl.ttl`) over it through
-  `GgenIgniter.SemanticJira.Shacl`. Nothing is subsetted: `sh:closed`,
-  cardinality, datatype, pattern, `sh:class`, and every `sh:sparql` constraint
-  (identifier and replay-identity uniqueness, ALIVE receipt integrity,
-  authority/lease/worker binding, dependency resolution) run exactly as they do
-  over the canonical ontology.
+  `GgenIgniter.SemanticJira.Shacl`. The shape file is not subsetted: every
+  constraint in it is evaluated, and one the validator cannot evaluate refuses
+  (see below). Cardinality, datatype, pattern, `sh:class`, and every
+  `sh:sparql` constraint (identifier and replay-identity uniqueness, ALIVE
+  receipt integrity, authority/lease/worker binding, dependency resolution)
+  bite on the projected graph exactly as they do over the canonical ontology.
+
+  One constraint is vacuous on this path: `sh:closed`. The projection emits
+  only predicates the shape declares, so a map key outside the projection
+  table (and outside the kernel's own vocabulary) can never surface as an
+  undeclared predicate; the kernel court also ignores unknown keys. Closedness
+  is proven over the ontology graph in
+  `test/ggen_igniter_semantic_jira_shacl_test.exs`, not through this module.
+  UNSUPPORTED(generator-capability): carrying unknown keys as undeclared
+  predicates would refuse kernel-lawful keys (`expected_consequence`,
+  `dimensions`, ...) that the shape does not declare.
 
   `admit/2` returns `{:ok, %Shacl{conforms: true}}` or
   `{:error, {:refused_work_order, {:shacl_violations, violations}}}`. The error
   carries the same `:refused_work_order` head as the kernel's refusals, so
   `Reconciler.reconcile/4` wraps both uniformly as `{:error, {:refused, _}}`.
-  Only violations whose focus node belongs to the candidate (the WorkOrder node,
+  Violations whose focus node belongs to the candidate (the WorkOrder node,
   its dependency-edge nodes, its receipt node) refuse it; a malformed sibling
   in the context graph does not block an unrelated candidate, but a sibling
   that collides with the candidate (duplicate identifier / replay identity)
   produces a violation on the candidate's own node and does.
+
+  Shape-level `:unsupported_constraint` violations (the validator meets an SHACL
+  term it cannot evaluate, e.g. `sh:in`) carry no focus node and are never
+  scoped away: they refuse every candidate, so a shape the validator cannot
+  fully evaluate fails closed instead of admitting with a constraint unchecked.
 
   ## Projection contract (map key -> ontology term)
 
@@ -66,6 +82,7 @@ defmodule GgenIgniter.SemanticJira.Admission do
   not duplicated here.
   """
 
+  alias GgenIgniter.Digest
   alias GgenIgniter.Ontology
   alias GgenIgniter.SemanticJira
   alias GgenIgniter.SemanticJira.Shacl
@@ -141,8 +158,8 @@ defmodule GgenIgniter.SemanticJira.Admission do
   """
   @spec admit(map(), keyword()) :: result()
   def admit(work_order, opts \\ []) when is_map(work_order) do
-    candidate = stringify(work_order)
-    context = opts |> Keyword.get(:work_orders, []) |> Enum.map(&stringify/1)
+    candidate = normalize(work_order)
+    context = opts |> Keyword.get(:work_orders, []) |> orders_only()
     orders = Enum.reject(context, &same_definition?(&1, candidate)) ++ [candidate]
 
     shapes = opts |> Keyword.get(:shapes_path, shapes_path()) |> Ontology.load!()
@@ -150,21 +167,31 @@ defmodule GgenIgniter.SemanticJira.Admission do
 
     own = candidate_nodes(candidate, orders)
 
-    case Enum.filter(report.violations, &(to_string(&1.focus_node) in own)) do
+    case Enum.filter(report.violations, &refuses_candidate?(&1, own)) do
       [] -> {:ok, %{report | violations: [], conforms: true}}
       violations -> {:error, {:refused_work_order, {:shacl_violations, violations}}}
     end
   end
 
+  # A violation refuses the candidate when its focus node is one of the
+  # candidate's own nodes, or when it is a shape-level fail-closed report: the
+  # validator emits `:unsupported_constraint` with `focus_node: nil` for a shape
+  # term it cannot evaluate, and that must never be scoped away.
+  defp refuses_candidate?(%{constraint: :unsupported_constraint}, _own), do: true
+  defp refuses_candidate?(%{focus_node: nil}, _own), do: true
+  defp refuses_candidate?(%{focus_node: focus}, own), do: to_string(focus) in own
+
   @doc """
   Projects WorkOrder maps into the ontology-shaped RDF graph described in the
-  module doc. Pure; never raises on malformed field values (a malformed or
-  absent value simply yields no triple, or a wrongly-typed literal, which the
-  shape then refuses).
+  module doc. Pure and total over field values: a malformed or absent value
+  (a map, a list of maps, a tuple, ...) yields no triple, or a wrongly-typed
+  literal, which the shape then refuses; a non-scalar identity or upstream
+  becomes a stable content-hash node segment so the node is still addressable.
+  List entries that are not maps are skipped.
   """
-  @spec to_graph([map()]) :: Graph.t()
+  @spec to_graph([term()]) :: Graph.t()
   def to_graph(work_orders) when is_list(work_orders) do
-    orders = Enum.map(work_orders, &stringify/1)
+    orders = orders_only(work_orders)
     iris = work_order_iris(orders)
     index = first_iri_by_identity(orders, iris)
 
@@ -340,14 +367,39 @@ defmodule GgenIgniter.SemanticJira.Admission do
     do: order["dependencies"] |> listify() |> Enum.filter(&is_map/1) |> Enum.map(&stringify/1)
 
   defp unresolved_iri(nil), do: RDF.iri(@urn <> "work-order:unresolved")
-  defp unresolved_iri(id), do: RDF.iri(@urn <> "work-order:" <> enc(to_string(id)))
+  defp unresolved_iri(id), do: RDF.iri(@urn <> "work-order:" <> enc(id))
 
   defp sj(term), do: RDF.iri(@sj <> term)
-  defp enc(value), do: URI.encode(to_string(value), &URI.char_unreserved?/1)
+
+  # Total over every term: scalars are percent-encoded; anything else (map,
+  # list, tuple, pid, ...) has no faithful string form, so it becomes a stable
+  # content-hash segment. Distinct non-scalars stay distinct nodes; nothing
+  # here can raise, which is what keeps `to_graph/1` and `admit/2` typed.
+  defp enc(value) when is_binary(value), do: URI.encode(value, &URI.char_unreserved?/1)
+  defp enc(value) when is_atom(value) or is_number(value), do: enc(to_string(value))
+
+  defp enc(value) do
+    String.replace_prefix(Digest.sha256(:erlang.term_to_binary(value)), "sha256:", "x-")
+  end
+
+  # Keep only real maps (a struct or non-map context entry cannot be projected),
+  # stringified; a struct candidate is flattened to its fields.
+  defp orders_only(list) when is_list(list) do
+    for entry <- list, is_map(entry), do: normalize(entry)
+  end
+
+  defp orders_only(_), do: []
+
+  defp normalize(%_{} = struct), do: struct |> Map.from_struct() |> stringify()
+  defp normalize(map) when is_map(map), do: stringify(map)
 
   defp stringify(v) when is_map(v) and not is_struct(v),
-    do: Map.new(v, fn {k, x} -> {to_string(k), stringify(x)} end)
+    do: Map.new(v, fn {k, x} -> {key_string(k), stringify(x)} end)
 
   defp stringify(v) when is_list(v), do: Enum.map(v, &stringify/1)
   defp stringify(v), do: v
+
+  defp key_string(k) when is_binary(k), do: k
+  defp key_string(k) when is_atom(k) or is_number(k), do: to_string(k)
+  defp key_string(k), do: inspect(k)
 end

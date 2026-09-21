@@ -36,6 +36,35 @@ requires. It now carries `authority_ceiling`, `authority_requirement`,
 receipt evidence carries the `verification` receipt class the seed now requires.
 The shape file is unchanged.
 
+## Repair pass (qualification findings)
+
+Root causes fixed, each with a permanent guard in
+`test/ggen_igniter_semantic_jira_admission_guard_test.exs` (mutation-checked:
+reverting each fix turns the named guards red) plus the qualifier falsifiers in
+`..._admission_falsifier_test.exs`, `..._admission_sibling_falsifier_test.exs`
+and `..._admission_qualifier_test.exs`:
+
+1. `Shacl.compile_pattern/2` compiled `sh:pattern` with PCRE defaults, where `$`
+   also matches before a trailing newline. `"ROOT\n"` / `"CONSTRUCT\n"` passed
+   the identifier / authority-ceiling patterns (kernel does not check them) and
+   reached the log. Now compiled with `:dollar_endonly` (plus `:caseless` for
+   flag `i`).
+2. `Admission.admit/2` scoped violations to the candidate's own nodes and so
+   discarded `:unsupported_constraint` reports, which carry `focus_node: nil`; a
+   shape term the validator cannot evaluate (for example `sh:in`) admitted every
+   candidate. Those reports now always refuse.
+3. `enc/1`, `unresolved_iri/1` and `stringify/1` called `to_string/1` on
+   arbitrary terms, so a map identity, a list holding a map, or a map upstream
+   raised (and a poisoned sibling crashed admission of a lawful candidate). The
+   projection is now total: scalars are percent-encoded, any other term becomes a
+   stable content-hash node segment, non-map context entries are skipped.
+4. The `Admission` moduledoc claimed `sh:closed` runs "exactly as over the
+   canonical ontology"; it is vacuous on the map path. Moduledoc and this note now
+   say so.
+5. `Reconciler.reconcile/4` resolved an unknown `admission:` mode only after the
+   already-recorded-receipt short-circuit, so a bogus mode was masked on replay.
+   The mode is now validated first.
+
 ## Public API compatibility
 
 Kept: `SemanticJira.promote/3`, `definition_digest/1`, `project/2`,
@@ -76,8 +105,25 @@ min_count@requiresReceiptClass
 - WorkOrder map -> RDF projection is generated: UNSUPPORTED(generator-capability).
   Hand-written residue, see "Generated vs handwritten".
 - `sh:closed` reachable from the map projection: UNSUPPORTED(generator-capability).
-  The projection emits only declared predicates; closedness stays proven over
-  the ontology in `test/ggen_igniter_semantic_jira_shacl_test.exs`.
+  The projection emits only declared predicates, so `sh:closed` is vacuous on
+  the map path (an unknown map key is admitted by both courts); closedness stays
+  proven over the ontology in `test/ggen_igniter_semantic_jira_shacl_test.exs`
+  and over the projected graph plus an undeclared predicate in
+  `test/ggen_igniter_semantic_jira_admission_guard_test.exs`. Every other
+  constraint in the shipped shape is evaluated on the map path; the earlier
+  wording "the whole shipped shape" meant "every constraint except
+  `sh:closed`".
+- `sh:pattern` end-of-string anchoring in `Shacl`: ALIVE (repair). `$` no longer
+  matches before a trailing newline (`:dollar_endonly`). Evidence: guard tests
+  `Shacl sh:pattern uses end-of-string ...` and
+  `every pattern-constrained WorkOrder key refuses a trailing-newline value`.
+- Fail-closed scope in `Admission.admit/2`: ALIVE (repair). Shape-level
+  `:unsupported_constraint` reports (`focus_node: nil`) refuse every candidate.
+  Evidence: guard tests under `fail-closed: a shape term the validator cannot
+  evaluate refuses, at any scope`.
+- `Admission.to_graph/1` / `admit/2` total over field values and siblings:
+  ALIVE (repair). Evidence: guard tests under `totality: ...`.
+- Unknown `admission:` mode refused before replay short-circuit: ALIVE (repair).
 - Dialyzer over the new modules: UNKNOWN. No PLT is built in this checkout; not run.
 
 Constraint families exercised as negatives through `reconcile/4`: `sh:minCount`
