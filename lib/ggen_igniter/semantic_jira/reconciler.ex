@@ -17,17 +17,25 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
   5. On admit an event is appended to the `TransitionLog`; replaying the same
      receipt is idempotent (`:already_recorded`).
 
+  The third argument is a store spec (`GgenIgniter.SemanticJira.TransitionLog.Store`):
+  a bare directory path selects the file store (the default); a
+  `%PostgresStore{}` or `{module, ref}` pair selects that store; the `:store`
+  option (a module) selects the implementation for a bare `ref`, e.g.
+  `reconcile(wo, receipt, ref, store: MyStore)`.
+
   Authority stays NONE; this module does not perform DO.
   """
 
   alias GgenIgniter.SemanticJira
   alias GgenIgniter.SemanticJira.TransitionLog
+  alias GgenIgniter.SemanticJira.TransitionLog.Store
 
-  @spec reconcile(map(), map(), Path.t(), keyword()) ::
-          {:ok, map(), :appended | :already_recorded} | {:error, {:refused, term()}}
-  def reconcile(work_order, receipt, dir, _opts \\ []) do
+  @spec reconcile(map(), map(), Store.spec() | Store.ref(), keyword()) ::
+          {:ok, map(), :appended | :already_recorded} | {:error, {:refused, term()} | term()}
+  def reconcile(work_order, receipt, dir, opts \\ []) do
+    log = Store.resolve(dir, Keyword.get(opts, :store))
     receipt = stringify(receipt)
-    events = TransitionLog.read(dir)
+    events = TransitionLog.read(log)
 
     with {:ok, def_digest} <- refuse(SemanticJira.definition_digest(work_order)),
          :ok <- check(receipt["definition_digest"] == def_digest, :definition_mismatch),
@@ -64,7 +72,7 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
         "authority" => "NONE"
       }
 
-      TransitionLog.append(dir, event)
+      TransitionLog.append(log, event)
     else
       {:already, event} -> {:ok, event, :already_recorded}
       other -> other

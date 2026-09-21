@@ -205,6 +205,15 @@ defmodule GgenIgniter.MixProject do
       # the fixture qualification run.
       {:ash, "~> 3.0", only: [:dev, :test]},
       {:ash_postgres, "~> 2.0", only: [:dev, :test]},
+      # `optional: true`, NOT `only: [:dev, :test]`: `lib/ggen_igniter/semantic_jira/
+      # transition_log/postgres_store.ex` (the Postgres backend of the standing
+      # transition log) is real compile-time production code. Already in the lock
+      # transitively via `ash_postgres`; declaring it directly makes it available
+      # for this project's own prod build too. A consumer that does not depend on
+      # `:postgrex` compiles clean: the module body is guarded by
+      # `Code.ensure_loaded?(Postgrex)` and otherwise compiles a stub whose
+      # functions raise an actionable error (same pattern as `:gno`/`:tesla`).
+      {:postgrex, "~> 0.19", optional: true},
       # A2A (agent-to-agent) surface for Semantic Jira: ash_a2a is manufactured
       # into a consumer Ash resource by `ash_a2a.install`; like Ash it is a
       # dev/test-only dependency of this repo, never a runtime one (no lib/
