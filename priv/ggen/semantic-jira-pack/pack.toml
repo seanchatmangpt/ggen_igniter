@@ -2,3 +2,14 @@
 name = "semantic-jira-pack"
 version = "26.9.19"
 description = "Ontology-native Semantic Jira work orders projected through ggen_igniter."
+
+# ONE-CANONICAL (wave-9 sole-source fold, PR #20): this pack is the ONLY
+# Semantic Jira work-order ontology and manufacturer surface in this
+# repository. PR #19 (gall-semantic-work-pack, head 0d87dfe) and PR #23
+# (execution-contract line, head d92a230) are SUPERSEDED by this pack:
+# their execution-descriptor law is carried by GgenIgniter.Crown.descriptor/3
+# (the exact contract consumed by Xaas.Ultracode.SemanticWork.admit/1) and
+# their descriptor shape courts are absorbed in
+# test/ggen_igniter_crown_descriptor_court_test.exs. The disposition is
+# guarded permanently by
+# test/ggen_igniter_semantic_jira_sole_canonical_test.exs.

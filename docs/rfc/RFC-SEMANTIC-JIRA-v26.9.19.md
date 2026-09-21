@@ -163,38 +163,79 @@ head `dd6ac93` also produced run 202 success.
 | Local `mix test` (full suite) | UNKNOWN (not run by this session) | Not executed in this session; hosted runs 203/204 are the green evidence. This document adds **no** local test claims. |
 | Local gates on this doc change | see receipt | `mix format --check-formatted` and `mix credo` executed this session on the tree containing this file (results recorded in the PR-body append + commit receipt) |
 
-## 7. Remaining checkpoints (landed vs in-flight at observation 2026-09-20T04:08Z)
+## 7. Remaining checkpoints (UPDATED by the wave-9 sole-source fold; true at branch head `bba0592`)
 
-Sibling agents are landing work concurrently; each item below is marked for **my**
-observation window only and must be re-checked against the branch tip before merge.
+The 04:08Z item list below is SUPERSEDED by this update. Every claim here was
+re-observed this session on a fresh clone at head `bba0592`
+(2026-09-20T21:37:57-07:00), not carried forward from the earlier window.
 
-1. **wbpr/ard/vision dedicated templates** — IN FLIGHT / NOT LANDED at `58460d0`:
-   `templates/` contains only `jira.md.eex`, `prd.md.eex`, `projection.md.eex`
-   (directory listing this session). The three projections are already renderable
-   generically via `projection.md.eex` (per-`ProjectionSpec` for-each) and the kernel's
-   `render_projection_body("wbpr"/"ard"/"vision", …)` stubs (semantic_jira.ex lines
-   745–757); dedicated templates were not observed on the branch at this timestamp.
-2. **FOND/HDDL projections** — PARTIAL (candidate stubs only): kernel emits candidate
-   PDDL/HDDL stubs with `authority NONE` (semantic_jira.ex lines 777–788; ontology
-   extensions `.pddl`/`.hddl`, ontology.ttl lines 239–253). Solver-grade FOND/HDDL
-   emission: NOT LANDED at this timestamp.
-3. **OCEL binding** — NOT LANDED at pack level: `ocel` appears in the pack only inside
-   GALL-004's descriptions ("Observation independently binds actuation to telemetry,
-   OCEL, and postcondition evidence", ontology.ttl lines 465, 492); no `ocel` projection
-   type exists in `@projection_types`. A repo-level OCEL emitter exists independently
-   (`lib/ggen_igniter/telemetry/ocel_emitter.ex`, 255 lines, referenced by
-   `lib/ggen_igniter/reactors/reconcile_reactor.ex`); wiring GALL-004's telemetry
-   evidence to it was not observed (UNKNOWN / in flight).
-4. **`baseSha` git ground truth** — NOT LANDED: admission validates format only
-   (`^[0-9a-f]{40}$`, kernel `@sha` + shape pattern); grep for `rev-parse` /
-   `System.cmd("git"` across `semantic_jira.ex`, `semantic_jira/shacl.ex`, and the pack
-   tests returned no matches this session (exit 1). No artifact compares `sj:baseSha`
-   against actual git history.
-5. **RFC document** — this file closes the "RFC LOST" checkpoint in the PR body
-   (commit recorded in §9).
-6. **Merge readiness** — PR #20 remains draft; per ticket
-   `docs/jira/v26.9.19/001-pr-20.md`, acceptance is "gh pr list no longer lists #20".
-   Not attempted by this session.
+**PR #20 (`feat/semantic-jira-v26.9.19`) is the sole-canonical Semantic Jira
+ontology/manufacturer surface.** PR #19 (head `0d87dfe`,
+`priv/ggen/gall-semantic-work-pack/`) and PR #23 (head `d92a230`, stacked on
+#19) are SUPERSEDED by it. Their execution-descriptor law is carried by
+`GgenIgniter.Crown.descriptor/3` (`lib/ggen_igniter/crown.ex`) and their
+descriptor shape courts are absorbed in
+`test/ggen_igniter_crown_descriptor_court_test.exs`; the disposition is
+guarded permanently by `test/ggen_igniter_semantic_jira_sole_canonical_test.exs`.
+One-canonical evidence (this session, at `bba0592`):
+`git grep -l "semantic-a2a.dev/gall" HEAD --` → 0 files;
+exactly one pack ontology (`priv/ggen/semantic-jira-pack/ontology.ttl`, 37
+subjects) declares `a sj:WorkOrder` / `a oslc_cm:ChangeRequest`; the
+superseded pack directory does not exist on the branch.
+
+Status of the former §7 items, re-checked at `bba0592`:
+
+1. **wbpr/ard/vision dedicated templates** — LANDED: `42222fe` (ARD),
+   `476ebb2` (WBPR), `864099d` (Vision). `templates/` now holds 8 templates:
+   `jira.md.eex`, `prd.md.eex`, `projection.md.eex`, `ard.md.eex`,
+   `wbpr.md.eex`, `vision.md.eex`, `plan.hddl.eex` (`c1e2ac2`), and
+   `ocel.json.eex` (`e27ca2b`, ONE OCEL event-log document over the whole
+   graph, sealed through `mix ggen_igniter.ocel.seal`). The kernel's 14-type
+   projection family (`@projection_types`, semantic_jira.ex line 40) is
+   unchanged.
+2. **FOND/HDDL projections** — PARTIAL (unchanged in kind): HDDL gained a
+   dedicated template (`plan.hddl.eex` → `docs/plan/<id>.hddl`); both FOND
+   and HDDL kernel bodies remain candidate stubs carrying `authority NONE`
+   (`render_projection_body("fond"/"hddl", …)`, semantic_jira.ex lines
+   1130–1139). Solver-grade emission: still NOT LANDED.
+3. **OCEL binding** — LANDED at pack level: `ocel.json.eex` projects the
+   canonical graph into an OCEL event log (`e27ca2b`), with
+   `mix ggen_igniter.ocel.seal` as the sealing task. The repo-level emitter
+   (`lib/ggen_igniter/telemetry/ocel_emitter.ex`) is unchanged; whether
+   GALL-004's telemetry evidence is wired to it end-to-end was NOT re-verified
+   this session (UNKNOWN beyond template + task presence).
+4. **`baseSha` git ground truth** — LANDED: `8fe0e9a` adds opt-in git ground
+   truth (`lib/ggen_igniter/semantic_jira/git_ground_truth.ex`, real-ancestor
+   reachability via `git cat-file -e` + `git merge-base --is-ancestor`,
+   refusing `REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED`); CI checkout uses
+   full history (`2f26c0b`, ci.yml `fetch-depth: 0`) so the hosted court sees
+   the canonical ancestor `d84da14`.
+5. **Execution-descriptor generator (new since 04:08Z)** — LANDED:
+   `GgenIgniter.Crown.descriptor/3` (crown glue `3983b3a`) projects the exact
+   `Xaas.Ultracode.SemanticWork.admit/1` contract — the 11 contract fields
+   plus event-sourced `standing`, receipt-bound dependency entries, and a
+   fail-closed sha256 graph-digest court. This is the fold target that
+   supersedes #19/#23's fixture descriptor.
+6. **Event-sourced standing (new)** — LANDED: `2507934` (definition digest +
+   append-only `sj:StandingTransition` events), `84afd5c` (reconciler
+   re-based onto event-sourced standing), `bba0592` (transition-log order
+   reconstructed topologically); gate `055_standing_projection.rq` derives
+   chain tips in SPARQL and the kernel's `project_standing/1` is proven
+   equivalent in `test/ggen_igniter_semantic_jira_event_sourcing_test.exs`.
+7. **Public vocabulary carry (new)** — LANDED: `188d3d1` dual-asserts OSLC CM
+   3.0 + dcterms + PROV-O (`VOCABULARY.md` carries the dual-path/residue
+   tables, machine-checked by
+   `test/ggen_igniter_semantic_jira_vocabulary_test.exs`); `sj:` is reduced
+   to documented residue.
+8. **Hosted CI** — GREEN at `bba0592`: runs `35563456070` and `35563540850`
+   (both success; created 2026-09-21T05:08Z / 05:09Z, fetched this session).
+   The pre-`c81f8dc` NIF-cache failure class that PR #23's isolated test
+   court worked around is fixed at the root on this branch (§5); #23's
+   branch predates that fix, which is why its check runs fail on the
+   unrelated NIF surface (run ids `35557920610`, `35557991472`).
+9. **Merge readiness** — UNCHANGED: PR #20 open; per ticket
+   `docs/jira/v26.9.19/001-pr-20.md`, acceptance is "gh pr list no longer
+   lists #20". Not attempted by this session.
 
 ## 8. Traceability matrix
 
@@ -205,11 +246,12 @@ observation window only and must be re-checked against the branch tip before mer
 | `sj:fail-closed-invalid` (85–87) | §3 rejects list; kernel + templates + shapes | Falsifier matrix tests, hosted green | SATISFIED (hosted) |
 | SHACL court (`sj:add-qualified-shacl-court` / `sj:shacl-admission-checkpoint`, 101–107) | `shacl.ex` + `work-order.shacl.ttl` + 20-test file (commit `dd6ac93`) | Hosted green at `58460d0`; unsupported constructs fail closed (shacl tests 320/343) | SATISFIED (closed the SJ-001 next-action) |
 | ALIVE receipt crown (`sj:exact-head-projection-court`, `sj:graph-receipt-evidence`, 69–75) | `Receipt` + gate 046 + SHACL constraints | Pipeline test graph_hash/file assertions; gate 046 + shapes 63–75 | PARTIAL: graph-bound receipt SATISFIED; an *independent external* exact-head court receipt is not claimed by this document (that promotion step remains unclaimed) |
-| 14-way projection family (line 197) | `projection.md.eex` for-each over `ProjectionSpec`s; kernel 14 types | Template + `@projection_types` read this session | PARTIAL: generic path SATISFIED; dedicated wbpr/ard/vision templates + FOND/HDDL solver-grade + OCEL = §7 items 1–3 |
+| 14-way projection family (line 197) | `projection.md.eex` for-each + dedicated templates (`ard.md.eex` `42222fe`, `wbpr.md.eex` `476ebb2`, `vision.md.eex` `864099d`, `plan.hddl.eex` `c1e2ac2`, `ocel.json.eex` `e27ca2b`) | Templates read this session at `bba0592` (§7 items 1–3) | MOSTLY SATISFIED: generic path + wbpr/ard/vision/HDDL/OCEL templates LANDED; solver-grade FOND/HDDL remains §7 item 2 |
 | Receipt-bound replay (`sj:projection-replay`, 303–309) | `replay_check/2`, `sj:replay-evidence` (185–187) | Replay tests hosted green | SATISFIED (kernel/template level) |
 | Hand-writing ≤1% with ledger | `HANDWRITTEN.md` + `sj:ledger-unsupported-001` | Both read this session; commit `7676730` | SATISFIED (ledger row admitted with paydown plan) |
 | RFC exists in-repo | this file | commit `docs(rfc): re-manufacture semantic-jira RFC from live artifacts` (SHA recorded in the PR #20 body append) | CLOSED by this re-manufacture |
-| `baseSha` git ground truth | none found | grep exit 1, §7 item 4 | OPEN |
+| `baseSha` git ground truth | `semantic_jira/git_ground_truth.ex` (opt-in, `8fe0e9a`) + CI full history (`2f26c0b`) | Read this session at `bba0592`; §7 item 4 | SATISFIED (opt-in real-ancestor court; `REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED` on shallow checkouts) |
+| ONE-CANONICAL sole source (#19/#23 superseded) | `pack.toml` sole-canonical note + `test/ggen_igniter_semantic_jira_sole_canonical_test.exs` + `test/ggen_igniter_crown_descriptor_court_test.exs` | `git grep -l "semantic-a2a.dev/gall" HEAD --` = 0; one declaring ontology; superseded pack dir absent (§7 header) | SATISFIED (fold landed this session) |
 
 ## 9. Evidence boundary + receipt
 
