@@ -271,14 +271,63 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
   # admit
   # ===========================================================================
 
+  # The admit verb is a validation pipeline: every stage either returns its
+  # inputs for the next stage or halts with a typed refusal. Splitting the
+  # stages keeps each unit under the complexity ceiling without weakening a
+  # single check (v26.9.22 refactor; behavior is byte-identical).
   defp run_admit(igniter, opts) do
-    dry_run? = opts[:dry_run] == true
     root = File.cwd!()
 
     ontology_path = Path.expand(opts[:ontology] || default_ontology())
     pack_ontology_path = Path.expand(opts[:pack_ontology] || default_pack_ontology(opts))
     pack_dir = Path.expand(opts[:pack_dir] || default_pack_dir())
 
+    validate_admit_paths!(ontology_path, pack_ontology_path)
+    rel_path = validate_admit_target!(relative_admitted_path(opts[:file], root), opts)
+    merged = load_admit_graphs(ontology_path, pack_ontology_path)
+    {kind, kind_name, count} = validate_admit_kind!(merged, opts, pack_ontology_path)
+    validate_admit_capacity!(merged, rel_path, kind, kind_name)
+
+    sha = sha256_file!(rel_path)
+    committed = validate_admission_fields!(opts, root, ontology_path)
+    prefix = opts[:subject_prefix] || "bap"
+
+    individual =
+      build_admit_individual(merged, opts, %{
+        rel_path: rel_path,
+        kind: kind,
+        kind_name: kind_name,
+        count: count,
+        sha: sha,
+        committed: committed,
+        prefix: prefix
+      })
+
+    content = File.read!(ontology_path)
+    {new_content, anchor} = insert_individual(content, individual)
+
+    if opts[:dry_run] == true do
+      report_admit_dry_run(igniter, individual, ontology_path, rel_path, sha)
+    else
+      File.write!(ontology_path, new_content)
+
+      report_admission(igniter, opts, %{
+        individual: individual,
+        rel_path: rel_path,
+        kind: kind,
+        kind_name: kind_name,
+        count: count,
+        sha: sha,
+        committed: committed,
+        root: root,
+        pack_dir: pack_dir,
+        ontology_path: ontology_path,
+        anchor: anchor
+      })
+    end
+  end
+
+  defp validate_admit_paths!(ontology_path, pack_ontology_path) do
     cond do
       not File.exists?(ontology_path) ->
         refused_and_halt("REFUSED_ONTOLOGY_NOT_FOUND", ontology_path)
@@ -289,9 +338,9 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
       true ->
         :ok
     end
+  end
 
-    rel_path = relative_admitted_path(opts[:file], root)
-
+  defp validate_admit_target!(rel_path, opts) do
     cond do
       is_nil(rel_path) ->
         invalid_invocation_and_halt("admit requires --file <path>", opts)
@@ -330,18 +379,22 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
         :ok
     end
 
+    rel_path
+  end
+
+  defp load_admit_graphs(ontology_path, pack_ontology_path) do
     pack_graph = parse_graph!(pack_ontology_path, :pack)
     consumer_graph = parse_graph!(ontology_path, :consumer)
-    merged = RDF.Data.merge(pack_graph, consumer_graph)
+    RDF.Data.merge(pack_graph, consumer_graph)
+  end
 
+  # Kind resolution + the debt-law checks (closed vocabulary gate 060, sunset
+  # plan and expiry for debt kinds per gate 050). Returns {kind, name, count}.
+  defp validate_admit_kind!(merged, opts, pack_ontology_path) do
     kind_name = opts[:kind]
 
-    cond do
-      blank?(kind_name) ->
-        invalid_invocation_and_halt("admit requires --kind <authorship-kind-name>", opts)
-
-      true ->
-        :ok
+    if blank?(kind_name) do
+      invalid_invocation_and_halt("admit requires --kind <authorship-kind-name>", opts)
     end
 
     kind = resolve_kind(merged, kind_name)
@@ -354,6 +407,11 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
       )
     end
 
+    validate_debt_law!(kind, kind_name, opts)
+    {kind, kind_name, kind_count(merged, kind.iri)}
+  end
+
+  defp validate_debt_law!(kind, kind_name, opts) do
     if kind.debt and blank?(opts[:sunset_plan]) do
       refused_and_halt(
         "REFUSED_MISSING_SUNSET_PLAN",
@@ -369,7 +427,9 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
           "bpm:admissionExpires (gate 050), e.g. --expires 2026-12-31"
       )
     end
+  end
 
+  defp validate_admit_capacity!(merged, rel_path, kind, kind_name) do
     existing_paths = admitted_paths(merged)
 
     if Map.has_key?(existing_paths, rel_path) do
@@ -390,9 +450,10 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
           "to the PACK's ontology.ttl, never an ambient grant"
       )
     end
+  end
 
-    sha = sha256_file!(rel_path)
-
+  # Commit identity + principal/reason/prefix field checks (gate 050).
+  defp validate_admission_fields!(opts, root, ontology_path) do
     committed =
       opts[:admitted_at_commit] || git_head_short(root) ||
         refused_and_halt(
@@ -421,86 +482,84 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
       )
     end
 
-    individual = %{
-      subject: subject_for(merged, prefix, rel_path),
-      path: rel_path,
-      kind_iri: kind.iri,
-      kind_name: kind_name,
+    committed
+  end
+
+  defp build_admit_individual(merged, opts, bounds) do
+    %{
+      subject: subject_for(merged, bounds.prefix, bounds.rel_path),
+      path: bounds.rel_path,
+      kind_iri: bounds.kind.iri,
+      kind_name: bounds.kind_name,
       principal: opts[:principal],
       reason: opts[:reason],
       acceptance_command: opts[:acceptance_command],
       acceptance_prerequisite: opts[:acceptance_prerequisite],
-      sha: sha,
-      debt: kind.debt,
-      admitted_at: committed,
+      sha: bounds.sha,
+      debt: bounds.kind.debt,
+      admitted_at: bounds.committed,
       expires: expiry(opts),
       sunset_plan: opts[:sunset_plan]
     }
+  end
 
-    content = File.read!(ontology_path)
-    {new_content, anchor} = insert_individual(content, individual)
+  defp report_admit_dry_run(igniter, individual, ontology_path, rel_path, sha) do
+    IO.puts(
+      "DRY-RUN: validations passed; would append #{individual.subject} to #{ontology_path}:"
+    )
 
-    if dry_run? do
-      IO.puts(
-        "DRY-RUN: validations passed; would append #{individual.subject} to #{ontology_path}:"
-      )
+    IO.puts(indent(ttl_block(individual), "    "))
+    IO.puts("DRY-RUN: no files written, nothing rendered")
 
-      IO.puts(indent(ttl_block(individual), "    "))
-      IO.puts("DRY-RUN: no files written, nothing rendered")
+    Igniter.add_notice(
+      igniter,
+      "ggen_igniter.hand_authored admit: dry-run OK -- #{rel_path} would be admitted (sha256 #{sha})"
+    )
+  end
 
-      Igniter.add_notice(
-        igniter,
-        "ggen_igniter.hand_authored admit: dry-run OK -- #{rel_path} would be admitted (sha256 #{sha})"
-      )
-    else
-      File.write!(ontology_path, new_content)
+  defp report_admission(igniter, opts, b) do
+    IO.puts("✔ ADMITTED: #{b.rel_path}")
 
-      IO.puts("✔ ADMITTED: #{rel_path}")
+    IO.puts(
+      "    kind: #{b.kind_name} (#{if b.kind.debt, do: "debt", else: "not debt"}) " <>
+        "count #{b.count + 1}/#{b.kind.ceiling}#{if b.count + 1 == b.kind.ceiling, do: "  [AT CEILING]"}"
+    )
 
-      IO.puts(
-        "    kind: #{kind_name} (#{if kind.debt, do: "debt", else: "not debt"}) " <>
-          "count #{count + 1}/#{kind.ceiling}#{if count + 1 == kind.ceiling, do: "  [AT CEILING]"}"
-      )
-
-      if kind.debt do
-        IO.puts("    sha256: #{sha}")
-        IO.puts("    expires: #{expiry(opts)}   admittedAt: #{committed}")
-      end
-
-      IO.puts("    ontology: #{anchor} -> #{ontology_path}")
-
-      render_result =
-        if opts[:render] == false do
-          :skipped
-        else
-          render(root, pack_dir)
-        end
-
-      case render_result do
-        :skipped ->
-          IO.puts("– render skipped (--no-render); the manifest is STALE until you run:")
-          IO.puts("    ggen sync run    # from #{root}")
-          IO.puts("next: mix ggen_igniter.hand_authored check")
-
-        {:ok, scaffolded} ->
-          IO.puts(
-            "✔ RENDER: ggen sync run exit 0 (#{scaffolded} template(s) force-scaffolded, restored)"
-          )
-
-          IO.puts("next: mix ggen_igniter.hand_authored check")
-
-        {:blocked, message} ->
-          blocked_render_and_halt(message)
-
-        {:error, message} ->
-          refused_and_halt("RENDER_FAILED", message)
-      end
-
-      Igniter.add_notice(
-        igniter,
-        "ggen_igniter.hand_authored admit: #{rel_path} admitted as #{kind_name} (sha256 #{sha})"
-      )
+    if b.kind.debt do
+      IO.puts("    sha256: #{b.sha}")
+      IO.puts("    expires: #{expiry(opts)}   admittedAt: #{b.committed}")
     end
+
+    IO.puts("    ontology: #{b.anchor} -> #{b.ontology_path}")
+
+    case admit_render(b.root, b.pack_dir, opts) do
+      :skipped ->
+        IO.puts("– render skipped (--no-render); the manifest is STALE until you run:")
+        IO.puts("    ggen sync run    # from #{b.root}")
+        IO.puts("next: mix ggen_igniter.hand_authored check")
+
+      {:ok, scaffolded} ->
+        IO.puts(
+          "✔ RENDER: ggen sync run exit 0 (#{scaffolded} template(s) force-scaffolded, restored)"
+        )
+
+        IO.puts("next: mix ggen_igniter.hand_authored check")
+
+      {:blocked, message} ->
+        blocked_render_and_halt(message)
+
+      {:error, message} ->
+        refused_and_halt("RENDER_FAILED", message)
+    end
+
+    Igniter.add_notice(
+      igniter,
+      "ggen_igniter.hand_authored admit: #{b.rel_path} admitted as #{b.kind_name} (sha256 #{b.sha})"
+    )
+  end
+
+  defp admit_render(root, pack_dir, opts) do
+    if opts[:render] == false, do: :skipped, else: render(root, pack_dir)
   end
 
   # ===========================================================================
@@ -512,6 +571,25 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
     pack_dir = Path.expand(opts[:pack_dir] || default_pack_dir())
     pack_ontology_path = Path.expand(opts[:pack_ontology] || default_pack_ontology(opts))
 
+    validate_list_paths!(ontology_path, pack_ontology_path)
+
+    pack_graph = parse_graph!(pack_ontology_path, :pack)
+    consumer_graph = parse_graph!(ontology_path, :consumer)
+    merged = RDF.Data.merge(pack_graph, consumer_graph)
+
+    kinds = all_kinds(merged)
+    counts = Map.new(kinds, fn kind -> {kind.iri, kind_count(merged, kind.iri)} end)
+    rows = admitted_rows(merged)
+
+    print_list_header(ontology_path, pack_ontology_path, rows)
+    print_list_kinds(kinds, counts)
+    print_list_rows(rows)
+
+    gate_rows = evaluate_list_gates(merged, pack_dir)
+    report_list_gates(igniter, gate_rows, length(rows))
+  end
+
+  defp validate_list_paths!(ontology_path, pack_ontology_path) do
     cond do
       not File.exists?(ontology_path) ->
         refused_and_halt("REFUSED_ONTOLOGY_NOT_FOUND", ontology_path)
@@ -522,15 +600,9 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
       true ->
         :ok
     end
+  end
 
-    pack_graph = parse_graph!(pack_ontology_path, :pack)
-    consumer_graph = parse_graph!(ontology_path, :consumer)
-    merged = RDF.Data.merge(pack_graph, consumer_graph)
-
-    kinds = all_kinds(merged)
-    counts = Map.new(kinds, fn kind -> {kind.iri, kind_count(merged, kind.iri)} end)
-    rows = admitted_rows(merged)
-
+  defp print_list_header(ontology_path, pack_ontology_path, rows) do
     total = length(rows)
     debt_n = Enum.count(rows, & &1.debt)
 
@@ -538,7 +610,9 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
     IO.puts("ontology: #{ontology_path}")
     IO.puts("pack:     #{pack_ontology_path}")
     IO.puts("admitted: #{total} (#{debt_n} counted as manufacturing debt)")
+  end
 
+  defp print_list_kinds(kinds, counts) do
     IO.puts(
       Enum.map_join(
         kinds,
@@ -551,7 +625,9 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
         end
       )
     )
+  end
 
+  defp print_list_rows(rows) do
     IO.puts("rows:")
 
     Enum.each(rows, fn row ->
@@ -562,14 +638,17 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
           "expires=#{row.expires || "-"}"
       )
     end)
+  end
 
-    gate_rows =
-      pack_dir
-      |> gate_queries()
-      |> Enum.map(fn {name, path} ->
-        {name, path, length(Oxigraph.run(merged, File.read!(path)))}
-      end)
+  defp evaluate_list_gates(merged, pack_dir) do
+    pack_dir
+    |> gate_queries()
+    |> Enum.map(fn {name, path} ->
+      {name, path, length(Oxigraph.run(merged, File.read!(path)))}
+    end)
+  end
 
+  defp report_list_gates(igniter, gate_rows, total) do
     IO.puts("pack gates (oxigraph over merged consumer+pack graph):")
 
     Enum.each(gate_rows, fn {name, _path, n} ->
@@ -656,113 +735,127 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
   )
 
   defp render(root, pack_dir) do
-    cond do
-      is_nil(System.find_executable("ggen")) ->
-        {:blocked,
-         "the `ggen` binary is not on PATH -- the admission is written to ontology.ttl; " <>
-           "finish by hand (two-step):\n" <>
-           "    (1) temporarily add `force: true` after the opening `---` of the three " <>
-           "hand-authored templates in #{Path.join(pack_dir, "templates")}\n" <>
-           "    (2) cd #{root} && ggen sync run   (then restore the templates)\n" <>
-           "    alternative: re-run admit with --no-render, render by hand, then " <>
-           "mix ggen_igniter.hand_authored check"}
+    if is_nil(System.find_executable("ggen")) do
+      {:blocked,
+       "the `ggen` binary is not on PATH -- the admission is written to ontology.ttl; " <>
+         "finish by hand (two-step):\n" <>
+         "    (1) temporarily add `force: true` after the opening `---` of the three " <>
+         "hand-authored templates in #{Path.join(pack_dir, "templates")}\n" <>
+         "    (2) cd #{root} && ggen sync run   (then restore the templates)\n" <>
+         "    alternative: re-run admit with --no-render, render by hand, then " <>
+         "mix ggen_igniter.hand_authored check"}
+    else
+      templates =
+        @hand_authored_templates
+        |> Enum.map(&Path.join([pack_dir, "templates", &1]))
+        |> Enum.filter(&File.exists?/1)
 
-      true ->
-        templates =
-          @hand_authored_templates
-          |> Enum.map(&Path.join([pack_dir, "templates", &1]))
-          |> Enum.filter(&File.exists?/1)
+      case templates do
+        [] ->
+          {:error, "no hand-authored templates found under #{Path.join(pack_dir, "templates")}"}
 
-        case templates do
-          [] ->
-            {:error, "no hand-authored templates found under #{Path.join(pack_dir, "templates")}"}
-
-          templates ->
-            render_with_templates(root, pack_dir, templates)
-        end
+        templates ->
+          render_with_templates(root, pack_dir, templates)
+      end
     end
   end
 
   defp render_with_templates(root, _pack_dir, templates) do
     lock_path = Path.join(root, "ggen.lock")
-    # nil = no lock existed (fresh consumer); binary = lock bytes to preserve
-    lock_backup = if File.exists?(lock_path), do: File.read!(lock_path)
-
-    # -- scaffold: add force: true to templates that lack it --------------
-    scaffolded =
-      templates
-      |> Enum.map(fn path ->
-        original = File.read!(path)
-
-        if scaffold_needed?(original) do
-          File.write!(path, scaffold_force(original))
-          {path, original}
-        else
-          nil
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
-
-    restore_templates = fn ->
-      Enum.reduce_while(scaffolded, :ok, fn {path, original}, :ok ->
-        File.write!(path, original)
-
-        if File.read!(path) == original,
-          do: {:cont, :ok},
-          else: {:halt, {:error, path}}
-      end)
-    end
-
-    # Restore the ORIGINAL lock: nil removes a lock the scaffolded sync
-    # created (pinning the scaffolded hash, which would mask a later real
-    # re-lock), binary restores the consumer's own lock bytes verbatim.
-    restore_lock = fn ->
-      cond do
-        is_nil(lock_backup) and File.exists?(lock_path) -> File.rm(lock_path)
-        is_binary(lock_backup) -> File.write!(lock_path, lock_backup)
-        true -> :ok
-      end
-    end
-
-    sync = fn ->
-      System.cmd("ggen", ["sync", "run", "--format", "quiet"], cd: root, stderr_to_stdout: true)
-    end
+    lock_backup = lock_backup(lock_path)
+    scaffolded = scaffold_templates(templates)
 
     # -- first sync: scaffolded pack, lock intentionally removed so the
     #    scaffolded content cannot trip FM-PACK-008 -----------------------
     if lock_backup, do: File.rm(lock_path)
 
-    {output1, status1} = sync.()
-    restore_result = restore_templates.()
+    {output1, status1} = sync_run(root)
 
     cond do
-      restore_result != :ok ->
-        {:error,
-         "RENDER_TEMPLATE_RESTORE_FAILED: #{elem(restore_result, 1)} did not restore byte-identically"}
+      restore_failure = template_restore_failure(scaffolded) ->
+        restore_failure
 
       status1 != 0 ->
-        restore_lock.()
-
-        {:error,
-         "ggen sync run exit #{status1} (scaffolded render). tail:\n" <>
-           indent(String.slice(output1, -2_000, 2_000), "    ")}
+        restore_lock(lock_path, lock_backup)
+        {:error, sync_tail("scaffolded render", status1, output1)}
 
       true ->
-        # -- second sync: templates + original lock restored; the clean
-        #    pack re-validates against the original lock and the render is
-        #    proven idempotent -------------------------------------------
-        restore_lock.()
-
-        {output2, status2} = sync.()
-
-        if status2 == 0 do
-          {:ok, length(scaffolded)}
-        else
-          {:error,
-           "ggen sync run exit #{status2} (post-restore idempotence check). tail:\n" <>
-             indent(String.slice(output2, -2_000, 2_000), "    ")}
-        end
+        restore_lock(lock_path, lock_backup)
+        idempotence_sync(root, length(scaffolded))
     end
+  end
+
+  # nil = no lock existed (fresh consumer); binary = lock bytes to preserve
+  defp lock_backup(lock_path) do
+    if File.exists?(lock_path), do: File.read!(lock_path)
+  end
+
+  # -- scaffold: add force: true to templates that lack it --------------
+  defp scaffold_templates(templates) do
+    templates
+    |> Enum.map(&maybe_scaffold/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp maybe_scaffold(path) do
+    original = File.read!(path)
+
+    if scaffold_needed?(original) do
+      File.write!(path, scaffold_force(original))
+      {path, original}
+    else
+      nil
+    end
+  end
+
+  defp template_restore_failure(scaffolded) do
+    case restore_templates(scaffolded) do
+      :ok ->
+        nil
+
+      {:error, path} ->
+        {:error, "RENDER_TEMPLATE_RESTORE_FAILED: #{path} did not restore byte-identically"}
+    end
+  end
+
+  defp restore_templates(scaffolded) do
+    Enum.reduce_while(scaffolded, :ok, fn {path, original}, :ok ->
+      File.write!(path, original)
+      verify_restored(path, original)
+    end)
+  end
+
+  defp verify_restored(path, original) do
+    if File.read!(path) == original, do: {:cont, :ok}, else: {:halt, {:error, path}}
+  end
+
+  # Restore the ORIGINAL lock: nil removes a lock the scaffolded sync
+  # created (pinning the scaffolded hash, which would mask a later real
+  # re-lock), binary restores the consumer's own lock bytes verbatim.
+  defp restore_lock(lock_path, nil), do: if(File.exists?(lock_path), do: File.rm(lock_path))
+  defp restore_lock(lock_path, backup) when is_binary(backup), do: File.write!(lock_path, backup)
+  defp restore_lock(_lock_path, _other), do: :ok
+
+  defp sync_run(root) do
+    System.cmd("ggen", ["sync", "run", "--format", "quiet"], cd: root, stderr_to_stdout: true)
+  end
+
+  # -- second sync: templates + original lock restored; the clean pack
+  #    re-validates against the original lock and the render is proven
+  #    idempotent -----------------------------------------------------------
+  defp idempotence_sync(root, scaffolded_count) do
+    {output2, status2} = sync_run(root)
+
+    if status2 == 0 do
+      {:ok, scaffolded_count}
+    else
+      {:error, sync_tail("post-restore idempotence check", status2, output2)}
+    end
+  end
+
+  defp sync_tail(phase, status, output) do
+    "ggen sync run exit #{status} (#{phase}). tail:\n" <>
+      indent(String.slice(output, -2_000, 2_000), "    ")
   end
 
   defp scaffold_needed?(content) do
