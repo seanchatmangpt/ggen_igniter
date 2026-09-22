@@ -1031,24 +1031,30 @@ defmodule GgenIgniter.SemanticJira do
   end
 
   @doc """
-  Projects authority-free ZOE meeting-delta work candidates into canonical
+  Projects an authority-free semantic observation delta into canonical
   Semantic Jira WorkOrder candidates.
 
-  This is a representation/admission adapter only. The source delta must
-  already have preserved candidate-only authority; the adapter refuses any
-  candidate that claims DO, dispatch, or non-candidate standing. Repository,
-  exact base SHA, courts, evidence, acceptance, falsifiers, projections, and
-  bounded path scope are explicit caller bindings rather than inferred from
-  meeting prose.
+  This is the generic representation/admission boundary used by LifeGym,
+  BibleGym, project gyms, and other observation producers. The source delta
+  must already be candidate-only: CONSTRUCT_ONLY, CANDIDATE,
+  do_authority=false, and NOT_EXECUTED. Repository/base identity, courts,
+  evidence, acceptance, falsifiers, projections, receipt classes, and bounded
+  path scope remain explicit caller bindings.
 
   Returned WorkOrders are kernel-admitted with standing UNKNOWN and authority
   NONE. SHACL admission, frontier selection, XaaS materialization, SA2A/BRCE
   consequence, receipts, replay, and standing promotion remain downstream.
   """
-  @spec meeting_delta_work_orders(map(), map()) :: {:ok, [json_map()]} | refusal()
-  def meeting_delta_work_orders(delta, binding) when is_map(delta) and is_map(binding) do
+  @spec observation_delta_work_orders(map(), map(), keyword()) ::
+          {:ok, [json_map()]} | refusal()
+  def observation_delta_work_orders(delta, binding, opts \\ [])
+      when is_map(delta) and is_map(binding) and is_list(opts) do
     delta = strings(delta)
     binding = strings(binding)
+
+    source_kind = Keyword.get(opts, :source_kind, "semantic-observation")
+    title_prefix = Keyword.get(opts, :title_prefix, "Semantic observation")
+    subject_namespace = Keyword.get(opts, :subject_namespace, "semantic-observation")
 
     binding_keys =
       ~w(repository base_sha path_scope required_courts required_evidence acceptance falsifiers projections required_receipt_classes evidence_ceiling promotion_rule)
@@ -1070,25 +1076,60 @@ defmodule GgenIgniter.SemanticJira do
       delta["work_candidates"]
       |> Enum.sort_by(&strings(&1)["id"])
       |> Enum.reduce_while({:ok, []}, fn raw, {:ok, acc} ->
-        case meeting_delta_work_order(delta, strings(raw), binding) do
+        case observation_delta_work_order(
+               delta,
+               strings(raw),
+               binding,
+               source_kind,
+               title_prefix,
+               subject_namespace
+             ) do
           {:ok, work_order} -> {:cont, {:ok, [work_order | acc]}}
           {:error, reason} -> {:halt, {:error, reason}}
         end
       end)
       |> case do
         {:ok, work_orders} -> {:ok, Enum.reverse(work_orders)}
-        {:error, reason} -> {:error, {:refused_meeting_delta, reason}}
+        {:error, reason} -> {:error, {:refused_observation_delta, reason}}
       end
     else
-      false -> {:error, {:refused_meeting_delta, :invalid_candidate_collection}}
-      {:error, reason} -> {:error, {:refused_meeting_delta, reason}}
+      false -> {:error, {:refused_observation_delta, :invalid_candidate_collection}}
+      {:error, reason} -> {:error, {:refused_observation_delta, reason}}
     end
   end
 
-  def meeting_delta_work_orders(_delta, _binding),
-    do: {:error, {:refused_meeting_delta, :expected_maps}}
+  def observation_delta_work_orders(_delta, _binding, _opts),
+    do: {:error, {:refused_observation_delta, :expected_maps}}
 
-  defp meeting_delta_work_order(delta, candidate, binding) do
+  @doc """
+  Backward-compatible ZOE meeting specialization of
+  `observation_delta_work_orders/3`.
+  """
+  @spec meeting_delta_work_orders(map(), map()) :: {:ok, [json_map()]} | refusal()
+  def meeting_delta_work_orders(delta, binding) do
+    case observation_delta_work_orders(
+           delta,
+           binding,
+           source_kind: "zoe-meeting",
+           title_prefix: "ZOE readiness",
+           subject_namespace: "zoe-readiness"
+         ) do
+      {:error, {:refused_observation_delta, reason}} ->
+        {:error, {:refused_meeting_delta, reason}}
+
+      other ->
+        other
+    end
+  end
+
+  defp observation_delta_work_order(
+         delta,
+         candidate,
+         binding,
+         source_kind,
+         title_prefix,
+         subject_namespace
+       ) do
     allowed = %{
       "MISSING_TRANSITION" => "CLOSE_READINESS_GAP",
       "INCOMPLETE_BINDING" => "RESOLVE_BINDING",
@@ -1111,15 +1152,16 @@ defmodule GgenIgniter.SemanticJira do
            Map.get(allowed, candidate["delta_class"]),
          true <- candidate["kind"] == expected_kind do
       replay_identity =
-        "zoe-readiness:" <>
-          delta["episode_id"] <> ":" <> candidate["id"]
+        subject_namespace <>
+          ":" <> delta["episode_id"] <> ":" <> candidate["id"]
 
       raw = %{
         "identity" => candidate["id"],
-        "title" => "ZOE readiness " <> candidate["kind"],
+        "title" => title_prefix <> " " <> candidate["kind"],
         "description" =>
           "Resolve " <> candidate["delta_class"] <> " for " <> candidate["subject_ref"],
-        "subject" => "zoe-readiness:" <> delta["episode_id"] <> ":" <> candidate["subject_ref"],
+        "subject" =>
+          subject_namespace <> ":" <> delta["episode_id"] <> ":" <> candidate["subject_ref"],
         "repository" => binding["repository"],
         "base_sha" => binding["base_sha"],
         "standing" => "UNKNOWN",
@@ -1137,6 +1179,8 @@ defmodule GgenIgniter.SemanticJira do
         "path_scope" => binding["path_scope"],
         "authority_requirement" => "NONE",
         "expected_consequence" => candidate["kind"],
+        "source_observation_kind" => source_kind,
+        "source_delta_schema" => delta["schema"],
         "source_episode_id" => delta["episode_id"],
         "source_delta_digest" => delta["digest"],
         "source_delta_class" => candidate["delta_class"],
