@@ -1107,7 +1107,8 @@ defmodule GgenIgniter.SemanticJira do
          true <- candidate["standing"] == "CANDIDATE",
          true <- candidate["do_authority"] == false,
          true <- candidate["dispatch"] == "NOT_EXECUTED",
-         expected_kind when is_binary(expected_kind) <- Map.get(allowed, candidate["delta_class"]),
+         expected_kind when is_binary(expected_kind) <-
+           Map.get(allowed, candidate["delta_class"]),
          true <- candidate["kind"] == expected_kind do
       replay_identity =
         "zoe-readiness:" <>
@@ -1118,8 +1119,7 @@ defmodule GgenIgniter.SemanticJira do
         "title" => "ZOE readiness " <> candidate["kind"],
         "description" =>
           "Resolve " <> candidate["delta_class"] <> " for " <> candidate["subject_ref"],
-        "subject" =>
-          "zoe-readiness:" <> delta["episode_id"] <> ":" <> candidate["subject_ref"],
+        "subject" => "zoe-readiness:" <> delta["episode_id"] <> ":" <> candidate["subject_ref"],
         "repository" => binding["repository"],
         "base_sha" => binding["base_sha"],
         "standing" => "UNKNOWN",
