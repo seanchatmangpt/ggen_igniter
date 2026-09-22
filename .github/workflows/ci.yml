@@ -228,10 +228,30 @@ jobs:
       # assertion (which is the real contract under test). Locally the same
       # flake reproduces with `rm -rf _build/dev && mix test <that file>`
       # and disappears with `mix compile` run first.
-      - name: mix compile (dev env, so test subprocesses never pay the first compile)
+      - name: mix compile --warnings-as-errors (dev env)
         shell: bash
         run: |
-          mix compile
+          mix compile --warnings-as-errors
+
+      - name: Semantic Jira Chicago boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=(
+            lib/ggen_igniter/semantic_jira.ex
+            lib/ggen_igniter/semantic_jira
+            test/ggen_igniter_semantic_jira_event_sourcing_test.exs
+            test/ggen_igniter_semantic_jira_pack_health_test.exs
+            test/ggen_igniter_semantic_jira_pack_test.exs
+            test/ggen_igniter_semantic_jira_shacl_test.exs
+            test/ggen_igniter_semantic_jira_sole_canonical_test.exs
+            test/ggen_igniter_semantic_jira_vocabulary_test.exs
+          )
+          if grep -RInE '\\b(Mox|defmock|expect\\(|stub\\()' "${paths[@]}"; then
+            echo "REFUSED: semantic-jira court contains mock/stub machinery" >&2
+            exit 1
+          fi
+          echo "semantic-jira Chicago boundary: real collaborators only"
 
       - name: mix test
         shell: bash
