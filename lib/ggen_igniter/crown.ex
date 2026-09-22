@@ -451,6 +451,11 @@ defmodule GgenIgniter.Crown do
   @doc """
   Extracts the StandingTransition events from the canonical graph as
   kernel-shaped event maps (for `SemanticJira.project_standing/1`).
+
+  The returned list is in reconstructed LOG order (chain order per work
+  order), not raw SPARQL order: `project_standing/1` is last-write-wins
+  ("log order is time"), and a SELECT DISTINCT result carries no order at
+  all. See `chain_order/1`.
   """
   @spec extract_transitions(String.t()) :: {:ok, [map()]} | refusal()
   def extract_transitions(graph_path) when is_binary(graph_path) do
@@ -472,10 +477,12 @@ defmodule GgenIgniter.Crown do
                sj:snapshotDigest ?snapshot_digest .
         ?wo dcterms:identifier ?wo_id .
       }
+      ORDER BY ?wo_id ?transition_id
       """)
 
     {:ok,
-     Enum.map(rows, fn row ->
+     rows
+     |> Enum.map(fn row ->
        %{
          "kind" => "standing_transition_event",
          "work_order_id" => row["wo_id"],
@@ -485,7 +492,51 @@ defmodule GgenIgniter.Crown do
          "definition_digest" => row["definition_digest"],
          "snapshot_digest" => row["snapshot_digest"]
        }
-     end)}
+     end)
+     |> chain_order()}
+  end
+
+  # The SPARQL engine returns SELECT DISTINCT rows in no defined order — and
+  # the engine's row order differs between hosts (this exact nondeterminism
+  # red-ed hosted run 35551436997: the ALIVE hop event landed before its
+  # PARTIAL_ALIVE predecessor, so the last-write-wins projection in
+  # `SemanticJira.project_standing/1` read the chain tip as PARTIAL_ALIVE).
+  # The log order is nonetheless recoverable from the progression linkage
+  # itself: a lawful log is a chain — each event's from_standing is the
+  # previous event's to_standing (`SemanticJira.progression/2` +
+  # `bound_intent?` refuse self-loops, branch intents, and stale `from`).
+  # Topologically order each work order's events by that linkage: an event
+  # becomes available once no UNEMITTED event carries its from_standing as
+  # a to_standing; among available events the smallest transitionId (a
+  # content hash) is emitted, so the reconstruction is total and independent
+  # of the engine's row permutation. Kernel-manufactured logs are single
+  # chains, so the reconstruction IS the true log order; ties and cycles
+  # can only arise in non-kernel graphs and still emit every event exactly
+  # once, deterministically.
+  defp chain_order(events) do
+    events
+    |> Enum.group_by(& &1["work_order_id"])
+    |> Enum.sort_by(fn {id, _} -> id end)
+    |> Enum.flat_map(fn {_id, evs} ->
+      do_chain_order(Enum.sort_by(evs, & &1["transition_id"]), length(evs), [])
+    end)
+  end
+
+  defp do_chain_order(_pool, 0, acc), do: Enum.reverse(acc)
+
+  defp do_chain_order(pool, n, acc) do
+    available =
+      Enum.filter(pool, fn event ->
+        not Enum.any?(pool, fn other ->
+          other != event and other["to_standing"] == event["from_standing"]
+        end)
+      end)
+
+    case available do
+      [] -> Enum.min_by(pool, & &1["transition_id"])
+      candidates -> Enum.min_by(candidates, & &1["transition_id"])
+    end
+    |> then(&do_chain_order(List.delete(pool, &1), n - 1, [&1 | acc]))
   end
 
   # ----------------------------------------------------------------------
