@@ -1030,6 +1030,130 @@ defmodule GgenIgniter.SemanticJira do
     end
   end
 
+  @doc """
+  Projects authority-free ZOE meeting-delta work candidates into canonical
+  Semantic Jira WorkOrder candidates.
+
+  This is a representation/admission adapter only. The source delta must
+  already have preserved candidate-only authority; the adapter refuses any
+  candidate that claims DO, dispatch, or non-candidate standing. Repository,
+  exact base SHA, courts, evidence, acceptance, falsifiers, projections, and
+  bounded path scope are explicit caller bindings rather than inferred from
+  meeting prose.
+
+  Returned WorkOrders are kernel-admitted with standing UNKNOWN and authority
+  NONE. SHACL admission, frontier selection, XaaS materialization, SA2A/BRCE
+  consequence, receipts, replay, and standing promotion remain downstream.
+  """
+  @spec meeting_delta_work_orders(map(), map()) :: {:ok, [json_map()]} | refusal()
+  def meeting_delta_work_orders(delta, binding) when is_map(delta) and is_map(binding) do
+    delta = strings(delta)
+    binding = strings(binding)
+
+    binding_keys =
+      ~w(repository base_sha path_scope required_courts required_evidence acceptance falsifiers projections required_receipt_classes evidence_ceiling promotion_rule)
+
+    with :ok <- required(delta, ~w(episode_id work_candidates digest)),
+         true <- is_list(delta["work_candidates"]),
+         :ok <- required(binding, binding_keys),
+         :ok <- repository(binding["repository"]),
+         :ok <- sha(:base_sha, binding["base_sha"]),
+         :ok <- path_scope(binding["path_scope"]),
+         true <- binding["path_scope"] != [],
+         :ok <-
+           nonempty_lists(
+             binding,
+             ~w(required_courts required_evidence acceptance falsifiers projections required_receipt_classes)
+           ),
+         :ok <- projection_types(binding["projections"]),
+         :ok <- receipt_classes(binding["required_receipt_classes"]) do
+      delta["work_candidates"]
+      |> Enum.sort_by(&strings(&1)["id"])
+      |> Enum.reduce_while({:ok, []}, fn raw, {:ok, acc} ->
+        case meeting_delta_work_order(delta, strings(raw), binding) do
+          {:ok, work_order} -> {:cont, {:ok, [work_order | acc]}}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
+      |> case do
+        {:ok, work_orders} -> {:ok, Enum.reverse(work_orders)}
+        {:error, reason} -> {:error, {:refused_meeting_delta, reason}}
+      end
+    else
+      false -> {:error, {:refused_meeting_delta, :invalid_candidate_collection}}
+      {:error, reason} -> {:error, {:refused_meeting_delta, reason}}
+    end
+  end
+
+  def meeting_delta_work_orders(_delta, _binding),
+    do: {:error, {:refused_meeting_delta, :expected_maps}}
+
+  defp meeting_delta_work_order(delta, candidate, binding) do
+    allowed = %{
+      "MISSING_TRANSITION" => "CLOSE_READINESS_GAP",
+      "INCOMPLETE_BINDING" => "RESOLVE_BINDING",
+      "ONTOLOGY_UPDATE_CANDIDATE" => "REVIEW_ONTOLOGY_CHANGE",
+      "NOVEL_OBSERVATION" => "INVESTIGATE_NOVEL_OBSERVATION",
+      "PROCESS_WASTE_CANDIDATE" => "REVIEW_PROCESS_WASTE"
+    }
+
+    with :ok <-
+           required(
+             candidate,
+             ~w(id kind episode_id subject_ref delta_class evidence_ref authority standing dispatch)
+           ),
+         true <- candidate["episode_id"] == delta["episode_id"],
+         true <- candidate["authority"] == "CONSTRUCT_ONLY",
+         true <- candidate["standing"] == "CANDIDATE",
+         true <- candidate["do_authority"] == false,
+         true <- candidate["dispatch"] == "NOT_EXECUTED",
+         expected_kind when is_binary(expected_kind) <- Map.get(allowed, candidate["delta_class"]),
+         true <- candidate["kind"] == expected_kind do
+      replay_identity =
+        "zoe-readiness:" <>
+          delta["episode_id"] <> ":" <> candidate["id"]
+
+      raw = %{
+        "identity" => candidate["id"],
+        "title" => "ZOE readiness " <> candidate["kind"],
+        "description" =>
+          "Resolve " <> candidate["delta_class"] <> " for " <> candidate["subject_ref"],
+        "subject" =>
+          "zoe-readiness:" <> delta["episode_id"] <> ":" <> candidate["subject_ref"],
+        "repository" => binding["repository"],
+        "base_sha" => binding["base_sha"],
+        "standing" => "UNKNOWN",
+        "evidence_ceiling" => binding["evidence_ceiling"],
+        "promotion_rule" => binding["promotion_rule"],
+        "replay_identity" => replay_identity,
+        "replay_required" => true,
+        "dependencies" => [],
+        "required_courts" => binding["required_courts"],
+        "required_evidence" => binding["required_evidence"],
+        "required_receipt_classes" => binding["required_receipt_classes"],
+        "acceptance" => binding["acceptance"],
+        "falsifiers" => binding["falsifiers"],
+        "projections" => binding["projections"],
+        "path_scope" => binding["path_scope"],
+        "authority_requirement" => "NONE",
+        "expected_consequence" => candidate["kind"],
+        "source_episode_id" => delta["episode_id"],
+        "source_delta_digest" => delta["digest"],
+        "source_delta_class" => candidate["delta_class"],
+        "source_evidence_ref" => candidate["evidence_ref"],
+        "source_candidate_authority" => candidate["authority"],
+        "source_candidate_dispatch" => candidate["dispatch"]
+      }
+
+      admit_work_order(raw)
+    else
+      false -> {:error, {:candidate_boundary_violation, candidate["id"]}}
+      nil -> {:error, {:unsupported_delta_class, candidate["delta_class"]}}
+      {:error, reason} -> {:error, reason}
+      other -> {:error, {:candidate_boundary_violation, other}}
+    end
+  end
+
   @doc "Constructs an observed-process finding while preserving normative law."
   @spec process_finding(map()) :: {:ok, json_map()} | refusal()
   def process_finding(attrs) when is_map(attrs) do
