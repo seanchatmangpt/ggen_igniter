@@ -32,7 +32,8 @@ defmodule GgenIgniterCliTasksQuirksTest do
     {"ggen_igniter.plan", []},
     {"ggen_igniter.doctor", []},
     {"ggen_igniter.replay", []},
-    {"ggen_igniter.meeting_delta", []}
+    {"ggen_igniter.meeting_delta", []},
+    {"ggen_igniter.observation_delta", []}
   ]
 
   # Tasks that support `--json`. `ggen_igniter.sync` has NO `--json` mode at
