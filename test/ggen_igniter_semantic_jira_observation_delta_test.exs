@@ -80,8 +80,7 @@ defmodule GgenIgniter.SemanticJiraObservationDeltaTest do
           ] do
       bad = %{delta() | "work_candidates" => [poisoned]}
 
-      assert {:error,
-              {:refused_observation_delta, {:candidate_boundary_violation, "SLL-001"}}} =
+      assert {:error, {:refused_observation_delta, {:candidate_boundary_violation, "SLL-001"}}} =
                SemanticJira.observation_delta_work_orders(bad, binding())
     end
   end
@@ -91,8 +90,7 @@ defmodule GgenIgniter.SemanticJiraObservationDeltaTest do
     bad_candidate = Map.put(candidate, "kind", "CLOSE_READINESS_GAP")
     bad = %{delta() | "work_candidates" => [bad_candidate]}
 
-    assert {:error,
-            {:refused_observation_delta, {:candidate_boundary_violation, "SLL-001"}}} =
+    assert {:error, {:refused_observation_delta, {:candidate_boundary_violation, "SLL-001"}}} =
              SemanticJira.observation_delta_work_orders(bad, binding())
   end
 end
