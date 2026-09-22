@@ -1072,26 +1072,16 @@ defmodule GgenIgniter.SemanticJira do
              ~w(required_courts required_evidence acceptance falsifiers projections required_receipt_classes)
            ),
          :ok <- projection_types(binding["projections"]),
-         :ok <- receipt_classes(binding["required_receipt_classes"]) do
-      delta["work_candidates"]
-      |> Enum.sort_by(&strings(&1)["id"])
-      |> Enum.reduce_while({:ok, []}, fn raw, {:ok, acc} ->
-        case observation_delta_work_order(
-               delta,
-               strings(raw),
-               binding,
-               source_kind,
-               title_prefix,
-               subject_namespace
-             ) do
-          {:ok, work_order} -> {:cont, {:ok, [work_order | acc]}}
-          {:error, reason} -> {:halt, {:error, reason}}
-        end
-      end)
-      |> case do
-        {:ok, work_orders} -> {:ok, Enum.reverse(work_orders)}
-        {:error, reason} -> {:error, {:refused_observation_delta, reason}}
-      end
+         :ok <- receipt_classes(binding["required_receipt_classes"]),
+         {:ok, work_orders} <-
+           observation_delta_candidates(
+             delta,
+             binding,
+             source_kind,
+             title_prefix,
+             subject_namespace
+           ) do
+      {:ok, work_orders}
     else
       false -> {:error, {:refused_observation_delta, :invalid_candidate_collection}}
       {:error, reason} -> {:error, {:refused_observation_delta, reason}}
@@ -1100,6 +1090,56 @@ defmodule GgenIgniter.SemanticJira do
 
   def observation_delta_work_orders(_delta, _binding, _opts),
     do: {:error, {:refused_observation_delta, :expected_maps}}
+
+  defp observation_delta_candidates(
+         delta,
+         binding,
+         source_kind,
+         title_prefix,
+         subject_namespace
+       ) do
+    delta["work_candidates"]
+    |> Enum.sort_by(&strings(&1)["id"])
+    |> Enum.reduce_while({:ok, []}, fn raw, {:ok, acc} ->
+      reduce_observation_delta_candidate(
+        raw,
+        acc,
+        delta,
+        binding,
+        source_kind,
+        title_prefix,
+        subject_namespace
+      )
+    end)
+    |> reverse_observation_delta_candidates()
+  end
+
+  defp reduce_observation_delta_candidate(
+         raw,
+         acc,
+         delta,
+         binding,
+         source_kind,
+         title_prefix,
+         subject_namespace
+       ) do
+    case observation_delta_work_order(
+           delta,
+           strings(raw),
+           binding,
+           source_kind,
+           title_prefix,
+           subject_namespace
+         ) do
+      {:ok, work_order} -> {:cont, {:ok, [work_order | acc]}}
+      {:error, reason} -> {:halt, {:error, reason}}
+    end
+  end
+
+  defp reverse_observation_delta_candidates({:ok, work_orders}),
+    do: {:ok, Enum.reverse(work_orders)}
+
+  defp reverse_observation_delta_candidates({:error, reason}), do: {:error, reason}
 
   @doc """
   Backward-compatible ZOE meeting specialization of
