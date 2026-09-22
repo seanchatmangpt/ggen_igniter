@@ -86,6 +86,7 @@ defmodule GgenIgniter.SemanticJiraMeetingDeltaTest do
 
   test "refuses a semantic mismatch between delta class and work kind" do
     [first | rest] = delta()["work_candidates"]
+
     poisoned = %{
       delta()
       | "work_candidates" => [Map.put(first, "kind", "RESOLVE_BINDING") | rest]
