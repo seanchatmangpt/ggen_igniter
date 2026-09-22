@@ -24,14 +24,15 @@ defmodule GgenIgniterCliTasksQuirksTest do
   # tripping an unrelated "missing required arg" error first. `--help`/`-h` are
   # checked before any other validation in all four tasks (see
   # `lib/mix/tasks/CLAUDE.md`), so no task actually needs extra args here today
-  # -- the field exists so a future 5th task with different plumbing (e.g. a
+  # -- the field exists so a future task with different plumbing (e.g. a
   # required positional argument checked before its own `--help` handling)
   # can still be dropped into this same list without changing the test logic.
   @tasks [
     {"ggen_igniter.sync", []},
     {"ggen_igniter.plan", []},
     {"ggen_igniter.doctor", []},
-    {"ggen_igniter.replay", []}
+    {"ggen_igniter.replay", []},
+    {"ggen_igniter.meeting_delta", []}
   ]
 
   # Tasks that support `--json`. `ggen_igniter.sync` has NO `--json` mode at
