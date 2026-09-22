@@ -1,3 +1,16 @@
+# Engineering Standards Root Binding
+
+> Generated adoption header. Shared engineering semantics are rooted at `seanchatmangpt/engineering-standards@5a3bb6446aeaee2255a7523d4d8cebf6042960c3`.
+
+- Repository subject: `seanchatmangpt/ggen_igniter@d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3`
+- Ecosystem role: semantic admission and framework-native Ash/Igniter manufacture
+- Adoption manifest: `engineering-standards.json`
+- Project profile: `semantic/engineering-standards-profile.ttl`
+
+The local constitution below remains authoritative for repository-specific mechanics. It may narrow the root but may not redefine shared WorkOrder identity, authority, receipt/replay, generated-artifact sovereignty, or evidence standing. Ticket, agent, capability, plan, proof, and generated output do not acquire ambient DO authority.
+
+---
+
 # AGENTS.md
 
 Single invariant: **if Ash already knows how to manufacture the thing, the agent is not
