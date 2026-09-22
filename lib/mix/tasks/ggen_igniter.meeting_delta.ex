@@ -23,7 +23,7 @@ defmodule Mix.Tasks.GgenIgniter.MeetingDelta do
 
   @impl Mix.Task
   def run(argv) do
-    {opts, _rest} = OptionParser.parse!(argv, strict: @switches)
+    {opts, _rest} = OptionParser.parse!(argv, strict: @switches, aliases: [h: :help])
 
     cond do
       opts[:help] ->
