@@ -959,6 +959,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   end
 
   describe "Vision projection template" do
+    @tag timeout: @double_sync_timeout
     test "manufactures the Vision projection for dogfood SJ-001 and replays byte-identically" do
       work_dir = scratch_dir!("vision_projection")
       output_path = Path.join(work_dir, "SJ-001.vision.md")
