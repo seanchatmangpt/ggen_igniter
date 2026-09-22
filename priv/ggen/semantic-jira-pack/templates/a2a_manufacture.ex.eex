@@ -1,0 +1,121 @@
+---
+to: "lib/mix/tasks/<%= task_name %>.ex"
+for_each: a2a_target
+mode: file
+---
+<%
+  truthy = fn
+    true -> true
+    "true" -> true
+    _ -> false
+  end
+
+  task_module =
+    "Mix.Tasks." <>
+      (task_name |> String.split(".") |> Enum.map_join(".", &Macro.camelize/1))
+  domain = domain_module
+  resource = resource_module
+
+  attr_flag = fn a ->
+    mods =
+      []
+      |> then(fn acc -> if truthy.(a["is_public"]), do: acc ++ ["public"], else: acc end)
+      |> then(fn acc -> if truthy.(a["is_required"]), do: acc ++ ["required"], else: acc end)
+
+    Enum.join([a["attribute_name"], a["attribute_type"]] ++ mods, ":")
+  end
+
+  attr_args =
+    a2a_attributes
+    |> Enum.sort_by(& &1["attribute_name"])
+    |> Enum.flat_map(fn a -> ["--attribute", attr_flag.(a)] end)
+
+  lit = fn list -> Enum.map_join(list, ", ", &inspect/1) end
+%>defmodule <%= task_module %> do
+  @shortdoc "Manufactures the <%= resource %> Ash resource and its ash_a2a surface from the Semantic Jira ontology."
+  @moduledoc """
+  A composed `Igniter.Mix.Task` that manufactures the `<%= resource %>` Ash
+  resource and wires `ash_a2a` into it by calling the REAL upstream generators
+  through `Igniter.compose_task/4`.
+
+  ## This file is manufactured -- do not hand-edit
+
+  Rendered by `ggen_igniter` from `priv/ggen/semantic-jira-pack/`
+  (`ontology.ttl` + `gates/06*.rq` + `templates/a2a_manufacture.ex.eex`). Every
+  argument is DERIVED from ontology facts (`a2a:ManufactureTarget`,
+  `a2a:ResourceAttribute`); the ontology stores no CLI strings. This file never
+  declares an Ash resource itself: `ash.gen.resource` writes the resource and
+  `ash_a2a.install` adds `extensions: [AshA2A]` to it.
+
+  Authority of this projection is NONE. Skills, task states and the AgentCard
+  are consequences of the ontology; standing is never inferred from A2A task
+  state.
+
+  ## Usage
+
+      mix <%= task_name %> --yes
+      mix <%= task_name %> --check   # exits 0 iff nothing would change
+  """
+
+  use Igniter.Mix.Task
+
+  # Ordered manufacturing plan. Each step is one real upstream generator.
+  @plan [
+    %{
+      step: "gen_domain",
+      task: "ash.gen.domain",
+      argv: [<%= lit.([domain, "--ignore-if-exists"]) %>]
+    },
+    %{
+      step: "gen_resource",
+      task: "ash.gen.resource",
+      argv: [<%= lit.([resource, "--uuid-primary-key", "id"] ++ attr_args ++ ["--default-actions", "read,create", "--extend", "ets", "--domain", domain]) %>]
+    },
+    %{
+      step: "install_ash_a2a",
+      task: "ash_a2a.install",
+      argv: [<%= lit.(["--target", resource, "--type", "resource"]) %>],
+      # GUARDED: ash_a2a.install's add_extension leg is idempotent, but its
+      # add_starter_dsl_block leg calls Igniter.Code.Common.add_code
+      # unconditionally (ash_a2a 26.9.17, mix/tasks/ash_a2a.install.ex), so a
+      # second run over an already-installed resource changes the file
+      # (observed by this repo's F9 test). Skipped when the resource source
+      # already carries the extension marker.
+      skip_if_installed: {<%= resource %>, "AshA2A"}
+    }
+  ]
+
+  @doc false
+  def plan, do: @plan
+
+  @impl Igniter.Mix.Task
+  def info(_argv, _parent) do
+    %Igniter.Mix.Task.Info{
+      group: :<%= otp_app %>,
+      example: "mix <%= task_name %> --yes",
+      composes: Enum.map(@plan, & &1.task)
+    }
+  end
+
+  @impl Igniter.Mix.Task
+  def igniter(igniter) do
+    Enum.reduce(@plan, igniter, &apply_step/2)
+  end
+
+  defp apply_step(%{skip_if_installed: {module, marker}} = step, igniter) do
+    {igniter, installed?} =
+      case Igniter.Project.Module.find_module(igniter, module) do
+        {:ok, {igniter, source, _zipper}} ->
+          {igniter, String.contains?(Rewrite.Source.get(source, :content), marker)}
+
+        {:error, igniter} ->
+          {igniter, false}
+      end
+
+    if installed?, do: igniter, else: compose(igniter, step)
+  end
+
+  defp apply_step(step, igniter), do: compose(igniter, step)
+
+  defp compose(igniter, step), do: Igniter.compose_task(igniter, step.task, step.argv)
+end

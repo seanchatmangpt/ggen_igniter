@@ -6,7 +6,7 @@ defmodule GgenIgniter.MixProject do
   def project do
     [
       app: :ggen_igniter,
-      version: "26.9.15",
+      version: "26.9.20",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -62,7 +62,7 @@ defmodule GgenIgniter.MixProject do
         # mix.exs/CHANGELOG.md state" test greps `mix.exs`'s raw source with
         # `~r/version:\s*"([^"]+)"/` and breaks if `version:` isn't followed
         # directly by a literal string.
-        source_ref: "v26.9.15"
+        source_ref: "v26.9.20"
       ],
       dialyzer: [
         # `:mix` is excluded from the PLT by default (it's a build-time-only
@@ -76,7 +76,9 @@ defmodule GgenIgniter.MixProject do
         # real type error in this project's code. Verified: adding this and
         # rebuilding the PLT eliminates all 12 of those warnings with zero new
         # findings.
-        plt_add_apps: [:mix]
+        plt_add_apps: [:mix],
+        # Enumerated, justified suppressions -- see the file's header.
+        ignore_warnings: ".dialyzer_ignore.exs"
       ],
       elixirc_paths: elixirc_paths(Mix.env())
     ]
@@ -203,6 +205,13 @@ defmodule GgenIgniter.MixProject do
       # the fixture qualification run.
       {:ash, "~> 3.0", only: [:dev, :test]},
       {:ash_postgres, "~> 2.0", only: [:dev, :test]},
+      # A2A (agent-to-agent) surface for Semantic Jira: ash_a2a is manufactured
+      # into a consumer Ash resource by `ash_a2a.install`; like Ash it is a
+      # dev/test-only dependency of this repo, never a runtime one (no lib/
+      # module references it). plug + bandit serve the real HTTP conformance test.
+      {:ash_a2a, "~> 26.9", only: [:dev, :test]},
+      {:plug, "~> 1.16", only: [:dev, :test]},
+      {:bandit, "~> 1.5", only: [:dev, :test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: [:dev, :test]},

@@ -1,0 +1,94 @@
+---
+to: "docs/semantic-jira/<%= work_order_id %>/<%= projection_type %>.<%= extension %>"
+for_each: projection_specs
+mode: file
+sparql:
+  projection_specs: |
+    PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    SELECT ?work_order ?work_order_id ?title ?description ?repository ?base_sha ?subject
+           ?standing ?evidence_ceiling ?promotion_rule ?replay_identity
+           ?authority_requirement ?projection_type ?extension WHERE {
+      ?work_order a sj:WorkOrder ;
+                  dcterms:identifier ?work_order_id ;
+                  dcterms:title ?title ;
+                  dcterms:description ?description ;
+                  sj:repository ?repository ;
+                  sj:baseSha ?base_sha ;
+                  sj:subject ?subject ;
+                  sj:standing ?standing ;
+                  sj:evidenceCeiling ?evidence_ceiling ;
+                  sj:promotionRule ?promotion_rule ;
+                  sj:replayIdentity ?replay_identity ;
+                  sj:authorityRequirement ?authority_requirement ;
+                  sj:projection ?projection .
+      ?projection a sj:ProjectionSpec ;
+                  sj:projectionType ?projection_type ;
+                  sj:extension ?extension .
+    }
+  dependency_specs: |
+    PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    SELECT ?work_order ?dependency_type ?upstream_id ?required_standing
+           ?required_receipt_digest WHERE {
+      ?work_order a sj:WorkOrder ; sj:dependsOn ?edge .
+      ?edge a sj:DependencyEdge ;
+            sj:dependencyType ?dependency_type ;
+            sj:upstreamWorkOrder ?upstream .
+      ?upstream dcterms:identifier ?upstream_id .
+      OPTIONAL { ?edge sj:requiredStanding ?required_standing . }
+      OPTIONAL { ?edge sj:requiredReceiptDigest ?required_receipt_digest . }
+    }
+---
+<%
+sj = "https://ggen-igniter.dev/ontology/semantic-jira#"
+
+values_for = fn predicate ->
+  properties
+  |> Enum.filter(&(&1["work_order"] == work_order and &1["predicate"] == sj <> predicate))
+  |> Enum.map(& &1["value"])
+  |> Enum.sort()
+end
+
+work_order_row = %{
+  "identity" => work_order_id,
+  "title" => title,
+  "description" => description,
+  "subject" => subject,
+  "repository" => repository,
+  "base_sha" => base_sha,
+  "standing" => standing,
+  "evidence_ceiling" => evidence_ceiling,
+  "promotion_rule" => promotion_rule,
+  "replay_identity" => replay_identity,
+  "authority_requirement" => authority_requirement,
+  "required_courts" => values_for.("requiresCourt"),
+  "required_evidence" => values_for.("requiresEvidence"),
+  "acceptance" => values_for.("acceptance"),
+  "falsifiers" => values_for.("falsifier"),
+  "projections" =>
+    values_for.("projection")
+    |> Enum.filter(&String.starts_with?(&1, sj <> "projection-"))
+    |> Enum.map(&String.replace_prefix(&1, sj <> "projection-", "")),
+  "dependencies" =>
+    dependency_specs
+    |> Enum.filter(&(&1["work_order"] == work_order))
+    |> Enum.map(fn row ->
+      %{
+        "upstream" => row["upstream_id"],
+        "type" => row["dependency_type"],
+        "required_standing" => row["required_standing"],
+        "required_receipt_digest" => row["required_receipt_digest"]
+      }
+    end),
+  "required_receipt_classes" => values_for.("requiresReceiptClass"),
+  "path_scope" => values_for.("pathScope")
+}
+%><%= GgenIgniter.SemanticJira.render_projection(
+  projection_type,
+  work_order_row,
+  %{
+    "generator_identity" => "ggen_igniter:semantic-jira-pack",
+    "generator_version" => "26.9.19"
+  }
+) %>

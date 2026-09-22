@@ -1,0 +1,286 @@
+---
+to: "docs/jira/<%= id %>.md"
+for_each: work_orders
+mode: file
+---
+<%
+sj = "https://ggen-igniter.dev/ontology/semantic-jira#"
+
+refuse = fn reason ->
+  raise ArgumentError, "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER: #{reason}"
+end
+
+subject_set =
+  work_order_subjects
+  |> Enum.map(& &1["work_order"])
+  |> Enum.sort()
+
+renderable_set =
+  work_orders
+  |> Enum.map(& &1["work_order"])
+  |> Enum.sort()
+
+if subject_set != renderable_set do
+  refuse.(
+    "every sj:WorkOrder must resolve to exactly one complete scalar row; " <>
+      "subjects=#{inspect(subject_set)} rows=#{inspect(renderable_set)}"
+  )
+end
+
+ids = Enum.map(work_orders, & &1["id"])
+
+if length(ids) != length(Enum.uniq(ids)) do
+  refuse.("dcterms:identifier must be unique across WorkOrders: #{inspect(ids)}")
+end
+
+replay_identities = Enum.map(work_orders, & &1["replay_identity"])
+
+if length(replay_identities) != length(Enum.uniq(replay_identities)) do
+  refuse.(
+    "sj:replayIdentity must be unique across WorkOrders (shapes/work-order.shacl.ttl): " <>
+      "#{inspect(replay_identities)}"
+  )
+end
+
+# The ALIVE-receipt-crown gate and the description-integrity gate return only
+# admission violations; any row at all is a refusal.
+Enum.each(alive_receipt_crown, fn violation ->
+  refuse.(
+    "standing ALIVE requires sj:candidateSha, sj:subjectSha, and sj:receipt evidence " <>
+      "(shapes/work-order.shacl.ttl) for #{inspect(violation["id"])}"
+  )
+end)
+
+Enum.each(description_integrity, fn violation ->
+  refuse.(
+    "semantic node #{inspect(violation["node"])} lacks a real description: blank, " <>
+      "self-label, or self-IRI echo carries no semantic content"
+  )
+end)
+
+# Whitespace-only labels/descriptions evade exact-match gate comparison but
+# describe nothing; the nodes gate already returns every described node.
+Enum.each(nodes, fn node ->
+  if String.trim(node["label"]) == "" or String.trim(node["description"]) == "" do
+    refuse.(
+      "semantic node #{inspect(node["node"])} has a blank or whitespace-only " <>
+        "rdfs:label/dcterms:description"
+    )
+  end
+end)
+
+values_for = fn work_order_iri, predicate_iri ->
+  properties
+  |> Enum.filter(fn row ->
+    row["work_order"] == work_order_iri and row["predicate"] == predicate_iri
+  end)
+  |> Enum.map(& &1["value"])
+  |> Enum.sort()
+end
+
+node_for = fn iri ->
+  Enum.find(nodes, &(&1["node"] == iri))
+end
+
+core_fields = [
+  "id",
+  "title",
+  "description",
+  "repository",
+  "base_sha",
+  "subject",
+  "standing",
+  "evidence_ceiling",
+  "authority_ceiling",
+  "promotion_rule",
+  "replay_identity"
+]
+
+# Fields with no format pattern below still must be more than whitespace;
+# a whitespace-only scalar is an incomplete identity, not a value.
+blank_checked_fields = [
+  "title",
+  "description",
+  "subject",
+  "evidence_ceiling",
+  "promotion_rule",
+  "replay_identity"
+]
+
+required_node_relations = [
+  "requiresCourt",
+  "requiresEvidence",
+  "acceptance",
+  "falsifier",
+  "projection",
+  "nextAction",
+  "nextCheckpoint"
+]
+
+valid_standings = [
+  "UNKNOWN",
+  "PARTIAL_ALIVE",
+  "ALIVE",
+  "BLOCKED",
+  "BUILD_BROKEN",
+  "UNSUPPORTED"
+]
+
+valid_authority_ceilings = ["OBSERVE", "SELECT", "CONSTRUCT"]
+
+Enum.each(work_orders, fn row ->
+  Enum.each(core_fields, fn field ->
+    value = row[field]
+
+    if not is_binary(value) or value == "" do
+      refuse.("missing core field #{field} for #{inspect(row["work_order"])}")
+    end
+  end)
+
+  Enum.each(blank_checked_fields, fn field ->
+    if String.trim(row[field]) == "" do
+      refuse.("blank core field #{field} for #{inspect(row["work_order"])}")
+    end
+  end)
+
+  unless Regex.match?(~r/\A[A-Z][A-Z0-9-]{1,63}\z/, row["id"]) do
+    refuse.("invalid WorkOrder identifier #{inspect(row["id"])}")
+  end
+
+  unless Regex.match?(~r/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/, row["repository"]) do
+    refuse.("invalid repository identity #{inspect(row["repository"])} for #{row["id"]}")
+  end
+
+  unless Regex.match?(~r/\A[0-9a-f]{40}\z/, row["base_sha"]) do
+    refuse.("baseSha must be an exact 40-hex commit SHA for #{row["id"]}")
+  end
+
+  standing = row["standing"]
+
+  refuted_standing =
+    String.starts_with?(standing, "REFUSED(") and String.ends_with?(standing, ")") and
+      byte_size(standing) > 9
+
+  unless standing in valid_standings or refuted_standing do
+    refuse.("invalid standing #{inspect(standing)} for #{row["id"]}")
+  end
+
+  unless row["authority_ceiling"] in valid_authority_ceilings do
+    refuse.(
+      "authority ceiling #{inspect(row["authority_ceiling"])} exceeds Semantic Jira's " <>
+        "OBSERVE/SELECT/CONSTRUCT boundary for #{row["id"]}"
+    )
+  end
+
+  Enum.each(required_node_relations, fn relation ->
+    targets = values_for.(row["work_order"], sj <> relation)
+
+    if targets == [] do
+      refuse.("missing required #{relation} relation for #{row["id"]}")
+    end
+
+    Enum.each(targets, fn target ->
+      if node_for.(target) == nil do
+        refuse.(
+          "#{relation} target #{inspect(target)} for #{row["id"]} lacks " <>
+            "rdfs:label + dcterms:description"
+        )
+      end
+    end)
+  end)
+end)
+
+describe_node = fn iri ->
+  case node_for.(iri) do
+    nil -> iri
+    row -> "**#{row["label"]}** — #{row["description"]}"
+  end
+end
+
+dependencies = values_for.(work_order, sj <> "dependsOn")
+courts = values_for.(work_order, sj <> "requiresCourt")
+required_evidence = values_for.(work_order, sj <> "requiresEvidence")
+acceptance = values_for.(work_order, sj <> "acceptance")
+falsifiers = values_for.(work_order, sj <> "falsifier")
+projections = values_for.(work_order, sj <> "projection")
+next_actions = values_for.(work_order, sj <> "nextAction")
+next_checkpoints = values_for.(work_order, sj <> "nextCheckpoint")
+receipts = values_for.(work_order, sj <> "receipt")
+%>
+<!-- GENERATED by semantic-jira-pack from canonical RDF WorkOrder <%= work_order %>. DO NOT EDIT. -->
+# <%= id %> — <%= title %>
+
+<%= description %>
+
+## Identity and evidence boundary
+
+- **Repository:** <%= repository %>
+- **Base SHA:** <%= base_sha %>
+- **Exact subject:** <%= subject %>
+- **Standing:** <%= standing %>
+- **Evidence ceiling:** <%= evidence_ceiling %>
+- **Authority ceiling:** <%= authority_ceiling %>
+- **Replay identity:** <%= replay_identity %>
+- **Canonical WorkOrder:** <%= work_order %>
+
+This Markdown file is a deterministic projection. It has zero independent actuation,
+merge, publication, deployment, or standing-promotion authority. The real reconciliation
+receipt binds the projection to the exact ontology bytes through receipt metadata
+graph_hash.
+
+## Dependencies
+<%= if dependencies == [] do %>
+- None.
+<% else %>
+<%= for target <- dependencies do %>
+- <%= describe_node.(target) %>
+<% end %>
+<% end %>
+
+## Required court
+<%= for target <- courts do %>
+- <%= describe_node.(target) %>
+<% end %>
+
+## Required evidence
+<%= for target <- required_evidence do %>
+- <%= describe_node.(target) %>
+<% end %>
+
+## Acceptance
+<%= for target <- acceptance do %>
+- <%= describe_node.(target) %>
+<% end %>
+
+## Falsifiers
+<%= for target <- falsifiers do %>
+- <%= describe_node.(target) %>
+<% end %>
+
+## Promotion rule
+
+<%= promotion_rule %>
+
+## Next checkpoint
+<%= for target <- next_checkpoints do %>
+- <%= describe_node.(target) %>
+<% end %>
+
+## Next action
+<%= for target <- next_actions do %>
+- <%= describe_node.(target) %>
+<% end %>
+
+## Projections
+<%= for target <- projections do %>
+- <%= describe_node.(target) %>
+<% end %>
+
+## Receipts
+<%= if receipts == [] do %>
+- None recorded in the canonical graph.
+<% else %>
+<%= for target <- receipts do %>
+- <%= describe_node.(target) %>
+<% end %>
+<% end %>

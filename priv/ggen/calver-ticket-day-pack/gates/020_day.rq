@@ -1,0 +1,3 @@
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+SELECT DISTINCT ?calver WHERE { ?day a prov:Activity ; dcterms:identifier ?calver . }

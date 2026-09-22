@@ -1,0 +1,9 @@
+PREFIX gall: <https://semantic-a2a.dev/gall#>
+
+# Every CodingCheckpoint declares at least one REQUIRED capability
+# (gall:requiresCapability). Existence convention: pass = >= 1 row.
+
+SELECT DISTINCT ?checkpoint ?capability WHERE {
+  ?checkpoint a gall:CodingCheckpoint ;
+              gall:requiresCapability ?capability .
+}

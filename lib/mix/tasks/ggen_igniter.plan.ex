@@ -62,7 +62,10 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
       resolved template/run uses a capability outside `GgenIgniter.Reconcile.run/1`'s
       bounded reactor scope (frontmatter `inject: true`, `--for-each` fan-out, etc.)
       is reported as exit code 3 (`:unsupported_capability`), never silently ignored
-      or silently downgraded to a partial plan.
+      or silently downgraded to a partial plan. For a frontmatter-bearing template
+      specifically, the error message names the concrete alternative: run `mix
+      ggen_igniter.sync --dry-run` instead, whose inline pipeline previews
+      frontmatter (including `inject: true`) for real without writing anything.
     * **intended mutations** -- one line per `%PendingActuation{}` in the
       human-readable form (`operation target (unchanged?)`), or the full list under
       `plan.pending_actuations` in `--json`.

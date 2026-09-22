@@ -1,0 +1,11 @@
+# Attributes of the manufactured Ash resource, as facts (not CLI strings).
+PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+SELECT DISTINCT ?attribute ?attribute_name ?attribute_type ?is_public ?is_required WHERE {
+  ?attribute a a2a:ResourceAttribute ;
+             a2a:attributeOf ?target ;
+             a2a:attributeName ?attribute_name ;
+             a2a:attributeType ?attribute_type ;
+             a2a:isPublic ?is_public ;
+             a2a:isRequired ?is_required .
+}
+ORDER BY ?attribute_name

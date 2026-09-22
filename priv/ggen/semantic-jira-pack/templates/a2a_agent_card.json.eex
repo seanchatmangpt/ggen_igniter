@@ -1,0 +1,49 @@
+---
+to: "docs/semantic-jira/a2a/agent-card.json"
+mode: file
+---
+<%
+  [target | _] = a2a_target
+  resource = target["resource_module"]
+
+  skills =
+    a2a_skills
+    |> Enum.sort_by(& &1["skill_name"])
+    |> Enum.map(fn s ->
+      %{
+        "id" => resource <> "." <> s["ash_action"],
+        # ash_a2a advertises the Ash action name; the ontology's skill name is
+        # carried separately so the card never claims a name the real one lacks.
+        "name" => s["ash_action"],
+        "semanticSkill" => s["skill_name"],
+        "consequence" => s["consequence"],
+        "description" => s["description"]
+      }
+    end)
+
+  refusals =
+    a2a_refusals
+    |> Enum.sort_by(& &1["skill_name"])
+    |> Enum.map(fn r -> %{"name" => r["skill_name"], "reason" => r["reason"]} end)
+
+  state_map =
+    a2a_state_map
+    |> Enum.sort_by(&{&1["standing"], &1["receipted"]})
+    |> Enum.map(fn m ->
+      %{
+        "standing" => m["standing"],
+        "receipted" => m["receipted"],
+        "state" => m["state"],
+        "reasonCode" => m["reason_code"]
+      }
+    end)
+
+  card = %{
+    "name" => target["agent_name"],
+    "authority" => "NONE",
+    "generator" => "ggen_igniter:semantic-jira-pack@26.9.19",
+    "skills" => skills,
+    "refusedSkills" => refusals,
+    "stateMap" => state_map
+  }
+%><%= Jason.encode!(card, pretty: true) %>

@@ -1,0 +1,21 @@
+# gall_work test fixture — MALFORMED checkpoint: the CodingCheckpoint carries
+# TWO gall:hasStanding values. Expected outcome: gall_work gate 010 returns zero
+# rows ({:error, {:gate_failed, "standing"}} — the exactly-one shape refutes
+# the second value) and GgenIgniter.GallTicket refuses with
+# {:refused, {:ambiguous_standing, iri, standings}}.
+
+@prefix gall: <https://semantic-a2a.dev/gall#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<urn:gall:checkpoint:ggen_igniter:ticket-001>
+  a gall:Checkpoint, gall:CodingCheckpoint ;
+  rdfs:label "gall_work pack slice: TTL to Markdown ticket projection" ;
+  gall:targetsRepository <urn:repo:seanchatmangpt:ggen_igniter> ;
+  gall:baseSha "d018ed4b407b6e3d0ed747e7076fe55f0c254804" ;
+  gall:goal "Implement the gall_work pack: GALL checkpoint vocabulary, TTL-to-ticket rendering with provenance footer, and standing/verifier gates." ;
+  gall:requiresCapability gall:Read, gall:Edit, gall:Commit ;
+  gall:requiresVerifier gall:ChicagoCourt ;
+  gall:hasStanding gall:UNKNOWN, gall:ALIVE .
+
+gall:ChicagoCourt a gall:Verifier ;
+  rdfs:label "Chicago court" .

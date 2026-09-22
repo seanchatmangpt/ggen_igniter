@@ -1,0 +1,71 @@
+@prefix zc: <https://ggen-igniter.dev/ontology/zcode-ocel#> .
+
+# zcode-ocel-pack -- OCEL 2.0 event/object types and loop state transitions of the
+# zcode agent loop. Regenerate: mix ggen_igniter.sync --pack zcode-ocel-pack --out src/ocel/registry.ts
+
+zc:obj_session a zc:ObjectType ; zc:name "session" ; zc:order 0 .
+zc:obj_turn a zc:ObjectType ; zc:name "turn" ; zc:order 1 .
+zc:obj_tool_call a zc:ObjectType ; zc:name "tool_call" ; zc:order 2 .
+zc:obj_model_request a zc:ObjectType ; zc:name "model_request" ; zc:order 3 .
+zc:obj_subagent a zc:ObjectType ; zc:name "subagent" ; zc:order 4 .
+zc:obj_permission a zc:ObjectType ; zc:name "permission" ; zc:order 5 .
+zc:obj_file a zc:ObjectType ; zc:name "file" ; zc:order 6 .
+
+zc:evt_TurnStarted a zc:EventType ; zc:name "TurnStarted" ; zc:order 0 ; zc:primaryObject "turn" .
+zc:evt_TurnComplete a zc:EventType ; zc:name "TurnComplete" ; zc:order 1 ; zc:primaryObject "turn" .
+zc:evt_TurnError a zc:EventType ; zc:name "TurnError" ; zc:order 2 ; zc:primaryObject "turn" .
+zc:evt_ModelRequest a zc:EventType ; zc:name "ModelRequest" ; zc:order 3 ; zc:primaryObject "model_request" .
+zc:evt_ModelComplete a zc:EventType ; zc:name "ModelComplete" ; zc:order 4 ; zc:primaryObject "model_request" .
+zc:evt_ToolCallScheduled a zc:EventType ; zc:name "ToolCallScheduled" ; zc:order 5 ; zc:primaryObject "tool_call" .
+zc:evt_ToolCallStarted a zc:EventType ; zc:name "ToolCallStarted" ; zc:order 6 ; zc:primaryObject "tool_call" .
+zc:evt_ToolCallResult a zc:EventType ; zc:name "ToolCallResult" ; zc:order 7 ; zc:primaryObject "tool_call" .
+zc:evt_ToolCallError a zc:EventType ; zc:name "ToolCallError" ; zc:order 8 ; zc:primaryObject "tool_call" .
+zc:evt_PermissionRequested a zc:EventType ; zc:name "PermissionRequested" ; zc:order 9 ; zc:primaryObject "permission" .
+zc:evt_PermissionResolved a zc:EventType ; zc:name "PermissionResolved" ; zc:order 10 ; zc:primaryObject "permission" .
+zc:evt_SubagentSpawned a zc:EventType ; zc:name "SubagentSpawned" ; zc:order 11 ; zc:primaryObject "subagent" .
+zc:evt_SubagentStopped a zc:EventType ; zc:name "SubagentStopped" ; zc:order 12 ; zc:primaryObject "subagent" .
+zc:evt_CompactStarted a zc:EventType ; zc:name "CompactStarted" ; zc:order 13 ; zc:primaryObject "session" .
+zc:evt_CompactCompleted a zc:EventType ; zc:name "CompactCompleted" ; zc:order 14 ; zc:primaryObject "session" .
+
+zc:tr_TurnStarted a zc:Transition ; zc:event "TurnStarted" ; zc:fromState "idle" ; zc:toState "running" .
+zc:tr_TurnComplete a zc:Transition ; zc:event "TurnComplete" ; zc:fromState "running" ; zc:toState "idle" .
+zc:tr_TurnError a zc:Transition ; zc:event "TurnError" ; zc:fromState "running" ; zc:toState "idle" .
+zc:tr_ModelRequest a zc:Transition ; zc:event "ModelRequest" ; zc:fromState "running" ; zc:toState "awaiting_model" .
+zc:tr_ModelComplete a zc:Transition ; zc:event "ModelComplete" ; zc:fromState "awaiting_model" ; zc:toState "running" .
+zc:tr_ToolCallScheduled a zc:Transition ; zc:event "ToolCallScheduled" ; zc:fromState "running" ; zc:toState "tool_pending" .
+zc:tr_ToolCallStarted a zc:Transition ; zc:event "ToolCallStarted" ; zc:fromState "tool_pending" ; zc:toState "tool_running" .
+zc:tr_ToolCallResult a zc:Transition ; zc:event "ToolCallResult" ; zc:fromState "tool_running" ; zc:toState "running" .
+zc:tr_ToolCallError a zc:Transition ; zc:event "ToolCallError" ; zc:fromState "tool_running" ; zc:toState "running" .
+zc:tr_PermissionRequested a zc:Transition ; zc:event "PermissionRequested" ; zc:fromState "tool_pending" ; zc:toState "awaiting_permission" .
+zc:tr_PermissionResolved a zc:Transition ; zc:event "PermissionResolved" ; zc:fromState "awaiting_permission" ; zc:toState "tool_pending" .
+zc:tr_SubagentSpawned a zc:Transition ; zc:event "SubagentSpawned" ; zc:fromState "running" ; zc:toState "running" .
+zc:tr_SubagentStopped a zc:Transition ; zc:event "SubagentStopped" ; zc:fromState "running" ; zc:toState "running" .
+zc:tr_CompactStarted a zc:Transition ; zc:event "CompactStarted" ; zc:fromState "running" ; zc:toState "compacting" .
+zc:tr_CompactCompleted a zc:Transition ; zc:event "CompactCompleted" ; zc:fromState "compacting" ; zc:toState "running" .
+
+zc:q_TurnStarted_session a zc:Qualifier ; zc:event "TurnStarted" ; zc:object "session" ; zc:qualifier "context" .
+zc:q_TurnStarted_turn a zc:Qualifier ; zc:event "TurnStarted" ; zc:object "turn" ; zc:qualifier "subject" .
+zc:q_TurnComplete_session a zc:Qualifier ; zc:event "TurnComplete" ; zc:object "session" ; zc:qualifier "context" .
+zc:q_TurnComplete_turn a zc:Qualifier ; zc:event "TurnComplete" ; zc:object "turn" ; zc:qualifier "subject" .
+zc:q_TurnError_session a zc:Qualifier ; zc:event "TurnError" ; zc:object "session" ; zc:qualifier "context" .
+zc:q_TurnError_turn a zc:Qualifier ; zc:event "TurnError" ; zc:object "turn" ; zc:qualifier "subject" .
+zc:q_ModelRequest_turn a zc:Qualifier ; zc:event "ModelRequest" ; zc:object "turn" ; zc:qualifier "context" .
+zc:q_ModelRequest_model_request a zc:Qualifier ; zc:event "ModelRequest" ; zc:object "model_request" ; zc:qualifier "subject" .
+zc:q_ModelComplete_turn a zc:Qualifier ; zc:event "ModelComplete" ; zc:object "turn" ; zc:qualifier "context" .
+zc:q_ModelComplete_model_request a zc:Qualifier ; zc:event "ModelComplete" ; zc:object "model_request" ; zc:qualifier "subject" .
+zc:q_ToolCallScheduled_turn a zc:Qualifier ; zc:event "ToolCallScheduled" ; zc:object "turn" ; zc:qualifier "context" .
+zc:q_ToolCallScheduled_tool_call a zc:Qualifier ; zc:event "ToolCallScheduled" ; zc:object "tool_call" ; zc:qualifier "subject" .
+zc:q_ToolCallStarted_turn a zc:Qualifier ; zc:event "ToolCallStarted" ; zc:object "turn" ; zc:qualifier "context" .
+zc:q_ToolCallStarted_tool_call a zc:Qualifier ; zc:event "ToolCallStarted" ; zc:object "tool_call" ; zc:qualifier "subject" .
+zc:q_ToolCallResult_tool_call a zc:Qualifier ; zc:event "ToolCallResult" ; zc:object "tool_call" ; zc:qualifier "subject" .
+zc:q_ToolCallResult_file a zc:Qualifier ; zc:event "ToolCallResult" ; zc:object "file" ; zc:qualifier "touched" .
+zc:q_ToolCallError_tool_call a zc:Qualifier ; zc:event "ToolCallError" ; zc:object "tool_call" ; zc:qualifier "subject" .
+zc:q_PermissionRequested_tool_call a zc:Qualifier ; zc:event "PermissionRequested" ; zc:object "tool_call" ; zc:qualifier "context" .
+zc:q_PermissionRequested_permission a zc:Qualifier ; zc:event "PermissionRequested" ; zc:object "permission" ; zc:qualifier "subject" .
+zc:q_PermissionResolved_tool_call a zc:Qualifier ; zc:event "PermissionResolved" ; zc:object "tool_call" ; zc:qualifier "context" .
+zc:q_PermissionResolved_permission a zc:Qualifier ; zc:event "PermissionResolved" ; zc:object "permission" ; zc:qualifier "subject" .
+zc:q_SubagentSpawned_turn a zc:Qualifier ; zc:event "SubagentSpawned" ; zc:object "turn" ; zc:qualifier "parent" .
+zc:q_SubagentSpawned_subagent a zc:Qualifier ; zc:event "SubagentSpawned" ; zc:object "subagent" ; zc:qualifier "subject" .
+zc:q_SubagentStopped_subagent a zc:Qualifier ; zc:event "SubagentStopped" ; zc:object "subagent" ; zc:qualifier "subject" .
+zc:q_CompactStarted_session a zc:Qualifier ; zc:event "CompactStarted" ; zc:object "session" ; zc:qualifier "subject" .
+zc:q_CompactCompleted_session a zc:Qualifier ; zc:event "CompactCompleted" ; zc:object "session" ; zc:qualifier "subject" .

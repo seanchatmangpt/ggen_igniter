@@ -1,0 +1,15 @@
+PREFIX gall: <https://semantic-a2a.dev/gall#>
+
+# Every checkpoint DECLARES its verifier (gall:requiresVerifier).
+#
+# Existence convention: pass = >= 1 row. The UNION covers both type anchors
+# because RDF has no reasoning in this engine (see ontology.ttl's
+# CodingCheckpoint note): a document may type a checkpoint as gall:Checkpoint
+# alone, gall:CodingCheckpoint alone, or both.
+
+SELECT DISTINCT ?checkpoint ?verifier WHERE {
+  { ?checkpoint a gall:Checkpoint }
+  UNION
+  { ?checkpoint a gall:CodingCheckpoint }
+  ?checkpoint gall:requiresVerifier ?verifier .
+}

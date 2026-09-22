@@ -1,0 +1,14 @@
+# Standing -> A2A task-state map. `receipted` is "true"/"false" when the row is
+# receipt-conditioned and "any" otherwise. Standing is the input; the state is
+# derived from it and is never read back to infer standing.
+PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+SELECT DISTINCT ?mapping ?standing ?state ?reason_code ?receipted WHERE {
+  ?mapping a a2a:StateMapping ;
+           a2a:fromStanding ?standing ;
+           a2a:toState ?state_node ;
+           a2a:reasonCode ?reason_code .
+  ?state_node a2a:stateValue ?state .
+  OPTIONAL { ?mapping a2a:withReceipt ?receipted_lit . }
+  BIND(COALESCE(STR(?receipted_lit), "any") AS ?receipted)
+}
+ORDER BY ?standing ?receipted

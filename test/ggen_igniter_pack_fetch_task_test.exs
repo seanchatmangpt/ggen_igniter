@@ -20,14 +20,32 @@ defmodule Mix.Tasks.GgenIgniter.PackFetchTaskTest do
 
   # `--json` output is pretty-printed (multi-line), and stdout/stderr are
   # interleaved with Mix's own compiler warnings via `stderr_to_stdout: true`
-  # -- taking the LAST line (as the sibling `ggen_igniter_pack_fetch_test.exs`
-  # convention does for compact single-line JSON) truncates a pretty-printed
-  # object to its closing `}` alone. Extract the real JSON object by its
-  # first `{` through its last `}` instead.
+  # -- taking the LAST line truncates a pretty-printed object to its closing
+  # `}` alone. Nor is "first `{`" sound: BEAM alarm_handler notices such as
+  # `{:set, {{:disk_almost_full, ...}, []}}` (emitted on a host with a
+  # nearly-full volume) start with `{` and contain `}` themselves. The JSON
+  # document is the payload starting at a column-0 `{` line and ending at the
+  # last line containing `}`; try each candidate start in order and return the
+  # first slice that really decodes as a JSON object (falling back to the last
+  # candidate so a genuine failure still surfaces as a real Jason error).
   defp extract_json(output) do
-    start = :binary.match(output, "{") |> elem(0)
-    stop = output |> :binary.matches("}") |> List.last() |> elem(0)
-    binary_part(output, start, stop - start + 1)
+    lines = String.split(output, "\n")
+
+    stop =
+      lines
+      |> Enum.with_index()
+      |> Enum.filter(fn {line, _} -> String.contains?(line, "}") end)
+      |> List.last()
+      |> elem(1)
+
+    candidates =
+      for {line, i} <- Enum.with_index(lines), i <= stop, String.starts_with?(line, "{") do
+        lines |> Enum.slice(i..stop) |> Enum.join("\n")
+      end
+
+    Enum.find(candidates, List.last(candidates), fn c ->
+      match?({:ok, %{}}, Jason.decode(c))
+    end)
   end
 
   describe "invalid invocation" do

@@ -1,0 +1,11 @@
+# The single A2A manufacture target (module names, task name, agent name).
+PREFIX a2a: <https://ggen-igniter.dev/ontology/a2a#>
+SELECT DISTINCT ?target ?otp_app ?domain_module ?resource_module ?task_name ?agent_name WHERE {
+  ?target a a2a:ManufactureTarget ;
+          a2a:otpApp ?otp_app ;
+          a2a:domainModule ?domain_module ;
+          a2a:resourceModule ?resource_module ;
+          a2a:taskName ?task_name ;
+          a2a:agentName ?agent_name .
+}
+ORDER BY ?resource_module
