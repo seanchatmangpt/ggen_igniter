@@ -21,39 +21,12 @@ defmodule Mix.Tasks.SemanticJira.CourtMap do
   use Mix.Task
 
   alias GgenIgniter.SemanticJira.Cli
-  alias GgenIgniter.SemanticJira.CourtMap
 
   @impl Mix.Task
   def run(args) do
     {opts, _rest, _invalid} =
       OptionParser.parse(args, strict: [ontology: :string, identity: :string, out: :string])
 
-    opts |> court_map() |> Cli.emit(opts)
-  end
-
-  defp court_map(opts) do
-    with {:ok, ontology_path} <- required(opts, :ontology),
-         {:ok, identity} <- required(opts, :identity),
-         {:ok, ttl} <- read(ontology_path),
-         {:ok, court_map} <- CourtMap.from_ontology(ttl, identity) do
-      {0, court_map}
-    else
-      {:error, reason} -> {1, %{"status" => "refused", "reason" => reason}}
-      {:invalid, reason} -> {2, %{"status" => "invalid_invocation", "reason" => reason}}
-    end
-  end
-
-  defp read(path) do
-    case File.read(path) do
-      {:ok, ttl} -> {:ok, ttl}
-      {:error, reason} -> {:error, {:ontology_unreadable, path, inspect(reason)}}
-    end
-  end
-
-  defp required(opts, key) do
-    case Keyword.get(opts, key) do
-      value when is_binary(value) and value != "" -> {:ok, value}
-      _ -> {:invalid, "missing --#{key |> to_string() |> String.replace("_", "-")}"}
-    end
+    opts |> Cli.court_map() |> Cli.emit(opts)
   end
 end

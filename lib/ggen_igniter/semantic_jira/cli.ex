@@ -1,14 +1,14 @@
 defmodule GgenIgniter.SemanticJira.Cli do
   @moduledoc """
   Orchestration behind the `mix semantic_jira.*` tasks: `reconcile`, `frontier`,
-  `descriptor`, `xaas_receipt` and `observe`.
+  `descriptor`, `xaas_receipt`, `observe` and `court_map`.
 
   Returns `{exit_code, json_map}`: `0` success, `1` typed refusal, `2` invalid
   invocation (missing option, unreadable or non-JSON input). The Mix tasks only
   parse flags and print/exit.
   """
 
-  alias GgenIgniter.SemanticJira.{Descriptor, Observation, Reconciler, TransitionLog}
+  alias GgenIgniter.SemanticJira.{CourtMap, Descriptor, Observation, Reconciler, TransitionLog}
 
   @spec reconcile(keyword()) :: {0 | 1 | 2, map()}
   def reconcile(opts) do
@@ -130,6 +130,33 @@ defmodule GgenIgniter.SemanticJira.Cli do
       end
     else
       {:invalid, reason} -> invalid(reason)
+    end
+  end
+
+  @doc """
+  Mints the court map of one work order from a Turtle ontology file
+  (`CourtMap.from_ontology/2`). Refusals are typed JSON (exit 1), never a
+  crash on encoding the refusal tuple.
+  """
+  @spec court_map(keyword()) :: {0 | 1 | 2, map()}
+  def court_map(opts) do
+    with {:ok, ontology_path} <- required(opts, :ontology),
+         {:ok, identity} <- required(opts, :identity) do
+      with {:ok, ttl} <- read_ontology(ontology_path),
+           {:ok, court_map} <- CourtMap.from_ontology(ttl, identity) do
+        {0, court_map}
+      else
+        {:error, reason} -> refused(reason)
+      end
+    else
+      {:invalid, reason} -> invalid(reason)
+    end
+  end
+
+  defp read_ontology(path) do
+    case File.read(path) do
+      {:ok, ttl} -> {:ok, ttl}
+      {:error, reason} -> {:error, {:ontology_unreadable, path, inspect(reason)}}
     end
   end
 
