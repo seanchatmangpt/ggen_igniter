@@ -3,7 +3,7 @@
     "id": "V23-B",
     "iri": "https://ggen-igniter.dev/sjira/v26.9.23#WO-V23-B",
     "gate": "GC23-1 Cold Bootstrap",
-    "wave": "B1b (wf_9bcfbd57-346), repair round 1",
+    "wave": "B1b (wf_9bcfbd57-346), repair round 2",
     "contract_refs": [
       "PRD section 8.1",
       "PR-006",
@@ -14,7 +14,8 @@
       "ARD section 26 F5",
       "ARD section 26 F6",
       "AR-003",
-      "DRIVER.md receipt linking"
+      "DRIVER.md receipt linking",
+      "ARD section 28"
     ],
     "acceptance": "mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
     "task_items": {
@@ -23,7 +24,8 @@
       "law": "priv/ggen/semantic-jira-pack/bootstrap/{work_orders,dependencies,checkpoints,capabilities,fleet}.rq + prose/root.rq (pack data; the Elixir groups rows)",
       "frontier": "GgenIgniter.SemanticJira.frontier_from_events/3 over kernel orders (standing derived from current receipts), applicable TransitionLog events and receipt evidence",
       "court_helper": "scripts/sjira/bootstrap_court.sh (two env -i runs with fresh HOMEs; cmp; python3 state_digest recompute; awk-extracted non-Successor goal WorkOrders reconstructed; 75 when machinery absent; REFUSED(llm_credential_present)/REFUSED(llm_binary_on_path))",
-      "tests": "test/ggen_igniter_semantic_jira_bootstrap_test.exs (22 tests: 16 prior + 6 repair) over test/fixtures/semantic-jira-bootstrap/goal.ttl"
+      "tests": "test/ggen_igniter_semantic_jira_bootstrap_test.exs (26 tests: 16 round 0 + 6 repair 1 + 4 repair 2, the repair-2 ledger test replacing the round-0 test that pinned a fabricated receipt_digest as ALIVE) over test/fixtures/semantic-jira-bootstrap/goal.ttl",
+      "ledger_law": "Bootstrap.event_verdict/3 + receipt_binding/2: a TransitionLog event whose `to` is not UNKNOWN applies only when its receipt_digest is the sha256 of a CURRENT linked receipt of that order whose kernel standing equals `to` (else receipt_digest_unresolved | receipt_not_current | receipt_standing_mismatch); UNKNOWN demotions apply without a receipt; the sj:candidateSha check runs after the binding"
     }
   },
   "identity": {
@@ -32,16 +34,16 @@
     "worktree": "/Users/sac/wt/v26922/v23/V23-B",
     "branch": "v23/V23-B",
     "base_ref": "friday/gc-fri-0800",
-    "subject_sha": "41651606c72c7fd6c8bd0bdf881d934117b20028",
+    "subject_sha": "c3eaeb5a4dd1cbbba82cad4bff1061b0647099e2",
     "base_sha": "c90c17b878d96e14a008c1de498555bc97515937",
-    "base_sha_note": "merge-base of v23/V23-B with friday/gc-fri-0800 = c90c17b; ggen_igniter-int still at c90c17b at receipt time",
+    "base_sha_note": "merge-base of v23/V23-B with friday/gc-fri-0800 = c90c17b; ggen_igniter-int still at c90c17b at receipt time (repair round 2)",
     "graph_hash": "sha256:9858c187e7204b4444f1f15c621f482460b41dac51ffa8553575f43fbef709a3",
     "graph_hash_of": "xaas docs/sjira/v26.9.23/goal.ttl bytes; unchanged from xaas-int b3f85b3 to 04599d6604e56efb031eb19de430e1361e381d21 (shasum at 04599d6 = 9858c187...)",
     "work_order": "v23:WO-V23-B",
     "tuple_digest": "sha256:5bee8ea4d45e0cc88a311a2a910240211441b2f82fae54372622a1b93647f97f",
     "tuple_digest_witnesses": [
       "DRIVER.md tuple-digest table for V23-B at xaas-int c18ecd3 (goal.ttl unchanged)",
-      "bootstrap state orders.V23-B.tuple_digest over xaas-int 04599d6 goal.ttl with the code at 4165160 (court run below); V23-B keeps its exclusions, so the repair-1 exclusions change does not move it",
+      "bootstrap state orders.V23-B.tuple_digest over xaas-int 04599d6 goal.ttl with the code at c3eaeb5 (court run below)",
       "independent python3 rdflib recompute over xaas-int b3f85b3 goal.ttl (GATE lens, round 0) -> equal"
     ]
   },
@@ -54,7 +56,9 @@
     "commits": [
       "9958cfce086c310292ac511fdea2526d0acda115",
       "83ed791464b77dcca83cfd6ad30c20033ddd4dc5",
-      "41651606c72c7fd6c8bd0bdf881d934117b20028"
+      "41651606c72c7fd6c8bd0bdf881d934117b20028",
+      "974b31d14ad0cf0d8d8f2fea67faad2805699ec7",
+      "c3eaeb5a4dd1cbbba82cad4bff1061b0647099e2"
     ],
     "files_changed": [
       "HANDWRITTEN.md",
@@ -85,6 +89,12 @@
       "lib/mix/tasks/semantic_jira.bootstrap.ex",
       "scripts/sjira/bootstrap_court.sh",
       "test/ggen_igniter_semantic_jira_bootstrap_test.exs"
+    ],
+    "repair_round_2_files": [
+      "lib/ggen_igniter/semantic_jira/bootstrap.ex",
+      "lib/ggen_igniter/semantic_jira/bootstrap/receipts.ex",
+      "test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+      "HANDWRITTEN.md"
     ]
   },
   "replay": {
@@ -94,22 +104,29 @@
         "cmd": "mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
         "cwd": "/Users/sac/wt/v26922/v23/V23-B",
         "exit": 0,
-        "summary": "lane gate chain at 41651606c72c7fd6c8bd0bdf881d934117b20028 (clean tree): format clean, compile --force --warnings-as-errors 'Generated ggen_igniter app' (rebuilt the rustler crate), credo '2940 mods/funs, found no issues', 22 tests, 0 failures; only the pre-existing mix.exs :preferred_cli_env deprecation warning",
-        "output_sha256": "e8d6d4bb00c8f553aff35f80fcf95eb4eb85a087c9bd1c5a902d1a06617a2058"
+        "summary": "lane gate chain at c3eaeb5a4dd1cbbba82cad4bff1061b0647099e2 (clean tree): format clean, compile --force --warnings-as-errors 'Generated ggen_igniter app', credo '2945 mods/funs, found no issues', 26 tests, 0 failures; only the pre-existing mix.exs :preferred_cli_env deprecation warning (4x)",
+        "output_sha256": "779047ac79918e64b245087c2e2c9b51a9d97c7604925ee432e153ef410c18af"
       },
       {
-        "cmd": "env -i PATH=/usr/bin:/bin:/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin HOME=/Users/sac TMPDIR=<scratch>/tmp XAAS_DIR=/Users/sac/wt/v26922/fri/xaas-int GGEN_IGNITER_DIR=/Users/sac/wt/v26922/v23/V23-B BOOTSTRAP_CHECKOUTS='seanchatmangpt/xaas=/Users/sac/wt/v26922/fri/xaas-int seanchatmangpt/ggen_igniter=/Users/sac/wt/v26922/fri/ggen_igniter-int' BOOTSTRAP_RECEIPTS_DIRS='/Users/sac/wt/v26922/fri/xaas-int/receipts/v26.9.23 /Users/sac/wt/v26922/fri/ggen_igniter-int/receipts/v26.9.23 /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/receipts' BOOTSTRAP_OUT_DIR=<scratch>/court-int sh /Users/sac/wt/v26922/v23/V23-B/scripts/sjira/bootstrap_court.sh",
+        "cmd": "mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-B",
+        "exit": 0,
+        "summary": "same chain at 974b31d14ad0cf0d8d8f2fea67faad2805699ec7 (the code commit; c3eaeb5a4dd1cbbba82cad4bff1061b0647099e2 differs only in HANDWRITTEN.md: git diff --stat 974b31d c3eaeb5 -- lib test scripts priv is empty): 26 tests, 0 failures",
+        "output_sha256": "73250b5b4c767e3b0d1650360f83c3cc557b2940ed66d3a63de72745c925c1d1"
+      },
+      {
+        "cmd": "env -i PATH=/usr/bin:/bin:/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin HOME=/Users/sac TMPDIR=<scratch>/tmp XAAS_DIR=/Users/sac/wt/v26922/fri/xaas-int GGEN_IGNITER_DIR=/Users/sac/wt/v26922/v23/V23-B BOOTSTRAP_CHECKOUTS='seanchatmangpt/xaas=/Users/sac/wt/v26922/fri/xaas-int seanchatmangpt/ggen_igniter=/Users/sac/wt/v26922/fri/ggen_igniter-int' BOOTSTRAP_RECEIPTS_DIRS='/Users/sac/wt/v26922/fri/xaas-int/receipts/v26.9.23 /Users/sac/wt/v26922/fri/ggen_igniter-int/receipts/v26.9.23 /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/receipts' BOOTSTRAP_OUT_DIR=<scratch>/court-int2 sh /Users/sac/wt/v26922/v23/V23-B/scripts/sjira/bootstrap_court.sh",
         "cwd": "/Users/sac/wt/v26922/fri/xaas-int",
         "exit": 0,
-        "summary": "lane code at 41651606c72c7fd6c8bd0bdf881d934117b20028, subjects xaas-int 04599d6 + ggen_igniter-int c90c17b: two cold env -i runs byte-identical (state file sha256 0c89da853af487e5bb9e7bfc82d617d22d7c1bf7427236bbb14cdbedfdc0fd18, state_digest sha256:da25c6bbbd0bab77b59769b81b791b09c67bbe6d2ad63dbb9e762c4a975cb448); python3 digest recompute equal; critical-path orders reconstructed: V23-B V23-C V23-D V23-F V23-H V23-M V23-P V23-Q V23-R V23-X; 3 receipts dirs status read (5/3/14 receipts); no /Users/ or /private/ string in the state",
-        "output_sha256": "36ffbfba0afa925a07d63148583074dcd8eb864003faaa3a9dd21fdec036255b"
+        "summary": "lane code at c3eaeb5a4dd1cbbba82cad4bff1061b0647099e2, subjects xaas-int 04599d6 + ggen_igniter-int c90c17b: two cold env -i runs byte-identical (state file sha256 4f6ca83f804851032c5d858ac613d5ded09ff4899ce420dffa68d39b0231f24e, state_digest sha256:cc05347024937aff03602afe2f176af74eaec7de1fcdc346a320ba05efd77bd4); python3 digest recompute equal; critical-path orders reconstructed: V23-B V23-C V23-D V23-F V23-H V23-M V23-P V23-Q V23-R V23-X; 3 receipts dirs read (5/3/14); no /Users/ or /private/ in the state; the only state change against repair 1 (sha256:da25c6bb...) is the added sha256 on the 4 invalidated receipt records (V23-C, V23-F, V23-P, V23-X); ledger absent (0 events)",
+        "output_sha256": "85b180163ad3b0cb04906d8d02ddefdbed44f8d804f5b37616dfb8aa2a3ade9f"
       },
       {
         "cmd": "env -i PATH=/usr/bin:/bin:/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin HOME=/Users/sac TMPDIR=<scratch>/tmp XAAS_DIR=/Users/sac/wt/v26922/fri/xaas-int GGEN_IGNITER_DIR=/Users/sac/wt/v26922/v23/V23-B BOOTSTRAP_CHECKOUTS='seanchatmangpt/xaas=/Users/sac/wt/v26922/fri/xaas-int seanchatmangpt/ggen_igniter=/Users/sac/wt/v26922/fri/ggen_igniter-int' BOOTSTRAP_RECEIPTS_DIRS='/Users/sac/wt/v26922/fri/xaas-int/receipts/v26.9.23 <scratch>/no-such-receipts-dir' sh /Users/sac/wt/v26922/v23/V23-B/scripts/sjira/bootstrap_court.sh",
         "cwd": "/Users/sac/wt/v26922/fri/xaas-int",
         "exit": 0,
-        "summary": "R2 witness at the court level: two identical runs (state_digest sha256:88e163e1...), and 'WARN: GC23-1 receipts dir receipts-dir-1:no-such-receipts-dir absent: no receipt read from it'",
-        "output_sha256": "2ec0f9f4d267cfe3ec47e1d450a46681e94fbab002fb799218c6efdb44ca23cf"
+        "summary": "absent-receipts-dir witness at c3eaeb5a4dd1cbbba82cad4bff1061b0647099e2: two identical runs (state_digest sha256:8ed39aea017566d1d96835afe94985a6bebd3ff2510f8551431ba99c3e4472e0, 5 receipts read), 'WARN: GC23-1 receipts dir receipts-dir-1:no-such-receipts-dir absent: no receipt read from it', every critical-path order reconstructed",
+        "output_sha256": "5f8cb1b95bb80b10c3199b0512cea5d379ab9e1f5103b316571f58d8d6c2cbbd"
       },
       {
         "cmd": "grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps -E '(use|import) +(Mox|Mimic|Patch)\\b|(Mox|Mimic|Patch)\\.|:meck\\.|mockall|MagicMock|Mock\\(' test lib native || true",
@@ -236,14 +253,88 @@
           "22 tests, 22 failures: 17 in-process UndefinedFunctionError at Bootstrap.run/1; the 5 subprocess tests now fail at their own assertions (assert code1 == 0, log =~ REFUSED(forbidden_input), log =~ REFUSED(llm_credential_present), court code == 1, court code == 0) because court_path/0 no longer calls product code"
         ],
         "output_sha256": "9ece6b9501caf753489b1558203aa74d9f43fa778a870deb9798badefe541a28"
+      },
+      {
+        "mutation": "M11 ledger receipt binding off (receipt_binding/2 -> nil: the round-2 refuted behaviour)",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "a ledger ALIVE with no current receipt behind it confers nothing",
+          "a ledger event bound to a current receipt applies; deleting the receipt (F5) or a covered-path commit (F6) withdraws it",
+          "an ALIVE event of an order with sj:candidateSha applies only while the candidate covers its scope"
+        ],
+        "output_sha256": "a3367233326b57b62f3a101c14f20abaac436ad0c1b5d6503327167ffc76bdbb"
+      },
+      {
+        "mutation": "M12 UNKNOWN demotion gated by the binding",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "a ledger UNKNOWN (a demotion) applies without a receipt"
+        ],
+        "output_sha256": "0c5dafc07b856b667dd5346b499c50a5bcfa0ec031d640c492f6b7589edbfbf7"
+      },
+      {
+        "mutation": "M13 receipt standing vs event `to` not compared",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "bound event test: BLOCKED on an ALIVE receipt must be receipt_standing_mismatch"
+        ],
+        "output_sha256": "48d8b62312d01824987a4e20aba6b5bcb3aef1ac3ea2e857a575b46843ba205f"
+      },
+      {
+        "mutation": "M14 receipt_not_current collapsed into receipt_digest_unresolved",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "bound event test, F6 step"
+        ],
+        "output_sha256": "a5c6c62918cd55f719b159072725a0e2ffd636fcac248ee4f54b148d95f1e8c5"
+      },
+      {
+        "mutation": "M15 non-regular *.json receipt entries skipped again (File.regular? filter)",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "a *.json entry that is not a readable file (dangling symlink, directory) is refused"
+        ],
+        "output_sha256": "28754ec3bde72a03f65e669c19160c7296e2eab84145a67eb942c1eddac2057e"
+      },
+      {
+        "mutation": "M16 sj:candidateSha check off",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "an ALIVE event of an order with sj:candidateSha applies only while the candidate covers its scope"
+        ],
+        "output_sha256": "45250fb802cfe7207e5964803738cbf490150debfceacede15600446448bdc11"
+      },
+      {
+        "mutation": "M17 sha256 dropped from invalidated receipt records",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "bound event test, F6 step (invalidated sha256 + receipt_not_current)"
+        ],
+        "output_sha256": "c4b9c71987db5b15e2743e949e77309b932c2eb123712ef5a321665e9551d76a"
+      },
+      {
+        "mutation": "repair-2 revert: bootstrap.ex and bootstrap/receipts.ex restored to 4165160, repair-2 tests kept",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "26 tests, 4 failures: the ledger no-receipt, bound/F5/F6, candidate and non-file-entry tests, all at assertion level (0 UndefinedFunctionError); the demotion test passes because it pins behaviour the repair keeps (M12 kills its clause)"
+        ],
+        "output_sha256": "e36ac4f53c3eebcc36455d945934e3b7bf97a6b1fbba1a17caedc3d9ebc02a07"
       }
     ],
-    "mutation_note": "M1-M5: applied at 9958cfc in the lane tree (round 0). M6-M10 and the repair revert: applied at 4165160 in an APFS clone of the lane without .git (<scratch>/mut, cp -cRp; baseline 22 tests, 0 failures), one mutation at a time, file restored from the lane copy; diff -r lib against the lane is empty afterwards",
+    "mutation_note": "M1-M5: applied at 9958cfc in the lane tree (round 0). M6-M10 and the repair revert: applied at 4165160 in an APFS clone of the lane without .git (<scratch>/mut, cp -cRp; baseline 22 tests, 0 failures), one mutation at a time, file restored from the lane copy; diff -r lib against the lane is empty afterwards M11-M17 and the repair-2 revert: applied at 974b31d14ad0cf0d8d8f2fea67faad2805699ec7 in an APFS clone of the lane without .git (<scratch>/v23b-r2fix/mut; baseline 26 tests, 0 failures) by <scratch>/v23b-r2fix/mutate.py, one at a time, each file restored byte-identical (checked) before the next; results.json sha256 3ffac7b6d2e44b72802a6e0c54e2365968d4308b59dba25b3a94c07203e145f2.",
     "court_pre_merge": {
-      "cmd": "env -i PATH=/usr/bin:/bin:/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin HOME=/Users/sac TMPDIR=<scratch>/tmp XAAS_DIR=/Users/sac/wt/v26922/fri/xaas-int GGEN_IGNITER_DIR=/Users/sac/wt/v26922/fri/ggen_igniter-int sh /Users/sac/wt/v26922/v23/V23-B/scripts/sjira/bootstrap_court.sh",
+      "cmd": "env -i PATH=/usr/bin:/bin:/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin HOME=/Users/sac TMPDIR=<scratch>/tmp XAAS_DIR=/Users/sac/wt/v26922/fri/xaas-int GGEN_IGNITER_DIR=/Users/sac/wt/v26922/fri/ggen_igniter-int sh /Users/sac/wt/v26922/v23/V23-B/scripts/sjira/bootstrap_court.sh",
       "cwd": "/Users/sac/wt/v26922/fri/xaas-int",
       "exit": 75,
-      "summary": "UNKNOWN: GC23-1 machinery lands in lane V23-B (ggen_igniter-int c90c17b has no mix semantic_jira.bootstrap); xaas-int at 04599d6",
+      "summary": "UNKNOWN: GC23-1 machinery lands in lane V23-B (ggen_igniter-int c90c17b has no mix semantic_jira.bootstrap); xaas-int at 04599d6; re-witnessed in repair round 2",
       "output_sha256": "fc59cc60595719068ff284b397a822990103518c43065964cbdf8eb9d76e4153"
     },
     "court_llm_env": {
@@ -255,18 +346,21 @@
     }
   },
   "observations": {
-    "int_reconstruction": "At xaas-int 04599d6 + ggen_igniter-int c90c17b (code at 4165160): V23-D is ALIVE (receipt current, frontier settled); V23-P, V23-X, V23-F (xaas) and V23-C (ggen_igniter) receipts are invalidated subject_advanced (PR-006/F6: later lanes changed paths in their sj:pathScope); V23-Q and V23-W have covered_commit_status none_in_scope (no commit ever touched their scope); every other order UNKNOWN with no receipt. mix xaas.stop_court links receipts by tuple digest alone and does not apply the covered-path law; GC23-10 (V23-R, cold replay reaches the same standing) must choose one law.",
+    "int_reconstruction": "At xaas-int 04599d6 + ggen_igniter-int c90c17b (code at c3eaeb5): V23-D is ALIVE (receipt current, frontier settled); V23-P, V23-X, V23-F (xaas) and V23-C (ggen_igniter) receipts are invalidated subject_advanced (PR-006/F6: later lanes changed paths in their sj:pathScope); V23-Q and V23-W have covered_commit_status none_in_scope (no commit ever touched their scope); every other order UNKNOWN with no receipt. mix xaas.stop_court links receipts by tuple digest alone and does not apply the covered-path law; GC23-10 (V23-R, cold replay reaches the same standing) must choose one law.",
     "successor_candidates": [
       "v23:GC-26.9.24: shared ledger files (HANDWRITTEN.md) and broad scopes (test/) in lane sj:pathScope make derived standing of one lane fall on every other lane's merge; narrow the scopes or exclude ledger files by a declared rule",
       "v23:GC-26.9.24: a durable recipe registry export (xaas config :ultracode_construction_recipes -> JSON) so --registry has an input; today capabilities come from the graphs only (registry.present=false)",
       "v23:GC-26.9.24: a durable TransitionLog for GC-26.9.23 (the court default docs/sjira/v26.9.23/ledger/standing-ledger.ndjson is absent; bootstrap reads it as an empty log)",
-      "v23:GC-26.9.24: gate receipts are committed after the run, so their subject_sha never equals HEAD; out-of-subject receipts (catalog C21) would make gate standing reconstructable at exact HEAD"
+      "v23:GC-26.9.24: gate receipts are committed after the run, so their subject_sha never equals HEAD; out-of-subject receipts (catalog C21) would make gate standing reconstructable at exact HEAD",
+      "v23:GC-26.9.24: TransitionLog event_digest should bind receipt_digest and definition_digest (use SemanticJira.digest_exact/1 or an explicit field list) so a ledger edit of either field is refused as tampering",
+      "v23:GC-26.9.24 / GC23-10 (V23-R): Bootstrap.Receipts.best/1 ranks a current ALIVE receipt above a current REFUSED one for the same order, while xaas stop_court reads one <id>.json per order; one receipt-linking law must be chosen (doc2 design observation)"
     ],
-    "integration_note": "GC23-1 court (xaas, lane V23-K) needs this branch merged into friday/gc-fri-0800 so GGEN_IGNITER_DIR=/Users/sac/wt/v26922/fri/ggen_igniter-int carries scripts/sjira/bootstrap_court.sh and the task; the court must run with no LLM credential variable in its env."
+    "integration_note": "GC23-1 court (xaas, lane V23-K) needs this branch merged into friday/gc-fri-0800 so GGEN_IGNITER_DIR=/Users/sac/wt/v26922/fri/ggen_igniter-int carries scripts/sjira/bootstrap_court.sh and the task; the court must run with no LLM credential variable in its env.",
+    "ledger_digest_note": "TransitionLog event_digest is SemanticJira.digest/1 over the event, which drops the top-level receipt_digest and definition_digest fields: two events differing only there are one event (:already_recorded), and editing an event's receipt_digest in the ledger file is not detected as tampering. Bootstrap's receipt binding bounds the effect (a rewritten receipt_digest must still name a current linked receipt of the same order with the same standing). Kernel file lib/ggen_igniter/semantic_jira/transition_log.ex is outside this lane; successor candidate below."
   },
   "standing": {
     "value": "ALIVE",
-    "derived_from": "lane gate chain (format, compile --warnings-as-errors --force, credo, the 22-test bootstrap suite) exit 0 at the exact committed subject 41651606c72c7fd6c8bd0bdf881d934117b20028 in /Users/sac/wt/v26922/v23/V23-B (clean tree); bootstrap_court.sh exit 0 with this code over xaas-int 04599d6 + ggen_igniter-int c90c17b; revert mutations M6-M10, the repair revert and the whole-lane revert each make the suite fail (M1-M5 at 9958cfc). Gate GC23-1 itself stays UNKNOWN until V23-K replaces the xaas court body and this branch is integrated (pre-merge court exit 75)."
+    "derived_from": "lane gate chain (format, compile --warnings-as-errors --force, credo, the 26-test bootstrap suite) exit 0 at the exact committed subject c3eaeb5a4dd1cbbba82cad4bff1061b0647099e2 in /Users/sac/wt/v26922/v23/V23-B (clean tree); bootstrap_court.sh exit 0 with this code over xaas-int 04599d6 + ggen_igniter-int c90c17b; M11-M17 and the repair-2 revert each make the suite fail (M1-M10 from earlier rounds). Gate GC23-1 itself stays UNKNOWN until V23-K replaces the xaas court body and this branch is integrated (pre-merge court exit 75)."
   },
   "court_answers": {
     "doc1:V23-B (DOCTRINE, refuted mu_unlawful)": {
@@ -275,7 +369,16 @@
       "secondary: git read error / never-committed scope mislabelled subject_advanced": "fixed at 41651606c72c7fd6c8bd0bdf881d934117b20028: orders carry covered_commit_status (observed | none_in_scope | unreadable | subject_unresolved); invalidations carry scope_never_committed / current_covered_commit_unreadable; ledger candidate check shares the coverage function (candidate_subject_advanced label unchanged). Test for the unreadable case removes a real tree object from the fixture repo. Killed by M9. At xaas-int 04599d6 V23-Q and V23-W now show none_in_scope instead of a subject_advanced-shaped null."
     },
     "mut1:V23-B (REVERT-MUTATION, pass) test-design coupling note": "court_path/0 resolves the toolchain dirs with a test-local File.read_link loop instead of Bootstrap.Guard.real_path/1; under the whole-lane revert the 5 subprocess tests now fail at their own assertions (witnessed above). The task-refusal exit code stays 1 (the task's documented contract; the stop court maps every non-0/75 exit to UNKNOWN); those tests keep their log-content assertions, which the lens found are what distinguish a refusal from a missing task.",
-    "gate1:V23-B (GATE, pass) side notes": "(a) erl_crash.dump is an ignored file, untouched; (b) xaas stop_court order_tuple exclusions: handed to V23-K."
+    "gate1:V23-B (GATE, pass) side notes": "(a) erl_crash.dump is an ignored file, untouched; (b) xaas stop_court order_tuple exclusions: handed to V23-K.",
+    "doc2:V23-B (DOCTRINE, refuted mu_unlawful) -- repair round 2": {
+      "R1 ledger ALIVE conferred without a current receipt (event_verdict/3 -> stale_candidate/2 nil for every order without sj:candidateSha)": "fixed at 974b31d14ad0cf0d8d8f2fea67faad2805699ec7: Bootstrap.event_verdict/3 applies a non-UNKNOWN event only through receipt_binding/2 -- its receipt_digest must be the sha256 of a CURRENT linked receipt of the order whose kernel standing equals `to`; otherwise inapplicable with receipt_digest_unresolved (F5, fabricated/deleted/unlinked), receipt_not_current (F6, the covered-path law invalidated the named receipt) or receipt_standing_mismatch. So SemanticJira.project/2 can only overwrite a receipt-derived standing with the standing of another current receipt of the same order (or with UNKNOWN). Killed by M11, M13, M14, M17.",
+      "R2 test pinned the defect (fabricated receipt_digest asserted ALIVE / ledger / settled)": "the test is replaced, not weakened: the same fabricated event is now asserted receipt_digest_unresolved, T-A's order state equals the no-ledger state, T-B stays blocked dependencies_unsatisfied. New test binds a real receipt (independent :crypto sha256 of the file bytes) -> ALIVE ledger; deleting it -> UNKNOWN (F5); restoring the bytes restores the state digest; a covered-path commit -> UNKNOWN receipt_not_current with the invalidated record carrying that sha256 (F6).",
+      "R3 sj:candidateSha path had zero coverage": "new test with a T-C order carrying sj:candidateSha: an ALIVE event bound to a current receipt applies while the candidate covers lib/; after a covered-path commit, with the receipt re-bound to the new commit (current), an ALIVE event is candidate_subject_advanced. Killed by M16.",
+      "minor: Receipts.read_dir skipped non-regular *.json entries silently": "fixed at 974b31d14ad0cf0d8d8f2fea67faad2805699ec7: the File.regular? filter is removed; a dangling symlink (enoent) or a directory (eisdir) named *.json refuses input_unreadable. Killed by M15. The real int receipts dirs hold no such entry (*.gate directories do not end in .json); the int court run is unchanged apart from the invalidated sha256 field.",
+      "minor: Git.branch/1 '(detached)', Git.commit :error labelled subject_sha_unknown": "unchanged: both are typed values in the state (not swallowed); no refutation.",
+      "observation: Receipts.best/1 ALIVE over REFUSED": "recorded as a GC23-10 / successor candidate (observations).",
+      "mut2 / gate2 (pass)": "no finding to answer; re-witnessed: court 75 against ggen_igniter-int, REFUSED(llm_credential_present) from the session env (exit 1)."
+    }
   },
   "handoffs": [
     {
