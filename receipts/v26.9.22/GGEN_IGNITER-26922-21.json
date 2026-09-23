@@ -1,0 +1,97 @@
+{
+  "wo": "GGEN_IGNITER-26922-21",
+  "title": "C11 proof-carrying decisions: every admission emits an in-toto Statement v1 next to the receipt; offline verifier replays it",
+  "composition": "C11 (B+C+D) proof-carrying decision supply chain, ~/.claude/rules/dfcm-composition-catalog.md",
+  "identity": {
+    "subject": "GGEN_IGNITER-26922-21",
+    "repo": "/Users/sac/ggen_igniter",
+    "subject_sha": "14ca952103004822f37e413bda9ab011e91b13a5",
+    "base_sha": "c1aa83910172f177158ce9862474492d79c37178"
+  },
+  "authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "NONE (workflow order GGEN_IGNITER-26922-21 from /Users/sac/wt/v26922/orders.json; no lease; no push/merge/tag)",
+    "actor": "claude-opus-5-5 subagent in worktree /Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-21 (branch law/GGEN_IGNITER-26922-21)"
+  },
+  "consequence": {
+    "commits": ["14ca952103004822f37e413bda9ab011e91b13a5"],
+    "files_changed": [
+      "lib/ggen_igniter/semantic_jira/attestation.ex",
+      "lib/ggen_igniter/semantic_jira/reconciler.ex",
+      "lib/ggen_igniter/semantic_jira/transition_log.ex",
+      "mix.exs",
+      "priv/ggen/semantic-jira-pack/runtime-templates/admission_statement.json.eex",
+      "priv/schema/sj_admission.schema.json",
+      "test/fixtures/in_toto/statement_v1.schema.json",
+      "test/ggen_igniter_semantic_jira_attestation_test.exs",
+      "receipts/v26.9.22/GGEN_IGNITER-26922-21.json"
+    ],
+    "remote_effects": []
+  },
+  "replay": {
+    "commands": [
+      {
+        "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_attestation_test.exs",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-21",
+        "exit": 0,
+        "summary": "acceptance at HEAD 14ca952 (clean tree): 10 tests, 0 failures in 3.0s. Statement validates against vendored in-toto Statement v1 schema (JSV draft 2020-12, offline) and priv/schema/sj_admission.schema.json; vendored schema refuses 8 malformed statements; replay from a copied log recomputes identical subject digests (sha256 = admitted work_order_digest, gitCommit = real git commit from a tmp repo); tampered courts/falsifiers/authority/standing/extra-key predicate -> {:predicate_mismatch, [key]}, tampered subject digests -> {:subject_mismatch, [name]}, tampered embedded receipt -> {:receipt_not_logged, _}, tampered bytes on disk refused; byte-identical rendering across independent logs; crash-window backfill.",
+        "output_sha256": "a17b6331a86039c8968b0654c091dd84ee6aea0906a4d481f14e6b7c11ae7d17"
+      },
+      {
+        "cmd": "MIX_ENV=test mix compile --warnings-as-errors",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-21",
+        "exit": 0,
+        "summary": "at HEAD 14ca952; no output",
+        "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "cmd": "MIX_ENV=test mix format --check-formatted",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-21",
+        "exit": 0,
+        "summary": "at HEAD 14ca952; no output",
+        "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "cmd": "MIX_ENV=test mix credo lib/ggen_igniter/semantic_jira/attestation.ex lib/ggen_igniter/semantic_jira/reconciler.ex lib/ggen_igniter/semantic_jira/transition_log.ex test/ggen_igniter_semantic_jira_attestation_test.exs",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-21",
+        "exit": 0,
+        "summary": "at HEAD 14ca952: 66 mods/funs, found no issues",
+        "output_sha256": "293c31ab23a2954ecd4ac283da82df095f9bed0d856d12db2ae817f295989b0f"
+      },
+      {
+        "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_attestation_test.exs test/ggen_igniter_semantic_jira_reconciler_test.exs test/ggen_igniter_semantic_jira_autonomics_crown_test.exs test/ggen_igniter_semantic_jira_descriptor_test.exs test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_pack_health_test.exs test/ggen_igniter_semantic_jira_pack_test.exs",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-21",
+        "exit": 0,
+        "summary": "neighborhood of touched code (Reconciler/TransitionLog callers incl. concurrent-writer crown test): 121 tests, 0 failures in 1636.5s. Run on the working tree immediately before commit 14ca952 with tracked content byte-identical to it (no edits between run start and commit).",
+        "output_sha256": "8a15f92289681522172e078869c2bb941c11adfdf4b0373ca63e765c9cf90aa6"
+      },
+      {
+        "cmd": "grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps -E '(use|import) +(Mox|Mimic|Patch)\\b|(Mox|Mimic|Patch)\\.|:meck\\.|mockall|MagicMock|Mock\\(' test lib native; test $? -eq 1",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-21",
+        "exit": 0,
+        "summary": "Chicago gate: grep exit 1, zero matches (no mocks in test/lib/native)"
+      }
+    ],
+    "durable_location": "receipts/v26.9.22/GGEN_IGNITER-26922-21.json on branch law/GGEN_IGNITER-26922-21"
+  },
+  "falsifiers": [
+    {
+      "falsifier": "catalog C11: attestation fails in-toto schema validation, or replay recomputes a different subject digest",
+      "result": "survived: every emitted Statement validates; replay subject == stored subject == independently recomputed digests"
+    },
+    {
+      "falsifier": "mutation: Attestation.verify/3 predicate comparison replaced by :ok",
+      "result": "killed: acceptance 10 tests, 1 failure (tampered predicate admitted as {:ok, ...})"
+    },
+    {
+      "falsifier": "mutation: Reconciler.reconcile/4 Attestation.emit/3 call removed",
+      "result": "killed: acceptance 10 tests, 8 failures"
+    }
+  ],
+  "generated_vs_handwritten": "Statement JSON is rendered through the pack runtime template priv/ggen/semantic-jira-pack/runtime-templates/admission_statement.json.eex (Descriptor pattern). Hand-written residue: GgenIgniter.SemanticJira.Attestation (statement construction, in-toto structural checks, replay verifier), Reconciler.decide/3 extraction, TransitionLog event-file filter, the two JSON Schemas. UNSUPPORTED(generator-capability): semantic-jira-pack gates/templates project WorkOrder individuals into documents; the pack has no generator for kernel Elixir modules or JSON Schemas, and upstream in-toto publishes no JSON Schema for Statement v1 (vendored schema is a transcription of in-toto/attestation@fd2609c16bcb0ac53443e2b4612977f997e8f9a5 spec/v1 + go/v1 validators).",
+  "standing": {
+    "value": "ALIVE",
+    "derived_from": "replay commands 1-4 and 6 executed at subject_sha 14ca952103004822f37e413bda9ab011e91b13a5 (clean tree), all exit 0; command 5 on byte-identical pre-commit tree, exit 0"
+  },
+  "notes": "Premise re-measured at base c1aa839: dependency GGEN_IGNITER-26922-06 (mix semantic_jira.* tasks over Reconciler.reconcile/4) is absent (no lib/mix/tasks/semantic_jira.*.ex); the admission path that exists is Reconciler.reconcile/4 (+ TransitionLog), so emission is wired there and reaches any future task that calls it. Statement is not DSSE-wrapped or signed (kernel holds no key/lease, authority NONE); integrity is replay against the append-only log. Refused transitions emit no Statement."
+}
