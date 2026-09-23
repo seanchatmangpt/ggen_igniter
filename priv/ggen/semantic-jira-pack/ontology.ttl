@@ -2126,3 +2126,77 @@ sj:ledger-unsupported-002 a rdfs:Resource ;
     dcterms:description "UNSUPPORTED(generator-capability): no admitted generator manufactures the Chicago-style SHACL admission proof for the Friday GoalCheckpoint vocabulary (valid goal graph admits, per-tuple-field mutation table refuses, root stopQuery law, legacy orders unaffected), so test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs and its fixture test/fixtures/semantic-jira-goal-checkpoint/goal.ttl are admitted hand-authored residue. Paydown plan: the pack-integration-proof generator named by sj:ledger-unsupported-001 also emits one mutation-table case per sh:minCount / tuple sh:sparql constraint read from shapes/work-order.shacl.ttl; when admitted, this row and its HANDWRITTEN.md entry retire." ;
     dcterms:date "2026-09-22"^^xsd:date ;
     dcterms:references <https://ggen-igniter.dev/ontology/semantic-jira#pack-integration-proof-test> .
+
+# ── Prose compilation vocabulary (PVOCAB; GC-26.9.23 GC23-0 / GC23-2, lane V23-C) ──
+# PRD PR-002..PR-005, ARD sections 5 and 17. A sj:Proposition is one candidate
+# (then admitted) semantic proposition extracted from accepted future-state
+# prose, bound to its exact source span. Candidate IRIs are
+# <goal namespace>P-<first 16 hex of sha256("<sourceSha256>:<start>:<end>:<kind>")>.
+# Admission (shapes/proposition.shacl.ttl + GgenIgniter.SemanticJira.Prose)
+# replaces sj:candidateStanding "UNKNOWN" by sj:admissionDigest; the admitted
+# graph -> WorkOrder delta is the deterministic pack query
+# prose/delta.construct.rq (no second LLM interpretation, ARD section 5.5).
+sj:Proposition a rdfs:Class ;
+    rdfs:label "Semantic proposition" ;
+    rdfs:comment "One proposition extracted from accepted prose (ARD section 5.2 kinds), bound to an exact UTF-8 byte span of its source document. Candidate until admitted; the prose itself is never executable authority (PR-001)." .
+
+sj:propositionKind a rdf:Property ;
+    rdfs:domain sj:Proposition ;
+    rdfs:range xsd:string ;
+    rdfs:comment "One of Actor Object Role State Transition Capability Trigger Dependency Invariant Exclusion Evidence Authority Postcondition Falsifier Metric Successor (ARD section 5.2)." .
+sj:statement a rdf:Property ;
+    rdfs:domain sj:Proposition ;
+    rdfs:range xsd:string ;
+    rdfs:comment "One declarative sentence stating the proposition." .
+sj:sourceDocument a rdf:Property ;
+    rdfs:domain sj:Proposition ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Repository-relative path of the accepted prose the proposition was extracted from." .
+sj:sourceSha256 a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "\"sha256:<hex>\" digest of the source document bytes. On a root GoalCheckpoint it binds the goal to the accepted prose it was compiled from." .
+sj:sourceStart a rdf:Property ;
+    rdfs:domain sj:Proposition ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "UTF-8 byte offset where the source span starts (inclusive, half-open span)." .
+sj:sourceEnd a rdf:Property ;
+    rdfs:domain sj:Proposition ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "UTF-8 byte offset where the source span ends (exclusive); sj:sourceStart < sj:sourceEnd." .
+sj:sourceText a rdf:Property ;
+    rdfs:domain sj:Proposition ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Exactly the source bytes [sj:sourceStart, sj:sourceEnd) decoded as UTF-8; admission refuses any other value." .
+sj:requiredBy a rdf:Property ;
+    rdfs:domain sj:Proposition ;
+    rdfs:range sj:GoalCheckpoint ;
+    owl:inverseOf sj:requiredProposition ;
+    rdfs:comment "The GoalCheckpoint (a gate, or the root) that requires this proposition. Absent means not required. Cardinality 0..1: one required proposition manufactures at most one WorkOrder." .
+sj:requiredProposition a rdf:Property ;
+    rdfs:domain sj:GoalCheckpoint ;
+    rdfs:range sj:Proposition ;
+    rdfs:comment "GoalCheckpoint -> proposition it requires (ARD section 6 GoalCheckpoint predicate); inverse of sj:requiredBy." .
+sj:successorCheckpoint a rdf:Property ;
+    rdfs:domain sj:GoalCheckpoint ;
+    rdfs:range sj:GoalCheckpoint ;
+    owl:inverseOf sj:successorOf ;
+    rdfs:comment "Predecessor GoalCheckpoint -> successor GoalCheckpoint (ARD section 6); inverse of sj:successorOf." .
+sj:candidateStanding a rdf:Property ;
+    rdfs:domain sj:Proposition ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Always \"UNKNOWN\" on a candidate (ARD section 5.3); admission removes it." .
+sj:extractedBy a rdf:Property ;
+    rdfs:domain sj:Proposition ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Identity of the extractor that proposed the candidate (for example llm:<model>@<run>); the LLM edge is recorded, never trusted." .
+sj:admissionDigest a rdf:Property ;
+    rdfs:domain sj:Proposition ;
+    rdfs:range xsd:string ;
+    rdfs:comment "\"sha256:<hex>\" over the admission context (source, candidates, goal, ontology, shapes and query digests) and the proposition's own triples; present exactly when sj:candidateStanding is absent." .
+
+# ---- HANDWRITTEN ledger: UNSUPPORTED(generator, element) row ----
+sj:ledger-unsupported-003 a rdfs:Resource ;
+    rdfs:label "UNSUPPORTED(semantic-jira-pack, prose-admission-orchestrator)" ;
+    dcterms:description "UNSUPPORTED(generator-capability): no admitted generator manufactures the prose admission orchestrator (byte-level provenance binding, SHACL admission scoping, receipt-witness projection, delta conservation twin, sorted N-Triples serialization), so lib/ggen_igniter/semantic_jira/prose.ex, lib/mix/tasks/semantic_jira.compile_prose.ex and the Chicago proof test/ggen_igniter_semantic_jira_prose_test.exs with its fixture test/fixtures/semantic-jira-prose/ are admitted hand-authored residue. The semantic rules themselves are pack data: shapes/proposition.shacl.ttl and prose/*.rq. Paydown plan: move provenance binding into a pack SPARQL function once the admitted sparql engine exposes byte-span access, and extend the pack-integration-proof generator of sj:ledger-unsupported-001 to emit one refusal case per prose/*.rq rule; when admitted, this row and its HANDWRITTEN.md entry retire." ;
+    dcterms:date "2026-09-23"^^xsd:date ;
+    dcterms:references <https://ggen-igniter.dev/ontology/semantic-jira#pack-integration-proof-test> .
