@@ -51,6 +51,18 @@ sj:WorkOrderShape a sh:NodeShape ;
     sh:property [ sh:path sj:authority ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
     sh:property [ sh:path sj:lease ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
     sh:property [ sh:path sj:worker ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    # Friday tuple vocabulary (GC-FRI-0800). Declared here with NO sh:minCount
+    # so the closed shape admits them on every order while pre-Friday orders
+    # stay valid without them; presence is required only by
+    # sj:FridayWorkOrderShape (subjects of sj:checkpointOf).
+    sh:property [ sh:path sj:checkpointOf ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:GoalCheckpoint ] ;
+    sh:property [ sh:path sj:boundaryClass ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path sj:postcondition ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:requiresCapability ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Capability ] ;
+    sh:property [ sh:path sj:evidenceHorizon ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:exclusion ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:consequenceClass ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(manufacture|projection|authority_preparation|actuation|verification|postcondition|replay|publication|deployment)$" ] ;
+    sh:property [ sh:path sj:successorPolicy ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
     sh:sparql [
       sh:message "Work order identifiers must be unique across WorkOrders." ;
       sh:select """
@@ -195,6 +207,205 @@ sj:GlobalIntegrityShape a sh:NodeShape ;
         }
       """
     ] .
+
+# ── Friday GoalCheckpoint shapes (GC-FRI-0800, v26.9.22 G4) ─────────────────
+# Non-blank strings use sh:pattern "[^\\s]", never "\\S": the second kernel
+# (praxis_graphlaw.wasm, GgenIgniter.SemanticJira.KernelDifferential) refuses
+# every value against "\\S" (measured 2026-09-22), while both kernels agree on
+# "[^\\s]" -- the same regular language.
+# sh:sparql constraints that name a single tuple field SELECT ?path bound to
+# that field's IRI, so the court reports the refused field as the violation's
+# path (SHACL-SPARQL result path), not only in the message.
+
+sj:CheckpointShape a sh:NodeShape ;
+    sh:targetClass sj:Checkpoint ;
+    # rdfs:label only: pre-Friday checkpoints (for example the
+    # KernelDifferential projection's sj:cp-* nodes) carry no
+    # dcterms:description, and this shape must not refuse them.
+    sh:property [ sh:path rdfs:label ; sh:minCount 1 ; sh:pattern "[^\\s]" ] .
+
+sj:GoalCheckpointShape a sh:NodeShape ;
+    sh:targetClass sj:GoalCheckpoint ;
+    sh:property [ sh:path sj:checkpointOf ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:GoalCheckpoint ] ;
+    sh:property [ sh:path sj:boundaryClass ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path sj:courtCommand ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:stopQuery ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^\\s*(?:(?:PREFIX|BASE)\\s[^\\n]*\\n\\s*|#[^\\n]*\\n\\s*)*ASK\\b" ; sh:flags "i" ] ;
+    sh:property [ sh:path sj:successorOf ; sh:nodeKind sh:IRI ; sh:class sj:GoalCheckpoint ] ;
+    sh:sparql [
+      sh:message "A non-root GoalCheckpoint (with sj:checkpointOf) requires sj:courtCommand." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this sj:checkpointOf ?parent .
+          BIND(sj:courtCommand AS ?path)
+          OPTIONAL { $this sj:courtCommand ?command . }
+          FILTER(!BOUND(?command))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "A non-root GoalCheckpoint (with sj:checkpointOf) requires sj:boundaryClass." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this sj:checkpointOf ?parent .
+          BIND(sj:boundaryClass AS ?path)
+          OPTIONAL { $this sj:boundaryClass ?boundary . }
+          FILTER(!BOUND(?boundary))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "The root GoalCheckpoint (no sj:checkpointOf) requires sj:stopQuery." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this a sj:GoalCheckpoint .
+          BIND(sj:stopQuery AS ?path)
+          OPTIONAL { $this sj:checkpointOf ?parent . }
+          OPTIONAL { $this sj:stopQuery ?query . }
+          FILTER(!BOUND(?parent) && !BOUND(?query))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "A GoalCheckpoint must not be its own parent or its own successor." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this ?relation $this .
+          FILTER(?relation = sj:checkpointOf || ?relation = sj:successorOf)
+        }
+      """
+    ] .
+
+sj:BoundaryClassValueShape a sh:NodeShape ;
+    sh:targetSubjectsOf sj:boundaryClass ;
+    sh:sparql [
+      sh:message "sj:boundaryClass must be one of sj:Bootstrap, sj:FirstMile, sj:Core, sj:LastMile, sj:Successor." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this sj:boundaryClass ?boundary .
+          BIND(sj:boundaryClass AS ?path)
+          FILTER(?boundary != sj:Bootstrap && ?boundary != sj:FirstMile && ?boundary != sj:Core && ?boundary != sj:LastMile && ?boundary != sj:Successor)
+        }
+      """
+    ] .
+
+sj:CapabilityShape a sh:NodeShape ;
+    sh:targetClass sj:Capability ;
+    sh:property [ sh:path sj:capabilityId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-z][a-z0-9_-]*:[A-Za-z0-9_.:/-]+$" ] ;
+    sh:sparql [
+      sh:message "Capability identifiers (sj:capabilityId) must be unique across Capabilities." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this sj:capabilityId ?id .
+          ?other a sj:Capability ; sj:capabilityId ?id .
+          FILTER(?other != $this)
+          BIND(sj:capabilityId AS ?path)
+        }
+      """
+    ] .
+
+# A WorkOrder that names a parent GoalCheckpoint carries the full tuple.
+# sj:subject, sj:repository, sj:baseSha, sj:pathScope, sj:evidenceCeiling and
+# sj:authorityCeiling are already sh:minCount 1 on sj:WorkOrderShape; this
+# shape adds the Friday tuple fields. Targeting sj:checkpointOf subjects (not
+# sj:WorkOrder) keeps every pre-Friday order out of scope, and the
+# `$this a sj:WorkOrder` guard keeps child GoalCheckpoints out of scope.
+sj:FridayWorkOrderShape a sh:NodeShape ;
+    sh:targetSubjectsOf sj:checkpointOf ;
+    sh:sparql [
+      sh:message "Friday tuple: a WorkOrder with sj:checkpointOf requires sj:postcondition." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this a sj:WorkOrder .
+          BIND(sj:postcondition AS ?path)
+          OPTIONAL { $this sj:postcondition ?value . }
+          FILTER(!BOUND(?value))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Friday tuple: a WorkOrder with sj:checkpointOf requires sj:requiresCapability." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this a sj:WorkOrder .
+          BIND(sj:requiresCapability AS ?path)
+          OPTIONAL { $this sj:requiresCapability ?value . }
+          FILTER(!BOUND(?value))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Friday tuple: a WorkOrder with sj:checkpointOf requires sj:evidenceHorizon." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this a sj:WorkOrder .
+          BIND(sj:evidenceHorizon AS ?path)
+          OPTIONAL { $this sj:evidenceHorizon ?value . }
+          FILTER(!BOUND(?value))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Friday tuple: a WorkOrder with sj:checkpointOf requires at least one sj:exclusion." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this a sj:WorkOrder .
+          BIND(sj:exclusion AS ?path)
+          OPTIONAL { $this sj:exclusion ?value . }
+          FILTER(!BOUND(?value))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Friday tuple: a WorkOrder with sj:checkpointOf requires sj:consequenceClass." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this a sj:WorkOrder .
+          BIND(sj:consequenceClass AS ?path)
+          OPTIONAL { $this sj:consequenceClass ?value . }
+          FILTER(!BOUND(?value))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Friday tuple: a WorkOrder with sj:checkpointOf requires sj:successorPolicy." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this a sj:WorkOrder .
+          BIND(sj:successorPolicy AS ?path)
+          OPTIONAL { $this sj:successorPolicy ?value . }
+          FILTER(!BOUND(?value))
+        }
+      """
+    ] .
+
+sj:MachineExperienceShape a sh:NodeShape ;
+    sh:targetClass sj:MachineExperience ;
+    # Mirrors GgenIgniter.SemanticJira.machine_experience/1 exactly: closed,
+    # CANDIDATE standing, NONE authority, sha256-shaped digests.
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type rdfs:label dcterms:description ) ;
+    sh:property [ sh:path sj:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:workOrderDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:executionReceiptHash ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:observationRef ; sh:minCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:verificationDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:resultingStateDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:replayIdentity ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:standing ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue "CANDIDATE" ] ;
+    sh:property [ sh:path sj:authorityClaim ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue "NONE" ] ;
+    sh:property [ sh:path sj:experienceDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] .
 
 # ── A2A projection shapes ──────────────────────────────────────────────────
 @prefix a2a: <https://ggen-igniter.dev/ontology/a2a#> .

@@ -353,7 +353,9 @@ defmodule GgenIgniter.SemanticJira.KernelDifferential do
   defp has_predicate?(data, node, predicate) do
     case RDF.Graph.get(data, node) do
       nil -> false
-      description -> RDF.Description.include?(description, predicate)
+      # RDF.Description.include?/3 takes a statement, not a bare predicate
+      # (FunctionClauseError under rdf 3.0.1 on the first sh:targetSubjectsOf).
+      description -> RDF.Description.first(description, predicate) != nil
     end
   end
 
