@@ -25,8 +25,12 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
   In both forms an event whose `event_digest` is already present is returned
   unchanged (`:already_recorded`, idempotent), `read/1` returns events ordered
   by `seq`, and `fetch/1` is `read/1` behind a typed refusal: an undecodable
-  line/file or an event whose `event_digest` no longer recomputes (a tampered
-  ledger) is `{:error, {:ledger_refused, reason}}`, never silently projected.
+  line/file (`{:unreadable, message}`), a line/file that decodes to valid JSON
+  that is not an object (`{:not_an_object, line_no}` for a file ledger, 1-based
+  physical line; `{:not_an_object, file_name}` for a directory ledger), or an
+  event whose `event_digest` no longer recomputes (a tampered ledger) is
+  `{:error, {:ledger_refused, reason}}`, never silently projected and never a
+  crash. `append/2` refuses the same way before writing.
 
   The WorkOrder definition is never touched; current standing is the
   projection `GgenIgniter.SemanticJira.project/2` of this log over the graph.
@@ -49,11 +53,23 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
     end
   end
 
+  @doc """
+  The events of the ledger at `path`, ordered by `seq`. Raises `ArgumentError`
+  (naming the typed refusal) on a ledger `fetch/1` would refuse for being
+  undecodable or holding a non-object entry; use `fetch/1` for the typed form.
+  """
   @spec read(Path.t()) :: [map()]
   def read(path) do
+    case decode(path) do
+      {:ok, events} -> events
+      {:error, reason} -> raise ArgumentError, "ledger refused: #{inspect(reason)}"
+    end
+  end
+
+  defp decode(path) do
     case kind(path) do
-      :dir -> read_dir(path)
-      :file -> read_file(path)
+      :dir -> decode_dir(path)
+      :file -> decode_file(path)
     end
   end
 
@@ -64,19 +80,31 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
   """
   @spec fetch(Path.t()) :: {:ok, [map()]} | {:error, {:ledger_refused, term()}}
   def fetch(path) do
-    events = read(path)
-
-    case Enum.find(events, &(not intact?(&1))) do
-      nil -> {:ok, events}
-      event -> {:error, {:ledger_refused, {:event_digest_mismatch, event["seq"]}}}
+    with {:ok, events} <- ledger(decode(path)) do
+      case Enum.find(events, &(not intact?(&1))) do
+        nil -> {:ok, events}
+        event -> {:error, {:ledger_refused, {:event_digest_mismatch, event["seq"]}}}
+      end
     end
-  rescue
-    error in [Jason.DecodeError, File.Error] ->
-      {:error, {:ledger_refused, {:unreadable, Exception.message(error)}}}
+  end
+
+  defp ledger({:ok, events}), do: {:ok, events}
+  defp ledger({:error, reason}), do: {:error, {:ledger_refused, reason}}
+
+  # One ledger entry: only a JSON OBJECT is an event. Valid JSON of any other
+  # shape (array, string, number, null) is a typed refusal located at `where`.
+  defp decode_event(json, where) do
+    case Jason.decode(json) do
+      {:ok, %{} = event} -> {:ok, event}
+      {:ok, _not_an_object} -> {:error, {:not_an_object, where}}
+      {:error, error} -> {:error, {:unreadable, Exception.message(error)}}
+    end
   end
 
   @spec append(Path.t(), map()) ::
-          {:ok, map(), :appended | :already_recorded} | {:error, {:ledger_locked, Path.t()}}
+          {:ok, map(), :appended | :already_recorded}
+          | {:error, {:ledger_locked, Path.t()}}
+          | {:error, {:ledger_refused, term()}}
   def append(path, event) do
     event = Map.put(event, "event_digest", event_digest(event))
 
@@ -93,25 +121,65 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
 
   # ── directory ledger ──────────────────────────────────────────────────────
 
-  defp read_dir(dir) do
+  defp decode_dir(dir) do
     case File.ls(dir) do
       {:ok, names} ->
         names
         |> Enum.filter(&String.ends_with?(&1, ".json"))
         |> Enum.sort()
-        |> Enum.map(&(dir |> Path.join(&1) |> File.read!() |> Jason.decode!()))
+        |> Stream.map(&decode_dir_entry(dir, &1))
+        |> decode_all()
 
       {:error, :enoent} ->
-        []
+        {:ok, []}
+
+      {:error, reason} ->
+        unreadable(dir, reason)
+    end
+  end
+
+  defp decode_dir_entry(dir, name) do
+    path = Path.join(dir, name)
+
+    case File.read(path) do
+      {:ok, body} -> decode_event(body, name)
+      {:error, reason} -> unreadable(path, reason)
+    end
+  end
+
+  # Consumes lazily decoded entries in order, halting on the first refusal.
+  defp decode_all(entries) do
+    entries
+    |> Enum.reduce_while({:ok, []}, &decode_step/2)
+    |> case do
+      {:ok, events} -> {:ok, Enum.reverse(events)}
+      error -> error
+    end
+  end
+
+  defp decode_step({:ok, event}, {:ok, acc}), do: {:cont, {:ok, [event | acc]}}
+  defp decode_step({:error, _} = error, _acc), do: {:halt, error}
+
+  defp unreadable(path, reason),
+    do: {:error, {:unreadable, "#{path}: #{:file.format_error(reason)}"}}
+
+  # Called only after `append_dir/2` admitted the ledger (or on files this
+  # module itself wrote): a refusal here is a concurrent corruption and raises.
+  defp read_dir(dir) do
+    case decode_dir(dir) do
+      {:ok, events} -> events
+      {:error, reason} -> raise ArgumentError, "ledger refused: #{inspect(reason)}"
     end
   end
 
   defp append_dir(dir, event) do
     File.mkdir_p!(dir)
 
-    case find(read_dir(dir), event["event_digest"]) do
-      nil -> claim_digest(dir, event)
-      existing -> {:ok, existing, :already_recorded}
+    with {:ok, events} <- ledger(decode_dir(dir)) do
+      case find(events, event["event_digest"]) do
+        nil -> claim_digest(dir, event)
+        existing -> {:ok, existing, :already_recorded}
+      end
     end
   end
 
@@ -176,32 +244,43 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
 
   # ── file ledger (ndjson) ──────────────────────────────────────────────────
 
-  defp read_file(path) do
+  # Line numbers are 1-based PHYSICAL lines (blank lines count, and are
+  # skipped), so a refusal points at the exact line an operator opens.
+  defp decode_file(path) do
     case File.read(path) do
-      {:ok, body} ->
-        body
-        |> String.split("\n", trim: true)
-        |> Enum.reject(&(String.trim(&1) == ""))
-        |> Enum.map(&Jason.decode!/1)
-        |> Enum.sort_by(&(&1["seq"] || 0))
-
-      {:error, :enoent} ->
-        []
+      {:ok, body} -> body |> file_entries() |> decode_all() |> sorted_by_seq()
+      {:error, :enoent} -> {:ok, []}
+      {:error, reason} -> unreadable(path, reason)
     end
   end
+
+  defp file_entries(body) do
+    body
+    |> String.split("\n")
+    |> Enum.with_index(1)
+    |> Stream.reject(fn {line, _line_no} -> String.trim(line) == "" end)
+    |> Stream.map(fn {line, line_no} -> decode_event(line, line_no) end)
+  end
+
+  defp sorted_by_seq({:ok, events}), do: {:ok, Enum.sort_by(events, &(&1["seq"] || 0))}
+  defp sorted_by_seq(error), do: error
 
   defp append_file(path, event) do
     File.mkdir_p!(Path.dirname(path))
     lock = path <> ".lock"
 
     with_lock(lock, @lock_attempts, fn ->
-      events = read_file(path)
-
-      case find(events, event["event_digest"]) do
-        nil -> append_line(path, event, events)
-        existing -> {:ok, existing, :already_recorded}
+      with {:ok, events} <- ledger(decode_file(path)) do
+        append_new_line(path, event, events)
       end
     end)
+  end
+
+  defp append_new_line(path, event, events) do
+    case find(events, event["event_digest"]) do
+      nil -> append_line(path, event, events)
+      existing -> {:ok, existing, :already_recorded}
+    end
   end
 
   # Called only while holding the ledger lock: the next seq is one past the

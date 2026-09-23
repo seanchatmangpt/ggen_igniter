@@ -395,4 +395,59 @@ defmodule GgenIgniter.SemanticJiraReconcileTaskTest do
       assert TransitionLog.read(ledger) == [first, second]
     end
   end
+
+  describe "TransitionLog.fetch/1 typed refusals (V23-T6R refutation 6)" do
+    test "a valid-JSON non-object line in a file ledger refuses with its 1-based line",
+         %{dir: dir} do
+      ledger = Path.join(dir, "standing-ledger.ndjson")
+      assert {:ok, first, :appended} = TransitionLog.append(ledger, event("PARTIAL_ALIVE"))
+
+      # line 1: the real event; line 2: blank (counted, skipped); line 3: an array
+      File.write!(ledger, "\n[1, 2]\n", [:append])
+
+      assert {:error, {:ledger_refused, {:not_an_object, 3}}} = TransitionLog.fetch(ledger)
+
+      for non_object <- [~s("a string"), "42", "null", "true"] do
+        File.write!(ledger, Jason.encode!(first) <> "\n" <> non_object <> "\n")
+
+        assert {:error, {:ledger_refused, {:not_an_object, 2}}} = TransitionLog.fetch(ledger),
+               "#{non_object} must refuse at line 2"
+      end
+
+      # append refuses the same ledger before writing anything
+      before = File.read!(ledger)
+
+      assert {:error, {:ledger_refused, {:not_an_object, 2}}} =
+               TransitionLog.append(ledger, event("ALIVE"))
+
+      assert File.read!(ledger) == before
+
+      # read/1 names the typed refusal instead of crashing on a non-map
+      assert_raise ArgumentError, ~r/not_an_object/, fn -> TransitionLog.read(ledger) end
+
+      # the CLI surface carries it as typed JSON (exit 1), not a crash
+      assert {1, %{"status" => "refused", "reason" => ["ledger_refused", ["not_an_object", 2]]}} =
+               Cli.frontier(work_orders: @fixture, ledger: ledger)
+    end
+
+    test "an undecodable line is still {:unreadable, message}", %{dir: dir} do
+      ledger = Path.join(dir, "standing-ledger.ndjson")
+      File.write!(ledger, "{not json\n")
+
+      assert {:error, {:ledger_refused, {:unreadable, message}}} = TransitionLog.fetch(ledger)
+      assert is_binary(message)
+    end
+
+    test "a non-object file in a directory ledger refuses naming the file", %{dir: dir} do
+      ledger = Path.join(dir, "ledger")
+      assert {:ok, _first, :appended} = TransitionLog.append(ledger, event("PARTIAL_ALIVE"))
+      File.write!(Path.join(ledger, "00000002-forged.json"), "[]")
+
+      assert {:error, {:ledger_refused, {:not_an_object, "00000002-forged.json"}}} =
+               TransitionLog.fetch(ledger)
+
+      assert {:error, {:ledger_refused, {:not_an_object, "00000002-forged.json"}}} =
+               TransitionLog.append(ledger, event("ALIVE"))
+    end
+  end
 end
