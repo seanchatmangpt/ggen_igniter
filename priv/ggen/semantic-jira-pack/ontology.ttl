@@ -2019,3 +2019,110 @@ sj:a2a-attr-task-id a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2
 sj:a2a-attr-standing a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "standing" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired true .
 sj:a2a-attr-replay-identity a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "replay_identity" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired false .
 sj:a2a-attr-receipt-digest a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "receipt_digest" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired false .
+
+# ── Friday GoalCheckpoint vocabulary (GC-FRI-0800, v26.9.22 G4) ────────────
+# Shared vocabulary contract for the Friday Stop Court: the xaas goal graph
+# (docs/sjira/v26.9.22/friday/goal.ttl), the SA2A tuple-digest court, and the
+# `mix xaas.stop_court` runner use EXACTLY these IRIs. Additive only: a
+# WorkOrder without sj:checkpointOf is not required to carry any of them
+# (shapes/work-order.shacl.ttl FridayWorkOrderShape targets the subjects of
+# sj:checkpointOf only), so every pre-Friday order admits unchanged.
+#
+# Tuple digest (T4/T5 contract): "sha256:" + hex(sha256(canonical JSON)) of
+#   {subject, postcondition, capability, evidence_ceiling, authority_ceiling,
+#    consequence_class, exclusions}
+# with keys sorted, compact separators, exclusions sorted; capability is the
+# sj:capabilityId string of the order's sj:requiresCapability node. sj:exclusion
+# is 0..n: an order with no sj:exclusion digests exclusions = [].
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix gall: <http://seanchatmangpt.github.io/packs/gall-core#> .
+
+# owl:equivalentClass to gall-core is an annotation-level mapping only:
+# gall-core is NOT imported here, and gall-core itself types
+# gall:SemanticCheckpoint as a gall:CheckpointArchetype individual (OWL 2
+# punning), so no validator or gate in this pack reasons over the triple.
+sj:GoalCheckpoint a rdfs:Class ;
+    rdfs:subClassOf sj:Checkpoint ;
+    owl:equivalentClass gall:SemanticCheckpoint ;
+    rdfs:label "Goal checkpoint" ;
+    rdfs:comment "A finite goal-graph checkpoint closed by a court. A non-root GoalCheckpoint (one with sj:checkpointOf) carries a runnable sj:courtCommand and a sj:boundaryClass; the root carries sj:stopQuery, a SPARQL ASK over receipts that is true only when STOP holds." .
+
+sj:BoundaryClass a rdfs:Class ;
+    rdfs:label "Goal boundary class" ;
+    rdfs:comment "Closed enumeration of where a checkpoint sits relative to the goal boundary: sj:Bootstrap, sj:FirstMile, sj:Core, sj:LastMile, sj:Successor." .
+
+sj:Capability a rdfs:Class ;
+    rdfs:label "Required capability" ;
+    rdfs:comment "A capability a WorkOrder requires, named by sj:capabilityId (for example \"recipe:mix-format\"). Capability-to-provider resolution belongs to the executor's registry, never to this graph; naming a capability grants no authority." .
+
+sj:Bootstrap a sj:BoundaryClass ;
+    rdfs:label "Bootstrap" ;
+    dcterms:description "Work that makes the goal graph itself executable before any product consequence exists." .
+sj:FirstMile a sj:BoundaryClass ;
+    rdfs:label "First mile" ;
+    dcterms:description "Work that turns accepted prose and inputs into admitted semantic structure." .
+sj:Core a sj:BoundaryClass ;
+    rdfs:label "Core" ;
+    dcterms:description "Work on the steady-state KNOWN path that the stop predicate requires to be ALIVE." .
+sj:LastMile a sj:BoundaryClass ;
+    rdfs:label "Last mile" ;
+    dcterms:description "Work that qualifies, replays, and hands off already-manufactured consequences." .
+sj:Successor a sj:BoundaryClass ;
+    rdfs:label "Successor" ;
+    dcterms:description "Work typed out of this goal and deferred to a successor checkpoint; it cannot hold the goal open." .
+
+sj:checkpointOf a rdf:Property ;
+    rdfs:range sj:GoalCheckpoint ;
+    rdfs:comment "Child GoalCheckpoint or WorkOrder -> parent GoalCheckpoint. On a WorkOrder, presence opts the order into the full Friday tuple." .
+sj:boundaryClass a rdf:Property ; rdfs:range sj:BoundaryClass .
+sj:courtCommand a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "A runnable shell command; its exit status is the checkpoint's court verdict." .
+sj:stopQuery a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "A SPARQL ASK over receipts that computes the goal's STOP predicate." .
+sj:successorOf a rdf:Property ;
+    rdfs:domain sj:GoalCheckpoint ;
+    rdfs:range sj:GoalCheckpoint ;
+    rdfs:comment "Successor GoalCheckpoint -> predecessor GoalCheckpoint." .
+
+sj:postcondition a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Observable predicate that holds after the order's consequence." .
+sj:requiresCapability a rdf:Property ; rdfs:range sj:Capability .
+sj:capabilityId a rdf:Property ;
+    rdfs:domain sj:Capability ;
+    rdfs:range xsd:string ;
+    rdfs:comment "provider:id, grammar ^[a-z0-9][a-z0-9_.-]*:[a-z0-9][a-z0-9_.:-]*$ -- identical to the SA2A route capability grammar (xaas lib/xaas/sa2a/route.ex @capability), so the G4 SHACL court and the G5 tuple-digest hop admit the same ids." .
+sj:evidenceHorizon a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The furthest evidence this order may claim inside the goal (bounded evidence horizon)." .
+sj:exclusion a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:seeAlso gall:Exclusion ;
+    rdfs:comment "A premise explicitly not adopted by this order; it must not re-enter the tuple. Cardinality 0..n: a Friday order may carry none (its tuple digest then has exclusions = []); each one present is a non-blank xsd:string." .
+sj:consequenceClass a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "One of the receipt-class vocabulary values (GgenIgniter.SemanticJira.receipt_classes/0)." .
+sj:successorPolicy a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "What happens to residual work when this order closes or is typed out of the goal." .
+
+# MachineExperience RDF form: one property per field manufactured by
+# GgenIgniter.SemanticJira.machine_experience/1 (subject, work_order_digest,
+# execution_receipt_hash, observation_refs, verification_digest,
+# resulting_state_digest, replay_identity, standing CANDIDATE, authority NONE,
+# experience_digest). sj:subject/sj:workOrderDigest/sj:replayIdentity/
+# sj:standing/sj:authorityClaim are reused from the fabric vocabulary above.
+sj:executionReceiptHash a rdf:Property ; rdfs:range xsd:string .
+sj:observationRef a rdf:Property ; rdfs:range xsd:string .
+sj:verificationDigest a rdf:Property ; rdfs:range xsd:string .
+sj:resultingStateDigest a rdf:Property ; rdfs:range xsd:string .
+sj:experienceDigest a rdf:Property ; rdfs:range xsd:string .
+
+# ---- HANDWRITTEN ledger: UNSUPPORTED(generator, element) row ----
+sj:ledger-unsupported-002 a rdfs:Resource ;
+    rdfs:label "UNSUPPORTED(semantic-jira-pack, goal-checkpoint-admission-proof-test)" ;
+    dcterms:description "UNSUPPORTED(generator-capability): no admitted generator manufactures the Chicago-style SHACL admission proof for the Friday GoalCheckpoint vocabulary (valid goal graph admits, per-tuple-field mutation table refuses, root stopQuery law, legacy orders unaffected), so test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs and its fixture test/fixtures/semantic-jira-goal-checkpoint/goal.ttl are admitted hand-authored residue. Paydown plan: the pack-integration-proof generator named by sj:ledger-unsupported-001 also emits one mutation-table case per sh:minCount / tuple sh:sparql constraint read from shapes/work-order.shacl.ttl; when admitted, this row and its HANDWRITTEN.md entry retire." ;
+    dcterms:date "2026-09-22"^^xsd:date ;
+    dcterms:references <https://ggen-igniter.dev/ontology/semantic-jira#pack-integration-proof-test> .

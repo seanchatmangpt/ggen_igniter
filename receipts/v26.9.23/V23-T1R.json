@@ -1,0 +1,168 @@
+{
+  "work_order": {
+    "id": "V23-T1R",
+    "wave": "B1 (wf_1848cfc0-c6e)",
+    "gate": "GC23-3 Finite Work Graph (PRD section 12; predecessor G4 of GC-FRI-0800); vocabulary consumed by V23-C (GC23-0/2/3 courts) and V23-B (GC23-1)",
+    "title": "Finish FRI-T1: re-derive the FRI-T1 receipt evidence on the exact subject 0337a6a (sj:GoalCheckpoint, WorkOrder tuple, Capability and MachineExperience shapes)",
+    "contract_refs": [
+      "PR-005",
+      "PR-014",
+      "AR-001",
+      "section 6.4 GoalCheckpoint",
+      "section 6.5 WorkOrder",
+      "section 6.6 Capability",
+      "section 6.7 Receipt",
+      "section 6.8 MachineExperience",
+      "section 12 GC23-3"
+    ],
+    "acceptance": "mix format --check-formatted && mix compile --warnings-as-errors && mix credo && mix test test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_pack_test.exs  (the lane gate; test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs is now part of the acceptance command itself, not a side run: it is the suite that refuses each Friday tuple field, the capabilityId grammar and the MachineExperience shape)",
+    "court_finding_addressed": {
+      "lens": "GATE (Friday court round 2 on FRI-T1; DOCTRINE and REVERT-MUTATION passed)",
+      "broken_term": "R_missing_identity",
+      "finding": "receipts/v26.9.22/FRI-T1.json cites a mix credo output (294 files, 2004 mods/funs, output_sha256 bd637382817c84ba3bd2afe2cc07b8579c8c201a517033a92cf1942d5af9cc40) taken from a shared scratch file of another tree; credo on the subject prints 298 files, 2364 mods/funs, 0 issues",
+      "repair": "every replay command of the v26.9.22 receipt rerun on the exact subject bytes, outputs written only to the lane scratch dir /private/tmp/claude-501/v23-scratch/B1-V23-T1R; credo now observed on this worktree: 298 files, 2364 mods/funs, found no issues",
+      "code_change": "none (no rerun failed)"
+    }
+  },
+  "identity": {
+    "subject": "V23-T1R",
+    "repo": "/Users/sac/ggen_igniter",
+    "worktree": "/Users/sac/wt/v26922/fri/FRI-T1",
+    "branch": "fri/FRI-T1",
+    "base_ref": "friday/gc-fri-0800",
+    "subject_sha": "0337a6a151ec7c6f14d1caeacb7b669dac8bdc1b",
+    "base_sha": "5984ec480c2318e86aa621da5f496e5e014b0fac",
+    "run_head_sha": "80073404d3c75a26eedc96b24e2ef0bc437db6d6",
+    "run_head_equivalence": "git diff --quiet 0337a6a151ec7c6f14d1caeacb7b669dac8bdc1b 80073404d3c75a26eedc96b24e2ef0bc437db6d6 -- . ':(exclude)receipts' => exit 0: the lane gate ran on committed head 8007340 (porcelain empty), whose only difference from the subject is receipts/v26.9.22/FRI-T1.json; no gate test reads receipts/ (the only receipts/ string in the three suites is a literal observation_ref in goal_checkpoint_test.exs:707)",
+    "graph_hash": "sha256:e09420230964c300f10fba8f2518914b12fb2381c26472aa19de3bdd31cf8dc0",
+    "graph_hash_of": "priv/ggen/semantic-jira-pack/ontology.ttl bytes at subject_sha",
+    "shapes_sha256": "42572fa36075b8267f1c73e4c72618034c75f50600de5620991378833a7a9d3b",
+    "predecessor_receipt": "receipts/v26.9.22/FRI-T1.json (history; kept, not rewritten; carries a superseded_by pointer added in the V23-T1R commit)",
+    "vocabulary_contract": "unchanged from receipts/v26.9.22/FRI-T1.json identity.vocabulary_contract (same subject bytes): sj:GoalCheckpoint/sj:BoundaryClass/sj:Capability, checkpoint properties sj:checkpointOf/boundaryClass/courtCommand/stopQuery/successorOf, tuple properties sj:postcondition/requiresCapability/capabilityId/evidenceHorizon/exclusion(0..n)/consequenceClass/successorPolicy, MachineExperience properties, capabilityId grammar ^[a-z0-9][a-z0-9_.-]*:[a-z0-9][a-z0-9_.:-]*$"
+  },
+  "authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "NONE",
+    "actor": "claude-opus-5-5 subagent, workflow wave B1 lane V23-T1R (local commit on fri/FRI-T1 only; no push, no merge into friday/gc-fri-0800 or ggen_igniter-int; xaas read-only via git show)"
+  },
+  "consequence": {
+    "commits": [
+      "c1a683e323bb425f909c28a0bae9759aa5185c17",
+      "0337a6a151ec7c6f14d1caeacb7b669dac8bdc1b",
+      "80073404d3c75a26eedc96b24e2ef0bc437db6d6"
+    ],
+    "commits_note": "c1a683e + 0337a6a = the FRI-T1 code under judgement (unchanged by this lane); 8007340 = the v26.9.22 receipt commit the gate ran on; the commit adding this file (plus the superseded_by pointer in receipts/v26.9.22/FRI-T1.json) is its own child and cannot name itself",
+    "files_changed": [
+      "receipts/v26.9.23/V23-T1R.json",
+      "receipts/v26.9.22/FRI-T1.json (one superseded_by key added; no other byte changed)"
+    ],
+    "remote_effects": [],
+    "code_changes": "none: subject remains 0337a6a"
+  },
+  "replay": {
+    "subject_sha_at_replay": "0337a6a151ec7c6f14d1caeacb7b669dac8bdc1b",
+    "durable_location": "receipts/v26.9.23/V23-T1R.json",
+    "scratch_dir": "/private/tmp/claude-501/v23-scratch/B1-V23-T1R (lane-private raw outputs, hashed below; the clone is removed after the run; no output of another lane or tree is cited)",
+    "commands": [
+      {
+        "cmd": "MIX_ENV=test mix compile --force --warnings-as-errors",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "exit 0; full recompile (86 .ex files + ggen_graph_nif crate) of the committed tree 8007340 == subject code bytes; output bytes identical to the v26.9.22 receipt's run (same sha256)",
+        "output_sha256": "432fc0b01bd72b7c8bb4d48b7856ee9a95fc3656ee864f58ce4430c86bfad039"
+      },
+      {
+        "cmd": "git diff --quiet 0337a6a151ec7c6f14d1caeacb7b669dac8bdc1b 80073404d3c75a26eedc96b24e2ef0bc437db6d6 -- . ':(exclude)receipts'",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "run-head equivalence: the gate's committed head 8007340 differs from subject 0337a6a only under receipts/"
+      },
+      {
+        "cmd": "mix format --check-formatted && mix compile --warnings-as-errors && mix credo && mix test test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_pack_test.exs",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "LANE GATE on committed head 8007340 (porcelain empty), && semantics, each segment below; exit 0"
+      },
+      {
+        "cmd": "mix format --check-formatted",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "gate segment 1: exit 0 (7s); output is only the mix :preferred_cli_env deprecation notice",
+        "output_sha256": "021af2067f739bc652a92b28c6c03fefd316e644ad91a87addb0d041f82aa857"
+      },
+      {
+        "cmd": "mix compile --warnings-as-errors",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "gate segment 2: exit 0 (3s); output is only the deprecation notice",
+        "output_sha256": "021af2067f739bc652a92b28c6c03fefd316e644ad91a87addb0d041f82aa857"
+      },
+      {
+        "cmd": "mix credo",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "gate segment 3: exit 0; Checking 298 source files; 2364 mods/funs, found no issues (observed on this worktree, lane scratch /private/tmp/claude-501/v23-scratch/B1-V23-T1R/gate-3-credo.out); output_sha256 covers a wall-clock 'Analysis took' line, sha256 with that line removed = 731665411e2d9b9c04c7c619eab0fd7bf9477fdef70c4d6a51eaeec828c99b9b",
+        "output_sha256": "6ef4d1ec7a0f931e5538aff6c2f00879146cbefbc595901a92537f7a74fbaf1b"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_pack_test.exs",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "gate segment 4: 121 tests, 0 failures; Finished in 766.2 seconds (774s wall)",
+        "output_sha256": "e206f6895111b18ae933ac6ba4732900164607012c5f5cecfee11cfb1343bfce"
+      },
+      {
+        "cmd": "git archive 0337a6a151ec7c6f14d1caeacb7b669dac8bdc1b | tar -x -C <clone> && cp -Rpc deps _build/test priv/native <clone>; MIX_ENV=test mix test test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+        "cwd": "/private/tmp/claude-501/v23-scratch/B1-V23-T1R/clone-0337a6a",
+        "exit": 0,
+        "summary": "exact subject bytes (shapes, ontology, jira.md.eex, shacl.ex, goal test cmp-identical to the worktree): 37 tests, 0 failures; Finished in 137.1 seconds",
+        "output_sha256": "5c7f9f2a3ef2b09884328d183897fccee936a3641c298c5a0056156ffc6eaa20"
+      },
+      {
+        "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_kernel_differential_test.exs",
+        "cwd": "/private/tmp/claude-501/v23-scratch/B1-V23-T1R/clone-0337a6a",
+        "exit": 0,
+        "summary": "1 test, 0 failures; regenerated receipts/v26.9.22/kernel-differential.json (sha256 d2bf10fd314c92b0fd130249a95f196cfe37a3cb5dbe32c137d420253e95eb1c) vs committed (sha256 cecb8e26b36844cdd6bfaa9ad42f05455b08b08fd0f7ed0386923514b39bbc5b): 209 differing leaves, all shapes_sha256 (206) / input sha256 (2) / slice_count (1); verdict matrix, classifications and disagreements identical; report not recommitted",
+        "output_sha256": "84fbed8b12fb487548ba0855dcc377ae47d7d1aae9fa1aa1ac1c2510d063756c"
+      },
+      {
+        "cmd": "! grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps --exclude-dir=target -E '(use|import) +(Mox|Mimic|Patch)\\b|(Mox|Mimic|Patch)\\.|:meck\\.|mockall|MagicMock|Mock\\(' test lib native",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "zero matches (Chicago no-mock grep; empty output)",
+        "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "cmd": "MIX_ENV=test mix run --no-start shacl_probe.exs 'friday48c5e3f=<xaas 48c5e3f:docs/sjira/v26.9.22/friday/goal.ttl>' 'v23c18ecd3+friday=<xaas c18ecd3:docs/sjira/v26.9.23/goal.ttl>,<friday goal.ttl>'  -- shacl_probe.exs (sha256 37007538bb099b193a05244346a3783734824f79c94ab8ebb34ddc971b253eae) verbatim: # Read-only SHACL admission probe: pack ontology.ttl (subject bytes) merged with xaas goal graphs,\n# validated by GgenIgniter.SemanticJira.Shacl against the pack shapes. argv: <label>=<ttl>[,<ttl>...] ...\nalias GgenIgniter.Ontology\nalias GgenIgniter.SemanticJira.Shacl\nsj = \"https://ggen-igniter.dev/ontology/semantic-jira#\"\nexcl = RDF.iri(sj <> \"exclusion\")\ndrop = fn g, p -> g |> RDF.Graph.triples() |> Enum.reject(fn {_, q, _} -> q == p end) |> RDF.Graph.new() end\npack = Ontology.load!(\"priv/ggen/semantic-jira-pack/ontology.ttl\")\nfor arg <- System.argv() do\n  [label, files] = String.split(arg, \"=\", parts: 2)\n  graph = files |> String.split(\",\") |> Enum.reduce(pack, &RDF.Graph.add(&2, Ontology.load!(&1)))\n  variants = [{\"full\", graph}, {\"no-exclusion\", drop.(graph, excl)}] ++\n    for(f <- ~w(requiresCapability successorPolicy), do: {\"no-\" <> f <> \"(anti-vacuity)\", drop.(graph, RDF.iri(sj <> f))})\n  for {tag, g} <- variants do\n    r = Shacl.validate_file(g)\n    n_excl = g |> RDF.Graph.triples() |> Enum.count(fn {_, p, _} -> p == excl end)\n    IO.puts(\"#{label} #{tag}: triples=#{RDF.Graph.triple_count(g)} sj:exclusion=#{n_excl} conforms=#{r.conforms} violations=#{length(r.violations)} focus_nodes=#{r.focus_node_count} shapes=#{length(r.shapes_checked)}\")\n    Enum.each(Enum.take(r.violations, 2), &IO.inspect(&1, label: \"  violation\"))\n  end\nend\n",
+        "cwd": "/private/tmp/claude-501/v23-scratch/B1-V23-T1R/clone-0337a6a",
+        "exit": 0,
+        "summary": "friday48c5e3f full: triples=2799 sj:exclusion=12 conforms=true violations=0 focus_nodes=264 shapes=19 | friday48c5e3f no-exclusion: triples=2787 sj:exclusion=0 conforms=true violations=0 focus_nodes=264 shapes=19 | friday48c5e3f no-requiresCapability(anti-vacuity): triples=2798 sj:exclusion=12 conforms=false violations=1 focus_nodes=264 shapes=19 | friday48c5e3f no-successorPolicy(anti-vacuity): triples=2798 sj:exclusion=12 conforms=false violations=1 focus_nodes=264 shapes=19 | v23c18ecd3+friday full: triples=3718 sj:exclusion=72 conforms=true violations=0 focus_nodes=383 shapes=19 | v23c18ecd3+friday no-exclusion: triples=3646 sj:exclusion=0 conforms=true violations=0 focus_nodes=383 shapes=19 | v23c18ecd3+friday no-requiresCapability(anti-vacuity): triples=3706 sj:exclusion=72 conforms=false violations=12 focus_nodes=383 shapes=19 | v23c18ecd3+friday no-successorPolicy(anti-vacuity): triples=3705 sj:exclusion=72 conforms=false violations=12 focus_nodes=383 shapes=19",
+        "output_sha256": "efbc3c2f680a46a70806fa76b1f93458e6f68e2e1b5cbfd5b7e138abab00befc"
+      }
+    ]
+  },
+  "falsifiers": {
+    "inherited": "M1-M5 and the five c1a683e mutations of receipts/v26.9.22/FRI-T1.json were each observed to break a test on 0337a6a; the Friday court round 2 REVERT-MUTATION lens passed on this subject; not rerun here (no code change)",
+    "new_anti_vacuity": "SHACL probe: dropping sj:requiresCapability or sj:successorPolicy from the integrated goal graphs is refused (friday: 1 violation each; v23 c18ecd3+friday: 12 violations each, constraint :sparql, shape friday_work_order_shape), while dropping every sj:exclusion (12 resp. 72 triples) still conforms: the 0..n exclusion contract and the 1..1 tuple fields both hold on the live v26.9.23 governing graph"
+  },
+  "integration_probe": {
+    "subjects": {
+      "xaas 48c5e3f docs/sjira/v26.9.22/friday/goal.ttl": "e235de71c6c9130da6609a1f7469482c6c93f68194ba11cf135c86e5bdad88f9",
+      "xaas c18ecd3 (friday/gc-fri-0800 head at run time) docs/sjira/v26.9.23/goal.ttl": "9858c187e7204b4444f1f15c621f482460b41dac51ffa8553575f43fbef709a3"
+    },
+    "result": "pack ontology + shapes at 0337a6a admit the v26.9.23 governing graph (merged with its predecessor friday goal.ttl, as its header prescribes for the GC23-3 admission): conforms=true, 0 violations, 383 focus nodes, 19 shapes",
+    "note": "read-only probe; the GC23-3 court itself is lane V23-C (court script at c18ecd3 still prints UNKNOWN, exit 75)"
+  },
+  "unresolved": [
+    "GC23-3 court verdict belongs to lane V23-C (xaas docs/sjira/v26.9.23/courts/GC23-3.sh at c18ecd3 is the machinery-absent body); observed here only as a read-only SHACL probe",
+    "fri/FRI-T1 is not yet merged into friday/gc-fri-0800 (ggen_igniter-int head 5984ec4); GGEN_IGNITER_DIR=/Users/sac/wt/v26922/fri/ggen_igniter-int does not contain this vocabulary until the locked integrate step runs",
+    "goal.ttl (xaas c18ecd3) has no WorkOrder with dcterms:identifier V23-T1R, so this receipt carries no identity.tuple_digest; FRI-T1 appears only as a dependency in the V23-C/V23-B order descriptions",
+    "praxis_graphlaw.wasm behaviour on Friday-only constructs (sh:targetSubjectsOf, BIND ?path in sh:sparql) remains UNVERIFIED on a goal graph (KernelDifferential corpus has no sj:checkpointOf)",
+    "the capability corpus test pins a verbatim copy of the xaas route.ex @capability regex; cross-repo drift needs a court over both checkouts"
+  ],
+  "standing": {
+    "value": "ALIVE",
+    "scope": "lane V23-T1R acceptance (the lane gate) on the exact subject code bytes 0337a6a; not a GC23-3 gate standing (that is derived by the stop court from V23-C's court)",
+    "derived_from": "Lane gate observed on committed head 8007340 whose non-receipt tree equals subject 0337a6a: format exit 0, compile --warnings-as-errors exit 0, credo exit 0 (298 files, 2364 mods/funs, no issues), mix test goal_checkpoint+shacl+pack exit 0 (121 tests, 0 failures); plus exact-bytes clone of 0337a6a: goal_checkpoint 37 tests, 0 failures, kernel_differential 1 test, 0 failures with unchanged verdict matrix; test-env forced recompile exit 0; no-mock grep clean; SHACL probe admits the v26.9.23 governing graph with anti-vacuity refusals. All outputs are lane-private files hashed above; none is quoted from another tree."
+  }
+}

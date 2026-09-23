@@ -14,7 +14,12 @@ defmodule GgenIgniter.SemanticJira.Shacl do
       `sh:targetObjectsOf` (`sh:targetClass` follows `rdfs:subClassOf*`)
     * property constraints: `sh:minCount`, `sh:maxCount`, `sh:nodeKind`,
       `sh:datatype`, `sh:pattern` (flag `i`), `sh:minLength`,
-      `sh:maxLength`, `sh:hasValue`, `sh:class`
+      `sh:maxLength`, `sh:hasValue`, `sh:class`. `sh:pattern` keeps XPath
+      `fn:matches` anchoring: without the `m` flag `$` matches only at the
+      end of the whole string, so patterns compile with PCRE `dollar_endonly`
+      (PCRE's default `$` also matches before a final newline, which would
+      admit a capability id with a trailing newline that the SA2A route's
+      end-of-string anchor refuses)
     * node-level: `sh:closed` with `sh:ignoredProperties`, `sh:property`,
       `sh:deactivated`
     * SPARQL-based constraints: `sh:sparql` with `sh:select`/`sh:message`.
@@ -24,7 +29,10 @@ defmodule GgenIgniter.SemanticJira.Shacl do
   pre-binding API and silently ignores both inline and trailing `VALUES`
   (measured this session: a `VALUES`-filtered query returned unfiltered rows),
   while `BIND` filters correctly. A row returned by a constraint's SELECT is
-  one violation for that focus node, per the SPARQL-constraint component spec.
+  one violation for that focus node, per the SPARQL-constraint component spec;
+  a row that binds `?path` to an IRI reports that IRI as the violation's
+  `path` (the spec's `sh:resultPath` mapping), which is how the Friday tuple
+  constraints (`sj:FridayWorkOrderShape`) name the refused field.
 
   UNSUPPORTED (never silently skipped -- encountering any of these is itself a
   violation, so an unknown construct fails closed instead of passing):
@@ -194,9 +202,12 @@ defmodule GgenIgniter.SemanticJira.Shacl do
       description
       |> RDF.Description.get(sh("targetSubjectsOf"), [])
       |> Enum.flat_map(fn predicate ->
+        # RDF.Description.include?/3 (rdf 3.0.1) takes a statement, not a
+        # bare predicate: it raised FunctionClauseError the first time a shipped
+        # shape used sh:targetSubjectsOf (sj:FridayWorkOrderShape, v26.9.22).
         data
         |> RDF.Graph.descriptions()
-        |> Enum.filter(&RDF.Description.include?(&1, predicate))
+        |> Enum.filter(&(RDF.Description.first(&1, predicate) != nil))
         |> Enum.map(& &1.subject)
       end)
 
@@ -428,8 +439,8 @@ defmodule GgenIgniter.SemanticJira.Shacl do
       else: {:error, "unsupported sh:flags #{inspect(flags(property_shape))}"}
   end
 
-  defp compile_pattern(pattern, "i"), do: Regex.compile(pattern, "i")
-  defp compile_pattern(pattern, ""), do: Regex.compile(pattern)
+  defp compile_pattern(pattern, "i"), do: Regex.compile(pattern, [:caseless, :dollar_endonly])
+  defp compile_pattern(pattern, ""), do: Regex.compile(pattern, [:dollar_endonly])
 
   defp length_check(property_shape, term, constraint, values) do
     case integer_param(property_shape, term) do
@@ -599,11 +610,16 @@ defmodule GgenIgniter.SemanticJira.Shacl do
       true ->
         rows = execute_focus_query(data, RDF.Literal.value(query), focus)
 
-        Enum.map(rows, fn _row ->
-          violation(shape_subject, focus, nil, :sparql, message: message, value: nil)
+        Enum.map(rows, fn row ->
+          violation(shape_subject, focus, result_path(row), :sparql, message: message, value: nil)
         end)
     end
   end
+
+  # SHACL-SPARQL result path: a solution binding ?path to an IRI names the
+  # violated property (sh:resultPath); any other binding, or none, is no path.
+  defp result_path(%{"path" => %RDF.IRI{} = path}), do: path
+  defp result_path(_row), do: nil
 
   # Binds $this by renaming it to ?this and injecting BIND(<focus> AS ?this)
   # at the head of the WHERE group. sparql 0.3.12 has no pre-binding API and
