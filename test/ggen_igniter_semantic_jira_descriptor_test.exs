@@ -187,6 +187,27 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
     assert d["work_order_id"] == "B"
   end
 
+  describe "build/4 provider (V23-T6R: @default_provider, validated)" do
+    test "defaults to the module default, binds a named provider, refuses a malformed one" do
+      graph = [wo("A")]
+
+      assert {:ok, %{"provider" => "zcode"}} = Descriptor.build(graph, "A", @attrs)
+
+      assert {:ok, %{"provider" => "recipe"}} =
+               Descriptor.build(graph, "A", Map.put(@attrs, "provider", "recipe"))
+
+      # Atom-keyed attrs bind identically to string-keyed ones.
+      assert {:ok, %{"provider" => "recipe"}} =
+               Descriptor.build(graph, "A", Map.put(@attrs, :provider, "recipe"))
+
+      for bad <- ["not a provider", "Recipe", "", 42, nil] do
+        assert {:error, {:refused_descriptor, {:invalid_option, :provider}}} =
+                 Descriptor.build(graph, "A", Map.put(@attrs, "provider", bad)),
+               "provider #{inspect(bad)} must refuse"
+      end
+    end
+  end
+
   describe "build_xaas_contract/4 (admits the eligible row; provider is a parameter)" do
     @digest ~r/\Asha256:[0-9a-f]{64}\z/
     @contract_opts [verifier_suite: "ci-suite", aliases: %{"o/r" => "o_r"}]

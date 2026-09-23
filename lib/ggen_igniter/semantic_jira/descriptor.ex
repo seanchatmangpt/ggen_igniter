@@ -36,13 +36,17 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   Build the descriptor for `identity` from `work_orders`.
 
   `attrs` needs `graph_digest`, `source_digest`, `worker_identity`,
-  `verifier_identity`; optional `provider` (default `"zcode"`).
+  `verifier_identity`; optional `provider` (default `@default_provider`,
+  `"zcode"`; the no-LLM recipe path binds `"recipe"`), validated against the
+  same provider-name pattern `build_xaas_contract/4` enforces: a malformed
+  provider is `{:error, {:refused_descriptor, {:invalid_option, :provider}}}`.
   Options: `:events` (transition log), `:evidence` (dependency evidence map).
   """
   @spec build([map()], String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
   def build(work_orders, identity, attrs, opts \\ [])
       when is_list(work_orders) and is_binary(identity) and is_map(attrs) do
     evidence = Keyword.get(opts, :evidence, %{})
+    attrs = Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
 
     {projected, front} =
       case Keyword.get(opts, :events) do
@@ -54,14 +58,13 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
           {p, SemanticJira.frontier_from_events(work_orders, events, evidence)}
       end
 
-    with {:ok, candidate} <- eligible(front, identity),
+    with {:ok, provider} <- build_provider(attrs),
+         {:ok, candidate} <- eligible(front, identity),
          {:ok, raw} <- find(projected, identity),
          {:ok, admitted} <- refuse(SemanticJira.admit_work_order(raw)),
          :ok <- same_snapshot(admitted, candidate),
          {:ok, definition} <- refuse(SemanticJira.definition_digest(raw)),
          {:ok, package} <- refuse(SemanticJira.execution_package(raw, attrs)) do
-      attrs = Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
-
       {:ok,
        %{
          "schema" => @schema,
@@ -73,7 +76,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
          "snapshot_digest" => admitted["work_order_digest"],
          "graph_digest" => attrs["graph_digest"],
          "source_digest" => attrs["source_digest"],
-         "provider" => Map.get(attrs, "provider", "zcode"),
+         "provider" => provider,
          "worker_identity" => attrs["worker_identity"],
          "verifier_identity" => attrs["verifier_identity"],
          "replay_identity" => admitted["replay_identity"],
@@ -190,6 +193,20 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   @evidence_keys ~w(subject repository base_sha court_results evidence_types acceptance_results
                     falsifier_results receipt_classes evidence_ceiling observed_execution
                     inherited_standing replay_passed replay_identity authority_receipt)
+
+  # build/4's provider: the same default and name pattern as
+  # build_xaas_contract/4's `provider/1`, refused in build/4's own vocabulary.
+  defp build_provider(attrs) do
+    case Map.get(attrs, "provider", @default_provider) do
+      provider when is_binary(provider) ->
+        if Regex.match?(@suite_re, provider),
+          do: {:ok, provider},
+          else: {:error, {:refused_descriptor, {:invalid_option, :provider}}}
+
+      _ ->
+        {:error, {:refused_descriptor, {:invalid_option, :provider}}}
+    end
+  end
 
   @outcomes %{
     "alive" => "ALIVE",
