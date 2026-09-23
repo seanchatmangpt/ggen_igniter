@@ -1,4 +1,4 @@
-defmodule GgenIgniter.SemanticJira.TransitionLog do
+defmodule  GgenIgniter.SemanticJira.TransitionLog  do
   @moduledoc """
   Append-only, file-backed log of standing transition events. The ledger path
   is either a DIRECTORY or a FILE, resolved explicitly by `kind/1`:
