@@ -1,4 +1,4 @@
-defmodule GgenIgniter.SemanticJira.Cli do
+defmodule  GgenIgniter.SemanticJira.Cli  do
   @moduledoc """
   Orchestration behind the `mix semantic_jira.*` tasks: `reconcile`, `frontier`,
   `descriptor`, `xaas_receipt`, `observe` and `court_map`.
