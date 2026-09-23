@@ -1,0 +1,100 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# SHACL admission shapes for prose propositions (PVOCAB; GC-26.9.23 GC23-0,
+# PRD PR-003, ARD section 5.4, lane V23-C). Executed by
+# GgenIgniter.SemanticJira.Shacl merged with shapes/work-order.shacl.ttl, over
+# the pack ontology + the goal graph + the candidate (or admitted) graph, by
+# GgenIgniter.SemanticJira.Prose (mix semantic_jira.compile_prose). Same
+# supported surface as work-order.shacl.ttl (no sh:in: enumerations are
+# anchored sh:pattern alternations or sh:class over a closed enumeration).
+# Byte-level provenance (sj:sourceSha256 equals the source file digest,
+# bytes[start:end] == sj:sourceText, the IRI recomputes) is not expressible in
+# SHACL and runs in the orchestrator before this court.
+#
+# One shape validates both forms of a proposition: a candidate carries
+# sj:candidateStanding "UNKNOWN"; an admitted proposition carries
+# sj:admissionDigest instead -- exactly one of the two.
+#
+# Targets: every sj:Proposition AND every subject of a proposition-only
+# predicate, so an untyped candidate cannot slip past admission (the
+# rdf:type sh:hasValue constraint refuses it). sj:sourceSha256 is not a
+# target predicate: a root GoalCheckpoint uses it to bind its prose.
+#
+# Tuple hints (optional, copied into manufactured WorkOrders by
+# prose/delta.construct.rq): sj:postcondition, sj:requiresCapability (the
+# capability id STRING here; the WorkOrder carries an sj:Capability node),
+# sj:evidenceHorizon, sj:exclusion (0..n), sj:consequenceClass,
+# sj:successorPolicy, sj:acceptance and sj:falsifier (nodes).
+
+sj:PropositionShape a sh:NodeShape ;
+    sh:targetClass sj:Proposition ;
+    sh:targetSubjectsOf sj:propositionKind, sj:statement, sj:sourceText, sj:sourceStart, sj:sourceEnd,
+        sj:candidateStanding, sj:admissionDigest, sj:extractedBy, sj:requiredBy ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type rdfs:label rdfs:comment ) ;
+    sh:property [ sh:path rdf:type ; sh:hasValue sj:Proposition ] ;
+    sh:property [ sh:path sj:propositionKind ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(Actor|Object|Role|State|Transition|Capability|Trigger|Dependency|Invariant|Exclusion|Evidence|Authority|Postcondition|Falsifier|Metric|Successor)$" ] ;
+    sh:property [ sh:path sj:statement ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[^\\r\\n]*[^\\s][^\\r\\n]*$" ] ;
+    sh:property [ sh:path sj:sourceDocument ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[^/\\s](?:[^\\r\\n]*[^\\s])?$" ] ;
+    sh:property [ sh:path sj:sourceSha256 ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:sourceStart ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ] ;
+    sh:property [ sh:path sj:sourceEnd ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ] ;
+    sh:property [ sh:path sj:sourceText ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:boundaryClass ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:BoundaryClass ] ;
+    sh:property [ sh:path sj:requiredBy ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:GoalCheckpoint ] ;
+    sh:property [ sh:path sj:candidateStanding ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^UNKNOWN$" ] ;
+    sh:property [ sh:path sj:admissionDigest ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:extractedBy ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:postcondition ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    # Canonical capabilityId value space (the SA2A route grammar; identical to
+    # sj:CapabilityShape in work-order.shacl.ttl).
+    sh:property [ sh:path sj:requiresCapability ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-z0-9][a-z0-9_.-]*:[a-z0-9][a-z0-9_.:-]*$" ] ;
+    sh:property [ sh:path sj:evidenceHorizon ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    # sj:exclusion is 0..n everywhere (absent = empty list).
+    sh:property [ sh:path sj:exclusion ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:consequenceClass ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(manufacture|projection|authority_preparation|actuation|verification|postcondition|replay|publication|deployment)$" ] ;
+    sh:property [ sh:path sj:successorPolicy ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:acceptance ; sh:nodeKind sh:IRI ; sh:class sj:AcceptanceCriterion ] ;
+    sh:property [ sh:path sj:falsifier ; sh:nodeKind sh:IRI ; sh:class sj:Falsifier ] ;
+    sh:sparql [
+      sh:message "A proposition's source span must satisfy 0 <= sj:sourceStart < sj:sourceEnd." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this sj:sourceStart ?start ; sj:sourceEnd ?end .
+          FILTER(?start < 0 || ?start >= ?end)
+          BIND(sj:sourceEnd AS ?path)
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "A proposition carries exactly one of sj:candidateStanding (candidate) or sj:admissionDigest (admitted)." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this sj:propositionKind ?kind .
+          BIND(sj:candidateStanding AS ?path)
+          OPTIONAL { $this sj:candidateStanding ?candidate . }
+          OPTIONAL { $this sj:admissionDigest ?digest . }
+          FILTER((BOUND(?candidate) && BOUND(?digest)) || (!BOUND(?candidate) && !BOUND(?digest)))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "A proposition's sj:falsifier / sj:acceptance hint node must carry a dcterms:description." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX dcterms: <http://purl.org/dc/terms/>
+        SELECT $this ?path WHERE {
+          $this ?path ?hint .
+          FILTER(?path = sj:falsifier || ?path = sj:acceptance)
+          OPTIONAL { ?hint dcterms:description ?description . }
+          FILTER(!BOUND(?description))
+        }
+      """
+    ] .

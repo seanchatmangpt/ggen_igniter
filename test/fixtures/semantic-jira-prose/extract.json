@@ -1,0 +1,11 @@
+[
+  {"kind": "Actor", "statement": "The semantic author writes future-state prose before any work exists.", "quote": "The semantic author writes future-state prose before any work exists.", "boundary_class": "FirstMile"},
+  {"kind": "Postcondition", "statement": "The formatter check exits 0 on the exact subject.", "quote": "the formatter check exits 0 on the exact subject.", "required_by": ["GCP-0"], "boundary_class": "Core", "hints": {"requiresCapability": "recipe:mix-format", "consequenceClass": "verification", "falsifier": "Reverting the formatter recipe commit makes the formatter check fail."}},
+  {"kind": "Invariant", "statement": "No LLM runs on the KNOWN path.", "quote": "No LLM runs on the KNOWN path.", "required_by": ["GCP-0"], "boundary_class": "Core"},
+  {"kind": "Exclusion", "statement": "Network access during the episode is not permitted.", "quote": "Network access during the episode is not permitted.", "required_by": ["GCP-0"], "boundary_class": "Core"},
+  {"kind": "Postcondition", "statement": "Two replays of the compiler produce byte-identical outputs.", "quote": "Two replays of the compiler produce byte-identical outputs.", "required_by": ["GCP-1"], "boundary_class": "FirstMile"},
+  {"kind": "Falsifier", "statement": "Changing one byte of the source changes the admission result.", "quote": "Changing one byte of the source changes the admission result.", "required_by": ["GCP-1"], "boundary_class": "FirstMile"},
+  {"kind": "Metric", "statement": "Admission time is recorded for every run.", "quote": "Admission time is recorded for every run.", "required_by": ["GCP-2"], "boundary_class": "LastMile"},
+  {"kind": "Postcondition", "statement": "Every gate has at least one admitted proposition.", "quote": "Every gate has at least one admitted proposition.", "required_by": ["GC-PROSE"], "boundary_class": "FirstMile"},
+  {"kind": "Successor", "statement": "Improvements beyond this goal become successor goals.", "quote": "Improvements beyond this goal become successor goals.", "boundary_class": "Successor"}
+]

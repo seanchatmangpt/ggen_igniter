@@ -1,0 +1,14 @@
+# A proposition may be required only by the root or by one of its gates.
+# Each row is REFUSED(foreign_requirement): an obligation outside the goal
+# boundary would otherwise vanish from the delta silently. ?root is bound by
+# the orchestrator.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT ?proposition ?gate WHERE {
+  ?proposition a sj:Proposition ;
+               sj:requiredBy ?gate .
+  OPTIONAL {
+    ?gate sj:checkpointOf ?root .
+    BIND(true AS ?child)
+  }
+  FILTER(?gate != ?root && !BOUND(?child))
+}
