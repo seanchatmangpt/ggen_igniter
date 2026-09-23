@@ -4,14 +4,11 @@
 # sj:subjectSha, and sj:receipt. Without this gate a graph can smuggle the
 # strongest standing into admission with zero observed-execution evidence.
 # Selected rows are admission violations; the jira template refuses on any.
-# Dual-path targeting (W7-A4): sj:WorkOrder OR oslc_cm:ChangeRequest typed;
-# DISTINCT collapses dual-typed rows.
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
-PREFIX oslc_cm: <http://open-services.net/ns/cm#>
-SELECT DISTINCT ?work_order ?id WHERE {
-  { ?work_order a sj:WorkOrder } UNION { ?work_order a oslc_cm:ChangeRequest }
-  ?work_order dcterms:identifier ?id ;
+SELECT ?work_order ?id WHERE {
+  ?work_order a sj:WorkOrder ;
+              dcterms:identifier ?id ;
               sj:standing "ALIVE" .
   OPTIONAL { ?work_order sj:candidateSha ?candidate . }
   OPTIONAL { ?work_order sj:subjectSha ?subject_sha . }

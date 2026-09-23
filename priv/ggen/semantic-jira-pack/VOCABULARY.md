@@ -2,10 +2,14 @@
 
 > **Status in this tree: UNSUPPORTED (deferred ontology content).** This document was adopted
 > with the WO-03 restore (FRI-T6) WITHOUT the ontology/shape hunks it describes. Present here:
-> the dual-path `{ a sj:WorkOrder } UNION { a oslc_cm:ChangeRequest }` targeting in gates
-> 010/020/046/050 and the closed `@definition_fields` take in `GgenIgniter.SemanticJira`
-> (tested by `test/ggen_igniter_semantic_jira_event_sourcing_kernel_test.exs`). NOT present:
-> the dual typing on the canonical work orders, the event-sourcing terms (`sj:transitionId`,
+> the closed `@definition_fields` take in `GgenIgniter.SemanticJira` (tested by
+> `test/ggen_igniter_semantic_jira_event_sourcing_kernel_test.exs`). NOT present: the
+> dual-path `{ a sj:WorkOrder } UNION { a oslc_cm:ChangeRequest }` gate targeting (removed from
+> gates 010/020/046/050 by V23-T6R round 2: no pack ontology or shape declares `oslc_cm`
+> typing, so a ChangeRequest-only order would pass the gates unchecked by
+> `sj:WorkOrderShape`; pinned by the pack test "work-order gates select only SHACL-checked
+> sj:WorkOrder nodes"), the dual typing on the canonical work orders, the event-sourcing terms
+> (`sj:transitionId`,
 > `sj:transitionWorkOrder`, ...), their SHACL shapes, the graph→kernel extraction (the removed
 > `GgenIgniter.Crown`), and `test/ggen_igniter_semantic_jira_vocabulary_test.exs`. Every
 > "enforced"/"proven" claim below refers to that deferred content, which stays reachable from

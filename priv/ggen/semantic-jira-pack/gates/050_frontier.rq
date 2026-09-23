@@ -5,8 +5,11 @@
 # semantically identical here: ?work_order is the only variable shared between
 # the outer group and the unsatisfied-edge group, so MINUS removes exactly the
 # WorkOrders having an edge whose upstream lacks the required standing.
-# Dual-path (W7-A4): work orders are sj:WorkOrder OR oslc_cm:ChangeRequest
-# typed. Nested MINUS blocks stay UNION-free on purpose.
+# Work orders are selected by `a sj:WorkOrder` only: no pack ontology or shape
+# declares oslc_cm:ChangeRequest typing, so a ChangeRequest-only node would be
+# selected here while sj:WorkOrderShape (sh:targetClass sj:WorkOrder) never
+# checks it (V23-T6R round-2 refutation R2; the dual-path UNION is successor
+# v23:GC-26.9.24 with the deferred VOCABULARY.md dual-typing content).
 # The graph-side event-sourced standing MINUS (StandingTransition chain tip via
 # sj:transitionId / sj:transitionWorkOrder) is NOT here: no pack ontology
 # declares those terms, so the clause could never fire (V23-T6R refutation 2).
@@ -17,10 +20,9 @@
 # Guarded by GgenIgniter.SemanticJiraPackTest "every pack gate executes".
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
-PREFIX oslc_cm: <http://open-services.net/ns/cm#>
 SELECT DISTINCT ?work_order ?id ?title ?repository ?base_sha ?subject ?evidence_ceiling WHERE {
-  { ?work_order a sj:WorkOrder } UNION { ?work_order a oslc_cm:ChangeRequest }
-  ?work_order dcterms:identifier ?id ;
+  ?work_order a sj:WorkOrder ;
+              dcterms:identifier ?id ;
               dcterms:title ?title ;
               sj:repository ?repository ;
               sj:baseSha ?base_sha ;

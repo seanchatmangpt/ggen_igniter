@@ -1,11 +1,4 @@
-# Dual-path work-order targeting (v26.9.19 W7-A4 vocabulary reduction, see
-# VOCABULARY.md): a work order is sj:WorkOrder OR oslc_cm:ChangeRequest
-# typed — the public carry admits through the public term alone, and the
-# legacy sj-only form admits unchanged. DISTINCT collapses dual-typed rows.
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
-PREFIX oslc_cm: <http://open-services.net/ns/cm#>
-SELECT DISTINCT ?work_order WHERE {
-  { ?work_order a sj:WorkOrder }
-  UNION
-  { ?work_order a oslc_cm:ChangeRequest }
+SELECT ?work_order WHERE {
+  ?work_order a sj:WorkOrder .
 }

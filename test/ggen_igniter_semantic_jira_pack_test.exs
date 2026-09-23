@@ -968,6 +968,86 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute frontier_ids == []
     end
 
+    # V23-T6R round-2 refutation R2: the work-order gates may only select
+    # nodes the SHACL court checks. sj:WorkOrderShape targets sj:WorkOrder and
+    # no pack ontology/shape declares oslc_cm:ChangeRequest typing, so a gate
+    # `{ a sj:WorkOrder } UNION { a oslc_cm:ChangeRequest }` would admit a
+    # ChangeRequest-only order that SHACL never inspects. Positive control:
+    # the SAME incomplete node typed sj:WorkOrder is selected by the gates AND
+    # refused by SHACL, so the negative assertions are not vacuous.
+    test "work-order gates select only SHACL-checked sj:WorkOrder nodes, never oslc_cm:ChangeRequest-only nodes" do
+      pack = GgenIgniter.Ontology.load!(@ontology_path)
+      shapes = GgenIgniter.Ontology.load!(SemanticJira.Shacl.pack_shapes_path())
+
+      # Premise pinned: neither the pack ontology nor its shapes mention
+      # oslc_cm, so ChangeRequest typing is undeclared here.
+      refute File.read!(@ontology_path) =~ "open-services.net/ns/cm#"
+
+      refute "priv/ggen/semantic-jira-pack/shapes/*.ttl"
+             |> Path.wildcard()
+             |> Enum.any?(&(File.read!(&1) =~ "open-services.net/ns/cm#"))
+
+      incomplete_order = fn type_iri, id, standing ->
+        """
+        @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+        @prefix dcterms: <http://purl.org/dc/terms/> .
+        @prefix oslc_cm: <http://open-services.net/ns/cm#> .
+        <https://ggen-igniter.dev/sjira/test##{id}> a #{type_iri} ;
+          dcterms:identifier "#{id}" ;
+          dcterms:title "incomplete order, no court, no acceptance" ;
+          sj:repository "ggen_igniter" ;
+          sj:baseSha "0000000000000000000000000000000000000000" ;
+          sj:subject "lib/ggen_igniter.ex" ;
+          sj:standing "#{standing}" ;
+          sj:evidenceCeiling "CONSTRUCT" .
+        """
+      end
+
+      with_orders = fn type_iri ->
+        [{"R2-UNKNOWN", "UNKNOWN"}, {"R2-ALIVE", "ALIVE"}]
+        |> Enum.reduce(pack, fn {id, standing}, graph ->
+          RDF.Graph.add(graph, RDF.Turtle.read_string!(incomplete_order.(type_iri, id, standing)))
+        end)
+      end
+
+      gate_ids = fn graph, gate ->
+        graph
+        |> GgenIgniter.Query.run(File.read!("priv/ggen/semantic-jira-pack/gates/#{gate}.rq"))
+        |> Enum.map(fn row -> row["id"] || row["work_order"] end)
+        |> Enum.map(&to_string/1)
+      end
+
+      shacl_focus = fn graph ->
+        graph
+        |> SemanticJira.Shacl.validate(shapes)
+        |> Map.fetch!(:violations)
+        |> Enum.map(& &1.focus_node)
+        |> Enum.filter(&(&1 =~ "sjira/test#R2-"))
+        |> Enum.uniq()
+      end
+
+      gates = ~w(010_work_order_subjects 020_work_orders 046_alive_receipt_crown 050_frontier)
+
+      # Positive control: typed sj:WorkOrder, the incomplete orders reach the
+      # gates and SHACL refuses both.
+      sj_graph = with_orders.("sj:WorkOrder")
+      assert Enum.any?(gate_ids.(sj_graph, "010_work_order_subjects"), &(&1 =~ "R2-UNKNOWN"))
+      assert "R2-UNKNOWN" in gate_ids.(sj_graph, "020_work_orders")
+      assert "R2-ALIVE" in gate_ids.(sj_graph, "046_alive_receipt_crown")
+      assert "R2-UNKNOWN" in gate_ids.(sj_graph, "050_frontier")
+      assert length(shacl_focus.(sj_graph)) == 2
+
+      # ChangeRequest-only: SHACL never inspects the nodes, so no gate may
+      # select them.
+      cr_graph = with_orders.("oslc_cm:ChangeRequest")
+      assert shacl_focus.(cr_graph) == []
+
+      Enum.each(gates, fn gate ->
+        refute Enum.any?(gate_ids.(cr_graph, gate), &(&1 =~ "R2-")),
+               "gate #{gate} selects an oslc_cm:ChangeRequest-only node that SHACL never checks"
+      end)
+    end
+
     @tag timeout: @sync_timeout
     test "mutating a scalar fact in the graph changes the projection" do
       work_dir = scratch_dir!("scalar_mutation")

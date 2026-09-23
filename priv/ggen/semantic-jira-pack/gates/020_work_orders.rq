@@ -1,16 +1,10 @@
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
-PREFIX oslc_cm: <http://open-services.net/ns/cm#>
-# Dual-path targeting: sj:WorkOrder OR oslc_cm:ChangeRequest typed (public
-# carry admits via the public term; legacy sj-only admits unchanged). DISTINCT
-# collapses dual-typed rows to one scalar row per work order.
-SELECT DISTINCT ?work_order ?id ?title ?description ?repository ?base_sha ?subject
+SELECT ?work_order ?id ?title ?description ?repository ?base_sha ?subject
        ?standing ?evidence_ceiling ?authority_ceiling ?promotion_rule ?replay_identity
        ?requires_git_ground_truth
 WHERE {
-  { ?work_order a sj:WorkOrder }
-  UNION
-  { ?work_order a oslc_cm:ChangeRequest }
+  ?work_order a sj:WorkOrder .
   OPTIONAL { ?work_order dcterms:identifier ?id . }
   OPTIONAL { ?work_order dcterms:title ?title . }
   OPTIONAL { ?work_order dcterms:description ?description . }
