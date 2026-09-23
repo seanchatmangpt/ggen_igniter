@@ -3,9 +3,25 @@
     "id": "FRI-T1",
     "gate": "G4 Finite work graph (GC-FRI-0800)",
     "title": "Friday GoalCheckpoint vocabulary contract + SHACL shapes in semantic-jira-pack",
-    "acceptance": "mix format --check-formatted && mix compile --warnings-as-errors && mix test test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_pack_test.exs",
+    "acceptance": "mix format --check-formatted && mix compile --warnings-as-errors && mix test test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_pack_test.exs (lane gate) + mix test test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs (added per the REVERT-MUTATION court's suggestion: it is the suite that constrains the Friday vocabulary)",
     "plan": "/Users/sac/.claude/plans/i-need-you-to-iterative-sedgewick.md",
-    "coordination": "/Users/sac/wt/v26922/COORDINATION.md (reserved: priv/ggen/semantic-jira-pack/{ontology.ttl,shapes/*})"
+    "coordination": "/Users/sac/wt/v26922/COORDINATION.md (reserved: priv/ggen/semantic-jira-pack/{ontology.ttl,shapes/*})",
+    "repair_round": {
+      "court_verdicts_in": {
+        "GATE": "pass (subject e951ee5)",
+        "REVERT-MUTATION": "pass (subject e951ee5)",
+        "DOCTRINE": "refuted: vocabulary_contract_deviation -- sj:exclusion cardinality 0..n narrowed to 1..n (work-order.shacl.ttl:357 FridayWorkOrderShape sh:sparql, jira.md.eex friday_tuple_relations, goal_checkpoint_test.exs:57 mutation row); secondary: sj:CapabilityShape pattern diverged from FRI-T4 Xaas.Sa2a.Route @capability"
+      },
+      "refutation_accepted": true,
+      "repair": [
+        "shapes/work-order.shacl.ttl: FridayWorkOrderShape exclusion presence constraint removed (sj:exclusion 0..n per contract); each exclusion present stays xsd:string + non-blank on WorkOrderShape",
+        "shapes/work-order.shacl.ttl: sj:capabilityId sh:pattern ^[a-z0-9][a-z0-9_.-]*:[a-z0-9][a-z0-9_.:-]*$ = character classes of xaas lib/xaas/sa2a/route.ex:55 @capability (friday/gc-fri-0800 48c5e3f)",
+        "lib/ggen_igniter/semantic_jira/shacl.ex: sh:pattern compiled with PCRE dollar_endonly (XPath fn:matches $ = end of string); without it \"recipe:mix-format\\n\" passed CapabilityShape while the route's \\z refused it (witnessed by falsifier M3)",
+        "templates/jira.md.eex: exclusion rendered but not required; zero exclusions render '- **Exclusions:** none'",
+        "ontology.ttl: sj:exclusion / sj:capabilityId / tuple-digest comments record 0..n (absent = exclusions []) and the shared id grammar",
+        "test: exclusion row removed from the presence mutation table; +4 tests (zero exclusions admit; non-literal exclusion refused :datatype; zero exclusions render 'none'; 14-id capability corpus where the SHACL verdict and the SA2A regex verdict must both equal one expected column)"
+      ]
+    }
   },
   "identity": {
     "subject": "FRI-T1",
@@ -13,11 +29,11 @@
     "worktree": "/Users/sac/wt/v26922/fri/FRI-T1",
     "branch": "fri/FRI-T1",
     "base_ref": "friday/gc-fri-0800",
-    "subject_sha": "c1a683e323bb425f909c28a0bae9759aa5185c17",
+    "subject_sha": "0337a6a151ec7c6f14d1caeacb7b669dac8bdc1b",
     "base_sha": "5984ec480c2318e86aa621da5f496e5e014b0fac",
-    "graph_hash": "sha256:4e459167fe12938c82dee1a27a8cfae2d8adce878d5985f6c0d832595aaa3511",
+    "graph_hash": "sha256:e09420230964c300f10fba8f2518914b12fb2381c26472aa19de3bdd31cf8dc0",
     "graph_hash_of": "priv/ggen/semantic-jira-pack/ontology.ttl bytes at subject_sha",
-    "shapes_sha256": "8913f33237bd994570564e6c91f02d2cda82786ed2383b5aee99c06352498a90",
+    "shapes_sha256": "42572fa36075b8267f1c73e4c72618034c75f50600de5620991378833a7a9d3b",
     "vocabulary_contract": {
       "namespace": "https://ggen-igniter.dev/ontology/semantic-jira#",
       "classes": [
@@ -63,8 +79,18 @@
         "sj:CapabilityShape",
         "sj:FridayWorkOrderShape",
         "sj:MachineExperienceShape"
-      ]
-    }
+      ],
+      "cardinalities": {
+        "sj:exclusion": "0..n (absent = exclusions [] in the tuple digest)",
+        "sj:postcondition": "1 on Friday orders",
+        "sj:requiresCapability": "1 on Friday orders",
+        "sj:evidenceHorizon": "1 on Friday orders",
+        "sj:consequenceClass": "1 on Friday orders",
+        "sj:successorPolicy": "1 on Friday orders"
+      },
+      "capability_id_grammar": "^[a-z0-9][a-z0-9_.-]*:[a-z0-9][a-z0-9_.:-]*$ (end-of-string anchored) == xaas Xaas.Sa2a.Route @capability"
+    },
+    "prior_subject_sha": "c1a683e323bb425f909c28a0bae9759aa5185c17"
   },
   "authority": {
     "ceiling": "CONSTRUCT",
@@ -73,7 +99,8 @@
   },
   "consequence": {
     "commits": [
-      "c1a683e323bb425f909c28a0bae9759aa5185c17"
+      "c1a683e323bb425f909c28a0bae9759aa5185c17",
+      "0337a6a151ec7c6f14d1caeacb7b669dac8bdc1b"
     ],
     "files_changed": [
       "HANDWRITTEN.md",
@@ -98,60 +125,84 @@
       ],
       "handwritten_residue": [
         "test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs + test/fixtures/semantic-jira-goal-checkpoint/goal.ttl -> HANDWRITTEN.md row + sj:ledger-unsupported-002, UNSUPPORTED(generator-capability)",
-        "lib/ggen_igniter/semantic_jira/shacl.ex (result_path/1, targetSubjectsOf repair) + kernel_differential.ex (has_predicate?/3 repair) -> HANDWRITTEN.md row, UNSUPPORTED(generator-capability)"
+        "lib/ggen_igniter/semantic_jira/shacl.ex (result_path/1, targetSubjectsOf repair, compile_pattern/2 dollar_endonly) + kernel_differential.ex (has_predicate?/3 repair) -> HANDWRITTEN.md row (extended in the repair), UNSUPPORTED(generator-capability)"
       ],
       "gates": "gates/030_properties.rq is predicate-generic (no enumeration); no gate change needed"
     },
     "defects_found_and_repaired": [
       "GgenIgniter.SemanticJira.Shacl sh:targetSubjectsOf raised FunctionClauseError (RDF.Description.include?/3 takes a statement, not a bare predicate) the first time a shipped shape used it; same defect in KernelDifferential.has_predicate?/3",
-      "praxis_graphlaw.wasm refuses every literal against sh:pattern \"\\\\S\" (measured with a direct WasmexHost probe: \\S REFUSED, [^\\s] ADMITTED); shapes use [^\\s] so both kernels agree"
+      "praxis_graphlaw.wasm refuses every literal against sh:pattern \"\\\\S\" (measured with a direct WasmexHost probe: \\S REFUSED, [^\\s] ADMITTED); shapes use [^\\s] so both kernels agree",
+      "GgenIgniter.SemanticJira.Shacl sh:pattern used PCRE default $ (also matches before a final newline), not XPath fn:matches end-of-string: a trailing-newline literal passed any $-anchored pattern; fixed with dollar_endonly; KernelDifferential verdict matrix over 169 legacy orders unchanged"
+    ],
+    "files_changed_repair": [
+      "HANDWRITTEN.md",
+      "lib/ggen_igniter/semantic_jira/shacl.ex",
+      "priv/ggen/semantic-jira-pack/ontology.ttl",
+      "priv/ggen/semantic-jira-pack/shapes/work-order.shacl.ttl",
+      "priv/ggen/semantic-jira-pack/templates/jira.md.eex",
+      "test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+      "receipts/v26.9.22/FRI-T1.json"
     ]
   },
   "replay": {
-    "subject_sha_at_replay": "c1a683e323bb425f909c28a0bae9759aa5185c17",
+    "subject_sha_at_replay": "0337a6a151ec7c6f14d1caeacb7b669dac8bdc1b",
     "durable_location": "receipts/v26.9.22/FRI-T1.json",
     "commands": [
       {
         "cmd": "mix format --check-formatted",
         "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
         "exit": 0,
-        "summary": "no output",
-        "output_sha256": "357252ea59ee35c21a5dc4693dc6b353dd8e18d40024555c0f2ababfca1c1afe"
+        "summary": "exit 0 (committed tree 0337a6a)",
+        "output_sha256": "021af2067f739bc652a92b28c6c03fefd316e644ad91a87addb0d041f82aa857"
       },
       {
         "cmd": "mix compile --warnings-as-errors",
         "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
         "exit": 0,
-        "summary": "compiled clean",
-        "output_sha256": "97344ae976b37b4bdad22bd748290d743737a780cd7070d7e0f6d050c6f9e1db"
+        "summary": "exit 0; only the mix :preferred_cli_env deprecation notice (committed tree 0337a6a)",
+        "output_sha256": "021af2067f739bc652a92b28c6c03fefd316e644ad91a87addb0d041f82aa857"
+      },
+      {
+        "cmd": "MIX_ENV=test mix compile --force --warnings-as-errors",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "exit 0, full recompile of the committed tree 0337a6a",
+        "output_sha256": "432fc0b01bd72b7c8bb4d48b7856ee9a95fc3656ee864f58ce4430c86bfad039"
       },
       {
         "cmd": "mix test test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_pack_test.exs",
         "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
         "exit": 0,
-        "summary": "84 tests, 0 failures (754.6 s); shape census 13 -> 19; canonical 33-order pack still manufactures and replays byte-identically",
-        "output_sha256": "8e373fef8ec21e0974667a3c58c2aee7041450babb9b3d10645ff2c8be7e5334"
+        "summary": "84 tests, 0 failures (1526.4 s) (subject 0337a6a, clean tree)",
+        "output_sha256": "5d55f78a49fd4590a407079018c02d3c060b3973268372c4d0cba14f88949117"
       },
       {
         "cmd": "mix test test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
         "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
         "exit": 0,
-        "summary": "34 tests, 0 failures (149.3 s): tuple-complete goal graph admits; 12-row tuple mutation table refuses naming each field; root without stopQuery refused; non-ASK stopQuery, missing courtCommand/boundaryClass, out-of-enumeration boundary, self-parent, malformed capabilityId refused; 33 pack orders + 169 KernelDifferential legacy orders gain zero violations; MachineExperience shape vs real machine_experience/1; ReconcileReactor.plan refusal; jira render + template refusal; real mix ggen_igniter.sync -> 34 tickets",
-        "output_sha256": "b0f12e400d9c30160313ed28d8a99dc4c6cd0a23d1bd68146206eaf03324733f"
+        "summary": "37 tests, 0 failures (124.5 s; pre-commit tree whose code/test bytes equal 0337a6a except a moduledoc wording edit)",
+        "output_sha256": "228d4c79a4bccd5ed3e241611ece3ea0593dba7c0b4a568174aa5ae74592d95b"
       },
       {
-        "cmd": "mix test test/ggen_igniter_semantic_jira_kernel_differential_test.exs",
-        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "cmd": "git archive 0337a6a | tar -x -C <clone> && cp -Rpc deps _build/test priv/native <clone>; MIX_ENV=test mix test test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+        "cwd": "/private/tmp/claude-501/-Users-sac/1fecd79a-9323-4b57-a949-d7892a3ea283/scratchpad/mut-FRI-T1",
         "exit": 0,
-        "summary": "1 test, 0 failures; regenerated report differs from the committed one only in input/shape sha256 fields and slice_count (verdict matrix 107 agree-conform / 41 agree-refuse / 21 shacl-refuse-wasm-conform, 35 typed disagreements, mutation base SELECTED: identical); committed report restored, not recommitted",
-        "output_sha256": "3c04ee5daeda281c2f235c69a938a799c37a91bcec38cdc777866c81ef2c0988"
+        "summary": "37 tests, 0 failures (283.3 s) on the exact 0337a6a bytes (cmp-identical shapes/ontology/template/shacl.ex/test)",
+        "output_sha256": "827895a18e18674a9058cb411a992998cff74124e7addf21a67fcc6f9b77c770"
+      },
+      {
+        "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_kernel_differential_test.exs",
+        "cwd": "/private/tmp/claude-501/-Users-sac/1fecd79a-9323-4b57-a949-d7892a3ea283/scratchpad/mut-FRI-T1",
+        "exit": 0,
+        "summary": "1 test, 0 failures; regenerated report vs committed receipts/v26.9.22/kernel-differential.json: 209 differing leaves, all shapes_sha256 (206) / input sha256 (2) / slice_count (1); verdict matrix, classifications and disagreements identical (dollar_endonly changed no legacy verdict); report not recommitted",
+        "output_sha256": "08b659a29fefc037ce7c52cf53563317e62fbd6e58180cc4448e9b2974dd1090"
       },
       {
         "cmd": "mix credo",
         "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
         "exit": 0,
-        "summary": "2364 mods/funs, found no issues",
-        "output_sha256": "fb587df082bbc86516d6177e10b0328e2444be639ad58b238586d8328eca893a"
+        "summary": "2004 mods/funs, found no issues (294 files)",
+        "output_sha256": "bd637382817c84ba3bd2afe2cc07b8579c8c201a517033a92cf1942d5af9cc40"
       },
       {
         "cmd": "! grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps --exclude-dir=target -E '(use|import) +(Mox|Mimic|Patch)\\b|(Mox|Mimic|Patch)\\.|:meck\\.|mockall|MagicMock|Mock\\(' test lib native",
@@ -159,6 +210,12 @@
         "exit": 0,
         "summary": "zero matches (Chicago no-mock grep)",
         "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "cmd": "MIX_ENV=test mix run --no-start -e '<Shacl.validate_file/2 over pack ontology.ttl ++ xaas goal.ttl>' merged.ttl merged-noexcl.ttl",
+        "cwd": "/private/tmp/claude-501/-Users-sac/1fecd79a-9323-4b57-a949-d7892a3ea283/scratchpad/mut-FRI-T1",
+        "exit": 0,
+        "summary": "xaas friday/gc-fri-0800 48c5e3f docs/sjira/v26.9.22/friday/goal.ttl (sha256 e235de71...) merged with pack ontology at 0337a6a: conforms=true 0 violations; same graph with 6 sj:exclusion statement lines stripped: conforms=true 0 violations"
       }
     ]
   },
@@ -187,20 +244,52 @@
       "mutation": "CheckpointShape rdfs:label sh:pattern \"\\\\S\" (pre-fix)",
       "observed": "KernelDifferential mutation_base NO_ADMITTED_BASE: praxis_graphlaw.wasm refused all 169 legacy orders (+1 violation each); fixed with [^\\s]",
       "restored": true
+    },
+    {
+      "mutation": "M1: FridayWorkOrderShape exclusion presence sh:sparql re-added (1..n)",
+      "observed": "goal_test:142 'zero sj:exclusion admits' -> 1 test, 1 failure",
+      "restored": true,
+      "output_sha256": "b0eaef410ec19aa84d8025ef9fb1bd76fcc509add0b8f8e0e2d96ba1f93f6f14"
+    },
+    {
+      "mutation": "M2: sj:capabilityId pattern reverted to ^[a-z][a-z0-9_-]*:[A-Za-z0-9_.:/-]+$",
+      "observed": "goal_test:356 -> 1 failure: SHACL verdict for \"9x:y\" diverges from the SA2A route",
+      "restored": true,
+      "output_sha256": "3fd0556a5991bf2af1e3d34b3dc91a0d4fb3edbf911e30dc5df8656268e3ba28"
+    },
+    {
+      "mutation": "M3: Shacl.compile_pattern/2 without dollar_endonly",
+      "observed": "goal_test:356 -> 1 failure: SHACL verdict for \"recipe:mix-format\\n\" diverges from the SA2A route",
+      "restored": true,
+      "output_sha256": "d6259efd2a6ee5c6f50494b788f782c4f4cd2a8b7bd4cf9a9fa25e8e6b78d269"
+    },
+    {
+      "mutation": "M4: jira.md.eex friday_tuple_relations requires exclusion again",
+      "observed": "goal_test:566 -> ArgumentError REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER: Friday tuple field sj:exclusion missing",
+      "restored": true,
+      "output_sha256": "25503e48f66e8afd5966235129ec39cce26adb0f4410980424f52a18ae94d20e"
+    },
+    {
+      "mutation": "M5: sh:datatype xsd:string dropped from WorkOrderShape sj:exclusion",
+      "observed": "goal_test:153 -> no violation matching constraint :datatype on sj:exclusion",
+      "restored": true,
+      "output_sha256": "3f66303ae5614c29e5a362279eee2f4f222d7e4f9f9f00c99eb2ea8918010701"
     }
   ],
   "integration_probe": {
-    "subject": "xaas FRI-T5 docs/sjira/v26.9.22/friday/goal.ttl at cb4ec5a (sha256 e235de71c6c9130da6609a1f7469482c6c93f68194ba11cf135c86e5bdad88f9), read-only copy",
-    "merged_with_pack_ontology": "conforms=true, 0 violations, 264 focus nodes",
-    "alone": "conforms=false, 3 violations (sj:nextCheckpoint x1 and sj:requiresEvidence x2 sh:class): the goal graph relies on pack vocabulary (sj:GoalCheckpoint rdfs:subClassOf sj:Checkpoint, evidence-requirement individuals); the stop court must validate goal.ttl merged with priv/ggen/semantic-jira-pack/ontology.ttl"
+    "subject": "xaas friday/gc-fri-0800 48c5e3f docs/sjira/v26.9.22/friday/goal.ttl (sha256 e235de71c6c9130da6609a1f7469482c6c93f68194ba11cf135c86e5bdad88f9), read-only copy",
+    "merged_with_pack_ontology": "conforms=true, 0 violations (pack ontology + shapes at 0337a6a)",
+    "exclusions_stripped": "conforms=true, 0 violations (6 sj:exclusion lines removed): the 0..n contract holds on the integrated goal graph",
+    "capability_ids_in_fleet_graphs": "construct:xaas-mix-task (x5), recipe:mix-format (x1): all admitted by both grammars"
   },
   "unresolved": [
-    "G4 gate acceptance ('SHACL court passes on goal.ttl') belongs to the integrated xaas goal graph; observed here only as a read-only probe of FRI-T5 cb4ec5a, not as a court verdict",
+    "G4 gate acceptance ('SHACL court passes on goal.ttl') belongs to the integrated xaas goal graph; observed here only as a read-only probe, not as a court verdict",
     "praxis_graphlaw.wasm behaviour on the Friday-only constructs (sh:targetSubjectsOf, BIND ?path in sh:sparql) is UNVERIFIED on a Friday goal graph; the KernelDifferential corpus contains no sj:checkpointOf",
-    "Independent qualification court verdict (/Users/sac/wt/v26922/court/ggen_igniter/FRI-T1.json) not yet issued"
+    "The capability corpus test pins a verbatim copy of the route regex; a later edit of xaas route.ex @capability is not detected by this repo's tests (cross-repo drift needs a court over both checkouts)",
+    "Independent re-qualification court verdict on 0337a6a (DOCTRINE lens re-run) not yet issued"
   ],
   "standing": {
     "value": "PARTIAL_ALIVE",
-    "derived_from": "Every replay command above exits 0 on the exact subject c1a683e (lane gate: format, compile --warnings-as-errors, shacl+pack 84/0; goal-checkpoint 34/0; kernel-differential 1/0; credo clean; no-mock grep clean), and each falsifier was observed to break its test. Not ALIVE: the independent court verdict and the G4 acceptance on the integrated xaas goal.ttl are outside this lane."
+    "derived_from": "At subject 0337a6a: lane gate (format, compile --warnings-as-errors, shacl+pack 84 tests, 0 failures (1526.4 s)), goal-checkpoint 37/0 on the exact bytes, kernel-differential 1/0 with an unchanged verdict matrix, credo clean, no-mock grep clean, and five new revert-mutations (M1-M5) each observed to break its test. The DOCTRINE refutation (exclusion 0..n; capabilityId grammar) is addressed. Not ALIVE: the court re-verdict on 0337a6a and G4 acceptance on the integrated goal.ttl are outside this lane."
   }
 }
