@@ -31,6 +31,10 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
   # Independent witness: python3 json.dumps(tuple, sort_keys=True,
   # separators=(",", ":"), ensure_ascii=False) over T-A's contract tuple.
   @t_a_tuple_digest "sha256:531183e0033603b9ff0fbde841dde6400a9738143d8665eac2e3d005e16f2100"
+  # Same witness over T-Z's tuple, which has no sj:exclusion: sj:exclusion is
+  # 0..n and the digest carries "exclusions":[] (semantic-jira-pack
+  # FridayWorkOrderShape; xaas Xaas.Sa2a.Route admit_field/2).
+  @t_z_tuple_digest "sha256:62fa02612af7ad1ae413d1738a230f650059c0e6b4f713cb179cedb3b1399517"
   @repository "fixture/subject"
 
   setup do
@@ -85,14 +89,14 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
     git!(repo, ["rev-parse", "HEAD"])
   end
 
-  defp receipt(subject_sha, standing, tuple_digest) do
+  defp receipt(subject_sha, standing, tuple_digest, id \\ "T-A") do
     %{
       "identity" => %{
-        "subject" => "T-A",
+        "subject" => id,
         "repo" => @repository,
         "subject_sha" => subject_sha,
         "base_sha" => subject_sha,
-        "work_order" => "t:WO-T-A",
+        "work_order" => "t:WO-" <> id,
         "tuple_digest" => tuple_digest
       },
       "authority" => %{"ceiling" => "CONSTRUCT", "grant" => "NONE", "actor" => "fixture"},
@@ -127,12 +131,77 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
 
   defp order(result, id), do: result.state["orders"][id]
 
+  # A work graph (--graphs) with two orders under the fixture root's gate
+  # G-1: T-Z (covers lib/, no sj:exclusion at all) and T-N (a path scope no
+  # commit ever touched). Each declares its own capability node, because the
+  # pack queries read one graph at a time.
+  defp extra_graph!(ctx) do
+    path = Path.join(ctx.dir, "extra-orders.ttl")
+
+    File.write!(path, """
+    @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+    @prefix t: <https://ggen-igniter.dev/sjira/bootstrap-fixture#> .
+    @prefix dcterms: <http://purl.org/dc/terms/> .
+    t:cap-z a sj:Capability ; sj:capabilityId "recipe:fixture-z" .
+    t:WO-T-Z a sj:WorkOrder ;
+      dcterms:identifier "T-Z" ; dcterms:title "Fixture order Z" ;
+      dcterms:description "No sj:exclusion: the tuple carries exclusions = []." ;
+      sj:repository "fixture/subject" ;
+      sj:baseSha "1111111111111111111111111111111111111111" ;
+      sj:subject "fixture:order-z" ; sj:pathScope "lib/" ;
+      sj:evidenceCeiling "EXECUTED_VERIFIED" ; sj:authorityCeiling "CONSTRUCT" ;
+      sj:authorityRequirement "NONE" ;
+      sj:promotionRule "Standing advances only from receipts." ;
+      sj:replayIdentity "semantic-jira:fixture:T-Z" ;
+      sj:requiresCourt t:court-T-Z ; sj:requiresEvidence sj:receipt-evidence ;
+      sj:requiresReceiptClass "verification" ; sj:acceptance t:acceptance-T-Z ;
+      sj:falsifier t:falsifier-T-Z ; sj:projection sj:markdown-projection ;
+      sj:checkpointOf t:G-1 ; sj:postcondition "Order Z postcondition." ;
+      sj:requiresCapability t:cap-z ; sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+      sj:consequenceClass "verification" ;
+      sj:successorPolicy "discovered work -> t:GC-T-next" .
+    t:cap-n a sj:Capability ; sj:capabilityId "recipe:fixture-n" .
+    t:WO-T-N a sj:WorkOrder ;
+      dcterms:identifier "T-N" ; dcterms:title "Fixture order N" ;
+      dcterms:description "Covers a path no commit ever touched." ;
+      sj:repository "fixture/subject" ;
+      sj:baseSha "1111111111111111111111111111111111111111" ;
+      sj:subject "fixture:order-n" ; sj:pathScope "never/" ;
+      sj:evidenceCeiling "EXECUTED_VERIFIED" ; sj:authorityCeiling "CONSTRUCT" ;
+      sj:authorityRequirement "NONE" ;
+      sj:promotionRule "Standing advances only from receipts." ;
+      sj:replayIdentity "semantic-jira:fixture:T-N" ;
+      sj:requiresCourt t:court-T-N ; sj:requiresEvidence sj:receipt-evidence ;
+      sj:requiresReceiptClass "verification" ; sj:acceptance t:acceptance-T-N ;
+      sj:falsifier t:falsifier-T-N ; sj:projection sj:markdown-projection ;
+      sj:checkpointOf t:G-1 ; sj:postcondition "Order N postcondition." ;
+      sj:requiresCapability t:cap-n ; sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+      sj:exclusion "No LLM on the path." ; sj:consequenceClass "verification" ;
+      sj:successorPolicy "discovered work -> t:GC-T-next" .
+    """)
+
+    path
+  end
+
+  defp input(result, role, ref),
+    do: Enum.find(result.state["inputs"], &(&1["role"] == role and &1["ref"] == ref))
+
   # ── the court environment: env -i, fresh HOME, no LLM variable ────────────
 
+  # The toolchain dirs are resolved here, independently of the product's
+  # Bootstrap.Guard: a test helper that called product code would crash
+  # before its assertions whenever that code is absent or mutated.
   defp court_path do
     [System.find_executable("elixir"), System.find_executable("erl")]
-    |> Enum.map(&(&1 |> GgenIgniter.SemanticJira.Bootstrap.Guard.real_path() |> Path.dirname()))
+    |> Enum.map(&(&1 |> resolve_link(0) |> Path.dirname()))
     |> then(&Enum.join(["/usr/bin", "/bin" | &1], ":"))
+  end
+
+  defp resolve_link(path, hops) when hops < 40 do
+    case File.read_link(path) do
+      {:ok, target} -> target |> Path.expand(Path.dirname(path)) |> resolve_link(hops + 1)
+      {:error, _not_a_link} -> path
+    end
   end
 
   defp cold_env(home) do
@@ -456,6 +525,156 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
       assert detail =~ "OPENAI_API_KEY, ZAI_API_KEY"
       assert detail =~ "mu_on_O"
       refute detail =~ "secret-value"
+    end
+  end
+
+  describe "run/1 tuple contract (sj:exclusion is 0..n)" do
+    test "an order with no sj:exclusion digests exclusions = [] and its receipt links", ctx do
+      graph = extra_graph!(ctx)
+
+      File.write!(
+        Path.join(ctx.receipts, "T-Z.json"),
+        Jason.encode!(receipt(ctx.covered, "ALIVE", @t_z_tuple_digest, "T-Z"))
+      )
+
+      result = run!(ctx, graphs: [graph])
+      t_z = order(result, "T-Z")
+
+      assert %{"tuple" => "complete", "tuple_digest" => @t_z_tuple_digest} = t_z
+      assert %{"standing" => "ALIVE", "standing_source" => "receipt", "unlinked" => []} = t_z
+      assert t_z["receipt"]["ref"] == "fixture/subject:receipts/T-Z.json"
+      assert t_z["critical_path"] == true
+      assert result.state["authority"]["orders"]["T-Z"]["exclusions"] == []
+
+      assert Graph.tuple_digest(%{
+               "subject" => "fixture:order-z",
+               "postcondition" => "Order Z postcondition.",
+               "capability" => "recipe:fixture-z",
+               "evidence_ceiling" => "EXECUTED_VERIFIED",
+               "authority_ceiling" => "CONSTRUCT",
+               "consequence_class" => "verification",
+               "exclusions" => []
+             }) == @t_z_tuple_digest
+    end
+  end
+
+  describe "run/1 receipt directories" do
+    test "an absent receipts dir is recorded as absent in the state inputs", ctx do
+      missing = Path.join(ctx.dir, "missing-receipts")
+      result = run!(ctx, receipts_dirs: [ctx.receipts, missing])
+
+      assert %{"status" => "read", "receipts" => 1} =
+               input(result, "receipts_dir", "fixture/subject:receipts")
+
+      assert %{"status" => "absent", "receipts" => 0} =
+               input(result, "receipts_dir", "receipts-dir-1:missing-receipts")
+
+      assert order(result, "T-A")["standing"] == "ALIVE"
+      assert result.digest != run!(ctx).digest
+    end
+
+    test "a receipts dir that is a file, or unreadable, or holds an unreadable receipt is refused",
+         ctx do
+      file = Path.join(ctx.dir, "not-a-dir.json")
+      File.write!(file, "{}")
+
+      assert {:refused, [%{code: :input_unreadable, subject: subject, detail: detail}]} =
+               Bootstrap.run(opts(ctx, receipts_dirs: [ctx.receipts, file]))
+
+      assert subject == "receipts-dir-1:not-a-dir.json"
+      assert detail =~ "not a directory"
+
+      locked = Path.join(ctx.dir, "locked-receipts")
+      File.mkdir_p!(locked)
+      File.chmod!(locked, 0o000)
+
+      try do
+        assert {:refused, [%{code: :input_unreadable, detail: detail}]} =
+                 Bootstrap.run(opts(ctx, receipts_dirs: [locked]))
+
+        assert detail =~ "permission denied"
+      after
+        File.chmod!(locked, 0o755)
+      end
+
+      unreadable = Path.join(ctx.receipts, "T-A.json")
+      File.chmod!(unreadable, 0o000)
+
+      try do
+        assert {:refused, [%{code: :input_unreadable, subject: subject, detail: detail}]} =
+                 Bootstrap.run(opts(ctx))
+
+        assert subject == "fixture/subject:receipts/T-A.json"
+        assert detail =~ "permission denied"
+      after
+        File.chmod!(unreadable, 0o644)
+      end
+    end
+  end
+
+  describe "run/1 covered-path currency reasons" do
+    test "a scope no commit ever touched invalidates as scope_never_committed", ctx do
+      graph = extra_graph!(ctx)
+      digest = order(run!(ctx, graphs: [graph]), "T-N")["tuple_digest"]
+      assert "sha256:" <> _ = digest
+
+      File.write!(
+        Path.join(ctx.receipts, "T-N.json"),
+        Jason.encode!(receipt(ctx.covered, "ALIVE", digest, "T-N"))
+      )
+
+      t_n = order(run!(ctx, graphs: [graph]), "T-N")
+
+      assert %{
+               "standing" => "UNKNOWN",
+               "receipt" => nil,
+               "covered_commit" => nil,
+               "covered_commit_status" => "none_in_scope",
+               "frontier" => "eligible"
+             } = t_n
+
+      assert [
+               %{
+                 "reason" => "scope_never_committed",
+                 "receipt_covered_commit" => nil,
+                 "current_covered_commit" => nil
+               }
+             ] = t_n["invalidated"]
+    end
+
+    test "an unreadable current covered commit is reported as such, not as subject_advanced",
+         ctx do
+      # Remove the root tree object of the commit between the receipt's
+      # subject and HEAD: `git log -1 HEAD -- lib/` must read it and fails,
+      # while the receipt's own subject history stays readable.
+      tree = git!(ctx.repo, ["rev-parse", "HEAD~1^{tree}"])
+      {prefix, rest} = String.split_at(tree, 2)
+      File.rm!(Path.join([ctx.repo, ".git", "objects", prefix, rest]))
+
+      t_a = order(run!(ctx), "T-A")
+
+      assert %{
+               "standing" => "UNKNOWN",
+               "receipt" => nil,
+               "covered_commit" => nil,
+               "covered_commit_status" => "unreadable"
+             } = t_a
+
+      assert [
+               %{
+                 "reason" => "current_covered_commit_unreadable",
+                 "receipt_covered_commit" => covered,
+                 "current_covered_commit" => nil
+               }
+             ] = t_a["invalidated"]
+
+      assert covered == ctx.covered
+    end
+
+    test "an observed covered commit is reported with its status", ctx do
+      t_a = order(run!(ctx), "T-A")
+      assert %{"covered_commit_status" => "observed", "standing" => "ALIVE"} = t_a
+      assert t_a["covered_commit"] == ctx.covered
     end
   end
 

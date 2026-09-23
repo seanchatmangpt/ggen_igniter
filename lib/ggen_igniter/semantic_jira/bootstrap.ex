@@ -14,7 +14,9 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
       or kernel JSON), read through the pack queries
       `priv/ggen/semantic-jira-pack/bootstrap/*.rq` (`Bootstrap.Graph`);
     * receipts -- fleet R-schema JSON in `--receipts-dir` directories
-      (`Bootstrap.Receipts`);
+      (`Bootstrap.Receipts`; each directory is reported in `inputs` as
+      `"read"` or `"absent"`, and an unreadable one is refused
+      `input_unreadable`);
     * OCEL/TransitionLog -- `--ledger`, read through
       `GgenIgniter.SemanticJira.TransitionLog.fetch/1` (a tampered ledger is
       refused);
@@ -60,7 +62,12 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
   receipt cannot be part of its own subject). A receipt whose subject no
   longer covers the current commit confers nothing: the order returns to
   UNKNOWN and re-enters the frontier (F6); deleting a receipt removes its
-  standing and changes the digest (F5). A ledger event applies only when
+  standing and changes the digest (F5). The order's `covered_commit_status`
+  says what `HEAD` showed -- `observed`, `none_in_scope` (no commit ever
+  changed a covered path), `unreadable` (the git read failed) or
+  `subject_unresolved` -- and an invalidated receipt carries the matching
+  reason: `subject_advanced` only for an observed later change,
+  `scope_never_committed` and `current_covered_commit_unreadable` otherwise. A ledger event applies only when
   its `definition_digest` equals the order's current kernel definition
   digest, and an ALIVE event of an order with `candidate_sha` applies only
   while that SHA still covers the order's path scope.
@@ -223,7 +230,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
          {:ok, root} <- root(goal, queries),
          {:ok, graphs} <- read_graphs(args.graphs, subjects),
          {:ok, orders} <- orders(goal, graphs, queries, Subjects.ref(subjects, args.goal, "goal")),
-         {:ok, receipts} <- read_receipts(args.receipts_dirs, subjects),
+         {:ok, receipts, receipt_dirs} <- read_receipts(args.receipts_dirs, subjects),
          {:ok, events} <- read_ledger(args.ledger),
          {:ok, registry} <- read_registry(args.registry, subjects) do
       merged = Enum.reduce(graphs, goal, fn {_ref, _sha, graph}, acc -> merge(acc, graph) end)
@@ -240,7 +247,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
          receipts: receipts,
          events: events,
          registry: registry,
-         inputs: inputs(args, subjects, goal_bytes, graphs, queries, registry)
+         inputs: inputs(args, subjects, goal_bytes, graphs, queries, registry, receipt_dirs)
        }}
     end
   end
@@ -361,8 +368,8 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
     end)
     |> Receipts.read()
     |> case do
-      {:ok, entries} -> {:ok, entries}
-      {:error, {ref, reason}} -> refused(:forbidden_input, ref, reason)
+      {:ok, entries, reports} -> {:ok, entries, reports}
+      {:error, {code, ref, detail}} -> refused(code, ref, detail)
     end
   end
 
@@ -414,7 +421,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
 
   defp provider(id), do: id |> String.split(":", parts: 2) |> hd()
 
-  defp inputs(args, subjects, goal_bytes, graphs, queries, registry) do
+  defp inputs(args, subjects, goal_bytes, graphs, queries, registry, receipt_dirs) do
     law =
       queries
       |> Enum.sort()
@@ -448,7 +455,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
       if(registry["present"],
         do: [%{"role" => "registry", "ref" => registry["ref"], "sha256" => registry["sha256"]}],
         else: []
-      ) ++ law
+      ) ++ receipt_dirs ++ law
   end
 
   # ── derivation ──────────────────────────────────────────────────────────
@@ -512,8 +519,8 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
   defp judge(order, world, closure) do
     subject = Subjects.for_repository(world.subjects, order.kernel["repository"])
     {scope, cross} = covered_scope(order.kernel["path_scope"] || [])
-    current = current_covered(subject, scope)
-    linked = link(order, world.receipts, subject, scope, current)
+    {covered_status, current} = current_covered(subject, scope)
+    linked = link(order, world.receipts, subject, scope, {covered_status, current})
     best = Receipts.best(linked.current)
     standing = if best, do: best.standing, else: "UNKNOWN"
 
@@ -525,6 +532,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
       scope: scope,
       cross_scope: cross,
       covered_commit: current,
+      covered_status: covered_status,
       receipt: best && receipt_json(best),
       receipt_standing: standing,
       invalidated: linked.invalidated,
@@ -551,14 +559,31 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
     {scope, Enum.sort(cross)}
   end
 
-  defp current_covered(nil, _scope), do: nil
+  # What HEAD shows for the covered scope: `{status, covered_commit | nil}`.
+  defp current_covered(nil, _scope), do: {"subject_unresolved", nil}
 
   defp current_covered(subject, scope) do
     case Git.covered_commit(subject.toplevel, subject.head_sha, scope) do
-      {:ok, sha} -> sha
-      :error -> nil
+      {:ok, nil} -> {"none_in_scope", nil}
+      {:ok, sha} -> {"observed", sha}
+      :error -> {"unreadable", nil}
     end
   end
+
+  # Whether a revision whose covered commit is `at` (a receipt's subject or
+  # a ledger event's candidate) still covers the order at HEAD. `:current`
+  # only for an observed, equal covered commit; every other outcome names
+  # why it is not current.
+  defp coverage({"observed", current}, {:ok, current}), do: :current
+  defp coverage({"observed", _current}, {:ok, _other}), do: {:stale, "subject_advanced"}
+  defp coverage({"none_in_scope", nil}, {:ok, _at}), do: {:stale, "scope_never_committed"}
+
+  defp coverage({"unreadable", nil}, {:ok, _at}),
+    do: {:stale, "current_covered_commit_unreadable"}
+
+  defp coverage({"subject_unresolved", nil}, {:ok, _at}), do: {:stale, "subject_unresolved"}
+
+  defp coverage(_current, :error), do: {:unreadable, "covered_commit_unreadable"}
 
   defp link(order, receipts, subject, scope, current) do
     local = order.iri && Graph.local_name(order.iri)
@@ -603,32 +628,35 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
     end
   end
 
-  defp currency(entry, subject, scope, current) do
+  defp currency(entry, subject, scope, {_status, current} = head) do
     sha = Receipts.identity(entry, "subject_sha")
+    at = Git.covered_commit(subject.toplevel, sha, scope)
 
-    item = %{
-      ref: entry.ref,
-      sha256: entry.sha256,
-      standing: Receipts.standing(entry),
-      subject_sha: sha
-    }
+    case coverage(head, at) do
+      :current ->
+        {:current,
+         %{
+           ref: entry.ref,
+           sha256: entry.sha256,
+           standing: Receipts.standing(entry),
+           subject_sha: sha,
+           covered_commit: current
+         }}
 
-    case Git.covered_commit(subject.toplevel, sha, scope) do
-      {:ok, ^current} when not is_nil(current) ->
-        {:current, Map.put(item, :covered_commit, current)}
+      {:stale, reason} ->
+        {:ok, at_receipt} = at
 
-      {:ok, at_receipt} ->
         {:invalidated,
          %{
            "ref" => entry.ref,
-           "reason" => "subject_advanced",
+           "reason" => reason,
            "receipt_subject_sha" => sha,
            "receipt_covered_commit" => at_receipt,
            "current_covered_commit" => current
          }}
 
-      :error ->
-        {:unlinked, "covered_commit_unreadable"}
+      {:unreadable, reason} ->
+        {:unlinked, reason}
     end
   end
 
@@ -671,26 +699,30 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
       event["definition_digest"] != elem(order.admission, 1)["definition_digest"] ->
         {:reject, "definition_digest_mismatch"}
 
-      event["to"] == "ALIVE" and stale_candidate?(order, subjects) ->
-        {:reject, "candidate_subject_advanced"}
+      event["to"] == "ALIVE" ->
+        order |> stale_candidate(subjects) |> candidate_verdict()
 
       true ->
         :apply
     end
   end
 
-  defp stale_candidate?(%{kernel: %{"candidate_sha" => sha}} = order, _subjects)
-       when is_binary(sha) do
-    case order.subject do
-      nil ->
-        false
+  defp candidate_verdict(nil), do: :apply
+  defp candidate_verdict(reason), do: {:reject, reason}
 
-      subject ->
-        Git.covered_commit(subject.toplevel, sha, order.scope) != {:ok, order.covered_commit}
+  # nil when the order's candidate SHA (if any) still covers its scope at
+  # HEAD, else the typed reason (`candidate_` + the coverage reason).
+  defp stale_candidate(%{kernel: %{"candidate_sha" => sha}, subject: subject} = order, _subjects)
+       when is_binary(sha) and not is_nil(subject) do
+    head = {order.covered_status, order.covered_commit}
+
+    case coverage(head, Git.covered_commit(subject.toplevel, sha, order.scope)) do
+      :current -> nil
+      {_stale_or_unreadable, reason} -> "candidate_" <> reason
     end
   end
 
-  defp stale_candidate?(_order, _subjects), do: false
+  defp stale_candidate(_order, _subjects), do: nil
 
   defp event_report(event, reason) do
     %{
@@ -731,6 +763,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
       "covered_scope" => order.scope,
       "cross_repository_scope" => order.cross_scope,
       "covered_commit" => order.covered_commit,
+      "covered_commit_status" => order.covered_status,
       "capability" => Map.get(order.fields, "capability", []),
       "tuple" => tuple_status(order.tuple),
       "tuple_digest" => tuple_digest(order.tuple),

@@ -19,6 +19,8 @@
 #      extracted from the Turtle independently of the task, by awk) is
 #      reconstructed: present in state.orders with a frontier class
 #      (eligible | blocked | settled), a standing and critical_path = true.
+# A receipts dir the state records "absent" is printed as a WARN line (not a
+# failure); an unreadable one is a typed refusal of the task (step 1 fails).
 #
 # Exit codes: 0 pass; 1 fail or typed refusal; 2 invalid invocation (inputs
 # missing); 75 machinery absent (the checkout under judgement has no
@@ -223,7 +225,13 @@ for path in files:
     digest = "sha256:" + hashlib.sha256(encoded.encode("utf-8")).hexdigest()
     if digest != doc["state_digest"]:
         fail.append(f"{path}: state_digest {doc['state_digest']} != recomputed {digest}")
-orders = json.load(open(files[0], encoding="utf-8"))["state"]["orders"]
+state0 = json.load(open(files[0], encoding="utf-8"))["state"]
+orders = state0["orders"]
+# A receipts dir that does not exist is reconstructed as "absent" (not an
+# error: the default list names dirs a checkout may not have yet); say so.
+for item in state0.get("inputs", []):
+    if item.get("role") == "receipts_dir" and item.get("status") != "read":
+        print(f"WARN: GC23-1 receipts dir {item.get('ref')} {item.get('status')}: no receipt read from it")
 for ident in required:
     order = orders.get(ident)
     if order is None:

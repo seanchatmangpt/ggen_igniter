@@ -41,16 +41,29 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Receipts do
           errors: [String.t()]
         }
 
+  @typedoc """
+  What reading one receipts directory observed, carried into the bootstrap
+  state's `inputs` (`status` `"read"` or `"absent"`, `receipts` = files read).
+  """
+  @type dir_report :: %{String.t() => String.t() | non_neg_integer()}
+
+  @typedoc "A refusal of the whole read: `{code, ref, detail}`."
+  @type refusal :: {:forbidden_input | :input_unreadable, String.t(), String.t()}
+
   @doc """
   Reads every `*.json` file directly inside each `{dir, ref}` (sorted by
-  name). A missing directory contributes nothing; a forbidden file path is a
-  refusal of the whole read.
+  name) and reports each directory. Only a directory that does not exist
+  (`enoent`) is tolerated: it contributes no receipt and is reported
+  `"absent"`, so the state shows it was not read (a mistyped `--receipts-dir`
+  cannot pass as an empty one). Any other listing or file-read error
+  (`eacces`, `enotdir`, ...) refuses the whole read `input_unreadable`; a
+  forbidden file path refuses it `forbidden_input`.
   """
-  @spec read([{Path.t(), String.t()}]) :: {:ok, [entry()]} | {:error, {String.t(), String.t()}}
+  @spec read([{Path.t(), String.t()}]) :: {:ok, [entry()], [dir_report()]} | {:error, refusal()}
   def read(dirs) do
-    Enum.reduce_while(dirs, {:ok, []}, fn {dir, ref}, {:ok, acc} ->
+    Enum.reduce_while(dirs, {:ok, [], []}, fn {dir, ref}, {:ok, entries, reports} ->
       case read_dir(dir, ref) do
-        {:ok, entries} -> {:cont, {:ok, acc ++ entries}}
+        {:ok, read, report} -> {:cont, {:ok, entries ++ read, reports ++ [report]}}
         {:error, _} = refusal -> {:halt, refusal}
       end
     end)
@@ -65,20 +78,32 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Receipts do
         |> Enum.map(&{Path.join(dir, &1), ref <> "/" <> &1})
         |> Enum.filter(fn {path, _ref} -> File.regular?(path) end)
         |> Enum.reduce_while({:ok, []}, &read_file/2)
+        |> case do
+          {:ok, entries} -> {:ok, entries, dir_report(ref, "read", length(entries))}
+          refusal -> refusal
+        end
 
-      {:error, _absent} ->
-        {:ok, []}
+      {:error, :enoent} ->
+        {:ok, [], dir_report(ref, "absent", 0)}
+
+      {:error, reason} ->
+        {:error, {:input_unreadable, ref, "receipts dir: #{:file.format_error(reason)}"}}
     end
   end
 
-  defp read_file({path, ref}, {:ok, acc}) do
-    case Guard.forbidden_path(path) do
-      nil ->
-        bytes = File.read!(path)
-        {:cont, {:ok, acc ++ [entry(ref, bytes)]}}
+  defp dir_report(ref, status, count),
+    do: %{"role" => "receipts_dir", "ref" => ref, "status" => status, "receipts" => count}
 
-      reason ->
-        {:halt, {:error, {ref, reason}}}
+  defp read_file({path, ref}, {:ok, acc}) do
+    with nil <- Guard.forbidden_path(path),
+         {:ok, bytes} <- File.read(path) do
+      {:cont, {:ok, acc ++ [entry(ref, bytes)]}}
+    else
+      {:error, reason} ->
+        {:halt, {:error, {:input_unreadable, ref, "receipt: #{:file.format_error(reason)}"}}}
+
+      forbidden when is_binary(forbidden) ->
+        {:halt, {:error, {:forbidden_input, ref, forbidden}}}
     end
   end
 

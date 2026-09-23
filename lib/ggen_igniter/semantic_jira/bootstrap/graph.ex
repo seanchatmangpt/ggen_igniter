@@ -15,7 +15,15 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Graph do
       `evidence_ceiling`, `authority_ceiling`, `consequence_class`,
       `exclusions` sorted), with `tuple_digest/1` byte-compatible with
       `mix xaas.stop_court` (Python `json.dumps(sort_keys=True,
-      separators=(",", ":"), ensure_ascii=False)`).
+      separators=(",", ":"), ensure_ascii=False)`). Each scalar must have
+      exactly one value (`{:incomplete, field}` / `{:ambiguous, field}`
+      otherwise); `sj:exclusion` is 0..n by the shared vocabulary contract,
+      so an order with no exclusion is complete and digests
+      `"exclusions":[]` -- the semantic-jira-pack `sj:FridayWorkOrderShape`
+      rule and xaas `Xaas.Sa2a.Route.admit_field/2`. (xaas
+      `mix xaas.stop_court`'s own `order_tuple` still reports such an order
+      `{:incomplete, "exclusions"}`; that xaas-side alignment belongs to lane
+      V23-K.)
 
   JSON work graphs (a kernel work-order array, or `{"work_orders": [...]}`,
   the shape `mix semantic_jira.frontier --work-orders` reads) are carried
@@ -184,7 +192,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Graph do
 
   @doc """
   The stop-court contract tuple digest: `"sha256:" <> hex(sha256(json))` over
-  the tuple keys sorted, `exclusions` sorted.
+  the tuple keys sorted, `exclusions` sorted (`[]` when the order has none).
   """
   @spec tuple_digest(map()) :: String.t()
   def tuple_digest(tuple) do
@@ -265,10 +273,10 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Graph do
         field -> {field, values_of.(field)}
       end)
 
+    # sj:exclusion is 0..n: no exclusion is the empty list, never incomplete.
     scalars
     |> Enum.reduce_while({:ok, %{"exclusions" => values_of.("exclusions")}}, &tuple_field/2)
     |> case do
-      {:ok, %{"exclusions" => []}} -> {:incomplete, "exclusions"}
       {:ok, tuple} -> {:ok, tuple, tuple_digest(tuple)}
       refusal -> refusal
     end

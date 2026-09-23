@@ -29,8 +29,11 @@ defmodule Mix.Tasks.SemanticJira.Bootstrap do
   refusal on stderr and exits 1, writing nothing: `llm_credential_present`
   (an `ANTHROPIC_*`/`CLAUDE_*`/`OPENAI_*`/`ZAI_*`/`Z_AI_*`/`GLM_*`/`ZCODE_*`
   variable is set; broken_term `mu_on_O`), `forbidden_input` (a path under
-  `.claude`/`.zcode` or naming a transcript), `input_unreadable`,
-  `input_invalid`, `goal_root`, `duplicate_work_order`, `ledger_refused`,
+  `.claude`/`.zcode` or naming a transcript), `input_unreadable` (also a
+  `--receipts-dir` or receipt file that exists but cannot be read; a
+  `--receipts-dir` that does not exist is not refused but recorded
+  `"status": "absent"` in the state's `inputs`), `input_invalid`,
+  `goal_root`, `duplicate_work_order`, `ledger_refused`,
   `absolute_path_in_state`, `usage`.
   """
 
