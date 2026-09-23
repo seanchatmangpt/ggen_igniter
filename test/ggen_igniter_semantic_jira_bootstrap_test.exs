@@ -424,48 +424,221 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
   end
 
   describe "run/1 TransitionLog (frontier_from_events/3)" do
-    test "an applicable ledger event moves standing and frontier; a stale definition does not",
+    # Independent of the product: the sha256 of the receipt file bytes.
+    defp file_digest(path),
+      do: "sha256:" <> Base.encode16(:crypto.hash(:sha256, File.read!(path)), case: :lower)
+
+    # TransitionLog's event_digest omits receipt_digest and definition_digest
+    # (SemanticJira.digest/1 drops them), so two events that differ only
+    # there are one event; a test that needs both writes a second ledger.
+    defp transition!(ledger, id, definition, to, receipt_digest) do
+      {:ok, _event, :appended} =
+        TransitionLog.append(ledger, %{
+          "kind" => "standing_transition_event",
+          "identity" => id,
+          "definition_digest" => definition,
+          "from" => "UNKNOWN",
+          "to" => to,
+          "receipt_digest" => receipt_digest,
+          "authority" => "NONE"
+        })
+    end
+
+    defp inapplicable(result),
+      do: Enum.map(result.state["ledger"]["inapplicable"], &{&1["identity"], &1["reason"]})
+
+    test "a ledger ALIVE with no current receipt behind it confers nothing; a stale definition neither",
          ctx do
       File.rm!(Path.join(ctx.receipts, "T-A.json"))
       before = run!(ctx)
       definition = order(before, "T-A")["definition_digest"]
       assert order(before, "T-B")["frontier"] == "blocked"
 
-      {:ok, _event, :appended} =
-        TransitionLog.append(ctx.ledger, %{
-          "kind" => "standing_transition_event",
-          "identity" => "T-A",
-          "definition_digest" => definition,
-          "from" => "UNKNOWN",
-          "to" => "ALIVE",
-          "receipt_digest" => "sha256:" <> String.duplicate("a", 64),
-          "authority" => "NONE"
-        })
+      # a fabricated receipt digest: no receipt file has these bytes
+      transition!(ctx.ledger, "T-A", definition, "ALIVE", "sha256:" <> String.duplicate("a", 64))
 
-      {:ok, _event, :appended} =
-        TransitionLog.append(ctx.ledger, %{
-          "kind" => "standing_transition_event",
-          "identity" => "T-B",
-          "definition_digest" => "sha256:" <> String.duplicate("b", 64),
-          "from" => "UNKNOWN",
-          "to" => "ALIVE",
-          "receipt_digest" => "sha256:" <> String.duplicate("c", 64),
-          "authority" => "NONE"
-        })
+      transition!(
+        ctx.ledger,
+        "T-B",
+        "sha256:" <> String.duplicate("b", 64),
+        "ALIVE",
+        "sha256:" <> String.duplicate("c", 64)
+      )
 
       result = run!(ctx)
 
-      assert %{"standing" => "ALIVE", "standing_source" => "ledger", "frontier" => "settled"} =
+      assert %{"standing" => "UNKNOWN", "standing_source" => "none", "frontier" => "eligible"} =
                order(result, "T-A")
 
-      assert order(result, "T-B")["frontier"] == "eligible"
-      assert order(result, "T-B")["standing"] == "UNKNOWN"
-      assert %{"events" => 2, "applied" => 1, "present" => true} = result.state["ledger"]
+      assert order(result, "T-A") == order(before, "T-A")
+      assert order(result, "T-B")["frontier"] == "blocked"
+      assert order(result, "T-B")["frontier_reason"] == "dependencies_unsatisfied"
+      assert %{"events" => 2, "applied" => 0, "present" => true} = result.state["ledger"]
 
-      assert [%{"identity" => "T-B", "reason" => "definition_digest_mismatch"}] =
-               result.state["ledger"]["inapplicable"]
+      assert inapplicable(result) == [
+               {"T-A", "receipt_digest_unresolved"},
+               {"T-B", "definition_digest_mismatch"}
+             ]
+    end
 
-      assert result.digest != before.digest
+    test "a ledger event bound to a current receipt applies; deleting the receipt (F5) or a covered-path commit (F6) withdraws it",
+         ctx do
+      receipt_path = Path.join(ctx.receipts, "T-A.json")
+      receipt_bytes = File.read!(receipt_path)
+      receipt_digest = file_digest(receipt_path)
+      before = run!(ctx)
+      assert order(before, "T-A")["receipt"]["sha256"] == receipt_digest
+      definition = order(before, "T-A")["definition_digest"]
+
+      transition!(ctx.ledger, "T-A", definition, "ALIVE", receipt_digest)
+      # the same receipt does not carry BLOCKED: this event confers nothing
+      transition!(ctx.ledger, "T-A", definition, "BLOCKED", receipt_digest)
+
+      bound = run!(ctx)
+
+      assert %{"standing" => "ALIVE", "standing_source" => "ledger", "frontier" => "settled"} =
+               order(bound, "T-A")
+
+      assert order(bound, "T-B")["frontier"] == "eligible"
+      assert %{"events" => 2, "applied" => 1} = bound.state["ledger"]
+      assert inapplicable(bound) == [{"T-A", "receipt_standing_mismatch"}]
+
+      # F5: the receipt the event names is deleted -> the event is unresolved
+      File.rm!(receipt_path)
+      deleted = run!(ctx)
+
+      assert %{"standing" => "UNKNOWN", "standing_source" => "none", "frontier" => "eligible"} =
+               order(deleted, "T-A")
+
+      assert order(deleted, "T-B")["frontier"] == "blocked"
+      assert %{"applied" => 0} = deleted.state["ledger"]
+
+      assert inapplicable(deleted) == [
+               {"T-A", "receipt_digest_unresolved"},
+               {"T-A", "receipt_digest_unresolved"}
+             ]
+
+      # restoring the same bytes restores the binding
+      File.write!(receipt_path, receipt_bytes)
+      assert run!(ctx).digest == bound.digest
+
+      # F6: a commit on the covered path invalidates the receipt -> not current
+      advanced =
+        commit!(ctx.repo, "lib/a.ex", "defmodule A do\n  def f6, do: :ok\nend\n", "lib: advance")
+
+      stale = run!(ctx)
+      t_a = order(stale, "T-A")
+
+      assert %{"standing" => "UNKNOWN", "standing_source" => "none", "frontier" => "eligible"} =
+               t_a
+
+      assert [
+               %{
+                 "reason" => "subject_advanced",
+                 "sha256" => ^receipt_digest,
+                 "current_covered_commit" => ^advanced
+               }
+             ] = t_a["invalidated"]
+
+      assert order(stale, "T-B")["frontier"] == "blocked"
+      assert %{"applied" => 0} = stale.state["ledger"]
+
+      assert inapplicable(stale) == [
+               {"T-A", "receipt_not_current"},
+               {"T-A", "receipt_not_current"}
+             ]
+    end
+
+    test "a ledger UNKNOWN (a demotion) applies without a receipt and returns the order to the frontier",
+         ctx do
+      definition = order(run!(ctx), "T-A")["definition_digest"]
+      transition!(ctx.ledger, "T-A", definition, "UNKNOWN", nil)
+      result = run!(ctx)
+
+      assert %{"standing" => "UNKNOWN", "standing_source" => "ledger", "frontier" => "eligible"} =
+               order(result, "T-A")
+
+      assert %{"applied" => 1, "inapplicable" => []} = result.state["ledger"]
+      assert order(result, "T-B")["frontier"] == "blocked"
+    end
+
+    # T-C carries sj:candidateSha = the first covered commit; its receipt is
+    # re-bound to each new covered commit so the receipt stays current while
+    # only the candidate goes stale.
+    defp candidate_graph!(ctx) do
+      path = Path.join(ctx.dir, "candidate-order.ttl")
+
+      File.write!(path, """
+      @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+      @prefix t: <https://ggen-igniter.dev/sjira/bootstrap-fixture#> .
+      @prefix dcterms: <http://purl.org/dc/terms/> .
+      t:cap-c a sj:Capability ; sj:capabilityId "recipe:fixture-c" .
+      t:WO-T-C a sj:WorkOrder ;
+        dcterms:identifier "T-C" ; dcterms:title "Fixture order C" ;
+        dcterms:description "Carries a candidate SHA over lib/." ;
+        sj:repository "fixture/subject" ;
+        sj:baseSha "1111111111111111111111111111111111111111" ;
+        sj:candidateSha "#{ctx.covered}" ;
+        sj:subject "fixture:order-c" ; sj:pathScope "lib/" ;
+        sj:evidenceCeiling "EXECUTED_VERIFIED" ; sj:authorityCeiling "CONSTRUCT" ;
+        sj:authorityRequirement "NONE" ;
+        sj:promotionRule "Standing advances only from receipts." ;
+        sj:replayIdentity "semantic-jira:fixture:T-C" ;
+        sj:requiresCourt t:court-T-C ; sj:requiresEvidence sj:receipt-evidence ;
+        sj:requiresReceiptClass "verification" ; sj:acceptance t:acceptance-T-C ;
+        sj:falsifier t:falsifier-T-C ; sj:projection sj:markdown-projection ;
+        sj:checkpointOf t:G-1 ; sj:postcondition "Order C postcondition." ;
+        sj:requiresCapability t:cap-c ; sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+        sj:consequenceClass "verification" ;
+        sj:successorPolicy "discovered work -> t:GC-T-next" .
+      """)
+
+      path
+    end
+
+    test "an ALIVE event of an order with sj:candidateSha applies only while the candidate covers its scope",
+         ctx do
+      graph = candidate_graph!(ctx)
+      first = order(run!(ctx, graphs: [graph]), "T-C")
+      assert "sha256:" <> _ = tuple = first["tuple_digest"]
+      definition = first["definition_digest"]
+      receipt_path = Path.join(ctx.receipts, "T-C.json")
+
+      File.write!(receipt_path, Jason.encode!(receipt(ctx.covered, "ALIVE", tuple, "T-C")))
+      transition!(ctx.ledger, "T-C", definition, "ALIVE", file_digest(receipt_path))
+
+      assert %{"standing" => "ALIVE", "standing_source" => "ledger"} =
+               order(run!(ctx, graphs: [graph]), "T-C")
+
+      # the covered path advances; the receipt is re-bound to the new commit
+      # (current), the candidate SHA is not
+      advanced =
+        commit!(ctx.repo, "lib/a.ex", "defmodule A do\n  def c, do: :ok\nend\n", "lib: advance")
+
+      File.write!(receipt_path, Jason.encode!(receipt(advanced, "ALIVE", tuple, "T-C")))
+
+      # the first event names the replaced receipt bytes: unresolved; the
+      # current receipt alone confers ALIVE
+      rebound = run!(ctx, graphs: [graph])
+
+      assert %{"standing" => "ALIVE", "standing_source" => "receipt", "invalidated" => []} =
+               order(rebound, "T-C")
+
+      assert order(rebound, "T-C")["receipt"]["subject_sha"] == advanced
+
+      assert Enum.filter(inapplicable(rebound), &(elem(&1, 0) == "T-C")) == [
+               {"T-C", "receipt_digest_unresolved"}
+             ]
+
+      # an ALIVE event bound to the CURRENT receipt is still refused, because
+      # the order's candidate SHA no longer covers lib/ at HEAD
+      ledger2 = Path.join(ctx.dir, "ledger2/standing-ledger.ndjson")
+      transition!(ledger2, "T-C", definition, "ALIVE", file_digest(receipt_path))
+      result = run!(ctx, graphs: [graph], ledger: ledger2)
+
+      assert %{"standing" => "ALIVE", "standing_source" => "receipt"} = order(result, "T-C")
+      assert %{"events" => 1, "applied" => 0} = result.state["ledger"]
+      assert inapplicable(result) == [{"T-C", "candidate_subject_advanced"}]
     end
 
     test "a tampered ledger is refused", ctx do
@@ -609,6 +782,24 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
       after
         File.chmod!(unreadable, 0o644)
       end
+    end
+
+    test "a *.json entry that is not a readable file (dangling symlink, directory) is refused, not skipped",
+         ctx do
+      dangling = Path.join(ctx.receipts, "dangling.json")
+      File.ln_s!(Path.join(ctx.dir, "gone.json"), dangling)
+
+      assert {:refused, [%{code: :input_unreadable, subject: subject, detail: detail}]} =
+               Bootstrap.run(opts(ctx))
+
+      assert subject == "fixture/subject:receipts/dangling.json"
+      assert detail =~ "no such file or directory"
+
+      File.rm!(dangling)
+      File.mkdir_p!(Path.join(ctx.receipts, "nested.json"))
+
+      assert {:refused, [%{code: :input_unreadable, subject: subject}]} = Bootstrap.run(opts(ctx))
+      assert subject == "fixture/subject:receipts/nested.json"
     end
   end
 

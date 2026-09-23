@@ -67,10 +67,23 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
   changed a covered path), `unreadable` (the git read failed) or
   `subject_unresolved` -- and an invalidated receipt carries the matching
   reason: `subject_advanced` only for an observed later change,
-  `scope_never_committed` and `current_covered_commit_unreadable` otherwise. A ledger event applies only when
-  its `definition_digest` equals the order's current kernel definition
-  digest, and an ALIVE event of an order with `candidate_sha` applies only
-  while that SHA still covers the order's path scope.
+  `scope_never_committed` and `current_covered_commit_unreadable` otherwise.
+
+  A ledger event is a transition record, not a source of standing. It
+  applies only when its `definition_digest` equals the order's current
+  kernel definition digest and, unless its `to` is `UNKNOWN` (a demotion
+  confers nothing and only returns the order to the frontier), only when its
+  `receipt_digest` is the `sha256` of a CURRENT linked receipt of that order
+  whose kernel standing equals `to` (`receipt_binding/2`). Otherwise the
+  event is reported inapplicable: `receipt_not_current` (it names a receipt
+  of the order that the covered-path law invalidated), `receipt_digest_unresolved`
+  (it names no linked receipt of the order: absent, deleted, unlinked or
+  fabricated) or `receipt_standing_mismatch` (the receipt it names carries
+  another standing). So a ledger line cannot confer a standing that no
+  current receipt carries: deleting the receipt (F5) or a commit on the
+  covered path (F6) withdraws the event's standing together with the
+  receipt's. An ALIVE event of an order with `candidate_sha` additionally
+  applies only while that SHA still covers the order's path scope.
 
   The state carries no timestamp, no absolute path and no home directory
   (`Guard.absolute_paths/1` refuses `absolute_path_in_state`), so two cold
@@ -535,6 +548,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
       covered_status: covered_status,
       receipt: best && receipt_json(best),
       receipt_standing: standing,
+      current_receipts: linked.current,
       invalidated: linked.invalidated,
       unlinked: linked.unlinked,
       critical_path: critical_path?(order, closure),
@@ -649,6 +663,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
         {:invalidated,
          %{
            "ref" => entry.ref,
+           "sha256" => entry.sha256,
            "reason" => reason,
            "receipt_subject_sha" => sha,
            "receipt_covered_commit" => at_receipt,
@@ -699,6 +714,12 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
       event["definition_digest"] != elem(order.admission, 1)["definition_digest"] ->
         {:reject, "definition_digest_mismatch"}
 
+      event["to"] == "UNKNOWN" ->
+        :apply
+
+      reason = receipt_binding(event, order) ->
+        {:reject, reason}
+
       event["to"] == "ALIVE" ->
         order |> stale_candidate(subjects) |> candidate_verdict()
 
@@ -709,6 +730,26 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
 
   defp candidate_verdict(nil), do: :apply
   defp candidate_verdict(reason), do: {:reject, reason}
+
+  # nil when the event's `receipt_digest` is the sha256 of a CURRENT linked
+  # receipt of the order and that receipt's kernel standing is the event's
+  # `to`; else the typed reason the event confers nothing (PR-006, ARD
+  # sections 7 and 28: a ledger literal is not a receipt).
+  defp receipt_binding(event, order) do
+    digest = event["receipt_digest"]
+
+    case Enum.find(order.current_receipts, &(&1.sha256 == digest)) do
+      %{standing: standing} ->
+        if Receipts.kernel_standing(standing) == event["to"],
+          do: nil,
+          else: "receipt_standing_mismatch"
+
+      nil ->
+        if is_binary(digest) and Enum.any?(order.invalidated, &(&1["sha256"] == digest)),
+          do: "receipt_not_current",
+          else: "receipt_digest_unresolved"
+    end
+  end
 
   # nil when the order's candidate SHA (if any) still covers its scope at
   # HEAD, else the typed reason (`candidate_` + the coverage reason).

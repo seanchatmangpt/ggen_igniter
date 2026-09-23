@@ -56,8 +56,10 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Receipts do
   (`enoent`) is tolerated: it contributes no receipt and is reported
   `"absent"`, so the state shows it was not read (a mistyped `--receipts-dir`
   cannot pass as an empty one). Any other listing or file-read error
-  (`eacces`, `enotdir`, ...) refuses the whole read `input_unreadable`; a
-  forbidden file path refuses it `forbidden_input`.
+  (`eacces`, `enotdir`, ...) refuses the whole read `input_unreadable`,
+  including a `*.json` entry that is not a readable file (a dangling symlink
+  reads `enoent`, a directory `eisdir`): no receipt-named entry is skipped
+  silently. A forbidden file path refuses the read `forbidden_input`.
   """
   @spec read([{Path.t(), String.t()}]) :: {:ok, [entry()], [dir_report()]} | {:error, refusal()}
   def read(dirs) do
@@ -76,7 +78,6 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Receipts do
         |> Enum.filter(&String.ends_with?(&1, ".json"))
         |> Enum.sort()
         |> Enum.map(&{Path.join(dir, &1), ref <> "/" <> &1})
-        |> Enum.filter(fn {path, _ref} -> File.regular?(path) end)
         |> Enum.reduce_while({:ok, []}, &read_file/2)
         |> case do
           {:ok, entries} -> {:ok, entries, dir_report(ref, "read", length(entries))}
