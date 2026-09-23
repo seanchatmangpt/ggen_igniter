@@ -1,0 +1,194 @@
+{
+ "work_order": {
+  "id": "FRI-T6",
+  "title": "Adopt the stalled WO-03 restore (mix semantic_jira.* surface) and fix-forward its defects: cli.ex TransitionLog.read list, build_xaas_contract admission, provider parameter, file-or-directory ledger",
+  "checkpoint": "GC-FRI-0800 gate G6 hop 3 (frontier -> XaaS descriptor, provider-parametric) + G8 graph-side witness (closed frontier diff through reconcile)",
+  "acceptance": "mix format --check-formatted && mix compile --warnings-as-errors && mix credo && mix test test/ggen_igniter_semantic_jira_cli_test.exs test/ggen_igniter_semantic_jira_reconcile_task_test.exs test/ggen_igniter_semantic_jira_descriptor_test.exs all exit 0; frontier prints the eligible order; descriptor --provider recipe emits non-nil digests and provider recipe; reconcile of an ALIVE receipt moves the order out of the frontier and its dependent in",
+  "adopted_from": "preserve/v26.9.22/wo-03-wip 2d1fadb (30 paths vs facdf0d)"
+ },
+ "identity": {
+  "subject": "FRI-T6",
+  "repo": "/Users/sac/ggen_igniter",
+  "worktree": "/Users/sac/wt/v26922/fri/FRI-T6",
+  "branch": "fri/FRI-T6",
+  "subject_sha": "95069e217b5ccfd84a4aedd104cc7002f2ce66eb",
+  "base_sha": "5984ec480c2318e86aa621da5f496e5e014b0fac",
+  "base_ref": "friday/gc-fri-0800",
+  "graph_hash": "sha256:3f91223d3b298bffbe0a4d43b15b372b840cb95479ca6a6292f673555a2ea6e7",
+  "graph_hash_of": "bytes of test/fixtures/semantic_jira/friday_work_orders.json (FRI-FMT-A, FRI-FMT-B requiresReceipt ALIVE on FRI-FMT-A; evidence_ceiling repository-local)",
+  "prior_subject_sha": "33c8e86a73e7b3fc89e48ecadb6a312a5b61878f"
+ },
+ "authority": {
+  "ceiling": "CONSTRUCT",
+  "grant": "NONE",
+  "actor": "claude-opus-5-5 subagent, Friday workflow lane FRI-T6 (local commits on fri/FRI-T6 only; no push, no merge into friday/gc-fri-0800, no remote effect)"
+ },
+ "consequence": {
+  "commits": [
+   "33c8e86a73e7b3fc89e48ecadb6a312a5b61878f",
+   "28ca75b959cda88a919f8edd39651ade41a347a8",
+   "95069e217b5ccfd84a4aedd104cc7002f2ce66eb"
+  ],
+  "files_changed": [
+   "lib/ggen_igniter/crown.ex",
+   "lib/ggen_igniter/semantic_jira.ex",
+   "lib/ggen_igniter/semantic_jira/cli.ex",
+   "lib/ggen_igniter/semantic_jira/court_map.ex",
+   "lib/ggen_igniter/semantic_jira/descriptor.ex",
+   "lib/ggen_igniter/semantic_jira/git_ground_truth.ex",
+   "lib/ggen_igniter/semantic_jira/observation.ex",
+   "lib/ggen_igniter/semantic_jira/reconciler.ex",
+   "lib/ggen_igniter/semantic_jira/transition_log.ex",
+   "lib/mix/tasks/semantic_jira.court_map.ex",
+   "lib/mix/tasks/semantic_jira.descriptor.ex",
+   "lib/mix/tasks/semantic_jira.frontier.ex",
+   "lib/mix/tasks/semantic_jira.observe.ex",
+   "lib/mix/tasks/semantic_jira.reconcile.ex",
+   "lib/mix/tasks/semantic_jira.xaas_receipt.ex",
+   "priv/ggen/semantic-jira-pack/VOCABULARY.md",
+   "priv/ggen/semantic-jira-pack/gates/010_work_order_subjects.rq",
+   "priv/ggen/semantic-jira-pack/gates/020_work_orders.rq",
+   "priv/ggen/semantic-jira-pack/gates/046_alive_receipt_crown.rq",
+   "priv/ggen/semantic-jira-pack/gates/050_frontier.rq",
+   "priv/ggen/semantic-jira-pack/gates/055_standing_projection.rq",
+   "priv/ggen/semantic-jira-pack/templates/jira.md.eex",
+   "priv/ggen/semantic-jira-pack/templates/vision.md.eex",
+   "test/fixtures/semantic_jira/friday_work_orders.json",
+   "test/ggen_igniter_semantic_jira_cli_test.exs",
+   "test/ggen_igniter_semantic_jira_descriptor_test.exs",
+   "test/ggen_igniter_semantic_jira_pack_test.exs",
+   "test/ggen_igniter_semantic_jira_reconcile_task_test.exs",
+   "receipts/v26.9.22/FRI-T6.json"
+  ],
+  "remote_effects": [],
+  "not_adopted_for_FRI_T1": {
+   "ontology.ttl (wo-03-wip vs facdf0d, +427/-?)": [
+    "@prefix oslc_cm: / prov: + vocabulary-reduction header comment",
+    "sj:WorkOrder comment; dual typing `a sj:WorkOrder, oslc_cm:ChangeRequest` on SJ-001 and GALL-001..GALL-032",
+    "sj:Receipt PROV-O comment; sj:StandingTransition relabel + comment",
+    "event-sourced standing law properties: sj:definitionDigest sj:snapshotDigest sj:transitionId sj:transitionWorkOrder sj:transitionEvidence sj:finalHead",
+    "W6-A8 crown section: courts/acceptance/falsifiers/actions/checkpoints + sj:crown-001, sj:crown-002, edge-crown-002-from-001, prov:SoftwareAgent subClassOf prov:Agent, sj:reconciler-agent, sj:fabric-worker-agent, sj:fabric-run-crown-001, sj:receipt-crown-001, sj:transition-d8146461, sj:transition-94bce0c9",
+    "W7-A8 crown v2: sj:obs-275a1f5e4de7 (CROWN2-001), sj:obs-0f28c1c08d6c (CROWN2-002) + acceptance/falsifier/action/checkpoint nodes (with repeated mid-file @prefix lines)"
+   ],
+   "shapes/work-order.shacl.ttl (+216/-53)": "hunks @@ -1,23 / -47,18 / -91,12 / -105,7 (WorkOrderShape), -117,10 (after PredictionShape), -130,6 (StandingTransitionShape), -158,28 (LeaseRequestShape), -187,51 (GlobalIntegrityShape), -288,6 (after a2a:SkillShape)",
+   "lib/ggen_igniter/semantic_jira/shacl.ex": "RDF.Description.include?/2 -> get/3 on sh:targetSubjectsOf; FRI-T1 carries an equivalent fix (RDF.Description.first/2) on the same line, so it was dropped here to avoid a same-line conflict",
+   "tests": "test/ggen_igniter_crown_test.exs, test/ggen_igniter_semantic_jira_vocabulary_test.exs, test/ggen_igniter_semantic_jira_event_sourcing_test.exs, and the pack-test 33 -> 37 count hunks: they fail without the ontology/shape hunks (baseline with them checked out: 33 failures in 133 tests, all ontology/shape-coupled); restore with `git checkout preserve/v26.9.22/wo-03-wip -- <path>` after FRI-T1 lands"
+  }
+ },
+ "replay": {
+  "commands": [
+   {
+    "cmd": "git worktree add -b fri/FRI-T6 /Users/sac/wt/v26922/fri/FRI-T6 friday/gc-fri-0800",
+    "cwd": "/Users/sac/ggen_igniter",
+    "exit": 0,
+    "summary": "HEAD 5984ec480c2318e86aa621da5f496e5e014b0fac"
+   },
+   {
+    "cmd": "git checkout preserve/v26.9.22/wo-03-wip --pathspec-from-file=<27 paths: wo-03-wip vs facdf0d minus deps symlink, ontology.ttl, shapes/*>",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "Updated 27 paths from 5a98f5a"
+   },
+   {
+    "cmd": "mix format --check-formatted",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "at subject_sha 95069e2, clean tree",
+    "output_sha256": "021af2067f739bc652a92b28c6c03fefd316e644ad91a87addb0d041f82aa857"
+   },
+   {
+    "cmd": "mix compile --warnings-as-errors --force",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "Compiling 91 files (.ex); Generated ggen_igniter app; at subject_sha 95069e2",
+    "output_sha256": "ef20296fd78a2f5d7e5de3dcfb2d2ac68d88ee20917743f0f948a1aace2c0a10"
+   },
+   {
+    "cmd": "mix credo",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "2599 mods/funs, found no issues; at subject_sha 95069e2",
+    "output_sha256": "ded45b8ec2139c4c4f27f4686439aeae9f3e7665f0568559b6cf232876acc355"
+   },
+   {
+    "cmd": "mix test test/ggen_igniter_semantic_jira_cli_test.exs test/ggen_igniter_semantic_jira_reconcile_task_test.exs test/ggen_igniter_semantic_jira_descriptor_test.exs",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "34 tests, 0 failures at subject_sha 95069e2 (30 prior + 4 court-repair refusal tests; includes real mix subprocess chain frontier -> descriptor --provider recipe -> xaas_receipt -> reconcile -> frontier and 3 xaas_receipt refusal subprocesses)",
+    "output_sha256": "19fe121febb013341974843ba3a647872ef2367105586b601a2bb462e56eb177"
+   },
+   {
+    "cmd": "! grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps -E '(use|import) +(Mox|Mimic|Patch)\\b|(Mox|Mimic|Patch)\\.|:meck\\.|mockall|MagicMock|Mock\\(' test lib native",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "zero matches at subject_sha 95069e2 (negated so a match would exit 1)"
+   },
+   {
+    "cmd": "mix test test/ggen_igniter_semantic_jira_pack_test.exs:856",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "1 test, 0 failures (62 excluded) at subject_sha 95069e2 (pack gate tripwire: 13 gates)",
+    "output_sha256": "f7a23c1df07994fb5b4809bc2551dba25b75b14e03a80c9309b840d9b1fddf14"
+   }
+  ],
+  "durable_location": "receipts/v26.9.22/FRI-T6.json"
+ },
+ "standing": {
+  "value": "ALIVE",
+  "derived_from": "format/compile/credo/3-file test/mock-grep/pack-tripwire commands above, executed at subject_sha 95069e2 on a clean tree; G8 graph-side before/after frontier diff observed through real mix subprocesses (FRI-FMT-A eligible -> blocked standing=ALIVE; FRI-FMT-B blocked -> eligible); xaas_receipt digest/shape refusals observed as typed JSON through real mix subprocesses; each fix (M1-M7 at 33c8e86, M8-M10 at 95069e2) killed by its revert mutation",
+  "scope": "the FRI-T6 subject only: the adopted non-reserved WO-03 paths, the four named fixes, the receipt_from_xaas -> reconcile contract fix, and the court-repair typed-refusal fix for receipt_from_xaas digest/shape refusals. The deferred ontology/shape-coupled WO-03 content is not claimed; the xaas side of G6/G8 (RecipeWorker, SemanticCrown.drive/1, real sealed receipts) is not exercised here: the sealed XaaS receipt in the G8 tests is contract-shaped input data"
+ },
+ "findings": [
+  "TransitionLog event_digest is SemanticJira.digest/1, which elides definition_digest/receipt_digest/transition_digest: fetch/1 cannot detect tampering of those event fields, and two receipts for the same from->to transition on the same snapshot collapse to one event (already_recorded). Successor: digest events with digest_exact/1 plus a ledger-format version.",
+  "Descriptor.dependency/3 binds upstream receipt_digest from the event, whose own digest does not cover receipt_digest (same root cause as above).",
+  "A stale <ledger>.ndjson.lock left by a crashed writer blocks appends after 500 x 10 ms with {:ledger_locked, lock}; no stale-lock recovery.",
+  "Court finding (fixed in 95069e2): receipt_from_xaas digest/shape refusals were bare atoms and crashed Cli.xaas_receipt with CaseClauseError; failure was fail-closed (no reconciler receipt written) and predated FRI-T6 (present in preserve/v26.9.22/wo-03-wip descriptor.ex:512/515)."
+ ],
+ "falsification": {
+  "note": "runs that were expected to fail (RED before the fixes, revert-mutations) or that exposed a coupling fixed before commit; they justify the fixes, not the standing",
+  "runs": [
+   {
+    "cmd": "mix test test/ggen_igniter_semantic_jira_cli_test.exs test/ggen_igniter_semantic_jira_reconcile_task_test.exs test/ggen_igniter_semantic_jira_descriptor_test.exs (RED, tests written before the fixes)",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 2,
+    "summary": "30 tests, 17 failures: WithClauseError [] at cli.ex:51 and :80; File.Error mkdir_p on standing-ledger.ndjson; Protocol.UndefinedError nil in Descriptor.scope_lines (unadmitted row)",
+    "output_sha256": "a91dca7c8d09073e714dd2c781944cd6bf23974c3aca45449a0227f59d217c01"
+   },
+   {
+    "cmd": "python3 scratchpad/mutate.py (revert each fix alone, run its test file, restore)",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "M1 cli.frontier read/1: 9 tests 4 failures; M2 cli.descriptor read/1: 9 tests 5 failures; M3 no admission: 15 tests 4 failures; M4 provider hardcoded: 15 tests 1 failure; M5 file ledger -> mkdir_p dir: 6 tests 3 failures; M6 no reconciler contract keys: 6 tests 1 failure; M7 no digest verification: 9 tests 1 failure"
+   },
+   {
+    "cmd": "mix test <14 semantic-jira-adjacent files incl. test/ggen_igniter_semantic_jira_pack_test.exs> (pre-commit tree, before the 12->13 gate-count hunk)",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 2,
+    "summary": "175 tests, 1 failure: pack gate tripwire expected 12 gates, found 13 (adopted gates/055); fixed by adopting the wo-03-wip 12->13 hunk; rerun of test/ggen_igniter_semantic_jira_pack_test.exs:856 -> 1 test, 0 failures",
+    "output_sha256": "cdc997de2d42f38e2ca3fff7563ef2fece8a1011f8f63f9c61d635ef0bbc185c"
+   },
+   {
+    "cmd": "mix test test/ggen_igniter_semantic_jira_reconcile_task_test.exs --only describe:<xaas_receipt refusal> --only describe:<receipt_from_xaas @spec shape> (RED, tests written before the court-repair fix, at 28ca75b + tests)",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 2,
+    "summary": "4 tests, 4 failures: CaseClauseError no case clause matching :receipt_digest_mismatch / :invalid_receipt_digest at cli.ex:108 (subprocess); match failed left {:error, {:receipt_refused, :receipt_digest_mismatch}} right :receipt_digest_mismatch (in-process)"
+   },
+   {
+    "cmd": "python3 scratchpad/mut.py (revert each court-repair call site alone to refuse/1, run the 4 new tests, restore; cmp byte-identical after)",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "M8 not_a_map (line 279): 4 tests, 2 failures; M9 invalid_receipt_digest (line 551): 4 tests, 2 failures; M10 receipt_digest_mismatch (line 554): 4 tests, 2 failures; restored True; cmp identical"
+   }
+  ]
+ },
+ "court_repair": {
+  "verdict": "refuted (court lens GATE FRI-T6 at 28ca75b)",
+  "broken_term": "Descriptor.receipt_from_xaas/2 returned bare atoms (:receipt_digest_mismatch, :invalid_receipt_digest, :not_a_map) via the descriptor pass-through refuse/1 at descriptor.ex:279/551/554, so Cli.xaas_receipt case at cli.ex:108 raised CaseClauseError instead of emitting typed refusal JSON",
+  "repair_commit": "95069e217b5ccfd84a4aedd104cc7002f2ce66eb",
+  "fix": "descriptor.ex:279, :551, :554 refuse/1 -> receipt_refuse/1, returning {:error, {:receipt_refused, reason}} per the @spec; remaining refuse/1 callers (lines 59-62, 114-115) wrap {:ok,_}|{:error,_} results where pass-through is correct",
+  "tests_added": [
+   "test/ggen_igniter_semantic_jira_reconcile_task_test.exs describe \"mix semantic_jira.xaas_receipt (a bad sealed receipt is a typed refusal, not a crash)\": 3 real mix subprocess tests (tampered after sealing -> receipt_digest_mismatch; no receipt_digest -> invalid_receipt_digest; JSON array -> not_a_map); each asserts exit 1, stderr JSON {status: refused, reason: [receipt_refused, <reason>]}, no CaseClauseError, no --out file",
+   "same file describe \"Descriptor.receipt_from_xaas/2 (every refusal honours the @spec shape)\": in-process shape check for all digest/shape refusals incl. malformed digest and non-map bridge, plus Cli.xaas_receipt -> {1, typed refusal}"
+  ]
+ }
+}

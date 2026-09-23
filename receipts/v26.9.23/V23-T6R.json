@@ -1,0 +1,432 @@
+{
+ "work_order": {
+  "id": "V23-T6R",
+  "wave": "B1b (continuation of B1)",
+  "title": "Repair-forward the FRI-T6 adoption of the WO-03 restore; round 2 answers the round-1 DOCTRINE court (R1 HANDWRITTEN rows, R2 undeclared oslc_cm UNION, R3 unrun/overclaimed mutations, secondary LLM default provider)",
+  "contract": "docs/sjira/v26.9.23/prd-ard.md sha256:7c8797b2bc9130fc4c8fce9138cc8140cb704e0633715807398451c660658212 (PRD PR-008 semantic conservation / refusal on field loss, PR-009 deterministic KNOWN execution, PR-015 reuse->compose->extend->invent; ARD AR-002 generated code is a projection, section 7 standing model, section 9 provider resolution)",
+  "acceptance": "lane gate on the committed head: mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test (all files) exit 0; R1/R2/R3/secondary each answered by a commit; every mutation named below was actually run on this round's tree and its real exit recorded, survivors recorded as survivors",
+  "prior_receipts": [
+   "receipts/v26.9.23/V23-T6R.json @ a5e72a8 (round 1: ALIVE claim at bc8ea06; REVERT-MUTATION court passed, DOCTRINE court refuted: R1, R2, R3, secondary)",
+   "receipts/v26.9.22/FRI-T6.json (ALIVE claim at 95069e2, refuted by the Friday DOCTRINE court round 2)"
+  ]
+ },
+ "identity": {
+  "subject": "V23-T6R",
+  "repo": "/Users/sac/ggen_igniter",
+  "worktree": "/Users/sac/wt/v26922/fri/FRI-T6",
+  "branch": "fri/FRI-T6",
+  "subject_sha": "17925993e9d7b46023f8bd21dce6178b4d84a44b",
+  "base_sha": "4e5d19699c8b291cad83dccce57dc2f2be6df5b2",
+  "base_ref": "friday/gc-fri-0800 (4e5d19699c8b291cad83dccce57dc2f2be6df5b2) = merge-base after this round's merge 182121f (V23-C integrated). Round-1 base 52798a0.",
+  "prior_subject_sha": "bc8ea06d7fa4e249283f2b8fcd00fef5128b4151",
+  "graph_hash": "sha256:45296a20f4ffd2ef99db7a3698122d7191dcb86580599c6b7ca7a01d4b16f402",
+  "graph_hash_of": "bytes of priv/ggen/semantic-jira-pack/ontology.ttl at subject_sha (FRI-T1 + V23-C content via friday merges; not edited by this lane)",
+  "work_order": "none: repair lanes V23-T1R/T2R/T6R have no v23 order (DRIVER.md receipt linking); receipt is not linked"
+ },
+ "authority": {
+  "ceiling": "CONSTRUCT",
+  "grant": "NONE",
+  "actor": "claude-opus-5-5 subagent, v26.9.23 wave B1b lane V23-T6R (local commits on fri/FRI-T6 only; no push, no merge into friday/gc-fri-0800, no remote effect)"
+ },
+ "consequence": {
+  "commits": [
+   "182121f31ce8a66b4ac6e06f43919a7ff31fc4d3",
+   "00d52d54733d9ef75da449d16b35a953d8b5f592",
+   "cc61f2d2471767908065ea6a2e8e9be0f865d819",
+   "dda8ee1191aac34071ebe96b2639ce05568b9462",
+   "17925993e9d7b46023f8bd21dce6178b4d84a44b"
+  ],
+  "files_changed": [
+   "HANDWRITTEN.md",
+   "lib/ggen_igniter/semantic_jira/descriptor.ex",
+   "lib/mix/tasks/semantic_jira.descriptor.ex",
+   "priv/ggen/semantic-jira-pack/VOCABULARY.md",
+   "priv/ggen/semantic-jira-pack/gates/010_work_order_subjects.rq",
+   "priv/ggen/semantic-jira-pack/gates/020_work_orders.rq",
+   "priv/ggen/semantic-jira-pack/gates/046_alive_receipt_crown.rq",
+   "priv/ggen/semantic-jira-pack/gates/050_frontier.rq",
+   "test/ggen_igniter_semantic_jira_cli_test.exs",
+   "test/ggen_igniter_semantic_jira_descriptor_test.exs",
+   "test/ggen_igniter_semantic_jira_pack_test.exs",
+   "receipts/v26.9.23/V23-T6R.json"
+  ],
+  "files_changed_status": [
+   "M\tHANDWRITTEN.md",
+   "M\ttest/ggen_igniter_semantic_jira_pack_test.exs",
+   "M\tlib/ggen_igniter/semantic_jira/descriptor.ex",
+   "M\tlib/mix/tasks/semantic_jira.descriptor.ex",
+   "M\ttest/ggen_igniter_semantic_jira_cli_test.exs",
+   "M\ttest/ggen_igniter_semantic_jira_descriptor_test.exs",
+   "M\tpriv/ggen/semantic-jira-pack/VOCABULARY.md",
+   "M\tpriv/ggen/semantic-jira-pack/gates/010_work_order_subjects.rq",
+   "M\tpriv/ggen/semantic-jira-pack/gates/020_work_orders.rq",
+   "M\tpriv/ggen/semantic-jira-pack/gates/046_alive_receipt_crown.rq",
+   "M\tpriv/ggen/semantic-jira-pack/gates/050_frontier.rq",
+   "M\ttest/ggen_igniter_semantic_jira_pack_test.exs"
+  ],
+  "files_arrived_by_merge_182121f": [
+   "M\tHANDWRITTEN.md",
+   "A\tlib/ggen_igniter/semantic_jira/prose.ex",
+   "A\tlib/mix/tasks/semantic_jira.compile_prose.ex",
+   "M\tpriv/ggen/semantic-jira-pack/ontology.ttl",
+   "A\tpriv/ggen/semantic-jira-pack/prose/contradictions.rq",
+   "A\tpriv/ggen/semantic-jira-pack/prose/delta.construct.rq",
+   "A\tpriv/ggen/semantic-jira-pack/prose/foreign_requirements.rq",
+   "A\tpriv/ggen/semantic-jira-pack/prose/root.rq",
+   "A\tpriv/ggen/semantic-jira-pack/prose/uncovered_gates.rq",
+   "A\tpriv/ggen/semantic-jira-pack/shapes/proposition.shacl.ttl",
+   "A\treceipts/v26.9.23/V23-C.json",
+   "A\ttest/fixtures/semantic-jira-prose/README.md",
+   "A\ttest/fixtures/semantic-jira-prose/candidates.ttl",
+   "A\ttest/fixtures/semantic-jira-prose/extract.json",
+   "A\ttest/fixtures/semantic-jira-prose/goal.ttl",
+   "A\ttest/fixtures/semantic-jira-prose/prose.md",
+   "A\ttest/ggen_igniter_semantic_jira_prose_test.exs"
+  ],
+  "remote_effects": [],
+  "integration_steps": [
+   {
+    "cmd": "git merge --no-ff --no-commit friday/gc-fri-0800",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 1,
+    "summary": "friday/gc-fri-0800 at 4e5d196 (V23-C); exit 1 = one textual conflict in HANDWRITTEN.md (both sides appended rows at the same place), resolved by keeping every row of both sides; all other paths auto-merged; committed with git commit -F as 182121f"
+   }
+  ],
+  "conservation_witness": {
+   "ref": "preserve/v26.9.22/wo-03-wip",
+   "sha": "2d1fadb6beb4146fb0da3f2e77ea7924d8b4f2eb",
+   "covers": [
+    "lib/ggen_igniter/crown.ex (removed in round 1 bc8bf2f)",
+    "priv/ggen/semantic-jira-pack/gates/055_standing_projection.rq and the 050 event-sourcing MINUS (removed in round 1 6fb9dd4)",
+    "the dual-path oslc_cm UNION gate bodies (removed in 00d52d5; also in 33c8e86/a5e72a8)"
+   ],
+   "check": "git cat-file -e preserve/v26.9.22/wo-03-wip:lib/ggen_igniter/crown.ex => 0; git cat-file -e preserve/v26.9.22/wo-03-wip:priv/ggen/semantic-jira-pack/gates/055_standing_projection.rq => 0 (run this round)"
+  },
+  "citation_correction": "commit 1792599's message cites PRD PR-012/PR-013 for the generation-first ledger; those sections are Closed frontier/Replay. The applicable sections are PR-015 (missing deterministic mechanism classified as a gap; reuse->compose->extend->invent) and ARD AR-002. Commits are immutable; corrected here."
+ },
+ "round2_refutations_resolved": [
+  {
+   "id": "R1",
+   "court": "HANDWRITTEN.md rows missing for observation.ex, court_map.ex, mix semantic_jira.{descriptor,frontier,observe,reconcile,xaas_receipt}, kernel apply_transition/append_transition/project_standing and Reconciler.project/frontier; igniter.gen.task exists",
+   "resolution": "4 rows added (task shells incl. court_map; observation.ex; court_map.ex; kernel/Reconciler/cli/descriptor-bridge/TransitionLog additions), each UNSUPPORTED(generator-capability) with owner pack and retirement condition. igniter.gen.task was RUN, not assumed: `mix igniter.gen.task semantic_jira.gen_probe --yes` in an APFS copy of the tree (exit 0) generated an Igniter.Mix.Task (igniter/1 source-rewriting callback + warning test), not a runtime Mix.Task printing JSON with exit 0/1/2; generating the shells with it would change their type, so they are recorded, not generated. Correction to the court text: Reconciler.project/2 and frontier/2 are wrappers present in the adopted surface; SemanticJira.project/2 and frontier_from_events/3 pre-date FRI-T6 (5984ec4) and are not ledgered as FRI-T6 additions",
+   "commit": "17925993e9d7b46023f8bd21dce6178b4d84a44b"
+  },
+  {
+   "id": "R2",
+   "court": "33c8e86 made gates 010/020/046/050 match { a sj:WorkOrder } UNION { a oslc_cm:ChangeRequest } with no ontology/shape declaring oslc_cm and no test on that branch; ChangeRequest-typed orders skip SHACL",
+   "resolution": "UNION removed (010/020/046 byte-identical to friday/gc-fri-0800; 050 UNION-free with notes); VOCABULARY.md banner moves dual-path targeting to NOT present (successor v23:GC-26.9.24). New pack test: incomplete orders typed sj:WorkOrder are selected by all four gates and refused by SHACL (positive control); the same orders typed oslc_cm:ChangeRequest only are ignored by SHACL and selected by no gate; premise pinned (ontology.ttl and shapes/*.ttl contain no oslc_cm namespace). Mutations M9-* below restore the UNION per gate and are each killed",
+   "commit": "00d52d54733d9ef75da449d16b35a953d8b5f592"
+  },
+  {
+   "id": "R3",
+   "court": "receipt recorded exit 2 for M5 (never run) and claimed every fix was mutation-killed",
+   "resolution": "M5 run for real: M5a restores gates/055 from the preserve ref (killed: 2 failures, gate count 13 != 12 and the new declared-terms law test), M5b restores the 050 event-sourcing MINUS (killed by the declared-terms law test, commit dda8ee1; before that test nothing pinned it). The crown.ex removal mutation was run and SURVIVES (compile --warnings-as-errors exit 0, mix xref callers GgenIgniter.Crown prints nothing, no lib/test reference outside crown.ex): the removal is justified by dead code (no callers), not by a killing test; the acceptance text no longer claims every fix is mutation-killed. Round-1 mutations M1-M4, M6-M8 were re-run on this round's tree (all killed); only this round's outputs are cited",
+   "commit": "dda8ee1191aac34071ebe96b2639ce05568b9462"
+  },
+  {
+   "id": "secondary",
+   "court": "@default_provider \"zcode\" is an LLM fallback on the descriptor path (PR-009, ARD section 9)",
+   "resolution": "@default_provider \"recipe\" (the XaaS RecipeWorker provider id; xaas engine default providers [\"recipe\"]); build/4 and build_xaas_contract/4 share it; \"zcode\" stays selectable explicitly and validated; docs and tests updated; mutation M10 (default back to zcode) killed with 3 failures",
+   "commit": "cc61f2d2471767908065ea6a2e8e9be0f865d819"
+  }
+ ],
+ "round1_refutations_carried": "the 7 FRI-T6 refutations resolved in round 1 (commits bc8bf2f, 6fb9dd4, 7cbd144, 860077d, 03f2d4f, 088375e, c90bf0e; details in the a5e72a8 version of this file) stay resolved; their revert mutations were re-run this round (M1-M4, M6-M8 below)",
+ "definition_digest_change": {
+  "before_FRI_T6": "digest(admitted work order minus standing, dimensions, work_order_digest): covered candidate_sha, expected_consequence, admitted, authority, replay_required and any unlisted key",
+  "after": "digest(Map.take(admitted, @definition_fields)); @definition_fields = identity title description subject repository base_sha evidence_ceiling authority_requirement promotion_rule replay_identity dependencies required_courts required_evidence required_receipt_classes acceptance falsifiers projections path_scope",
+  "dropped_from_digest": [
+   "candidate_sha",
+   "expected_consequence",
+   "admitted",
+   "authority",
+   "replay_required",
+   "any key outside @definition_fields"
+  ],
+  "consequence": "definition digests computed before FRI-T6 differ from the new ones for the same work order; a ledger carrying pre-FRI-T6 definition digests is refused by Reconciler.reconcile/4 (:definition_mismatch). Not changed in round 2; the full suite at subject_sha exercises it (see replay)."
+ },
+ "replay": {
+  "commands": [
+   {
+    "cmd": "PATH=<scratch>/bin:$PATH mix format --check-formatted",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "at subject_sha 17925993e9d7b46023f8bd21dce6178b4d84a44b, clean tree (git status --porcelain empty before the gate)",
+    "output_sha256": "021af2067f739bc652a92b28c6c03fefd316e644ad91a87addb0d041f82aa857"
+   },
+   {
+    "cmd": "PATH=<scratch>/bin:$PATH mix compile --warnings-as-errors --force",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "Compiling 92 files (.ex); Compiling crate ggen_graph_nif in release mode (native/ggen_graph_nif); Generated ggen_igniter app (only the pre-existing mix.exs preferred_cli_env deprecation notice)",
+    "output_sha256": "1a41b8c3c904ee0a39db4887a54c883c4cd2946b7b80d07d24d81607db67725e"
+   },
+   {
+    "cmd": "PATH=<scratch>/bin:$PATH mix credo",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "2707 mods/funs, found no issues.",
+    "output_sha256": "5a500b5f4b26e9617867c4c52ed2d0e62cc0c50b0a08fe701bc8a06de1709604"
+   },
+   {
+    "cmd": "PATH=<scratch>/bin:$PATH mix test",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "all test files at subject_sha: 20 doctests, 42 properties, 1311 tests, 0 failures, 1 skipped (9 excluded); Finished in 1332.0 seconds (25.5s async, 1306.5s sync)",
+    "output_sha256": "aac1a714172ab5782b127ac2915e41319737ddb2b3b0a6c649dfb824ad57520b"
+   },
+   {
+    "cmd": "! grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps --exclude-dir=target -E '(use|import) +(Mox|Mimic|Patch)\\b|(Mox|Mimic|Patch)\\.|:meck\\.|mockall|MagicMock|Mock\\(' test lib native",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "zero matches at subject_sha (negated grep); 'monkeypatch' appears in 10 files, all pre-existing docstrings stating no monkeypatch is used; round-2 test hunks add none",
+    "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   {
+    "cmd": "mix igniter.gen.task semantic_jira.gen_probe --yes",
+    "cwd": "/private/tmp/claude-501/v23-scratch/B1b-V23-T6R/gen-probe (APFS copy of the worktree at 1792599 minus its .git file; removed after the run)",
+    "exit": 0,
+    "summary": "generated lib/mix/tasks/semantic_jira.gen_probe.ex sha256:34ceeea95638f2a0401aaaff654c47659c3c37eb8f152a3de1741bd9b17e0170 (Igniter.Mix.Task with igniter/1) and test sha256:032004c8925a5b9e3af0b9a61d8469451a3708e1bd6a5d9d3d6532d6004c2732 (assert_has_warning not-implemented); R1 evidence",
+    "output_sha256": "4ec31c41bd013445c4da2f964d926e07a27191d37f6cfb1ec7bcc6e818d6c09f"
+   }
+  ],
+  "durable_location": "receipts/v26.9.23/V23-T6R.json"
+ },
+ "falsification": {
+  "note": "all runs below were executed this round in the lane worktree on the committed tree (HEAD 00d52d5..1792599; the gates/descriptor/test files they touch were not changed after their runs), each mutant applied, the targeted test run, then restored with git checkout HEAD -- <file> (or rm of the added file) and git status --porcelain checked empty. They justify the fixes, not the standing.",
+  "runs": [
+   {
+    "mutation": "M1 transition_log.ex reverted to 6aed5b6 (typed not_an_object refusal removed)",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_reconcile_task_test.exs",
+    "exit": 2,
+    "summary": "13 tests, 2 failures -- 1) test TransitionLog.fetch/1 typed refusals (V23-T6R refutation 6) a valid-JSON non-object line in a file ledger refuses with its 1-based line (GgenIgniter.SemanticJiraReconcileTaskTest); 2) test TransitionLog.fetch/1 typed refusals (V23-T6R refutation 6) a non-object file in a directory ledger refuses naming the file (GgenIgniter.SemanticJiraReconcileTaskTest)",
+    "output_sha256": "b51afb6f668903f3469949c3f2cf73f374b8fc6848686369d55efabadf343ed4",
+    "killed": true
+   },
+   {
+    "mutation": "M2 git_ground_truth.ex reverted to 6aed5b6 (silent jurisdiction drop)",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_git_ground_truth_test.exs",
+    "exit": 2,
+    "summary": "5 tests, 4 failures -- 1) test a work tree without an origin remote verifies every row (no jurisdiction) (GgenIgniter.SemanticJiraGitGroundTruthTest); 2) test nothing targeted is vacuous and never touches git (GgenIgniter.SemanticJiraGitGroundTruthTest); 3) test :all verifies in-jurisdiction rows and reports every other row as a typed skip (GgenIgniter.SemanticJiraGitGroundTruthTest); 4) test a per-order opt-in outside the jurisdiction refuses instead of skipping (GgenIgniter.SemanticJiraGitGroundTruthTest)",
+    "output_sha256": "9274969f5b17365cc4cc82073bee545d63017542ff7697aa899532c481509b5b",
+    "killed": true
+   },
+   {
+    "mutation": "M2a jurisdiction compared by substring instead of exact owner/repo",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_git_ground_truth_test.exs",
+    "exit": 2,
+    "summary": "5 tests, 1 failure -- 1) test :all verifies in-jurisdiction rows and reports every other row as a typed skip (GgenIgniter.SemanticJiraGitGroundTruthTest)",
+    "output_sha256": "f40e57d71109762389a22fd4f3be2b18ae03ba8c8c71f911d1e28ab9961e0104",
+    "killed": true
+   },
+   {
+    "mutation": "M2b out-of-jurisdiction :all rows dropped instead of reported as typed skips",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_git_ground_truth_test.exs",
+    "exit": 2,
+    "summary": "5 tests, 1 failure -- 1) test :all verifies in-jurisdiction rows and reports every other row as a typed skip (GgenIgniter.SemanticJiraGitGroundTruthTest)",
+    "output_sha256": "c64ba9bcb67999dca31082dbb8adde9c0d3451069717ffcb69148a4724ffeb67",
+    "killed": true
+   },
+   {
+    "mutation": "M2c opted-in foreign row skipped instead of refused",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_git_ground_truth_test.exs",
+    "exit": 2,
+    "summary": "5 tests, 1 failure -- 1) test a per-order opt-in outside the jurisdiction refuses instead of skipping (GgenIgniter.SemanticJiraGitGroundTruthTest)",
+    "output_sha256": "0a7849becdd16bae0863eb3932f95fa3297a7b2d935a80a6041a5c363e7c4e31",
+    "killed": true
+   },
+   {
+    "mutation": "M3 build/4 provider accepted unvalidated",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_descriptor_test.exs",
+    "exit": 2,
+    "summary": "16 tests, 1 failure -- 1) test build/4 provider (V23-T6R: @default_provider, validated) defaults to the deterministic recipe provider, binds a named provider, refuses a malformed one (GgenIgniter.SemanticJiraDescriptorTest)",
+    "output_sha256": "81056302ffab5187d47154df7dbb152502045b92c6a4317fd319a140ee5446f5",
+    "killed": true
+   },
+   {
+    "mutation": "M4 mix semantic_jira.court_map task reverted to 6aed5b6",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_observe_court_map_test.exs",
+    "exit": 2,
+    "summary": "9 tests, 1 failure -- 1) test court map -> descriptor (build_xaas_contract/4 court-map admission) mix semantic_jira.court_map mints the map that mix semantic_jira.descriptor binds (GgenIgniter.SemanticJiraObserveCourtMapTest)",
+    "output_sha256": "08176b48aeb1fe14958cc4063562bb17cfc41418c538fd8eaa92e19e7ce00f35",
+    "killed": true
+   },
+   {
+    "mutation": "M6 project_standing keeps the first to_standing (Map.put_new)",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_event_sourcing_kernel_test.exs",
+    "exit": 2,
+    "summary": "18 tests, 5 failures -- 1) test replay_check reconstructs standing from transitions alone a fresh graph plus definition plus events reconstructs the same projection (GgenIgniter.SemanticJiraEventSourcingKernelTest); 2) test standing projection (kernel) the chain tip wins: latest to_standing per work order (GgenIgniter.SemanticJiraEventSourcingKernelTest); 3) test replay_check reconstructs standing from transitions alone divergent projections refuse as identity mismatches (GgenIgniter.SemanticJiraEventSourcingKernelTest); 4) test frontier consults projected standing a work order transitioned away from UNKNOWN is no longer frontier-eligible (GgenIgniter.SemanticJiraEventSourcingKernelTest); 5) test replay_check reconstructs standing from transitions alone a matching log replays and binds the reconstructed standing projection (GgenIgniter.SemanticJiraEventSourcingKernelTest)",
+    "output_sha256": "dfb23a9a2eabc683bcf632b3f5715ce7eb9828eb1470224d4f8572813cc31d13",
+    "killed": true
+   },
+   {
+    "mutation": "M7 Observation SHACL verdict bypassed",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_observe_court_map_test.exs",
+    "exit": 2,
+    "summary": "9 tests, 2 failures -- 1) test mix semantic_jira.observe (the SemanticCrown subprocess surface) exit 0 writes the admitted candidate; exit 1 typed refusal; exit 2 invalid invocation (GgenIgniter.SemanticJiraObserveCourtMapTest); 2) test Observation.candidate/3 over a finding derived from a real git repository refuses typed: malformed finding, unadmittable base, SHACL violation (GgenIgniter.SemanticJiraObserveCourtMapTest)",
+    "output_sha256": "74ed2f730d8f499d0990cb34551406a1e92fdc20d6077f1aa19d5b3882164b26",
+    "killed": true
+   },
+   {
+    "mutation": "M8 vision.md.eex heading changed",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_pack_test.exs:704",
+    "exit": 2,
+    "summary": "1 test, 1 failure (66 excluded) -- 1) test Vision projection template (V23-T6R: the adopted WO-03 template, executed) manufactures the vision projection for the dogfood set and replays byte-identically (GgenIgniter.SemanticJiraPackTest)",
+    "output_sha256": "70c15cc9cfdc15cfcf59970a51c3d329eddce0667a57659e22c6f938472cf193",
+    "killed": true
+   },
+   {
+    "mutation": "M9 all four work-order gates restored to the a5e72a8 dual-path UNION bodies",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_pack_test.exs --only 'describe:graph-binding tripwires'",
+    "exit": 2,
+    "summary": "5 tests, 1 failure (61 excluded) -- 1) test graph-binding tripwires work-order gates select only SHACL-checked sj:WorkOrder nodes, never oslc_cm:ChangeRequest-only nodes (GgenIgniter.SemanticJiraPackTest) (first failing gate: 010_work_order_subjects selects an oslc_cm:ChangeRequest-only node that SHACL never checks)",
+    "output_sha256": "5cf7da8230973ed36f6d49a5a351c5df4a8a92ed9f79fae94761b1c544150ebe",
+    "killed": true
+   },
+   {
+    "mutation": "M9-010 only gates/010_work_order_subjects.rq restored to its a5e72a8 UNION body",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_pack_test.exs --only 'describe:graph-binding tripwires'",
+    "exit": 2,
+    "summary": "5 tests, 1 failure (61 excluded) -- 1) test graph-binding tripwires work-order gates select only SHACL-checked sj:WorkOrder nodes, never oslc_cm:ChangeRequest-only nodes (GgenIgniter.SemanticJiraPackTest) (gate 010_work_order_subjects selects an oslc_cm:ChangeRequest-only node)",
+    "output_sha256": "d01051d8f8b702b26092a3dd8b269d82152eabd952b31d7f83ded2b9a2904359",
+    "killed": true
+   },
+   {
+    "mutation": "M9-020 only gates/020_work_orders.rq restored to its a5e72a8 UNION body",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_pack_test.exs --only 'describe:graph-binding tripwires'",
+    "exit": 2,
+    "summary": "5 tests, 1 failure (61 excluded) -- 1) test graph-binding tripwires work-order gates select only SHACL-checked sj:WorkOrder nodes, never oslc_cm:ChangeRequest-only nodes (GgenIgniter.SemanticJiraPackTest) (gate 020_work_orders selects an oslc_cm:ChangeRequest-only node)",
+    "output_sha256": "11d8ca74017ebe4fc84bf25d29ec62832aac30b918f3869d0457b4cd72c0180e",
+    "killed": true
+   },
+   {
+    "mutation": "M9-046 only gates/046_alive_receipt_crown.rq restored to its a5e72a8 UNION body",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_pack_test.exs --only 'describe:graph-binding tripwires'",
+    "exit": 2,
+    "summary": "5 tests, 1 failure (61 excluded) -- 1) test graph-binding tripwires work-order gates select only SHACL-checked sj:WorkOrder nodes, never oslc_cm:ChangeRequest-only nodes (GgenIgniter.SemanticJiraPackTest) (gate 046_alive_receipt_crown selects an oslc_cm:ChangeRequest-only node)",
+    "output_sha256": "0bef31041b980649e3a4b271fa7b2a5c95736adad5432a9ec6c73791eebe5f07",
+    "killed": true
+   },
+   {
+    "mutation": "M9-050 only gates/050_frontier.rq restored to its a5e72a8 UNION body",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_pack_test.exs --only 'describe:graph-binding tripwires'",
+    "exit": 2,
+    "summary": "5 tests, 1 failure (61 excluded) -- 1) test graph-binding tripwires work-order gates select only SHACL-checked sj:WorkOrder nodes, never oslc_cm:ChangeRequest-only nodes (GgenIgniter.SemanticJiraPackTest) (gate 050_frontier selects an oslc_cm:ChangeRequest-only node)",
+    "output_sha256": "743292d73c9b070d625e71e3c5468ebf4475cd5558328549add1b52199f5474f",
+    "killed": true
+   },
+   {
+    "mutation": "M10 Descriptor @default_provider back to \"zcode\"",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_descriptor_test.exs test/ggen_igniter_semantic_jira_cli_test.exs",
+    "exit": 2,
+    "summary": "25 tests, 3 failures -- 1) test build_xaas_contract/4 (admits the eligible row; provider is a parameter) provider defaults to the deterministic recipe provider and is bound from :provider (GgenIgniter.SemanticJiraDescriptorTest); 2) test build/4 provider (V23-T6R: @default_provider, validated) defaults to the deterministic recipe provider, binds a named provider, refuses a malformed one (GgenIgniter.SemanticJiraDescriptorTest); 3) test descriptor/1 (build_xaas_contract/4 through the CLI) the provider defaults to the deterministic recipe provider when --provider is absent (GgenIgniter.SemanticJiraCliTest)",
+    "output_sha256": "70313305dbc2805d451953345fd1ad056e60ec3d5068e2de93e8f95a3f7e1356",
+    "killed": true
+   },
+   {
+    "mutation": "M5a gates/055_standing_projection.rq restored from preserve/v26.9.22/wo-03-wip (the round-1 receipt recorded this run without executing it)",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_pack_test.exs --only 'describe:graph-binding tripwires'",
+    "exit": 2,
+    "summary": "6 tests, 2 failures (61 excluded) -- 1) test graph-binding tripwires every sj: term a pack gate references is declared in the pack ontology (GgenIgniter.SemanticJiraPackTest); 2) test graph-binding tripwires every pack gate executes cleanly against the canonical graph (GgenIgniter.SemanticJiraPackTest) (count: left 13, right 12; undeclared: 055 transitionId, transitionWorkOrder)",
+    "output_sha256": "ff1129bf53332a8daed1fc52fffaa6ab4a4836637e853812e78ff0b05c326e6f",
+    "killed": true
+   },
+   {
+    "mutation": "M5b 050 event-sourcing MINUS (sj:transitionId/sj:transitionWorkOrder chain tip) restored from 6aed5b6, UNION-free",
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_pack_test.exs --only 'describe:graph-binding tripwires'",
+    "exit": 2,
+    "summary": "6 tests, 1 failure (61 excluded) -- 1) test graph-binding tripwires every sj: term a pack gate references is declared in the pack ontology (GgenIgniter.SemanticJiraPackTest) (undeclared: 050 transitionId, transitionWorkOrder)",
+    "output_sha256": "ac711dfc4684d6ac285fefae2838223fb279558146c87a1d7e8f276742fd7c32",
+    "killed": true
+   },
+   {
+    "mutation": "Mcrown lib/ggen_igniter/crown.ex restored from preserve/v26.9.22/wo-03-wip",
+    "cmd": "MIX_ENV=test mix compile --warnings-as-errors",
+    "exit": 0,
+    "summary": "Compiling 1 file (.ex); Generated ggen_igniter app -- mutant compiles cleanly: SURVIVES compile",
+    "output_sha256": "d0a9bbee4e165afa19f1534861e7860725021d1b2476dbd999ac5321d7774ec3",
+    "killed": false
+   },
+   {
+    "mutation": "Mcrown (same mutant) caller check",
+    "cmd": "MIX_ENV=test mix xref callers GgenIgniter.Crown",
+    "exit": 0,
+    "summary": "empty output: no callers of GgenIgniter.Crown in lib (dead code)",
+    "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "killed": false
+   },
+   {
+    "mutation": "Mcrown (same mutant) reference check",
+    "cmd": "grep -rn 'GgenIgniter\\.Crown\\b\\|Crown\\.' lib test",
+    "exit": 0,
+    "summary": "one match, lib/ggen_igniter/crown.ex:1 defmodule GgenIgniter.Crown (itself); no test executes it, so no test can kill its restoration: the removal SURVIVES mutation and is justified by the xref dead-code evidence only",
+    "output_sha256": "553a73e6fbcf7819f100d6953d1939a2b79c717b2a48adb8c2f24c3d100f924c",
+    "killed": false
+   }
+  ]
+ },
+ "environment_failures": {
+  "note": "first full-gate run on the same subject, BEFORE the PATH fix; an environment failure, not a code verdict",
+  "first_gate_run": {
+   "cmd": "mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test",
+   "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+   "subject_sha": "17925993e9d7b46023f8bd21dce6178b4d84a44b",
+   "exits": {
+    "format": 0,
+    "compile": 0,
+    "credo": 0,
+    "test": 2
+   },
+   "summary": "20 doctests, 42 properties, 1309 tests, 1 failure, 1 skipped (9 excluded) -- 1) GI-09 test/ggen_igniter_fortune5_ready_task_test.exs:236: issues == [\"mix ggen_igniter.fortune5_ready: FAILED -- {:enoent, \\\"ggen not found on PATH: Erlang error: :enoent\\\"}\"]",
+   "output_sha256": "686a4863e706120455b567076eaa36d3875e55249b4ff65640e523481378946d"
+  },
+  "cause": "no ggen binary on PATH: /Users/sac/.local/bin/ggen is a symlink created 2026-09-23 02:18 (after the round-1 gate) pointing at /opt/homebrew/bin/ggen, which does not exist (another executor's ggen install state); command -v ggen => exit 1. The failing test file and lib/mix/tasks/ggen_igniter.fortune5_ready.ex are byte-identical to friday/gc-fri-0800 (git diff --stat empty; last touched by beed5d7).",
+  "isolation": [
+   {
+    "cmd": "MIX_ENV=test mix test test/ggen_igniter_fortune5_ready_task_test.exs",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 2,
+    "summary": "no ggen on PATH: 6 tests, 1 failure (GI-09)",
+    "output_sha256": "7c69cd3c58dc027e23be48fc6dbc44e013636569575918d0a75d677f50c320c9"
+   },
+   {
+    "cmd": "PATH=<scratch>/bin:$PATH MIX_ENV=test mix test test/ggen_igniter_fortune5_ready_task_test.exs",
+    "cwd": "/Users/sac/wt/v26922/fri/FRI-T6",
+    "exit": 0,
+    "summary": "with <scratch>/bin/ggen: 6 tests, 0 failures",
+    "output_sha256": "f89968d0deb8309b5a290c83951d0eba1ab9044f5ab86642996d0e6984021357"
+   }
+  ],
+  "fix": "<scratch> = /private/tmp/claude-501/v23-scratch/B1b-V23-T6R; <scratch>/bin/ggen is an APFS clone (cp -c) of /Users/sac/ggen/target/debug/ggen (ggen 26.8.24, sha256:616c2ebe9f9cfbdbaeae463ceaf33e1704980d5327040e9d6a288cdb58d4ce3f), copied so a concurrent rebuild cannot change it mid-run; the gate in replay was re-run in full with that PATH prefix"
+ },
+ "cross_repo_consequence": {
+  "status": "UNVERIFIED (inferred from source, not executed)",
+  "edge": "xaas lib/xaas/ultracode/semantic_crown.ex (xaas-int b3f85b3, read-only) invokes `mix semantic_jira.descriptor` at lines ~315 and ~515 WITHOUT --provider and materializes the descriptor through SemanticWork.materialize/2 (descriptor \"provider\" -> Run provider); its test test/xaas/ultracode/semantic_crown_test.exs claims leases with @provider \"zcode\". After this lane's default change the descriptor carries \"recipe\", so that crown path would materialize recipe-provider runs that a zcode worker never claims.",
+  "reach": "the crown test is @moduletag :subprocess and skipped unless GGEN_IGNITER_DIR (default /Users/sac/wt/gi-bridge, absent on this machine) names a checkout with the descriptor task; a court that sets GGEN_IGNITER_DIR and includes :subprocess would exercise it",
+  "companion_change": "xaas lane V23-K (ggen_igniter lanes cannot edit xaas): SemanticCrown passes `--provider` explicitly (ctx.provider, zcode for the scripted zcode crown) to both semantic_jira.descriptor calls; this is the 'zcode only when named' contract PR-009 / ARD section 9 require",
+  "not_run_because": "running the crown test needs the xaas sandboxed Postgres shared with other executors plus a 30-minute subprocess run; not attempted in this lane"
+ },
+ "standing": {
+  "value": "ALIVE",
+  "derived_from": "replay commands 1-4 (format/compile --force/credo/full mix test) at subject_sha 17925993e9d7b46023f8bd21dce6178b4d84a44b on a clean tree, exits {\"format\": 0, \"compile\": 0, \"credo\": 0, \"test\": 0}; mix test: 20 doctests, 42 properties, 1311 tests, 0 failures, 1 skipped (9 excluded)",
+  "scope": "exactly what the lane gate exercises: the ggen_igniter tree at subject_sha under mix format --check-formatted, mix compile --warnings-as-errors --force, mix credo and mix test over all test files (tests excluded by test/test_helper.exs and skipped tests are not exercised); includes FRI-T1 and V23-C content from the friday merges, exercised by the same run. Not claimed: the xaas side (RecipeWorker, SemanticCrown driving these tasks), the graph-side event-sourcing and dual-typing content (successor), integration of fri/FRI-T6 into friday/gc-fri-0800 (not performed by this lane), and the crown.ex removal as mutation-killed (it survives; see falsification)."
+ },
+ "pre_existing_failures": "none from code: the only failure observed this round is the environment failure GI-09 (no ggen binary on PATH, see environment_failures), in a test and task this lane does not touch; with a real ggen on PATH the full gate at subject_sha is the replay record",
+ "pre_existing_findings": [
+  "git status --porcelain after the full mix test was not empty: 'M receipts/v26.9.22/kernel-differential.json'. See kernel-differential note.",
+  "test/ggen_igniter_semantic_jira_kernel_differential_test.exs (GGEN_IGNITER-26922-19) rewrites the TRACKED receipts/v26.9.22/kernel-differential.json on every mix test; at friday/gc-fri-0800 4e5d196 the committed file is stale relative to the pack ontology/shapes (FRI-T1/V23-C content), so the gate leaves it modified. Not introduced by V23-T6R (this lane edits neither ontology.ttl nor shapes). Regenerated bytes saved (sha256 5a9b6d14d605cbab66e13b0ec211ba2355211e62b4298bbfd9b645d7ee5b4f08), tracked file restored with git checkout HEAD -- receipts/v26.9.22/kernel-differential.json; successor for the owner of that receipt."
+ ],
+ "successor": {
+  "bucket": "v23:GC-26.9.24",
+  "items": [
+   "dual-path oslc_cm:ChangeRequest targeting: declare OSLC CM dual typing in the pack ontology AND extend sj:WorkOrderShape targeting before any gate UNION returns (VOCABULARY.md deferred content, preserve/v26.9.22/wo-03-wip)",
+   "graph-side event-sourced standing: declare sj:transitionId/sj:transitionWorkOrder + SHACL event shapes, restore 055 and the 050 MINUS with a SPARQL-vs-kernel equivalence test (the declared-terms law test will then admit them)",
+   "semantic-jira-pack cli_task.ex.eex template + ontology facts for the six runtime mix semantic_jira.* task shells (HANDWRITTEN row)",
+   "observation finding->candidate as a pack CONSTRUCT query (HANDWRITTEN row)",
+   "sj:witnessedBy undeclared in the pack ontology; CourtMap reads Turtle with regexes (HANDWRITTEN row)",
+   "owning-ontology UNSUPPORTED rows for the new HANDWRITTEN rows (ontology.ttl reserved to the Friday/V23-C lanes)",
+   "crown.ex removal has no killing test (dead code by xref); a module-reachability law test would make such removals mutation-killable",
+   "xaas companion (lane V23-K, not successor-bucket work): SemanticCrown must pass --provider explicitly to mix semantic_jira.descriptor (see cross_repo_consequence)",
+   "carried from FRI-T6: TransitionLog event_digest elides receipt/definition/transition digests (SemanticJira.digest/1); no stale ndjson lock recovery"
+  ]
+ }
+}
