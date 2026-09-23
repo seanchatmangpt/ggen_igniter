@@ -1,0 +1,106 @@
+{
+  "captured_at": "2026-09-22T22:59:57Z",
+  "captured_by": "GGEN_IGNITER-26922-19 (git -C <int_worktree> rev-parse HEAD; git remote get-url origin)",
+  "note": "Observed repo identities at capture time. base_sha is the release/v26.9.22 integration worktree HEAD; repository is the origin slug, null when the int worktree has no origin remote (the projection then omits sj:repository and admission refuses it -- no slug is invented).",
+  "repos": {
+    "ash_a2a": {
+      "base_sha": "831fb998a1e18ce810697f2a4b070c78126638b4",
+      "int_worktree": "/Users/sac/wt/v26922/ash_a2a/int",
+      "origin_url": "https://github.com/seanchatmangpt/ash_a2a",
+      "repository": "seanchatmangpt/ash_a2a"
+    },
+    "ash_atlassian": {
+      "base_sha": "36b1799381d04b50da2bececd4b201defc231333",
+      "int_worktree": "/Users/sac/wt/v26922/ash_atlassian/int",
+      "origin_url": null,
+      "repository": null,
+      "repository_absent_reason": "git remote get-url origin: error: No such remote 'origin'"
+    },
+    "ash_surface": {
+      "base_sha": "9972ef6a8e105cfad0c6feb5c2ac3adf02fcb058",
+      "int_worktree": "/Users/sac/wt/v26922/ash_surface/int",
+      "origin_url": "https://github.com/seanchatmangpt/ash_surface.git",
+      "repository": "seanchatmangpt/ash_surface"
+    },
+    "autofde-lab": {
+      "base_sha": "d8660d40f2b6e170cc758488da3b48be6c5871e3",
+      "int_worktree": "/Users/sac/wt/v26922/autofde-lab/int",
+      "origin_url": "https://github.com/seanchatmangpt/autofde-lab.git",
+      "repository": "seanchatmangpt/autofde-lab"
+    },
+    "beam4pm": {
+      "base_sha": "574368706e6afd804c7a13771bed3cf03da33ce0",
+      "int_worktree": "/Users/sac/wt/v26922/beam4pm/int",
+      "origin_url": "https://github.com/seanchatmangpt/beam4pm.git",
+      "repository": "seanchatmangpt/beam4pm"
+    },
+    "chatman-ecosystem": {
+      "base_sha": "7ac66d8c55ce4aba62cd6416e9f3eecd358700e4",
+      "int_worktree": "/Users/sac/wt/v26922/chatman-ecosystem/int",
+      "origin_url": null,
+      "repository": null,
+      "repository_absent_reason": "git remote get-url origin: error: No such remote 'origin'"
+    },
+    "ferroplan": {
+      "base_sha": "dc327a3b9eb738f55bd5ac56c12636591c42bc3a",
+      "int_worktree": "/Users/sac/wt/v26922/ferroplan/int",
+      "origin_url": "https://github.com/seanchatmangpt/ferroplan",
+      "repository": "seanchatmangpt/ferroplan"
+    },
+    "frozen-duckdb": {
+      "base_sha": "3ebfac8c62c3fdf14275bdff737074079731234e",
+      "int_worktree": "/Users/sac/wt/v26922/frozen-duckdb/int",
+      "origin_url": "https://github.com/seanchatmangpt/frozen-duckdb.git",
+      "repository": "seanchatmangpt/frozen-duckdb"
+    },
+    "ggen": {
+      "base_sha": "0fb197eb6a4103cb124c619714fe0ac44d976cd2",
+      "int_worktree": "/Users/sac/wt/v26922/ggen/int",
+      "origin_url": "https://github.com/seanchatmangpt/ggen.git",
+      "repository": "seanchatmangpt/ggen"
+    },
+    "ggen-ecosystem": {
+      "base_sha": "435117fd7f419cc18b0d7b1ba3f25c2d224ac1fc",
+      "int_worktree": "/Users/sac/wt/v26922/ggen-ecosystem/int",
+      "origin_url": "https://github.com/seanchatmangpt/ggen-ecosystem",
+      "repository": "seanchatmangpt/ggen-ecosystem"
+    },
+    "ggen-marketplace": {
+      "base_sha": "498eda7dc989ab402b9e713d53516f1d7382edd0",
+      "int_worktree": "/Users/sac/wt/v26922/ggen-marketplace/int",
+      "origin_url": "https://github.com/seanchatmangpt/ggen-marketplace",
+      "repository": "seanchatmangpt/ggen-marketplace"
+    },
+    "ggen_igniter": {
+      "base_sha": "c1aa83910172f177158ce9862474492d79c37178",
+      "int_worktree": "/Users/sac/wt/v26922/ggen_igniter/int",
+      "origin_url": "https://github.com/seanchatmangpt/ggen_igniter.git",
+      "repository": "seanchatmangpt/ggen_igniter"
+    },
+    "gitvan": {
+      "base_sha": "a905abdb0baad27357b7a5c46ca31253a10c1fb9",
+      "int_worktree": "/Users/sac/wt/v26922/gitvan/int",
+      "origin_url": "https://github.com/seanchatmangpt/gitvan.git",
+      "repository": "seanchatmangpt/gitvan"
+    },
+    "gymact": {
+      "base_sha": "85c62983e0489eb59cd760003a68d75516f861e2",
+      "int_worktree": "/Users/sac/wt/v26922/gymact/int",
+      "origin_url": "https://github.com/seanchatmangpt/gymact.git",
+      "repository": "seanchatmangpt/gymact"
+    },
+    "xaas": {
+      "base_sha": "25f7205db96bb5eeef4cebb00da3714d7f0a35c8",
+      "int_worktree": "/Users/sac/wt/v26922/xaas/int",
+      "origin_url": "https://github.com/seanchatmangpt/xaas.git",
+      "repository": "seanchatmangpt/xaas"
+    },
+    "zcode-cli": {
+      "base_sha": "c632208a315573e1cb3bb1b6f9d8ea975b960054",
+      "int_worktree": "/Users/sac/wt/v26922/zcode-cli/int",
+      "origin_url": "https://github.com/kingsword09/zcode-cli.git",
+      "repository": "kingsword09/zcode-cli"
+    }
+  },
+  "schema": "ggen_igniter.kernel_differential.repos/v1"
+}

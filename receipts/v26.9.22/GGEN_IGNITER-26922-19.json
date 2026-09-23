@@ -1,0 +1,140 @@
+{
+  "work_order": {
+    "id": "GGEN_IGNITER-26922-19",
+    "title": "One-kernel probe: differential admission of the v26.9.22 work graph through GgenIgniter.SemanticJira.Shacl and praxis_graphlaw.wasm (as ash_a2a loads it via wasmex); agreement matrix incl. mutation cases",
+    "acceptance": "mix test test/ggen_igniter_semantic_jira_kernel_differential_test.exs produces receipts/v26.9.22/kernel-differential.json with per-order and per-mutation verdicts from both kernels; any disagreement is a typed diff, not a failure to run; standing UNKNOWN->PARTIAL_ALIVE only if both kernels execute",
+    "composition": "C14 (A+C+J one admission kernel)",
+    "deps": ["GGEN_IGNITER-26922-04"],
+    "dep_status_at_base": "GGEN_IGNITER-26922-04 not merged at base c1aa839 (git merge-base --is-ancestor printed MISSING for all six errc/* branches). This order consumes none of their content: it reads only GgenIgniter.SemanticJira.Shacl, the semantic-jira-pack shapes/ontology, and the wasmex + ash_a2a (dev/test) deps, all present at base."
+  },
+  "identity": {
+    "subject": "GGEN_IGNITER-26922-19",
+    "repo": "/Users/sac/ggen_igniter",
+    "worktree": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-19",
+    "branch": "law/GGEN_IGNITER-26922-19",
+    "subject_sha": "43ae4dd10157112c5bfdda46a5ec4cda01132592",
+    "base_sha": "c1aa83910172f177158ce9862474492d79c37178",
+    "graph_hash": "sha256:090fa42e5229cad904119a4170b8ad497a180a2acea9a73253a8b88fe00e2843",
+    "graph_hash_of": "Turtle bytes of the projected v26.9.22 work graph (6910 triples, 169 sj:WorkOrder) as fed to both kernels",
+    "inputs": {
+      "orders_json": "test/fixtures/kernel_differential/v26.9.22/orders.json sha256 64fa20ffb5dd9b678c785da42ed7fd9282df7e8d9f43cba0c99e999ec3cc237b (byte copy of /Users/sac/wt/v26922/orders.json at 2026-09-22T22:59Z)",
+      "repos_json": "test/fixtures/kernel_differential/v26.9.22/repos.json (int-worktree HEAD + origin slug per repo, captured 2026-09-22T22:59:57Z)",
+      "graphlaw_wasm": "deps/ash_a2a/priv/graphlaw/praxis_graphlaw.wasm (hex ash_a2a 26.9.17) sha256 187688d9e7e33a575713d6911d75687adb38713ed37412e211af263dfcbe0c28 = MANIFEST.json artifact sha256 = shasum of /Users/sac/ash_a2a/priv/graphlaw/praxis_graphlaw.wasm; self-reported praxis-graphlaw v26.7.5; host AshA2A.GraphLaw.WasmexHost on wasmex 0.15.1",
+      "report": "receipts/v26.9.22/kernel-differential.json sha256 cecb8e26b36844cdd6bfaa9ad42f05455b08b08fd0f7ed0386923514b39bbc5b"
+    }
+  },
+  "authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "NONE",
+    "actor": "claude-opus-5-5 subagent, workflow lane law-GGEN_IGNITER-26922-19 (local commits on law/GGEN_IGNITER-26922-19 only; no push, no merge into release/v26.9.22, no remote effect)"
+  },
+  "consequence": {
+    "commits": ["43ae4dd10157112c5bfdda46a5ec4cda01132592"],
+    "files_changed": [
+      "lib/ggen_igniter/semantic_jira/kernel_differential.ex",
+      "test/ggen_igniter_semantic_jira_kernel_differential_test.exs",
+      "test/fixtures/kernel_differential/v26.9.22/orders.json",
+      "test/fixtures/kernel_differential/v26.9.22/repos.json",
+      "receipts/v26.9.22/kernel-differential.json",
+      "receipts/v26.9.22/GGEN_IGNITER-26922-19.json"
+    ],
+    "remote_effects": [],
+    "new_dependencies": "none (wasmex ~> 0.9 and ash_a2a ~> 26.9 only: [:dev, :test] already declared at base)"
+  },
+  "replay": {
+    "subject_sha_at_replay": "43ae4dd10157112c5bfdda46a5ec4cda01132592",
+    "commands": [
+      {
+        "cmd": "mix test test/ggen_igniter_semantic_jira_kernel_differential_test.exs",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-19",
+        "exit": 0,
+        "summary": "1 test, 0 failures (158.1 s). Writes receipts/v26.9.22/kernel-differential.json: both_kernels_executed true, standing PARTIAL_ALIVE, 169 per-order + 18 mutation + 18 calibration cases, 0 untyped disagreements.",
+        "output_sha256": "613af9234d6077af9a3038cfcf6b4be612dc84ae74c442bb404176c1e8880216"
+      },
+      {
+        "cmd": "git diff --exit-code -- receipts/v26.9.22/kernel-differential.json",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-19",
+        "exit": 0,
+        "summary": "regenerated report is byte-identical to the committed one (sha256 cecb8e26...); also byte-identical across two earlier consecutive runs",
+        "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_semantic_jira_shacl_test.exs",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-19",
+        "exit": 0,
+        "summary": "21 tests, 0 failures (existing court test adjacent to the probe; court code unchanged)",
+        "output_sha256": "a7725629bf64ea7a1a9b3d76051dfa69d1f021fcc7c49a490cb64230602f86bb"
+      },
+      {
+        "cmd": "MIX_ENV=test mix compile --warnings-as-errors --force",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-19",
+        "exit": 0,
+        "summary": "Generated ggen_igniter app",
+        "output_sha256": "a6580bb1c29b7344d153afa2e5a9cc2225632f1f873b4152df3e91075c02c44c"
+      },
+      {
+        "cmd": "mix format --check-formatted lib/ggen_igniter/semantic_jira/kernel_differential.ex test/ggen_igniter_semantic_jira_kernel_differential_test.exs",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-19",
+        "exit": 0,
+        "output_sha256": "021af2067f739bc652a92b28c6c03fefd316e644ad91a87addb0d041f82aa857"
+      },
+      {
+        "cmd": "MIX_ENV=test mix credo --strict lib/ggen_igniter/semantic_jira/kernel_differential.ex test/ggen_igniter_semantic_jira_kernel_differential_test.exs",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-19",
+        "exit": 0,
+        "summary": "96 mods/funs, found no issues.",
+        "output_sha256": "8656ca74669a4bbc6b06f185b922115799063f1c7999cc9e7f1ed86709e1fb43"
+      },
+      {
+        "cmd": "grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps -E '(use|import) +(Mox|Mimic|Patch)\\b|(Mox|Mimic|Patch)\\.|:meck\\.|mockall|MagicMock|Mock\\(' test lib native",
+        "cwd": "/Users/sac/wt/v26922/ggen_igniter/law-GGEN_IGNITER-26922-19",
+        "exit": 1,
+        "summary": "no matches (grep exit 1 is the clean result): Chicago-only, real kernels, no doubles",
+        "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "anti_vacuity_mutant": {
+      "mutation": "shacl_kernel/0 status forced to :conforms (a court that never refuses)",
+      "cmd": "mix test test/ggen_igniter_semantic_jira_kernel_differential_test.exs",
+      "exit": 2,
+      "summary": "1 test, 1 failure: 'm01_drop_base_sha not refused by ggen_igniter.semantic_jira.shacl'; source and report restored with git checkout -- <paths>, report sha256 back to cecb8e26...",
+      "output_sha256": "2ec4805b876bad18fe4bd64d0ead509cb0927e54ca753cbfaf8ec35a826cf3f5"
+    },
+    "durable_location": "receipts/v26.9.22/GGEN_IGNITER-26922-19.json and receipts/v26.9.22/kernel-differential.json, tracked on law/GGEN_IGNITER-26922-19"
+  },
+  "standing": {
+    "value": "PARTIAL_ALIVE",
+    "derived_from": "replay command 1 exit 0 at subject_sha 43ae4dd: both kernels executed on the whole v26.9.22 work graph (no KERNEL_ERROR; wasm loaded, sha256 187688d9...), which is the order's UNKNOWN -> PARTIAL_ALIVE condition; command 2 shows the report regenerates byte-identically at that SHA. Not ALIVE: the order caps at PARTIAL_ALIVE, the kernels do not agree (35 typed disagreements), and no court verdict exists yet."
+  },
+  "measured": {
+    "whole_graph": "AGREE_REFUSE_COUNT_DIFF: Shacl 69 violations (7 sj:repository minCount, 34 dcterms:identifier pattern, 28 sh:sparql authority-binding) vs graphlaw 56",
+    "per_order": {"AGREE_ADMIT": 107, "AGREE_REFUSE": 34, "DISAGREE": 21, "AGREE_REFUSE_COUNT_DIFF": 7},
+    "mutations": {"both_detected": 12, "shacl_only_detected": 5, "identity_not_detected_by_either": 1},
+    "calibration_off_spec": {
+      "praxis_graphlaw.wasm": ["c09 sh:hasValue with a string literal refuses a conforming value", "c13-c16 sh:sparql constraints never produce a result (SELECT with and without PREFIX, OPTIONAL/!BOUND, self-join)"],
+      "ggen_igniter.semantic_jira.shacl": ["c08b sh:closed implicitly ignores rdf:type (SHACL 4.8.1 requires it in sh:ignoredProperties; the pack shapes list it, so the work graph is unaffected)"]
+    },
+    "typed_explanations": "all 35 differing cases SLICE_LOCALIZED and CALIBRATED: whole graph -> projection_authority_shape/hasValue@sj:authorityClaim (c09) + work_order_shape/sparql:2 (c13-c16); 28 orders -> work_order_shape/sparql:2; mutations m11-m15 -> the matching sh:sparql leaf; m16 (detection diff) -> hasValue leaf via its baseline",
+    "untyped_disagreements": 0,
+    "work_graph_admission": "v26.9.22 orders as projected are not admissible under the pack's own shapes: 34 ids contain '_' (GGEN_IGNITER-*, ASH_A2A-*) against ^[A-Z][A-Z0-9-]{1,63}$; 7 orders (ash_atlassian, chatman-ecosystem) have no observable origin slug; 28 token-gated orders bind no authority/lease/worker"
+  },
+  "falsifiers": [
+    {"claim": "C14 falsifier: differential admission disagrees on an order or mutation without a typed explanation", "result": "not triggered: untyped_disagreements 0 across 188 cases"},
+    {"claim": "mutations are vacuous", "result": "refuted for Shacl: 17/17 non-identity mutations DETECTED against their unmutated baseline; the identity mutation NOT_DETECTED by both; forcing Shacl to always conform fails the acceptance (exit 2)"},
+    {"claim": "report is replay-stable", "result": "sha256 cecb8e26... identical over three runs, the last at subject_sha"},
+    {"claim": "one admission kernel (C14 as a composition)", "result": "not established: graphlaw departs from SHACL on sh:sparql and string sh:hasValue, so the two kernels are not interchangeable for the semantic-jira-pack shapes"}
+  ],
+  "generated_vs_handwritten": {
+    "generated": ["receipts/v26.9.22/kernel-differential.json (written by the acceptance test)"],
+    "observed_copies": ["test/fixtures/kernel_differential/v26.9.22/orders.json (byte copy)", "test/fixtures/kernel_differential/v26.9.22/repos.json (git rev-parse / git remote get-url per int worktree)"],
+    "handwritten": ["lib/ggen_igniter/semantic_jira/kernel_differential.ex", "test/ggen_igniter_semantic_jira_kernel_differential_test.exs", "receipts/v26.9.22/GGEN_IGNITER-26922-19.json"],
+    "unsupported": "UNSUPPORTED(generator-capability): semantic-jira-pack renders TTL -> projections and has no JSON orders -> sj:WorkOrder TTL generator, so work_graph/3 is hand-written residue (the TTL-to-work-order direction is order GGEN_IGNITER-26922-08)."
+  },
+  "new_edges": [
+    "praxis-graphlaw defect candidates for ash_a2a priv/graphlaw/defects/: sh:sparql silently not evaluated (no error, although model.rs documents SHACL_SPARQL_BOUNDARY CORE_ONLY as rejection at shape load time); string-literal sh:hasValue false refusal. Minimal reproducers are calibration cases c09 and c13-c16 in KernelDifferential.calibration_cases/0.",
+    "ggen_igniter Shacl: sh:closed implicit rdf:type ignore departs from SHACL 4.8.1 (calibration c08b).",
+    "ggen_igniter Shacl performance: the unrestricted whole-graph run takes minutes, dominated by sparql 0.3 self-join constraints (replay-identity uniqueness about 31 s alone on 169 orders).",
+    "DfCM catalog: C14 standing candidate UNKNOWN -> PARTIAL_ALIVE, for the catalog owner to update from this receipt."
+  ],
+  "not_run": "full mix test suite (no existing module was modified; only the adjacent Shacl test was re-run)"
+}
