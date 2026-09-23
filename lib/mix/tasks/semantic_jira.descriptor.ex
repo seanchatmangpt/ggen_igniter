@@ -12,7 +12,8 @@ defmodule Mix.Tasks.SemanticJira.Descriptor do
   `--alias` (repeatable) maps a WorkOrder's `repository` to the XaaS
   `execution_repo_alias`; `--verifier-suite` names the registered XaaS suite.
   `--provider` names the XaaS construction provider bound into the descriptor
-  (default `zcode`; the no-LLM recipe path passes `--provider recipe`).
+  (default `recipe`, the deterministic XaaS RecipeWorker; an LLM provider such
+  as `zcode` is bound only when passed explicitly, e.g. `--provider zcode`).
   `--court-map` is the minted court map JSON (`mix semantic_jira.court_map`)
   binding the work order's acceptance/falsifier IRIs to witnessing tests; the
   fabric uses it at close time to witness IRI-keyed verdicts. Nothing is

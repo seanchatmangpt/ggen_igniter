@@ -1,6 +1,6 @@
 defmodule GgenIgniter.SemanticJira.Descriptor do
   @moduledoc """
-  XaaS/zcode execution descriptor generated from the admitted frontier.
+  XaaS execution descriptor generated from the admitted frontier.
 
   A descriptor exists only for a work order that `SemanticJira.frontier/2`
   (or `frontier_from_events/3` when `:events` is given) currently lists as
@@ -37,9 +37,11 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
 
   `attrs` needs `graph_digest`, `source_digest`, `worker_identity`,
   `verifier_identity`; optional `provider` (default `@default_provider`,
-  `"zcode"`; the no-LLM recipe path binds `"recipe"`), validated against the
-  same provider-name pattern `build_xaas_contract/4` enforces: a malformed
-  provider is `{:error, {:refused_descriptor, {:invalid_option, :provider}}}`.
+  `"recipe"`: the deterministic XaaS RecipeWorker, so an absent provider never
+  falls back to an LLM (PRD PR-009, ARD section 9); an LLM provider such as
+  `"zcode"` is bound only when named explicitly), validated against the same
+  provider-name pattern `build_xaas_contract/4` enforces: a malformed provider
+  is `{:error, {:refused_descriptor, {:invalid_option, :provider}}}`.
   Options: `:events` (transition log), `:evidence` (dependency evidence map).
   """
   @spec build([map()], String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
@@ -189,7 +191,10 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   @alias_re ~r/\A[A-Za-z0-9_.-]{1,128}\z/
   @suite_re ~r/\A[a-z0-9][a-z0-9_-]{0,63}\z/
   @fabric_ceiling "repository-local"
-  @default_provider "zcode"
+  # PRD PR-009 (no LLM fallback) / ARD section 9 (a deterministic admitted
+  # provider outranks an LLM for KNOWN work): the default is the XaaS
+  # RecipeWorker provider id; "zcode" stays selectable by naming it.
+  @default_provider "recipe"
   @evidence_keys ~w(subject repository base_sha court_results evidence_types acceptance_results
                     falsifier_results receipt_classes evidence_ceiling observed_execution
                     inherited_standing replay_passed replay_identity authority_receipt)
@@ -221,8 +226,8 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   Options: `:verifier_suite` (required, a registered XaaS suite name),
   `:execution_repo_alias` (required unless `:aliases` maps the WorkOrder's
   `repository` to one), `:aliases` (`%{"owner/repo" => alias}`), `:iri_prefix`,
-  `:provider` (the XaaS construction provider, default `"zcode"`; the no-LLM
-  recipe path binds `"recipe"`).
+  `:provider` (the XaaS construction provider, default `"recipe"`, the
+  deterministic RecipeWorker; an LLM provider such as `"zcode"` only when named).
   Nothing is invented: a missing or malformed option is a typed refusal.
 
   The eligible row is ADMITTED (`SemanticJira.admit_work_order/1`) before it

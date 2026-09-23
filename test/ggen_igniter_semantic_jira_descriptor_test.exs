@@ -188,17 +188,18 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
   end
 
   describe "build/4 provider (V23-T6R: @default_provider, validated)" do
-    test "defaults to the module default, binds a named provider, refuses a malformed one" do
+    test "defaults to the deterministic recipe provider, binds a named provider, refuses a malformed one" do
       graph = [wo("A")]
 
-      assert {:ok, %{"provider" => "zcode"}} = Descriptor.build(graph, "A", @attrs)
+      # PRD PR-009 / ARD section 9: no LLM fallback when the provider is absent.
+      assert {:ok, %{"provider" => "recipe"}} = Descriptor.build(graph, "A", @attrs)
 
-      assert {:ok, %{"provider" => "recipe"}} =
-               Descriptor.build(graph, "A", Map.put(@attrs, "provider", "recipe"))
+      assert {:ok, %{"provider" => "zcode"}} =
+               Descriptor.build(graph, "A", Map.put(@attrs, "provider", "zcode"))
 
       # Atom-keyed attrs bind identically to string-keyed ones.
-      assert {:ok, %{"provider" => "recipe"}} =
-               Descriptor.build(graph, "A", Map.put(@attrs, :provider, "recipe"))
+      assert {:ok, %{"provider" => "zcode"}} =
+               Descriptor.build(graph, "A", Map.put(@attrs, :provider, "zcode"))
 
       for bad <- ["not a provider", "Recipe", "", 42, nil] do
         assert {:error, {:refused_descriptor, {:invalid_option, :provider}}} =
@@ -233,18 +234,19 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
       assert d["dependencies"] == []
     end
 
-    test "provider defaults to zcode and is bound from :provider" do
+    test "provider defaults to the deterministic recipe provider and is bound from :provider" do
       graph = [wo("ROOT")]
 
-      assert {:ok, %{"provider" => "zcode"}} =
+      # PRD PR-009 / ARD section 9: no LLM fallback when :provider is absent.
+      assert {:ok, %{"provider" => "recipe"}} =
                Descriptor.build_xaas_contract(graph, [], "ROOT", @contract_opts)
 
-      assert {:ok, %{"provider" => "recipe"}} =
+      assert {:ok, %{"provider" => "zcode"}} =
                Descriptor.build_xaas_contract(
                  graph,
                  [],
                  "ROOT",
-                 [provider: "recipe"] ++ @contract_opts
+                 [provider: "zcode"] ++ @contract_opts
                )
 
       assert {:error, {:descriptor_refused, {:invalid_option, :provider}}} =

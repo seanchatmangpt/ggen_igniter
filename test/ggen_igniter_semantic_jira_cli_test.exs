@@ -139,9 +139,17 @@ defmodule GgenIgniter.SemanticJiraCliTest do
       assert descriptor["verifier_suite"] == @suite
     end
 
-    test "the provider defaults to zcode when --provider is absent", %{dir: dir} do
-      assert {0, %{"provider" => "zcode"}} =
+    # PRD PR-009 / ARD section 9: an absent provider never falls back to an
+    # LLM; the deterministic RecipeWorker id is the default, zcode only when named.
+    test "the provider defaults to the deterministic recipe provider when --provider is absent",
+         %{dir: dir} do
+      assert {0, %{"provider" => "recipe"}} =
                Cli.descriptor(descriptor_opts(Path.join(dir, "ledger"), "FRI-FMT-A", []))
+
+      assert {0, %{"provider" => "zcode"}} =
+               Cli.descriptor(
+                 descriptor_opts(Path.join(dir, "ledger"), "FRI-FMT-A", provider: "zcode")
+               )
     end
 
     test "a malformed provider is a typed refusal", %{dir: dir} do
