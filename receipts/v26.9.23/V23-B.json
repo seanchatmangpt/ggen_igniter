@@ -1,0 +1,205 @@
+{
+  "work_order": {
+    "id": "V23-B",
+    "iri": "https://ggen-igniter.dev/sjira/v26.9.23#WO-V23-B",
+    "gate": "GC23-1 Cold Bootstrap",
+    "wave": "B1b (wf_9bcfbd57-346)",
+    "contract_refs": [
+      "PRD section 8.1",
+      "PR-006",
+      "PR-013",
+      "PRD section 12 GC23-1",
+      "ARD section 7",
+      "ARD section 16",
+      "ARD section 26 F5",
+      "ARD section 26 F6",
+      "AR-003",
+      "DRIVER.md receipt linking"
+    ],
+    "acceptance": "mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+    "task_items": {
+      "task": "lib/mix/tasks/semantic_jira.bootstrap.ex (mix semantic_jira.bootstrap --fleet --goal --graphs... --receipts-dir... --ledger --registry --checkout owner/repo=DIR... --out)",
+      "orchestrator": "lib/ggen_igniter/semantic_jira/bootstrap.ex + bootstrap/{guard,git,graph,receipts,subjects}.ex",
+      "law": "priv/ggen/semantic-jira-pack/bootstrap/{work_orders,dependencies,checkpoints,capabilities,fleet}.rq + prose/root.rq (pack data; the Elixir groups rows)",
+      "frontier": "GgenIgniter.SemanticJira.frontier_from_events/3 over kernel orders (standing derived from current receipts), applicable TransitionLog events and receipt evidence",
+      "court_helper": "scripts/sjira/bootstrap_court.sh (two env -i runs with fresh HOMEs; cmp; python3 state_digest recompute; awk-extracted non-Successor goal WorkOrders reconstructed; 75 when machinery absent; REFUSED(llm_credential_present)/REFUSED(llm_binary_on_path))",
+      "tests": "test/ggen_igniter_semantic_jira_bootstrap_test.exs (16 tests) over test/fixtures/semantic-jira-bootstrap/goal.ttl"
+    }
+  },
+  "identity": {
+    "subject": "V23-B",
+    "repo": "/Users/sac/ggen_igniter",
+    "worktree": "/Users/sac/wt/v26922/v23/V23-B",
+    "branch": "v23/V23-B",
+    "base_ref": "friday/gc-fri-0800",
+    "subject_sha": "9958cfce086c310292ac511fdea2526d0acda115",
+    "base_sha": "c90c17b878d96e14a008c1de498555bc97515937",
+    "base_sha_note": "merge-base of v23/V23-B with friday/gc-fri-0800 = c90c17b (the lane branched from it; friday/gc-fri-0800 unchanged at receipt time)",
+    "graph_hash": "sha256:9858c187e7204b4444f1f15c621f482460b41dac51ffa8553575f43fbef709a3",
+    "graph_hash_of": "xaas docs/sjira/v26.9.23/goal.ttl bytes at xaas-int b3f85b3e4da2488b6ec41510894617e1eb7ce760",
+    "work_order": "v23:WO-V23-B",
+    "tuple_digest": "sha256:5bee8ea4d45e0cc88a311a2a910240211441b2f82fae54372622a1b93647f97f",
+    "tuple_digest_witnesses": [
+      "DRIVER.md tuple-digest table for V23-B at xaas-int c18ecd3 (goal.ttl unchanged)",
+      "GgenIgniter.SemanticJira.Bootstrap.Graph.tuple_digest over xaas-int b3f85b3 goal.ttl (bootstrap state orders.V23-B.tuple_digest; the same run reproduces the DRIVER digests of V23-C/D/H/M/Q/R)",
+      "independent python3 rdflib recompute over xaas-int b3f85b3 goal.ttl, json.dumps(sort_keys=True, separators=(',', ':'), ensure_ascii=False) -> equal"
+    ]
+  },
+  "authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "NONE (lane worktree only; DRIVER.md authority, operator-approved)",
+    "actor": "claude-opus-5-5 lane V23-B (wave B1b)"
+  },
+  "consequence": {
+    "commits": [
+      "9958cfce086c310292ac511fdea2526d0acda115"
+    ],
+    "files_changed": [
+      "HANDWRITTEN.md",
+      "lib/ggen_igniter/semantic_jira/bootstrap.ex",
+      "lib/ggen_igniter/semantic_jira/bootstrap/git.ex",
+      "lib/ggen_igniter/semantic_jira/bootstrap/graph.ex",
+      "lib/ggen_igniter/semantic_jira/bootstrap/guard.ex",
+      "lib/ggen_igniter/semantic_jira/bootstrap/receipts.ex",
+      "lib/ggen_igniter/semantic_jira/bootstrap/subjects.ex",
+      "lib/mix/tasks/semantic_jira.bootstrap.ex",
+      "priv/ggen/semantic-jira-pack/bootstrap/capabilities.rq",
+      "priv/ggen/semantic-jira-pack/bootstrap/checkpoints.rq",
+      "priv/ggen/semantic-jira-pack/bootstrap/dependencies.rq",
+      "priv/ggen/semantic-jira-pack/bootstrap/fleet.rq",
+      "priv/ggen/semantic-jira-pack/bootstrap/work_orders.rq",
+      "scripts/sjira/bootstrap_court.sh",
+      "test/fixtures/semantic-jira-bootstrap/goal.ttl",
+      "test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+      "receipts/v26.9.23/V23-B.json"
+    ],
+    "remote_effects": [],
+    "scope_notes": "Outside v23:WO-V23-B sj:pathScope: scripts/sjira/bootstrap_court.sh (named by the lane task), HANDWRITTEN.md (required by the lane rules for hand-written residue), priv/ggen/semantic-jira-pack/bootstrap/*.rq (generation-first: the reconstruction law as pack data). Successor v23:GC-26.9.24: widen the order's sj:pathScope to these paths. xaas docs/sjira/v26.9.23/courts/GC23-1.sh is NOT edited here (lane V23-K replaces its body; suggested body: sh \"$GGEN_IGNITER_DIR/scripts/sjira/bootstrap_court.sh\" run from the xaas root with XAAS_DIR set)."
+  },
+  "replay": {
+    "durable_location": "receipts/v26.9.23/V23-B.json (ggen_igniter, branch v23/V23-B)",
+    "commands": [
+      {
+        "cmd": "mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-B",
+        "exit": 0,
+        "summary": "lane gate chain at 9958cfce086c310292ac511fdea2526d0acda115: format clean, compile (dev, --force, warnings-as-errors) Generated ggen_igniter app, credo 'found no issues' (2928 mods/funs), 16 tests, 0 failures",
+        "output_sha256": "fa8372d8e3b00dd5a48d86b6570347a12a5e7cd80593eb0a37e9d8da2920767f"
+      },
+      {
+        "cmd": "mix format --check-formatted",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-B",
+        "exit": 0,
+        "summary": "step run separately at 9958cfce086c310292ac511fdea2526d0acda115",
+        "output_sha256": "021af2067f739bc652a92b28c6c03fefd316e644ad91a87addb0d041f82aa857"
+      },
+      {
+        "cmd": "mix compile --warnings-as-errors --force",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-B",
+        "exit": 0,
+        "summary": "step run separately at 9958cfce086c310292ac511fdea2526d0acda115 (rebuilt the rustler crate)",
+        "output_sha256": "2040c8da26d5e4a64056b743219323bf1bfb07e1839df1fc8e3fb04df1fbfe9b"
+      },
+      {
+        "cmd": "mix credo",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-B",
+        "exit": 0,
+        "summary": "found no issues",
+        "output_sha256": "894a4f542d5ffb221c2492d19d27e02f67b8e47001b6938edbd9f768cc3c16da"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-B",
+        "exit": 0,
+        "summary": "16 tests, 0 failures",
+        "output_sha256": "1ed3cb08bfa521924ec16ef91de1581cd6820286235739ef7b47fb5d9ca07a53"
+      },
+      {
+        "cmd": "env -i PATH=/usr/bin:/bin:/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin HOME=/Users/sac TMPDIR=/private/tmp/claude-501/v23-scratch/B1b-V23-B XAAS_DIR=/Users/sac/wt/v26922/fri/xaas-int GGEN_IGNITER_DIR=/Users/sac/wt/v26922/v23/V23-B BOOTSTRAP_CHECKOUTS='seanchatmangpt/xaas=/Users/sac/wt/v26922/fri/xaas-int seanchatmangpt/ggen_igniter=/Users/sac/wt/v26922/fri/ggen_igniter-int' BOOTSTRAP_RECEIPTS_DIRS='/Users/sac/wt/v26922/fri/xaas-int/receipts/v26.9.23 /Users/sac/wt/v26922/fri/ggen_igniter-int/receipts/v26.9.23 /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/receipts' BOOTSTRAP_OUT_DIR=/private/tmp/claude-501/v23-scratch/B1b-V23-B/court-int-subject sh /Users/sac/wt/v26922/v23/V23-B/scripts/sjira/bootstrap_court.sh",
+        "cwd": "/Users/sac/wt/v26922/fri/xaas-int",
+        "exit": 0,
+        "summary": "lane code at 9958cfce086c310292ac511fdea2526d0acda115, subjects xaas-int b3f85b3 + ggen_igniter-int c90c17b: two cold env -i runs byte-identical (state file sha256 a2e70c4d36dc3bafb0518d76dad55a8fe565479222e809ae49e5545dbd3f9309, state_digest sha256:706c31d71f6e5185ecf05d8b5297b559cf0caf8a7fb678ab7827e2fbf5e5d122); python3 digest recompute equal; critical-path orders reconstructed: V23-B V23-C V23-D V23-F V23-H V23-M V23-P V23-Q V23-R V23-X",
+        "output_sha256": "0e89e54d88c40684dd33e2eea899fb36f60763946e69946c40343d903017f483"
+      }
+    ]
+  },
+  "falsifiers": {
+    "revert_mutations": [
+      {
+        "mutation": "M1 covered-path currency ignored (every linked receipt current)",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "F6: a commit on the covered path demotes ALIVE and re-admits the order"
+        ],
+        "output_sha256": "7b3697404ee86b039db1094478250f981f66fa3d94494010091124a0c8cb4bfd"
+      },
+      {
+        "mutation": "M2 receipts/ kept in the covered scope",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "two cold runs",
+          "F5",
+          "F6",
+          "unrelated-commit twin",
+          "fleet matrix form"
+        ],
+        "output_sha256": "e04abc382e1bc1de34382f27caa5915e84d2a4320d8e415c964c31118f3ad99d"
+      },
+      {
+        "mutation": "M3 forbidden-path guard off",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "task refuses a forbidden path",
+          "run/1 refuses .claude/.zcode/transcript/symlink paths",
+          "planted forbidden file in a receipts dir"
+        ],
+        "output_sha256": "e5e91710e8f0d971eb2d191caa24e27c767165981e5b46e757ef0cb0c4191856"
+      },
+      {
+        "mutation": "M4 LLM-credential fence off",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "run/1 refuses by name",
+          "task refuses ANTHROPIC_API_KEY (mu_on_O)"
+        ],
+        "output_sha256": "2d2ce7ca33f6d8498a0061af0065ef3fa3dc373b57af3e83e133dd37b6e96d12"
+      },
+      {
+        "mutation": "M5 tuple-digest linking off",
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "exit": 2,
+        "killed_by": [
+          "receipt bound to another tuple digest confers nothing"
+        ],
+        "output_sha256": "d832e3b5a30253b94cecd02326673b4a91f7d0f4450725b3b2d03e22ffca12a0"
+      }
+    ],
+    "mutation_note": "each mutation applied to the committed tree, test file run, file restored with git checkout -- <file>; git status clean afterwards at 9958cfce086c310292ac511fdea2526d0acda115",
+    "court_pre_merge": {
+      "cmd": "env -i PATH=/usr/bin:/bin:/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin HOME=/Users/sac TMPDIR=/private/tmp/claude-501/v23-scratch/B1b-V23-B XAAS_DIR=/Users/sac/wt/v26922/fri/xaas-int GGEN_IGNITER_DIR=/Users/sac/wt/v26922/fri/ggen_igniter-int sh /Users/sac/wt/v26922/v23/V23-B/scripts/sjira/bootstrap_court.sh",
+      "cwd": "/Users/sac/wt/v26922/fri/xaas-int",
+      "exit": 75,
+      "summary": "UNKNOWN: GC23-1 machinery lands in lane V23-B (ggen_igniter-int c90c17b has no mix semantic_jira.bootstrap)",
+      "output_sha256": "fc59cc60595719068ff284b397a822990103518c43065964cbdf8eb9d76e4153"
+    },
+    "court_llm_env": "sh bootstrap_court.sh from this Claude session's env -> REFUSED(llm_credential_present) GC23-1 naming ANTHROPIC_API_KEY, ZAI_API_KEY and CLAUDE_* variables (broken_term mu_on_O); also a test"
+  },
+  "observations": {
+    "int_reconstruction": "At xaas-int b3f85b3 + ggen_igniter-int c90c17b the bootstrap derives every v23 order UNKNOWN: the ALIVE receipts of V23-P, V23-X, V23-F (xaas) and V23-C (ggen_igniter) are invalidated subject_advanced (PR-006/F6) because later lanes changed paths in their sj:pathScope (HANDWRITTEN.md for P/X/F via 1a8e31f; test/ for C via dda8ee1). mix xaas.stop_court links those receipts by tuple digest alone and does not apply the covered-path law; GC23-10 (V23-R, cold replay reaches the same standing) must choose one law.",
+    "successor_candidates": [
+      "v23:GC-26.9.24: shared ledger files (HANDWRITTEN.md) and broad scopes (test/) in lane sj:pathScope make derived standing of one lane fall on every other lane's merge; narrow the scopes or exclude ledger files by a declared rule",
+      "v23:GC-26.9.24: a durable recipe registry export (xaas config :ultracode_construction_recipes -> JSON) so --registry has an input; today capabilities come from the graphs only (registry.present=false)",
+      "v23:GC-26.9.24: a durable TransitionLog for GC-26.9.23 (the court default docs/sjira/v26.9.23/ledger/standing-ledger.ndjson is absent; bootstrap reads it as an empty log)",
+      "v23:GC-26.9.24: gate receipts are committed after the run, so their subject_sha never equals HEAD; out-of-subject receipts (catalog C21) would make gate standing reconstructable at exact HEAD"
+    ],
+    "integration_note": "GC23-1 court (xaas, lane V23-K) needs this branch merged into friday/gc-fri-0800 so GGEN_IGNITER_DIR=/Users/sac/wt/v26922/fri/ggen_igniter-int carries scripts/sjira/bootstrap_court.sh and the task; the court must run with no LLM credential variable in its env."
+  },
+  "standing": {
+    "value": "ALIVE",
+    "derived_from": "lane gate chain (format, compile --warnings-as-errors --force, credo, the 16-test bootstrap suite) exit 0 at the exact committed subject 9958cfce086c310292ac511fdea2526d0acda115 in /Users/sac/wt/v26922/v23/V23-B; bootstrap_court.sh exit 0 with this code over the int subjects; revert mutations M1-M5 each make the suite fail. Gate GC23-1 itself stays UNKNOWN until V23-K replaces the xaas court body and this branch is integrated (pre-merge court exit 75)."
+  }
+}
