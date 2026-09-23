@@ -5,7 +5,7 @@ defmodule GgenIgniter.SemanticJiraObservationDeltaTest do
 
   @base_sha String.duplicate("c", 40)
 
-  defp binding do
+  defp binding_context do
     %{
       "repository" => "seanchatmangpt/biblegym",
       "base_sha" => @base_sha,
@@ -45,7 +45,7 @@ defmodule GgenIgniter.SemanticJiraObservationDeltaTest do
 
   test "admits a GGen-manufactured life/formation observation as UNKNOWN work" do
     assert {:ok, [work_order]} =
-             SemanticJira.observation_delta_work_orders(delta(), binding())
+             SemanticJira.observation_delta_work_orders(delta(), binding_context())
 
     assert work_order["identity"] == "SLL-001"
     assert work_order["standing"] == "UNKNOWN"
@@ -63,8 +63,8 @@ defmodule GgenIgniter.SemanticJiraObservationDeltaTest do
   end
 
   test "preserves deterministic identity on replay of the same delta" do
-    assert {:ok, first} = SemanticJira.observation_delta_work_orders(delta(), binding())
-    assert {:ok, second} = SemanticJira.observation_delta_work_orders(delta(), binding())
+    assert {:ok, first} = SemanticJira.observation_delta_work_orders(delta(), binding_context())
+    assert {:ok, second} = SemanticJira.observation_delta_work_orders(delta(), binding_context())
     assert first == second
   end
 
@@ -81,7 +81,7 @@ defmodule GgenIgniter.SemanticJiraObservationDeltaTest do
       bad = %{delta() | "work_candidates" => [poisoned]}
 
       assert {:error, {:refused_observation_delta, {:candidate_boundary_violation, "SLL-001"}}} =
-               SemanticJira.observation_delta_work_orders(bad, binding())
+               SemanticJira.observation_delta_work_orders(bad, binding_context())
     end
   end
 
@@ -91,6 +91,6 @@ defmodule GgenIgniter.SemanticJiraObservationDeltaTest do
     bad = %{delta() | "work_candidates" => [bad_candidate]}
 
     assert {:error, {:refused_observation_delta, {:candidate_boundary_violation, "SLL-001"}}} =
-             SemanticJira.observation_delta_work_orders(bad, binding())
+             SemanticJira.observation_delta_work_orders(bad, binding_context())
   end
 end

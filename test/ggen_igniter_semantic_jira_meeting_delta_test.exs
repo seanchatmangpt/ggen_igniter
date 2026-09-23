@@ -5,7 +5,7 @@ defmodule GgenIgniter.SemanticJiraMeetingDeltaTest do
 
   @base_sha String.duplicate("a", 40)
 
-  defp binding do
+  defp binding_context do
     %{
       "repository" => "seanchatmangpt/zoela",
       "base_sha" => @base_sha,
@@ -56,8 +56,8 @@ defmodule GgenIgniter.SemanticJiraMeetingDeltaTest do
   end
 
   test "projects deterministic authority-free meeting deltas into canonical work orders" do
-    assert {:ok, first} = SemanticJira.meeting_delta_work_orders(delta(), binding())
-    assert {:ok, second} = SemanticJira.meeting_delta_work_orders(delta(), binding())
+    assert {:ok, first} = SemanticJira.meeting_delta_work_orders(delta(), binding_context())
+    assert {:ok, second} = SemanticJira.meeting_delta_work_orders(delta(), binding_context())
     assert first == second
     assert Enum.map(first, & &1["identity"]) == ["sjira:001", "sjira:002"]
 
@@ -81,7 +81,7 @@ defmodule GgenIgniter.SemanticJiraMeetingDeltaTest do
     poisoned = %{delta() | "work_candidates" => [Map.put(first, "do_authority", true) | rest]}
 
     assert {:error, {:refused_meeting_delta, {:candidate_boundary_violation, "sjira:001"}}} =
-             SemanticJira.meeting_delta_work_orders(poisoned, binding())
+             SemanticJira.meeting_delta_work_orders(poisoned, binding_context())
   end
 
   test "refuses a semantic mismatch between delta class and work kind" do
@@ -93,14 +93,20 @@ defmodule GgenIgniter.SemanticJiraMeetingDeltaTest do
     }
 
     assert {:error, {:refused_meeting_delta, {:candidate_boundary_violation, "sjira:001"}}} =
-             SemanticJira.meeting_delta_work_orders(poisoned, binding())
+             SemanticJira.meeting_delta_work_orders(poisoned, binding_context())
   end
 
   test "requires an exact repository base and bounded path scope" do
     assert {:error, {:refused_meeting_delta, {:invalid_sha, :base_sha, "moving"}}} =
-             SemanticJira.meeting_delta_work_orders(delta(), %{binding() | "base_sha" => "moving"})
+             SemanticJira.meeting_delta_work_orders(delta(), %{
+               binding_context()
+               | "base_sha" => "moving"
+             })
 
     assert {:error, {:refused_meeting_delta, _}} =
-             SemanticJira.meeting_delta_work_orders(delta(), %{binding() | "path_scope" => []})
+             SemanticJira.meeting_delta_work_orders(delta(), %{
+               binding_context()
+               | "path_scope" => []
+             })
   end
 end
