@@ -136,5 +136,27 @@
     "ggen_igniter Shacl performance: the unrestricted whole-graph run takes minutes, dominated by sparql 0.3 self-join constraints (replay-identity uniqueness about 31 s alone on 169 orders).",
     "DfCM catalog: C14 standing candidate UNKNOWN -> PARTIAL_ALIVE, for the catalog owner to update from this receipt."
   ],
-  "not_run": "full mix test suite (no existing module was modified; only the adjacent Shacl test was re-run)"
+  "not_run": "full mix test suite (no existing module was modified; only the adjacent Shacl test was re-run)",
+  "integration": {
+    "into": "release/v26.9.22",
+    "worktree": "/Users/sac/wt/v26922/ggen_igniter/int",
+    "executor": "claude",
+    "lock": "/Users/sac/wt/v26922/ggen_igniter/.merge.lock owner claude:GGEN_IGNITER-26922-19:2026-09-23T00:16:20Z",
+    "pre_merge_head": "facdf0dbd3cd95f5b8a630dcbcacc0140d6582fc",
+    "merged_branch_head": "6a4c22792c60c7e484d4a7eb5ea8780391631bf8",
+    "merge_commit": "92b17af575a02ebc4e91bd8a28a5808caf2b35f3",
+    "merge": "git merge --no-ff law/GGEN_IGNITER-26922-19 -F <msgfile>: ort strategy, 0 conflicts, 6 files added, 13192 insertions",
+    "post_merge_replay_at_merge_commit": [
+      {"cmd": "MIX_ENV=test mix compile --warnings-as-errors --force", "exit": 0, "summary": "Generated ggen_igniter app (86 files + ggen_graph_nif release build)"},
+      {"cmd": "mix format --check-formatted", "exit": 0, "summary": "whole repo formatted; only the pre-existing mix.exs :preferred_cli_env deprecation warning is printed"},
+      {"cmd": "mix test test/ggen_igniter_semantic_jira_kernel_differential_test.exs", "exit": 0, "summary": "1 test, 0 failures (102.6 s)"},
+      {"cmd": "git diff --exit-code -- receipts/v26.9.22/kernel-differential.json", "exit": 0, "summary": "regenerated report byte-identical at the merge commit, sha256 cecb8e26b36844cdd6bfaa9ad42f05455b08b08fd0f7ed0386923514b39bbc5b"},
+      {"cmd": "mix test test/ggen_igniter_semantic_jira_shacl_test.exs", "exit": 0, "summary": "21 tests, 0 failures"},
+      {"cmd": "MIX_ENV=test mix credo --strict lib/ggen_igniter/semantic_jira/kernel_differential.ex test/ggen_igniter_semantic_jira_kernel_differential_test.exs", "exit": 0, "summary": "96 mods/funs, found no issues."},
+      {"cmd": "grep -rn (Chicago mock grep from CLAUDE.md, plus --exclude-dir=target) test lib native", "exit": 1, "summary": "no matches (clean)"}
+    ],
+    "reverted": false,
+    "standing_after_integration": "PARTIAL_ALIVE (unchanged; order caps at PARTIAL_ALIVE; court verdict pending in /Users/sac/wt/v26922/court/ggen_igniter/)",
+    "not_run": "full mix test suite on release/v26.9.22 after the merge (merge adds only new files; no existing module changed)"
+  }
 }
