@@ -1,0 +1,206 @@
+{
+  "work_order": {
+    "id": "FRI-T1",
+    "gate": "G4 Finite work graph (GC-FRI-0800)",
+    "title": "Friday GoalCheckpoint vocabulary contract + SHACL shapes in semantic-jira-pack",
+    "acceptance": "mix format --check-formatted && mix compile --warnings-as-errors && mix test test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_pack_test.exs",
+    "plan": "/Users/sac/.claude/plans/i-need-you-to-iterative-sedgewick.md",
+    "coordination": "/Users/sac/wt/v26922/COORDINATION.md (reserved: priv/ggen/semantic-jira-pack/{ontology.ttl,shapes/*})"
+  },
+  "identity": {
+    "subject": "FRI-T1",
+    "repo": "/Users/sac/ggen_igniter",
+    "worktree": "/Users/sac/wt/v26922/fri/FRI-T1",
+    "branch": "fri/FRI-T1",
+    "base_ref": "friday/gc-fri-0800",
+    "subject_sha": "c1a683e323bb425f909c28a0bae9759aa5185c17",
+    "base_sha": "5984ec480c2318e86aa621da5f496e5e014b0fac",
+    "graph_hash": "sha256:4e459167fe12938c82dee1a27a8cfae2d8adce878d5985f6c0d832595aaa3511",
+    "graph_hash_of": "priv/ggen/semantic-jira-pack/ontology.ttl bytes at subject_sha",
+    "shapes_sha256": "8913f33237bd994570564e6c91f02d2cda82786ed2383b5aee99c06352498a90",
+    "vocabulary_contract": {
+      "namespace": "https://ggen-igniter.dev/ontology/semantic-jira#",
+      "classes": [
+        "sj:GoalCheckpoint (rdfs:subClassOf sj:Checkpoint; owl:equivalentClass gall:SemanticCheckpoint annotation-level, gall-core not imported)",
+        "sj:BoundaryClass",
+        "sj:Capability"
+      ],
+      "boundary_individuals": [
+        "sj:Bootstrap",
+        "sj:FirstMile",
+        "sj:Core",
+        "sj:LastMile",
+        "sj:Successor"
+      ],
+      "checkpoint_properties": [
+        "sj:checkpointOf",
+        "sj:boundaryClass",
+        "sj:courtCommand",
+        "sj:stopQuery",
+        "sj:successorOf"
+      ],
+      "tuple_properties": [
+        "sj:postcondition",
+        "sj:requiresCapability",
+        "sj:capabilityId",
+        "sj:evidenceHorizon",
+        "sj:exclusion",
+        "sj:consequenceClass",
+        "sj:successorPolicy"
+      ],
+      "machine_experience_properties": [
+        "sj:executionReceiptHash",
+        "sj:observationRef",
+        "sj:verificationDigest",
+        "sj:resultingStateDigest",
+        "sj:experienceDigest"
+      ],
+      "tuple_digest": "sha256 over canonical JSON (sorted keys, compact) of {subject, postcondition, capability, evidence_ceiling, authority_ceiling, consequence_class, exclusions(sorted)}; recorded as a comment in ontology.ttl (computation owned by T4/T5)",
+      "new_node_shapes": [
+        "sj:CheckpointShape",
+        "sj:GoalCheckpointShape",
+        "sj:BoundaryClassValueShape",
+        "sj:CapabilityShape",
+        "sj:FridayWorkOrderShape",
+        "sj:MachineExperienceShape"
+      ]
+    }
+  },
+  "authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "NONE",
+    "actor": "claude-opus-5-5 subagent, workflow lane FRI-T1 (local commits on fri/FRI-T1 only; no push, no merge into friday/gc-fri-0800 or ggen_igniter-int, no remote effect)"
+  },
+  "consequence": {
+    "commits": [
+      "c1a683e323bb425f909c28a0bae9759aa5185c17"
+    ],
+    "files_changed": [
+      "HANDWRITTEN.md",
+      "lib/ggen_igniter/semantic_jira/kernel_differential.ex",
+      "lib/ggen_igniter/semantic_jira/shacl.ex",
+      "priv/ggen/semantic-jira-pack/ontology.ttl",
+      "priv/ggen/semantic-jira-pack/shapes/work-order.shacl.ttl",
+      "priv/ggen/semantic-jira-pack/templates/jira.md.eex",
+      "test/fixtures/semantic-jira-goal-checkpoint/goal.ttl",
+      "test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+      "test/ggen_igniter_semantic_jira_shacl_test.exs",
+      "receipts/v26.9.22/FRI-T1.json"
+    ],
+    "remote_effects": [],
+    "generated_vs_handwritten": {
+      "canonical_source_edited": [
+        "priv/ggen/semantic-jira-pack/ontology.ttl",
+        "priv/ggen/semantic-jira-pack/shapes/work-order.shacl.ttl"
+      ],
+      "generator_capital_extended": [
+        "priv/ggen/semantic-jira-pack/templates/jira.md.eex (Friday tuple section + template-level refusal; legacy orders render byte-for-byte unchanged)"
+      ],
+      "handwritten_residue": [
+        "test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs + test/fixtures/semantic-jira-goal-checkpoint/goal.ttl -> HANDWRITTEN.md row + sj:ledger-unsupported-002, UNSUPPORTED(generator-capability)",
+        "lib/ggen_igniter/semantic_jira/shacl.ex (result_path/1, targetSubjectsOf repair) + kernel_differential.ex (has_predicate?/3 repair) -> HANDWRITTEN.md row, UNSUPPORTED(generator-capability)"
+      ],
+      "gates": "gates/030_properties.rq is predicate-generic (no enumeration); no gate change needed"
+    },
+    "defects_found_and_repaired": [
+      "GgenIgniter.SemanticJira.Shacl sh:targetSubjectsOf raised FunctionClauseError (RDF.Description.include?/3 takes a statement, not a bare predicate) the first time a shipped shape used it; same defect in KernelDifferential.has_predicate?/3",
+      "praxis_graphlaw.wasm refuses every literal against sh:pattern \"\\\\S\" (measured with a direct WasmexHost probe: \\S REFUSED, [^\\s] ADMITTED); shapes use [^\\s] so both kernels agree"
+    ]
+  },
+  "replay": {
+    "subject_sha_at_replay": "c1a683e323bb425f909c28a0bae9759aa5185c17",
+    "durable_location": "receipts/v26.9.22/FRI-T1.json",
+    "commands": [
+      {
+        "cmd": "mix format --check-formatted",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "no output",
+        "output_sha256": "357252ea59ee35c21a5dc4693dc6b353dd8e18d40024555c0f2ababfca1c1afe"
+      },
+      {
+        "cmd": "mix compile --warnings-as-errors",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "compiled clean",
+        "output_sha256": "97344ae976b37b4bdad22bd748290d743737a780cd7070d7e0f6d050c6f9e1db"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_pack_test.exs",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "84 tests, 0 failures (754.6 s); shape census 13 -> 19; canonical 33-order pack still manufactures and replays byte-identically",
+        "output_sha256": "8e373fef8ec21e0974667a3c58c2aee7041450babb9b3d10645ff2c8be7e5334"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "34 tests, 0 failures (149.3 s): tuple-complete goal graph admits; 12-row tuple mutation table refuses naming each field; root without stopQuery refused; non-ASK stopQuery, missing courtCommand/boundaryClass, out-of-enumeration boundary, self-parent, malformed capabilityId refused; 33 pack orders + 169 KernelDifferential legacy orders gain zero violations; MachineExperience shape vs real machine_experience/1; ReconcileReactor.plan refusal; jira render + template refusal; real mix ggen_igniter.sync -> 34 tickets",
+        "output_sha256": "b0f12e400d9c30160313ed28d8a99dc4c6cd0a23d1bd68146206eaf03324733f"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_semantic_jira_kernel_differential_test.exs",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "1 test, 0 failures; regenerated report differs from the committed one only in input/shape sha256 fields and slice_count (verdict matrix 107 agree-conform / 41 agree-refuse / 21 shacl-refuse-wasm-conform, 35 typed disagreements, mutation base SELECTED: identical); committed report restored, not recommitted",
+        "output_sha256": "3c04ee5daeda281c2f235c69a938a799c37a91bcec38cdc777866c81ef2c0988"
+      },
+      {
+        "cmd": "mix credo",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "2364 mods/funs, found no issues",
+        "output_sha256": "fb587df082bbc86516d6177e10b0328e2444be639ad58b238586d8328eca893a"
+      },
+      {
+        "cmd": "! grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps --exclude-dir=target -E '(use|import) +(Mox|Mimic|Patch)\\b|(Mox|Mimic|Patch)\\.|:meck\\.|mockall|MagicMock|Mock\\(' test lib native",
+        "cwd": "/Users/sac/wt/v26922/fri/FRI-T1",
+        "exit": 0,
+        "summary": "zero matches (Chicago no-mock grep)",
+        "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  "falsifiers": [
+    {
+      "mutation": "FridayWorkOrderShape successorPolicy constraint rewired to sj:postcondition",
+      "observed": "mix test ...goal_checkpoint_test.exs:80 -> 12 tests, 1 failure (removing sj:successorPolicy no longer refused)",
+      "restored": true
+    },
+    {
+      "mutation": "Shacl.result_path/1 always nil (?path support removed)",
+      "observed": "12 tests, 6 failures (every sparql-row mutation case loses its field path)",
+      "restored": true
+    },
+    {
+      "mutation": "sh:targetSubjectsOf reverted to RDF.Description.include?/2",
+      "observed": "FunctionClauseError in RDF.Description.include?/3",
+      "restored": true
+    },
+    {
+      "mutation": "jira.md.eex Friday refusal disabled (if false and ...)",
+      "observed": "Expected exception ArgumentError but nothing was raised",
+      "restored": true
+    },
+    {
+      "mutation": "CheckpointShape rdfs:label sh:pattern \"\\\\S\" (pre-fix)",
+      "observed": "KernelDifferential mutation_base NO_ADMITTED_BASE: praxis_graphlaw.wasm refused all 169 legacy orders (+1 violation each); fixed with [^\\s]",
+      "restored": true
+    }
+  ],
+  "integration_probe": {
+    "subject": "xaas FRI-T5 docs/sjira/v26.9.22/friday/goal.ttl at cb4ec5a (sha256 e235de71c6c9130da6609a1f7469482c6c93f68194ba11cf135c86e5bdad88f9), read-only copy",
+    "merged_with_pack_ontology": "conforms=true, 0 violations, 264 focus nodes",
+    "alone": "conforms=false, 3 violations (sj:nextCheckpoint x1 and sj:requiresEvidence x2 sh:class): the goal graph relies on pack vocabulary (sj:GoalCheckpoint rdfs:subClassOf sj:Checkpoint, evidence-requirement individuals); the stop court must validate goal.ttl merged with priv/ggen/semantic-jira-pack/ontology.ttl"
+  },
+  "unresolved": [
+    "G4 gate acceptance ('SHACL court passes on goal.ttl') belongs to the integrated xaas goal graph; observed here only as a read-only probe of FRI-T5 cb4ec5a, not as a court verdict",
+    "praxis_graphlaw.wasm behaviour on the Friday-only constructs (sh:targetSubjectsOf, BIND ?path in sh:sparql) is UNVERIFIED on a Friday goal graph; the KernelDifferential corpus contains no sj:checkpointOf",
+    "Independent qualification court verdict (/Users/sac/wt/v26922/court/ggen_igniter/FRI-T1.json) not yet issued"
+  ],
+  "standing": {
+    "value": "PARTIAL_ALIVE",
+    "derived_from": "Every replay command above exits 0 on the exact subject c1a683e (lane gate: format, compile --warnings-as-errors, shacl+pack 84/0; goal-checkpoint 34/0; kernel-differential 1/0; credo clean; no-mock grep clean), and each falsifier was observed to break its test. Not ALIVE: the independent court verdict and the G4 acceptance on the integrated xaas goal.ttl are outside this lane."
+  }
+}
