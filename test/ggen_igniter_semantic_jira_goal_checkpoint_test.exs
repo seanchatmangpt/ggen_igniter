@@ -40,10 +40,12 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
   @friday_shapes ~w(checkpoint_shape goal_checkpoint_shape boundary_class_value_shape
                     capability_shape friday_work_order_shape machine_experience_shape)
 
-  # The full tuple of a Friday order: removing any one field must refuse and
-  # name that field as the violation path. Fields already sh:minCount 1 on
-  # sj:WorkOrderShape refuse there; the Friday additions refuse on
-  # sj:FridayWorkOrderShape's per-field SPARQL constraints.
+  # The full tuple of a Friday order: removing any one required field must
+  # refuse and name that field as the violation path. Fields already
+  # sh:minCount 1 on sj:WorkOrderShape refuse there; the Friday additions
+  # refuse on sj:FridayWorkOrderShape's per-field SPARQL constraints.
+  # sj:exclusion is deliberately absent: the shared vocabulary contract makes
+  # it 0..n (see "zero sj:exclusion admits" below).
   @mutation_table [
     {"subject", "work_order_shape", :min_count},
     {"repository", "work_order_shape", :min_count},
@@ -54,7 +56,6 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
     {"postcondition", "friday_work_order_shape", :sparql},
     {"requiresCapability", "friday_work_order_shape", :sparql},
     {"evidenceHorizon", "friday_work_order_shape", :sparql},
-    {"exclusion", "friday_work_order_shape", :sparql},
     {"consequenceClass", "friday_work_order_shape", :sparql},
     {"successorPolicy", "friday_work_order_shape", :sparql}
   ]
@@ -136,6 +137,34 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
         |> validate_goal!()
 
       fetch_violation!(report, focus_node: @order, path: @sj <> "exclusion", constraint: :pattern)
+    end
+
+    test "a Friday order with zero sj:exclusion admits (the contract's 0..n)" do
+      source = replace_once!(goal_source(), ~r/^    sj:exclusion [^\n]*;\n/m, "")
+      refute source =~ "sj:exclusion"
+
+      report = validate_goal!(source)
+
+      assert report.conforms, "violations:\n#{inspect(report.violations, pretty: true)}"
+      assert "friday_work_order_shape" in report.shapes_checked
+      refute Enum.any?(report.violations, &(&1.path == @sj <> "exclusion"))
+    end
+
+    test "a non-literal sj:exclusion refuses (each exclusion present is an xsd:string)" do
+      report =
+        goal_source()
+        |> replace_once!(
+          "sj:exclusion \"no LLM on the KNOWN path\", \"no network access during the episode\"",
+          "sj:exclusion sj:gc-fixture-root"
+        )
+        |> validate_goal!()
+
+      fetch_violation!(report,
+        focus_node: @order,
+        path: @sj <> "exclusion",
+        constraint: :datatype,
+        shape: "work_order_shape"
+      )
     end
 
     test "sj:checkpointOf must point at a GoalCheckpoint" do
@@ -298,6 +327,60 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
         path: @sj <> "capabilityId",
         constraint: :pattern
       )
+    end
+
+    # The G5 hop's capability grammar, copied verbatim from xaas
+    # lib/xaas/sa2a/route.ex @capability (friday/gc-fri-0800 f8bca07, merged
+    # FRI-T4). The G4 SHACL court must admit exactly the ids this admits.
+    @sa2a_capability ~r/\A([a-z0-9][a-z0-9_.-]*):([a-z0-9][a-z0-9_.:-]*)\z/
+
+    # {capabilityId, admitted?}: both lanes' verdicts are asserted against
+    # this column, so a divergence in either direction fails.
+    @capability_corpus [
+      {"recipe:mix-format", true},
+      {"construct:xaas-mix-task", true},
+      {"construct:ggen_igniter-lane", true},
+      {"recipe:mix.format:v2", true},
+      {"9x:y", true},
+      {"a:b", true},
+      {"mix format", false},
+      {"recipe:Mix/Format", false},
+      {"Recipe:mix-format", false},
+      {"recipe:", false},
+      {":mix-format", false},
+      {"recipe:-mix-format", false},
+      {"recipe:mix format", false},
+      {"recipe:mix-format\n", false}
+    ]
+
+    test "sj:capabilityId admits exactly the ids the SA2A route grammar admits" do
+      shapes = GgenIgniter.Ontology.load!(@shapes_path)
+      capability = RDF.iri(@sj <> "cap-corpus")
+
+      for {id, admitted?} <- @capability_corpus do
+        assert Regex.match?(@sa2a_capability, id) == admitted?,
+               "SA2A route grammar verdict for #{inspect(id)} is not #{admitted?}"
+
+        report =
+          RDF.Graph.new([
+            {capability, RDF.type(), RDF.iri(@sj <> "Capability")},
+            {capability, RDF.iri(@sj <> "capabilityId"), RDF.literal(id)}
+          ])
+          |> Shacl.validate(shapes)
+
+        assert "capability_shape" in report.shapes_checked
+
+        refused? =
+          Enum.any?(
+            report.violations,
+            &(&1.shape == "capability_shape" and &1.path == @sj <> "capabilityId" and
+                &1.constraint == :pattern)
+          )
+
+        assert refused? == not admitted?,
+               "SHACL verdict for #{inspect(id)} diverges from the SA2A route: " <>
+                 inspect(report.violations, pretty: true)
+      end
     end
   end
 
@@ -478,6 +561,20 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
 
       refute legacy =~ "Friday tuple"
       assert legacy =~ "graph_hash.\n\n## Dependencies"
+    end
+
+    test "a Friday order with zero exclusions renders \"none\" instead of refusing (0..n)" do
+      graph =
+        goal_source()
+        |> replace_once!(~r/^    sj:exclusion [^\n]*;\n/m, "")
+        |> write_merged!()
+        |> GgenIgniter.Ontology.load!()
+
+      friday = render_ticket!(graph, "GC-FIXTURE-WO-1")
+
+      assert friday =~ "## Friday tuple\n\n"
+      assert friday =~ "- **Exclusions:** none\n\n## Dependencies"
+      refute friday =~ "  - no LLM on the KNOWN path"
     end
 
     test "the template refuses a Friday order missing a tuple field even when SHACL is bypassed" do

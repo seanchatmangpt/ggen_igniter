@@ -293,9 +293,14 @@ sj:BoundaryClassValueShape a sh:NodeShape ;
       """
     ] .
 
+# sj:capabilityId grammar = the SA2A hop's capability grammar (xaas
+# lib/xaas/sa2a/route.ex @capability, \A([a-z0-9][a-z0-9_.-]*):([a-z0-9][a-z0-9_.:-]*)\z),
+# so one id is admitted or refused identically by the G4 SHACL court and the
+# G5 tuple-digest route. `$` anchors at the end of the whole string (XPath
+# fn:matches semantics), matching the route's \z.
 sj:CapabilityShape a sh:NodeShape ;
     sh:targetClass sj:Capability ;
-    sh:property [ sh:path sj:capabilityId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-z][a-z0-9_-]*:[A-Za-z0-9_.:/-]+$" ] ;
+    sh:property [ sh:path sj:capabilityId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-z0-9][a-z0-9_.-]*:[a-z0-9][a-z0-9_.:-]*$" ] ;
     sh:sparql [
       sh:message "Capability identifiers (sj:capabilityId) must be unique across Capabilities." ;
       sh:select """
@@ -315,6 +320,11 @@ sj:CapabilityShape a sh:NodeShape ;
 # shape adds the Friday tuple fields. Targeting sj:checkpointOf subjects (not
 # sj:WorkOrder) keeps every pre-Friday order out of scope, and the
 # `$this a sj:WorkOrder` guard keeps child GoalCheckpoints out of scope.
+# sj:exclusion is 0..n by the shared vocabulary contract, so it has no
+# presence constraint here: an order with no exclusion admits and its tuple
+# digest carries exclusions = [] (xaas Xaas.Sa2a.Route admit_field/2). Each
+# exclusion that is present stays typed on sj:WorkOrderShape (xsd:string,
+# not blank).
 sj:FridayWorkOrderShape a sh:NodeShape ;
     sh:targetSubjectsOf sj:checkpointOf ;
     sh:sparql [
@@ -349,18 +359,6 @@ sj:FridayWorkOrderShape a sh:NodeShape ;
           $this a sj:WorkOrder .
           BIND(sj:evidenceHorizon AS ?path)
           OPTIONAL { $this sj:evidenceHorizon ?value . }
-          FILTER(!BOUND(?value))
-        }
-      """
-    ] ;
-    sh:sparql [
-      sh:message "Friday tuple: a WorkOrder with sj:checkpointOf requires at least one sj:exclusion." ;
-      sh:select """
-        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
-        SELECT $this ?path WHERE {
-          $this a sj:WorkOrder .
-          BIND(sj:exclusion AS ?path)
-          OPTIONAL { $this sj:exclusion ?value . }
           FILTER(!BOUND(?value))
         }
       """

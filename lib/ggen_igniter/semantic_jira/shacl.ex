@@ -14,7 +14,12 @@ defmodule GgenIgniter.SemanticJira.Shacl do
       `sh:targetObjectsOf` (`sh:targetClass` follows `rdfs:subClassOf*`)
     * property constraints: `sh:minCount`, `sh:maxCount`, `sh:nodeKind`,
       `sh:datatype`, `sh:pattern` (flag `i`), `sh:minLength`,
-      `sh:maxLength`, `sh:hasValue`, `sh:class`
+      `sh:maxLength`, `sh:hasValue`, `sh:class`. `sh:pattern` keeps XPath
+      `fn:matches` anchoring: without the `m` flag `$` matches only at the
+      end of the whole string, so patterns compile with PCRE `dollar_endonly`
+      (PCRE's default `$` also matches before a final newline, which would
+      admit a capability id with a trailing newline that the SA2A route's
+      end-of-string anchor refuses)
     * node-level: `sh:closed` with `sh:ignoredProperties`, `sh:property`,
       `sh:deactivated`
     * SPARQL-based constraints: `sh:sparql` with `sh:select`/`sh:message`.
@@ -434,8 +439,8 @@ defmodule GgenIgniter.SemanticJira.Shacl do
       else: {:error, "unsupported sh:flags #{inspect(flags(property_shape))}"}
   end
 
-  defp compile_pattern(pattern, "i"), do: Regex.compile(pattern, "i")
-  defp compile_pattern(pattern, ""), do: Regex.compile(pattern)
+  defp compile_pattern(pattern, "i"), do: Regex.compile(pattern, [:caseless, :dollar_endonly])
+  defp compile_pattern(pattern, ""), do: Regex.compile(pattern, [:dollar_endonly])
 
   defp length_check(property_shape, term, constraint, values) do
     case integer_param(property_shape, term) do

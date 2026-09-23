@@ -2032,7 +2032,8 @@ sj:a2a-attr-receipt-digest a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-targ
 #   {subject, postcondition, capability, evidence_ceiling, authority_ceiling,
 #    consequence_class, exclusions}
 # with keys sorted, compact separators, exclusions sorted; capability is the
-# sj:capabilityId string of the order's sj:requiresCapability node.
+# sj:capabilityId string of the order's sj:requiresCapability node. sj:exclusion
+# is 0..n: an order with no sj:exclusion digests exclusions = [].
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix gall: <http://seanchatmangpt.github.io/packs/gall-core#> .
 
@@ -2089,14 +2090,17 @@ sj:postcondition a rdf:Property ;
     rdfs:range xsd:string ;
     rdfs:comment "Observable predicate that holds after the order's consequence." .
 sj:requiresCapability a rdf:Property ; rdfs:range sj:Capability .
-sj:capabilityId a rdf:Property ; rdfs:domain sj:Capability ; rdfs:range xsd:string .
+sj:capabilityId a rdf:Property ;
+    rdfs:domain sj:Capability ;
+    rdfs:range xsd:string ;
+    rdfs:comment "provider:id, grammar ^[a-z0-9][a-z0-9_.-]*:[a-z0-9][a-z0-9_.:-]*$ -- identical to the SA2A route capability grammar (xaas lib/xaas/sa2a/route.ex @capability), so the G4 SHACL court and the G5 tuple-digest hop admit the same ids." .
 sj:evidenceHorizon a rdf:Property ;
     rdfs:range xsd:string ;
     rdfs:comment "The furthest evidence this order may claim inside the goal (bounded evidence horizon)." .
 sj:exclusion a rdf:Property ;
     rdfs:range xsd:string ;
     rdfs:seeAlso gall:Exclusion ;
-    rdfs:comment "A premise explicitly not adopted by this order; it must not re-enter the tuple." .
+    rdfs:comment "A premise explicitly not adopted by this order; it must not re-enter the tuple. Cardinality 0..n: a Friday order may carry none (its tuple digest then has exclusions = []); each one present is a non-blank xsd:string." .
 sj:consequenceClass a rdf:Property ;
     rdfs:range xsd:string ;
     rdfs:comment "One of the receipt-class vocabulary values (GgenIgniter.SemanticJira.receipt_classes/0)." .

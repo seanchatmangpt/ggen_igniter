@@ -130,12 +130,12 @@ valid_authority_ceilings = ["OBSERVE", "SELECT", "CONSTRUCT"]
 
 # Friday tuple (GC-FRI-0800): mirrors shapes/work-order.shacl.ttl
 # sj:FridayWorkOrderShape. Only an order carrying sj:checkpointOf must bind
-# these; pre-Friday orders are unaffected.
+# these; pre-Friday orders are unaffected. sj:exclusion is 0..n by the
+# vocabulary contract, so it is rendered but never required.
 friday_tuple_relations = [
   "postcondition",
   "requiresCapability",
   "evidenceHorizon",
-  "exclusion",
   "consequenceClass",
   "successorPolicy"
 ]
@@ -239,6 +239,12 @@ friday_section =
   else
     friday_values = fn relation -> values_for.(work_order, sj <> relation) end
 
+    exclusion_lines =
+      case friday_values.("exclusion") do
+        [] -> ["- **Exclusions:** none"]
+        exclusions -> ["- **Exclusions:**" | Enum.map(exclusions, &("  - " <> &1))]
+      end
+
     ([
        "## Friday tuple",
        "",
@@ -248,9 +254,8 @@ friday_section =
          Enum.map_join(friday_values.("requiresCapability"), "; ", describe_node),
        "- **Evidence horizon:** " <> Enum.join(friday_values.("evidenceHorizon"), "; "),
        "- **Consequence class:** " <> Enum.join(friday_values.("consequenceClass"), "; "),
-       "- **Successor policy:** " <> Enum.join(friday_values.("successorPolicy"), "; "),
-       "- **Exclusions:**"
-     ] ++ Enum.map(friday_values.("exclusion"), &("  - " <> &1)))
+       "- **Successor policy:** " <> Enum.join(friday_values.("successorPolicy"), "; ")
+     ] ++ exclusion_lines)
     |> Enum.join("\n")
     |> Kernel.<>("\n\n")
   end
