@@ -1,0 +1,165 @@
+GGEN_IGNITER_DIR=/Users/sac/wt/v26922/v23/R1-GI-FMT head=8b9dcfb8885defb79afa22e31f33c4282715a73f
+xaas head=e999e62b63c680517b9a562cef877d8b09b0cfdd TMPDIR=/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/tmp
+0
+Elixir 1.20.2 (compiled with Erlang/OTP 28)
+    warning: Application.get_env/2 is discouraged in the module body, use Application.compile_env/3 instead
+    │
+ 12 │   if is_nil(Application.get_env(:ash, :default_string_length_count)) do
+    │                         ~
+    │
+    └─ /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/deps/ex4pm/mix.exs:12:25: Ex4pm.MixProject (module)
+
+    warning: unused require Ash.Query
+    │
+ 78 │   require Ash.Query
+    │   ~
+    │
+    └─ lib/xaas/ultracode/semantic_drive.ex:78:3
+
+13:49:05.113 [warning] [ex_money] Automatically starting the exchange rate service is deprecated. Set `auto_start_exchange_rate_service: false` and, if you use the service, add `Money.ExchangeRates.Retriever` to your supervision tree.
+13:49:05.875 [warning] Xaas.Sa2a.Bridge not started: "autofde" executable not found on PATH. sa2a-bridge-pack edges (validate/admit/plan/execute/replay) are unavailable until autofde-lab (https://github.com/seanchatmangpt/autofde-lab) is installed and its "autofde" console script is on PATH.
+13:49:06.306 [warning] node not running in distributed mode. When running outside of a release, you must start net_kernel manually with
+longnames.
+https://www.erlang.org/doc/man/net_kernel.html#start-2
+
+13:49:06.402 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:49:06.403 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/application.json.eex to Grafana: :unkown
+13:49:06.419 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:49:06.419 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/beam.json.eex to Grafana: :unkown
+13:49:06.431 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:49:06.431 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/phoenix.json.eex to Grafana: :unkown
+13:49:06.439 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:49:06.439 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/ecto.json.eex to Grafana: :unkown
+13:49:06.454 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:49:06.454 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/phoenix_live_view.json.eex to Grafana: :unkown
+13:49:06.461 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:49:06.461 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/xaas/priv/grafana_dashboards/infrastructure.json to Grafana: :unkown
+Running ExUnit with seed: 436584, max_cases: 32
+Excluding tags: [:test]
+Including tags: [location: {"test/xaas/ultracode/semantic_drive_test.exs", [107, 287, 309, 345, 372]}]
+
+    warning: unused require Ash.Query
+    │
+ 37 │   require Ash.Query
+    │   ~
+    │
+    └─ test/xaas/ultracode/semantic_drive_test.exs:37:3
+
+
+
+  1) test a prepared episode drives EP-A to ALIVE: equal hop digests, sealed + independently verified receipt, admitted R, conformant OCEL, closed frontier (Xaas.Ultracode.SemanticDriveTest)
+     test/xaas/ultracode/semantic_drive_test.exs:107
+     match (=) failed
+     code:  assert {:ok, summary} = drive(ctx, out, pin_ref: pin)
+     left:  {:ok, summary}
+     right: {:refused,
+             %{
+               "broken_term" => "mu_unlawful",
+               "detail" => %{
+                 "exit" => 1,
+                 "reason" => "h/R1a-R1-GI-FMT/tmp/xaas-drive-drive-all-27650/build/test/lib/yamerl/include/internal/yamerl_constr.hrl, got: {:error, :enoent}\n    (elixir 1.18.4) lib/record/extractor.ex:84: Record.Extractor.read_file/2\n    (elixir 1.18.4) lib/record/extractor.ex:50: Record.Extractor.extract_record/2\n    lib/yaml_elixir/records.ex:6: (module)\ncould not compile dependency :yaml_elixir, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile yaml_elixir --force\", update it with \"mix deps.update yaml_elixir\" or clean it with \"mix deps.clean yaml_elixir\"\n",
+                 "toolchain" => %{
+                   "build_compiler" => %{
+                     "elixir" => "1.18.4",
+                     "otp" => "27"
+                   },
+                   "elixir" => "1.18.4-otp-27",
+                   "mix" => "/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin/mix",
+                   "source" => "asdf"
+                 }
+               },
+               "hop" => "sjira",
+               "reason" => "graph_side_build_broken",
+               "standing" => "BUILD_BROKEN"
+             }}
+     stacktrace:
+       test/xaas/ultracode/semantic_drive_test.exs:114: (test)
+
+
+
+  2) test an unregistered capability is REFUSED(unregistered_capability) at resolution: no Run, no ledger change (Xaas.Ultracode.SemanticDriveTest)
+     test/xaas/ultracode/semantic_drive_test.exs:287
+     match (=) failed
+     code:  assert {:refused,
+             %{
+               "standing" => "REFUSED(unregistered_capability)",
+               "broken_term" => "mu_on_O",
+               "hop" => "resolve",
+               "detail" => %{"capability" => "recipe:not-registered"}
+             }} = drive(ctx, out)
+     left:  {:refused,
+             %{
+               "standing" => "REFUSED(unregistered_capability)",
+               "broken_term" => "mu_on_O",
+               "hop" => "resolve",
+               "detail" => %{"capability" => "recipe:not-registered"}
+             }}
+     right: {:refused,
+             %{
+               "broken_term" => "mu_unlawful",
+               "detail" => %{
+                 "exit" => 1,
+                 "reason" => "h/R1a-R1-GI-FMT/tmp/xaas-drive-drive-all-27650/build/test/lib/yamerl/include/internal/yamerl_constr.hrl, got: {:error, :enoent}\n    (elixir 1.18.4) lib/record/extractor.ex:84: Record.Extractor.read_file/2\n    (elixir 1.18.4) lib/record/extractor.ex:50: Record.Extractor.extract_record/2\n    lib/yaml_elixir/records.ex:6: (module)\ncould not compile dependency :yaml_elixir, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile yaml_elixir --force\", update it with \"mix deps.update yaml_elixir\" or clean it with \"mix deps.clean yaml_elixir\"\n",
+                 "toolchain" => %{
+                   "build_compiler" => %{
+                     "elixir" => "1.18.4",
+                     "otp" => "27"
+                   },
+                   "elixir" => "1.18.4-otp-27",
+                   "mix" => "/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin/mix",
+                   "source" => "asdf"
+                 }
+               },
+               "hop" => "sjira",
+               "reason" => "graph_side_build_broken",
+               "standing" => "BUILD_BROKEN"
+             }}
+     stacktrace:
+       test/xaas/ultracode/semantic_drive_test.exs:295: (test)
+
+
+
+  3) test a subject with no drift is REFUSED(no_delta) by the provider: no commit, no ledger change, EP-A stays on the frontier (Xaas.Ultracode.SemanticDriveTest)
+     test/xaas/ultracode/semantic_drive_test.exs:345
+     match (=) failed
+     code:  assert {:refused,
+             %{
+               "standing" => "REFUSED(no_delta)",
+               "broken_term" => "R_missing_consequence",
+               "hop" => "provider"
+             }} = drive(ctx, out, pin_ref: pin)
+     left:  {:refused,
+             %{
+               "standing" => "REFUSED(no_delta)",
+               "broken_term" => "R_missing_consequence",
+               "hop" => "provider"
+             }}
+     right: {:refused,
+             %{
+               "broken_term" => "mu_unlawful",
+               "detail" => %{
+                 "exit" => 1,
+                 "reason" => "h/R1a-R1-GI-FMT/tmp/xaas-drive-drive-all-27650/build/test/lib/yamerl/include/internal/yamerl_constr.hrl, got: {:error, :enoent}\n    (elixir 1.18.4) lib/record/extractor.ex:84: Record.Extractor.read_file/2\n    (elixir 1.18.4) lib/record/extractor.ex:50: Record.Extractor.extract_record/2\n    lib/yaml_elixir/records.ex:6: (module)\ncould not compile dependency :yaml_elixir, \"mix compile\" failed. Errors may have been logged above. You can recompile this dependency with \"mix deps.compile yaml_elixir --force\", update it with \"mix deps.update yaml_elixir\" or clean it with \"mix deps.clean yaml_elixir\"\n",
+                 "toolchain" => %{
+                   "build_compiler" => %{
+                     "elixir" => "1.18.4",
+                     "otp" => "27"
+                   },
+                   "elixir" => "1.18.4-otp-27",
+                   "mix" => "/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin/mix",
+                   "source" => "asdf"
+                 }
+               },
+               "hop" => "sjira",
+               "reason" => "graph_side_build_broken",
+               "standing" => "BUILD_BROKEN"
+             }}
+     stacktrace:
+       test/xaas/ultracode/semantic_drive_test.exs:353: (test)
+
+..
+Finished in 33.4 seconds (0.2s async, 33.2s sync)
+
+Result: 2/5 passed, 4 excluded
+Failed: 3 tests
+EXIT=2

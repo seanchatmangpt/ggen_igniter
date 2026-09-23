@@ -1,0 +1,265 @@
+{
+  "work_order": {
+    "id": "R1-GI-FMT",
+    "wave": "R1a (wf_7a7c7064-905, lanes/wave-R1a.json); continues the committed state of wave R1's run of this lane",
+    "goal_ttl_order": "none (release defect repair lane; no goal.ttl WorkOrder, so identity.tuple_digest/work_order are absent by design)",
+    "defect": "release defects F3/F4 (subject defect, entered with V23-B): lib/ggen_igniter/semantic_jira/bootstrap.ex not formatted under ggen_igniter's .tool-versions pin (Elixir 1.18.4-otp-27); the xaas recipe provider (recipe:mix-format, elixir_toolchain :target) formats the target under that pin, rewrites bootstrap.ex, and xaas test/xaas/ultracode/semantic_drive_test.exs:107/:345 fail",
+    "defect_evidence": "/Users/sac/wt/v26922/v26923/receipts/fleet/xaas-e999e62b63c680517b9a562cef877d8b09b0cfdd.json failures[2..3] (REL-A qualification)",
+    "failure_classification": "subject defect (ggen_igniter 3937a4f), toolchain-dependent: invisible to ambient Elixir 1.19.5, visible to the pinned 1.18.4",
+    "contract_refs": [
+      "PRD PR-005",
+      "PRD PR-006",
+      "PRD section 12 GC23-5 (no-LLM KNOWN execution, F3)",
+      "PRD section 12 GC23-6 (independent consequence + revert falsifier, F4)",
+      "ARD section 13 (consequence digest)",
+      "DRIVER.md release closure procedure (frozen subjects; only the named defect may change)"
+    ],
+    "acceptance": "lane gate: PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH sh -c 'elixir --version && mix format --check-formatted && mix compile --warnings-as-errors --force && mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs'"
+  },
+  "identity": {
+    "subject": "R1-GI-FMT",
+    "repo": "/Users/sac/ggen_igniter (origin seanchatmangpt/ggen_igniter)",
+    "worktree": "/Users/sac/wt/v26922/v23/R1-GI-FMT",
+    "branch": "v23/R1-GI-FMT",
+    "base_ref": "friday/gc-fri-0800",
+    "subject_sha": "8b9dcfb8885defb79afa22e31f33c4282715a73f",
+    "base_sha": "3937a4f89ecf2b7fa12068406377c05ec1a1b8fc",
+    "base_sha_note": "merge-base(v23/R1-GI-FMT, friday/gc-fri-0800) = 3937a4f = the frozen release subject (FREEZE ggen_igniter sha); ggen_igniter-int HEAD 3937a4f at receipt time",
+    "subject_tree": "76159f7b100474e087cb57fae11fd89379684868 (== candidate rela/gi-bootstrap-fmt-pin ccb01f6 tree)",
+    "cross_repo_subject": {
+      "xaas": "e999e62b63c680517b9a562cef877d8b09b0cfdd",
+      "xaas_worktree": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas (detached; deps APFS-cloned from xaas-int, mix.lock cmp-identical)"
+    },
+    "revert_mutation_subject": {
+      "sha": "0c75dbe55619f983cbfdde57d262cd4452b0442f",
+      "branch": "v23/R1-GI-FMT-revert-mutation",
+      "parent": "8b9dcfb8885defb79afa22e31f33c4282715a73f",
+      "tree": "8483a8d5269ab3333a79cb664cbdf528fdb8c2e5 (== 3937a4f tree)",
+      "worktree": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-mut (detached)",
+      "provenance": "commit created by wave R1's run of this lane; re-verified here (parent and tree) and re-run in this lane's own scratch worktree; no output of the R1 scratch dir is cited"
+    }
+  },
+  "authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "NONE beyond DRIVER.md authority (operator release sequence, release defect repair lane R1-GI-FMT): lane worktree + own scratch only; no push, no PR, no merge into ggen_igniter-int",
+    "actor": "claude-opus-5-5 workflow subagent, lane R1-GI-FMT (wave R1a)"
+  },
+  "consequence": {
+    "commits": [
+      "8b9dcfb8885defb79afa22e31f33c4282715a73f"
+    ],
+    "files_changed": [
+      "lib/ggen_igniter/semantic_jira/bootstrap.ex",
+      "receipts/v26.9.23/R1-GI-FMT.json",
+      "receipts/v26.9.23/R1-GI-FMT.logs/*"
+    ],
+    "generated_vs_handwritten": "bootstrap.ex change = exact output of the pinned `mix format` (generator = Elixir 1.18.4 formatter); zero hand-written lines; no HANDWRITTEN.md row needed",
+    "remote_effects": [],
+    "local_effects": [
+      "ref refs/heads/v23/R1-GI-FMT-revert-mutation -> 0c75dbe55619f983cbfdde57d262cd4452b0442f (pre-existing from wave R1, not moved)",
+      "scratch worktrees: /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-base (detached 3937a4f), /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-mut (detached 0c75dbe55619f983cbfdde57d262cd4452b0442f), /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas (detached xaas e999e62b63c680517b9a562cef877d8b09b0cfdd)",
+      "local Postgres database xaas_testr1gifmt (MIX_TEST_PARTITION=r1gifmt; mix test alias ecto.create + ecto.migrate)",
+      "lane worktree _build (untracked): _build/dev compiled under the pin (OTP 27); _build/test swapped between the pin's OTP-27 build (lane gate) and the graph-side ERTS-28 build (xaas drive), the idle one kept in /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT"
+    ]
+  },
+  "replay": {
+    "durable_location": "receipts/v26.9.23/R1-GI-FMT.logs (tracked in git on branch v23/R1-GI-FMT)",
+    "commands": [
+      {
+        "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH sh -c 'elixir --version && mix format --check-formatted && mix compile --warnings-as-errors --force && mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs'",
+        "cwd": "/Users/sac/wt/v26922/v23/R1-GI-FMT",
+        "exit": 0,
+        "summary": "LANE GATE on committed head 8b9dcfb8885defb79afa22e31f33c4282715a73f (tracked tree clean): Elixir 1.18.4 (OTP 27); format check exit 0; forced warnings-as-errors compile exit 0; 26 tests, 0 failures. Deps pre-compiled under the same pin by separate MIX_ENV=dev/test mix deps.compile commands (exit 0) to keep each command < 20 min.",
+        "output_sha256": "339f33d13b8b6569debeac0637ffb69ebc18a3bdd875ec2a9849fa7affc9dc3c",
+        "log": "receipts/v26.9.23/R1-GI-FMT.logs/lane-gate-8b9dcfb.log"
+      },
+      {
+        "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH sh -c 'elixir --version; mix format --check-formatted'",
+        "cwd": "/Users/sac/wt/v26922/v23/R1-GI-FMT",
+        "exit": 0,
+        "summary": "subject 8b9dcfb8885defb79afa22e31f33c4282715a73f: mix format --check-formatted under the .tool-versions pin (Elixir 1.18.4 / OTP 27) exit 0",
+        "output_sha256": "484e1ac46e0f0f247ebb789b90be258785ff93f290ee46ce06865cf9e9c52e66",
+        "log": "receipts/v26.9.23/R1-GI-FMT.logs/fmtcheck-pin-8b9dcfb.log"
+      },
+      {
+        "cmd": "env -i HOME=/Users/sac PATH=/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/usr/bin:/bin sh -c 'elixir --version; mix format --check-formatted'",
+        "cwd": "/Users/sac/wt/v26922/v23/R1-GI-FMT",
+        "exit": 0,
+        "summary": "subject 8b9dcfb8885defb79afa22e31f33c4282715a73f: mix format --check-formatted under ambient Elixir 1.19.5 / OTP 28 exit 0 (only the pre-existing preferred_cli_env deprecation warning)",
+        "output_sha256": "8e2e8ef7dde427672fca420d7920d529e6130026b88f8e6548d96ceda9d41bda",
+        "log": "receipts/v26.9.23/R1-GI-FMT.logs/fmtcheck-ambient-8b9dcfb.log"
+      },
+      {
+        "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH mix format && git diff --quiet 8b9dcfb8885defb79afa22e31f33c4282715a73f",
+        "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-base",
+        "exit": 0,
+        "summary": "GENERATED-NOT-HANDWRITTEN proof: the pinned formatter over the whole repo (.formatter.exs inputs) at base 3937a4f changes exactly bootstrap.ex; the resulting working tree is byte-identical to commit 8b9dcfb8885defb79afa22e31f33c4282715a73f (git diff --quiet exit 0). Tree 76159f7b equals candidate rela/gi-bootstrap-fmt-pin ccb01f6's tree.",
+        "output_sha256": "88d1f67fd39a801d8f2cf183d3fcbf36b995cc4a160c60a6eb36c27357382a17",
+        "log": "receipts/v26.9.23/R1-GI-FMT.logs/formatter-output-equals-commit.log"
+      },
+      {
+        "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/28.5.0.2/bin:$PATH MIX_ENV=test mix compile",
+        "cwd": "/Users/sac/wt/v26922/v23/R1-GI-FMT",
+        "exit": 0,
+        "summary": "graph-side build for the drive: _build/test compiled by the pinned Elixir 1.18.4 on ERTS 28.5.0.2 so the xaas node (OTP 28) resolves it by build manifest {1.18.4, 28} (source build_manifest, no rebuild); Generated ggen_igniter app; 2 dependency warnings (durable_server, ash_a2a require Elixir ~> 1.19; pre-existing, deps not project)",
+        "output_sha256": "9c653c98c57268b8bf50bb816529271fcedd13f6525e85c949bb4ad0823e84ca",
+        "log": "receipts/v26.9.23/R1-GI-FMT.logs/gi-test-compile-erts28.log"
+      },
+      {
+        "cmd": "sh receipts/v26.9.23/R1-GI-FMT.logs/run-drive-ambient.sh /Users/sac/wt/v26922/v23/R1-GI-FMT <log>  (env -i, no LLM variable, no claude/zcode on PATH; Elixir 1.19.5 / OTP 28.3.1; mix test test/xaas/ultracode/semantic_drive_test.exs; GGEN_IGNITER_DIR=/Users/sac/wt/v26922/v23/R1-GI-FMT)",
+        "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas",
+        "exit": 0,
+        "summary": "xaas e999e62b63c680517b9a562cef877d8b09b0cfdd full drive test file vs ggen_igniter subject 8b9dcfb8885defb79afa22e31f33c4282715a73f (ambient toolchain = the one xaas-int's _build and the REL-A qualification use): 9 tests, 0 failures",
+        "output_sha256": "d07e93a6f8e34e1834aa19c9a260a2dbdff1f21c337e2df1d6ef02e6c26d4107",
+        "log": "receipts/v26.9.23/R1-GI-FMT.logs/drive-lane-8b9dcfb-ambient.log"
+      },
+      {
+        "cmd": "sh receipts/v26.9.23/R1-GI-FMT.logs/run-drive-pin-drivetests.sh /Users/sac/wt/v26922/v23/R1-GI-FMT <log>  (env -i; xaas pin Elixir 1.20.2 / OTP 28.5.0.2; mix test test/xaas/ultracode/semantic_drive_test.exs:107:287:309:345:372 = every Xaas.Ultracode.SemanticDriveTest test)",
+        "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas",
+        "exit": 0,
+        "summary": "xaas drive tests under the xaas .tool-versions pin vs subject 8b9dcfb8885defb79afa22e31f33c4282715a73f: Result: 5 passed, 4 excluded (EP-A :107 ALIVE and no-drift :345 REFUSED(no_delta) pass). The 4 excluded tests are the separate module SemanticDriveToolchainTest (needs no ggen_igniter; 3 fail under the xaas pin, pre-existing: observations)",
+        "output_sha256": "16e07619f7a9e91595c479174b2ccc572f51296b06089d7788ce190c298dd567",
+        "log": "receipts/v26.9.23/R1-GI-FMT.logs/drive-lane-8b9dcfb-pin-drivetests.log"
+      }
+    ]
+  },
+  "falsifiers": [
+    {
+      "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH sh -c 'elixir --version; mix format --check-formatted'",
+      "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-base",
+      "exit": 1,
+      "summary": "DEFECT WITNESS at base 3937a4f89ecf2b7fa12068406377c05ec1a1b8fc: check-formatted under the pin exit 1 (bootstrap.ex line 245 'with' clause over the 98-column limit)",
+      "output_sha256": "0169d82f143b76846abee9e3daf20ead2adad99481138930da0ae361aef1c578",
+      "log": "receipts/v26.9.23/R1-GI-FMT.logs/fmtcheck-pin-3937a4f.log",
+      "role": "defect witness (expected non-zero)"
+    },
+    {
+      "cmd": "env -i HOME=/Users/sac PATH=/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/usr/bin:/bin sh -c 'elixir --version; mix format --check-formatted'",
+      "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-base",
+      "exit": 0,
+      "summary": "base 3937a4f89ecf2b7fa12068406377c05ec1a1b8fc: check-formatted under ambient 1.19.5 exit 0 -- the defect is invisible to the ambient toolchain (why V23-B's gate reported green)",
+      "output_sha256": "f9ee53f76e2362f6118dd691c7e154d02411337dc0141fe8bff598c477de3303",
+      "log": "receipts/v26.9.23/R1-GI-FMT.logs/fmtcheck-ambient-3937a4f.log",
+      "role": "defect characterization (toolchain-dependent)"
+    },
+    {
+      "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/28.5.0.2/bin:$PATH MIX_ENV=test mix compile",
+      "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-mut",
+      "exit": 0,
+      "summary": "graph-side build for the revert-mutation subject 0c75dbe55619f983cbfdde57d262cd4452b0442f (deps/_build/test APFS-cloned from the lane worktree, then compiled in place)",
+      "output_sha256": "785577fb1bbf26dab473df43298c68ffbccd35d446fcc7d299a53ed82560ad25",
+      "log": "receipts/v26.9.23/R1-GI-FMT.logs/gi-mut-compile-erts28.log",
+      "role": "control setup"
+    },
+    {
+      "cmd": "sh receipts/v26.9.23/R1-GI-FMT.logs/run-drive-ambient.sh /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-mut <log>",
+      "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas",
+      "exit": 2,
+      "summary": "REVERT-MUTATION (ambient): subject 0c75dbe55619f983cbfdde57d262cd4452b0442f (revert of 8b9dcfb8885defb79afa22e31f33c4282715a73f, tree == 3937a4f): 9 tests, 2 failures -- exactly :107 (subject..head diff = bootstrap.ex + cli.ex, expected cli.ex only) and :345 (drive returned {:ok, _} instead of REFUSED(no_delta))",
+      "output_sha256": "4ef0b5e2191278246ce257ba06f5d9e72257be4b737ba1401ef549d2b56e5838",
+      "log": "receipts/v26.9.23/R1-GI-FMT.logs/drive-mut-0c75dbe-ambient.log",
+      "role": "anti-vacuity: killed",
+      "verdict": "killed"
+    },
+    {
+      "cmd": "sh receipts/v26.9.23/R1-GI-FMT.logs/run-drive-pin-drivetests.sh /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-mut <log>",
+      "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas",
+      "exit": 2,
+      "summary": "REVERT-MUTATION (xaas pin): subject 0c75dbe55619f983cbfdde57d262cd4452b0442f: Result: 3/5 passed, 4 excluded -- exactly :107 and :345",
+      "output_sha256": "6b77ed6bd5310cec201386ac125c964d1175d34e80522c3745ef78e88530100d",
+      "log": "receipts/v26.9.23/R1-GI-FMT.logs/drive-mut-0c75dbe-pin-drivetests.log",
+      "role": "anti-vacuity: killed",
+      "verdict": "killed"
+    }
+  ],
+  "observations": [
+    {
+      "cmd": "sh receipts/v26.9.23/R1-GI-FMT.logs/run-drive-pin.sh /Users/sac/wt/v26922/v23/R1-GI-FMT <log>  (full file under the xaas pin)",
+      "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas",
+      "exit": 2,
+      "summary": "full semantic_drive_test.exs under the xaas pin vs subject 8b9dcfb8885defb79afa22e31f33c4282715a73f: Result: 6/9 passed; all 5 SemanticDriveTest tests pass; the 3 failures are SemanticDriveToolchainTest :538/:563/:576 (PRE-EXISTING xaas-under-pin, subject-independent: findings[0])",
+      "output_sha256": "789bed55ba924965f63818af60a6a83700a33cbb5741909bc15598bda3498a5a",
+      "log": "receipts/v26.9.23/R1-GI-FMT.logs/drive-lane-8b9dcfb-run2.log",
+      "classification": "PRE-EXISTING (xaas)"
+    },
+    {
+      "cmd": "sh receipts/v26.9.23/R1-GI-FMT.logs/run-drive-pin.sh /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-mut <log>  (full file under the xaas pin)",
+      "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas",
+      "exit": 2,
+      "summary": "full file under the xaas pin vs the mutation 0c75dbe55619f983cbfdde57d262cd4452b0442f: Result: 4/9 passed = the same 3 pre-existing toolchain failures + :107 and :345",
+      "output_sha256": "73304ae2782522efe32e473a78c296115c81b0d4e8b22a8a8378c0d8340b7b8b",
+      "log": "receipts/v26.9.23/R1-GI-FMT.logs/drive-mut-0c75dbe.log",
+      "classification": "PRE-EXISTING (xaas) + control kill"
+    },
+    {
+      "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.20.2-otp-28/bin:/Users/sac/.asdf/installs/erlang/28.5.0.2/bin:$PATH MIX_ENV=test mix compile --force --warnings-as-errors",
+      "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas",
+      "exit": 1,
+      "summary": "xaas e999e62b63c680517b9a562cef877d8b09b0cfdd under its own pin 1.20.2 fails --warnings-as-errors: 'unused require Ash.Query' at lib/xaas/ultracode/semantic_drive.ex:78 (ambient 1.19.5 does not warn); the drive runs compiled xaas without --warnings-as-errors (mix test)",
+      "output_sha256": "798cc2a5de2dee57d0e2ff7d2c19ab60bdcf56726bbc54ffaff4ecebecf97d4e",
+      "log": "receipts/v26.9.23/R1-GI-FMT.logs/xaas-compile-pin-tail.log",
+      "classification": "PRE-EXISTING (xaas): findings[1]"
+    },
+    {
+      "cmd": "sh run-drive-pin.sh /Users/sac/wt/v26922/v23/R1-GI-FMT <log>  (first attempt: env -i WITHOUT TMPDIR)",
+      "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas",
+      "exit": 2,
+      "summary": "Result: 4/9 passed; :107/:345 REFUSED(sa2a_projection_refused): env -i dropped TMPDIR, System.tmp_dir! = /tmp (symlink to /private/tmp), Mix's relative priv symlink in the private build resolved under /private (/private/Users/sac/.../semantic-jira-pack/ontology.ttl: no such file). Rerun with a real TMPDIR passed.",
+      "output_sha256": "4a24a67cee6adf3376bd460af68be023a40bc5a6682b5a501792ece55b0fd2f5",
+      "log": "receipts/v26.9.23/R1-GI-FMT.logs/drive-lane-8b9dcfb.log",
+      "classification": "ENVIRONMENT (this lane's harness), not a code verdict: findings[2]"
+    },
+    {
+      "cmd": "sh receipts/v26.9.23/R1-GI-FMT.logs/run-drive-pin-drivetests.sh /Users/sac/wt/v26922/v23/R1-GI-FMT <log>  (while the lane worktree held the lane gate's OTP-27 _build/test)",
+      "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas",
+      "exit": 2,
+      "summary": "Result: 2/5 passed, 4 excluded; drive refused BUILD_BROKEN(graph_side_build_broken): a graph build compiled on OTP 27 falls back to the pin under the OTP-28 node and the private rebuild fails (yaml_elixir: yamerl_constr.hrl enoent). Rerun with the ERTS-28 graph build passed.",
+      "output_sha256": "99a077f75be0bbef48b3350fbf1abdc6a7047eb83d5acfdf870f2ba9be1be738",
+      "log": "receipts/v26.9.23/R1-GI-FMT.logs/drive-lane-8b9dcfb-pin-drivetests-otp27build.log",
+      "classification": "ENVIRONMENT (build sequencing in this lane) + latent xaas fallback-path finding: findings[3]"
+    }
+  ],
+  "toolchain": {
+    "ggen_igniter_pin": ".tool-versions elixir 1.18.4-otp-27, erlang 27.2.4 -> Elixir 1.18.4 (compiled with Erlang/OTP 27), erts-15.2.2",
+    "ggen_igniter_graph_side_build": "Elixir 1.18.4-otp-27 on ERTS 28.5.0.2 (build manifest {1.18.4, \"28\"}); resolved by xaas SemanticDrive.graph_toolchain via <asdf>/installs/elixir/1.18.4-otp-*",
+    "xaas_pin": ".tool-versions elixir 1.20.2-otp-28, erlang 28.5.0.2 -> Elixir 1.20.2 (compiled with Erlang/OTP 28), erts-16.4.0.2",
+    "ambient": "/opt/homebrew/bin Elixir 1.19.5 (compiled with Erlang/OTP 28) + /Users/sac/.erlmcp/otp-28.3.1 erl",
+    "no_llm_env": "drive runs under env -i: 0 ANTHROPIC_/CLAUDE_/OPENAI_/ZAI_/Z_AI_/GLM_/ZCODE_ variables (counted in each log), PATH without claude/zcode; no LLM or model API on any executed path",
+    "python3": "Python 3.14.3 (pm4py 2.7.22.1)"
+  },
+  "findings": [
+    {
+      "id": "xaas-pin-toolchain-tests",
+      "classification": "PRE-EXISTING (xaas e999e62 under its own .tool-versions pin); subject-independent: identical on 8b9dcfb8885defb79afa22e31f33c4282715a73f and on the mutation 0c75dbe55619f983cbfdde57d262cd4452b0442f; SemanticDriveToolchainTest reads xaas's own _build manifest and needs no ggen_igniter checkout",
+      "observed": "test/xaas/ultracode/semantic_drive_test.exs:538/:563/:576 fail under Elixir 1.20.2: Mix 1.20 writes compile.elixir_scm as {2, {\"1.20.2\", ~c\"28\"}, Mix.SCM.Path, nil}; SemanticDrive.build_manifest and the test's checkout/2 transforms match only the 3-tuple {vsn, {elixir, otp}, scm} (source resolves to \"asdf\"; FunctionClauseError)",
+      "broken_term": "mu_unlawful",
+      "owner": "xaas (lane R1-X-PIN / successor); ggen_igniter lanes cannot edit xaas"
+    },
+    {
+      "id": "xaas-pin-warnings-as-errors",
+      "classification": "PRE-EXISTING (xaas e999e62 under its own pin)",
+      "observed": "MIX_ENV=test mix compile --force --warnings-as-errors under 1.20.2 exit 1: unused require Ash.Query, lib/xaas/ultracode/semantic_drive.ex:78",
+      "broken_term": "mu_unlawful",
+      "owner": "xaas (lane R1-X-PIN)"
+    },
+    {
+      "id": "drive-symlinked-tmpdir",
+      "classification": "environment (this lane's first run) + latent xaas robustness candidate (successor GC-26.9.24 unless admitted)",
+      "observed": "with TMPDIR unset, setup_all's private build lives under /tmp (symlink to /private/tmp); Mix's relative priv symlink written for the graph build resolves one level short (/private/Users/...), so the sa2a hop cannot read semantic-jira-pack/ontology.ttl",
+      "broken_term": "mu_on_O",
+      "owner": "xaas test/drive (canonicalize the private build dir)"
+    },
+    {
+      "id": "drive-graph-build-fallback-broken",
+      "classification": "latent xaas finding (successor GC-26.9.24 unless admitted); matters for any court whose GGEN_IGNITER_DIR _build/test was compiled on a different OTP than the court node",
+      "observed": "SemanticDrive.graph_toolchain falls back to the checkout pin (source asdf) for a build compiled on OTP 27 under an OTP-28 node; the private rebuild then fails compiling yaml_elixir (Record.Extractor cannot read build/test/lib/yamerl/include/internal/yamerl_constr.hrl, enoent) -> BUILD_BROKEN(graph_side_build_broken)",
+      "broken_term": "mu_unlawful",
+      "owner": "xaas SemanticDrive graph-side fallback (or keep court GGEN_IGNITER_DIR builds on the court node's OTP)"
+    }
+  ],
+  "standing": {
+    "value": "ALIVE",
+    "derived_from": "replay.commands, all exit 0, at subject_sha 8b9dcfb8885defb79afa22e31f33c4282715a73f: lane gate (format check, forced warnings-as-errors compile, bootstrap test 26 tests 0 failures) under the pin; check-formatted under the pin and under ambient 1.19.5; the pinned formatter's output at base 3937a4f byte-identical to the commit; xaas e999e62b63c680517b9a562cef877d8b09b0cfdd semantic_drive_test.exs 9 tests 0 failures (ambient) and every SemanticDriveTest test (5, incl. :107/:345) passing under the xaas pin. falsifiers: the revert-mutation 0c75dbe55619f983cbfdde57d262cd4452b0442f fails exactly :107 and :345 under both toolchains (anti-vacuity). observations: the 3 pinned-xaas SemanticDriveToolchainTest failures are pre-existing and subject-independent (findings[0]).",
+    "scope": "release defect F3/F4 repair only; not a claim about xaas under its pin (findings[0..1]) or any other GC23 gate"
+  }
+}
