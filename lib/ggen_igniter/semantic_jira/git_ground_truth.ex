@@ -30,6 +30,10 @@ defmodule GgenIgniter.SemanticJira.GitGroundTruth do
       git -C <cwd> merge-base --is-ancestor <sha> HEAD
 
   i.e. the SHA must name a real commit object that is reachable from HEAD.
+  Only rows inside the work tree's own repository (the exact `owner/repo` of
+  its `remote.origin.url`) are verified; a row naming another repository is a
+  typed skip in the returned report under the run-level flag, and a refusal
+  when the row opted itself in (see `verify_base_shas!/2`).
   Any nonzero exit, or a `--verify-cwd` that is not a git work tree, raises
   the typed refusal `REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED` BEFORE any
   actuation happens: the sync task calls this module after the named queries
@@ -37,6 +41,7 @@ defmodule GgenIgniter.SemanticJira.GitGroundTruth do
   """
 
   @refusal "REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED"
+  @skip "SKIPPED:SEMANTIC_JIRA_BASE_SHA_OUTSIDE_JURISDICTION"
 
   # The `020_work_orders.rq` gate exposes this OPTIONAL column; a truthy
   # value opts that single WorkOrder into git verification.
@@ -58,60 +63,125 @@ defmodule GgenIgniter.SemanticJira.GitGroundTruth do
 
     * `:verify_cwd` (required) -- the directory whose git history is ground
       truth. Must be a real git work tree whenever anything needs verifying.
-    * `:all` -- when true, verify EVERY row's baseSha (the `--verify-base-sha`
-      flag); when false (default), verify only rows that opted themselves in
+    * `:all` -- when true, target EVERY row's baseSha (the `--verify-base-sha`
+      flag); when false (default), target only rows that opted themselves in
       via the `#{@opt_in_column}` column.
 
-  Raises `ArgumentError` with the `#{@refusal}` prefix on the first failure;
-  returns `:ok` when every targeted baseSha is a commit reachable from HEAD
-  (including the vacuous case: nothing targeted).
+  Jurisdiction (v26.9.22 union law, made explicit by V23-T6R): the verifier's
+  jurisdiction is the verified work tree's OWN repository, the `owner/repo`
+  parsed from its `remote.origin.url` and compared EXACTLY against the row's
+  `repository` (never by substring). A targeted row naming another repository
+  is never verified and never silently dropped:
+
+    * targeted by `:all` only -- returned as a typed skip in `"skipped"`
+      (`"kind" => "outside_jurisdiction"`, with the row's id, work order,
+      repository, baseSha and the jurisdiction); the sync task prints each
+      skip as a `#{@skip}` line;
+    * opted in per order -- a refusal: the graph demanded ground truth this
+      work tree cannot establish.
+
+  Rows without a `repository` column, and work trees without an origin
+  remote, are in jurisdiction (verify-everything behavior).
+
+  Raises `ArgumentError` with the `#{@refusal}` prefix on the first failure.
+  Otherwise returns `%{"verified" => shas, "skipped" => skips}`: every
+  verified baseSha is a commit reachable from HEAD; nothing targeted is the
+  vacuous `%{"verified" => [], "skipped" => []}` and never invokes git.
   """
-  @spec verify_base_shas!([{String.t(), [map()]}], keyword()) :: :ok
+  @spec verify_base_shas!([{String.t(), [map()]}], keyword()) :: %{
+          String.t() => [String.t() | map()]
+        }
   def verify_base_shas!(named_results, opts) when is_list(named_results) do
     cwd = Keyword.fetch!(opts, :verify_cwd)
+    all? = Keyword.get(opts, :all, false)
     rows = Enum.flat_map(named_results, fn {_name, rows} -> rows end)
 
-    jurisdiction = repository_jurisdiction(cwd)
+    targeted =
+      Enum.filter(rows, &(is_binary(&1["base_sha"]) and (all? or git_ground_truth_declared?(&1))))
 
-    targeted_shas =
-      if Keyword.get(opts, :all, false) do
-        rows
-      else
-        Enum.filter(rows, &git_ground_truth_declared?/1)
-      end
-      |> Enum.filter(&in_jurisdiction?(&1, jurisdiction))
-      |> base_shas()
+    {in_scope, skipped} = partition_jurisdiction(targeted, cwd)
 
-    case Enum.uniq(targeted_shas) do
+    case in_scope |> base_shas() |> Enum.uniq() do
       [] ->
-        :ok
+        %{"verified" => [], "skipped" => skipped}
 
       shas ->
         refuse_unless_git_work_tree!(cwd)
         Enum.each(shas, &verify_sha!(&1, cwd))
+        %{"verified" => shas, "skipped" => skipped}
     end
   end
 
-  # The verifier's jurisdiction is the verified work tree's OWN repository
-  # (v26.9.22 union law): the crown rows bind `local/eds`, so their baseSha
-  # values are commits of another history — outside this check, never a
-  # refusal here and never silently "verified". Rows without a repository
-  # column, and work trees without an origin remote, keep the old
-  # verify-everything behavior.
-  defp in_jurisdiction?(_row, %{origin_url: nil}), do: true
+  @doc "One typed report line for a jurisdiction skip (printed by the sync task)."
+  @spec skip_line(map()) :: String.t()
+  def skip_line(skip), do: "#{@skip}: " <> Jason.encode!(skip)
 
-  defp in_jurisdiction?(row, %{origin_url: url}) when is_map(row) do
+  defp partition_jurisdiction([], _cwd), do: {[], []}
+
+  defp partition_jurisdiction(targeted, cwd) do
+    jurisdiction = repository_jurisdiction(cwd)
+
+    Enum.reduce(targeted, {[], []}, fn row, {in_scope, skipped} ->
+      cond do
+        in_jurisdiction?(row, jurisdiction) ->
+          {[row | in_scope], skipped}
+
+        git_ground_truth_declared?(row) ->
+          raise ArgumentError,
+                "#{@refusal}: baseSha #{literal_value(row["base_sha"])} of " <>
+                  "#{inspect(row["id"] || row["work_order"])} (repository " <>
+                  "#{literal_value(row["repository"])}) opted into git ground truth but is " <>
+                  "outside the jurisdiction #{jurisdiction} of #{cwd}"
+
+        true ->
+          {in_scope, [skip(row, jurisdiction) | skipped]}
+      end
+    end)
+    |> then(fn {in_scope, skipped} ->
+      {Enum.reverse(in_scope), skipped |> Enum.reverse() |> Enum.uniq()}
+    end)
+  end
+
+  defp skip(row, jurisdiction) do
+    %{
+      "kind" => "outside_jurisdiction",
+      "id" => literal_value(row["id"]),
+      "work_order" => row["work_order"],
+      "repository" => literal_value(row["repository"]),
+      "base_sha" => literal_value(row["base_sha"]),
+      "jurisdiction" => jurisdiction
+    }
+  end
+
+  # The verifier's jurisdiction is the verified work tree's OWN repository:
+  # rows bound to another history (e.g. crown rows binding `local/eds`) are
+  # outside this check. `nil` = no origin remote = no jurisdiction filter.
+  defp in_jurisdiction?(_row, nil), do: true
+
+  defp in_jurisdiction?(row, jurisdiction) do
     case row["repository"] do
-      repo when is_binary(repo) -> String.contains?(url, repo)
+      repo when is_binary(repo) -> literal_value(repo) == jurisdiction
       _ -> true
     end
   end
 
   defp repository_jurisdiction(cwd) do
     case git(cwd, ["config", "--get", "remote.origin.url"]) do
-      {url, 0} -> %{origin_url: String.trim(url)}
-      _ -> %{origin_url: nil}
+      {url, 0} -> origin_repository(url)
+      _ -> nil
     end
+  end
+
+  # `owner/repo` of an origin URL: https://host/owner/repo(.git),
+  # git@host:owner/repo(.git), or a local path (last two segments).
+  defp origin_repository(url) do
+    url
+    |> String.trim()
+    |> String.trim_trailing("/")
+    |> String.replace_suffix(".git", "")
+    |> String.split(["/", ":"], trim: true)
+    |> Enum.take(-2)
+    |> Enum.join("/")
   end
 
   defp verify_sha!(sha, cwd) do
@@ -190,6 +260,8 @@ defmodule GgenIgniter.SemanticJira.GitGroundTruth do
   # `^^<datatype>` or language-tag suffix). Normalize to the bare lexical
   # form so the opt-in predicate and the verification itself behave
   # identically under every engine.
+  defp literal_value(value) when not is_binary(value), do: value
+
   defp literal_value(value) do
     case Regex.run(~r/\A"(.*)"(?:\^\^<[^>]*>)?(?:@[A-Za-z-]+)?\z/s, value) do
       [_all, inner] -> inner

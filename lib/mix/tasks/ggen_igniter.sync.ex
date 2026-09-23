@@ -1086,10 +1086,17 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   # mechanics live in `GgenIgniter.SemanticJira.GitGroundTruth`; these two
   # helpers are only the task-level plumbing for its two hook sites.
   defp maybe_verify_base_shas!(opts, named_results) do
-    GgenIgniter.SemanticJira.GitGroundTruth.verify_base_shas!(named_results,
-      verify_cwd: opts[:verify_cwd] || File.cwd!(),
-      all: opts[:verify_base_sha] || false
-    )
+    %{"skipped" => skipped} =
+      GgenIgniter.SemanticJira.GitGroundTruth.verify_base_shas!(named_results,
+        verify_cwd: opts[:verify_cwd] || File.cwd!(),
+        all: opts[:verify_base_sha] || false
+      )
+
+    # Rows outside the verified work tree's repository are reported as typed
+    # skips, never silently dropped (V23-T6R).
+    Enum.each(skipped, fn skip ->
+      Mix.shell().info(GgenIgniter.SemanticJira.GitGroundTruth.skip_line(skip))
+    end)
   end
 
   # Single-target hook site: materializes the named query rows through the
