@@ -1,4 +1,4 @@
-defmodule GgenIgniter.SemanticJira.Reconciler do
+defmodule  GgenIgniter.SemanticJira.Reconciler  do
   @moduledoc """
   Verified receipt -> lawful canonical-state transition.
 
