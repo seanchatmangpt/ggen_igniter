@@ -1,0 +1,79 @@
+{
+  "authority": {
+    "actor": "claude:B1b:V23-B integrate",
+    "ceiling": "CONSTRUCT",
+    "grant": "merge lock /Users/sac/wt/v26922/fri/ggen_igniter-int.merge.lock (DRIVER.md authority, COORDINATION.md merge protocol)"
+  },
+  "consequence": {
+    "commits": [
+      "f5575d39b2e33957d68bad70cbfb103b6c31b238"
+    ],
+    "files_changed": [
+      "17 files from v23/V23-B (git merge --no-ff, no conflicts; merge base = pre-merge int head)"
+    ],
+    "remote_effects": []
+  },
+  "identity": {
+    "base_sha": "c90c17b878d96e14a008c1de498555bc97515937",
+    "branch": "friday/gc-fri-0800",
+    "lane_sha": "2ad0168cd608aa326702d3985d6fed0a2e966a81",
+    "repo": "/Users/sac/wt/v26922/fri/ggen_igniter-int",
+    "subject": "v23:WO-V23-B integration",
+    "subject_sha": "f5575d39b2e33957d68bad70cbfb103b6c31b238",
+    "tuple_digest": "sha256:5bee8ea4d45e0cc88a311a2a910240211441b2f82fae54372622a1b93647f97f",
+    "work_order": "v23:WO-V23-B",
+    "xaas_sha": "04599d6604e56efb031eb19de430e1361e381d21"
+  },
+  "notes": "PRD PR-006, ARD section 7/28, F5/F6. Receipt for commit f5575d39b2e33957d68bad70cbfb103b6c31b238 lives in a later commit (a commit cannot contain its own hash).",
+  "replay": {
+    "commands": [
+      {
+        "cmd": "mix format --check-formatted",
+        "cwd": "/Users/sac/wt/v26922/fri/ggen_igniter-int",
+        "exit": 0,
+        "output_sha256": "e7a067b5c3739393600bc321f1926cf78e59491a391b670a8dc8ea04b3ee912d",
+        "summary": "formatted (mix.exs preferred_cli_env deprecation warning is pre-existing)"
+      },
+      {
+        "cmd": "mix compile --warnings-as-errors --force",
+        "cwd": "/Users/sac/wt/v26922/fri/ggen_igniter-int",
+        "exit": 0,
+        "output_sha256": "e2bc5c70071a48e834ba87aa72ba1cbc5188ee2576e07ae2a4db0b30befc4714",
+        "summary": "Compiling 99 files (.ex); Generated ggen_igniter app"
+      },
+      {
+        "cmd": "mix credo",
+        "cwd": "/Users/sac/wt/v26922/fri/ggen_igniter-int",
+        "exit": 0,
+        "output_sha256": "be6d22b83b2735a6c93b294bd09199da2528b140cd7753f4230f8f9c56bac707",
+        "summary": "323 source files, 2945 mods/funs, found no issues"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+        "cwd": "/Users/sac/wt/v26922/fri/ggen_igniter-int",
+        "exit": 0,
+        "output_sha256": "a3bfcad901245d19227237b41e26476f9e13667347f3036a3758a3e3e9b4cda6",
+        "summary": "26 tests, 0 failures (git 'unable to read tree' stderr is the unreadable-covered-commit negative test)"
+      },
+      {
+        "cmd": "env -i PATH=/usr/bin:/bin:<otp bin>:/opt/homebrew/bin HOME=$(mktemp -d) MIX_HOME=~/.mix HEX_HOME=~/.hex LANG=en_US.UTF-8 XAAS_DIR=/Users/sac/wt/v26922/fri/xaas-int GGEN_IGNITER_DIR=/Users/sac/wt/v26922/fri/ggen_igniter-int sh /Users/sac/wt/v26922/fri/ggen_igniter-int/scripts/sjira/bootstrap_court.sh",
+        "cwd": "/Users/sac/wt/v26922/fri/xaas-int",
+        "exit": 0,
+        "output_sha256": "f5f5050fc92f7be8f7edd979c1f66029db33c3ed3ea3e9f590bbeb407cbff38e",
+        "summary": "two cold bootstrap runs byte-identical sha256:a5dd1c479ec4bb66d2012a9b41052e77586ed59ddc6d6b57d2b7fc20aa02dcc2; 10 critical-path orders reconstructed"
+      },
+      {
+        "cmd": "! grep -rn <mock patterns> test/ggen_igniter_semantic_jira_bootstrap_test.exs lib/ggen_igniter/semantic_jira/bootstrap* lib/mix/tasks/semantic_jira.bootstrap.ex",
+        "cwd": "/Users/sac/wt/v26922/fri/ggen_igniter-int",
+        "exit": 0,
+        "output_sha256": "3deac21996707be2ced2dcb2a1f1b05b37137f6dbbaa3c00399ce768ab15d44d",
+        "summary": "0 matches (Chicago)"
+      }
+    ],
+    "durable_location": "receipts/v26.9.23/V23-B.int-gate"
+  },
+  "standing": {
+    "derived_from": "lane gate chain (format, compile --warnings-as-errors --force, credo, 26-test bootstrap suite) exit 0 and bootstrap_court.sh exit 0 observed on the exact merge commit f5575d39b2e33957d68bad70cbfb103b6c31b238; gate GC23-1 xaas court stays UNKNOWN until lane V23-K replaces docs/sjira/v26.9.23/courts/GC23-1.sh",
+    "value": "ALIVE"
+  }
+}

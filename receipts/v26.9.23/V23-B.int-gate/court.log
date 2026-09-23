@@ -1,0 +1,3 @@
+run1: STATE_DIGEST sha256:a5dd1c479ec4bb66d2012a9b41052e77586ed59ddc6d6b57d2b7fc20aa02dcc2 ORDERS 12 (critical_path 10) FRONTIER blocked=4 eligible=6 settled=2 SUBJECTS 21 RECEIPTS 23 
+run2: STATE_DIGEST sha256:a5dd1c479ec4bb66d2012a9b41052e77586ed59ddc6d6b57d2b7fc20aa02dcc2 ORDERS 12 (critical_path 10) FRONTIER blocked=4 eligible=6 settled=2 SUBJECTS 21 RECEIPTS 23 
+OK: GC23-1 two cold bootstrap runs byte-identical (sha256:a5dd1c479ec4bb66d2012a9b41052e77586ed59ddc6d6b57d2b7fc20aa02dcc2); critical-path orders reconstructed: V23-B V23-C V23-D V23-F V23-H V23-M V23-P V23-Q V23-R V23-X 
