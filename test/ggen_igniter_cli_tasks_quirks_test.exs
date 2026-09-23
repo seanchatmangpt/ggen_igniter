@@ -14,7 +14,7 @@ defmodule GgenIgniterCliTasksQuirksTest do
     2. A `--json` success path must emit exactly one valid JSON document with
        nothing trailing (no Igniter "No proposed content changes!" footer).
 
-  Adding a 5th task later means adding one entry to `@tasks` below (and, if it
+  Adding another task means adding one entry to `@tasks` below (and, if it
   supports `--json`, one entry to `@json_capable_tasks`) -- no new test logic.
   """
   use ExUnit.Case, async: true
@@ -22,16 +22,18 @@ defmodule GgenIgniterCliTasksQuirksTest do
   # Every real `mix ggen_igniter.*` task, with the minimal extra argv each one
   # needs alongside `--help`/`-h` to reach its own help-and-halt branch without
   # tripping an unrelated "missing required arg" error first. `--help`/`-h` are
-  # checked before any other validation in all four tasks (see
+  # checked before any other validation in the tasks below (see
   # `lib/mix/tasks/CLAUDE.md`), so no task actually needs extra args here today
-  # -- the field exists so a future 5th task with different plumbing (e.g. a
+  # -- the field exists so a future task with different plumbing (e.g. a
   # required positional argument checked before its own `--help` handling)
   # can still be dropped into this same list without changing the test logic.
   @tasks [
     {"ggen_igniter.sync", []},
     {"ggen_igniter.plan", []},
     {"ggen_igniter.doctor", []},
-    {"ggen_igniter.replay", []}
+    {"ggen_igniter.replay", []},
+    {"ggen_igniter.meeting_delta", []},
+    {"ggen_igniter.observation_delta", []}
   ]
 
   # Tasks that support `--json`. `ggen_igniter.sync` has NO `--json` mode at
@@ -77,7 +79,7 @@ defmodule GgenIgniterCliTasksQuirksTest do
         # concise USAGE/FLAGS block. Asserting neither form contains a
         # Markdown header line is a real, task-independent proxy for "this is
         # the concise help text, not the raw moduledoc dump" -- exercised
-        # identically across all four tasks, so a 5th task regressing into
+        # identically across all tasks, so a later task regressing into
         # the raw-moduledoc branch fails the same way.
         refute help_output =~ ~r/^##\s/m,
                "mix #{task} --help printed what looks like the raw moduledoc " <>

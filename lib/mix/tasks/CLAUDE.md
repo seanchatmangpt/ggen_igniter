@@ -32,8 +32,8 @@ swarm) and `b184d907` (AR-11 closure). Both fixes are already live in
 `sync.ex`/`plan.ex`/`doctor.ex` today — this section exists so a future change
 doesn't silently reintroduce either one. The regression coverage lives in
 `test/ggen_igniter_cli_tasks_quirks_test.exs`, parametrized over every real
-task so a reintroduction on any one of them (or a missing fix on a new 5th
-task) fails that one shared file.
+task so a reintroduction on any one of them, or a missing parity entry for a
+new task, fails that one shared file.
 
 1. **`--help` vs `-h` split.** `Igniter.Mix.Task`'s generated `run/1` (see
    `deps/igniter/lib/mix/task.ex:80`) calls

@@ -1030,6 +1030,216 @@ defmodule GgenIgniter.SemanticJira do
     end
   end
 
+  @doc """
+  Projects an authority-free semantic observation delta into canonical
+  Semantic Jira WorkOrder candidates.
+
+  This is the generic representation/admission boundary used by LifeGym,
+  BibleGym, project gyms, and other observation producers. The source delta
+  must already be candidate-only: CONSTRUCT_ONLY, CANDIDATE,
+  do_authority=false, and NOT_EXECUTED. Repository/base identity, courts,
+  evidence, acceptance, falsifiers, projections, receipt classes, and bounded
+  path scope remain explicit caller bindings.
+
+  Returned WorkOrders are kernel-admitted with standing UNKNOWN and authority
+  NONE. SHACL admission, frontier selection, XaaS materialization, SA2A/BRCE
+  consequence, receipts, replay, and standing promotion remain downstream.
+  """
+  @spec observation_delta_work_orders(map(), map(), keyword()) ::
+          {:ok, [json_map()]} | refusal()
+  def observation_delta_work_orders(delta, binding, opts \\ [])
+
+  def observation_delta_work_orders(delta, binding, opts)
+      when is_map(delta) and is_map(binding) and is_list(opts) do
+    delta = strings(delta)
+    binding = strings(binding)
+
+    source_kind = Keyword.get(opts, :source_kind, "semantic-observation")
+    title_prefix = Keyword.get(opts, :title_prefix, "Semantic observation")
+    subject_namespace = Keyword.get(opts, :subject_namespace, "semantic-observation")
+
+    binding_keys =
+      ~w(repository base_sha path_scope required_courts required_evidence acceptance falsifiers projections required_receipt_classes evidence_ceiling promotion_rule)
+
+    with :ok <- required(delta, ~w(episode_id work_candidates digest)),
+         true <- is_list(delta["work_candidates"]),
+         :ok <- required(binding, binding_keys),
+         :ok <- repository(binding["repository"]),
+         :ok <- sha(:base_sha, binding["base_sha"]),
+         :ok <- path_scope(binding["path_scope"]),
+         true <- binding["path_scope"] != [],
+         :ok <-
+           nonempty_lists(
+             binding,
+             ~w(required_courts required_evidence acceptance falsifiers projections required_receipt_classes)
+           ),
+         :ok <- projection_types(binding["projections"]),
+         :ok <- receipt_classes(binding["required_receipt_classes"]),
+         {:ok, work_orders} <-
+           observation_delta_candidates(
+             delta,
+             binding,
+             source_kind,
+             title_prefix,
+             subject_namespace
+           ) do
+      {:ok, work_orders}
+    else
+      false -> {:error, {:refused_observation_delta, :invalid_candidate_collection}}
+      {:error, reason} -> {:error, {:refused_observation_delta, reason}}
+    end
+  end
+
+  def observation_delta_work_orders(_delta, _binding, _opts),
+    do: {:error, {:refused_observation_delta, :expected_maps}}
+
+  defp observation_delta_candidates(
+         delta,
+         binding,
+         source_kind,
+         title_prefix,
+         subject_namespace
+       ) do
+    delta["work_candidates"]
+    |> Enum.sort_by(&strings(&1)["id"])
+    |> Enum.reduce_while({:ok, []}, fn raw, {:ok, acc} ->
+      reduce_observation_delta_candidate(
+        raw,
+        acc,
+        delta,
+        binding,
+        source_kind,
+        title_prefix,
+        subject_namespace
+      )
+    end)
+    |> reverse_observation_delta_candidates()
+  end
+
+  defp reduce_observation_delta_candidate(
+         raw,
+         acc,
+         delta,
+         binding,
+         source_kind,
+         title_prefix,
+         subject_namespace
+       ) do
+    case observation_delta_work_order(
+           delta,
+           strings(raw),
+           binding,
+           source_kind,
+           title_prefix,
+           subject_namespace
+         ) do
+      {:ok, work_order} -> {:cont, {:ok, [work_order | acc]}}
+      {:error, reason} -> {:halt, {:error, reason}}
+    end
+  end
+
+  defp reverse_observation_delta_candidates({:ok, work_orders}),
+    do: {:ok, Enum.reverse(work_orders)}
+
+  defp reverse_observation_delta_candidates({:error, reason}), do: {:error, reason}
+
+  @doc """
+  Backward-compatible ZOE meeting specialization of
+  `observation_delta_work_orders/3`.
+  """
+  @spec meeting_delta_work_orders(map(), map()) :: {:ok, [json_map()]} | refusal()
+  def meeting_delta_work_orders(delta, binding) do
+    case observation_delta_work_orders(
+           delta,
+           binding,
+           source_kind: "zoe-meeting",
+           title_prefix: "ZOE readiness",
+           subject_namespace: "zoe-readiness"
+         ) do
+      {:error, {:refused_observation_delta, reason}} ->
+        {:error, {:refused_meeting_delta, reason}}
+
+      other ->
+        other
+    end
+  end
+
+  defp observation_delta_work_order(
+         delta,
+         candidate,
+         binding,
+         source_kind,
+         title_prefix,
+         subject_namespace
+       ) do
+    allowed = %{
+      "MISSING_TRANSITION" => "CLOSE_READINESS_GAP",
+      "INCOMPLETE_BINDING" => "RESOLVE_BINDING",
+      "ONTOLOGY_UPDATE_CANDIDATE" => "REVIEW_ONTOLOGY_CHANGE",
+      "NOVEL_OBSERVATION" => "INVESTIGATE_NOVEL_OBSERVATION",
+      "PROCESS_WASTE_CANDIDATE" => "REVIEW_PROCESS_WASTE"
+    }
+
+    with :ok <-
+           required(
+             candidate,
+             ~w(id kind episode_id subject_ref delta_class evidence_ref authority standing dispatch)
+           ),
+         true <- candidate["episode_id"] == delta["episode_id"],
+         true <- candidate["authority"] == "CONSTRUCT_ONLY",
+         true <- candidate["standing"] == "CANDIDATE",
+         true <- candidate["do_authority"] == false,
+         true <- candidate["dispatch"] == "NOT_EXECUTED",
+         expected_kind when is_binary(expected_kind) <-
+           Map.get(allowed, candidate["delta_class"]),
+         true <- candidate["kind"] == expected_kind do
+      replay_identity =
+        subject_namespace <>
+          ":" <> delta["episode_id"] <> ":" <> candidate["id"]
+
+      raw = %{
+        "identity" => candidate["id"],
+        "title" => title_prefix <> " " <> candidate["kind"],
+        "description" =>
+          "Resolve " <> candidate["delta_class"] <> " for " <> candidate["subject_ref"],
+        "subject" =>
+          subject_namespace <> ":" <> delta["episode_id"] <> ":" <> candidate["subject_ref"],
+        "repository" => binding["repository"],
+        "base_sha" => binding["base_sha"],
+        "standing" => "UNKNOWN",
+        "evidence_ceiling" => binding["evidence_ceiling"],
+        "promotion_rule" => binding["promotion_rule"],
+        "replay_identity" => replay_identity,
+        "replay_required" => true,
+        "dependencies" => [],
+        "required_courts" => binding["required_courts"],
+        "required_evidence" => binding["required_evidence"],
+        "required_receipt_classes" => binding["required_receipt_classes"],
+        "acceptance" => binding["acceptance"],
+        "falsifiers" => binding["falsifiers"],
+        "projections" => binding["projections"],
+        "path_scope" => binding["path_scope"],
+        "authority_requirement" => "NONE",
+        "expected_consequence" => candidate["kind"],
+        "source_observation_kind" => source_kind,
+        "source_delta_schema" => delta["schema"],
+        "source_episode_id" => delta["episode_id"],
+        "source_delta_digest" => delta["digest"],
+        "source_delta_class" => candidate["delta_class"],
+        "source_evidence_ref" => candidate["evidence_ref"],
+        "source_candidate_authority" => candidate["authority"],
+        "source_candidate_dispatch" => candidate["dispatch"]
+      }
+
+      admit_work_order(raw)
+    else
+      false -> {:error, {:candidate_boundary_violation, candidate["id"]}}
+      nil -> {:error, {:unsupported_delta_class, candidate["delta_class"]}}
+      {:error, reason} -> {:error, reason}
+      other -> {:error, {:candidate_boundary_violation, other}}
+    end
+  end
+
   @doc "Constructs an observed-process finding while preserving normative law."
   @spec process_finding(map()) :: {:ok, json_map()} | refusal()
   def process_finding(attrs) when is_map(attrs) do
