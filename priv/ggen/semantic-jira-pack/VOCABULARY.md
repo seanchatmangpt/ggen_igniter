@@ -1,5 +1,16 @@
 # semantic-jira-pack vocabulary reduction — OSLC CM 3.0 / dcterms / PROV-O
 
+> **Status in this tree: UNSUPPORTED (deferred ontology content).** This document was adopted
+> with the WO-03 restore (FRI-T6) WITHOUT the ontology/shape hunks it describes. Present here:
+> the dual-path `{ a sj:WorkOrder } UNION { a oslc_cm:ChangeRequest }` targeting in gates
+> 010/020/046/050 and the closed `@definition_fields` take in `GgenIgniter.SemanticJira`
+> (tested by `test/ggen_igniter_semantic_jira_event_sourcing_kernel_test.exs`). NOT present:
+> the dual typing on the canonical work orders, the event-sourcing terms (`sj:transitionId`,
+> `sj:transitionWorkOrder`, ...), their SHACL shapes, the graph→kernel extraction (the removed
+> `GgenIgniter.Crown`), and `test/ggen_igniter_semantic_jira_vocabulary_test.exs`. Every
+> "enforced"/"proven" claim below refers to that deferred content, which stays reachable from
+> `preserve/v26.9.22/wo-03-wip` (2d1fadb) and is successor `v23:GC-26.9.24` (V23-T6R receipt).
+
 Mission: the work/change/provenance semantics of this pack map to PUBLIC
 vocabularies — OSLC CM 3.0, Dublin Core Terms (dcterms), and W3C PROV-O.
 `sj:` is retained ONLY where an exact public equivalent is absent; every such
@@ -90,9 +101,9 @@ Consequences, all enforced:
    is a closed take (`Map.take/2`) — a field not in the list cannot enter the
    hash, so `rdf:type oslc_cm:ChangeRequest`, `prov:used`,
    `prov:wasAssociatedWith`, `prov:wasGeneratedBy`, and every other public
-   assertion are excluded by construction. Graph law: the graph→kernel
-   extraction (`GgenIgniter.Crown.extract_work_orders/1`) reads only the
-   enumerated `sj:`/`dcterms:` definition predicates. Therefore adding a
+   assertion are excluded by construction. Graph law (deferred with the
+   removed `GgenIgniter.Crown`, see the status note above): the graph→kernel
+   extraction reads only the enumerated `sj:`/`dcterms:` definition predicates. Therefore adding a
    public triple to a work order never moves its definition digest; changing
    a residue/identity fact (e.g. `dcterms:title`, `sj:promotionRule`) moves
    it exactly as `@definition_fields` dictates. Proven both directions by
