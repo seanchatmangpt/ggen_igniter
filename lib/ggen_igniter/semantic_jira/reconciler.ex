@@ -17,6 +17,11 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
   5. On admit an event is appended to the `TransitionLog`; replaying the same
      receipt is idempotent (`:already_recorded`).
 
+  The ledger is read through `TransitionLog.fetch/1`, so a tampered or
+  undecodable ledger is `{:error, {:refused, {:ledger_refused, reason}}}`
+  before any admission; the ledger path may be a directory or an ndjson file
+  (`TransitionLog.kind/1`).
+
   Authority stays NONE; this module does not perform DO.
   """
 
@@ -27,9 +32,9 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
           {:ok, map(), :appended | :already_recorded} | {:error, {:refused, term()}}
   def reconcile(work_order, receipt, dir, _opts \\ []) do
     receipt = stringify(receipt)
-    events = TransitionLog.read(dir)
 
-    with {:ok, def_digest} <- refuse(SemanticJira.definition_digest(work_order)),
+    with {:ok, events} <- refuse(TransitionLog.fetch(dir)),
+         {:ok, def_digest} <- refuse(SemanticJira.definition_digest(work_order)),
          :ok <- check(receipt["definition_digest"] == def_digest, :definition_mismatch),
          :ok <- check(digest?(receipt["snapshot_digest"]), :invalid_snapshot_digest),
          nil <- recorded(events, receipt),
@@ -64,7 +69,7 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
         "authority" => "NONE"
       }
 
-      TransitionLog.append(dir, event)
+      refuse(TransitionLog.append(dir, event))
     else
       {:already, event} -> {:ok, event, :already_recorded}
       other -> other
@@ -83,6 +88,7 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
   end
 
   defp refuse({:ok, v}), do: {:ok, v}
+  defp refuse({:ok, _, _} = appended), do: appended
   defp refuse({:error, reason}), do: {:error, {:refused, reason}}
   defp check(true, _), do: :ok
   defp check(_, reason), do: {:error, {:refused, reason}}
@@ -94,4 +100,36 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
 
   defp stringify(v) when is_list(v), do: Enum.map(v, &stringify/1)
   defp stringify(v), do: v
+
+  # ── Log-projection wrappers (restored union, v26.9.22 WO-03) ─────────────
+  # Task-facing helpers over the canonical kernel's event projection. The
+  # mix semantic_jira.* tasks (and Xaas.Ultracode.SemanticCrown behind them)
+  # consume these instead of touching SemanticJira internals.
+
+  @genesis "sha256:" <> String.duplicate("0", 64)
+
+  @doc "Projects the log over the work orders: `{:ok, projected, evidence}`."
+  @spec project([map()], [map()]) :: {:ok, [map()], map()}
+  def project(work_orders, events) do
+    {projected, evidence} = SemanticJira.project(work_orders, events)
+    {:ok, projected, evidence}
+  end
+
+  @doc """
+  Frontier over the projection: UNKNOWN work whose typed dependencies are
+  satisfied by *ledger* evidence. Settled work (e.g. ALIVE) is reported by
+  the kernel as blocked with `standing=<value>`, never eligible.
+  """
+  @spec frontier([map()], [map()]) ::
+          {:ok, %{eligible: [map()], blocked: [map()]}} | {:error, term()}
+  def frontier(work_orders, events) do
+    {:ok, SemanticJira.frontier_from_events(work_orders, events)}
+  end
+
+  @doc "Chain tail: the last event's digest, or the genesis digest for an empty log."
+  @spec tail_digest([map()]) :: String.t()
+  def tail_digest([]), do: @genesis
+
+  def tail_digest(events),
+    do: events |> List.last() |> stringify() |> Map.fetch!("event_digest")
 end

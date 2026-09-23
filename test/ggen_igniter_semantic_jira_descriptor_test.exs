@@ -186,4 +186,64 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
     assert {:ok, d} = Descriptor.build(graph, "B", @attrs, events: events)
     assert d["work_order_id"] == "B"
   end
+
+  describe "build_xaas_contract/4 (admits the eligible row; provider is a parameter)" do
+    @digest ~r/\Asha256:[0-9a-f]{64}\z/
+    @contract_opts [verifier_suite: "ci-suite", aliases: %{"o/r" => "o_r"}]
+
+    test "the bridge carries the ADMITTED definition and snapshot digests (never nil)" do
+      root = wo("ROOT")
+
+      assert {:ok, d} = Descriptor.build_xaas_contract([root], [], "ROOT", @contract_opts)
+
+      {:ok, definition} = SemanticJira.definition_digest(root)
+      {:ok, admitted} = SemanticJira.admit_work_order(root)
+
+      assert d["bridge"]["definition_digest"] =~ @digest
+      assert d["bridge"]["definition_digest"] == definition
+      assert d["bridge"]["source_snapshot_digest"] =~ @digest
+      assert d["bridge"]["source_snapshot_digest"] == admitted["work_order_digest"]
+    end
+
+    test "a row with no dependencies key is admitted (defaults), not crashed on" do
+      root = Map.delete(wo("ROOT"), "dependencies")
+
+      assert {:ok, d} = Descriptor.build_xaas_contract([root], [], "ROOT", @contract_opts)
+      assert d["dependencies"] == []
+    end
+
+    test "provider defaults to zcode and is bound from :provider" do
+      graph = [wo("ROOT")]
+
+      assert {:ok, %{"provider" => "zcode"}} =
+               Descriptor.build_xaas_contract(graph, [], "ROOT", @contract_opts)
+
+      assert {:ok, %{"provider" => "recipe"}} =
+               Descriptor.build_xaas_contract(
+                 graph,
+                 [],
+                 "ROOT",
+                 [provider: "recipe"] ++ @contract_opts
+               )
+
+      assert {:error, {:descriptor_refused, {:invalid_option, :provider}}} =
+               Descriptor.build_xaas_contract(
+                 graph,
+                 [],
+                 "ROOT",
+                 [provider: "not a provider"] ++ @contract_opts
+               )
+    end
+
+    test "graph_digest is over admitted definitions: it moves when any definition moves" do
+      graph = [wo("ROOT"), wo("B", ["ROOT"])]
+      moved = [wo("ROOT"), wo("B", ["ROOT"], %{"title" => "B, retitled"})]
+
+      assert {:ok, d1} = Descriptor.build_xaas_contract(graph, [], "ROOT", @contract_opts)
+      assert {:ok, d2} = Descriptor.build_xaas_contract(moved, [], "ROOT", @contract_opts)
+
+      assert d1["graph_digest"] =~ @digest
+      refute d1["graph_digest"] == d2["graph_digest"]
+    end
+  end
 end

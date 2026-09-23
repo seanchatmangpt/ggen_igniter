@@ -71,14 +71,16 @@ defmodule GgenIgniter.SemanticJira.GitGroundTruth do
     cwd = Keyword.fetch!(opts, :verify_cwd)
     rows = Enum.flat_map(named_results, fn {_name, rows} -> rows end)
 
+    jurisdiction = repository_jurisdiction(cwd)
+
     targeted_shas =
       if Keyword.get(opts, :all, false) do
-        base_shas(rows)
-      else
         rows
-        |> Enum.filter(&git_ground_truth_declared?/1)
-        |> base_shas()
+      else
+        Enum.filter(rows, &git_ground_truth_declared?/1)
       end
+      |> Enum.filter(&in_jurisdiction?(&1, jurisdiction))
+      |> base_shas()
 
     case Enum.uniq(targeted_shas) do
       [] ->
@@ -87,6 +89,28 @@ defmodule GgenIgniter.SemanticJira.GitGroundTruth do
       shas ->
         refuse_unless_git_work_tree!(cwd)
         Enum.each(shas, &verify_sha!(&1, cwd))
+    end
+  end
+
+  # The verifier's jurisdiction is the verified work tree's OWN repository
+  # (v26.9.22 union law): the crown rows bind `local/eds`, so their baseSha
+  # values are commits of another history — outside this check, never a
+  # refusal here and never silently "verified". Rows without a repository
+  # column, and work trees without an origin remote, keep the old
+  # verify-everything behavior.
+  defp in_jurisdiction?(_row, %{origin_url: nil}), do: true
+
+  defp in_jurisdiction?(row, %{origin_url: url}) when is_map(row) do
+    case row["repository"] do
+      repo when is_binary(repo) -> String.contains?(url, repo)
+      _ -> true
+    end
+  end
+
+  defp repository_jurisdiction(cwd) do
+    case git(cwd, ["config", "--get", "remote.origin.url"]) do
+      {url, 0} -> %{origin_url: String.trim(url)}
+      _ -> %{origin_url: nil}
     end
   end
 
