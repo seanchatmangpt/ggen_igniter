@@ -58,6 +58,15 @@ defmodule GgenIgniter.SemanticJira.Prose do
   `sj:admissionDigest`) and `orders.ttl`, each serialized as sorted
   N-Triples lines (valid Turtle) under a digest header: byte-identical
   across runs. `check/2` recomputes and compares them byte for byte.
+
+  ## Goal admission (GC23-3 shapes court)
+
+  `admit_goal/1` is the ggen_igniter half of the GC23-3 court: the goal graph
+  merged with the pack ontology and any `:context` graphs (e.g. the
+  predecessor goal that defines `sj:successorOf` targets) is validated
+  against both pack shape files; violations are scoped to subjects of the
+  goal graph (context graphs only resolve references), so a WorkOrder with
+  one mandatory tuple field deleted is refused naming that field (F1).
   """
 
   alias GgenIgniter.Digest
@@ -124,6 +133,55 @@ defmodule GgenIgniter.SemanticJira.Prose do
     [{"propositions.ttl", propositions}, {"orders.ttl", orders}]
     |> Enum.flat_map(fn {name, expected} -> drift(Path.join(out_dir, name), expected) end)
     |> verdict()
+  end
+
+  @doc """
+  Admits a goal graph under the pack shapes (GC23-3). Options: `:goal`
+  (path, required), `:context` (list of paths whose graphs only resolve
+  references), `:pack_dir`. Returns a summary of the admitted graph or the
+  scoped violations as `goal_inadmissible` refusals.
+  """
+  @spec admit_goal(keyword()) :: {:ok, map()} | {:refused, [refusal()]}
+  def admit_goal(opts) do
+    pack_dir = Keyword.get(opts, :pack_dir, @default_pack_dir)
+    contexts = opts |> Keyword.get(:context, []) |> Enum.with_index(&{:"context_#{&2}", &1})
+
+    files =
+      [
+        goal: Keyword.get(opts, :goal),
+        ontology: Path.join(pack_dir, "ontology.ttl"),
+        work_order_shapes: Path.join(pack_dir, "shapes/work-order.shacl.ttl"),
+        proposition_shapes: Path.join(pack_dir, "shapes/proposition.shacl.ttl")
+      ] ++ contexts
+
+    with {:ok, bytes} <- read_all(files),
+         {:ok, graphs} <- parse_all(bytes, Keyword.keys(files)) do
+      goal = graphs.goal
+
+      data =
+        Enum.reduce(Keyword.keys(contexts), RDF.Graph.add(graphs.ontology, goal), fn key, acc ->
+          RDF.Graph.add(acc, Map.fetch!(graphs, key))
+        end)
+
+      shapes = RDF.Graph.add(graphs.work_order_shapes, graphs.proposition_shapes)
+
+      data
+      |> scoped_violations(shapes, subjects(goal), :goal_inadmissible)
+      |> verdict()
+      |> case do
+        :ok -> {:ok, goal_summary(goal, bytes.goal)}
+        refused -> refused
+      end
+    end
+  end
+
+  defp goal_summary(goal, bytes) do
+    %{
+      goal_sha256: Digest.sha256(bytes),
+      triples: RDF.Graph.triple_count(goal),
+      goal_checkpoints: length(instances(goal, sj("GoalCheckpoint"))),
+      work_orders: length(instances(goal, sj("WorkOrder")))
+    }
   end
 
   @doc "One human-readable line for a refusal."

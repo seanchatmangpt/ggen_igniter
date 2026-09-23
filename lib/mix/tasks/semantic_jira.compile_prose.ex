@@ -29,6 +29,10 @@ defmodule Mix.Tasks.SemanticJira.CompileProse do
     * `--check` -- write nothing; exit 0 only when `--out-dir` already holds
       byte-identical outputs.
     * `--pack-dir DIR` -- defaults to `priv/ggen/semantic-jira-pack`.
+    * `--admit-goal` -- GC23-3 shapes court instead of a compile: validate
+      `--goal` merged with the pack ontology and every `--context PATH`
+      (repeatable; e.g. the predecessor goal) against the pack shapes, with
+      violations scoped to the goal's own subjects. Needs only `--goal`.
 
   Exits 0 only when admission and coverage pass (and, with `--check`, the
   outputs recompute byte-identically); otherwise prints one
@@ -46,7 +50,9 @@ defmodule Mix.Tasks.SemanticJira.CompileProse do
     receipts_dir: :string,
     out_dir: :string,
     pack_dir: :string,
-    check: :boolean
+    check: :boolean,
+    admit_goal: :boolean,
+    context: :keep
   ]
 
   @impl Mix.Task
@@ -57,11 +63,33 @@ defmodule Mix.Tasks.SemanticJira.CompileProse do
       invalid != [] or positional != [] ->
         refuse(["REFUSED(usage) -: unexpected arguments #{inspect(invalid ++ positional)}"])
 
+      opts[:admit_goal] ->
+        admit_goal(opts)
+
       opts[:out_dir] == nil ->
         refuse(["REFUSED(usage) -: --out-dir is required"])
 
       true ->
         opts |> compile_opts() |> Prose.compile() |> finish(opts)
+    end
+  end
+
+  defp admit_goal(opts) do
+    goal_opts = [
+      goal: opts[:goal],
+      context: Keyword.get_values(opts, :context),
+      pack_dir: opts[:pack_dir] || "priv/ggen/semantic-jira-pack"
+    ]
+
+    case Prose.admit_goal(goal_opts) do
+      {:ok, summary} ->
+        Mix.shell().info(
+          "GOAL ADMITTED: #{opts[:goal]} #{summary.goal_sha256} (#{summary.triples} triples, " <>
+            "#{summary.goal_checkpoints} GoalCheckpoints, #{summary.work_orders} WorkOrders)"
+        )
+
+      {:refused, refusals} ->
+        refuse(Enum.map(refusals, &Prose.render_refusal/1))
     end
   end
 

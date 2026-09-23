@@ -417,6 +417,66 @@ defmodule GgenIgniter.SemanticJiraProseTest do
     end
   end
 
+  describe "admit_goal/1 (GC23-3 shapes court over a goal graph)" do
+    @friday_goal "test/fixtures/semantic-jira-goal-checkpoint/goal.ttl"
+
+    test "the FRI-T1 fixture goal with its tuple-complete order admits" do
+      assert {:ok, summary} = Prose.admit_goal(goal: @friday_goal)
+      assert summary.work_orders == 1
+      assert summary.goal_checkpoints == 3
+      assert summary.goal_sha256 =~ ~r/\Asha256:[0-9a-f]{64}\z/
+    end
+
+    test "F1: deleting one mandatory tuple field of the goal's order is refused, naming it", %{
+      tmp: tmp
+    } do
+      goal = Path.join(tmp, "goal.ttl")
+
+      File.write!(
+        goal,
+        mutate!(
+          {~s(    sj:postcondition "mix format --check-formatted exits 0 on the exact subject SHA" ;\n),
+           ""},
+          File.read!(@friday_goal)
+        )
+      )
+
+      assert {:refused, refusals} = Prose.admit_goal(goal: goal)
+
+      assert Enum.any?(refusals, fn refusal ->
+               refusal.code == :goal_inadmissible and
+                 refusal.subject == @sj <> "gc-fixture-wo-1" and
+                 refusal.detail =~ "#{@sj}postcondition sparql"
+             end)
+    end
+
+    test "a predecessor reference resolves only through --context; context violations are out of scope",
+         %{
+           tmp: tmp
+         } do
+      successor = Path.join(tmp, "successor.ttl")
+
+      File.write!(successor, """
+      @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+      @prefix fx: <https://ggen-igniter.dev/sjira/fixture-prose#> .
+      @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+      fx:GC-PROSE-SUCCESSOR a sj:GoalCheckpoint ;
+          rdfs:label "Successor of GC-PROSE" ;
+          sj:successorOf fx:GC-PROSE ;
+          sj:stopQuery "ASK { FILTER(false) }" .
+      """)
+
+      assert {:refused, [refusal]} = Prose.admit_goal(goal: successor)
+      assert refusal.subject == @ns <> "GC-PROSE-SUCCESSOR"
+      assert refusal.detail =~ "#{@sj}successorOf class"
+
+      context = Path.join(@fixture_dir, "goal.ttl")
+      assert {:ok, summary} = Prose.admit_goal(goal: successor, context: [context])
+      assert summary.goal_checkpoints == 1
+    end
+  end
+
   describe "mix semantic_jira.compile_prose (real subprocess, no LLM credentials)" do
     test "writes outputs, --check confirms them, drift and refusals exit 1", %{tmp: tmp} do
       out = Path.join(tmp, "out")
@@ -451,6 +511,17 @@ defmodule GgenIgniter.SemanticJiraProseTest do
       assert refused_status == 1
       assert refused_output =~ "REFUSED(provenance_mismatch) #{@invariant}"
       refute File.exists?(Path.join(tmp, "never"))
+
+      {goal_output, goal_status} =
+        run_cli([
+          "semantic_jira.compile_prose",
+          "--admit-goal",
+          "--goal",
+          "test/fixtures/semantic-jira-goal-checkpoint/goal.ttl"
+        ])
+
+      assert goal_status == 0, goal_output
+      assert goal_output =~ "GOAL ADMITTED"
     end
   end
 
