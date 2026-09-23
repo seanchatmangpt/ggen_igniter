@@ -69,34 +69,6 @@ Enum.each(nodes, fn node ->
   end
 end)
 
-# Event-sourced standing (gates/055_standing_projection.rq): each WorkOrder's
-# current standing is the toStanding of its append-only StandingTransition
-# chain tip; WorkOrders without transitions keep their declared standing.
-# A forked chain (more than one distinct tip standing for one work order) is
-# ambiguous and refuses — ambiguity never silently picks a branch.
-projected_by_work_order =
-  standing_projection
-  |> Enum.group_by(& &1["work_order"], & &1["projected"])
-
-Enum.each(projected_by_work_order, fn {transitioned, projected} ->
-  distinct = projected |> Enum.uniq() |> Enum.sort()
-
-  if length(distinct) > 1 do
-    refuse.(
-      "ambiguous standing projection: #{inspect(transitioned)} has a forked " <>
-        "StandingTransition chain with tips #{inspect(distinct)}; the append-only " <>
-        "law requires exactly one chain tip per work order"
-    )
-  end
-end)
-
-projected_standing_for = fn work_order_iri, declared ->
-  case Map.get(projected_by_work_order, work_order_iri) do
-    nil -> declared
-    [projected] -> projected
-  end
-end
-
 values_for = fn work_order_iri, predicate_iri ->
   properties
   |> Enum.filter(fn row ->
@@ -245,8 +217,7 @@ receipts = values_for.(work_order, sj <> "receipt")
 - **Repository:** <%= repository %>
 - **Base SHA:** <%= base_sha %>
 - **Exact subject:** <%= subject %>
-- **Standing:** <%= projected_standing_for.(work_order, standing) %>
-<%= if projected_standing_for.(work_order, standing) != standing do %>- **Declared standing:** <%= standing %> (overridden by the append-only StandingTransition projection)<% end %>
+- **Standing:** <%= standing %>
 - **Evidence ceiling:** <%= evidence_ceiling %>
 - **Authority ceiling:** <%= authority_ceiling %>
 - **Replay identity:** <%= replay_identity %>

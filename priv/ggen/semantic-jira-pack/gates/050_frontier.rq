@@ -1,21 +1,19 @@
-# Frontier gate: renderable WorkOrders whose typed dependency edges are satisfied
-# AND whose EVENT-SOURCED standing still projects to UNKNOWN. Written with
-# nested MINUS, not FILTER NOT EXISTS: under the locked sparql 0.3.12 any
-# FILTER inside an EXISTS group compiles its expression to :"$undefined" and
-# crashes (Protocol.UndefinedError). The nested-MINUS form is semantically
-# identical here: ?work_order is the only variable shared between the outer
-# group and the unsatisfied-edge group, so MINUS removes exactly the
+# Frontier gate: renderable WorkOrders whose typed dependency edges are satisfied.
+# Written with nested MINUS, not FILTER NOT EXISTS: under the locked sparql
+# 0.3.12 any FILTER inside an EXISTS group compiles its expression to
+# :"$undefined" and crashes (Protocol.UndefinedError). The nested-MINUS form is
+# semantically identical here: ?work_order is the only variable shared between
+# the outer group and the unsatisfied-edge group, so MINUS removes exactly the
 # WorkOrders having an edge whose upstream lacks the required standing.
-# Event-sourced standing law: the second MINUS removes WorkOrders whose
-# StandingTransition chain tip projects to a non-UNKNOWN standing — a work
-# order with a transition to ALIVE is no longer frontier-eligible for the
-# same work, even while its declared sj:standing row still reads UNKNOWN.
-# (A chain tip is an event whose toStanding is not any other event's
-# fromStanding for the same work order; see 055_standing_projection.rq.)
 # Dual-path (W7-A4): work orders are sj:WorkOrder OR oslc_cm:ChangeRequest
-# typed; transitions are located through the residue anchor sj:transitionId
-# (present on every lawful transition in legacy, dual, and public-only
-# graphs — see VOCABULARY.md). Nested MINUS blocks stay UNION-free on purpose.
+# typed. Nested MINUS blocks stay UNION-free on purpose.
+# The graph-side event-sourced standing MINUS (StandingTransition chain tip via
+# sj:transitionId / sj:transitionWorkOrder) is NOT here: no pack ontology
+# declares those terms, so the clause could never fire (V23-T6R refutation 2).
+# Event-sourced standing is enforced by the kernel frontier over the
+# TransitionLog (GgenIgniter.SemanticJira.frontier/3, Reconciler.frontier/2);
+# the graph-side projection is successor v23:GC-26.9.24 (its content stays
+# reachable from preserve/v26.9.22/wo-03-wip).
 # Guarded by GgenIgniter.SemanticJiraPackTest "every pack gate executes".
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
@@ -34,17 +32,6 @@ SELECT DISTINCT ?work_order ?id ?title ?repository ?base_sha ?subject ?evidence_
     ?edge sj:upstreamWorkOrder ?upstream .
     ?edge sj:requiredStanding ?required .
     MINUS { ?upstream sj:standing ?required }
-  }
-  MINUS {
-    ?tip sj:transitionId ?tipId ;
-         sj:transitionWorkOrder ?work_order ;
-         sj:toStanding ?projected .
-    FILTER(?projected != "UNKNOWN")
-    MINUS {
-      ?follower sj:transitionId ?followerId ;
-                sj:transitionWorkOrder ?work_order ;
-                sj:fromStanding ?projected .
-    }
   }
 }
 ORDER BY ?id

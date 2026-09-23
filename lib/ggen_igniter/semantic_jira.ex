@@ -612,17 +612,17 @@ defmodule GgenIgniter.SemanticJira do
   # `promote/3` intent, `append_transition/2` appends it to an append-only
   # event list under the transition-id immutability law, and
   # `project_standing/1` projects the chain-tip standing per work order.
-  # Graph rendering (`sj:transition-<hash8> a sj:StandingTransition`) is
-  # constrained by the pack's SHACL shapes and projected by
-  # gates/055_standing_projection.rq; durable persistence stays with
-  # Reconciler + TransitionLog.
+  # Durable persistence stays with Reconciler + TransitionLog. The graph-side
+  # rendering (`sj:transition-<hash8> a sj:StandingTransition`, its SHACL
+  # event shapes and the 055 standing-projection gate) needs event-sourcing
+  # terms no pack ontology declares yet; it is successor v23:GC-26.9.24
+  # (content reachable from preserve/v26.9.22/wo-03-wip), not claimed here.
 
   @doc """
   Applies an admitted promotion intent by manufacturing the append-only
   StandingTransition event. Pure: nothing is persisted here — appending the
-  event to a log is `append_transition/2`, and the graph-side rendering is
-  `sj:transition-<hash8> a sj:StandingTransition` under the pack's SHACL
-  shapes.
+  event to a log is `append_transition/2` (durably: `TransitionLog`); the
+  graph-side `sj:StandingTransition` rendering is successor v23:GC-26.9.24.
 
   Required attrs: `intent` (a `promote/3` `standing_transition_intent`),
   `evidence_identity` (the durable receipt identity the transition rides),
