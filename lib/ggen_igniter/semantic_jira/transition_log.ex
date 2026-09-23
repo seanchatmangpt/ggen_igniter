@@ -10,7 +10,11 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
     `event_digest` is already present is returned unchanged (idempotent).
     Existing files are never rewritten. A writer that crashes after claiming
     a seq leaves a gap, never a duplicate.
-  - `read/1` returns events ordered by `seq`.
+  - `read/1` returns events ordered by `seq`. Only event files
+    (`<8-digit seq>-<16 hex>.json`) are read, so artifacts kept next to an
+    event -- the in-toto Statement `<stem>.intoto.json` written by
+    `GgenIgniter.SemanticJira.Attestation` -- are never mistaken for events.
+  - `stem/1` is the shared `<seq>-<digest16>` file stem of an appended event.
 
   The WorkOrder definition is never touched; current standing is the
   projection `GgenIgniter.SemanticJira.project/2` of this log over the graph.
@@ -18,12 +22,14 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
 
   alias GgenIgniter.SemanticJira
 
+  @event_file ~r/\A\d{8}-[0-9a-f]{16}\.json\z/
+
   @spec read(Path.t()) :: [map()]
   def read(dir) do
     case File.ls(dir) do
       {:ok, names} ->
         names
-        |> Enum.filter(&String.ends_with?(&1, ".json"))
+        |> Enum.filter(&Regex.match?(@event_file, &1))
         |> Enum.sort()
         |> Enum.map(&(dir |> Path.join(&1) |> File.read!() |> Jason.decode!()))
 
@@ -73,6 +79,12 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
     end
   end
 
+  @doc "File stem `<8-digit seq>-<first 16 hex of event_digest>` of an appended event."
+  @spec stem(map()) :: String.t()
+  def stem(%{"seq" => seq, "event_digest" => "sha256:" <> hex}) do
+    String.pad_leading(Integer.to_string(seq), 8, "0") <> "-" <> String.slice(hex, 0, 16)
+  end
+
   defp find(dir, digest), do: Enum.find(read(dir), &(&1["event_digest"] == digest))
 
   defp next_seq(dir) do
@@ -91,7 +103,7 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
       {:ok, io} ->
         File.close(io)
         stamped = Map.put(event, "seq", seq)
-        name = "#{pad}-#{String.slice(event["event_digest"], 7, 16)}.json"
+        name = stem(stamped) <> ".json"
         tmp = Path.join(dir, ".tmp-#{pad}-#{System.unique_integer([:positive])}.tmp")
         File.write!(tmp, Jason.encode!(stamped))
         File.rename!(tmp, Path.join(dir, name))

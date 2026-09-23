@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatmangpt.com/sj/admission/v1",
+  "title": "Semantic Jira admission predicate v1",
+  "description": "Predicate of the in-toto Statement v1 that GgenIgniter.SemanticJira.Attestation emits next to every transition admitted by GgenIgniter.SemanticJira.Reconciler.reconcile/4 (lib/ggen_igniter/semantic_jira/attestation.ex). It carries the decision (courts, falsifiers, acceptance, promotion checks, authority, standing) and the full reconcile receipt, so a third party can replay the admission itself offline with Attestation.verify/3 against the WorkOrder and the transition log. Authority is always NONE: the kernel attests decisions, it never grants a lease or performs DO.",
+  "type": "object",
+  "required": ["decision", "kernel", "work_order", "transition", "courts", "falsifiers", "acceptance", "checks", "authority", "standing", "receipt"],
+  "additionalProperties": false,
+  "properties": {
+    "decision": {"const": "ADMITTED"},
+    "kernel": {"const": "GgenIgniter.SemanticJira.Reconciler.decide/3"},
+    "work_order": {
+      "type": "object",
+      "required": ["identity", "repository", "subject", "base_sha", "candidate_sha", "definition_digest", "work_order_digest", "snapshot_digest"],
+      "additionalProperties": false,
+      "properties": {
+        "identity": {"type": "string", "minLength": 1},
+        "repository": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "subject": {"type": "string", "minLength": 1},
+        "base_sha": {"$ref": "#/$defs/sha"},
+        "candidate_sha": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]},
+        "definition_digest": {"$ref": "#/$defs/digest"},
+        "work_order_digest": {"$ref": "#/$defs/digest"},
+        "snapshot_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "transition": {
+      "type": "object",
+      "required": ["from", "to", "transition_digest", "event_digest", "receipt_digest"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {"$ref": "#/$defs/standing"},
+        "to": {"$ref": "#/$defs/standing"},
+        "transition_digest": {"$ref": "#/$defs/digest"},
+        "event_digest": {"$ref": "#/$defs/digest"},
+        "receipt_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "courts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["court", "passed"],
+        "additionalProperties": false,
+        "properties": {"court": {"type": "string", "minLength": 1}, "passed": {"const": true}}
+      }
+    },
+    "falsifiers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["falsifier", "result"],
+        "additionalProperties": false,
+        "properties": {"falsifier": {"type": "string", "minLength": 1}, "result": {"enum": ["survived", true]}}
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["criterion", "passed"],
+        "additionalProperties": false,
+        "properties": {"criterion": {"type": "string", "minLength": 1}, "passed": {"const": true}}
+      }
+    },
+    "checks": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"const": true}
+    },
+    "authority": {
+      "type": "object",
+      "required": ["granted", "requirement", "authority_receipt"],
+      "additionalProperties": false,
+      "properties": {
+        "granted": {"const": "NONE"},
+        "requirement": {"type": "string", "minLength": 1},
+        "authority_receipt": {"type": ["object", "null"]}
+      }
+    },
+    "standing": {
+      "type": "object",
+      "required": ["from", "to", "derived_from"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {"$ref": "#/$defs/standing"},
+        "to": {"$ref": "#/$defs/standing"},
+        "derived_from": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["definition_digest", "snapshot_digest", "target", "evidence"],
+      "properties": {
+        "definition_digest": {"$ref": "#/$defs/digest"},
+        "snapshot_digest": {"$ref": "#/$defs/digest"},
+        "target": {"$ref": "#/$defs/standing"},
+        "candidate_sha": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]},
+        "evidence": {"type": "object"}
+      }
+    }
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "standing": {"type": "string", "pattern": "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$"}
+  }
+}

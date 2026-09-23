@@ -188,6 +188,14 @@ defmodule GgenIgniter.MixProject do
       # compile --warnings-as-errors` clean.
       {:gno, "~> 0.1", optional: true},
       {:stream_data, "~> 1.2", only: [:dev, :test]},
+      # JSON Schema (draft 2020-12) validator for the C11 attestation test:
+      # `test/ggen_igniter_semantic_jira_attestation_test.exs` validates every
+      # emitted in-toto Statement against the vendored
+      # `test/fixtures/in_toto/statement_v1.schema.json` and the predicate
+      # against `priv/schema/sj_admission.schema.json`, offline (JSV embeds the
+      # 2020-12 meta-schemas). Already locked at 0.23.0 as a transitive dep of
+      # :ash_a2a; declared directly so the test does not depend on that chain.
+      {:jsv, "~> 0.23", only: [:dev, :test]},
       # Test-data generation. Tests assert STRUCTURAL properties (an event's
       # activity round-trips into a declared eventType, a run object is
       # related to every event), so the literal values must not be load-

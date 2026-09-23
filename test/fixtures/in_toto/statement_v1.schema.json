@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://in-toto.io/Statement/v1/schema.json",
+  "$comment": "Vendored for offline tests (no network at test time). The in-toto Attestation Framework publishes no JSON Schema for Statement v1; this file transcribes the normative sources of in-toto/attestation at commit fd2609c16bcb0ac53443e2b4612977f997e8f9a5 (Apache-2.0, Copyright 2021 in-toto Developers): spec/v1/statement.md, spec/v1/resource_descriptor.md, spec/v1/digest_set.md, spec/v1/field_types.md (TypeURI), spec/v1/README.md (parsing rules: extension fields allowed), and the reference validators go/v1/statement.go (Statement.Validate) and go/v1/resource_descriptor.go (digest hex encoding and byte lengths per algorithm).",
+  "title": "in-toto Statement v1",
+  "type": "object",
+  "required": ["_type", "subject", "predicateType"],
+  "properties": {
+    "_type": {
+      "$comment": "statement.md: always https://in-toto.io/Statement/v1 for this version of the spec.",
+      "const": "https://in-toto.io/Statement/v1"
+    },
+    "subject": {
+      "$comment": "statement.md + go/v1 Statement.Validate: at least one subject; v1 statements require digest set on every subject.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "allOf": [
+          {"$ref": "#/$defs/ResourceDescriptor"},
+          {"required": ["digest"]}
+        ]
+      }
+    },
+    "predicateType": {"$ref": "#/$defs/TypeURI"},
+    "predicate": {
+      "$comment": "statement.md: object, optional; unset is treated the same as set-but-empty.",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "TypeURI": {
+      "$comment": "field_types.md: RFC 3986 URI, case normalized (scheme and authority lowercase).",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9+.-]*:(//[^/?#A-Z\\s]*)?[^\\s]*$"
+    },
+    "ResourceURI": {
+      "$comment": "field_types.md: RFC 3986 URI, case normalized (scheme and authority lowercase).",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9+.-]*:(//[^/?#A-Z\\s]*)?[^\\s]*$"
+    },
+    "ResourceDescriptor": {
+      "$comment": "resource_descriptor.md: all fields optional but at least one of uri, digest, content; unrecognized (extension) fields are allowed.",
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "uri": {"$ref": "#/$defs/ResourceURI"},
+        "digest": {"$ref": "#/$defs/DigestSet"},
+        "content": {"type": "string", "contentEncoding": "base64"},
+        "downloadLocation": {"$ref": "#/$defs/ResourceURI"},
+        "mediaType": {"type": "string"},
+        "annotations": {"type": "object"}
+      },
+      "anyOf": [
+        {"required": ["uri"]},
+        {"required": ["digest"]},
+        {"required": ["content"]}
+      ]
+    },
+    "DigestSet": {
+      "$comment": "digest_set.md: algorithm name -> lowercase hex for the named standard algorithms; byte lengths from go/v1 resource_descriptor.go (hex length = 2 x bytes); git object algorithms accept SHA-1 or SHA-256; custom algorithms are allowed and unconstrained beyond being strings.",
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "md5": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+        "sha1": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "sha224": {"type": "string", "pattern": "^[0-9a-f]{56}$"},
+        "sha512_224": {"type": "string", "pattern": "^[0-9a-f]{56}$"},
+        "sha3_224": {"type": "string", "pattern": "^[0-9a-f]{56}$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "sha512_256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "sha3_256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "dirHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "sha384": {"type": "string", "pattern": "^[0-9a-f]{96}$"},
+        "sha3_384": {"type": "string", "pattern": "^[0-9a-f]{96}$"},
+        "sha512": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+        "sha3_512": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+        "shake128": {"type": "string", "pattern": "^[0-9a-f]+$"},
+        "shake256": {"type": "string", "pattern": "^[0-9a-f]+$"},
+        "blake2b": {"type": "string", "pattern": "^[0-9a-f]+$"},
+        "blake2s": {"type": "string", "pattern": "^[0-9a-f]+$"},
+        "ripemd160": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "sm3": {"type": "string", "pattern": "^[0-9a-f]+$"},
+        "gost": {"type": "string", "pattern": "^[0-9a-f]+$"},
+        "gitCommit": {"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
+        "gitTree": {"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
+        "gitBlob": {"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
+        "gitTag": {"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"}
+      },
+      "additionalProperties": {"type": "string"}
+    }
+  }
+}

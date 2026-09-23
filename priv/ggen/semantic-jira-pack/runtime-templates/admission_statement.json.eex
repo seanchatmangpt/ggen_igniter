@@ -1,0 +1,6 @@
+{
+  "_type": <%= type_json %>,
+  "subject": <%= subject_json %>,
+  "predicateType": <%= predicate_type_json %>,
+  "predicate": <%= predicate_json %>
+}
