@@ -2019,3 +2019,37 @@ sj:a2a-attr-task-id a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2
 sj:a2a-attr-standing a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "standing" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired true .
 sj:a2a-attr-replay-identity a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "replay_identity" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired false .
 sj:a2a-attr-receipt-digest a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "receipt_digest" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired false .
+
+# ── GoalCheckpoint: stop-court layer over the checkpoint ladder ───────────
+# A GoalCheckpoint is a bounded stop condition over an accepted future state
+# (Vision/WBPR prose compiled into explicit propositions), not work.
+# WorkOrders advance the graph; a GoalCheckpoint decides when a goal has
+# stopped needing work: the target postcondition is OBSERVED, the stated
+# falsifier does not fire, the required consequence is receipted and
+# replayable, and every remaining frontier node is outside this goal's scope,
+# a declared successor, or typed BLOCKED/UNSUPPORTED/REFUSED. After STOP,
+# improvement opens a successor checkpoint; it never reopens this one.
+# Gap classes fence where the missing machinery lives:
+#   bootstrap   — a cold process can reconstruct state/capabilities/frontier
+#                 from durable artifacts with zero conversational context
+#   first_mile  — raw reality or a goal becomes admitted, exactly-subjected,
+#                 falsifier-bearing work without prose interpretation
+#   core        — known work executes on deterministic machinery; repeated
+#                 LLM reasoning here means something upstream is uncompiled
+#   last_mile   — consequence independently observed, receipted, replayed,
+#                 standing recomputed, successor frontier unlocked
+# Instances are consumer-side (per-repo docs/sjira/<milestone>/), dual-typed
+# sj:GoalCheckpoint, sj:Checkpoint so sj:nextCheckpoint chains and the GALL
+# ladder machinery apply without entailment. Admission shape:
+# shapes/work-order.shacl.ttl (sj:GoalCheckpointShape). Stop predicate:
+# gates/070_stop_court.rq (selected rows = open or malformed checkpoints).
+
+sj:GoalCheckpoint a rdfs:Class ;
+    rdfs:subClassOf sj:Checkpoint ;
+    rdfs:label "Goal checkpoint" ;
+    rdfs:comment "Bounded stop condition over an accepted future state; closed only by observed evidence at an exact subject, never by assertion or completeness of the backlog." .
+
+sj:gapClass a rdf:Property ; rdfs:range xsd:string .
+sj:exclusion a rdf:Property ; rdfs:range xsd:string .
+sj:successorPolicy a rdf:Property ; rdfs:range xsd:string .
+sj:llmRetirementRequirement a rdf:Property ; rdfs:range xsd:string .

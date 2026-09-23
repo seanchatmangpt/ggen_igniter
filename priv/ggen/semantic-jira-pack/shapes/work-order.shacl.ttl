@@ -303,3 +303,53 @@ gi:GeneratorCapabilityShape a sh:NodeShape ;
         }
       """
     ] .
+
+# ── GoalCheckpoint shapes ─────────────────────────────────────────────────
+# A GoalCheckpoint is a stop condition, not work: it must name its gap class,
+# carry acceptance + falsifier + exclusions + successor policy BEFORE
+# execution, and may only reach ALIVE on a bound receipt (never by assertion).
+# Instances are dual-typed sj:GoalCheckpoint, sj:Checkpoint (no entailment).
+sj:GoalCheckpointShape a sh:NodeShape ;
+    sh:targetClass sj:GoalCheckpoint ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type rdfs:label ) ;
+    sh:property [ sh:path dcterms:identifier ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Z][A-Z0-9-]{1,63}$" ] ;
+    sh:property [ sh:path dcterms:title ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path dcterms:description ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:standing ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$" ] ;
+    sh:property [ sh:path sj:evidenceCeiling ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:gapClass ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(bootstrap|first_mile|core|last_mile)$" ] ;
+    sh:property [ sh:path sj:requiresCourt ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Court ] ;
+    sh:property [ sh:path sj:requiresEvidence ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:EvidenceRequirement ] ;
+    sh:property [ sh:path sj:acceptance ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:AcceptanceCriterion ] ;
+    sh:property [ sh:path sj:falsifier ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Falsifier ] ;
+    sh:property [ sh:path sj:exclusion ; sh:minCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:successorPolicy ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:llmRetirementRequirement ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:replayIdentity ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:nextCheckpoint ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Checkpoint ] ;
+    sh:property [ sh:path sj:receipt ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Receipt ] ;
+    sh:sparql [
+      sh:message "Goal checkpoint identifiers must be unique across GoalCheckpoints." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        PREFIX dcterms: <http://purl.org/dc/terms/>
+        SELECT $this WHERE {
+          $this dcterms:identifier ?id .
+          ?other a sj:GoalCheckpoint ; dcterms:identifier ?id .
+          FILTER(?other != $this)
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "ALIVE standing on a GoalCheckpoint requires a durable receipt." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:standing "ALIVE" .
+          OPTIONAL { $this sj:receipt ?receipt . }
+          FILTER(!BOUND(?receipt))
+        }
+      """
+    ] .

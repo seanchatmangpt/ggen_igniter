@@ -861,7 +861,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         |> Path.wildcard()
         |> Enum.sort()
 
-      assert length(gates) == 12
+      assert length(gates) == 13
 
       Enum.each(gates, fn gate ->
         assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),
@@ -879,6 +879,119 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       assert "SJ-001" in frontier_ids
       refute frontier_ids == []
+    end
+
+    test "stop-court gate refuses malformed and unpromoted checkpoints" do
+      gate = File.read!("priv/ggen/semantic-jira-pack/gates/070_stop_court.rq")
+      dir = scratch_dir!("stop_court_gate")
+
+      path = Path.join(dir, "stop-court.ttl")
+      File.write!(path, stop_court_fixture())
+
+      rows =
+        path
+        |> GgenIgniter.Ontology.load!()
+        |> GgenIgniter.Query.run(gate)
+
+      refute Enum.any?(rows, &(&1["id"] == "G-OK")),
+             "a receipted, fully specified checkpoint must not be selected: #{inspect(rows)}"
+
+      violations =
+        rows
+        |> Enum.filter(&(&1["id"] == "G-BROKEN"))
+        |> Enum.map(& &1["violation"])
+
+      assert "missing falsifier" in violations
+      assert Enum.any?(violations, &String.contains?(&1, "stop condition unsatisfied"))
+
+      # Anti-vacuity: stripping the receipt from the ALIVE checkpoint must
+      # surface the ALIVE-without-receipt violation; a gate that stayed quiet
+      # here would carry no bits.
+      stripped_path = Path.join(dir, "stop-court-stripped.ttl")
+      File.write!(stripped_path, stop_court_fixture(with_receipt: false))
+
+      stripped_rows =
+        stripped_path
+        |> GgenIgniter.Ontology.load!()
+        |> GgenIgniter.Query.run(gate)
+
+      assert Enum.any?(stripped_rows, fn row ->
+               row["id"] == "G-OK" and row["violation"] == "ALIVE without receipt"
+             end),
+             "ALIVE without a bound receipt must be selected: #{inspect(stripped_rows)}"
+
+      # A ladder whose every checkpoint is receipted and fully specified stops:
+      # zero rows is the STOP(G) witness.
+      clean_path = Path.join(dir, "stop-court-clean.ttl")
+      File.write!(clean_path, satisfied_checkpoint_fixture())
+
+      assert [] ==
+               clean_path
+               |> GgenIgniter.Ontology.load!()
+               |> GgenIgniter.Query.run(gate)
+    end
+
+    defp checkpoint_fixture(opts) do
+      receipt_line =
+        if Keyword.get(opts, :with_receipt, true) do
+          "          sj:receipt sj:rcpt-g-ok .\n"
+        else
+          "          .\n"
+        end
+
+      """
+      @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+      @prefix dcterms: <http://purl.org/dc/terms/> .
+      @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+      sj:court-g-ok a sj:Court ; rdfs:label "G-OK court" .
+      sj:acc-g-ok a sj:AcceptanceCriterion ; rdfs:label "G-OK acceptance" .
+      sj:fal-g-ok a sj:Falsifier ; rdfs:label "G-OK falsifier" .
+      sj:rcpt-g-ok a sj:Receipt ; rdfs:label "G-OK receipt" .
+      sj:cp-g-ok a sj:Checkpoint .
+
+      sj:g-ok a sj:GoalCheckpoint, sj:Checkpoint ;
+          dcterms:identifier "G-OK" ;
+          dcterms:title "Satisfied goal checkpoint" ;
+          dcterms:description "Fully specified and promoted on a durable receipt." ;
+          sj:subject "fixture:g-ok" ;
+          sj:standing "ALIVE" ;
+          sj:evidenceCeiling "EXECUTED_VERIFIED" ;
+          sj:gapClass "last_mile" ;
+          sj:requiresCourt sj:court-g-ok ;
+          sj:acceptance sj:acc-g-ok ;
+          sj:falsifier sj:fal-g-ok ;
+          sj:exclusion "backlog completeness does not keep this goal open" ;
+          sj:successorPolicy "post-STOP improvements open a successor checkpoint" ;
+          sj:llmRetirementRequirement "no LLM reasoning on the KNOWN path" ;
+          sj:replayIdentity "fixture:G-OK" ;
+          sj:nextCheckpoint sj:cp-g-ok ;
+      """ <> receipt_line
+    end
+
+    defp satisfied_checkpoint_fixture do
+      checkpoint_fixture(with_receipt: true)
+    end
+
+    defp stop_court_fixture(opts \\ []) do
+      checkpoint_fixture(opts) <>
+        """
+
+        sj:g-broken a sj:GoalCheckpoint, sj:Checkpoint ;
+            dcterms:identifier "G-BROKEN" ;
+            dcterms:title "Malformed goal checkpoint" ;
+            dcterms:description "Missing its falsifier; standing UNKNOWN." ;
+            sj:subject "fixture:g-broken" ;
+            sj:standing "UNKNOWN" ;
+            sj:evidenceCeiling "SPECIFIED" ;
+            sj:gapClass "bootstrap" ;
+            sj:requiresCourt sj:court-g-ok ;
+            sj:acceptance sj:acc-g-ok ;
+            sj:exclusion "nothing" ;
+            sj:successorPolicy "successor" ;
+            sj:llmRetirementRequirement "none" ;
+            sj:replayIdentity "fixture:G-BROKEN" .
+        """
     end
 
     @tag timeout: @sync_timeout

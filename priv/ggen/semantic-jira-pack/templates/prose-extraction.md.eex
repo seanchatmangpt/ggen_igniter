@@ -1,0 +1,80 @@
+# Prose → SemanticCheckpoint extraction contract
+
+Deterministic extraction schema for compiling an accepted future-state
+narrative (Vision statement, Working-Backwards Press Release) into
+`sj:GoalCheckpoint` instances over the canonical graph. The narrative stays
+expressive; this contract makes it rigorous afterward. Authority of this
+projection is NONE: extraction produces candidate semantics; admission happens
+only through the pack shapes and gates.
+
+## Input
+
+One accepted prose document (Vision or WBPR). It must state, in ordinary
+language: what exists, who acts, what happens, what results, and which
+previous problems no longer occur. Prose that cannot answer "what observation
+would permit us to stop?" is underspecified and is refused as input
+(`REFUSED:UNDER_SPECIFIED_FUTURE`), not guessed into semantics.
+
+## Extraction table (prose concept → semantic projection)
+
+| Prose concept            | Semantic projection                  |
+|--------------------------|--------------------------------------|
+| noun                     | entity/type                          |
+| named participant        | role/actor                           |
+| verb                     | capability/transition                |
+| "when ..."               | trigger                              |
+| "automatically ..."      | zero-human edge                      |
+| "without ..."            | exclusion (`sj:exclusion`)           |
+| "every ..."              | universal invariant                  |
+| "never ..."              | forbidden transition                 |
+| "can ..."                | capability                           |
+| "must ..."               | obligation                           |
+| "because ..."            | causal/rationale relation            |
+| measurable result        | postcondition (`sj:acceptance`)      |
+| user quote               | experiential acceptance criterion    |
+| before/after             | state transition                     |
+| evidence claim           | verifier/receipt requirement         |
+| launch date              | checkpoint horizon                   |
+| future improvement       | successor goal (`sj:successorPolicy`)|
+
+## Output format
+
+For each stop-worthy proposition group, emit one `sj:GoalCheckpoint` instance
+(dual-typed `sj:Checkpoint`) in the consumer `docs/sjira/<milestone>/` court
+graph with exactly these fields (admission shape:
+`shapes/work-order.shacl.ttl` `sj:GoalCheckpointShape`):
+
+- `dcterms:identifier` — `G<n>` court id
+- `dcterms:title`, `dcterms:description` — the proposition in prose
+- `sj:subject` — exact subject the postcondition is observed on
+- `sj:standing` — initial `UNKNOWN`; promotes only from court evidence
+- `sj:evidenceCeiling` — strongest evidence this goal admits
+- `sj:gapClass` — one of `bootstrap | first_mile | core | last_mile`
+- `sj:requiresCourt` — the court that decides it
+- `sj:acceptance` — the observed postcondition(s)
+- `sj:falsifier` — the observation that kills the claim
+- `sj:exclusion` — what does NOT keep this goal open
+- `sj:successorPolicy` — where post-STOP improvements go
+- `sj:llmRetirementRequirement` — the KNOWN-class condition under which no
+  LLM reasoning is required on this path
+- `sj:replayIdentity` — stable replay key
+- `sj:nextCheckpoint` — the next gate in the ladder (last gate: omit)
+
+## Boundary classes
+
+Every extracted requirement is classified into exactly one gap class:
+
+- `bootstrap` — cold-start reconstruction from durable artifacts
+- `first_mile` — goal → admitted, exactly-subjected, falsifier-bearing work
+- `core` — deterministic execution of KNOWN work (no LLM)
+- `last_mile` — consequence observed, receipted, replayed, frontier recomputed
+
+Debugging rule: repeated LLM reasoning in `core` locates missing
+bootstrap/first-mile/last-mile machinery — it never justifies a smarter agent.
+
+## Stopping law
+
+The ladder stops when `gates/070_stop_court.rq` returns zero rows over the
+court graph: every checkpoint ALIVE on a receipt, every falsifier unfired,
+every exclusion intact. Anything newly discovered afterwards attaches to a
+successor checkpoint; it never reopens a closed one.

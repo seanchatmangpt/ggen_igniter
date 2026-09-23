@@ -1,0 +1,63 @@
+# Stop-court gate: selected rows are GoalCheckpoints whose stopping condition
+# is NOT satisfied or whose stop specification is malformed. Zero rows over a
+# court graph means STOP(G) holds for the whole ladder; any row names the
+# checkpoint and the reason it stays open. Violation-style gate like
+# 046_alive_receipt_crown.rq (rows = violations), not the gate_verify
+# rows=pass convention.
+# Absence checks use OPTIONAL + FILTER(!BOUND()): under the locked sparql
+# 0.3.12 any FILTER inside an EXISTS group compiles its expression to
+# :"$undefined" and crashes (see 050_frontier.rq header); the UNION branches
+# each re-anchor ?checkpoint so MINUS-style sharing is not relied on.
+# Anti-vacuity: deleting sj:falsifier (or acceptance, exclusion, successor
+# policy, LLM-retirement requirement) from any GoalCheckpoint must add a row;
+# asserting standing ALIVE without a bound receipt must add a row; promoting
+# a checkpoint without observed evidence must add a row. Guarded by
+# GgenIgniter.SemanticJiraPackTest "stop-court gate refuses malformed and
+# unpromoted checkpoints".
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT DISTINCT ?checkpoint ?id ?violation WHERE {
+  ?checkpoint a sj:GoalCheckpoint ;
+              dcterms:identifier ?id .
+  {
+    ?checkpoint a sj:GoalCheckpoint .
+    OPTIONAL { ?checkpoint sj:standing ?standing . }
+    FILTER(!BOUND(?standing))
+    BIND("missing standing" AS ?violation)
+  } UNION {
+    ?checkpoint sj:standing ?any_standing .
+    FILTER(?any_standing != "ALIVE")
+    BIND("stop condition unsatisfied: standing is not ALIVE" AS ?violation)
+  } UNION {
+    ?checkpoint a sj:GoalCheckpoint .
+    OPTIONAL { ?checkpoint sj:acceptance ?acceptance . }
+    FILTER(!BOUND(?acceptance))
+    BIND("missing acceptance" AS ?violation)
+  } UNION {
+    ?checkpoint a sj:GoalCheckpoint .
+    OPTIONAL { ?checkpoint sj:falsifier ?falsifier . }
+    FILTER(!BOUND(?falsifier))
+    BIND("missing falsifier" AS ?violation)
+  } UNION {
+    ?checkpoint a sj:GoalCheckpoint .
+    OPTIONAL { ?checkpoint sj:exclusion ?exclusion . }
+    FILTER(!BOUND(?exclusion))
+    BIND("missing exclusion" AS ?violation)
+  } UNION {
+    ?checkpoint a sj:GoalCheckpoint .
+    OPTIONAL { ?checkpoint sj:successorPolicy ?successor_policy . }
+    FILTER(!BOUND(?successor_policy))
+    BIND("missing successor policy" AS ?violation)
+  } UNION {
+    ?checkpoint a sj:GoalCheckpoint .
+    OPTIONAL { ?checkpoint sj:llmRetirementRequirement ?llm_retirement . }
+    FILTER(!BOUND(?llm_retirement))
+    BIND("missing LLM-retirement requirement" AS ?violation)
+  } UNION {
+    ?checkpoint sj:standing "ALIVE" .
+    OPTIONAL { ?checkpoint sj:receipt ?receipt . }
+    FILTER(!BOUND(?receipt))
+    BIND("ALIVE without receipt" AS ?violation)
+  }
+}
+ORDER BY ?id
