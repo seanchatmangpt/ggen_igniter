@@ -1,0 +1,88 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Minimal tuple-complete GoalCheckpoint graph for
+# test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs. It is validated
+# MERGED with priv/ggen/semantic-jira-pack/ontology.ttl (the pack vocabulary:
+# sj:GoalCheckpoint rdfs:subClassOf sj:Checkpoint, evidence requirements,
+# projection specs), exactly as a goal graph is admitted in production.
+# One root goal checkpoint (stop query), one child gate (court command +
+# boundary class), one successor goal, one capability, one Friday WorkOrder.
+
+sj:gc-fixture-root a sj:GoalCheckpoint ;
+    rdfs:label "GC-FIXTURE root goal" ;
+    dcterms:description "Root goal checkpoint of the fixture graph; STOP is computed by its stop query." ;
+    sj:stopQuery """PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+# STOP holds when no gate under the root is short of ALIVE.
+ASK {
+  ?gate sj:checkpointOf sj:gc-fixture-root .
+}""" ;
+    sj:courtCommand "mix xaas.stop_court --checkpoint GC-FIXTURE" .
+
+sj:gc-fixture-g4 a sj:GoalCheckpoint ;
+    rdfs:label "GC-FIXTURE G4 finite work graph" ;
+    dcterms:description "Gate closed by the SHACL court over the Friday tuple vocabulary." ;
+    sj:checkpointOf sj:gc-fixture-root ;
+    sj:boundaryClass sj:Core ;
+    sj:courtCommand "mix test test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs" .
+
+sj:gc-fixture-successor a sj:GoalCheckpoint ;
+    rdfs:label "GC-FIXTURE successor goal" ;
+    dcterms:description "Successor goal that receives every item typed out of the fixture goal." ;
+    sj:stopQuery "ASK { }" ;
+    sj:successorOf sj:gc-fixture-root .
+
+sj:cap-recipe-mix-format a sj:Capability ;
+    rdfs:label "Recipe: mix format" ;
+    dcterms:description "Deterministic formatter recipe; resolved to a provider by the executor registry, never by this graph." ;
+    sj:capabilityId "recipe:mix-format" .
+
+sj:gc-fixture-wo-1 a sj:WorkOrder ;
+    rdfs:label "GC-FIXTURE-WO-1 — Repair mix format drift" ;
+    dcterms:identifier "GC-FIXTURE-WO-1" ;
+    dcterms:title "Repair mix format drift" ;
+    dcterms:description "Bring the exact subject to a formatted state with the registered formatter recipe and no LLM." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "5984ec480c2318e86aa621da5f496e5e014b0fac" ;
+    sj:subject "ggen_igniter:mix-format-drift" ;
+    sj:pathScope "lib", "test" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "EXECUTED_VERIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Standing advances only from an exact-head court receipt for this subject." ;
+    sj:replayIdentity "semantic-jira:v26.9.22:GC-FIXTURE-WO-1" ;
+    sj:requiresCourt sj:court-gc-fixture-wo-1 ;
+    sj:requiresEvidence sj:local-execution-evidence, sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification" ;
+    sj:acceptance sj:acceptance-gc-fixture-wo-1 ;
+    sj:falsifier sj:falsifier-gc-fixture-wo-1 ;
+    sj:projection sj:projection-jira ;
+    sj:nextAction sj:run-gc-fixture-wo-1-court ;
+    sj:checkpointOf sj:gc-fixture-g4 ;
+    sj:postcondition "mix format --check-formatted exits 0 on the exact subject SHA" ;
+    sj:requiresCapability sj:cap-recipe-mix-format ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:exclusion "no LLM on the KNOWN path", "no network access during the episode" ;
+    sj:consequenceClass "verification" ;
+    sj:successorPolicy "Drift outside sj:pathScope is typed Successor under the successor goal." ;
+    sj:nextCheckpoint sj:gc-fixture-g4 .
+
+sj:court-gc-fixture-wo-1 a sj:Court ;
+    rdfs:label "GC-FIXTURE-WO-1 format court" ;
+    dcterms:description "Runs mix format --check-formatted against the exact subject and records its exit status." .
+
+sj:acceptance-gc-fixture-wo-1 a sj:AcceptanceCriterion ;
+    rdfs:label "GC-FIXTURE-WO-1 acceptance" ;
+    dcterms:description "The formatter check exits 0 on the exact subject with no inference in the loop." .
+
+sj:falsifier-gc-fixture-wo-1 a sj:Falsifier ;
+    rdfs:label "GC-FIXTURE-WO-1 falsifier" ;
+    dcterms:description "Reverting the recipe commit makes the format court fail." .
+
+sj:run-gc-fixture-wo-1-court a sj:Action ;
+    rdfs:label "Run GC-FIXTURE-WO-1 court" ;
+    dcterms:description "Execute the format court and preserve its exit status in a receipt." .
