@@ -1048,6 +1048,8 @@ defmodule GgenIgniter.SemanticJira do
   @spec observation_delta_work_orders(map(), map(), keyword()) ::
           {:ok, [json_map()]} | refusal()
   def observation_delta_work_orders(delta, binding, opts \\ [])
+
+  def observation_delta_work_orders(delta, binding, opts)
       when is_map(delta) and is_map(binding) and is_list(opts) do
     delta = strings(delta)
     binding = strings(binding)
