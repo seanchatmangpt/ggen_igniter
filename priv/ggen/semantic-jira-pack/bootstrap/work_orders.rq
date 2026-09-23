@@ -1,0 +1,50 @@
+# Cold bootstrap (GC-26.9.23 gate GC23-1, lane V23-B; PRD section 8.1, ARD
+# section 16): every sj:WorkOrder field the bootstrap reconstructs from
+# canonical RDF, one (?work_order ?field ?value) row per asserted value.
+# The field names are the GgenIgniter.SemanticJira kernel field names (plus
+# the FRI-T1 tuple fields), so the Elixir side only groups rows; it never
+# re-reads the graph. sj:standing is deliberately NOT selected: standing is
+# derived from receipts and the TransitionLog, never read from a literal
+# (PR-006, ARD section 7).
+# sj:markdown-projection is the pack's "Jira-shaped Markdown projection"
+# (ontology.ttl; rendered by templates/jira.md.eex), i.e. kernel projection
+# type "jira"; a projection node carrying sj:projectionType maps to that
+# value. Any other projection node yields no projection_type row, so the
+# kernel refuses the order (typed) instead of guessing.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?work_order ?field ?value WHERE {
+  ?work_order a sj:WorkOrder .
+  { ?work_order dcterms:identifier ?value . BIND("identity" AS ?field) }
+  UNION { ?work_order dcterms:title ?value . BIND("title" AS ?field) }
+  UNION { ?work_order dcterms:description ?value . BIND("description" AS ?field) }
+  UNION { ?work_order sj:subject ?value . BIND("subject" AS ?field) }
+  UNION { ?work_order sj:repository ?value . BIND("repository" AS ?field) }
+  UNION { ?work_order sj:baseSha ?value . BIND("base_sha" AS ?field) }
+  UNION { ?work_order sj:candidateSha ?value . BIND("candidate_sha" AS ?field) }
+  UNION { ?work_order sj:evidenceCeiling ?value . BIND("evidence_ceiling" AS ?field) }
+  UNION { ?work_order sj:evidenceHorizon ?value . BIND("evidence_horizon" AS ?field) }
+  UNION { ?work_order sj:authorityCeiling ?value . BIND("authority_ceiling" AS ?field) }
+  UNION { ?work_order sj:authorityRequirement ?value . BIND("authority_requirement" AS ?field) }
+  UNION { ?work_order sj:promotionRule ?value . BIND("promotion_rule" AS ?field) }
+  UNION { ?work_order sj:replayIdentity ?value . BIND("replay_identity" AS ?field) }
+  UNION { ?work_order sj:requiresCourt ?value . BIND("required_courts" AS ?field) }
+  UNION { ?work_order sj:requiresEvidence ?value . BIND("required_evidence" AS ?field) }
+  UNION { ?work_order sj:requiresReceiptClass ?value . BIND("required_receipt_classes" AS ?field) }
+  UNION { ?work_order sj:acceptance ?value . BIND("acceptance" AS ?field) }
+  UNION { ?work_order sj:falsifier ?value . BIND("falsifiers" AS ?field) }
+  UNION { ?work_order sj:projection ?projection . ?projection sj:projectionType ?value .
+          BIND("projections" AS ?field) }
+  UNION { ?work_order sj:projection sj:markdown-projection . BIND("jira" AS ?value)
+          BIND("projections" AS ?field) }
+  UNION { ?work_order sj:pathScope ?value . BIND("path_scope" AS ?field) }
+  UNION { ?work_order sj:postcondition ?value . BIND("postcondition" AS ?field) }
+  UNION { ?work_order sj:requiresCapability ?value . BIND("capability_node" AS ?field) }
+  UNION { ?work_order sj:requiresCapability ?capability . ?capability sj:capabilityId ?value .
+          BIND("capability" AS ?field) }
+  UNION { ?work_order sj:consequenceClass ?value . BIND("consequence_class" AS ?field) }
+  UNION { ?work_order sj:exclusion ?value . BIND("exclusions" AS ?field) }
+  UNION { ?work_order sj:successorPolicy ?value . BIND("successor_policy" AS ?field) }
+  UNION { ?work_order sj:checkpointOf ?value . BIND("checkpoint_of" AS ?field) }
+  UNION { ?work_order sj:boundaryClass ?value . BIND("boundary_class" AS ?field) }
+}

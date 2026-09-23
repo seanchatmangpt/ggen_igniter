@@ -1,0 +1,7 @@
+# Cold bootstrap (GC23-1, lane V23-B): every sj:Capability of the canonical
+# graphs with its canonical sj:capabilityId (provider:id).
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT ?capability ?capability_id WHERE {
+  ?capability a sj:Capability ;
+              sj:capabilityId ?capability_id .
+}

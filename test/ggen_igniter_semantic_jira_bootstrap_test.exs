@@ -1,0 +1,546 @@
+defmodule GgenIgniter.SemanticJiraBootstrapTest do
+  @moduledoc """
+  Chicago, no doubles (GC-26.9.23 gate GC23-1, lane V23-B; PRD section 8.1,
+  PR-006, PR-013; ARD sections 7, 16 and 26 F5/F6): the real
+  `GgenIgniter.SemanticJira.Bootstrap.run/1`, the real
+  `mix semantic_jira.bootstrap` task and the real
+  `scripts/sjira/bootstrap_court.sh`, over a real temporary git repository
+  (real `git init`/`commit`), the committed fixture goal graph
+  `test/fixtures/semantic-jira-bootstrap/goal.ttl`, real R-schema receipt
+  files, a real file-backed TransitionLog and real fleet files. The two-run
+  tests spawn real `mix` subprocesses under `env -i` with a fresh `HOME`.
+
+  Assertions are on the reconstructed state (derived standing, frontier
+  class, invalidation records, digests, refusal codes, exit codes, file
+  bytes) -- never on which functions ran.
+
+  In-process calls pass `env: %{}` explicitly: the refusal of LLM
+  credentials is a function of that environment map and has its own test,
+  so these tests do not depend on the variables of the shell running them.
+  """
+  # async: false -- the subprocess tests run `mix` in this checkout, which
+  # shares the _build directory with the test VM.
+  use ExUnit.Case, async: false
+
+  alias GgenIgniter.Digest
+  alias GgenIgniter.SemanticJira.Bootstrap
+  alias GgenIgniter.SemanticJira.Bootstrap.Graph
+  alias GgenIgniter.SemanticJira.TransitionLog
+
+  @fixture_goal Path.expand("fixtures/semantic-jira-bootstrap/goal.ttl", __DIR__)
+  # Independent witness: python3 json.dumps(tuple, sort_keys=True,
+  # separators=(",", ":"), ensure_ascii=False) over T-A's contract tuple.
+  @t_a_tuple_digest "sha256:531183e0033603b9ff0fbde841dde6400a9738143d8665eac2e3d005e16f2100"
+  @repository "fixture/subject"
+
+  setup do
+    dir = Path.join(System.tmp_dir!(), "sj_bootstrap_#{System.unique_integer([:positive])}")
+    File.rm_rf!(dir)
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf!(dir) end)
+
+    repo = Path.join(dir, "subject")
+    File.mkdir_p!(repo)
+    git!(repo, ["init", "-q"])
+    git!(repo, ["config", "user.email", "v23-b@example.invalid"])
+    git!(repo, ["config", "user.name", "V23-B"])
+    git!(repo, ["config", "commit.gpgsign", "false"])
+    covered = commit!(repo, "lib/a.ex", "defmodule A do\nend\n", "lib: covered by T-A")
+    commit!(repo, "docs/readme.md", "fixture\n", "docs: outside T-A's scope")
+
+    receipt = receipt(covered, "ALIVE", @t_a_tuple_digest)
+    receipt_commit = commit!(repo, "receipts/T-A.json", Jason.encode!(receipt), "receipt: T-A")
+
+    universe = Path.join(dir, "universe.json")
+
+    File.write!(
+      universe,
+      Jason.encode!(%{
+        "repositories" => [%{"name" => "subject", "github" => @repository, "path" => repo}]
+      })
+    )
+
+    %{
+      dir: dir,
+      repo: repo,
+      covered: covered,
+      receipt_commit: receipt_commit,
+      universe: universe,
+      receipts: Path.join(repo, "receipts"),
+      ledger: Path.join(dir, "ledger/standing-ledger.ndjson")
+    }
+  end
+
+  defp git!(repo, args) do
+    {out, 0} = System.cmd("git", ["-C", repo | args], stderr_to_stdout: true)
+    String.trim(out)
+  end
+
+  defp commit!(repo, path, content, message) do
+    full = Path.join(repo, path)
+    File.mkdir_p!(Path.dirname(full))
+    File.write!(full, content)
+    git!(repo, ["add", path])
+    git!(repo, ["commit", "-q", "-m", message])
+    git!(repo, ["rev-parse", "HEAD"])
+  end
+
+  defp receipt(subject_sha, standing, tuple_digest) do
+    %{
+      "identity" => %{
+        "subject" => "T-A",
+        "repo" => @repository,
+        "subject_sha" => subject_sha,
+        "base_sha" => subject_sha,
+        "work_order" => "t:WO-T-A",
+        "tuple_digest" => tuple_digest
+      },
+      "authority" => %{"ceiling" => "CONSTRUCT", "grant" => "NONE", "actor" => "fixture"},
+      "consequence" => %{
+        "commits" => [subject_sha],
+        "files_changed" => [],
+        "remote_effects" => []
+      },
+      "replay" => %{"commands" => [%{"cmd" => "mix test", "cwd" => ".", "exit" => 0}]},
+      "standing" => %{"value" => standing, "derived_from" => "fixture run at #{subject_sha}"}
+    }
+  end
+
+  defp opts(ctx, extra \\ []) do
+    Keyword.merge(
+      [
+        fleet: ctx.universe,
+        goal: @fixture_goal,
+        ledger: ctx.ledger,
+        receipts_dirs: [ctx.receipts],
+        checkouts: ["#{@repository}=#{ctx.repo}"],
+        env: %{}
+      ],
+      extra
+    )
+  end
+
+  defp run!(ctx, extra \\ []) do
+    assert {:ok, result} = Bootstrap.run(opts(ctx, extra))
+    result
+  end
+
+  defp order(result, id), do: result.state["orders"][id]
+
+  # ── the court environment: env -i, fresh HOME, no LLM variable ────────────
+
+  defp court_path do
+    [System.find_executable("elixir"), System.find_executable("erl")]
+    |> Enum.map(&(&1 |> GgenIgniter.SemanticJira.Bootstrap.Guard.real_path() |> Path.dirname()))
+    |> then(&Enum.join(["/usr/bin", "/bin" | &1], ":"))
+  end
+
+  defp cold_env(home) do
+    [
+      "PATH=#{court_path()}",
+      "HOME=#{home}",
+      "MIX_HOME=#{System.get_env("MIX_HOME") || Path.expand("~/.mix")}",
+      "HEX_HOME=#{System.get_env("HEX_HOME") || Path.expand("~/.hex")}",
+      "LANG=en_US.UTF-8",
+      "MIX_ENV=test"
+    ]
+  end
+
+  defp cold_mix!(ctx, args, extra_env \\ []) do
+    home = Path.join(ctx.dir, "home-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(home)
+
+    System.cmd("env", ["-i"] ++ cold_env(home) ++ extra_env ++ ["mix" | args],
+      cd: File.cwd!(),
+      stderr_to_stdout: true
+    )
+  end
+
+  defp task_args(ctx, out) do
+    [
+      "semantic_jira.bootstrap",
+      "--fleet",
+      ctx.universe,
+      "--goal",
+      @fixture_goal,
+      "--receipts-dir",
+      ctx.receipts,
+      "--ledger",
+      ctx.ledger,
+      "--checkout",
+      "#{@repository}=#{ctx.repo}",
+      "--out",
+      out
+    ]
+  end
+
+  describe "mix semantic_jira.bootstrap (two cold processes)" do
+    test "two runs under env -i with fresh HOMEs write byte-identical, digest-bound state", ctx do
+      out1 = Path.join(ctx.dir, "run1/state.json")
+      out2 = Path.join(ctx.dir, "run2/state.json")
+
+      {log1, code1} = cold_mix!(ctx, task_args(ctx, out1))
+      {log2, code2} = cold_mix!(ctx, task_args(ctx, out2))
+      assert code1 == 0, log1
+      assert code2 == 0, log2
+
+      bytes = File.read!(out1)
+      assert bytes == File.read!(out2)
+      assert byte_size(bytes) > 1000
+
+      %{"state" => state, "state_digest" => digest} = Jason.decode!(bytes)
+      assert digest == Digest.sha256(Bootstrap.canonical_json(state))
+      assert log1 =~ "STATE_DIGEST #{digest}"
+
+      assert bytes ==
+               Bootstrap.canonical_json(%{"state" => state, "state_digest" => digest}) <> "\n"
+
+      # the reconstruction: active GoalCheckpoint, subjects, capabilities,
+      # authority, receipts, derived standing and frontier
+      assert state["checkpoint"]["root"]["id"] == "GC-T"
+      assert Enum.map(state["checkpoint"]["gates"], & &1["id"]) == ["G-1", "G-2"]
+      assert [%{"id" => "GC-T-next", "orders" => ["T-S"]}] = state["checkpoint"]["successors"]
+
+      assert [%{"repository" => @repository, "head_sha" => head, "status" => "observed"}] =
+               state["subjects"]
+
+      assert head == ctx.receipt_commit
+
+      assert Enum.map(state["capabilities"], & &1["id"]) == [
+               "construct:fixture-b",
+               "recipe:fixture-a"
+             ]
+
+      assert state["authority"]["orders"]["T-A"]["ceiling"] == "CONSTRUCT"
+
+      assert %{"standing" => "ALIVE", "standing_source" => "receipt", "frontier" => "settled"} =
+               state["orders"]["T-A"]
+
+      assert state["orders"]["T-A"]["tuple_digest"] == @t_a_tuple_digest
+      assert state["orders"]["T-A"]["covered_commit"] == ctx.covered
+      assert %{"frontier" => "eligible", "critical_path" => true} = state["orders"]["T-B"]
+      assert %{"critical_path" => false, "successor" => true} = state["orders"]["T-S"]
+      assert Enum.map(state["frontier"]["eligible"], & &1["identity"]) == ["T-B", "T-S"]
+
+      # no timestamp, no host path: the fixture's tmp paths never appear
+      refute bytes =~ ctx.dir
+      refute bytes =~ System.tmp_dir!()
+    end
+
+    test "a forbidden path argument is refused by the task and nothing is written", ctx do
+      claude = Path.join(ctx.dir, ".claude")
+      File.mkdir_p!(claude)
+      File.cp!(@fixture_goal, Path.join(claude, "goal.ttl"))
+      out = Path.join(ctx.dir, "refused/state.json")
+
+      args =
+        task_args(ctx, out)
+        |> Enum.map(fn
+          @fixture_goal -> Path.join(claude, "goal.ttl")
+          other -> other
+        end)
+
+      {log, code} = cold_mix!(ctx, args)
+      assert code == 1
+      assert log =~ "REFUSED(forbidden_input) goal:"
+      refute File.exists?(out)
+    end
+
+    test "an LLM credential variable in the task's environment is refused (mu_on_O)", ctx do
+      out = Path.join(ctx.dir, "llm/state.json")
+
+      {log, code} =
+        cold_mix!(ctx, task_args(ctx, out), ["ANTHROPIC_API_KEY=sk-fixture-not-a-key"])
+
+      assert code == 1
+      assert log =~ "REFUSED(llm_credential_present)"
+      assert log =~ "ANTHROPIC_API_KEY"
+      assert log =~ "mu_on_O"
+      refute log =~ "sk-fixture-not-a-key"
+      refute File.exists?(out)
+    end
+  end
+
+  describe "run/1 derived standing (PR-006)" do
+    test "deleting a receipt changes the derived standing, the frontier and the digest (F5)",
+         ctx do
+      before = run!(ctx)
+      assert order(before, "T-A")["standing"] == "ALIVE"
+      assert order(before, "T-B")["frontier"] == "eligible"
+
+      File.rm!(Path.join(ctx.receipts, "T-A.json"))
+      after_delete = run!(ctx)
+
+      assert after_delete.digest != before.digest
+
+      assert %{"standing" => "UNKNOWN", "standing_source" => "none", "receipt" => nil} =
+               order(after_delete, "T-A")
+
+      assert order(after_delete, "T-A")["frontier"] == "eligible"
+      assert order(after_delete, "T-B")["frontier"] == "blocked"
+      assert order(after_delete, "T-B")["frontier_reason"] == "dependencies_unsatisfied"
+      assert after_delete.state["receipts"] == []
+    end
+
+    test "a commit on the covered path demotes ALIVE and re-admits the order (F6)", ctx do
+      assert order(run!(ctx), "T-A")["standing"] == "ALIVE"
+
+      advanced =
+        commit!(ctx.repo, "lib/a.ex", "defmodule A do\n  def b, do: :c\nend\n", "lib: advance")
+
+      result = run!(ctx)
+      t_a = order(result, "T-A")
+
+      assert t_a["standing"] == "UNKNOWN"
+      assert t_a["frontier"] == "eligible"
+
+      assert [
+               %{
+                 "reason" => "subject_advanced",
+                 "receipt_subject_sha" => covered,
+                 "receipt_covered_commit" => covered,
+                 "current_covered_commit" => ^advanced
+               }
+             ] = t_a["invalidated"]
+
+      assert covered == ctx.covered
+      assert order(result, "T-B")["frontier"] == "blocked"
+    end
+
+    test "a commit outside the covered path (and the receipt commit itself) keeps ALIVE", ctx do
+      commit!(ctx.repo, "docs/readme.md", "changed\n", "docs: unrelated")
+      commit!(ctx.repo, "src/b.ex", "defmodule B do\nend\n", "src: T-B's scope, not T-A's")
+      t_a = order(run!(ctx), "T-A")
+
+      assert t_a["standing"] == "ALIVE"
+      assert t_a["covered_scope"] == ["lib/"]
+      assert t_a["cross_repository_scope"] == ["other:docs/x.md"]
+      assert t_a["invalidated"] == []
+    end
+
+    test "a receipt bound to another tuple digest or failing R admission confers nothing", ctx do
+      File.write!(
+        Path.join(ctx.receipts, "T-A.json"),
+        Jason.encode!(receipt(ctx.covered, "ALIVE", "sha256:" <> String.duplicate("0", 64)))
+      )
+
+      assert %{"standing" => "UNKNOWN", "unlinked" => [%{"reason" => "tuple_digest_mismatch"}]} =
+               order(run!(ctx), "T-A")
+
+      vacuous =
+        receipt(ctx.covered, "ALIVE", @t_a_tuple_digest)
+        |> put_in(["replay", "commands"], [%{"cmd" => "mix test", "cwd" => ".", "exit" => 1}])
+
+      File.write!(Path.join(ctx.receipts, "T-A.json"), Jason.encode!(vacuous))
+      result = run!(ctx)
+      assert [%{"reason" => "refused: " <> why}] = order(result, "T-A")["unlinked"]
+      assert why =~ "admission_vacuous"
+      assert [%{"verdict" => "refused"}] = result.state["receipts"]
+      assert Enum.any?(result.state["exceptions"]["refused"], &(&1["kind"] == "receipt"))
+    end
+
+    test "the tuple digest is byte-compatible with the stop court's Python encoding", ctx do
+      assert order(run!(ctx), "T-A")["tuple_digest"] == @t_a_tuple_digest
+
+      assert Graph.tuple_digest(%{
+               "subject" => "fixture:order-a",
+               "postcondition" => "Order A postcondition.",
+               "capability" => "recipe:fixture-a",
+               "evidence_ceiling" => "EXECUTED_VERIFIED",
+               "authority_ceiling" => "CONSTRUCT",
+               "consequence_class" => "verification",
+               "exclusions" => ["No LLM on the path.", "Another exclusion."]
+             }) == @t_a_tuple_digest
+    end
+  end
+
+  describe "run/1 TransitionLog (frontier_from_events/3)" do
+    test "an applicable ledger event moves standing and frontier; a stale definition does not",
+         ctx do
+      File.rm!(Path.join(ctx.receipts, "T-A.json"))
+      before = run!(ctx)
+      definition = order(before, "T-A")["definition_digest"]
+      assert order(before, "T-B")["frontier"] == "blocked"
+
+      {:ok, _event, :appended} =
+        TransitionLog.append(ctx.ledger, %{
+          "kind" => "standing_transition_event",
+          "identity" => "T-A",
+          "definition_digest" => definition,
+          "from" => "UNKNOWN",
+          "to" => "ALIVE",
+          "receipt_digest" => "sha256:" <> String.duplicate("a", 64),
+          "authority" => "NONE"
+        })
+
+      {:ok, _event, :appended} =
+        TransitionLog.append(ctx.ledger, %{
+          "kind" => "standing_transition_event",
+          "identity" => "T-B",
+          "definition_digest" => "sha256:" <> String.duplicate("b", 64),
+          "from" => "UNKNOWN",
+          "to" => "ALIVE",
+          "receipt_digest" => "sha256:" <> String.duplicate("c", 64),
+          "authority" => "NONE"
+        })
+
+      result = run!(ctx)
+
+      assert %{"standing" => "ALIVE", "standing_source" => "ledger", "frontier" => "settled"} =
+               order(result, "T-A")
+
+      assert order(result, "T-B")["frontier"] == "eligible"
+      assert order(result, "T-B")["standing"] == "UNKNOWN"
+      assert %{"events" => 2, "applied" => 1, "present" => true} = result.state["ledger"]
+
+      assert [%{"identity" => "T-B", "reason" => "definition_digest_mismatch"}] =
+               result.state["ledger"]["inapplicable"]
+
+      assert result.digest != before.digest
+    end
+
+    test "a tampered ledger is refused", ctx do
+      {:ok, _event, :appended} =
+        TransitionLog.append(ctx.ledger, %{
+          "identity" => "T-A",
+          "to" => "ALIVE",
+          "from" => "UNKNOWN"
+        })
+
+      File.write!(ctx.ledger, String.replace(File.read!(ctx.ledger), "ALIVE", "BLOCKED"))
+
+      assert {:refused, [%{code: :ledger_refused}]} = Bootstrap.run(opts(ctx))
+    end
+  end
+
+  describe "run/1 forbidden dependencies (ARD section 16)" do
+    test "paths under .claude / .zcode, transcript paths and symlinks to them are refused", ctx do
+      claude = Path.join(ctx.dir, ".claude/projects")
+      File.mkdir_p!(claude)
+      File.cp!(@fixture_goal, Path.join(claude, "goal.ttl"))
+      zcode = Path.join(ctx.dir, ".zcode/receipts")
+      File.mkdir_p!(zcode)
+      transcripts = Path.join(ctx.dir, "session-transcripts")
+      File.mkdir_p!(transcripts)
+      link = Path.join(ctx.dir, "innocent.ttl")
+      File.ln_s!(Path.join(claude, "goal.ttl"), link)
+
+      for {extra, role} <- [
+            {[goal: Path.join(claude, "goal.ttl")], "goal"},
+            {[goal: link], "goal"},
+            {[receipts_dirs: [zcode]], "receipts_dir"},
+            {[ledger: Path.join(transcripts, "log.ndjson")], "ledger"},
+            {[graphs: [Path.join(claude, "goal.ttl")]], "graphs"}
+          ] do
+        assert {:refused, refusals} = Bootstrap.run(opts(ctx, extra))
+        assert [%{code: :forbidden_input, subject: ^role}] = refusals
+      end
+    end
+
+    test "a forbidden file inside an allowed receipts directory is refused", ctx do
+      claude = Path.join(ctx.dir, ".claude")
+      File.mkdir_p!(claude)
+      File.write!(Path.join(claude, "memory.json"), "{}")
+      File.ln_s!(Path.join(claude, "memory.json"), Path.join(ctx.receipts, "planted.json"))
+
+      assert {:refused, [%{code: :forbidden_input, detail: detail}]} = Bootstrap.run(opts(ctx))
+      assert detail =~ ".claude"
+    end
+
+    test "LLM credential variables are refused by name, never by value", ctx do
+      env = %{"ZAI_API_KEY" => "secret-value", "OPENAI_API_KEY" => "x", "PATH" => "/usr/bin"}
+
+      assert {:refused, [%{code: :llm_credential_present, detail: detail}]} =
+               Bootstrap.run(opts(ctx, env: env))
+
+      assert detail =~ "OPENAI_API_KEY, ZAI_API_KEY"
+      assert detail =~ "mu_on_O"
+      refute detail =~ "secret-value"
+    end
+  end
+
+  describe "run/1 fleet matrix form" do
+    test "non-required matrix rows keep their recorded SHA; required and checkout rows are live",
+         ctx do
+      matrix = Path.join(ctx.dir, "matrix.ttl")
+
+      File.write!(matrix, """
+      @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+      @prefix dcterms: <http://purl.org/dc/terms/> .
+      @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+      <urn:row:subject> a sj:FleetMatrixRow ; dcterms:identifier "subject" ;
+        sj:repositoryPath "#{ctx.repo}" ; sj:fleetClass sj:CriticalPath ;
+        sj:requiredForCheckpoint true ; sj:observedSha "#{ctx.covered}" .
+      <urn:row:elsewhere> a sj:FleetMatrixRow ; dcterms:identifier "elsewhere" ;
+        sj:repositoryPath "#{Path.join(ctx.dir, "absent")}" ; sj:fleetClass sj:Refused ;
+        sj:requiredForCheckpoint false ; sj:observedSha "#{String.duplicate("d", 40)}" .
+      """)
+
+      result = run!(ctx, fleet: matrix, checkouts: [])
+      subjects = Map.new(result.state["subjects"], &{&1["name"], &1})
+
+      assert %{"status" => "observed", "head_sha" => head, "class" => "CriticalPath"} =
+               subjects["subject"]
+
+      assert head == ctx.receipt_commit
+
+      assert %{"status" => "recorded", "head_sha" => nil, "recorded_sha" => recorded} =
+               subjects["elsewhere"]
+
+      assert recorded == String.duplicate("d", 40)
+
+      assert %{"kind" => "fleet", "id" => "elsewhere", "class" => "Refused"} in result.state[
+               "exceptions"
+             ]["refused"]
+
+      # T-A still resolves its repository through the matrix row name
+      assert order(result, "T-A")["standing"] == "ALIVE"
+    end
+  end
+
+  describe "scripts/sjira/bootstrap_court.sh" do
+    defp court!(ctx, extra_env) do
+      env =
+        [
+          "PATH=#{court_path()}",
+          "HOME=#{System.user_home!()}",
+          "TMPDIR=#{ctx.dir}",
+          "GGEN_IGNITER_DIR=#{File.cwd!()}",
+          "XAAS_DIR=#{ctx.dir}",
+          "BOOTSTRAP_GOAL=#{@fixture_goal}",
+          "BOOTSTRAP_FLEET=#{ctx.universe}",
+          "BOOTSTRAP_GRAPHS=",
+          "BOOTSTRAP_RECEIPTS_DIRS=#{ctx.receipts}",
+          "BOOTSTRAP_LEDGER=#{ctx.ledger}",
+          "BOOTSTRAP_CHECKOUTS=#{@repository}=#{ctx.repo}",
+          "BOOTSTRAP_MIX_ENV=test",
+          "BOOTSTRAP_OUT_DIR=#{Path.join(ctx.dir, "court")}"
+        ] ++ extra_env
+
+      System.cmd("env", ["-i" | env] ++ ["sh", Path.expand("scripts/sjira/bootstrap_court.sh")],
+        stderr_to_stdout: true
+      )
+    end
+
+    test "passes on two identical cold runs reconstructing every critical-path order", ctx do
+      {log, code} = court!(ctx, [])
+      assert code == 0, log
+      assert log =~ "OK: GC23-1 two cold bootstrap runs byte-identical"
+      assert log =~ "critical-path orders reconstructed: T-A T-B"
+      refute log =~ "T-S"
+
+      assert File.read!(Path.join(ctx.dir, "court/run1/state.json")) ==
+               File.read!(Path.join(ctx.dir, "court/run2/state.json"))
+    end
+
+    test "refuses an LLM credential in its environment and reports absent machinery", ctx do
+      {log, code} = court!(ctx, ["CLAUDE_CODE_SESSION_ID=fixture"])
+      assert code == 1
+      assert log =~ "REFUSED(llm_credential_present) GC23-1"
+
+      {log, code} = court!(ctx, ["GGEN_IGNITER_DIR=#{ctx.dir}"])
+      assert code == 75
+      assert log =~ "UNKNOWN: GC23-1 machinery lands in lane V23-B"
+    end
+  end
+end
