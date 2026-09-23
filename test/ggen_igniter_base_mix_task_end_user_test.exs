@@ -57,7 +57,19 @@ defmodule GgenIgniterBaseMixTaskEndUserTest do
     target_path = Path.join(probe_dir, "application.ex")
     File.write!(target_path, @fixture_module)
 
-    on_exit(fn -> File.rm_rf!(probe_dir) end)
+    on_exit(fn ->
+      File.rm_rf!(probe_dir)
+
+      # The subprocess below compiles the probe module into THIS checkout's
+      # shared dev build (_build/dev/lib/ggen_igniter/ebin). Removing only the
+      # source leaves an orphan beam, so the NEXT dev-env `mix` child anywhere
+      # in the suite purges it and prints "Generated ggen_igniter app" ahead of
+      # its own stdout -- breaking every exact-stdout test that runs next
+      # (plan --help/-h identity, the single-JSON-document tests; CI run
+      # 35925710605, seed 648358). Re-sync the shared dev build here, inside
+      # this test's own lifetime, so it is left exactly as it was found.
+      {_out, 0} = System.cmd("mix", ["compile"], cd: repo_root, stderr_to_stdout: true)
+    end)
 
     {:ok, repo_root: repo_root, target_path: target_path}
   end
