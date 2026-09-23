@@ -94,4 +94,36 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
 
   defp stringify(v) when is_list(v), do: Enum.map(v, &stringify/1)
   defp stringify(v), do: v
+
+  # ── Log-projection wrappers (restored union, v26.9.22 WO-03) ─────────────
+  # Task-facing helpers over the canonical kernel's event projection. The
+  # mix semantic_jira.* tasks (and Xaas.Ultracode.SemanticCrown behind them)
+  # consume these instead of touching SemanticJira internals.
+
+  @genesis "sha256:" <> String.duplicate("0", 64)
+
+  @doc "Projects the log over the work orders: `{:ok, projected, evidence}`."
+  @spec project([map()], [map()]) :: {:ok, [map()], map()}
+  def project(work_orders, events) do
+    {projected, evidence} = SemanticJira.project(work_orders, events)
+    {:ok, projected, evidence}
+  end
+
+  @doc """
+  Frontier over the projection: UNKNOWN work whose typed dependencies are
+  satisfied by *ledger* evidence. Settled work (e.g. ALIVE) is reported by
+  the kernel as blocked with `standing=<value>`, never eligible.
+  """
+  @spec frontier([map()], [map()]) ::
+          {:ok, %{eligible: [map()], blocked: [map()]}} | {:error, term()}
+  def frontier(work_orders, events) do
+    {:ok, SemanticJira.frontier_from_events(work_orders, events)}
+  end
+
+  @doc "Chain tail: the last event's digest, or the genesis digest for an empty log."
+  @spec tail_digest([map()]) :: String.t()
+  def tail_digest([]), do: @genesis
+
+  def tail_digest(events),
+    do: events |> List.last() |> stringify() |> Map.fetch!("event_digest")
 end

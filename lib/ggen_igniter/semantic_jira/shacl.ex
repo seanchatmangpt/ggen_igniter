@@ -196,7 +196,7 @@ defmodule GgenIgniter.SemanticJira.Shacl do
       |> Enum.flat_map(fn predicate ->
         data
         |> RDF.Graph.descriptions()
-        |> Enum.filter(&RDF.Description.include?(&1, predicate))
+        |> Enum.filter(&([] != RDF.Description.get(&1, predicate, [])))
         |> Enum.map(& &1.subject)
       end)
 
