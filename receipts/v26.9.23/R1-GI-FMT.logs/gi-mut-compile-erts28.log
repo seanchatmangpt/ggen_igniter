@@ -1,0 +1,7 @@
+Compiling 104 files (.ex)
+Compiling crate ggen_graph_nif in release mode (native/ggen_graph_nif)
+Compiling lib/ggen_igniter/native/graph_nif.ex (it's taking more than 10s)
+Copying /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-mut/native/ggen_graph_nif/target/release/libggen_graph_nif.dylib to priv/native/ggen_graph_nif.so
+Compiling lib/ggen_igniter/reactors/examples/expense_approval_reactor.ex (it's taking more than 10s)
+Generated ggen_igniter app
+EXIT=0

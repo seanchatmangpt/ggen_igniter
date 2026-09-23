@@ -1,0 +1,39 @@
+head=8b9dcfb8885defb79afa22e31f33c4282715a73f porcelain=       0
+Erlang/OTP 27 [erts-15.2.2] [source] [64-bit] [smp:16:16] [ds:16:16:10] [async-threads:1] [jit]
+
+Elixir 1.18.4 (compiled with Erlang/OTP 27)
+Compiling 99 files (.ex)
+Compiling crate ggen_graph_nif in release mode (native/ggen_graph_nif)
+Copying /Users/sac/wt/v26922/v23/R1-GI-FMT/native/ggen_graph_nif/target/release/libggen_graph_nif.dylib to priv/native/ggen_graph_nif.so
+Generated ggen_igniter app
+Compiling 104 files (.ex)
+Compiling crate ggen_graph_nif in release mode (native/ggen_graph_nif)
+Copying /Users/sac/wt/v26922/v23/R1-GI-FMT/native/ggen_graph_nif/target/release/libggen_graph_nif.dylib to priv/native/ggen_graph_nif.so
+Generated ggen_igniter app
+
+13:45:40.178 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+13:45:40.200 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+13:45:40.200 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+13:45:40.200 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+Running ExUnit with seed: 842700, max_cases: 32
+Excluding tags: [:requires_qlever_server]
+
+.......fatal: unable to read tree (17e2923d5270835783fa7879e7fc0c8730f4667b)
+fatal: unable to read tree (17e2923d5270835783fa7879e7fc0c8730f4667b)
+fatal: unable to read tree (17e2923d5270835783fa7879e7fc0c8730f4667b)
+...................
+Finished in 19.7 seconds (0.00s async, 19.7s sync)
+26 tests, 0 failures
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+GATE_EXIT=0

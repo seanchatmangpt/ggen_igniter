@@ -1,0 +1,161 @@
+GGEN_IGNITER_DIR=/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-mut head=0c75dbe55619f983cbfdde57d262cd4452b0442f
+xaas head=e999e62b63c680517b9a562cef877d8b09b0cfdd TMPDIR=/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/tmp
+0
+Elixir 1.20.2 (compiled with Erlang/OTP 28)
+    warning: Application.get_env/2 is discouraged in the module body, use Application.compile_env/3 instead
+    │
+ 12 │   if is_nil(Application.get_env(:ash, :default_string_length_count)) do
+    │                         ~
+    │
+    └─ /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/deps/ex4pm/mix.exs:12:25: Ex4pm.MixProject (module)
+
+    warning: unused require Ash.Query
+    │
+ 78 │   require Ash.Query
+    │   ~
+    │
+    └─ lib/xaas/ultracode/semantic_drive.ex:78:3
+
+13:50:40.118 [warning] [ex_money] Automatically starting the exchange rate service is deprecated. Set `auto_start_exchange_rate_service: false` and, if you use the service, add `Money.ExchangeRates.Retriever` to your supervision tree.
+13:50:41.471 [warning] Xaas.Sa2a.Bridge not started: "autofde" executable not found on PATH. sa2a-bridge-pack edges (validate/admit/plan/execute/replay) are unavailable until autofde-lab (https://github.com/seanchatmangpt/autofde-lab) is installed and its "autofde" console script is on PATH.
+13:50:42.443 [warning] node not running in distributed mode. When running outside of a release, you must start net_kernel manually with
+longnames.
+https://www.erlang.org/doc/man/net_kernel.html#start-2
+
+13:50:42.573 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:50:42.573 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/application.json.eex to Grafana: :unkown
+13:50:42.599 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:50:42.599 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/beam.json.eex to Grafana: :unkown
+13:50:42.624 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:50:42.624 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/phoenix.json.eex to Grafana: :unkown
+13:50:42.641 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:50:42.641 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/ecto.json.eex to Grafana: :unkown
+13:50:42.654 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:50:42.654 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/phoenix_live_view.json.eex to Grafana: :unkown
+13:50:42.660 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:50:42.660 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/xaas/priv/grafana_dashboards/infrastructure.json to Grafana: :unkown
+Running ExUnit with seed: 662260, max_cases: 32
+Excluding tags: [:test]
+Including tags: [location: {"test/xaas/ultracode/semantic_drive_test.exs", [107, 287, 309, 345, 372]}]
+
+    warning: unused require Ash.Query
+    │
+ 37 │   require Ash.Query
+    │   ~
+    │
+    └─ test/xaas/ultracode/semantic_drive_test.exs:37:3
+
+
+
+  1) test a prepared episode drives EP-A to ALIVE: equal hop digests, sealed + independently verified receipt, admitted R, conformant OCEL, closed frontier (Xaas.Ultracode.SemanticDriveTest)
+     test/xaas/ultracode/semantic_drive_test.exs:107
+     Assertion with == failed
+     code:  assert git!(ctx.subject, ["diff", "--name-only", subject_sha, head]) == @drift
+     left:  "lib/ggen_igniter/semantic_jira/bootstrap.ex\nlib/ggen_igniter/semantic_jira/cli.ex"
+     right: "lib/ggen_igniter/semantic_jira/cli.ex"
+     stacktrace:
+       test/xaas/ultracode/semantic_drive_test.exs:214: (test)
+
+
+
+  2) test a subject with no drift is REFUSED(no_delta) by the provider: no commit, no ledger change, EP-A stays on the frontier (Xaas.Ultracode.SemanticDriveTest)
+     test/xaas/ultracode/semantic_drive_test.exs:345
+     match (=) failed
+     code:  assert {:refused,
+             %{
+               "standing" => "REFUSED(no_delta)",
+               "broken_term" => "R_missing_consequence",
+               "hop" => "provider"
+             }} = drive(ctx, out, pin_ref: pin)
+     left:  {:refused,
+             %{
+               "standing" => "REFUSED(no_delta)",
+               "broken_term" => "R_missing_consequence",
+               "hop" => "provider"
+             }}
+     right: {:ok,
+             %{
+               "artifacts" => ["contract.json", "descriptor.json",
+                "drive.json", "frontier_after.json",
+                "frontier_before.json", "hops.json", "ocel.json",
+                "ocel2.json", "receipt.json", "receipt.r.json",
+                "reconciler_receipt.json", "sa2a_task.json",
+                "verification.json"],
+               "checkpoint" => "https://ggen-igniter.dev/sjira/v26.9.23#GC-26.9.23",
+               "dependents" => ["EP-B"],
+               "finished_at" => "2026-09-23T20:51:09.596530Z",
+               "frontier" => %{
+                 "entered" => ["EP-B"],
+                 "left" => ["EP-A"]
+               },
+               "graph_side" => %{
+                 "ggen_igniter_dir" => "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/gi-mut",
+                 "ggen_igniter_sha" => "0c75dbe55619f983cbfdde57d262cd4452b0442f",
+                 "toolchain" => %{
+                   "build_compiler" => %{
+                     "elixir" => "1.18.4",
+                     "otp" => "28"
+                   },
+                   "build_manifest" => "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/tmp/xaas-drive-drive-all-14404/build/test/lib/ggen_igniter/.mix/compile.elixir_scm",
+                   "elixir" => "1.18.4",
+                   "erlang" => "28",
+                   "erts" => "running node (/Users/sac/.asdf/installs/erlang/28.5.0.2/bin)",
+                   "mix" => "/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin/mix",
+                   "source" => "build_manifest"
+                 }
+               },
+               "hops" => ["sjira", "sa2a", "xaas", "provider",
+                "receipt"],
+               "no_llm_guard" => "passed",
+               "ocel" => %{
+                 "equivalent" => true,
+                 "events" => 11,
+                 "not_reached" => ["MachineExperienceAdmitted"],
+                 "objects" => 11,
+                 "reached" => ["WorkOrderCreated",
+                  "CapabilityResolved", "LeaseAcquired",
+                  "ActuationStarted", "ActuationCompleted",
+                  "VerificationCompleted", "ReceiptSealed",
+                  "StandingChanged", "FrontierChanged"]
+               },
+               "order" => "EP-A",
+               "provider" => %{
+                 "capability" => "recipe:mix-format",
+                 "executor" => "recipe-worker",
+                 "provider" => "recipe"
+               },
+               "request_digest" => "sha256:343719858b2c27b8c04386bcbefdc6572d34924822cb8968a48399db725d66d7",
+               "schema" => "xaas/semantic-drive/v1",
+               "standing" => "ALIVE",
+               "started_at" => "2026-09-23T20:50:59.379300Z",
+               "subject" => %{
+                 "base_sha" => "0c75dbe55619f983cbfdde57d262cd4452b0442f",
+                 "head" => "7ffcd5ab9926459fdcf6468817fcede6dcc9303c",
+                 "pinned" => "t-nodelta-pin-1922",
+                 "repo" => "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/tmp/xaas-drive-drive-all-14404/subject",
+                 "repository" => "seanchatmangpt/ggen_igniter"
+               },
+               "transition" => %{
+                 "authority" => "NONE",
+                 "definition_digest" => "sha256:02b3debfcd9215395839e0a8cbc73e2451d9e0c9d7b9db896e78fd03e8a6292f",
+                 "event_digest" => "sha256:a54ed7ca803e6a6989228af98071245aae8615570e235c4a8237eb68410e3e68",
+                 "from" => "UNKNOWN",
+                 "identity" => "EP-A",
+                 "kind" => "standing_transition_event",
+                 "receipt_digest" => "sha256:bae4da2d832b58a428af0876673f7a49f1f1276ccfaa93c97014968a705e1f4d",
+                 "seq" => 1,
+                 "snapshot_digest" => "sha256:0b871e114c08403db9e0ff8920e6d0e42ca11b035427b94ce0e3b10587217a9b",
+                 "to" => "ALIVE",
+                 "transition_digest" => "sha256:4c7fd97fe78662a9e776f094b937d866f63840d0b21bb57a79f6cc421ef05e28"
+               },
+               "tuple_digest" => "sha256:4939fa8811b114f1710565ab6734389b325790ca8c2c041d75cca450a20f6dad"
+             }}
+     stacktrace:
+       test/xaas/ultracode/semantic_drive_test.exs:353: (test)
+
+...
+Finished in 33.9 seconds (0.4s async, 33.5s sync)
+
+Result: 3/5 passed, 4 excluded
+Failed: 2 tests
+EXIT=2

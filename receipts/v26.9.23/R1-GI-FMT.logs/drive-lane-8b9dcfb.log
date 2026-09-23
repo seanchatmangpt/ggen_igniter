@@ -1,0 +1,150 @@
+GGEN_IGNITER_DIR=/Users/sac/wt/v26922/v23/R1-GI-FMT head=8b9dcfb8885defb79afa22e31f33c4282715a73f
+xaas head=e999e62b63c680517b9a562cef877d8b09b0cfdd
+0
+Elixir 1.20.2 (compiled with Erlang/OTP 28)
+    warning: Application.get_env/2 is discouraged in the module body, use Application.compile_env/3 instead
+    │
+ 12 │   if is_nil(Application.get_env(:ash, :default_string_length_count)) do
+    │                         ~
+    │
+    └─ /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/deps/ex4pm/mix.exs:12:25: Ex4pm.MixProject (module)
+
+    warning: unused require Ash.Query
+    │
+ 78 │   require Ash.Query
+    │   ~
+    │
+    └─ lib/xaas/ultracode/semantic_drive.ex:78:3
+
+Generated xaas app
+13:18:32.199 [warning] [ex_money] Automatically starting the exchange rate service is deprecated. Set `auto_start_exchange_rate_service: false` and, if you use the service, add `Money.ExchangeRates.Retriever` to your supervision tree.
+13:18:39.615 [warning] Xaas.Sa2a.Bridge not started: "autofde" executable not found on PATH. sa2a-bridge-pack edges (validate/admit/plan/execute/replay) are unavailable until autofde-lab (https://github.com/seanchatmangpt/autofde-lab) is installed and its "autofde" console script is on PATH.
+13:18:40.280 [warning] node not running in distributed mode. When running outside of a release, you must start net_kernel manually with
+longnames.
+https://www.erlang.org/doc/man/net_kernel.html#start-2
+
+13:18:40.527 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:18:40.527 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/application.json.eex to Grafana: :unkown
+13:18:40.555 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:18:40.555 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/beam.json.eex to Grafana: :unkown
+13:18:40.576 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:18:40.576 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/phoenix.json.eex to Grafana: :unkown
+13:18:40.599 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:18:40.600 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/ecto.json.eex to Grafana: :unkown
+13:18:40.626 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:18:40.626 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/prom_ex/priv/phoenix_live_view.json.eex to Grafana: :unkown
+13:18:40.631 [warning] Received an unhandled response from Grafana because: {:error, %Finch.TransportError{reason: :nxdomain, source: %Mint.TransportError{reason: :nxdomain}}}
+13:18:40.631 [warning] PromEx.DashboardUploader failed to upload /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/_build/test/lib/xaas/priv/grafana_dashboards/infrastructure.json to Grafana: :unkown
+Running ExUnit with seed: 586631, max_cases: 32
+Excluding tags: [:stress, :kind, :requires_cnv_deploy, :external, :external_llm, :subprocess, :property, :castle_kernel]
+
+    warning: unused require Ash.Query
+    │
+ 37 │   require Ash.Query
+    │   ~
+    │
+    └─ test/xaas/ultracode/semantic_drive_test.exs:37:3
+
+
+
+  1) test a build compiled by this node's Elixir on this ERTS resolves to that Elixir (source build_manifest), and it runs (Xaas.Ultracode.SemanticDriveToolchainTest)
+     test/xaas/ultracode/semantic_drive_test.exs:538
+     Assertion with == failed
+     code:  assert t["source"] == "build_manifest"
+     left:  "asdf"
+     right: "build_manifest"
+     stacktrace:
+       test/xaas/ultracode/semantic_drive_test.exs:542: (test)
+
+
+
+  2) test a build compiled on another OTP release falls back to the pin (an ERTS switch recompiles everything) (Xaas.Ultracode.SemanticDriveToolchainTest)
+     test/xaas/ultracode/semantic_drive_test.exs:576
+     ** (FunctionClauseError) no function clause matching in anonymous fn/1 in Xaas.Ultracode.SemanticDriveToolchainTest."test a build compiled on another OTP release falls back to the pin (an ERTS switch recompiles everything)"/1
+
+     The following arguments were given to anonymous fn/1 in Xaas.Ultracode.SemanticDriveToolchainTest."test a build compiled on another OTP release falls back to the pin (an ERTS switch recompiles everything)"/1:
+
+         # 1
+         {2, {"1.20.2", ~c"28"}, Mix.SCM.Path, nil}
+
+     code: checkout("otp", fn {vsn, {elixir, _otp}, scm} ->
+     stacktrace:
+       test/xaas/ultracode/semantic_drive_test.exs:578: anonymous fn/1 in Xaas.Ultracode.SemanticDriveToolchainTest."test a build compiled on another OTP release falls back to the pin (an ERTS switch recompiles everything)"/1
+       test/xaas/ultracode/semantic_drive_test.exs:622: Xaas.Ultracode.SemanticDriveToolchainTest.checkout/2
+       test/xaas/ultracode/semantic_drive_test.exs:578: (test)
+
+
+
+  3) test a build compiled by an Elixir with no install falls back to the checkout's pin, recording why (Xaas.Ultracode.SemanticDriveToolchainTest)
+     test/xaas/ultracode/semantic_drive_test.exs:563
+     ** (FunctionClauseError) no function clause matching in anonymous fn/1 in Xaas.Ultracode.SemanticDriveToolchainTest."test a build compiled by an Elixir with no install falls back to the checkout's pin, recording why"/1
+
+     The following arguments were given to anonymous fn/1 in Xaas.Ultracode.SemanticDriveToolchainTest."test a build compiled by an Elixir with no install falls back to the checkout's pin, recording why"/1:
+
+         # 1
+         {2, {"1.20.2", ~c"28"}, Mix.SCM.Path, nil}
+
+     code: checkout("absent", fn {vsn, {_elixir, otp}, scm} ->
+     stacktrace:
+       test/xaas/ultracode/semantic_drive_test.exs:565: anonymous fn/1 in Xaas.Ultracode.SemanticDriveToolchainTest."test a build compiled by an Elixir with no install falls back to the checkout's pin, recording why"/1
+       test/xaas/ultracode/semantic_drive_test.exs:622: Xaas.Ultracode.SemanticDriveToolchainTest.checkout/2
+       test/xaas/ultracode/semantic_drive_test.exs:565: (test)
+
+.
+
+  4) test a prepared episode drives EP-A to ALIVE: equal hop digests, sealed + independently verified receipt, admitted R, conformant OCEL, closed frontier (Xaas.Ultracode.SemanticDriveTest)
+     test/xaas/ultracode/semantic_drive_test.exs:107
+     match (=) failed
+     code:  assert {:ok, summary} = drive(ctx, out, pin_ref: pin)
+     left:  {:ok, summary}
+     right: {:refused,
+             %{
+               "broken_term" => "mu_on_O",
+               "detail" => %{
+                 "exit" => 1,
+                 "reason" => "ack/ontology.ttl\": no such file or directory\n    (elixir 1.18.4) lib/file.ex:1569: File.open!/3\n    (rdf 3.0.1) lib/rdf/serialization/reader.ex:81: RDF.Serialization.Reader.do_read_file!/4\n    (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_a2a.ex:217: GgenIgniter.SemanticA2A.gate_rows/2\n    (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_a2a.ex:57: GgenIgniter.SemanticA2A.state_map/1\n    (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_a2a.ex:125: GgenIgniter.SemanticA2A.task_from_work_order/2\n    /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/scripts/sa2a_route_task.exs:68: (file)\n"
+               },
+               "hop" => "sa2a",
+               "reason" => "sa2a_projection_refused",
+               "standing" => "REFUSED(sa2a_projection_refused)"
+             }}
+     stacktrace:
+       test/xaas/ultracode/semantic_drive_test.exs:114: (test)
+
+...
+
+  5) test a subject with no drift is REFUSED(no_delta) by the provider: no commit, no ledger change, EP-A stays on the frontier (Xaas.Ultracode.SemanticDriveTest)
+     test/xaas/ultracode/semantic_drive_test.exs:345
+     match (=) failed
+     code:  assert {:refused,
+             %{
+               "standing" => "REFUSED(no_delta)",
+               "broken_term" => "R_missing_consequence",
+               "hop" => "provider"
+             }} = drive(ctx, out, pin_ref: pin)
+     left:  {:refused,
+             %{
+               "standing" => "REFUSED(no_delta)",
+               "broken_term" => "R_missing_consequence",
+               "hop" => "provider"
+             }}
+     right: {:refused,
+             %{
+               "broken_term" => "mu_on_O",
+               "detail" => %{
+                 "exit" => 1,
+                 "reason" => "ack/ontology.ttl\": no such file or directory\n    (elixir 1.18.4) lib/file.ex:1569: File.open!/3\n    (rdf 3.0.1) lib/rdf/serialization/reader.ex:81: RDF.Serialization.Reader.do_read_file!/4\n    (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_a2a.ex:217: GgenIgniter.SemanticA2A.gate_rows/2\n    (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_a2a.ex:57: GgenIgniter.SemanticA2A.state_map/1\n    (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_a2a.ex:125: GgenIgniter.SemanticA2A.task_from_work_order/2\n    /private/tmp/claude-501/v23-scratch/R1a-R1-GI-FMT/xaas/scripts/sa2a_route_task.exs:68: (file)\n"
+               },
+               "hop" => "sa2a",
+               "reason" => "sa2a_projection_refused",
+               "standing" => "REFUSED(sa2a_projection_refused)"
+             }}
+     stacktrace:
+       test/xaas/ultracode/semantic_drive_test.exs:353: (test)
+
+
+Finished in 42.3 seconds (2.0s async, 40.2s sync)
+
+Result: 4/9 passed
+Failed: 5 tests
+EXIT=2
