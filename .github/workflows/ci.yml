@@ -118,8 +118,9 @@ jobs:
       # Elixir compilation, so restoring _build under a mix.lock-only key can
       # restore a BEAM that expects priv/native/ggen_graph_nif.so without the
       # NIF artifact itself. Keep dependency and build identities separate.
-      - name: Cache mix dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - name: Restore mix dependencies
+        id: deps-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           restore-keys: "${{ runner.os }}-mix-deps-27.2.4-1.18.4-\n${{ runner.os }}-mix-deps-27.2.4-\n${{ runner.os }}-mix-deps-\n"
           key: ${{ runner.os }}-mix-deps-27.2.4-1.18.4-${{ hashFiles('mix.lock') }}
@@ -136,8 +137,9 @@ jobs:
 
       # Cargo target dir for the NIF, keyed on its own lockfile so it rotates
       # whenever the crate's rust dependencies change.
-      - name: Cache NIF cargo target
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - name: Restore NIF cargo target
+        id: nif-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           key: ${{ runner.os }}-nif-target-27.2.4-1.18.4-${{ hashFiles('native/ggen_graph_nif/Cargo.lock') }}
           path: native/ggen_graph_nif/target
@@ -250,6 +252,26 @@ jobs:
         run: |
           mix compile
 
+      # Seed the dependency and NIF caches as soon as they are built, BEFORE
+      # `mix test`: actions/cache saves in its post step only on job success
+      # (post-if: success()), so a failed or timed-out suite never seeded a
+      # cache and every fix-forward round on a ref rebuilt deps (~5.5 min) and
+      # the release-mode ggen_graph_nif crate (~7-8 min) from nothing
+      # (runs 35895253020..35895256423: "Post Cache ...: skipped"). _build keeps
+      # its success-only exact-key cache on purpose.
+      - name: Save mix dependencies (before tests, so a red suite still seeds it)
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: ${{ steps.deps-cache.outputs.cache-primary-key }}
+          path: "deps\n~/.hex\n~/.mix\n"
+
+      - name: Save NIF cargo target (before tests, so a red suite still seeds it)
+        if: steps.nif-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: ${{ steps.nif-cache.outputs.cache-primary-key }}
+          path: native/ggen_graph_nif/target
       # gi-verify-task closure: `mix ggen_igniter.verify` (lib/mix/tasks/
       # ggen_igniter.verify.ex) had zero callers anywhere in this repo before
       # this step -- confirmed by `grep -rn "ggen_igniter.verify"
