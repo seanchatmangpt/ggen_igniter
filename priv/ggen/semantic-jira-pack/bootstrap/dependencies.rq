@@ -1,0 +1,14 @@
+# Cold bootstrap (GC23-1, lane V23-B): typed dependency edges of every
+# sj:WorkOrder (kernel dependency map: upstream identity, type, optional
+# required standing). An edge whose upstream has no dcterms:identifier keeps
+# the upstream IRI as its identity, so the kernel never silently drops it.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?work_order ?edge ?type ?upstream ?upstream_id ?required_standing WHERE {
+  ?work_order a sj:WorkOrder ;
+              sj:dependsOn ?edge .
+  ?edge sj:dependencyType ?type ;
+        sj:upstreamWorkOrder ?upstream .
+  OPTIONAL { ?upstream dcterms:identifier ?upstream_id . }
+  OPTIONAL { ?edge sj:requiredStanding ?required_standing . }
+}

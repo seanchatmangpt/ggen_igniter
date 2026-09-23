@@ -1,0 +1,137 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix t: <https://ggen-igniter.dev/sjira/bootstrap-fixture#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Fixture goal graph for test/ggen_igniter_semantic_jira_bootstrap_test.exs
+# (GC23-1 cold bootstrap, lane V23-B). Shape follows xaas
+# docs/sjira/v26.9.23/goal.ttl: one root GoalCheckpoint with two gates, a
+# successor bucket, tuple-complete WorkOrders (T-A, T-B under the root; T-S
+# typed Successor under the bucket). The sj:standing literals are placeholders
+# the bootstrap never reads (PR-006).
+
+t:GC-T a sj:GoalCheckpoint ;
+    dcterms:identifier "GC-T" ;
+    rdfs:label "GC-T fixture root" ;
+    sj:repository "fixture/subject" ;
+    sj:baseSha "1111111111111111111111111111111111111111" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:replayIdentity "semantic-jira:fixture:GC-T" ;
+    sj:successorCheckpoint t:GC-T-next ;
+    sj:exclusion "Fixture root exclusion." ;
+    sj:courtCommand "mix xaas.stop_court --checkpoint GC-T" ;
+    sj:stopQuery "ASK { FILTER(false) }" .
+
+t:G-1 a sj:GoalCheckpoint ;
+    dcterms:identifier "G-1" ;
+    sj:checkpointOf t:GC-T ;
+    sj:boundaryClass sj:Bootstrap ;
+    sj:courtCommand "sh courts/G-1.sh" .
+
+t:G-2 a sj:GoalCheckpoint ;
+    dcterms:identifier "G-2" ;
+    sj:checkpointOf t:GC-T ;
+    sj:boundaryClass sj:Core ;
+    sj:courtCommand "sh courts/G-2.sh" .
+
+t:GC-T-next a sj:GoalCheckpoint ;
+    dcterms:identifier "GC-T-next" ;
+    sj:successorOf t:GC-T ;
+    sj:boundaryClass sj:Successor ;
+    sj:stopQuery "ASK { FILTER(false) }" .
+
+t:cap-a a sj:Capability ;
+    sj:capabilityId "recipe:fixture-a" .
+t:cap-b a sj:Capability ;
+    sj:capabilityId "construct:fixture-b" .
+
+t:WO-T-A a sj:WorkOrder ;
+    dcterms:identifier "T-A" ;
+    dcterms:title "Fixture order A" ;
+    dcterms:description "Upstream fixture order covering lib/." ;
+    sj:repository "fixture/subject" ;
+    sj:baseSha "1111111111111111111111111111111111111111" ;
+    sj:subject "fixture:order-a" ;
+    sj:pathScope "lib/", "receipts/T-A.json", "other:docs/x.md" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "EXECUTED_VERIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Standing advances only from receipts." ;
+    sj:replayIdentity "semantic-jira:fixture:T-A" ;
+    sj:requiresCourt t:court-T-A ;
+    sj:requiresEvidence sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification" ;
+    sj:acceptance t:acceptance-T-A ;
+    sj:falsifier t:falsifier-T-A ;
+    sj:projection sj:markdown-projection ;
+    sj:checkpointOf t:G-1 ;
+    sj:postcondition "Order A postcondition." ;
+    sj:requiresCapability t:cap-a ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:exclusion "No LLM on the path.", "Another exclusion." ;
+    sj:consequenceClass "verification" ;
+    sj:successorPolicy "discovered work -> t:GC-T-next" .
+
+t:WO-T-B a sj:WorkOrder ;
+    dcterms:identifier "T-B" ;
+    dcterms:title "Fixture order B" ;
+    dcterms:description "Downstream fixture order; requires an ALIVE T-A." ;
+    sj:repository "fixture/subject" ;
+    sj:baseSha "1111111111111111111111111111111111111111" ;
+    sj:subject "fixture:order-b" ;
+    sj:pathScope "src/" ;
+    sj:standing "ALIVE" ;
+    sj:evidenceCeiling "EXECUTED_VERIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Standing advances only from receipts." ;
+    sj:replayIdentity "semantic-jira:fixture:T-B" ;
+    sj:requiresCourt t:court-T-B ;
+    sj:requiresEvidence sj:receipt-evidence ;
+    sj:requiresReceiptClass "verification" ;
+    sj:acceptance t:acceptance-T-B ;
+    sj:falsifier t:falsifier-T-B ;
+    sj:projection sj:markdown-projection ;
+    sj:checkpointOf t:G-2 ;
+    sj:dependsOn t:dep-T-B-on-T-A ;
+    sj:postcondition "Order B postcondition." ;
+    sj:requiresCapability t:cap-b ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:exclusion "No LLM on the path." ;
+    sj:consequenceClass "verification" ;
+    sj:successorPolicy "discovered work -> t:GC-T-next" .
+
+t:dep-T-B-on-T-A a sj:DependencyEdge ;
+    sj:dependencyType "requiresReceipt" ;
+    sj:upstreamWorkOrder t:WO-T-A ;
+    sj:requiredStanding "ALIVE" .
+
+t:WO-T-S a sj:WorkOrder ;
+    dcterms:identifier "T-S" ;
+    dcterms:title "Fixture successor order" ;
+    dcterms:description "Typed out of GC-T into its successor bucket." ;
+    sj:repository "fixture/subject" ;
+    sj:baseSha "1111111111111111111111111111111111111111" ;
+    sj:subject "fixture:order-s" ;
+    sj:pathScope "docs/" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "EXECUTED_VERIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Standing advances only from receipts." ;
+    sj:replayIdentity "semantic-jira:fixture:T-S" ;
+    sj:requiresCourt t:court-T-S ;
+    sj:requiresEvidence sj:receipt-evidence ;
+    sj:acceptance t:acceptance-T-S ;
+    sj:falsifier t:falsifier-T-S ;
+    sj:projection sj:markdown-projection ;
+    sj:checkpointOf t:GC-T-next ;
+    sj:boundaryClass sj:Successor ;
+    sj:postcondition "Successor postcondition." ;
+    sj:requiresCapability t:cap-b ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:exclusion "Not required by GC-T." ;
+    sj:consequenceClass "verification" ;
+    sj:successorPolicy "stays in t:GC-T-next" .

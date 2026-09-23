@@ -1,0 +1,25 @@
+# Cold bootstrap (GC23-1, lane V23-B): every sj:GoalCheckpoint field the
+# bootstrap reconstructs (the active GoalCheckpoint, its gates, successor
+# buckets and authority), one (?checkpoint ?field ?value) row per value.
+# The root is selected separately by prose/root.rq (the same law the
+# first-mile compiler uses); sj:stopQuery is selected so its digest binds the
+# reconstructed stop predicate.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?checkpoint ?field ?value WHERE {
+  ?checkpoint a sj:GoalCheckpoint .
+  { ?checkpoint dcterms:identifier ?value . BIND("identity" AS ?field) }
+  UNION { ?checkpoint sj:checkpointOf ?value . BIND("checkpoint_of" AS ?field) }
+  UNION { ?checkpoint sj:boundaryClass ?value . BIND("boundary_class" AS ?field) }
+  UNION { ?checkpoint sj:courtCommand ?value . BIND("court_command" AS ?field) }
+  UNION { ?checkpoint sj:stopQuery ?value . BIND("stop_query" AS ?field) }
+  UNION { ?checkpoint sj:successorOf ?value . BIND("successor_of" AS ?field) }
+  UNION { ?checkpoint sj:successorCheckpoint ?value . BIND("successor_checkpoint" AS ?field) }
+  UNION { ?checkpoint sj:repository ?value . BIND("repository" AS ?field) }
+  UNION { ?checkpoint sj:baseSha ?value . BIND("base_sha" AS ?field) }
+  UNION { ?checkpoint sj:sourceSha256 ?value . BIND("source_sha256" AS ?field) }
+  UNION { ?checkpoint sj:authorityCeiling ?value . BIND("authority_ceiling" AS ?field) }
+  UNION { ?checkpoint sj:evidenceHorizon ?value . BIND("evidence_horizon" AS ?field) }
+  UNION { ?checkpoint sj:replayIdentity ?value . BIND("replay_identity" AS ?field) }
+  UNION { ?checkpoint sj:exclusion ?value . BIND("exclusions" AS ?field) }
+}
