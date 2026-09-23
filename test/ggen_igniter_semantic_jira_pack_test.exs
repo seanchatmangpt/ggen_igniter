@@ -968,6 +968,55 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute frontier_ids == []
     end
 
+    # V23-T6R refutation 2 generalized: a gate clause over an sj: term the pack
+    # ontology never declares can never fire on an admitted graph (the removed
+    # gates/055 and the event-sourcing MINUS in 050 matched the undeclared
+    # sj:transitionId / sj:transitionWorkOrder). Every sj: term a gate names
+    # must be an rdf:type-d subject of the pack ontology.
+    test "every sj: term a pack gate references is declared in the pack ontology" do
+      graph = GgenIgniter.Ontology.load!(@ontology_path)
+      sj = "https://ggen-igniter.dev/ontology/semantic-jira#"
+
+      referenced =
+        "priv/ggen/semantic-jira-pack/gates/*.rq"
+        |> Path.wildcard()
+        |> Enum.sort()
+        |> Enum.flat_map(fn gate ->
+          body =
+            gate
+            |> File.read!()
+            |> String.split("\n")
+            |> Enum.reject(&String.starts_with?(String.trim_leading(&1), "#"))
+            |> Enum.join("\n")
+
+          prefixed = Regex.scan(~r/\bsj:([A-Za-z][A-Za-z0-9_]*)/, body, capture: :all_but_first)
+
+          full =
+            Regex.scan(~r/<#{Regex.escape(sj)}([A-Za-z][A-Za-z0-9_]*)>/, body,
+              capture: :all_but_first
+            )
+
+          Enum.map(prefixed ++ full, fn [local] -> {Path.basename(gate), local} end)
+        end)
+        |> Enum.uniq()
+
+      # Anti-vacuity: the scan sees the terms the gates are known to use.
+      assert {"020_work_orders.rq", "baseSha"} in referenced
+      assert {"050_frontier.rq", "upstreamWorkOrder"} in referenced
+
+      undeclared =
+        Enum.reject(referenced, fn {_gate, local} ->
+          graph
+          |> RDF.Graph.description(RDF.iri(sj <> local))
+          |> RDF.Description.get(RDF.type())
+          |> List.wrap()
+          |> Enum.any?()
+        end)
+
+      assert undeclared == [],
+             "gates reference sj: terms the pack ontology does not declare: #{inspect(undeclared)}"
+    end
+
     # V23-T6R round-2 refutation R2: the work-order gates may only select
     # nodes the SHACL court checks. sj:WorkOrderShape targets sj:WorkOrder and
     # no pack ontology/shape declares oslc_cm:ChangeRequest typing, so a gate
