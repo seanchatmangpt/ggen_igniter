@@ -242,7 +242,8 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
          {:ok, goal} <- parse_ttl(goal_bytes, "goal"),
          {:ok, root} <- root(goal, queries),
          {:ok, graphs} <- read_graphs(args.graphs, subjects),
-         {:ok, orders} <- orders(goal, graphs, queries, Subjects.ref(subjects, args.goal, "goal")),
+         {:ok, orders} <-
+           orders(goal, graphs, queries, Subjects.ref(subjects, args.goal, "goal")),
          {:ok, receipts, receipt_dirs} <- read_receipts(args.receipts_dirs, subjects),
          {:ok, events} <- read_ledger(args.ledger),
          {:ok, registry} <- read_registry(args.registry, subjects) do
