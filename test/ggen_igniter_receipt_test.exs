@@ -52,7 +52,9 @@ defmodule GgenIgniter.ReceiptTest do
       receipt = Receipt.new(%{standing: :alive})
       assert receipt.files == []
       assert receipt.events == []
-      assert receipt.metadata == %{}
+      # WO-09: the one default metadata entry is the exact subject binding.
+      assert receipt.metadata |> Map.delete("git_head") == %{}
+      assert Regex.match?(~r/\A[0-9a-f]{40}\z/, receipt.metadata["git_head"])
       assert receipt.reason == nil
     end
   end
@@ -410,6 +412,34 @@ defmodule GgenIgniter.ReceiptTest do
 
     test "an unrecognized standing atom maps to the honest UNKNOWN fallback" do
       assert Receipt.to_prd_status(:something_invented) == "UNKNOWN"
+    end
+  end
+
+  describe "receipt metadata carries the exact subject" do
+    test "metadata.git_head equals git rev-parse HEAD in a git tree" do
+      receipt =
+        GgenIgniter.Receipt.new(%{
+          recipe_key: "git-head-test",
+          standing: :alive
+        })
+
+      expected =
+        System.cmd("git", ["rev-parse", "HEAD"], stderr_to_stdout: true)
+        |> elem(0)
+        |> String.trim()
+
+      assert receipt.metadata["git_head"] == expected
+    end
+
+    test "an explicit metadata.git_head is never overwritten" do
+      receipt =
+        GgenIgniter.Receipt.new(%{
+          recipe_key: "git-head-explicit-test",
+          standing: :alive,
+          metadata: %{"git_head" => "explicitly-supplied"}
+        })
+
+      assert receipt.metadata["git_head"] == "explicitly-supplied"
     end
   end
 end

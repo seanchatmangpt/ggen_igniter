@@ -315,6 +315,7 @@ defmodule GgenIgniter.Receipt do
       |> Map.put_new(:schema_version, "1")
       |> Map.put_new_lazy(:tool_version, &tool_version/0)
       |> put_work_order_identity(opts)
+      |> put_git_head()
       |> put_new_parent_hash(opts)
 
     explicit_receipt_hash = Map.get(attrs, :receipt_hash)
@@ -324,6 +325,34 @@ defmodule GgenIgniter.Receipt do
     receipt_hash = explicit_receipt_hash || compute_receipt_hash(receipt)
 
     %{receipt | receipt_hash: receipt_hash}
+  end
+
+  # A durable receipt names its exact subject: `metadata["git_head"]` is the
+  # full `git rev-parse HEAD` of the tree the receipt was built in, so an
+  # on-disk receipt can prove (or refuse) an exact-head ALIVE claim without
+  # trusting the session that wrote it. Not a git tree leaves the field
+  # absent -- never a fabricated value -- and an explicit `metadata["git_head"]`
+  # from the caller is never overwritten.
+  defp put_git_head(attrs) do
+    metadata = Map.get(attrs, :metadata, %{})
+
+    if Map.has_key?(metadata, "git_head") do
+      attrs
+    else
+      case git_head() do
+        nil -> attrs
+        head -> Map.put(attrs, :metadata, Map.put(metadata, "git_head", head))
+      end
+    end
+  end
+
+  defp git_head do
+    case System.cmd("git", ["rev-parse", "HEAD"], stderr_to_stdout: true) do
+      {head, 0} -> String.trim(head)
+      _ -> nil
+    end
+  rescue
+    _ -> nil
   end
 
   defp put_work_order_identity(attrs, opts) do
