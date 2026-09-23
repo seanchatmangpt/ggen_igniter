@@ -205,6 +205,122 @@ defmodule GgenIgniter.SemanticJiraReconcileTaskTest do
     end
   end
 
+  # The descriptor for FRI-FMT-A over a fresh ledger, built by the real
+  # `Cli.descriptor/1` in-process and written where `--bridge` reads it.
+  defp descriptor_file!(dir) do
+    ledger = Path.join(dir, "standing-ledger.ndjson")
+
+    assert {0, descriptor} =
+             Cli.descriptor(
+               work_orders: @fixture,
+               ledger: ledger,
+               identity: "FRI-FMT-A",
+               alias: @alias,
+               verifier_suite: @suite,
+               provider: "recipe"
+             )
+
+    path = Path.join(dir, "descriptor-a.json")
+    File.write!(path, Jason.encode!(descriptor))
+    {path, descriptor}
+  end
+
+  defp xaas_receipt_refusal!(dir, descriptor_path, receipt_json) do
+    xaas_path = Path.join(dir, "xaas-receipt.json")
+    File.write!(xaas_path, receipt_json)
+    out_path = Path.join(dir, "reconciler-receipt.json")
+
+    {code, json, out} =
+      mix([
+        "semantic_jira.xaas_receipt",
+        "--bridge",
+        descriptor_path,
+        "--xaas-receipt",
+        xaas_path,
+        "--out",
+        out_path
+      ])
+
+    refute out =~ "CaseClauseError", out
+    assert code == 1, out
+    # A refused receipt never produces a reconciler receipt.
+    refute File.exists?(out_path)
+    {json, out}
+  end
+
+  describe "mix semantic_jira.xaas_receipt (a bad sealed receipt is a typed refusal, not a crash)" do
+    test "a receipt tampered after sealing refuses :receipt_digest_mismatch", %{dir: dir} do
+      {descriptor_path, descriptor} = descriptor_file!(dir)
+
+      tampered =
+        descriptor["bridge"]
+        |> sealed_xaas_receipt()
+        |> Map.put("final_head", String.duplicate("a", 40))
+
+      {json, out} = xaas_receipt_refusal!(dir, descriptor_path, Jason.encode!(tampered))
+
+      assert json == %{
+               "status" => "refused",
+               "reason" => ["receipt_refused", "receipt_digest_mismatch"]
+             },
+             out
+    end
+
+    test "a receipt without a receipt_digest refuses :invalid_receipt_digest", %{dir: dir} do
+      {descriptor_path, descriptor} = descriptor_file!(dir)
+      unsealed = descriptor["bridge"] |> sealed_xaas_receipt() |> Map.delete("receipt_digest")
+
+      {json, out} = xaas_receipt_refusal!(dir, descriptor_path, Jason.encode!(unsealed))
+
+      assert json == %{
+               "status" => "refused",
+               "reason" => ["receipt_refused", "invalid_receipt_digest"]
+             },
+             out
+    end
+
+    test "a JSON-array receipt refuses :not_a_map", %{dir: dir} do
+      {descriptor_path, descriptor} = descriptor_file!(dir)
+      array = Jason.encode!([sealed_xaas_receipt(descriptor["bridge"])])
+
+      {json, out} = xaas_receipt_refusal!(dir, descriptor_path, array)
+
+      assert json == %{"status" => "refused", "reason" => ["receipt_refused", "not_a_map"]}, out
+    end
+  end
+
+  describe "Descriptor.receipt_from_xaas/2 (every refusal honours the @spec shape)" do
+    test "digest and shape refusals are {:error, {:receipt_refused, reason}}", %{dir: dir} do
+      {descriptor_path, descriptor} = descriptor_file!(dir)
+      bridge = descriptor["bridge"]
+      sealed = sealed_xaas_receipt(bridge)
+
+      assert {:ok, %{"target" => "ALIVE"}} = Descriptor.receipt_from_xaas(sealed, bridge)
+
+      assert {:error, {:receipt_refused, :receipt_digest_mismatch}} =
+               Descriptor.receipt_from_xaas(Map.put(sealed, "outcome", "partial"), bridge)
+
+      assert {:error, {:receipt_refused, :invalid_receipt_digest}} =
+               Descriptor.receipt_from_xaas(Map.delete(sealed, "receipt_digest"), bridge)
+
+      assert {:error, {:receipt_refused, :invalid_receipt_digest}} =
+               Descriptor.receipt_from_xaas(Map.put(sealed, "receipt_digest", "md5:x"), bridge)
+
+      assert {:error, {:receipt_refused, :not_a_map}} =
+               Descriptor.receipt_from_xaas([sealed], bridge)
+
+      assert {:error, {:receipt_refused, :not_a_map}} =
+               Descriptor.receipt_from_xaas(sealed, [bridge])
+
+      tampered_path = Path.join(dir, "tampered.json")
+      File.write!(tampered_path, Jason.encode!(Map.put(sealed, "head_verified", false)))
+
+      assert {1,
+              %{"status" => "refused", "reason" => ["receipt_refused", "receipt_digest_mismatch"]}} =
+               Cli.xaas_receipt(bridge: descriptor_path, xaas_receipt: tampered_path)
+    end
+  end
+
   describe "reconcile/1 (refusals leave the ledger untouched)" do
     test "a receipt for a foreign definition refuses and appends nothing", %{dir: dir} do
       ledger = Path.join(dir, "standing-ledger.ndjson")

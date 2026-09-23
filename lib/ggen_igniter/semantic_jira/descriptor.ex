@@ -276,7 +276,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
     end
   end
 
-  def receipt_from_xaas(_, _), do: refuse(:not_a_map)
+  def receipt_from_xaas(_, _), do: receipt_refuse(:not_a_map)
 
   @doc "Digest a XaaS exporter must place in `\"receipt_digest\"`."
   @spec receipt_digest(map()) :: String.t()
@@ -548,10 +548,10 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
     cond do
       not (is_binary(receipt["receipt_digest"]) and
                Regex.match?(@digest, receipt["receipt_digest"])) ->
-        refuse(:invalid_receipt_digest)
+        receipt_refuse(:invalid_receipt_digest)
 
       receipt_digest(receipt) != receipt["receipt_digest"] ->
-        refuse(:receipt_digest_mismatch)
+        receipt_refuse(:receipt_digest_mismatch)
 
       true ->
         :ok
