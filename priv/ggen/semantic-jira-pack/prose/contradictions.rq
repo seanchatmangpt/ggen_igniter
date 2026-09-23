@@ -1,0 +1,19 @@
+# Domain admission rule (PR-003 "contradictions", ARD section 5.4): a statement
+# that is both an Exclusion and a required Postcondition of the same gate is a
+# prohibited contradiction. Statements compare after whitespace collapsing,
+# trimming, dropping a final period and lower-casing. Each row is
+# REFUSED(contradiction) naming both propositions.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT ?gate ?exclusion ?postcondition WHERE {
+  ?exclusion a sj:Proposition ;
+             sj:propositionKind "Exclusion" ;
+             sj:requiredBy ?gate ;
+             sj:statement ?excluded .
+  ?postcondition a sj:Proposition ;
+                 sj:propositionKind "Postcondition" ;
+                 sj:requiredBy ?gate ;
+                 sj:statement ?required .
+  BIND(LCASE(REPLACE(REPLACE(?excluded, "\\s+", " "), "^ +| *\\.? *$", "")) AS ?excludedKey)
+  BIND(LCASE(REPLACE(REPLACE(?required, "\\s+", " "), "^ +| *\\.? *$", "")) AS ?requiredKey)
+  FILTER(?excludedKey = ?requiredKey)
+}

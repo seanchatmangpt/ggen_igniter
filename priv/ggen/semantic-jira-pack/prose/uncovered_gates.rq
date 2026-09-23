@@ -1,0 +1,15 @@
+# Coverage (PR-003, ARD section 5.4, lane V23-C): every gate of the goal (a
+# GoalCheckpoint whose sj:checkpointOf is the root) must be required by at
+# least one admitted proposition. Each row is one uncovered gate:
+# REFUSED(uncovered_gate). ?root is bound by the orchestrator (BIND at the
+# head of the WHERE group).
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT ?gate WHERE {
+  ?gate a sj:GoalCheckpoint ;
+        sj:checkpointOf ?root .
+  OPTIONAL {
+    ?proposition a sj:Proposition ;
+                 sj:requiredBy ?gate .
+  }
+  FILTER(!BOUND(?proposition))
+}

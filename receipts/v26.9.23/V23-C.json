@@ -1,0 +1,297 @@
+{
+  "work_order": {
+    "id": "V23-C",
+    "wave": "B1 (wf_1848cfc0-c6e)",
+    "gates": "GC23-0 admission, GC23-2 first-mile compiler, GC23-3 shapes court (ggen_igniter half)",
+    "title": "Admit the V23-X prose candidates through SHACL and domain rules, manufacture the deterministic finite WorkOrder delta, and provide the GC23-3 goal shapes court",
+    "contract_refs": [
+      "PR-002",
+      "PR-003",
+      "PR-004",
+      "PR-005",
+      "PR-015",
+      "AR-003",
+      "ARD section 5.2",
+      "ARD section 5.3",
+      "ARD section 5.4",
+      "ARD section 5.5",
+      "ARD section 6",
+      "ARD section 17",
+      "ARD section 26 F1",
+      "PRD section 6.5",
+      "PRD section 12 GC23-0/2/3",
+      "DRIVER.md PVOCAB"
+    ],
+    "acceptance": "mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test test/ggen_igniter_semantic_jira_prose_test.exs test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+    "task_items": {
+      "vocabulary": "priv/ggen/semantic-jira-pack/ontology.ttl: sj:Proposition, sj:propositionKind, sj:statement, sj:sourceDocument, sj:sourceSha256, sj:sourceStart, sj:sourceEnd, sj:sourceText, sj:requiredBy, sj:candidateStanding, sj:extractedBy (+ sj:admissionDigest, sj:requiredProposition, sj:successorCheckpoint, ledger row sj:ledger-unsupported-003)",
+      "shapes": "priv/ggen/semantic-jira-pack/shapes/proposition.shacl.ttl sj:PropositionShape (closed; kind pattern = ARD 5.2 list; exactly one statement/sourceDocument/sourceSha256/sourceStart/sourceEnd/sourceText/boundaryClass/extractedBy; boundaryClass sh:class sj:BoundaryClass (the five); 0 <= start < end; candidateStanding XOR admissionDigest; hint typing incl. canonical capabilityId regex; sj:exclusion 0..n)",
+      "rules": "priv/ggen/semantic-jira-pack/prose/{root,foreign_requirements,contradictions,uncovered_gates}.rq and prose/delta.construct.rq (the PR-004 delta as one SPARQL CONSTRUCT)",
+      "orchestrator": "lib/ggen_igniter/semantic_jira/prose.ex (GgenIgniter.SemanticJira.Prose.compile/1, check/2, write!/2, admit_goal/1) and lib/mix/tasks/semantic_jira.compile_prose.ex",
+      "tests": "test/ggen_igniter_semantic_jira_prose_test.exs (22 tests) over test/fixtures/semantic-jira-prose/"
+    }
+  },
+  "identity": {
+    "subject": "V23-C",
+    "repo": "/Users/sac/ggen_igniter",
+    "worktree": "/Users/sac/wt/v26922/v23/V23-C",
+    "branch": "v23/V23-C",
+    "base_ref": "friday/gc-fri-0800",
+    "subject_sha": "eb1c624211d0e4876e7f5d414cab0d87f29e3e88",
+    "base_sha": "52798a00a7c36314ba6bb65249626ea50f6763a3",
+    "base_sha_note": "merge-base with friday/gc-fri-0800 = 52798a0 (friday/gc-fri-0800 unchanged at receipt time; git merge-tree --write-tree friday/gc-fri-0800 v23/V23-C exit 0)",
+    "graph_hash": "sha256:45296a20f4ffd2ef99db7a3698122d7191dcb86580599c6b7ca7a01d4b16f402",
+    "graph_hash_of": "priv/ggen/semantic-jira-pack/ontology.ttl bytes at subject_sha",
+    "proposition_shapes_sha256": "b237f8782dbca7198d9f7b0f149586d7021031015621bf06cea22872cc1212c0",
+    "delta_query_sha256": "42a794cdcdef883847f6868a445b50fd177024e1ad1bba4cd5b9067ebb6f3a76",
+    "work_order": "v23:WO-V23-C",
+    "tuple_digest": "sha256:007031d1b404fe3952e106c69b8d8156528829d3e2687b9eafaa5da9f858d873",
+    "tuple_digest_witnesses": [
+      "DRIVER.md tuple-digest table for V23-C at xaas-int c18ecd3 (goal.ttl unchanged)",
+      "independent recompute in the lane: python3 rdflib over xaas-int c18ecd3 docs/sjira/v26.9.23/goal.ttl, canonical JSON {subject, postcondition, capability (sj:capabilityId), evidence_ceiling, authority_ceiling, consequence_class, exclusions sorted}, sort_keys, compact separators -> sha256:007031d1b404fe3952e106c69b8d8156528829d3e2687b9eafaa5da9f858d873 (equal)"
+    ],
+    "inputs_observed": {
+      "xaas_int_head": "c18ecd3f415834d47be78402ff64b7908b392b18",
+      "prose": "docs/sjira/v26.9.23/prd-ard.md sha256:7c8797b2bc9130fc4c8fce9138cc8140cb704e0633715807398451c660658212",
+      "candidates": "docs/sjira/v26.9.23/candidates/prd-ard.ttl sha256:0a3a2a7f397e4feeb427690d761149de8ce110cb202ea0610828528d706fb57b (V23-X, merged)",
+      "goal": "docs/sjira/v26.9.23/goal.ttl sha256:9858c187e7204b4444f1f15c621f482460b41dac51ffa8553575f43fbef709a3 (V23-P, merged)"
+    }
+  },
+  "authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "NONE",
+    "actor": "claude-opus-5-5 subagent, workflow wave B1 lane V23-C (local commits on v23/V23-C only; no push, no merge into friday/gc-fri-0800 or ggen_igniter-int; xaas-int read-only: files read, nothing written or compiled there)"
+  },
+  "consequence": {
+    "commits": [
+      "06372cd3369bf8cf76ee73f1dc142778e3de9015",
+      "eb1c624211d0e4876e7f5d414cab0d87f29e3e88"
+    ],
+    "commits_note": "06372cd = vocabulary, shapes, prose rules, Prose.compile/1, CLI, fixture, tests (including the blank-node-safe subject handling and its test); eb1c624 = Prose.admit_goal/1 + --admit-goal (GC23-3 shapes court) + 3 goal tests + 1 CLI assertion. The eb1c624 commit message also lists 'blank-node-safe admission' as its own bullet: that work landed in 06372cd (git show 06372cd contains Enum.sort_by(&term/1) and the blank-node test; eb1c624's diff does not) -- the message is O, the diffs are the record. The commit adding this receipt is its own child and cannot name itself.",
+    "files_changed": [
+      "priv/ggen/semantic-jira-pack/ontology.ttl",
+      "priv/ggen/semantic-jira-pack/shapes/proposition.shacl.ttl",
+      "priv/ggen/semantic-jira-pack/prose/root.rq",
+      "priv/ggen/semantic-jira-pack/prose/foreign_requirements.rq",
+      "priv/ggen/semantic-jira-pack/prose/contradictions.rq",
+      "priv/ggen/semantic-jira-pack/prose/uncovered_gates.rq",
+      "priv/ggen/semantic-jira-pack/prose/delta.construct.rq",
+      "lib/ggen_igniter/semantic_jira/prose.ex",
+      "lib/mix/tasks/semantic_jira.compile_prose.ex",
+      "test/ggen_igniter_semantic_jira_prose_test.exs",
+      "test/fixtures/semantic-jira-prose/prose.md",
+      "test/fixtures/semantic-jira-prose/extract.json",
+      "test/fixtures/semantic-jira-prose/candidates.ttl",
+      "test/fixtures/semantic-jira-prose/goal.ttl",
+      "test/fixtures/semantic-jira-prose/README.md",
+      "HANDWRITTEN.md",
+      "receipts/v26.9.23/V23-C.json"
+    ],
+    "path_scope_deviation": "HANDWRITTEN.md is outside v23:WO-V23-C sj:pathScope; edited because the lane doctrine requires a HANDWRITTEN.md row for hand-written residue (one row appended, no other byte changed)",
+    "generated_vs_handwritten": {
+      "pack_data": "ontology/shape/rule files are canonical pack data (source, not projections)",
+      "generated": "test/fixtures/semantic-jira-prose/candidates.ttl emitted by xaas scripts/sjira/prose_spans.py emit (blob 55123e1e36452dcd525340f9009affc70fa46831) from extract.json",
+      "handwritten": "prose.ex, semantic_jira.compile_prose.ex, the prose test and fixture prose/extract/goal: UNSUPPORTED(generator-capability) ledger row HANDWRITTEN.md + sj:ledger-unsupported-003"
+    },
+    "remote_effects": []
+  },
+  "replay": {
+    "subject_sha_at_replay": "eb1c624211d0e4876e7f5d414cab0d87f29e3e88",
+    "durable_location": "receipts/v26.9.23/V23-C.json",
+    "scratch_dir": "/private/tmp/claude-501/v23-scratch/B1-V23-C (lane-private raw outputs, hashed below; no other lane's scratch cited)",
+    "commands": [
+      {
+        "cmd": "git worktree add -b v23/V23-C /Users/sac/wt/v26922/v23/V23-C friday/gc-fri-0800",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "HEAD 52798a0"
+      },
+      {
+        "cmd": "cmp mix.lock /Users/sac/wt/v26922/fri/ggen_igniter-int/mix.lock && cp -cR <int>/deps ./deps && cp -cR <int>/_build ./_build",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "mix.lock identical; APFS clones of deps/_build"
+      },
+      {
+        "cmd": "MIX_ENV=test mix test test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "PRE-EXISTING baseline at 52798a0 before any edit: 58 tests, 0 failures (114.9s)"
+      },
+      {
+        "cmd": "python3 /Users/sac/wt/v26922/fri/xaas-int/scripts/sjira/prose_spans.py emit --source prose.md --extract extract.json --out candidates.ttl --source-path test/fixtures/semantic-jira-prose/prose.md --extracted-by fixture:hand-authored@V23-C --namespace https://ggen-igniter.dev/sjira/fixture-prose# --prefix fx",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C/test/fixtures/semantic-jira-prose",
+        "exit": 0,
+        "summary": "EMIT: 9 candidates -> candidates.ttl sha256:b2758232b81e78c698c3ce9bb8b37a84dae634ec5876a637df5e0ecf590c3231"
+      },
+      {
+        "cmd": "mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test test/ggen_igniter_semantic_jira_prose_test.exs test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "LANE GATE on committed head eb1c624 (porcelain empty before and after), && semantics; segments below"
+      },
+      {
+        "cmd": "mix format --check-formatted",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "gate segment 1 at eb1c624: exit 0; output only the mix :preferred_cli_env deprecation notice",
+        "output_sha256": "021af2067f739bc652a92b28c6c03fefd316e644ad91a87addb0d041f82aa857"
+      },
+      {
+        "cmd": "mix compile --warnings-as-errors --force",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "gate segment 2 at eb1c624: exit 0; full recompile incl. ggen_graph_nif crate, Generated ggen_igniter app",
+        "output_sha256": "01f7093d5a843a7e6755f6b83363249738d77b2a30e8f9474d9d75417eb29eed"
+      },
+      {
+        "cmd": "mix credo",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "gate segment 3 at eb1c624: Checking 301 source files; 2469 mods/funs, found no issues (output includes a wall-clock 'Analysis took' line)",
+        "output_sha256": "3f5644807a83c89fcc65413c3938e16422f3ddd73b7d196459aa4d918ce5d52d"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_semantic_jira_prose_test.exs test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "gate segment 4 at eb1c624: 80 tests, 0 failures (22 prose + 58 pre-existing shacl/goal-checkpoint); Finished in 162.9 seconds",
+        "output_sha256": "07701c69c0ba202ff6e0d185e06bebe8906942e326221454fcc2f81f67d81ad5"
+      },
+      {
+        "cmd": "mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test test/ggen_igniter_semantic_jira_prose_test.exs test/ggen_igniter_semantic_jira_shacl_test.exs test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "same lane gate earlier on committed head 06372cd: format 0, compile --force 0, credo 0 (2466 mods/funs, no issues), 77 tests 0 failures (243.4s)",
+        "output_sha256": "e7ed89add001f466cf417eb88d81dfa56449e614220effe4ad209e7ac2568859"
+      },
+      {
+        "cmd": "! grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps -E '(use|import) +(Mox|Mimic|Patch)\\b|(Mox|Mimic|Patch)\\.|:meck\\.|mockall|MagicMock|Mock\\(' test lib native",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "negative check (inner command exit 1; the '!' form exits 0 exactly when the refusal/kill is observed): Chicago mock grep at eb1c624: zero matches (exit 1 = clean)"
+      },
+      {
+        "cmd": "MIX_ENV=test mix test <10 adjacent pack-dependent suites: semantic_jira_{pack,pack_health,descriptor,kernel_differential,reconciler,autonomics_crown}, semantic_a2a_{pack,dispatch,manufacture}, doctor_task>",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "148 tests, 0 failures (675.3s) on the working tree before commit 06372cd whose pack files (ontology, shapes, prose/*.rq) are byte-identical to the subject; prose.ex differed only by the blank-node-safe edits, which those suites do not load. Side effect: the kernel_differential suite regenerated receipts/v26.9.22/kernel-differential.json (pack_ontology/shapes sha256 and slice_count 200->290); restored with git checkout -- <file>, not committed",
+        "output_sha256": "9a76c5fc9089cb8e8a97f8cbd94503e15a17bc912aabdaa26e40ab71c919f23c"
+      },
+      {
+        "cmd": "revert-mutation M1: prose.ex span check forced true; ! MIX_ENV=test mix test test/ggen_igniter_semantic_jira_prose_test.exs; git checkout -- lib/ggen_igniter/semantic_jira/prose.ex",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "negative check (inner command exit 2; the '!' form exits 0 exactly when the refusal/kill is observed): KILLED at 06372cd: 19 tests, 2 failures (changed sj:sourceText; shifted offset)",
+        "output_sha256": "9d192b8e3e3442a48ad2ee5ddb88cbae83a3155881aff7e8982803721993c011"
+      },
+      {
+        "cmd": "revert-mutation M2: delete FILTER(!BOUND(?propositionReceipt) && !BOUND(?gateReceipt)) from prose/delta.construct.rq; ! mix test prose test; git checkout -- <file>",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "negative check (inner command exit 2; the '!' form exits 0 exactly when the refusal/kill is observed): KILLED at 06372cd: 19 tests, 2 failures (both receipt-witness tests), each refused REFUSED(delta_nonconservation) by the conservation twin",
+        "output_sha256": "787b1c4d4b1dee121b613f1b823280579759b4690a74efc50a8d7e3c597f745e"
+      },
+      {
+        "cmd": "revert-mutation M3: drop the propositionKind sh:pattern from proposition.shacl.ttl and make contradictions.rq FILTER false; ! mix test prose test; git checkout -- <files>",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "negative check (inner command exit 2; the '!' form exits 0 exactly when the refusal/kill is observed): KILLED at 06372cd: 19 tests, 2 failures (bad kind admitted; contradiction admitted)",
+        "output_sha256": "74955f38358fd34d602758986eb2d13dab625017d98dc4791752904a656c4b64"
+      },
+      {
+        "cmd": "env -i HOME=<fresh mktemp under lane scratch> PATH=/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin:/usr/bin:/bin MIX_HOME=/Users/sac/.mix HEX_HOME=/Users/sac/.hex LANG=en_US.UTF-8 mix semantic_jira.compile_prose --source /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/prd-ard.md --candidates /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/candidates/prd-ard.ttl --goal /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/goal.ttl --receipts-dir /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/receipts --out-dir /private/tmp/claude-501/v23-scratch/B1-V23-C/real-a",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "REAL RUN at eb1c624 under the no-LLM env (0 ANTHROPIC_/CLAUDE_/OPENAI_/ZAI_/Z_AI_/GLM_/ZCODE_ variables, no claude/zcode on PATH): ADMITTED 241 propositions (215 required, 26 not required); all 13 gates GC23-0..12 covered (GC-26.9.23=15 GC23-0=24 GC23-1=7 GC23-10=9 GC23-11=27 GC23-12=6 GC23-2=9 GC23-3=13 GC23-4=16 GC23-5=32 GC23-6=9 GC23-7=13 GC23-8=14 GC23-9=21); uncovered gates: none; DELTA 110 required Postcondition/Invariant/Falsifier, 0 witnessed (0 ALIVE receipts among the 13 xaas gate receipts), 110 WorkOrders; propositions.ttl sha256:00eb6e9e180b7eaacb1cca20a29b47fd862337b88dc7e547d12ec6d2a5023492, orders.ttl sha256:c572d56cb525de7a08a614e8c082c24dc95c1670e5fcd38f1ddfc09083bd8d09",
+        "output_sha256": "1aa6ac00715e2e99c0956f3da0a4003db91a499545bcf936b18c41192268fcd3"
+      },
+      {
+        "cmd": "env -i HOME=<fresh mktemp under lane scratch> PATH=/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin:/usr/bin:/bin MIX_HOME=/Users/sac/.mix HEX_HOME=/Users/sac/.hex LANG=en_US.UTF-8 mix semantic_jira.compile_prose --source /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/prd-ard.md --candidates /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/candidates/prd-ard.ttl --goal /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/goal.ttl --receipts-dir /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/receipts --out-dir /private/tmp/claude-501/v23-scratch/B1-V23-C/real-a --check",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "CHECK: outputs recompute byte-identically",
+        "output_sha256": "d4a20862480f646f4060741047e73e8c29e986eb9622ccc3d9f6c638cd4d98f5"
+      },
+      {
+        "cmd": "env -i HOME=<fresh mktemp under lane scratch> PATH=/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin:/usr/bin:/bin MIX_HOME=/Users/sac/.mix HEX_HOME=/Users/sac/.hex LANG=en_US.UTF-8 mix semantic_jira.compile_prose --source /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/prd-ard.md --candidates /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/candidates/prd-ard.ttl --goal /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/goal.ttl --receipts-dir /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/receipts --out-dir /private/tmp/claude-501/v23-scratch/B1-V23-C/real-b && cmp real-a/*.ttl real-b/*.ttl",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "second independent run: BYTE_IDENTICAL (same two digests; also identical to the MIX_ENV=test run at 06372cd)",
+        "output_sha256": "5a4825fbb0c4085965c9a1518c87fbf4f417be452ceb0dfd98cffe004bc967f7"
+      },
+      {
+        "cmd": "env -i HOME=<fresh mktemp under lane scratch> PATH=/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin:/usr/bin:/bin MIX_HOME=/Users/sac/.mix HEX_HOME=/Users/sac/.hex LANG=en_US.UTF-8 mix semantic_jira.compile_prose --admit-goal --goal /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/goal.ttl --context /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.22/friday/goal.ttl",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "GC23-3 shapes court (ggen_igniter half) at eb1c624: GOAL ADMITTED sha256:9858c187... (919 triples, 15 GoalCheckpoints, 11 WorkOrders)",
+        "output_sha256": "57755d0f36cd7b3dc0594ba2463b9912b57f257407460db6dcd902a571a34e99"
+      },
+      {
+        "cmd": "! env -i HOME=<fresh mktemp under lane scratch> PATH=/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin:/usr/bin:/bin MIX_HOME=/Users/sac/.mix HEX_HOME=/Users/sac/.hex LANG=en_US.UTF-8 mix semantic_jira.compile_prose --admit-goal --goal /private/tmp/claude-501/v23-scratch/B1-V23-C/goal-f1.ttl --context /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.22/friday/goal.ttl",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "negative check (inner command exit 1; the '!' form exits 0 exactly when the refusal/kill is observed): F1 witnessed: goal.ttl copy with v23:WO-V23-C's sj:postcondition line deleted -> REFUSED(goal_inadmissible) v23:WO-V23-C friday_work_order_shape sj:postcondition sparql",
+        "output_sha256": "9920017584f85b043cfcefffb0a689826b15764595e5a2fe2dd2f642af0341b7"
+      },
+      {
+        "cmd": "! env -i HOME=<fresh mktemp under lane scratch> PATH=/opt/homebrew/bin:/Users/sac/.erlmcp/otp-28.3.1/bin:/Users/sac/.cargo/bin:/usr/bin:/bin MIX_HOME=/Users/sac/.mix HEX_HOME=/Users/sac/.hex LANG=en_US.UTF-8 mix semantic_jira.compile_prose --admit-goal --goal /Users/sac/wt/v26922/fri/xaas-int/docs/sjira/v26.9.23/goal.ttl",
+        "cwd": "/Users/sac/wt/v26922/v23/V23-C",
+        "exit": 0,
+        "summary": "negative check (inner command exit 1; the '!' form exits 0 exactly when the refusal/kill is observed): without the predecessor context: REFUSED(goal_inadmissible) v23:GC-26.9.23 sj:successorOf class (fri:GC-FRI-0800 unresolved) -- context graphs are required inputs of the court, not optional",
+        "output_sha256": "a2a08d8d809f0d680675b09f344d1468d18e6fc2a947b120fb4685a57fc41666"
+      },
+      {
+        "cmd": "python3 rdflib tuple-digest recompute of v23:WO-V23-C (see identity.tuple_digest_witnesses)",
+        "cwd": "/Users/sac/wt/v26922/fri/xaas-int",
+        "exit": 0,
+        "summary": "sha256:007031d1b404fe3952e106c69b8d8156528829d3e2687b9eafaa5da9f858d873"
+      }
+    ]
+  },
+  "results": {
+    "real_xaas_admission": {
+      "candidates": 241,
+      "admitted": 241,
+      "required": 215,
+      "not_required": 26,
+      "gates_covered": "13/13",
+      "uncovered_gates": [],
+      "delta_required": 110,
+      "witnessed": 0,
+      "work_orders": 110,
+      "refusals": 0
+    },
+    "fixture": {
+      "admitted": 9,
+      "required": 7,
+      "work_orders": 5
+    },
+    "deterministic_replay": "byte-identical across 3 runs (MIX_ENV=test at 06372cd; dev x2 at eb1c624) and --check",
+    "gc23_3_goal_admission": "xaas goal.ttl + friday predecessor context conforms (0 violations); F1 mutation refused naming sj:postcondition"
+  },
+  "falsifiers": {
+    "provenance": "one source byte / sourceText / offset / IRI rename / blank-node candidate -> REFUSED(provenance_mismatch) naming the IRI (tests)",
+    "admission": "kind outside ARD 5.2 -> REFUSED(shacl_violation); smuggled non-proposition subject -> REFUSED(foreign_subject); Exclusion restating a required Postcondition of the same gate -> REFUSED(contradiction) with an admitting twin; foreign requirement -> REFUSED(foreign_requirement); uncovered gate -> REFUSED(uncovered_gate) (tests)",
+    "delta": "ALIVE receipt naming a proposition or <root>/<gate> removes exactly those orders; UNKNOWN receipt witnesses nothing; missing receipts dir refused (tests); mutation M2 shows the conservation twin refuses a non-conserving delta",
+    "F1": "dropping any of 14 tuple fields from an emitted order is refused naming the field (tests); same on the real goal.ttl (replay command above)",
+    "determinism": "second run byte-identical; --check refuses a one-byte drift with REFUSED(output_drift) (tests + real run)"
+  },
+  "llm_edges": "none executed. The only LLM edge is candidate extraction upstream (xaas V23-X, recorded there as sj:extractedBy llm:claude-opus-5-5@wave-B0/V23-X); this lane's product path (admission, delta, goal court) ran under env -i with no LLM variables and no claude/zcode binary.",
+  "gate_standing": {
+    "GC23-0": "UNKNOWN: machinery (compile_prose admission) landed in ggen_igniter at eb1c624, but the xaas court script docs/sjira/v26.9.23/courts/GC23-0.sh still ends in the V23-P UNKNOWN tail; its body is lane V23-K's (ggen_igniter lanes do not edit xaas); gate standing comes only from mix xaas.stop_court",
+    "GC23-2": "UNKNOWN: same; court body for V23-K (suggested: cd $GGEN_IGNITER_DIR && mix semantic_jira.compile_prose ... --out-dir <tmp> twice + --check under the no-LLM env)",
+    "GC23-3": "UNKNOWN: same; court body for V23-K (suggested: mix semantic_jira.compile_prose --admit-goal --goal $XAAS_DIR/docs/sjira/v26.9.23/goal.ttl --context $XAAS_DIR/docs/sjira/v26.9.22/friday/goal.ttl, plus an F1 deleted-field copy that must exit 1)",
+    "dependency": "the courts' GGEN_IGNITER_DIR default /Users/sac/wt/v26922/fri/ggen_igniter-int reaches this machinery only after v23/V23-C is integrated into friday/gc-fri-0800 (Integrate stage, not this lane)"
+  },
+  "open_edges": [
+    "V23-K: replace GC23-0/2/3 court script bodies in xaas to call this machinery",
+    "Integrate: merge v23/V23-C into friday/gc-fri-0800 (clean: merge-tree exit 0 against 52798a0)",
+    "receipts/v26.9.22/kernel-differential.json records pack_ontology/shapes digests that were already stale at base for shapes (68ca0399.. vs current 42572fa3..) and are now stale for the ontology too; regenerating it belongs to its owning lane (not committed here)",
+    "orders.ttl pathScope is the literal 'unassigned' until a capability/provider is admitted for each manufactured order (construct:unassigned capability typed sj:standing UNKNOWN)"
+  ],
+  "standing": {
+    "value": "ALIVE",
+    "derived_from": "lane gate (format 0, compile --warnings-as-errors --force 0, credo 0 / no issues, 80 tests 0 failures) observed on committed subject eb1c624211d0e4876e7f5d414cab0d87f29e3e88 with porcelain empty; real compile of the V23-X candidates against the V23-P goal (241 admitted, 13/13 gates covered, 110 WorkOrders) and the GC23-3 goal admission + F1 refusal observed at the same subject under the no-LLM env; revert mutations M1..M3 killed at 06372cd. Scope: this lane's ggen_igniter deliverable. The GC23-0/2/3 gate standings are UNKNOWN until their xaas court bodies (V23-K) run under mix xaas.stop_court."
+  }
+}
