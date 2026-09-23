@@ -1,4 +1,5 @@
 {
+  "superseded_by": {"receipt": "receipts/v26.9.23/V23-T1R.json", "reason": "Friday court round 2 GATE lens refuted this receipt's replay evidence (R_missing_identity): the mix credo entry (294 files, 2004 mods/funs, output_sha256 bd637382...) was quoted from a shared scratch file of another tree; V23-T1R reran every replay command on the same subject 0337a6a with lane-private outputs (credo: 298 files, 2364 mods/funs, no issues). This receipt is kept unchanged as history apart from this key."},
   "work_order": {
     "id": "FRI-T1",
     "gate": "G4 Finite work graph (GC-FRI-0800)",
