@@ -1,0 +1,12 @@
+# Fleet registry read for `mix semantic_jira.observe --fleet`: one row per
+# sj:ObservedRepository with its local path. Runs against the registry graph
+# (e.g. /Users/sac/wt/v26922/fleet.ttl), not the canonical pack ontology, so it
+# lives beside runtime-templates/ rather than among the admission gates/.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+
+SELECT ?repository ?path
+WHERE {
+  ?repository a sj:ObservedRepository ;
+              sj:repositoryPath ?path .
+}
+ORDER BY ?path

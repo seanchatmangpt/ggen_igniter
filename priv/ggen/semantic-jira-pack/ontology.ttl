@@ -2019,3 +2019,99 @@ sj:a2a-attr-task-id a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2
 sj:a2a-attr-standing a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "standing" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired true .
 sj:a2a-attr-replay-identity a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "replay_identity" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired false .
 sj:a2a-attr-receipt-digest a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-target ; a2a:attributeName "receipt_digest" ; a2a:attributeType "string" ; a2a:isPublic true ; a2a:isRequired false .
+
+# ── Fleet observation (GGEN_IGNITER-26922-15): PROV-O over git/gh probes ────
+# Prior art reused, not re-invented: W3C PROV-O carries the activity/entity
+# shape (prov:Activity, prov:Entity, prov:used, prov:wasGeneratedBy,
+# prov:wasAssociatedWith, prov:endedAtTime) and dcterms:isPartOf nests the
+# per-repository activity under the fleet activity. The sj: terms below add
+# only what PROV-O does not carry: which repository, which exact SHA, and the
+# git/gh fact observed at that SHA. Emitted by `mix semantic_jira.observe
+# --fleet` through runtime-templates/fleet_observation.ttl.eex; the fleet
+# registry is read through runtime-queries/fleet_repositories.rq.
+@prefix prov: <http://www.w3.org/ns/prov#> .
+
+sj:ObservedRepository a rdfs:Class ;
+    rdfs:label "Observed repository" ;
+    rdfs:comment "Fleet registry entry: one git repository the fleet observation probes, located by sj:repositoryPath." .
+sj:FleetObservation a rdfs:Class ; rdfs:subClassOf prov:Activity ; rdfs:label "Fleet observation" .
+sj:RepositoryObservation a rdfs:Class ; rdfs:subClassOf prov:Activity ; rdfs:label "Repository observation" .
+sj:GitObservation a rdfs:Class ; rdfs:subClassOf prov:Entity ;
+    rdfs:label "SHA-bound observation" ;
+    rdfs:comment "Every instance carries exactly one sj:observedSha: the 40-hex object the fact was read at." .
+sj:RefObservation a rdfs:Class ; rdfs:subClassOf sj:GitObservation ; rdfs:label "Ref observation" .
+sj:RemoteRefDelta a rdfs:Class ; rdfs:subClassOf sj:GitObservation ; rdfs:label "ls-remote delta" .
+sj:WorktreeObservation a rdfs:Class ; rdfs:subClassOf sj:GitObservation ; rdfs:label "Worktree observation" .
+sj:StashObservation a rdfs:Class ; rdfs:subClassOf sj:GitObservation ; rdfs:label "Stash observation" .
+sj:PullRequestObservation a rdfs:Class ; rdfs:subClassOf sj:GitObservation ; rdfs:label "Open pull request observation" .
+sj:DefaultBranchCiObservation a rdfs:Class ; rdfs:subClassOf sj:GitObservation ; rdfs:label "Default-branch CI observation" .
+sj:ProbeOutcome a rdfs:Class ; rdfs:subClassOf sj:GitObservation ;
+    rdfs:label "Probe outcome" ;
+    rdfs:comment "A probe that could not observe (UNSUPPORTED or BLOCKED), bound to the repository HEAD it was attempted at." .
+
+sj:repositoryPath a rdf:Property ; rdfs:range xsd:string .
+sj:observedRepository a rdf:Property ; rdfs:domain sj:RepositoryObservation .
+sj:observedSha a rdf:Property ; rdfs:range xsd:string .
+sj:observationStatus a rdf:Property ; rdfs:range xsd:string .
+sj:refName a rdf:Property ; rdfs:range xsd:string .
+sj:upstreamRef a rdf:Property ; rdfs:range xsd:string .
+sj:aheadCount a rdf:Property ; rdfs:range xsd:integer .
+sj:behindCount a rdf:Property ; rdfs:range xsd:integer .
+sj:unpushed a rdf:Property ; rdfs:range xsd:boolean .
+sj:fastForwardable a rdf:Property ; rdfs:range xsd:boolean .
+sj:upstreamGone a rdf:Property ; rdfs:range xsd:boolean .
+sj:remoteName a rdf:Property ; rdfs:range xsd:string .
+sj:remoteSha a rdf:Property ; rdfs:range xsd:string .
+sj:trackingSha a rdf:Property ; rdfs:range xsd:string .
+sj:deltaKind a rdf:Property ; rdfs:range xsd:string .
+sj:worktreePath a rdf:Property ; rdfs:range xsd:string .
+sj:branchName a rdf:Property ; rdfs:range xsd:string .
+sj:dirty a rdf:Property ; rdfs:range xsd:boolean .
+sj:dirtyEntryCount a rdf:Property ; rdfs:range xsd:integer .
+sj:stashRef a rdf:Property ; rdfs:range xsd:string .
+sj:stashSubject a rdf:Property ; rdfs:range xsd:string .
+sj:pullRequestNumber a rdf:Property ; rdfs:range xsd:integer .
+sj:headRefName a rdf:Property ; rdfs:range xsd:string .
+sj:baseRefName a rdf:Property ; rdfs:range xsd:string .
+sj:checksConclusion a rdf:Property ; rdfs:range xsd:string .
+sj:checkCount a rdf:Property ; rdfs:range xsd:integer .
+sj:defaultBranch a rdf:Property ; rdfs:range xsd:string .
+sj:ciConclusion a rdf:Property ; rdfs:range xsd:string .
+sj:probe a rdf:Property ; rdfs:range xsd:string .
+sj:probeOutcome a rdf:Property ; rdfs:range xsd:string .
+sj:probeDetail a rdf:Property ; rdfs:range xsd:string .
+
+# ── Declared capabilities (conservation input, GGEN_IGNITER-26922-18) ──────
+# A capability is declared here and witnessed by its sj:witnessPath files
+# existing at a subject SHA plus its sj:witnessCommand passing there. A
+# transition whose HEAD loses a declared+witnessed capability without an
+# sj:Retirement receipt is what the conservation court refuses.
+sj:Capability a rdfs:Class ;
+    rdfs:label "Declared capability" ;
+    rdfs:comment "A capability this pack declares; witnessed by sj:witnessPath presence and sj:witnessCommand at an exact subject SHA." .
+sj:capabilityEntryPoint a rdf:Property ; rdfs:range xsd:string .
+sj:witnessPath a rdf:Property ; rdfs:range xsd:string .
+sj:witnessCommand a rdf:Property ; rdfs:range xsd:string .
+sj:realizesWorkOrder a rdf:Property ; rdfs:range xsd:string .
+
+sj:capability-fleet-observe a sj:Capability ;
+    dcterms:identifier "CAP-SJ-FLEET-OBSERVE" ;
+    rdfs:label "Fleet observation as PROV-O" ;
+    dcterms:description "mix semantic_jira.observe --fleet reads a registry of sj:ObservedRepository paths and emits one PROV-O sj:RepositoryObservation per repository (refs with ahead/behind, ls-remote delta, worktrees with dirty state, stashes, open PRs with check rollup, CI conclusion at the default-branch SHA), every entity bound to the SHA it observed. Read-only: git --no-optional-locks, ls-remote, gh GET." ;
+    sj:capabilityEntryPoint "mix semantic_jira.observe --fleet REGISTRY.ttl --out OBS.ttl" ;
+    sj:witnessPath "lib/mix/tasks/semantic_jira.observe.ex",
+        "lib/ggen_igniter/semantic_jira/fleet_observation.ex",
+        "priv/ggen/semantic-jira-pack/runtime-queries/fleet_repositories.rq",
+        "priv/ggen/semantic-jira-pack/runtime-templates/fleet_observation.ttl.eex",
+        "test/ggen_igniter_semantic_jira_fleet_observe_test.exs" ;
+    sj:witnessCommand "mix test test/ggen_igniter_semantic_jira_fleet_observe_test.exs" ;
+    sj:realizesWorkOrder "GGEN_IGNITER-26922-15" .
+
+# Ledger entry: HANDWRITTEN.md (repo root). The Turtle shape is a pack
+# template and the registry read is a pack query; the git/gh probe calls and
+# their parsing are hand-written residue.
+sj:ledger-unsupported-002 a rdfs:Resource ;
+    rdfs:label "UNSUPPORTED(semantic-jira-pack, fleet-probe)" ;
+    dcterms:description "UNSUPPORTED(generator-capability): no admitted pack or generator expresses subprocess probes (git for-each-ref/ls-remote/worktree list/status/stash list, gh pr list/api) or the parsing of their output, so lib/ggen_igniter/semantic_jira/fleet_observation.ex (probe + parse only; the Turtle shape is runtime-templates/fleet_observation.ttl.eex and the registry read is runtime-queries/fleet_repositories.rq) and its Chicago test are admitted hand-authored residue. Paydown plan: a probe-pack whose ontology declares each probe (argv, parse grammar, emitted sj: term) and whose template manufactures the probe module; when admitted, this row and its HANDWRITTEN.md entries retire." ;
+    dcterms:date "2026-09-22"^^xsd:date ;
+    dcterms:references sj:capability-fleet-observe .
