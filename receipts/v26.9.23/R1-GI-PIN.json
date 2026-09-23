@@ -1,0 +1,198 @@
+{
+ "work_order": {
+  "id": "R1-GI-PIN",
+  "wave": "R1a (wf_7a7c7064-905, lanes/wave-R1a.json)",
+  "goal_ttl_order": "none (release defect repair lane; no goal.ttl WorkOrder)",
+  "defect": "Required_23 (GC23-11 exact-head qualification): the release qualification of ggen_igniter passed only under the ambient Elixir 1.19.5 / OTP 28.3.1, not under the repo's .tool-versions pin (elixir 1.18.4-otp-27, erlang 27.2.4) that CI uses",
+  "defect_evidence": "/Users/sac/wt/v26922/v26923/receipts/fleet/ggen_igniter-3937a4f89ecf2b7fa12068406377c05ec1a1b8fc.json toolchain (Elixir 1.19.5, OTP 28.3.1); /Users/sac/wt/v26922/v26923/receipts/fleet/xaas-e999e62b63c680517b9a562cef877d8b09b0cfdd.json (F3/F4 = pinned-formatter drift in bootstrap.ex, repaired by R1-GI-FMT 8b9dcfb, merged 3ed6a7a)",
+  "failure_classification": "no failure under the pin at the subject: the pinned full gate (format, forced warnings-as-errors compile, credo, full mix test) exits 0 at 3ed6a7a; the only pin-visible defect (F3/F4, subject defect) was already repaired by R1-GI-FMT; nothing to fix in this lane",
+  "contract_refs": [
+   "PRD section 12 GC23-11 (Bounded Fleet: exact-subject standing)",
+   "PRD PR-013 (Replay)",
+   "PRD PR-017 (Stop calculus)",
+   "ARD section 20 (Failure Semantics: BUILD_BROKEN(toolchain))",
+   "ARD section 25 (Verification Ladder: multi-repo exact-head qualification)",
+   "ARD section 27 (Release Receipt: toolchain identity)",
+   "DRIVER.md release closure procedure (frozen subjects; only the named defect may change)"
+  ],
+  "acceptance": "lane gate: PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH sh -c 'elixir --version && mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test'"
+ },
+ "identity": {
+  "subject": "R1-GI-PIN",
+  "repo": "/Users/sac/ggen_igniter (origin seanchatmangpt/ggen_igniter)",
+  "worktree": "/Users/sac/wt/v26922/v23/R1-GI-PIN",
+  "branch": "v23/R1-GI-PIN",
+  "base_ref": "friday/gc-fri-0800",
+  "subject_sha": "3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8",
+  "base_sha": "3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8",
+  "base_sha_note": "merge-base(v23/R1-GI-PIN, friday/gc-fri-0800) = 3ed6a7a = friday/gc-fri-0800 head after R1-GI-FMT merged (= ggen_igniter-int HEAD at lane start). The lane changes no product file, so subject_sha = base_sha: the judged subject is the int head itself; lane commits add only receipts/v26.9.23/R1-GI-PIN*",
+  "subject_tree_clean": "git status --porcelain empty before step 1 and after restoring the test-written report",
+  "lane_head_gate": "pending (second commit records the literal gate on the committed lane head)"
+ },
+ "authority": {
+  "ceiling": "CONSTRUCT",
+  "grant": "NONE beyond DRIVER.md authority (operator release sequence, release defect repair lane R1-GI-PIN): lane worktree + own scratch only; no push, no PR, no merge into ggen_igniter-int",
+  "actor": "claude-opus-5-5 workflow subagent, lane R1-GI-PIN (wave R1a)"
+ },
+ "consequence": {
+  "commits": [],
+  "files_changed": [
+   "receipts/v26.9.23/R1-GI-PIN.json",
+   "receipts/v26.9.23/R1-GI-PIN.logs/00-deps-compile-dev.log",
+   "receipts/v26.9.23/R1-GI-PIN.logs/01-format-3ed6a7a.log",
+   "receipts/v26.9.23/R1-GI-PIN.logs/02-compile-3ed6a7a.log",
+   "receipts/v26.9.23/R1-GI-PIN.logs/03-credo-3ed6a7a.log",
+   "receipts/v26.9.23/R1-GI-PIN.logs/04-test-3ed6a7a.log",
+   "receipts/v26.9.23/R1-GI-PIN.logs/04a-deps-compile-test.log",
+   "receipts/v26.9.23/R1-GI-PIN.logs/04b-compile-test.log",
+   "receipts/v26.9.23/R1-GI-PIN.logs/05-build-identity.log",
+   "receipts/v26.9.23/R1-GI-PIN.logs/06-falsifier-format-3937a4f.log",
+   "receipts/v26.9.23/R1-GI-PIN.logs/build_receipt.py",
+   "receipts/v26.9.23/R1-GI-PIN.logs/post-test.tracked.diff",
+   "receipts/v26.9.23/R1-GI-PIN.logs/step.sh",
+   "receipts/v26.9.23/R1-GI-PIN.logs/steplog.py"
+  ],
+  "generated_vs_handwritten": "no product file changed; the receipt JSON is emitted by build_receipt.py from the step logs; no HANDWRITTEN.md row needed",
+  "remote_effects": [],
+  "local_effects": [
+   "/Users/sac/wt/v26922/v23/R1-GI-PIN/deps: APFS clone (cp -cR) of /Users/sac/wt/v26922/fri/ggen_igniter-int/deps (mix.lock cmp-identical)",
+   "/Users/sac/wt/v26922/v23/R1-GI-PIN/native/ggen_graph_nif/target: APFS clone of ggen_igniter-int's cargo target; the local crate ggen_graph_nif was rebuilt by Rustler under the pin (path changed) and copied to priv/native/ggen_graph_nif.so (sha256 87d284a2..., differs from int's 31494569...)",
+   "/Users/sac/wt/v26922/v23/R1-GI-PIN/_build/dev and _build/test: fresh, compiled under the pin (compiler 8.5.5 = OTP 27; 05-build-identity.log)",
+   "scratch /private/tmp/claude-501/v23-scratch/R1a-R1-GI-PIN: detached falsifier worktree gi-3937a4f created and removed",
+   "receipts/v26.9.22/kernel-differential.json rewritten by the test run, captured to post-test.tracked.diff, then git restore"
+  ]
+ },
+ "replay": {
+  "durable_location": "receipts/v26.9.23/R1-GI-PIN.logs (tracked in git on branch v23/R1-GI-PIN)",
+  "step_runner": "receipts/v26.9.23/R1-GI-PIN.logs/step.sh (sets the pin PATH, records cwd/head/timestamps/exit into each log)",
+  "builder": "receipts/v26.9.23/R1-GI-PIN.logs/build_receipt.py",
+  "commands": [
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH sh -c 'elixir --version && mix format --check-formatted'",
+    "cwd": "/Users/sac/wt/v26922/v23/R1-GI-PIN",
+    "exit": 0,
+    "summary": "step 1/4 of the lane gate at the subject: Elixir 1.18.4 (compiled with Erlang/OTP 27); format check exit 0 [head 3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8; 2026-09-23T21:22:44Z -> 2026-09-23T21:22:45Z]",
+    "output_sha256": "aff2ecf1c6632e88f728928602c0ad354748fc7b5d837f5221c7d7a34209bebe",
+    "log": "receipts/v26.9.23/R1-GI-PIN.logs/01-format-3ed6a7a.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH mix deps.compile",
+    "cwd": "/Users/sac/wt/v26922/v23/R1-GI-PIN",
+    "exit": 0,
+    "summary": "fresh _build/dev (no _build existed in the worktree; deps/ source APFS-cloned from ggen_igniter-int, mix.lock cmp-identical): all deps compiled under the pin [head 3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8; 2026-09-23T21:22:50Z -> 2026-09-23T21:26:13Z]",
+    "output_sha256": "a6cf76757069e2ec35c8e6d16674ee0affb04217619540c1f00467dd0f0fb492",
+    "log": "receipts/v26.9.23/R1-GI-PIN.logs/00-deps-compile-dev.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH mix compile --warnings-as-errors --force",
+    "cwd": "/Users/sac/wt/v26922/v23/R1-GI-PIN",
+    "exit": 0,
+    "summary": "step 2/4: Compiling crate ggen_graph_nif in release mode (native/ggen_graph_nif); Generated ggen_igniter app; no warnings [head 3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8; 2026-09-23T21:26:21Z -> 2026-09-23T21:26:40Z]",
+    "output_sha256": "d12b704ee649ae8c4379d0d07f015b0841aa65d442e6d402347c88338c88f795",
+    "log": "receipts/v26.9.23/R1-GI-PIN.logs/02-compile-3ed6a7a.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH mix credo",
+    "cwd": "/Users/sac/wt/v26922/v23/R1-GI-PIN",
+    "exit": 0,
+    "summary": "step 3/4: 2945 mods/funs, found no issues. [head 3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8; 2026-09-23T21:26:48Z -> 2026-09-23T21:26:51Z]",
+    "output_sha256": "49dd5673f83472662972f7532445ecc45ea048bbb909d5f1ea3d6b86023c1b1b",
+    "log": "receipts/v26.9.23/R1-GI-PIN.logs/03-credo-3ed6a7a.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_ENV=test mix deps.compile",
+    "cwd": "/Users/sac/wt/v26922/v23/R1-GI-PIN",
+    "exit": 0,
+    "summary": "fresh _build/test deps compiled under the pin (separate command to keep each < 20 min) [head 3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8; 2026-09-23T21:26:55Z -> 2026-09-23T21:30:29Z]",
+    "output_sha256": "b7993aae10aabe412bff3193f92de2ae056e35f4cdd0e69936c49e04b1ab734a",
+    "log": "receipts/v26.9.23/R1-GI-PIN.logs/04a-deps-compile-test.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_ENV=test mix compile --warnings-as-errors",
+    "cwd": "/Users/sac/wt/v26922/v23/R1-GI-PIN",
+    "exit": 0,
+    "summary": "test-env project compile under the pin (NIF copied from the rebuilt crate); Generated ggen_igniter app [head 3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8; 2026-09-23T21:30:32Z -> 2026-09-23T21:30:40Z]",
+    "output_sha256": "5beff9718ad05028017ed1680cd63c82f58ebfd5607621c21bda08baed2eee3c",
+    "log": "receipts/v26.9.23/R1-GI-PIN.logs/04b-compile-test.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH mix test",
+    "cwd": "/Users/sac/wt/v26922/v23/R1-GI-PIN",
+    "exit": 0,
+    "summary": "step 4/4 FULL SUITE under the pin: Finished in 2830.2 seconds (27.9s async, 2802.3s sync); 20 doctests, 42 properties, 1349 tests, 0 failures, 9 excluded, 1 skipped [head 3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8; 2026-09-23T21:30:43Z -> 2026-09-23T22:17:57Z]",
+    "output_sha256": "eab483e7c19cbc4f9352695febeccfa7296b8887780ac0c25a6b0451cee9b623",
+    "log": "receipts/v26.9.23/R1-GI-PIN.logs/04-test-3ed6a7a.log"
+   }
+  ]
+ },
+ "falsifiers": [
+  {
+   "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH sh -c 'elixir --version && mix format --check-formatted'",
+   "cwd": "/private/tmp/claude-501/v23-scratch/R1a-R1-GI-PIN/gi-3937a4f",
+   "exit": 1,
+   "summary": "ANTI-VACUITY: the same pinned gate step 1 at the pre-repair frozen subject 3937a4f89ecf2b7fa12068406377c05ec1a1b8fc (detached scratch worktree, deps APFS-cloned) exits 1: lib/ggen_igniter/semantic_jira/bootstrap.ex not formatted under 1.18.4 -- the pinned gate refuses the subject the ambient qualification admitted [head 3937a4f89ecf2b7fa12068406377c05ec1a1b8fc; 2026-09-23T22:18:58Z -> 2026-09-23T22:19:00Z]",
+   "output_sha256": "f2a7bff028f9967d0f5c4397d6aef713a133fef387890e55fce1bef3a6670909",
+   "log": "receipts/v26.9.23/R1-GI-PIN.logs/06-falsifier-format-3937a4f.log",
+   "role": "anti-vacuity: killed",
+   "verdict": "killed"
+  }
+ ],
+ "observations": [
+  {
+   "kind": "test_writes_tracked_file",
+   "classification": "pre-existing (successor; not fixed here per the lane task)",
+   "path": "receipts/v26.9.22/kernel-differential.json",
+   "writer": "test/ggen_igniter_semantic_jira_kernel_differential_test.exs (@report_path, File.write!)",
+   "finding": "the pinned run rewrote only sha256 fields (shapes_sha256 / pack_ontology sha256) and slice_count 200 -> 290, the same class the ambient release qualification observed; restored with git restore after the run",
+   "evidence": "receipts/v26.9.23/R1-GI-PIN.logs/post-test.tracked.diff",
+   "diff_sha256": "3368a60a5a2aecb841ef8d5532df6951624887ceb75522db05e4089d197ab7aa",
+   "standing_effect": "none"
+  },
+  {
+   "kind": "test_count_reconciliation",
+   "finding": "pinned ExUnit 1.18.4 reports '20 doctests, 42 properties, 1349 tests, 0 failures, 9 excluded, 1 skipped'; ambient ExUnit 1.19.5 reported '20 doctests, 42 properties, 1340 tests, 0 failures, 1 skipped (9 excluded)' at 3937a4f: 1.18 counts excluded tests in the total (1349 - 9 = 1340), same suite",
+   "standing_effect": "none"
+  },
+  {
+   "kind": "test_stderr_noise",
+   "classification": "pre-existing",
+   "finding": "'fatal: unable to read tree (17e2923d...)' lines from a git subprocess inside a test and expected [warning] lines from failure-injection tests; no test failed",
+   "standing_effect": "none"
+  },
+  {
+   "kind": "host_contention",
+   "classification": "environment",
+   "finding": "mix test wall time: Finished in 2830.2 seconds (27.9s async, 2802.3s sync) under load averages ~40-100 from concurrent lanes; run as a background command to a log, never a blocking > 20 min call",
+   "standing_effect": "none"
+  }
+ ],
+ "toolchain": {
+  "pin_source": ".tool-versions: elixir 1.18.4-otp-27, erlang 27.2.4",
+  "elixir": "Elixir 1.18.4 (compiled with Erlang/OTP 27)",
+  "elixir_bin": "/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin/elixir",
+  "erl_bin": "/Users/sac/.asdf/installs/erlang/27.2.4/bin/erl",
+  "otp_release": "27",
+  "otp_version": "27.2.4",
+  "erts": "15.2.2",
+  "compiler_app": "8.5.5",
+  "build_identity_log": "receipts/v26.9.23/R1-GI-PIN.logs/05-build-identity.log",
+  "build_identity_sha256": "b94d46ff405e0a6ac0cd8b5e7177db2d04cf7dfaab208e01b63514c493b30985",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "nif_note": "ggen_graph_nif: rustler 0.36.2 selects the NIF API by cargo feature (rustler build.rs CARGO_FEATURE_NIF_VERSION_*), not by the running ERTS; rebuilt under the pin anyway. wasmex 0.15.1 precompiled NIF nif-2.15 from the rustler_precompiled cache (OTP-independent)",
+  "tool_versions_pin_used": true,
+  "mix_lock_sha256": "8fab32ffd8bd712698743b89048f164ea7ef10c02ed37fcae3289aa852e59966"
+ },
+ "findings": [
+  {
+   "id": "R1-GI-PIN-1",
+   "statement": "ggen_igniter friday/gc-fri-0800 at 3ed6a7a passes the full CI gate under its .tool-versions pin with a fresh OTP-27 _build",
+   "classification": "none needed (no failure)",
+   "consequence_for_GC23-11": "ggen_igniter exact-subject standing under the CI toolchain is observed, not inferred from the ambient toolchain"
+  }
+ ],
+ "standing": {
+  "value": "ALIVE",
+  "derived_from": "replay.commands at subject 3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8 under the .tool-versions pin (Elixir 1.18.4-otp-27 / Erlang 27.2.4, fresh OTP-27 _build, NIF rebuilt): format 0, compile --warnings-as-errors --force 0, credo 0, mix test 0 (20 doctests, 42 properties, 1349 tests, 0 failures, 9 excluded, 1 skipped); tracked tree clean before the run and after restoring the one test-written report (pre-existing, observations[0])"
+ }
+}

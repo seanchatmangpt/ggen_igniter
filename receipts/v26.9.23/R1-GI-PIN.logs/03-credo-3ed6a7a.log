@@ -1,0 +1,11 @@
+# cwd=/Users/sac/wt/v26922/v23/R1-GI-PIN head=3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8 started=2026-09-23T21:26:48Z
+# cmd=mix credo
+Checking 323 source files (this might take a while) ...
+
+Please report incorrect results: https://github.com/rrrene/credo/issues
+
+Analysis took 1.8 seconds (0.3s to load, 1.4s running 57 checks on 323 files)
+2945 mods/funs, found no issues.
+
+Showing priority issues: ↑ ↗ →  (use `mix credo explain` to explain issues, `mix credo --help` for options).
+# ended=2026-09-23T21:26:51Z exit=0
