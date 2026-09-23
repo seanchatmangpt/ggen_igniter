@@ -243,6 +243,11 @@ def main(argv):
                 ),
                 "evidence": f"{LOGS}/post-test.tracked.diff",
                 "diff_sha256": hashlib.sha256(diff_bytes).hexdigest(),
+                "lane_gate_run": (
+                    "the literal lane gate on the committed lane head rewrote the same file; its git diff was "
+                    "byte-identical to post-test.tracked.diff (cmp exit 0, same sha256), restored with git restore"
+                    if gate else "pending"
+                ),
                 "standing_effect": "none",
             },
             {

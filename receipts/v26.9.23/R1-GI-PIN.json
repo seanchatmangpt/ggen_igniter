@@ -27,7 +27,7 @@
   "base_sha": "3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8",
   "base_sha_note": "merge-base(v23/R1-GI-PIN, friday/gc-fri-0800) = 3ed6a7a = friday/gc-fri-0800 head after R1-GI-FMT merged (= ggen_igniter-int HEAD at lane start). The lane changes no product file, so subject_sha = base_sha: the judged subject is the int head itself; lane commits add only receipts/v26.9.23/R1-GI-PIN*",
   "subject_tree_clean": "git status --porcelain empty before step 1 and after restoring the test-written report",
-  "lane_head_gate": "pending (second commit records the literal gate on the committed lane head)"
+  "lane_head_gate": "7e8bfa3b4c664b7b09bd5d75ddfca491d2adb4d6"
  },
  "authority": {
   "ceiling": "CONSTRUCT",
@@ -35,7 +35,9 @@
   "actor": "claude-opus-5-5 workflow subagent, lane R1-GI-PIN (wave R1a)"
  },
  "consequence": {
-  "commits": [],
+  "commits": [
+   "7e8bfa3b4c664b7b09bd5d75ddfca491d2adb4d6"
+  ],
   "files_changed": [
    "receipts/v26.9.23/R1-GI-PIN.json",
    "receipts/v26.9.23/R1-GI-PIN.logs/00-deps-compile-dev.log",
@@ -47,6 +49,7 @@
    "receipts/v26.9.23/R1-GI-PIN.logs/04b-compile-test.log",
    "receipts/v26.9.23/R1-GI-PIN.logs/05-build-identity.log",
    "receipts/v26.9.23/R1-GI-PIN.logs/06-falsifier-format-3937a4f.log",
+   "receipts/v26.9.23/R1-GI-PIN.logs/10-lane-gate-7e8bfa3.log",
    "receipts/v26.9.23/R1-GI-PIN.logs/build_receipt.py",
    "receipts/v26.9.23/R1-GI-PIN.logs/post-test.tracked.diff",
    "receipts/v26.9.23/R1-GI-PIN.logs/step.sh",
@@ -67,6 +70,15 @@
   "step_runner": "receipts/v26.9.23/R1-GI-PIN.logs/step.sh (sets the pin PATH, records cwd/head/timestamps/exit into each log)",
   "builder": "receipts/v26.9.23/R1-GI-PIN.logs/build_receipt.py",
   "commands": [
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH sh -c 'elixir --version && mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test'",
+    "cwd": "/Users/sac/wt/v26922/v23/R1-GI-PIN",
+    "exit": 0,
+    "summary": "LANE GATE (literal) on the committed lane head 7e8bfa3b4c664b7b09bd5d75ddfca491d2adb4d6 (= subject 3ed6a7a + receipts/v26.9.23/R1-GI-PIN* only): Elixir 1.18.4 (OTP 27); format, forced compile, credo, Finished in 3011.3 seconds (56.7s async, 2954.6s sync); 20 doctests, 42 properties, 1349 tests, 0 failures, 9 excluded, 1 skipped [head 7e8bfa3b4c664b7b09bd5d75ddfca491d2adb4d6; 2026-09-23T22:20:25Z -> 2026-09-23T23:11:01Z]",
+    "output_sha256": "82ee0ce0ba7c62a61144032727f305fb7e06dd970fae212ccb1ded5f9d5b4fc4",
+    "log": "receipts/v26.9.23/R1-GI-PIN.logs/10-lane-gate-7e8bfa3.log",
+    "role": "lane gate on committed head"
+   },
    {
     "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH sh -c 'elixir --version && mix format --check-formatted'",
     "cwd": "/Users/sac/wt/v26922/v23/R1-GI-PIN",
@@ -146,6 +158,7 @@
    "finding": "the pinned run rewrote only sha256 fields (shapes_sha256 / pack_ontology sha256) and slice_count 200 -> 290, the same class the ambient release qualification observed; restored with git restore after the run",
    "evidence": "receipts/v26.9.23/R1-GI-PIN.logs/post-test.tracked.diff",
    "diff_sha256": "3368a60a5a2aecb841ef8d5532df6951624887ceb75522db05e4089d197ab7aa",
+   "lane_gate_run": "the literal lane gate on the committed lane head rewrote the same file; its git diff was byte-identical to post-test.tracked.diff (cmp exit 0, same sha256), restored with git restore",
    "standing_effect": "none"
   },
   {
@@ -193,6 +206,6 @@
  ],
  "standing": {
   "value": "ALIVE",
-  "derived_from": "replay.commands at subject 3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8 under the .tool-versions pin (Elixir 1.18.4-otp-27 / Erlang 27.2.4, fresh OTP-27 _build, NIF rebuilt): format 0, compile --warnings-as-errors --force 0, credo 0, mix test 0 (20 doctests, 42 properties, 1349 tests, 0 failures, 9 excluded, 1 skipped); tracked tree clean before the run and after restoring the one test-written report (pre-existing, observations[0])"
+  "derived_from": "replay.commands at subject 3ed6a7afc51fcfc652cfa72f75680d7fa1543bc8 under the .tool-versions pin (Elixir 1.18.4-otp-27 / Erlang 27.2.4, fresh OTP-27 _build, NIF rebuilt): format 0, compile --warnings-as-errors --force 0, credo 0, mix test 0 (20 doctests, 42 properties, 1349 tests, 0 failures, 9 excluded, 1 skipped); tracked tree clean before the run and after restoring the one test-written report (pre-existing, observations[0]); literal lane gate on committed lane head 7e8bfa3b4c664b7b09bd5d75ddfca491d2adb4d6 exit 0 (20 doctests, 42 properties, 1349 tests, 0 failures, 9 excluded, 1 skipped)"
  }
 }
