@@ -22,22 +22,30 @@ defmodule GgenIgniter.SemanticJira do
 
   @projection_types ~w(jira wbpr prd ard vision fond hddl sa2a a2a_agent_card worker verification executive machine receipt replay)
 
-  @semantic_fields ~w(subject repository base_sha candidate_sha dependencies acceptance falsifiers authority_requirement evidence_ceiling promotion_rule required_courts required_evidence required_receipt_classes projections expected_consequence path_scope)
+  # origin law: both fields are semantic; semantic_diff/2 covers them.
+  @semantic_fields ~w(subject repository base_sha candidate_sha dependencies acceptance falsifiers authority_requirement evidence_ceiling promotion_rule required_courts required_evidence required_receipt_classes projections expected_consequence path_scope origin_authority origin_observation)
 
-  @required ~w(identity title description subject repository base_sha standing evidence_ceiling promotion_rule replay_identity required_courts required_evidence acceptance falsifiers projections)
+  @required ~w(identity title description subject repository base_sha standing evidence_ceiling promotion_rule replay_identity required_courts required_evidence acceptance falsifiers projections origin_authority)
   # The closed definition take (event-sourced standing law, v26.9.19 —
   # restored by WO-03): exactly the identity scalars, subject binding,
-  # ceilings/law, required relations, and bounded scope. EXCLUDES standing,
-  # candidate_sha, dimensions, and every derived digest, so public
-  # dual-assertion carry (oslc_cm/prov facts) is blind to the digest.
+  # ceilings/law, required relations, and bounded scope, plus the origin
+  # binding — origin_authority names the admitted authority node the
+  # definition was manufactured from; replacing the origin moves the
+  # definition digest. EXCLUDES standing, candidate_sha, origin_observation,
+  # dimensions, and every derived digest, so public dual-assertion carry
+  # (oslc_cm/prov facts) is blind to the digest.
   @definition_fields ~w(identity title description subject repository base_sha
     evidence_ceiling authority_requirement promotion_rule replay_identity
     dependencies required_courts required_evidence required_receipt_classes
-    acceptance falsifiers projections path_scope)
+    acceptance falsifiers projections path_scope origin_authority)
 
   @sha ~r/\A[0-9a-f]{40}\z/
   @digest ~r/\Asha256:[0-9a-f]{64}\z/
   @repo ~r/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/
+  # Absolute-IRI check: RFC 3986 scheme prefix plus a non-empty,
+  # whitespace-free rest — an origin authority is an IRI string, never a
+  # bare local name.
+  @iri ~r/\A[A-Za-z][A-Za-z0-9+.-]*:\S+\z/
 
   @type json_map :: %{optional(String.t()) => term()}
   @type refusal :: {:error, term()}
@@ -99,10 +107,13 @@ defmodule GgenIgniter.SemanticJira do
          :ok <- dependencies(Map.get(work_order, "dependencies", [])),
          :ok <- projection_types(Map.get(work_order, "projections", [])),
          :ok <- receipt_classes(Map.get(work_order, "required_receipt_classes", [])),
-         :ok <- path_scope(Map.get(work_order, "path_scope", [])) do
+         :ok <- path_scope(Map.get(work_order, "path_scope", [])),
+         :ok <- origin_authority(work_order["origin_authority"]),
+         :ok <- optional_origin_observation(work_order["origin_observation"]) do
       normalized =
         work_order
         |> Map.put_new("candidate_sha", nil)
+        |> Map.put_new("origin_observation", nil)
         |> Map.put_new("dependencies", [])
         |> Map.put_new("required_receipt_classes", [])
         |> Map.put_new("path_scope", [])
@@ -1261,6 +1272,24 @@ defmodule GgenIgniter.SemanticJira do
 
   defp optional_sha(_, nil), do: :ok
   defp optional_sha(field, value), do: sha(field, value)
+
+  defp origin_authority(value) when is_binary(value) do
+    if Regex.match?(@iri, value),
+      do: :ok,
+      else: {:error, {:invalid_origin_authority, value}}
+  end
+
+  defp origin_authority(value), do: {:error, {:invalid_origin_authority, value}}
+
+  defp optional_origin_observation(nil), do: :ok
+
+  defp optional_origin_observation(value) when is_binary(value) do
+    if Regex.match?(@iri, value),
+      do: :ok,
+      else: {:error, {:invalid_origin_observation, value}}
+  end
+
+  defp optional_origin_observation(value), do: {:error, {:invalid_origin_observation, value}}
 
   defp standing(value) when value in @standings, do: :ok
 

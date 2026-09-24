@@ -161,12 +161,15 @@ defmodule GgenIgniter.SemanticJira.KernelDifferential do
   end
 
   @doc """
-  The shared vocabulary individuals (`sj:EvidenceRequirement` and
-  `sj:ProjectionSpec` nodes) copied verbatim from the pack ontology.
+  The shared vocabulary individuals (`sj:EvidenceRequirement`,
+  `sj:ProjectionSpec` and `sj:StrategicObjective` nodes) copied verbatim from
+  the pack ontology. Authorities are imported, never re-declared here: an
+  order's `sj:originAuthority` resolves to the admitted objective with its
+  real `sj:admissionDigest`, exactly as the canonical graph carries it.
   """
   @spec vocabulary(RDF.Graph.t()) :: RDF.Graph.t()
   def vocabulary(%RDF.Graph{} = pack_ontology) do
-    classes = [sj("EvidenceRequirement"), sj("ProjectionSpec")]
+    classes = [sj("EvidenceRequirement"), sj("ProjectionSpec"), sj("StrategicObjective")]
 
     pack_ontology
     |> RDF.Graph.descriptions()
@@ -206,6 +209,15 @@ defmodule GgenIgniter.SemanticJira.KernelDifferential do
     repository =
       case Map.get(repo_identity, "repository") do
         slug when is_binary(slug) -> [{wo, sj("repository"), RDF.literal(slug)}]
+        _ -> []
+      end
+
+    # SJ-002: the order names its admitted origin authority; the authority
+    # node itself arrives through vocabulary/1 (imported from the pack
+    # ontology), so the witness digest is always the canonical one.
+    origin =
+      case Map.get(order, "origin_authority") do
+        authority when is_binary(authority) -> [{wo, sj("originAuthority"), RDF.iri(authority)}]
         _ -> []
       end
 
@@ -249,7 +261,7 @@ defmodule GgenIgniter.SemanticJira.KernelDifferential do
       {action, rdfs("label"), RDF.literal("Run the #{id} court")},
       {checkpoint, RDF.type(), sj("Checkpoint")},
       {checkpoint, rdfs("label"), RDF.literal("#{id} checkpoint")}
-    ] ++ repository ++ base_sha ++ edges
+    ] ++ repository ++ base_sha ++ origin ++ edges
   end
 
   @doc "The IRI a work-order id projects to."
