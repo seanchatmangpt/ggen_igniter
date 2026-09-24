@@ -1,5 +1,28 @@
 # Changelog
 
+## v26.9.23
+
+- **Semantic manufacturing reference loop (GC-26.9.23)** — merged to `main`
+  via PR #28 (`fe92e61`, 2026-09-24): the semantic Jira first mile —
+  `mix semantic_jira.bootstrap` (cold bootstrap from durable artifacts only,
+  GC23-1), `mix semantic_jira.compile_prose` with the `--admit-goal` shapes
+  court (GC23-0/GC23-2), GALL-002 receipt workflow, ADR-009/010/011, and a
+  HANDWRITTEN ledger refresh.
+- **Task suite**: the full `semantic_jira.*` task set (observe, court_map,
+  descriptor, frontier, reconcile, xaas_receipt landed 2026-09-22;
+  bootstrap, compile_prose on this release) — see
+  `docs/reference/cli/index.md` for the inventory.
+
+## v26.9.22
+
+- **One-kernel differential admission probe** (GGEN_IGNITER-26922-19,
+  integrated by merge `92b17af`, 2026-09-22):
+  `GgenIgniter.SemanticJira.KernelDifferential` — differential admission of
+  the v26.9.22 work graph through `GgenIgniter.SemanticJira.Shacl` and
+  `praxis_graphlaw.wasm` (via wasmex), with per-order, mutation and
+  calibration verdicts in `receipts/v26.9.22/kernel-differential.json`.
+  Standing PARTIAL_ALIVE at `43ae4dd`.
+
 ## v26.9.20
 
 - **Version bump** `26.9.15` -> `26.9.20` (`mix.exs` version and docs
