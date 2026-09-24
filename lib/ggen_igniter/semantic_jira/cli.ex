@@ -6,6 +6,9 @@ defmodule GgenIgniter.SemanticJira.Cli do
   Returns `{exit_code, json_map}`: `0` success, `1` typed refusal, `2` invalid
   invocation (missing option, unreadable or non-JSON input). The Mix tasks only
   parse flags and print/exit.
+
+  `observe` requires `--origin-authority` (INVARIANT A): its absence is a
+  typed refusal at exit 1, not invalid invocation.
   """
 
   alias GgenIgniter.SemanticJira.{CourtMap, Descriptor, Observation, Reconciler, TransitionLog}
@@ -121,7 +124,13 @@ defmodule GgenIgniter.SemanticJira.Cli do
          {:ok, base} <- json_file(opts, :base_work_order),
          {:ok, repair} <- optional_json(opts, :repair) do
       observe_opts =
-        [ontology_path: opts[:ontology], identity: opts[:identity], repair: repair]
+        [
+          ontology_path: opts[:ontology],
+          identity: opts[:identity],
+          origin_authority: opts[:origin_authority],
+          origin_observation: opts[:origin_observation],
+          repair: repair
+        ]
         |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 
       case Observation.candidate(finding, base, observe_opts) do

@@ -36,7 +36,8 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Graph do
   @sj "https://ggen-igniter.dev/ontology/semantic-jira#"
   @tuple_scalars ~w(subject postcondition capability evidence_ceiling authority_ceiling consequence_class)
   @kernel_scalars ~w(identity title description subject repository base_sha candidate_sha
-    evidence_ceiling authority_requirement promotion_rule replay_identity)
+    evidence_ceiling authority_requirement promotion_rule replay_identity
+    origin_authority origin_observation)
   @kernel_lists ~w(required_courts required_evidence required_receipt_classes acceptance
     falsifiers projections path_scope)
 

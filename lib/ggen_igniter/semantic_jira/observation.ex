@@ -5,6 +5,7 @@ defmodule GgenIgniter.SemanticJira.Observation do
 
       finding  --process_finding/1-->  finding
       finding + base WorkOrder  -->  candidate WorkOrder  --admit_work_order/1-->  admitted
+      declared origin  --Authority.verify_origin/3-->  :ok | {:refused_origin, _}
       candidate node + canonical graph  --SHACL-->  conformance
 
   The kernel's `process_finding/1` (and, when `opts[:repair]` is given,
@@ -14,16 +15,21 @@ defmodule GgenIgniter.SemanticJira.Observation do
   observation-specific acceptance criterion, falsifier, next action and
   checkpoint. No new ontology terms are introduced.
 
-  Admission is the real SHACL court (`GgenIgniter.SemanticJira.Shacl`) run over
-  the canonical graph (`opts[:ontology_path]`, default the pack ontology) plus
+  Admission is two fences (INVARIANT A). The observation is authority-bound:
+  `opts[:origin_authority]` is required, and `Authority.verify_origin/3` must
+  admit it against the canonical ontology before the candidate graph merges.
+  Then the real SHACL court (`GgenIgniter.SemanticJira.Shacl`) runs over the
+  canonical graph (`opts[:ontology_path]`, default the pack ontology) plus
   the candidate's triples, so global constraints such as identifier and replay
   identity uniqueness are enforced against the existing work graph. The
+  frontier is unchanged by this module either way. The
   candidate is returned with its Turtle so the caller can append it to the
   canonical graph through BRCE; this module writes nothing.
   """
 
   alias GgenIgniter.Ontology
   alias GgenIgniter.SemanticJira
+  alias GgenIgniter.SemanticJira.Authority
   alias GgenIgniter.SemanticJira.Shacl
 
   @sj "https://ggen-igniter.dev/ontology/semantic-jira#"
@@ -31,18 +37,33 @@ defmodule GgenIgniter.SemanticJira.Observation do
   @default_ceiling "CONSTRUCT"
 
   @doc """
-  Options: `:ontology_path`, `:shapes_path`, `:identity`, `:title`, `:base_sha`,
-  `:authority_ceiling` (default `"CONSTRUCT"`), `:repair` (attrs for
-  `SemanticJira.repair_work_order/2`).
+  Options: `:origin_authority` (REQUIRED — INVARIANT A), `:origin_observation`
+  (optional), `:ontology_path`, `:shapes_path`, `:identity`, `:title`,
+  `:base_sha`, `:authority_ceiling` (default `"CONSTRUCT"`), `:repair` (attrs
+  for `SemanticJira.repair_work_order/2`).
+
+  `:origin_authority` is the IRI of the canonical authority this observation
+  is bound to. It is checked before any kernel work: a missing or empty value
+  is a typed refusal and the kernel never runs. `:origin_observation` defaults
+  to the stable `...#obs-<digest12>-finding` identity for the observed
+  finding.
 
   Returns `{:ok, %{"work_order", "finding", "repair", "turtle", "shacl"}}` or
-  `{:error, {:observation_refused, reason}}`.
+  `{:error, {:observation_refused, reason}}` with reason, among others:
+
+    * `{:missing_origin_authority, msg}` — no `:origin_authority` opt was
+      given (refused before any kernel work)
+    * `{:origin_not_admitted, reason}` — `Authority.verify_origin/3` refused
+      the declared origin against the canonical ontology
+    * `{:shacl_violations, violations}` — the merged graph does not conform
+      to the pack shapes
   """
   @spec candidate(map(), map(), keyword()) ::
           {:ok, map()} | {:error, {:observation_refused, term()}}
   def candidate(finding_attrs, base_work_order, opts \\ [])
       when is_map(finding_attrs) and is_map(base_work_order) do
-    with {:ok, finding} <- wrap(:finding, SemanticJira.process_finding(finding_attrs)),
+    with :ok <- require_origin_authority(opts),
+         {:ok, finding} <- wrap(:finding, SemanticJira.process_finding(finding_attrs)),
          {:ok, base} <- wrap(:base_work_order, SemanticJira.admit_work_order(base_work_order)),
          {:ok, repair} <- repair(base, opts),
          ids = ids(finding, opts),
@@ -52,7 +73,7 @@ defmodule GgenIgniter.SemanticJira.Observation do
              SemanticJira.admit_work_order(work_order(finding, base, repair, ids, opts))
            ),
          turtle = turtle(admitted, ids, opts),
-         {:ok, report} <- shacl(turtle, opts) do
+         {:ok, report} <- shacl(turtle, ids, opts) do
       {:ok,
        %{
          "work_order" => admitted,
@@ -65,6 +86,22 @@ defmodule GgenIgniter.SemanticJira.Observation do
            "focus_node_count" => report.focus_node_count
          }
        }}
+    end
+  end
+
+  # INVARIANT A, fence 0: an authority-bound observation must declare the
+  # origin it is bound to before any kernel work runs. There is no default.
+  defp require_origin_authority(opts) do
+    case Keyword.get(opts, :origin_authority) do
+      value when is_binary(value) and value != "" ->
+        :ok
+
+      _ ->
+        refuse(
+          {:missing_origin_authority,
+           "candidate/3 requires opts[:origin_authority]: the IRI of the canonical " <>
+             "authority this observation is bound to"}
+        )
     end
   end
 
@@ -103,6 +140,9 @@ defmodule GgenIgniter.SemanticJira.Observation do
       "evidence_ceiling" => base["evidence_ceiling"],
       "promotion_rule" => base["promotion_rule"],
       "replay_identity" => "semantic-jira:observation:" <> ids.hex,
+      "origin_authority" => Keyword.fetch!(opts, :origin_authority),
+      "origin_observation" =>
+        Keyword.get(opts, :origin_observation) || @sj <> ids.node <> "-finding",
       "dependencies" => [],
       "required_courts" => base["required_courts"],
       "required_evidence" => base["required_evidence"],
@@ -146,6 +186,8 @@ defmodule GgenIgniter.SemanticJira.Observation do
         "sj:authorityCeiling #{lit(ceiling)}",
         "sj:promotionRule #{lit(work_order["promotion_rule"])}",
         "sj:replayIdentity #{lit(work_order["replay_identity"])}",
+        "sj:originAuthority #{iri(work_order["origin_authority"])}",
+        "sj:originObservation #{iri(work_order["origin_observation"])}",
         "sj:authorityRequirement #{lit(work_order["authority_requirement"])}",
         "sj:nextAction sj:#{ids.node}-action",
         "sj:nextCheckpoint sj:#{ids.node}-checkpoint"
@@ -239,17 +281,29 @@ defmodule GgenIgniter.SemanticJira.Observation do
 
   # --- SHACL ------------------------------------------------------------------------
 
-  defp shacl(turtle, opts) do
+  defp shacl(turtle, ids, opts) do
     ontology_path = Keyword.get(opts, :ontology_path, @default_ontology)
     shapes_path = Keyword.get(opts, :shapes_path, Shacl.pack_shapes_path())
 
     candidate_graph = RDF.Turtle.read_string!(turtle)
-    graph = RDF.Graph.add(Ontology.load!(ontology_path), candidate_graph)
-    report = Shacl.validate_file(graph, shapes_path)
+    canonical = Ontology.load!(ontology_path)
 
-    if report.conforms,
-      do: {:ok, report},
-      else: refuse({:shacl_violations, Enum.map(report.violations, &violation/1)})
+    # Fence 1 (INVARIANT A): an authority-bound process observation may
+    # manufacture an executable WorkOrder only when the origin it declares is
+    # admitted by the canonical ontology. An unverified origin is a typed
+    # refusal before any SHACL work — the candidate never merges.
+    with :ok <- Authority.verify_origin(candidate_graph, canonical, @sj <> ids.node) do
+      # Fence 2 (INVARIANT A): the merged graph must conform to the pack
+      # shapes; the frontier is unchanged by this observation either way.
+      graph = RDF.Graph.add(canonical, candidate_graph)
+      report = Shacl.validate_file(graph, shapes_path)
+
+      if report.conforms,
+        do: {:ok, report},
+        else: refuse({:shacl_violations, Enum.map(report.violations, &violation/1)})
+    else
+      {:error, {:refused_origin, reason}} -> refuse({:origin_not_admitted, reason})
+    end
   end
 
   defp violation(violation) do

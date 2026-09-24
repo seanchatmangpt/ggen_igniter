@@ -795,6 +795,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
       "iri" => order.iri,
       "source" => order.source,
       "checkpoint" => Map.get(order.fields, "checkpoint_of", []),
+      "origin_authority" => order.kernel["origin_authority"],
       "critical_path" => order.critical_path,
       "successor" => @successor in Map.get(order.fields, "boundary_class", []),
       "repository" => order.kernel["repository"],

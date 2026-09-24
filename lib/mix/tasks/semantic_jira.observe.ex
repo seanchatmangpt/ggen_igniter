@@ -6,7 +6,18 @@ defmodule Mix.Tasks.SemanticJira.Observe do
   the kernel and the SHACL court, or refused with a typed reason.
 
       mix semantic_jira.observe --finding PATH --base-work-order PATH \\
+        --origin-authority IRI [--origin-observation IRI] \\
         [--ontology PATH] [--repair PATH] [--identity ID] [--out PATH]
+
+  `--origin-authority` is REQUIRED for the candidate path (INVARIANT A): the
+  IRI of the canonical authority this observation is bound to, e.g.
+  `https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority`.
+  `Authority.verify_origin/3` checks the declared origin against the canonical
+  ontology before SHACL runs. A missing flag is the typed refusal
+  `{:missing_origin_authority, _}` and an unadmitted origin is
+  `{:origin_not_admitted, _}` — both exit 1, not invalid invocation.
+  `--origin-observation` defaults to the stable `...#obs-<digest12>-finding`
+  identity derived from the finding digest.
 
   `--finding` holds the `process_finding/1` attrs; `--base-work-order` is the
   WorkOrder whose typed courts, evidence, projections, ceilings and path scope
@@ -30,6 +41,8 @@ defmodule Mix.Tasks.SemanticJira.Observe do
         strict: [
           finding: :string,
           base_work_order: :string,
+          origin_authority: :string,
+          origin_observation: :string,
           ontology: :string,
           repair: :string,
           identity: :string,
