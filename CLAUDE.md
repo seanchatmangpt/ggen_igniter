@@ -206,9 +206,14 @@ stray `erl_crash.dump` cannot turn the check red either.
 
 ## Parallel agent protocol
 
-- Use `git worktree` (see the `agent-worktree` skill) to isolate concurrent
-  implementation/verification agents — never point two agents at the same working
-  tree in this repo.
+- **Same-checkout lanes, never worktrees** (operator 2026-09-23 one-canonical-checkout
+  law; fan-out protocol 2026-09-24, see `~/.claude/rules/same-checkout-fanout.md`):
+  concurrent implementation agents are dispatched as LANES with disjoint file
+  ownership mapped in `docs/jira/<milestone>/_LANES.md`, shared seams pinned in
+  `RESOLUTIONS.md` beside it, per-lane `MIX_BUILD_ROOT=_build-lane<N>` build
+  isolation, and every git transition owned by the coordinator. The earlier
+  `git worktree`/`agent-worktree` guidance in this section is retired — worktrees
+  are refused by the topology guard.
 - Fan out authoring/exploration as wide as useful; serialize only the merge/integration
   step — one merge at a time, full gate re-run on `main` after each.
 - Only one autonomous/scheduled loop (ERRC/DMEDI/ultracode/defect-round) may run
