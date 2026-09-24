@@ -71,3 +71,12 @@ R12. Integration (coordinator): substitute computed digests for every
 ## History
 
 - 2026-09-24 | OPEN | branch feat/sjira-origin-authority@390e363 | release-prep committed | wave 1 (10 Explore lane plans) complete; resolutions fixed | wave 2 dispatch next
+
+## Receipt (2026-09-24, SJ-002 complete on branch, unmerged)
+
+- base `main@292e40a` → branch head with commits 390e363 (release-prep, verbatim), 4988ac6 (pack facts), 89f3e5a (kernel), fcb0c95 (edges), dc27242 (prose surgery, BREAKING task rename), 9fed968 (falsifiers+fixtures), 9fb6a3b (docs/ledger/version), 4d3a334 + follow-ups (protocol/gitignore/doc repairs, 9c817d8).
+- Waves: 10 Explore plan lanes → 10 implementation lanes (zero file collisions, per-lane MIX_BUILD_ROOT) → 10 Explore auditors (9 PASS; L10 FAIL → 3 factual doc repairs) → 10 adversarial default-agent courts.
+- Verify ladder (all exit 0): shacl+authority 38/38; prose+observe 33/33; bootstrap+goal_checkpoint+kernel family 129/129 after 33→34/35 calibrations; pack+differential 68/68; full suite 1391 tests (1 failure = topology-guard commit-ordering artifact, green post-commit); doctor all ✔ incl. check 19 (projection.md.eex origin column was the caught hole).
+- Falsifiers attempted: forged-digest end-to-end (A1: kernel presence-only residue recorded — layered defense, no single-path admission), bootstrap cold determinism (A2), descriptor origin-in-definition + authority NONE (A3), observe manufacture-proof incl. hostile candidates (A4), ticket byte-replay 34/34 IDENTICAL (A5), per-law SHACL isolation (A6: benign E3a co-fire recorded), admission atomicity (A7), docs-vs-code (A8: 2 repairs), cross-pack blast radius 14/14 packs exit 0 (A9), restart-stable digests + semantic_diff coverage (A10).
+- Standing: SJ-002 fabric ALIVE on this branch (graph, shapes, kernel, edges, falsifiers); standing stays UNKNOWN→receipt-pending per promotionRule — no promotion claimed without an exact-head court receipt.
+- Operator did NOT write: any line of this change. Every byte was manufactured through the lane protocol; the operator's inputs were the review corrections and the fan-out orders.
