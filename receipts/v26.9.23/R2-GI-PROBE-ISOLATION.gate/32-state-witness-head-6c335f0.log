@@ -1,0 +1,18 @@
+# post-gate state witness at head=6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0
+Elixir 1.18.4 (compiled with Erlang/OTP 27)
+friday/gc-fri-0800=d6a6e5bd8de1da426ddc26130edfa45bbaf24f61 origin/friday/gc-fri-0800=d6a6e5bd8de1da426ddc26130edfa45bbaf24f61 merge-base=d6a6e5bd8de1da426ddc26130edfa45bbaf24f61
+friday/gc-fri-0800 is an ancestor of HEAD (no merge-forward needed)
+orphan_ex4pm_beams=0
+first_stdout_line_plan_help=mix ggen_igniter.plan -- read-only admission preview (no filesystem mutation)
+lib_porcelain=[]
+porcelain=[]
+diff 0fd8095..HEAD outside receipts/v26.9.23/R2-GI-PROBE-ISOLATION*:
+HANDWRITTEN.md
+test/lib/priv/config/mix.exs readers of HANDWRITTEN.md:
+       1
+  (the 1 match is fixture prose, not a reader of ./HANDWRITTEN.md):
+test/fixtures/kernel_differential/v26.9.22/orders.json:71:    "title": "Add a TTL-to-work-order loader and make descriptors a sync projection, closing the UNSUP
+test/fixtures/kernel_differential/v26.9.22/orders.json:1401:    "title": "Merge PR #6 df0e859 (ZOE human surface): keep mix.exs at the HEAD version under versio
+code that opens HANDWRITTEN.md (File.read/Path.join with HANDWRITTEN) in test/ lib/ config/:
+       0
+diff 0fd8095..HEAD over test lib config priv native mix.exs mix.lock .github: []

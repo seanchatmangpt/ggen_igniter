@@ -1,7 +1,7 @@
 {
  "work_order": {
   "id": "R2-GI-PROBE-ISOLATION",
-  "wave": "R2g (R2 pre-freeze CI repair)",
+  "wave": "R2g (R2 pre-freeze CI repair); continued in F1g (after the 2026-09-23 usage-limit halt)",
   "goal_ttl_order": "none (release defect repair lane; no goal.ttl WorkOrder; receipt not tuple-linked)",
   "defect_key": "ggen_igniter-test-orphan-dev-beam",
   "defect": "CI 35925710605 @aa07ee7 (seed 648358): 1349 tests, 1 failure -- test/ggen_igniter_plan_task_test.exs:91 '--help / -h byte-identical' got output starting with 'Generated ggen_igniter app'",
@@ -29,19 +29,22 @@
   "worktree": "/Users/sac/wt/v26922/v23/R2-GI-PROBE-ISOLATION",
   "branch": "v23/R2-GI-PROBE-ISOLATION",
   "base_ref": "friday/gc-fri-0800",
-  "subject_sha": "0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b",
+  "subject_sha": "6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0",
+  "product_commit": "0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b",
+  "subject_sha_note": "subject_sha = the committed lane head the F1g continuation gate ran on (6c335f0); the product commit 0fd8095 (the only test/ change) is its parent; 0fd8095..6c335f0 adds only this lane's receipt JSON, its gate dir and one HANDWRITTEN.md ledger row. The receipt commit that carries this file is a child of 6c335f0 touching only this lane's receipt paths (a commit cannot contain its own hash).",
   "base_sha": "d6a6e5bd8de1da426ddc26130edfa45bbaf24f61",
-  "base_sha_note": "merge-base(v23/R2-GI-PROBE-ISOLATION, friday/gc-fri-0800) = d6a6e5b (= ggen_igniter-int HEAD at lane start). Product diff base..subject: test/ggen_igniter_base_mix_task_end_user_test.exs +13/-1 only; no lib/, priv/, config/, native/, mix.exs, mix.lock, CI or goal.ttl change",
+  "base_sha_note": "merge-base(v23/R2-GI-PROBE-ISOLATION, friday/gc-fri-0800) = d6a6e5b (= ggen_igniter-int HEAD at lane start and still at the F1g continuation; origin/friday/gc-fri-0800 = d6a6e5b after git fetch --no-prune). Product diff base..subject: test/ggen_igniter_base_mix_task_end_user_test.exs +13/-1 only; no lib/, priv/, config/, native/, mix.exs, mix.lock, CI or goal.ttl change",
   "toolchain": "Elixir 1.18.4 (compiled with Erlang/OTP 27), erlang 27.2.4 (.tool-versions pin; /Users/sac/.asdf/installs/elixir/1.18.4-otp-27, /Users/sac/.asdf/installs/erlang/27.2.4); fresh _build/dev and _build/test compiled under the pin"
  },
  "authority": {
   "ceiling": "CONSTRUCT",
   "grant": "DRIVER.md release closure procedure, wave R2 (lane R2-GI-PROBE-ISOLATION): lane worktree + own scratch; push of the lane branch (no force, no PR); no merge into ggen_igniter-int",
-  "actor": "claude-opus-5-5 workflow subagent, lane R2-GI-PROBE-ISOLATION (wave R2g)"
+  "actor": "claude-opus-5-5 workflow subagent, lane R2-GI-PROBE-ISOLATION (wave R2g; F1g continuation)"
  },
  "consequence": {
   "commits": [
-   "0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b"
+   "0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b",
+   "6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0"
   ],
   "files_changed": [
    "test/ggen_igniter_base_mix_task_end_user_test.exs",
@@ -51,16 +54,21 @@
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/01-compile-test.log",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/10-gate-base-d6a6e5b.log",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/11-gate-head-0fd8095.log",
+   "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/12-gate-head-6c335f0.log",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/20-mutant-M1-wrong-env.diff",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/21-gate-mutant-M1.log",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/30-state-witness-head-0fd8095.log",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/31-state-witness-revert-mutation.log",
+   "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/32-state-witness-head-6c335f0.log",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/40-full-suite-648358-0fd8095.log",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/41-post-suite-tracked.diff",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/50-hosted-ci-35945312173.log",
+   "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/51-hosted-ci-35947823222.json",
+   "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/51-hosted-ci-35947823222.log",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/build_receipt.py",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/candidate-r2-gi-probe-isolation.patch",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/commit-fix-msg.txt",
+   "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/hosted-input-6c335f0.json",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/hosted-input.json",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/r2-gi-probe-isolation.sh",
    "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/r2-gi-probe-isolation.sh.sha256"
@@ -68,7 +76,10 @@
   "generated_vs_handwritten": "hand-written residue (not generator-owned: no admitted generator manufactures ExUnit subprocess-test lifecycles); ledger row appended to HANDWRITTEN.md in the receipt commit (UNSUPPORTED(generator-capability), paydown = the preserved temp-Mix-project alternative or a test-harness generator); no test or court reads HANDWRITTEN.md (grep over test/ lib/ priv/ggen), so the subject's gate verdict is unchanged by it; the receipt JSON is emitted by receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/build_receipt.py",
   "remote_effects": [
    "origin refs/heads/v23/R2-GI-PROBE-ISOLATION created at 0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b (no force)",
-   "hosted CI run 35945312173 (ggen_igniter CI, push event) on 0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b"
+   "hosted CI run 35945312173 (ggen_igniter CI, push event) on 0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b: cancelled",
+   "hosted CI run 35947823222 (ggen_igniter CI, push event) on 6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0: cancelled",
+   "origin refs/heads/v23/R2-GI-PROBE-ISOLATION advanced 0fd8095 -> 6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0 (no force, prior session)",
+   "F1g: origin refs/heads/v23/R2-GI-PROBE-ISOLATION fast-forwarded to the receipt commit that carries this file (child of 6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0; no force, no PR); its push run is owed a hosted verdict only after R2-GI-CI's job budget merges"
   ],
   "local_effects": [
    "/Users/sac/wt/v26922/v23/R2-GI-PROBE-ISOLATION/deps: APFS clone of /Users/sac/wt/v26922/fri/ggen_igniter-int/deps (mix.lock cmp-identical)",
@@ -87,6 +98,24 @@
   },
   "builder": "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/build_receipt.py",
   "commands": [
+   {
+    "cmd": "sh /Users/sac/wt/v26922/v26923/lanes/r2/gates/r2-gi-probe-isolation.sh \"$PWD\"",
+    "cwd": "/Users/sac/wt/v26922/v23/R2-GI-PROBE-ISOLATION",
+    "exit": 0,
+    "summary": "F1g CONTINUATION LANE GATE on committed lane head 6c335f0 (gate script sha256 04b87f58eea52792270be4592b9deecdcf76e29d08ca1f3adb4dd1b555312946; friday/gc-fri-0800 = origin/friday/gc-fri-0800 = d6a6e5b = merge-base, so no merge-forward): Elixir 1.18.4 (compiled with Erlang/OTP 27); format ok; credo 1 mods/funs, found no issues; seeds 0/648358/1/2 each '10 tests, 0 failures' (24.4s/24.3s/91.0s/38.6s); lib/ porcelain empty; PROBE_ISOLATION_GATE OK; GATE_EXIT=0",
+    "log": "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/12-gate-head-6c335f0.log",
+    "role": "lane gate on committed head (F1g continuation)",
+    "output_sha256": "ce5473438a21670d5b94052e21f0751b916006d118b675ee96694431269fd4f5"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH sh -c 'git merge-base --is-ancestor friday/gc-fri-0800 HEAD; ls _build/dev/lib/ggen_igniter/ebin | grep -c Ex4pm; mix ggen_igniter.plan --help | head -1; git status --porcelain; git diff --name-only 0fd8095 HEAD; grep -rn HANDWRITTEN test lib config mix.exs'",
+    "cwd": "/Users/sac/wt/v26922/v23/R2-GI-PROBE-ISOLATION",
+    "exit": 0,
+    "summary": "POST-GATE STATE WITNESS at 6c335f0: friday/gc-fri-0800 (d6a6e5b) is an ancestor of HEAD; orphan_ex4pm_beams=0; first stdout line of the next dev-env child is the task's own 'mix ggen_igniter.plan -- read-only admission preview (no filesystem mutation)'; porcelain empty; 0fd8095..HEAD outside this lane's receipt paths = HANDWRITTEN.md only; its only textual mentions under test/ lib/ config/ mix.exs are two titles in test/fixtures/kernel_differential/v26.9.22/orders.json and 0 File reads of HANDWRITTEN.md",
+    "log": "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/32-state-witness-head-6c335f0.log",
+    "role": "witness: state at continuation head",
+    "output_sha256": "e3de61a4d5ab79e4fd814195ab795c18bb970b07f35aab9b015a4cc7657434aa"
+   },
    {
     "cmd": "sh /Users/sac/wt/v26922/v26923/lanes/r2/gates/r2-gi-probe-isolation.sh \"$PWD\"",
     "cwd": "/Users/sac/wt/v26922/v23/R2-GI-PROBE-ISOLATION",
@@ -182,21 +211,56 @@
   }
  ],
  "hosted_ci": {
-  "run_id": 35945312173,
+  "run_id": 35947823222,
   "workflow": "ggen_igniter CI (.github/workflows/ci.yml, push event)",
-  "url": "https://github.com/seanchatmangpt/ggen_igniter/actions/runs/35945312173",
-  "head_sha": "0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b",
+  "url": "https://github.com/seanchatmangpt/ggen_igniter/actions/runs/35947823222",
+  "head_sha": "6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0",
   "status": "completed",
   "conclusion": "cancelled",
   "standing": "UNKNOWN",
   "broken_term": "mu_on_O",
-  "summary": "hosted run on the exact subject 0fd8095: every step before mix test succeeded (format, credo, dev compile, ggen_igniter.verify); mix test started 02:19:50Z (seed 575414, max_cases 8) and was cancelled at 02:29:49Z when the job hit timeout-minutes: 30 (job 01:59:36Z -> 02:29:53Z; no second push on the ref, so not a concurrency cancel); no test failure was printed before the cancel. Not a verdict on this lane: the 30-minute job budget is the defect owned by R2 lane R2-GI-DEPTH-TIMEOUT (candidate r2-gi-depth-timeout.patch, 30 -> 90), not merged into friday/gc-fri-0800 at d6a6e5b; not rerun (an unchanged budget would cancel identically, ARD section 25). Hosted green is owed by the integration head after both lanes merge.",
-  "classification": "pre-existing (CI job budget; lane R2-GI-DEPTH-TIMEOUT)",
-  "log": "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/50-hosted-ci-35945312173.log",
-  "output_sha256": "45cc2f7c2d580ebaa2af163207b1f496ca027bc67f8634bec7cfe36041ce3ba1"
+  "summary": "hosted run on the exact lane head 6c335f0 (push event): every step before mix test succeeded (format, credo 02:34:47Z-02:39:52Z, dev compile 02:39:52Z-02:47:52Z, ggen_igniter.verify); mix test started 02:47:53Z (Running ExUnit seed 920551, max_cases 8 at 02:52:33Z) and was cancelled at 03:04:39Z ('##[error]The operation was canceled.') when the job hit timeout-minutes: 30 (job 02:34:27Z -> 03:04:41Z; no second push on the ref, so not a concurrency cancel); no failed test ('N) test ...' block) and no leading 'Generated ggen_igniter app' in a test assertion were printed before the cancel (the two 'Generated ggen_igniter app' lines are the dev compile step and the test-env compile before ExUnit starts). Not a verdict on this lane: the 30-minute job budget is owned by lane R2-GI-CI (defect_key ggen_igniter-ci-fetch-depth+timeout; swarm aliases R2-GI-DEPTH + R2-GI-TIMEOUT; branch v23/R2-GI-CI, 90-min budget in 363916f), not merged into friday/gc-fri-0800 at d6a6e5b. Hosted green is owed by the integration head after R2-GI-CI merges.",
+  "classification": "pre-existing (CI job budget; lane R2-GI-CI)",
+  "log": "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/51-hosted-ci-35947823222.log",
+  "output_sha256": "5ad6fe172f75e3bb895bde60fd3ca5731b5683a958712dfee4bdd59edd8c6cad",
+  "run_json": "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/51-hosted-ci-35947823222.json",
+  "run_json_sha256": "0e2f0a34d234a26a60441c7f944bf3a9856f67ac20a4d01d0b7384bd845804de"
  },
+ "hosted_ci_history": [
+  {
+   "run_id": 35945312173,
+   "workflow": "ggen_igniter CI (.github/workflows/ci.yml, push event)",
+   "url": "https://github.com/seanchatmangpt/ggen_igniter/actions/runs/35945312173",
+   "head_sha": "0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b",
+   "status": "completed",
+   "conclusion": "cancelled",
+   "standing": "UNKNOWN",
+   "broken_term": "mu_on_O",
+   "summary": "hosted run on the exact subject 0fd8095: every step before mix test succeeded (format, credo, dev compile, ggen_igniter.verify); mix test started 02:19:50Z (seed 575414, max_cases 8) and was cancelled at 02:29:49Z when the job hit timeout-minutes: 30 (job 01:59:36Z -> 02:29:53Z; no second push on the ref, so not a concurrency cancel); no test failure was printed before the cancel. Not a verdict on this lane: the 30-minute job budget is the defect owned by R2 lane R2-GI-CI (swarm aliases R2-GI-DEPTH + R2-GI-TIMEOUT; scan-plan id R2-GI-CI, defect_key ggen_igniter-ci-fetch-depth+timeout; 30 -> 90), not merged into friday/gc-fri-0800 at d6a6e5b; not rerun (an unchanged budget would cancel identically, ARD section 25). Hosted green is owed by the integration head after both lanes merge.",
+   "classification": "pre-existing (CI job budget; lane R2-GI-CI)",
+   "naming_correction": "F1g continuation: the budget lane was named R2-GI-DEPTH-TIMEOUT in the first receipt; lanes/wave-R2.json reconciles swarm ids R2-GI-DEPTH + R2-GI-TIMEOUT into scan-plan lane R2-GI-CI (evidence defect in naming only; the run facts are unchanged)",
+   "log": "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/50-hosted-ci-35945312173.log",
+   "output_sha256": "45cc2f7c2d580ebaa2af163207b1f496ca027bc67f8634bec7cfe36041ce3ba1"
+  },
+  {
+   "run_id": 35947823222,
+   "workflow": "ggen_igniter CI (.github/workflows/ci.yml, push event)",
+   "url": "https://github.com/seanchatmangpt/ggen_igniter/actions/runs/35947823222",
+   "head_sha": "6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0",
+   "status": "completed",
+   "conclusion": "cancelled",
+   "standing": "UNKNOWN",
+   "broken_term": "mu_on_O",
+   "summary": "hosted run on the exact lane head 6c335f0 (push event): every step before mix test succeeded (format, credo 02:34:47Z-02:39:52Z, dev compile 02:39:52Z-02:47:52Z, ggen_igniter.verify); mix test started 02:47:53Z (Running ExUnit seed 920551, max_cases 8 at 02:52:33Z) and was cancelled at 03:04:39Z ('##[error]The operation was canceled.') when the job hit timeout-minutes: 30 (job 02:34:27Z -> 03:04:41Z; no second push on the ref, so not a concurrency cancel); no failed test ('N) test ...' block) and no leading 'Generated ggen_igniter app' in a test assertion were printed before the cancel (the two 'Generated ggen_igniter app' lines are the dev compile step and the test-env compile before ExUnit starts). Not a verdict on this lane: the 30-minute job budget is owned by lane R2-GI-CI (defect_key ggen_igniter-ci-fetch-depth+timeout; swarm aliases R2-GI-DEPTH + R2-GI-TIMEOUT; branch v23/R2-GI-CI, 90-min budget in 363916f), not merged into friday/gc-fri-0800 at d6a6e5b. Hosted green is owed by the integration head after R2-GI-CI merges.",
+   "classification": "pre-existing (CI job budget; lane R2-GI-CI)",
+   "log": "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/51-hosted-ci-35947823222.log",
+   "output_sha256": "5ad6fe172f75e3bb895bde60fd3ca5731b5683a958712dfee4bdd59edd8c6cad",
+   "run_json": "receipts/v26.9.23/R2-GI-PROBE-ISOLATION.gate/51-hosted-ci-35947823222.json",
+   "run_json_sha256": "0e2f0a34d234a26a60441c7f944bf3a9856f67ac20a4d01d0b7384bd845804de"
+  }
+ ],
  "standing": {
   "value": "ALIVE",
-  "derived_from": "replay.commands[0] (lane gate exit 0 on the committed subject 0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b), state witnesses replay.commands[1]/[2] (0 orphan beams at head; 1 orphan beam + leading 'Generated ggen_igniter app' under the revert), full suite replay.commands[3] (exit 0, seed 648358); anti-vacuity falsifiers[0] (revert = base d6a6e5b: gate exit 2) and falsifiers[1] (mutant M1: gate exit 2), both killed; hosted CI witness not yet success on the subject (receipt field only)"
+  "derived_from": "replay.commands[0] (F1g lane gate exit 0 on the committed lane head 6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0) and replay.commands[1] (post-gate state at that head: 0 orphan beams, lib clean, only receipt paths + HANDWRITTEN.md since the product commit); replay.commands[2] (lane gate exit 0 on the product commit 0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b), state witnesses replay.commands[3]/[4] (0 orphan beams at head; 1 orphan beam + leading 'Generated ggen_igniter app' under the revert), full suite replay.commands[5] (exit 0, seed 648358, at 0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b; test/lib/config/priv trees identical at 6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0); anti-vacuity falsifiers[0] (revert = base d6a6e5b: gate exit 2) and falsifiers[1] (mutant M1: gate exit 2), both killed; hosted CI witness not yet success on the subject (receipt field only)"
  }
 }

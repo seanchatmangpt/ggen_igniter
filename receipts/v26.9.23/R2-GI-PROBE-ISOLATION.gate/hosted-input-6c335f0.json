@@ -1,0 +1,12 @@
+{
+ "run_id": 35947823222,
+ "workflow": "ggen_igniter CI (.github/workflows/ci.yml, push event)",
+ "url": "https://github.com/seanchatmangpt/ggen_igniter/actions/runs/35947823222",
+ "head_sha": "6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0",
+ "status": "completed",
+ "conclusion": "cancelled",
+ "standing": "UNKNOWN",
+ "broken_term": "mu_on_O",
+ "summary": "hosted run on the exact lane head 6c335f0 (push event): every step before mix test succeeded (format, credo 02:34:47Z-02:39:52Z, dev compile 02:39:52Z-02:47:52Z, ggen_igniter.verify); mix test started 02:47:53Z (Running ExUnit seed 920551, max_cases 8 at 02:52:33Z) and was cancelled at 03:04:39Z ('##[error]The operation was canceled.') when the job hit timeout-minutes: 30 (job 02:34:27Z -> 03:04:41Z; no second push on the ref, so not a concurrency cancel); no failed test ('N) test ...' block) and no leading 'Generated ggen_igniter app' in a test assertion were printed before the cancel (the two 'Generated ggen_igniter app' lines are the dev compile step and the test-env compile before ExUnit starts). Not a verdict on this lane: the 30-minute job budget is owned by lane R2-GI-CI (defect_key ggen_igniter-ci-fetch-depth+timeout; swarm aliases R2-GI-DEPTH + R2-GI-TIMEOUT; branch v23/R2-GI-CI, 90-min budget in 363916f), not merged into friday/gc-fri-0800 at d6a6e5b. Hosted green is owed by the integration head after R2-GI-CI merges.",
+ "classification": "pre-existing (CI job budget; lane R2-GI-CI)"
+}

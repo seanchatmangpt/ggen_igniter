@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """Emit receipts/v26.9.23/R2-GI-PROBE-ISOLATION.json from the committed gate-dir logs.
 
-usage: build_receipt.py <worktree> <full_suite_exit> <full_suite_summary> <hosted_json>
-hosted_json: JSON object {run_id, head_sha, status, conclusion, summary}
+usage: build_receipt.py <worktree> <full_suite_exit> <full_suite_summary> <hosted_json> [<hosted_json_head>]
+hosted_json: JSON object {run_id, head_sha, status, conclusion, summary} for the product commit's push run;
+hosted_json_head: the same shape for the push run on the continuation gate head (F1g), when present.
+
+F1g continuation (2026-09-23, after the usage-limit halt): friday/gc-fri-0800 did not move (d6a6e5b is
+still the merge-base), so no merge-forward; the lane gate was re-run on the committed head HEAD_GATE and
+the receipt now binds that head (the product commit SUBJ is its ancestor; SUBJ..HEAD_GATE adds only this
+gate dir, the receipt JSON and one HANDWRITTEN.md row, none of which a test, lib/ module or court reads).
 """
 import hashlib
 import json
@@ -13,6 +19,7 @@ wt = Path(sys.argv[1])
 full_exit = int(sys.argv[2])
 full_summary = sys.argv[3]
 hosted = json.loads(sys.argv[4])
+hosted_head = json.loads(sys.argv[5]) if len(sys.argv) > 5 else None
 
 LANE = "R2-GI-PROBE-ISOLATION"
 G = f"receipts/v26.9.23/{LANE}.gate"
@@ -20,6 +27,7 @@ PIN = ("PATH=/Users/sac/.asdf/installs/elixir/1.18.4-otp-27/bin:"
        "/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH")
 BASE = "d6a6e5bd8de1da426ddc26130edfa45bbaf24f61"
 SUBJ = "0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b"
+HEAD_GATE = "6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0"
 WT = str(wt)
 GATE = "sh /Users/sac/wt/v26922/v26923/lanes/r2/gates/r2-gi-probe-isolation.sh \"$PWD\""
 
@@ -41,6 +49,22 @@ cand_sha = sha(f"{G}/candidate-r2-gi-probe-isolation.patch")
 assert cand_sha == "6e61bfd4d92e812f3eba224bd922067d744ce7afb5f9bd24913ec935870e9513", cand_sha
 
 commands = [
+    cmd(GATE, 0,
+        "F1g CONTINUATION LANE GATE on committed lane head 6c335f0 (gate script sha256 " + gate_sha + "; "
+        "friday/gc-fri-0800 = origin/friday/gc-fri-0800 = d6a6e5b = merge-base, so no merge-forward): "
+        "Elixir 1.18.4 (compiled with Erlang/OTP 27); format ok; credo 1 mods/funs, found no issues; "
+        "seeds 0/648358/1/2 each '10 tests, 0 failures' (24.4s/24.3s/91.0s/38.6s); lib/ porcelain empty; "
+        "PROBE_ISOLATION_GATE OK; GATE_EXIT=0",
+        f"{G}/12-gate-head-6c335f0.log", "lane gate on committed head (F1g continuation)"),
+    cmd(PIN + " sh -c 'git merge-base --is-ancestor friday/gc-fri-0800 HEAD; ls _build/dev/lib/ggen_igniter/ebin "
+        "| grep -c Ex4pm; mix ggen_igniter.plan --help | head -1; git status --porcelain; git diff --name-only "
+        "0fd8095 HEAD; grep -rn HANDWRITTEN test lib config mix.exs'", 0,
+        "POST-GATE STATE WITNESS at 6c335f0: friday/gc-fri-0800 (d6a6e5b) is an ancestor of HEAD; orphan_ex4pm_beams=0; "
+        "first stdout line of the next dev-env child is the task's own 'mix ggen_igniter.plan -- read-only admission "
+        "preview (no filesystem mutation)'; porcelain empty; 0fd8095..HEAD outside this lane's receipt paths = "
+        "HANDWRITTEN.md only; its only textual mentions under test/ lib/ config/ mix.exs are two titles in "
+        "test/fixtures/kernel_differential/v26.9.22/orders.json and 0 File reads of HANDWRITTEN.md",
+        f"{G}/32-state-witness-head-6c335f0.log", "witness: state at continuation head"),
     cmd(GATE, 0,
         "LANE GATE on committed lane head 0fd8095 (gate script sha256 " + gate_sha + "): "
         "Elixir 1.18.4 (compiled with Erlang/OTP 27); format ok; credo 1 mods/funs, found no issues; "
@@ -94,15 +118,23 @@ for f in falsifiers:
 
 hosted["log"] = f"{G}/50-hosted-ci-35945312173.log"
 hosted["output_sha256"] = sha(hosted["log"])
+hosted_history = [hosted]
+if hosted_head is not None:
+    hosted_head["log"] = f"{G}/51-hosted-ci-{hosted_head['run_id']}.log"
+    hosted_head["output_sha256"] = sha(hosted_head["log"])
+    hosted_head["run_json"] = f"{G}/51-hosted-ci-{hosted_head['run_id']}.json"
+    hosted_head["run_json_sha256"] = sha(hosted_head["run_json"])
+    hosted_history.append(hosted_head)
+latest_hosted = hosted_history[-1]
 
 full_ok = full_exit == 0
-hosted_ok = hosted.get("conclusion") == "success" and hosted.get("head_sha") == SUBJ
+hosted_ok = latest_hosted.get("conclusion") == "success" and latest_hosted.get("head_sha") in (SUBJ, HEAD_GATE)
 standing = "ALIVE" if full_ok else "PARTIAL_ALIVE"
 
 receipt = {
     "work_order": {
         "id": LANE,
-        "wave": "R2g (R2 pre-freeze CI repair)",
+        "wave": "R2g (R2 pre-freeze CI repair); continued in F1g (after the 2026-09-23 usage-limit halt)",
         "goal_ttl_order": "none (release defect repair lane; no goal.ttl WorkOrder; receipt not tuple-linked)",
         "defect_key": "ggen_igniter-test-orphan-dev-beam",
         "defect": "CI 35925710605 @aa07ee7 (seed 648358): 1349 tests, 1 failure -- "
@@ -140,10 +172,17 @@ receipt = {
         "worktree": WT,
         "branch": "v23/R2-GI-PROBE-ISOLATION",
         "base_ref": "friday/gc-fri-0800",
-        "subject_sha": SUBJ,
+        "subject_sha": HEAD_GATE,
+        "product_commit": SUBJ,
+        "subject_sha_note": "subject_sha = the committed lane head the F1g continuation gate ran on (6c335f0); the product "
+                            "commit 0fd8095 (the only test/ change) is its parent; 0fd8095..6c335f0 adds only this lane's "
+                            "receipt JSON, its gate dir and one HANDWRITTEN.md ledger row. The receipt commit that carries "
+                            "this file is a child of 6c335f0 touching only this lane's receipt paths (a commit cannot "
+                            "contain its own hash).",
         "base_sha": BASE,
         "base_sha_note": "merge-base(v23/R2-GI-PROBE-ISOLATION, friday/gc-fri-0800) = d6a6e5b (= ggen_igniter-int HEAD "
-                         "at lane start). Product diff base..subject: test/ggen_igniter_base_mix_task_end_user_test.exs "
+                         "at lane start and still at the F1g continuation; origin/friday/gc-fri-0800 = d6a6e5b after "
+                         "git fetch --no-prune). Product diff base..subject: test/ggen_igniter_base_mix_task_end_user_test.exs "
                          "+13/-1 only; no lib/, priv/, config/, native/, mix.exs, mix.lock, CI or goal.ttl change",
         "toolchain": "Elixir 1.18.4 (compiled with Erlang/OTP 27), erlang 27.2.4 (.tool-versions pin; "
                      "/Users/sac/.asdf/installs/elixir/1.18.4-otp-27, /Users/sac/.asdf/installs/erlang/27.2.4); "
@@ -153,10 +192,10 @@ receipt = {
         "ceiling": "CONSTRUCT",
         "grant": "DRIVER.md release closure procedure, wave R2 (lane R2-GI-PROBE-ISOLATION): lane worktree + own scratch; "
                  "push of the lane branch (no force, no PR); no merge into ggen_igniter-int",
-        "actor": "claude-opus-5-5 workflow subagent, lane R2-GI-PROBE-ISOLATION (wave R2g)",
+        "actor": "claude-opus-5-5 workflow subagent, lane R2-GI-PROBE-ISOLATION (wave R2g; F1g continuation)",
     },
     "consequence": {
-        "commits": [SUBJ],
+        "commits": [SUBJ, HEAD_GATE],
         "files_changed": [
             "test/ggen_igniter_base_mix_task_end_user_test.exs",
             "HANDWRITTEN.md",
@@ -171,7 +210,12 @@ receipt = {
                                     f"{G}/build_receipt.py",
         "remote_effects": [
             "origin refs/heads/v23/R2-GI-PROBE-ISOLATION created at " + SUBJ + " (no force)",
-            f"hosted CI run {hosted['run_id']} (ggen_igniter CI, push event) on {hosted.get('head_sha')}",
+            *(f"hosted CI run {h['run_id']} (ggen_igniter CI, push event) on {h.get('head_sha')}: "
+              f"{h.get('conclusion')}" for h in hosted_history),
+            "origin refs/heads/v23/R2-GI-PROBE-ISOLATION advanced 0fd8095 -> " + HEAD_GATE + " (no force, prior session)",
+            "F1g: origin refs/heads/v23/R2-GI-PROBE-ISOLATION fast-forwarded to the receipt commit that carries this "
+            "file (child of " + HEAD_GATE + "; no force, no PR); its push run is owed a hosted verdict only after "
+            "R2-GI-CI's job budget merges",
         ],
         "local_effects": [
             f"{WT}/deps: APFS clone of /Users/sac/wt/v26922/fri/ggen_igniter-int/deps (mix.lock cmp-identical)",
@@ -191,12 +235,17 @@ receipt = {
         "commands": commands,
     },
     "falsifiers": falsifiers,
-    "hosted_ci": hosted,
+    "hosted_ci": latest_hosted,
+    "hosted_ci_history": hosted_history,
     "standing": {
         "value": standing,
-        "derived_from": "replay.commands[0] (lane gate exit 0 on the committed subject " + SUBJ + "), state witnesses "
-                        "replay.commands[1]/[2] (0 orphan beams at head; 1 orphan beam + leading 'Generated ggen_igniter app' "
-                        "under the revert), full suite replay.commands[3] (exit " + str(full_exit) + ", seed 648358); "
+        "derived_from": "replay.commands[0] (F1g lane gate exit 0 on the committed lane head " + HEAD_GATE + ") and "
+                        "replay.commands[1] (post-gate state at that head: 0 orphan beams, lib clean, only receipt paths + "
+                        "HANDWRITTEN.md since the product commit); replay.commands[2] (lane gate exit 0 on the product "
+                        "commit " + SUBJ + "), state witnesses "
+                        "replay.commands[3]/[4] (0 orphan beams at head; 1 orphan beam + leading 'Generated ggen_igniter app' "
+                        "under the revert), full suite replay.commands[5] (exit " + str(full_exit) + ", seed 648358, at " + SUBJ
+                        + "; test/lib/config/priv trees identical at " + HEAD_GATE + "); "
                         "anti-vacuity falsifiers[0] (revert = base d6a6e5b: gate exit 2) and falsifiers[1] (mutant M1: gate exit 2), both killed"
                         + ("" if hosted_ok else "; hosted CI witness not yet success on the subject (receipt field only)"),
     },
