@@ -1,7 +1,7 @@
 # `mix ggen_igniter.doctor`
 
 Source: `lib/mix/tasks/ggen_igniter.doctor.ex` (`Mix.Tasks.GgenIgniter.Doctor`).
-Status: **IMPLEMENTED** — every flag and every one of the 18 checks below is
+Status: **IMPLEMENTED** — every flag and every one of the 19 checks below is
 verified against that module's `info/2` schema (lines 84–93) and the
 `igniter/1` implementation.
 
@@ -24,11 +24,11 @@ own `--check` halt mechanism) if and only if any check comes back `:error`.
 | `--fix` | boolean | `false` | Applies real, safely-recognized fixes for checks #4–#7 and #17 directly to the current project (`File.cwd!()`) instead of only reporting them. |
 | `--strict` | boolean | `false` | Treats `:warn`-level findings as failures too (exit `1`), not just `:error`. Each strict-mode-only failure line is suffixed `[STRICT]` in human output (`"strict_failure": true` in `--json` output). |
 
-## The 18 checks
+## The 19 checks
 
 Checks always run unless noted. Checks 9–12 run **only** with
 `--pack`/`--pack-dir`. Check 8 runs only with `--engine qlever`. Check 16
-runs only with `--hex-check`. Checks 4–7, 13–15, 17, and 18 always run.
+runs only with `--hex-check`. Checks 4–7, 13–15, 17, 18, and 19 always run.
 
 1. **Elixir/OTP version** — `System.version()` satisfies `~> 1.17` and
    `:erlang.system_info(:otp_release)` is `>= 25` (this project's own
@@ -123,6 +123,19 @@ runs only with `--hex-check`. Checks 4–7, 13–15, 17, and 18 always run.
     one). Never `:error`: a held lock, stale or not, is advisory
     information about another invocation, not a defect in the current
     project.
+19. **`semantic_jira_pack`** — `GgenIgniter.SemanticJira.PackHealth` health
+    check over the shipped `priv/ggen/semantic-jira-pack/` (resolved against
+    the same ggen_igniter root `check_nif_compiles` uses): loads its
+    `ontology.ttl`, executes EVERY gate query clean through
+    `mix ggen_igniter.sync`'s default engine path (`oxigraph`, real
+    execution — not the parse-only check 12), and renders every template
+    once per driver row through the sync pipeline's own `build_bindings/2` +
+    `Render.render/2` convention. Fail-closed: any broken component (Turtle
+    syntax, crashing gate, undefined template binding, zero-row driver
+    query) is an honest `✘` naming it, never a crash of the whole doctor
+    run. A pack DIRECTORY absent from the resolved root (the Hex package's
+    `files:` list does not ship `priv/`) is `⚠` advisory, never `:error` —
+    a package form that ships no pack has no pack health to fail on.
 
 ## `--fix`
 

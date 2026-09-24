@@ -10,7 +10,7 @@ dependency, so both Mix tasks and tests call it directly.
 
 ```
 priv/ggen/<pack-name>/
-├── pack.toml              # optional; not read by GgenIgniter.Pack itself
+├── pack.toml              # parsed by GgenIgniter.Pack (strict §7.1); REQUIRED for Core-profile packs (missing ⇒ REFUSED:PACK_MANIFEST_MISSING)
 ├── ontology.ttl            # default --ontology
 ├── gates/*.rq               # default --query source, one query per file
 └── templates/*.{eex,tmpl}   # default --template source (single-file case)

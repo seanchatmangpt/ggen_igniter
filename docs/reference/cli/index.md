@@ -1,6 +1,7 @@
 # CLI Reference
 
-`ggen_igniter` ships two Igniter Mix tasks, both defined under `lib/mix/tasks/`:
+`ggen_igniter` ships several Igniter Mix tasks (`use Igniter.Mix.Task`), all
+defined under `lib/mix/tasks/`:
 
 - **`mix ggen_igniter.sync`** — the generator. Loads an RDF/Turtle ontology, runs
   one or more named SPARQL queries against it, renders an EEx template with the
@@ -8,10 +9,16 @@
   `docs/reference/cli/sync.md`.
 - **`mix ggen_igniter.doctor`** — the diagnostic. Runs a fixed checklist of real
   environment/project/pack checks (Elixir/OTP version, dependency wiring,
-  native NIF build freshness, pack shape, etc.) and can auto-`--fix` a subset
-  of them. See `docs/reference/cli/doctor.md`.
+  native NIF build freshness, pack shape, semantic-jira-pack health, etc.) and
+  can auto-`--fix` a subset of them. See `docs/reference/cli/doctor.md`.
+- **`mix ggen_igniter.rename`** — safe rename of a public function across the
+  tree (`--from MODULE.function[/arity]`, `--to MODULE.function`, `--arity N`,
+  `--deprecate soft|hard`, `--path DIR`), wrapping
+  `GgenIgniter.SafeRename.rename_function/4`.
+- Also `install`, `plan`, `hand_authored`, and `fortune5_ready` — see each
+  task's moduledoc / `mix <task> --help`.
 
-Both tasks are real `Igniter.Mix.Task` modules (`use Igniter.Mix.Task`), so they
+These tasks are real `Igniter.Mix.Task` modules, so they
 compose with other Igniter tasks and honor Igniter's own `--dry-run`-adjacent
 conventions where applicable; `sync`'s own `--dry-run` flag (documented in
 `sync.md`) is this project's own guarded-write preview, not Igniter's.

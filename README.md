@@ -260,16 +260,17 @@ be fetched from a marketplace source (`github:owner/repo[@ref]` or
 mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine sparql|qlever] [--store-id ID] [--hex-check] [--fix]
 ```
 
-Runs a fixed checklist of **17** real checks (no fabricated pass output) —
+Runs a fixed checklist of **19** real checks (no fabricated pass output) —
 Elixir/OTP version, dependency wiring, the `sparql` version advisory, the
 `:igniter`/`:sourceror`/`:dcatr`/`ash_domains` consumer-project fix rules
 (`--fix`-able), pack shape (only with `--pack`/`--pack-dir`), git status, the
 native oxigraph NIF's build freshness and a real functional smoke test, an
-optional hex-publish readiness check (`--hex-check`), and a version-policy
-check against `CHANGELOG.md`. Exits non-zero only if any check comes back
-`:error`. See
+optional hex-publish readiness check (`--hex-check`), a version-policy
+check against `CHANGELOG.md`, and the shipped `semantic-jira-pack`'s health
+(ontology + gates + templates through the real sync pipeline). Exits
+non-zero only if any check comes back `:error`. See
 [`docs/reference/cli/doctor.md`](docs/reference/cli/doctor.md) for the full,
-numbered list of all 17 checks and exactly which ones `--fix` can repair, or
+numbered list of all 19 checks and exactly which ones `--fix` can repair, or
 [`docs/operations/debugging.md`](docs/operations/debugging.md) for a
 practical triage playbook.
 

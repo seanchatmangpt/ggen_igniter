@@ -3,7 +3,7 @@
 ## Start here: `mix ggen_igniter.doctor`
 
 **IMPLEMENTED.** `lib/mix/tasks/ggen_igniter.doctor.ex` runs a fixed
-checklist of 17 real checks — no fabricated pass output. Run it bare first:
+checklist of 19 real checks — no fabricated pass output. Run it bare first:
 
 ```
 mix ggen_igniter.doctor
@@ -34,6 +34,8 @@ recognized fixes to the **current** project instead of only reporting them.
 | 15 | `GgenIgniter.Query.Oxigraph` functional smoke test (real SELECT against a real tiny graph) | always | no |
 | 16 | Hex-publish readiness (`mix hex.build` + `package[:description]`/`package[:licenses]`) | `--hex-check` given | no |
 | 17 | `mix.exs`'s `version:` matches `CHANGELOG.md`'s topmost `## vX` heading | always | **yes** |
+| 18 | `.ggen_igniter/.sync.lock` cross-process lock status (advisory) | always | no |
+| 19 | `semantic_jira_pack` health: shipped pack's ontology loads, every gate runs clean, every template renders | always (⚠ if the pack dir is absent, e.g. Hex package form) | no |
 
 Only checks 4–7 and 17 come back `:error` and fail the whole run (exit 1);
 check 13 is deliberately `:warn`-only even when it can't reach git at all
