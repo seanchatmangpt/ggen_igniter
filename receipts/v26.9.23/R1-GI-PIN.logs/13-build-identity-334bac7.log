@@ -1,0 +1,7 @@
+dev ggen_igniter Elixir.GgenIgniter.Actuate.beam compiler=8.5.5
+dev jason Elixir.Enumerable.Jason.OrderedObject.beam compiler=8.5.5
+dev ash_a2a Elixir.AshA2A.A2a.Options.beam compiler=8.5.5
+test ggen_igniter Elixir.AshEx4pm.Info.Activity.beam compiler=8.5.5
+test jason Elixir.Enumerable.Jason.OrderedObject.beam compiler=8.5.5
+test ash_a2a Elixir.AshA2A.A2a.Options.beam compiler=8.5.5
+otp_release=27 erts=15.2.2 compiler_app=8.5.5
