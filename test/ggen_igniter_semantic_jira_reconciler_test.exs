@@ -9,6 +9,7 @@ defmodule GgenIgniter.SemanticJiraReconcilerTest do
   alias GgenIgniter.SemanticJira.{Reconciler, TransitionLog}
 
   @sha String.duplicate("a", 40)
+  @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
 
   defp wo(id, deps \\ []) do
     %{
@@ -27,6 +28,7 @@ defmodule GgenIgniter.SemanticJiraReconcilerTest do
       "acceptance" => ["a1"],
       "falsifiers" => ["f1"],
       "projections" => ["jira"],
+      "origin_authority" => @origin_authority,
       "dependencies" =>
         Enum.map(
           deps,
@@ -133,6 +135,18 @@ defmodule GgenIgniter.SemanticJiraReconcilerTest do
     tampered = Map.put(root, "acceptance", ["a1", "sneaky"])
 
     assert {:error, {:refused, :definition_mismatch}} = Reconciler.reconcile(tampered, r, dir)
+    assert TransitionLog.read(dir) == []
+  end
+
+  test "work order stripped of origin_authority refuses before any transition lands", %{dir: dir} do
+    root = wo("ROOT")
+
+    # The receipt is built from the full root: reconcile computes
+    # definition_digest/1 of the WORK ORDER first and refuses there, so the
+    # receipt's contents never matter for this refusal path.
+    assert {:error, {:refused, {:refused_work_order, {:missing_required_field, "origin_authority"}}}} =
+             Reconciler.reconcile(Map.delete(root, "origin_authority"), receipt(root), dir)
+
     assert TransitionLog.read(dir) == []
   end
 

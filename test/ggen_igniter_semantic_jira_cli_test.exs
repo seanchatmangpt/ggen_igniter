@@ -218,4 +218,51 @@ defmodule GgenIgniter.SemanticJiraCliTest do
       assert descriptor["work_order_iri"] == "urn:semantic-jira:work-order:FRI-FMT-A"
     end
   end
+
+  describe "origin authority law (stripped fixture order)" do
+    test "a fixture order without origin_authority still projects on frontier but refuses a descriptor",
+         %{dir: dir} do
+      ledger = Path.join(dir, "ledger")
+      stripped_path = Path.join(dir, "stripped_orders.json")
+
+      File.write!(
+        stripped_path,
+        Jason.encode!(%{
+          "work_orders" => [Map.delete(raw("FRI-FMT-A"), "origin_authority")]
+        })
+      )
+
+      # The frontier is a total projection: the stripped order keeps its
+      # standing projection, but it can never become eligible — the kernel
+      # refuses admission and the order is blocked with the typed reason
+      # (anonymously: the blocked entry carries no identity).
+      kernel_reason =
+        inspect({:refused_work_order, {:missing_required_field, "origin_authority"}})
+
+      assert {0, result} = Cli.frontier(work_orders: stripped_path, ledger: ledger)
+      assert result["eligible"] == []
+      assert [%{"reason" => ^kernel_reason}] = result["blocked"]
+      assert result["standings"] == %{"FRI-FMT-A" => "UNKNOWN"}
+
+      # The descriptor surface cannot bind the anonymous block to the
+      # identity, so it refuses with not_eligible/unknown_identity in the
+      # CLI's jsonable refusal vocabulary.
+      assert {1, %{"status" => "refused", "reason" => reason}} =
+               Cli.descriptor(
+                 descriptor_opts_with(stripped_path, ledger, "FRI-FMT-A")
+               )
+
+      assert reason == ["descriptor_refused", ["not_eligible", "FRI-FMT-A", "unknown_identity"]]
+    end
+  end
+
+  defp descriptor_opts_with(work_orders_path, ledger, identity) do
+    [
+      work_orders: work_orders_path,
+      ledger: ledger,
+      identity: identity,
+      verifier_suite: @suite,
+      alias: @alias
+    ]
+  end
 end

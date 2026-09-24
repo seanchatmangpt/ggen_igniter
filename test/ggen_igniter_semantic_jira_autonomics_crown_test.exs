@@ -17,6 +17,7 @@ defmodule GgenIgniter.SemanticJiraAutonomicsCrownTest do
   alias GgenIgniter.SemanticJira.{Reconciler, Shacl, TransitionLog}
 
   @sj "https://ggen-igniter.dev/ontology/semantic-jira#"
+  @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
 
   @shapes """
   @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -74,6 +75,7 @@ defmodule GgenIgniter.SemanticJiraAutonomicsCrownTest do
       "acceptance" => ["a1"],
       "falsifiers" => ["f1"],
       "projections" => ["jira"],
+      "origin_authority" => @origin_authority,
       "dependencies" =>
         Enum.map(
           deps,
@@ -238,6 +240,13 @@ defmodule GgenIgniter.SemanticJiraAutonomicsCrownTest do
 
     replayed_graph = [wo("FIX-BROKEN", base, []), wo("VERIFY-CLEAN", base, ["FIX-BROKEN"])]
     assert state(replayed_graph, copy) == live
+  end
+
+  test "origin authority law: a crown work order without origin_authority is refused" do
+    root = wo("ROOT", String.duplicate("b", 40), [])
+
+    assert {:error, {:refused_work_order, {:missing_required_field, "origin_authority"}}} =
+             SemanticJira.admit_work_order(Map.delete(root, "origin_authority"))
   end
 
   test "concurrent writers: stale-snapshot sibling receipts land once, seq gapless", %{dir: dir} do

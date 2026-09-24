@@ -57,7 +57,10 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
     {"requiresCapability", "friday_work_order_shape", :sparql},
     {"evidenceHorizon", "friday_work_order_shape", :sparql},
     {"consequenceClass", "friday_work_order_shape", :sparql},
-    {"successorPolicy", "friday_work_order_shape", :sparql}
+    {"successorPolicy", "friday_work_order_shape", :sparql},
+    # SJ-002: sh:minCount 1 on sj:WorkOrderShape itself (R2 global minCount),
+    # so the removal refuses there, not on a Friday SPARQL constraint (R8).
+    {"originAuthority", "work_order_shape", :min_count}
   ]
 
   describe "Shacl.validate_file/2 (goal graph merged with the pack ontology)" do
@@ -74,7 +77,9 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
       assert {:ok, results} = Shacl.run(@pack_dir, write_merged!(goal_source()))
       assert {"friday_work_order_shape", :pass} in results
       assert {"goal_checkpoint_shape", :pass} in results
-      assert length(results) == 19
+      # 19 pre-SJ-002 shapes + work_order_origin_shape + admission_digest_shape
+      # (v26.9.24 R10; the same count Shacl.run reports here).
+      assert length(results) == 21
     end
 
     for {field, shape, constraint} <- @mutation_table do
@@ -181,6 +186,25 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
         path: @sj <> "checkpointOf",
         constraint: :class
       )
+    end
+
+    test "sj:originAuthority must point at a GoalCheckpoint (SJ-002 origin type law)" do
+      report =
+        goal_source()
+        |> replace_once!(
+          "    sj:originAuthority sj:gc-fixture-root ;\n",
+          "    sj:originAuthority sj:cap-recipe-mix-format ;\n"
+        )
+        |> validate_goal!()
+
+      violation =
+        fetch_violation!(report,
+          focus_node: @order,
+          path: @sj <> "originAuthority",
+          shape: "work_order_origin_shape"
+        )
+
+      assert violation.message =~ "NON_SEMANTIC_WORK_AUTHORITY"
     end
 
     test "sj:requiresCapability must point at a typed sj:Capability" do
@@ -385,13 +409,13 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
   end
 
   describe "Shacl.validate_file/2 (pre-Friday orders are unaffected)" do
-    test "the canonical pack ontology (33 legacy orders, no sj:checkpointOf) still conforms" do
+    test "the canonical pack ontology (34 orders: 33 legacy + SJ-002, no sj:checkpointOf) still conforms" do
       report = Shacl.validate_file(@ontology_path, @shapes_path)
 
       assert report.conforms, "violations:\n#{inspect(report.violations, pretty: true)}"
 
       graph = GgenIgniter.Ontology.load!(@ontology_path)
-      assert length(KernelDifferential.order_iris(graph)) == 33
+      assert length(KernelDifferential.order_iris(graph)) == 34
 
       refute Enum.any?(RDF.Graph.triples(graph), fn {_s, p, _o} ->
                p == RDF.iri(@sj <> "checkpointOf")
@@ -593,7 +617,7 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
 
   describe "mix ggen_igniter.sync (real subprocess over the merged goal graph)" do
     @tag timeout: :timer.minutes(5)
-    test "manufactures the Friday ticket beside all 33 legacy tickets with a graph-bound receipt" do
+    test "manufactures the Friday ticket beside all 34 orders (33 legacy + SJ-002) with a graph-bound receipt" do
       work_dir = scratch_dir!("sync")
       ontology = write_merged!(goal_source())
 
@@ -620,7 +644,7 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
         )
 
       assert exit_code == 0, "sync failed:\n#{output}"
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 34
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
 
       friday = File.read!(Path.join(work_dir, "GC-FIXTURE-WO-1.md"))
       assert friday =~ "# GC-FIXTURE-WO-1 — Repair mix format drift"

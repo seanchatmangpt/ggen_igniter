@@ -15,6 +15,7 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
   @sha String.duplicate("a", 40)
   @graph "sha256:" <> String.duplicate("b", 64)
   @source "sha256:" <> String.duplicate("c", 64)
+  @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
   @attrs %{
     "graph_digest" => @graph,
     "source_digest" => @source,
@@ -40,6 +41,7 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
         "acceptance" => ["a1"],
         "falsifiers" => ["f1"],
         "projections" => ["jira"],
+        "origin_authority" => @origin_authority,
         "dependencies" =>
           Enum.map(
             deps,
@@ -135,6 +137,32 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
     test "unadmitted work order (missing required field)" do
       bad = "A" |> wo() |> Map.delete("falsifiers")
       assert {:error, {:refused_descriptor, _}} = Descriptor.build([bad], "A", @attrs)
+    end
+
+    test "a work order stripped of origin_authority refuses on both descriptor surfaces" do
+      stripped = Map.delete(wo("A"), "origin_authority")
+
+      # The kernel's refusal, as the frontier reports it for an unadmittable row.
+      kernel_reason =
+        inspect({:refused_work_order, {:missing_required_field, "origin_authority"}})
+
+      # The frontier blocks the row with the typed reason but WITHOUT its
+      # identity (an unadmittable order has no admissible identity fields to
+      # carry), so neither descriptor surface can bind a refusal to "A":
+      # build/4 reports plain :not_found, and no descriptor exists.
+      front = SemanticJira.frontier([stripped])
+      assert front.eligible == []
+      assert [%{"reason" => ^kernel_reason}] = front.blocked
+
+      assert {:error, {:refused_descriptor, :not_found}} =
+               Descriptor.build([stripped], "A", @attrs)
+
+      # build_xaas_contract/4: the same law in the XaaS bridge vocabulary.
+      assert {:error, {:descriptor_refused, {:not_eligible, "A", "unknown_identity"}}} =
+               Descriptor.build_xaas_contract([stripped], [], "A", [
+                 verifier_suite: "ci-suite",
+                 aliases: %{"o/r" => "o_r"}
+               ])
     end
 
     test "unknown identity" do

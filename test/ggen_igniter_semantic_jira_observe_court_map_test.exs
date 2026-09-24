@@ -24,6 +24,7 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
   alias GgenIgniter.SemanticJira.{CourtMap, Descriptor, Observation}
 
   @sj "https://ggen-igniter.dev/ontology/semantic-jira#"
+  @origin_authority @sj <> "objective-code-work-authority"
   @work_orders Path.expand("fixtures/semantic_jira/friday_work_orders.json", __DIR__)
   @court_map_ttl Path.expand("fixtures/semantic_jira/court_map_fri_fmt.ttl", __DIR__)
   @alias "seanchatmangpt/ggen_igniter=ggen_igniter"
@@ -103,7 +104,8 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
         "falsifiers" => [@sj <> "projection-gains-authority"],
         "projections" => ["jira"],
         "required_receipt_classes" => ["verification"],
-        "path_scope" => ["lib"]
+        "path_scope" => ["lib"],
+        "origin_authority" => @origin_authority
       },
       overrides
     )
@@ -140,7 +142,10 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
       subject = drifted_repo!(dir)
       finding = finding!(subject)
 
-      assert {:ok, result} = Observation.candidate(finding, base_work_order(subject.base))
+      assert {:ok, result} =
+               Observation.candidate(finding, base_work_order(subject.base),
+                 origin_authority: @origin_authority
+               )
 
       candidate = result["work_order"]
       short = String.slice(result["finding"]["finding_digest"], 7, 12)
@@ -168,8 +173,21 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
       assert RDF.Graph.triple_count(graph) > 0
       assert result["turtle"] =~ ~s(sj:baseSha "#{subject.base}")
 
+      # INVARIANT A: the candidate is bound to its declared origin authority.
+      assert candidate["origin_authority"] == @origin_authority
+
+      assert candidate["origin_observation"] ==
+               @sj <> "obs-" <> short <> "-finding"
+
+      assert result["turtle"] =~ ~s(sj:originAuthority <#{@origin_authority}>)
+      assert result["turtle"] =~ ~s(sj:originObservation <#{@sj}obs-#{short}-finding>)
+
       # Deterministic: the same observation re-derives the same candidate.
-      assert {:ok, again} = Observation.candidate(finding, base_work_order(subject.base))
+      assert {:ok, again} =
+               Observation.candidate(finding, base_work_order(subject.base),
+                 origin_authority: @origin_authority
+               )
+
       assert again["work_order"]["work_order_digest"] == candidate["work_order_digest"]
       assert again["turtle"] == result["turtle"]
 
@@ -177,7 +195,9 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
       File.write!(Path.join(subject.repo, "lib/sample.ex"), "defmodule Sample do\nend\n")
 
       assert {:ok, other} =
-               Observation.candidate(finding!(subject), base_work_order(subject.base))
+               Observation.candidate(finding!(subject), base_work_order(subject.base),
+                 origin_authority: @origin_authority
+               )
 
       refute other["work_order"]["identity"] == candidate["identity"]
     end
@@ -196,7 +216,8 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
 
       assert {:ok, result} =
                Observation.candidate(finding!(subject), base_work_order(subject.base),
-                 repair: repair
+                 repair: repair,
+                 origin_authority: @origin_authority
                )
 
       assert result["repair"]["kind"] == "repair_work_order_candidate"
@@ -212,22 +233,59 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
       base = base_work_order(subject.base)
 
       assert {:error, {:observation_refused, {:finding, _}}} =
-               Observation.candidate(Map.delete(finding, "delta"), base)
+               Observation.candidate(Map.delete(finding, "delta"), base,
+                 origin_authority: @origin_authority
+               )
 
       assert {:error, {:observation_refused, {:base_work_order, _}}} =
-               Observation.candidate(finding, Map.delete(base, "title"))
+               Observation.candidate(finding, Map.delete(base, "title"),
+                 origin_authority: @origin_authority
+               )
 
       # A reused court that is not a typed sj:Court node in the canonical
       # graph violates the WorkOrder shape's sh:class constraint.
       untyped = base_work_order(subject.base, %{"required_courts" => ["urn:untyped:court"]})
 
       assert {:error, {:observation_refused, {:shacl_violations, violations}}} =
-               Observation.candidate(finding, untyped)
+               Observation.candidate(finding, untyped, origin_authority: @origin_authority)
 
       assert Enum.any?(
                violations,
                &(&1[:path] |> to_string() |> String.ends_with?("requiresCourt"))
              )
+    end
+
+    test "refuses typed: no origin_authority opt, before any kernel work (INVARIANT A)", %{
+      dir: dir
+    } do
+      subject = drifted_repo!(dir)
+
+      assert {:error, {:observation_refused, {:missing_origin_authority, message}}} =
+               Observation.candidate(finding!(subject), base_work_order(subject.base))
+
+      assert message =~ "origin_authority"
+    end
+
+    test "refuses typed: a fresh self-declared origin the canonical ontology never admitted", %{
+      dir: dir
+    } do
+      subject = drifted_repo!(dir)
+
+      assert {:error, {:observation_refused, {:origin_not_admitted, _reason}}} =
+               Observation.candidate(finding!(subject), base_work_order(subject.base),
+                 origin_authority: @sj <> "self-declared-rogue-authority"
+               )
+    end
+
+    test "refuses typed: a real canonical node that is not an authority", %{dir: dir} do
+      subject = drifted_repo!(dir)
+
+      # sj:projection-gains-authority exists in the canonical graph as a
+      # Falsifier node; existence is not authority.
+      assert {:error, {:observation_refused, {:origin_not_admitted, _reason}}} =
+               Observation.candidate(finding!(subject), base_work_order(subject.base),
+                 origin_authority: @sj <> "projection-gains-authority"
+               )
     end
   end
 
@@ -247,6 +305,8 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
           finding_path,
           "--base-work-order",
           base_path,
+          "--origin-authority",
+          @origin_authority,
           "--identity",
           "OBS-CLI-A",
           "--out",
@@ -256,6 +316,7 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
       assert code == 0, output
       assert json["work_order"]["identity"] == "OBS-CLI-A"
       assert json["work_order"]["base_sha"] == subject.base
+      assert json["work_order"]["origin_authority"] == @origin_authority
       assert json["shacl"]["conforms"] == true
       assert Jason.decode!(File.read!(out)) == json
 
@@ -271,12 +332,27 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
           "--finding",
           finding_path,
           "--base-work-order",
-          untyped_path
+          untyped_path,
+          "--origin-authority",
+          @origin_authority
         ])
 
       assert code == 1, output
       assert json["status"] == "refused"
       assert ["observation_refused", ["shacl_violations" | _]] = json["reason"]
+
+      {code, json, output} =
+        mix_json([
+          "semantic_jira.observe",
+          "--finding",
+          finding_path,
+          "--base-work-order",
+          base_path
+        ])
+
+      assert code == 1, output
+      assert json["status"] == "refused"
+      assert ["observation_refused", ["missing_origin_authority", _]] = json["reason"]
 
       {code, json, output} = mix_json(["semantic_jira.observe", "--finding", finding_path])
       assert code == 2, output
@@ -347,7 +423,8 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
 
       {:ok, result} =
         Observation.candidate(finding!(subject), base_work_order(subject.base),
-          identity: "OBS-UNWITNESSED"
+          identity: "OBS-UNWITNESSED",
+          origin_authority: @origin_authority
         )
 
       assert {:error, {:court_map_refused, {:unwitnessed, iri}}} =

@@ -15,6 +15,7 @@
 sj:gc-fixture-root a sj:GoalCheckpoint ;
     rdfs:label "GC-FIXTURE root goal" ;
     dcterms:description "Root goal checkpoint of the fixture graph; STOP is computed by its stop query." ;
+    sj:admissionDigest "sha256:ad90d2acb507ac65c960cc34ca7820416bc50977be8e413effec147a094e144f" ;
     sj:stopQuery """PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 # STOP holds when no gate under the root is short of ALIVE.
 ASK {
@@ -63,6 +64,7 @@ sj:gc-fixture-wo-1 a sj:WorkOrder ;
     sj:projection sj:projection-jira ;
     sj:nextAction sj:run-gc-fixture-wo-1-court ;
     sj:checkpointOf sj:gc-fixture-g4 ;
+    sj:originAuthority sj:gc-fixture-root ;
     sj:postcondition "mix format --check-formatted exits 0 on the exact subject SHA" ;
     sj:requiresCapability sj:cap-recipe-mix-format ;
     sj:evidenceHorizon "EXECUTED_VERIFIED" ;
