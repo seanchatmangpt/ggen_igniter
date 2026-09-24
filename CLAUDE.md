@@ -1,294 +1,40 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for agents in this repository.
 
 ## What this is
 
-An Elixir bootstrap of [ggen](https://github.com/seanchatmangpt/ggen)'s ontology-to-code
-pipeline: `Ontology.load!/1` -> `Engine.run/2` (once per `--query`) -> `Render.render/2`
-(EEx) -> `Actuate.write_file!/3` (or `inject_content!/5` / `eval_code!/2`), tracked by a
-reconciliation manifest so a rename/removal upstream in the ontology is mechanically
-detected instead of silently orphaning a file. It is a from-scratch Elixir port of the
-real Rust `ggen`'s pipeline *shape*, not a wrapper/shell-out to the real `ggen` binary —
-the one embedded real Rust component is a Rustler NIF (`native/ggen_graph_nif`) wrapping
-`ggen`'s own oxigraph query engine, used as the default `--engine`.
-
-Read `README.md` and `docs/status.md` before assuming a capability exists — this repo is
-disciplined about marking things IMPLEMENTED / PARTIAL_ALIVE / PLANNED rather than
-overclaiming, and the README's "Known Limitations" section documents real, sourced gaps.
+Elixir bootstrap of [ggen](https://github.com/seanchatmangpt/ggen)'s ontology-to-code pipeline: `Ontology.load!/1` → `Engine.run/2` → `Render.render/2` → `Actuate.write_file!/3`, tracked by a reconciliation manifest so upstream renames are mechanically detected. One embedded Rust piece: the `native/ggen_graph_nif` oxigraph engine (default `--engine`; the pure-Elixir `sparql` engine has known `FILTER NOT EXISTS`/`UNION` limits). `docs/status.md` marks IMPLEMENTED / PARTIAL_ALIVE / PLANNED; never claim an unverified status.
 
 ## Commands
 
 ```
-mix deps.get                    # requires a working Rust/cargo toolchain — the default
-                                 # --engine oxigraph compiles native/ggen_graph_nif as
-                                 # part of compiling this library, regardless of which
-                                 # engine is used at runtime
+mix deps.get              # needs a Rust toolchain (compiles the NIF)
 mix compile
-mix test                        # default suite; excludes mix e2e
-mix test test/some_test.exs
-mix test test/some_test.exs:42  # single test by line
-mix coveralls                   # ExCoveralls (test_coverage tool configured in mix.exs)
-mix dialyzer                    # PLT includes :mix (see mix.exs comment — Mix.Task-based
-                                 # CLI tasks need it or dialyzer reports false unknown_function)
-mix e2e                         # alias for `mix run test/e2e/run_e2e.exs` — see below
-mix ggen_igniter.doctor         # run first when diagnosing an environment/consumer-project issue
-mix ggen_igniter.sync --ontology path.ttl --query name=path.rq --template path.eex --out path.ex
+mix test                  # default suite
+mix ggen_igniter.doctor   # run first when diagnosing
+mix ggen_igniter.sync --pack <name> [--for-each row]
+mix e2e                   # manual only, never in mix test; CI = .github/workflows/ci.yml
 ```
 
-### `mix e2e` — not part of `mix test`, run manually
+## Non-negotiable invariants
 
-A real, sequential end-to-end lifecycle test: scaffolds a genuine throwaway Ash+Phoenix
-app via real `mix archive.install`/`mix igniter.new` subprocess calls (real network,
-several minutes), adds `ggen_igniter` as a `path:` dep, then drives an 8-stage lifecycle
-(resource creation, attribute add, relationships, custom action, `AshPhoenix.Form`
-round-trip, `ash_phoenix.gen.live`, an attribute rename) against
-`test/fixtures/ash-lifecycle-pack/`, running `mix compile --warnings-as-errors`/`mix test`
-inside the scaffolded app after each stage.
+- **Chicago-style tests only.** Real files, subprocesses, engines; state-based assertions. No Mox/:meck/Mimic/Patch/mockall in `test lib native` (grep `(use|import) +(Mox|Mimic|Patch)\b|:meck\.` — must be clean; never grep bare `patch(`/`mock(`: `test/CLAUDE.md`).
+- **A summary is not a receipt.** Done = `mix compile --warnings-as-errors` + `mix test` (the `gate` skill) with real output pasted. Re-`Read` after Edit/Write. Show `git diff` of claimed hunks. Label pre-existing vs introduced failures.
+- **Never hand-write Ash surfaces** (`use Ash.Resource`/`use Ash.Domain`) — the hook `.claude/hooks/refuse-handwritten-ash.sh` blocks them: hand-writing silently skips config registration, derived accept lists, repo wiring, migration snapshots. Doctrine: `AGENTS.md`.
+- **Topology is transport, never ontology.** No `git worktree`, no `~/wt/` (guard refuses). Subagents get the absolute path and first echo `pwd && git remote -v && git rev-parse --abbrev-ref HEAD`; remote mismatch = stop.
+- **Parallel agents are lanes in this one checkout** (operator 2026-09-23/24): disjoint file ownership in `docs/jira/<milestone>/_LANES.md`, seams pinned as RESOLUTIONS, per-lane `MIX_BUILD_ROOT=_build-lane<N>`, coordinator owns all git transitions. See `~/.claude/rules/same-checkout-fanout.md`. One autonomous loop per repo at a time.
+- **Destructive ops** (`rm -rf`, `git reset --hard`, `git push --force`): enumerate exact paths/refs and confirm (Bash PreToolUse hook enforces). Fix forward; `git revert` is fine. Multi-line commit messages: `git commit -F <file>`, never `-m`.
 
-`mix e2e` is not run by CI, only manually — but **not** for lack of a CI config.
-`.github/workflows/ci.yml` does exist and runs `mix deps.get` -> `mix format
---check-formatted` -> `mix credo` -> `mix test`. It simply never invokes `mix e2e`, and
-plain `mix test` cannot reach this suite even in principle, for two independent reasons:
+## Architecture map (details live in docs/)
 
-- `test/e2e/lifecycle_test.ex` deliberately keeps a `.ex` (not `_test.exs`) extension, so
-  Mix's default `*_test.exs` glob never picks it up. `.credo.exs:228-238` documents that
-  choice and excludes the file from `Credo.Check.Warning.WrongTestFilename` as a confirmed
-  false positive rather than "fixing" the name.
-- `elixirc_paths(:test)` is `["lib", "test/support"]` (`mix.exs:194-198`), so `test/e2e/`
-  is never compiled under `MIX_ENV=test` at all.
+- Three entry paths — know which you edit: `Mix.Tasks.GgenIgniter.Sync` (frontmatter, `--for-each`, `inject:`), bounded `GgenIgniter.Reconcile.run/1` (no frontmatter parity), opt-in Reactor pipeline (`use_reactor: true`, default false). Layers: `docs/architecture/overview.md`. Ash is dev+test-only, never runtime.
+- Manifest: `<manifest-dir>/.ggen_igniter/manifest.json` keyed by (template, out-template); `--on-stale refuse|prune|preserve` (refuse default). See `docs/reference/reconciliation/`.
+- Packs: `priv/ggen/<pack>/{ontology.ttl,gates/*.rq,templates/}`; explicit `--ontology/--query/--template` beats `--pack`. Prefer an existing pack over ad-hoc scaffolding.
+- sJira origin-authority law (SJ-002): work orders originate only from admitted `sj:CodeWorkAuthority`; prose is observation-only. ADR-012, `docs/jira/v26.9.24/_LANES.md`.
 
-So adding an e2e job means adding a step to the existing `ci.yml` (and running it as
-`mix e2e`, not via `mix test`) — it does not mean creating a CI config from scratch.
+## Pointers
 
-## Architecture
-
-### The four layers and who actually owns what
-
-| Layer | Real role here |
-|---|---|
-| **ggen** | Semantic compilation (ontology -> query -> render -> actuate), Elixir-native except the oxigraph NIF. |
-| **Igniter** | CLI-task plumbing (`Igniter.Mix.Task`, `add_notice/2`) for `mix ggen_igniter.sync`/`.doctor`, plus real AST-mutation use in `GgenIgniter.DoctorFixes`'s `--fix` transforms: `Igniter.Code.Module`/`Function`/`List`/`Tuple`/`Keyword` and `Igniter.Project.Config.modify_config_code/4,5` operate directly on a `Sourceror.Zipper.t()` built from `Sourceror.parse_string!/1` (no `%Igniter{}` needed — see `doctor_fixes.ex`'s moduledoc for why). No code here builds a real `%Igniter{}`/`Rewrite` project (`Igniter.new/0`, `Igniter.Project.Module`) — that would require the process's own cwd to be the target project, which conflicts with `project_dir`-as-an-explicit-argument; real, disclosed future work if that's ever needed. |
-| **Reactor** | Coordination/ordering/concurrency/compensation. `GgenIgniter.Reactors.ReconcileReactor` is a plain `use Reactor` module (not `Ash.Reactor`) — real and tested, but opt-in via `config :ggen_igniter, use_reactor: true` (default `false`). |
-| **Ash** | A **dev/test-only dependency of this repo itself**: `mix.exs:176-177` declares `{:ash, "~> 3.0", only: [:dev, :test]}` and `{:ash_postgres, "~> 2.0", only: [:dev, :test]}`, so this repo's own suite can drive the *real* upstream Ash generators through `Igniter.Test` instead of asserting against a hand-written imitation of their output. It is still not a **runtime** dependency: there is no `use`/`import`/`alias`/`require Ash` anywhere in `lib/` — every `Ash` string in `lib/` is inside a docstring or a literal the doctor/install tasks match a *consumer* tree against. Verify with `grep -rn -e '^ *use Ash' -e '^ *import Ash' -e '^ *alias Ash' -e '^ *require Ash' lib/`, which returns nothing (repeated `-e` rather than a `-E` alternation so the command survives copy-paste out of this table cell intact). The `only: [:dev, :test]` scoping means a consumer of this library never inherits Ash. `mix ggen_igniter.doctor` only scans a *consumer* project for `use Ash.Domain`, textually. |
-
-### Two parallel pipelines — know which one you're editing
-
-1. **Default pipeline**: `Mix.Tasks.GgenIgniter.Sync` (`lib/mix/tasks/ggen_igniter.sync.ex`)
-   drives ontology-load -> engine-run -> render -> actuate inline, with full frontmatter
-   parsing, `--for-each` fan-out, and `inject: true` splicing. `GgenIgniter.Reconcile.run/1`
-   is a second, deliberately bounded entry point used by `GgenIgniter.Controller`
-   (persistent GenServer) — it does **not** yet implement frontmatter parsing or
-   `--for-each`; don't assume feature parity between `sync.ex` and `Reconcile.run/1`.
-2. **Reactor pipeline** (opt-in): observe prior manifest -> load ontology -> resolve pack
-   -> run queries -> render into `[%PendingActuation{}]` -> `:admit` (fail-closed,
-   whole-plan invariants: duplicate paths, unowned deletes, stale-path violations) ->
-   `:actuate` (concurrent, self-healing) -> `:verify` (`mix compile
-   --warnings-as-errors`) -> finalize evidence (`GgenIgniter.Receipt`, persisted **before**
-   manifest promotion on every path). Supports Reactor `undo/4` rollback when `:verify`
-   fails after `:actuate` already wrote files. Both call sites
-   (`Mix.Tasks.GgenIgniter.Sync`, `GgenIgniter.Controller`) are byte-for-byte unchanged
-   when `use_reactor: false` (the default).
-
-### Query engines (`--engine`)
-
-- `oxigraph` (default since v26.8.27): in-process Rustler NIF over real oxigraph, chosen
-  to fix an empirically-confirmed `ORDER BY` row-reversal bug in the pure-Elixir `sparql`
-  hex package — see `docs/architecture/adr/0001-oxigraph-default-query-engine.md`.
-- `sparql`: pure-Elixir, in-process, via the `sparql` hex package; has known
-  `FILTER NOT EXISTS`/`UNION` limitations.
-- `qlever`: real HTTP against an already-running QLever endpoint; `--ontology` is still
-  loaded but only to resolve the `gnoa:Qlever`-typed store named by `--store-id`
-  (required with this engine) — query text never touches the loaded graph.
-
-### Reconciliation manifest (`--on-stale refuse|prune|preserve`)
-
-Every non-`inject:` `mode: file` write is recorded in
-`<manifest-dir>/.ggen_igniter/manifest.json`, keyed by the `(template, --out-template)`
-recipe pair (not by ontology path/pack name). `stale = old_paths - new_paths` is the
-mechanical signature of an upstream rename/removal. `refuse` (default) aborts the whole
-run before writing if any stale path exists; `prune` deletes stale paths; `preserve`
-leaves them, warns, and releases them from the tracked set. A true no-op re-run
-(identical path+content-hash set) does not touch the manifest file at all, not even its
-timestamp. This closes the orphan-file gap only for a recipe's *own* tracked outputs —
-there is no cross-file stale-reference repair (e.g. a renamed Ash attribute breaking
-separately hand-generated LiveView code).
-
-### The `--pack` convention
-
-`priv/ggen/<pack-name>/{ontology.ttl,gates/*.rq,templates/extension.ex.eex}` — an explicit
-`--ontology`/`--query`/`--template` flag always wins over the pack-derived default.
-`--pack-dir DIR` bypasses the `priv/ggen/<pack>/` convention entirely. Packs can be
-fetched from `github:owner/repo[@ref]` or `hex:name[@version]` via
-`GgenIgniter.Pack.fetch_pack!/2`.
-
-### Frontmatter injection (`inject: true`)
-
-A marker-based text splice (`Actuate.inject_content!/5`), not an AST-based structural
-patch — see `docs/architecture/adr/0006-marker-based-injection-not-ast-patch.md`.
-Requires exactly one of `before:`/`after:`/`at_line:` alongside `inject: true`.
-
-## Testing discipline (enforced, not just preferred)
-
-Chicago-school only: real collaborators (real files, real subprocesses, real SPARQL
-engines/oxigraph NIF), state-based assertions on real resulting state. No mocking library —
-`Mox`, `:meck`, `Mimic`, the Elixir `Patch` library, Rust `mockall`, Python
-`unittest.mock` — anywhere in `test`, `lib`, or `native`. Verify with this exact command
-before claiming a test change is done:
-
-```bash
-grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' \
-  --exclude-dir=_build --exclude-dir=deps \
-  -E '(use|import) +(Mox|Mimic|Patch)\b|(Mox|Mimic|Patch)\.|:meck\.|mockall|MagicMock|Mock\(' \
-  test lib native
-```
-
-It exits 1 with zero output on a clean tree. Verified 2026-09-08 both ways: zero matches
-here, and it catches all of `use Mox` + `Mox.expect`, `:meck.new`, `use Patch`, `import
-Mimic` + `Mimic.copy`, `use mockall::`, and Python `Mock()`/`MagicMock` in a probe tree.
-
-**Do not grep bare `patch(`, `mock(`, `Mock` or `monkeypatch`** — the older command
-`grep -rn "Mock\|mock(\|patch(\|monkeypatch" test lib native` returns ~20 hits, none of
-them violations, so it cannot distinguish a real mock from either of these:
-
-- `patch(` matches `Igniter.Test`'s `assert_has_patch/3`, which is a real state-based
-  assertion on a real `%Igniter{}` diff — the opposite of a mock.
-- A dozen test moduledocs quote the banned tokens verbatim inside their own *no-mock*
-  disclosures, which this repo requires (see `test/CLAUDE.md`).
-
-The command above avoids both by matching only `use`/`import`/module-qualified call
-positions, and by scanning source extensions only, so a fixture's `_build/`, `deps/` or a
-stray `erl_crash.dump` cannot turn the check red either.
-
-## How to work in this repo (explore -> plan -> implement -> verify -> commit)
-
-- **Explore**: check `docs/status.md`/`docs/glossary.md` and
-  `mcp__plugin_lumen_lumen__semantic_search` before grepping — this repo's docs are
-  disciplined about real IMPLEMENTED/PARTIAL_ALIVE/PLANNED status, so they're often
-  faster and more trustworthy than re-deriving from code.
-- **Plan**: use plan mode for anything crossing the `sync.ex` / `Reconcile.run/1` /
-  Reactor-pipeline boundary, touching the reconciliation manifest's stale-detection
-  logic, or spanning more than one of these layers. Skip it for single-file,
-  describable-in-one-sentence changes.
-- **Implement + verify**: run the `gate` skill before claiming anything is done — it is
-  this repo's "check Claude can run" (compile + test + disk-reread + diff-matches-intent
-  + Chicago-mock grep). Don't substitute a narrated summary for its receipt.
-- **Commit**: `git commit -F <message-file>`, never inline `-m` for multi-line messages —
-  this repo's commit history routinely cites ADRs/gate output inline, which is exactly
-  the backtick/parenthesis-heavy text that breaks shell-tokenized `-m` strings.
-- **GitHub work**: use the `gh` CLI for issues/PRs — no project-specific MCP server is
-  configured here beyond the global Lumen indexer.
-
-## Verification discipline (non-negotiable in this repo)
-
-- Never claim work is done without running the gate: `mix compile --warnings-as-errors`
-  + `mix test` (+ `mix dialyzer` when the PLT is already built). Paste the actual command
-  output as the receipt — a summary is not a receipt. Use the `gate` skill.
-- After any Edit/Write, re-`Read` the file to confirm the change actually landed on
-  disk before moving on or reporting it done. An edit that silently didn't land (e.g. a
-  branch added to a function that was never actually written to disk) is the single
-  most common real failure mode seen in this repo's history — don't trust the tool
-  result, re-read.
-- Before running tests after an edit, show `git diff --stat` and the `git diff` for the
-  specific hunk you claim to have changed, and confirm it matches your stated intent.
-  Empty diff or an unintended file touched means stop and say so, not continue.
-- Distinguish PRE-EXISTING failures from ones you introduced, explicitly, every time.
-
-## Working-directory / multi-repo discipline
-
-- This machine runs many repos in parallel. Before dispatching any subagent or running
-  a verification pass, print `pwd` and `git remote -v` and pass the **absolute path**
-  to `ggen_igniter` explicitly in the subagent's prompt — never assume inherited cwd.
-- Every dispatched subagent's first action must be to `cd <ABS_PATH> && pwd && git
-  remote -v && git rev-parse --abbrev-ref HEAD` and echo that verbatim before doing
-  anything else. If the remote doesn't match `ggen_igniter`, it must stop and report a
-  mismatch rather than proceed — this has produced real false "stale" findings before.
-
-## Parallel agent protocol
-
-- **Same-checkout lanes, never worktrees** (operator 2026-09-23 one-canonical-checkout
-  law; fan-out protocol 2026-09-24, see `~/.claude/rules/same-checkout-fanout.md`):
-  concurrent implementation agents are dispatched as LANES with disjoint file
-  ownership mapped in `docs/jira/<milestone>/_LANES.md`, shared seams pinned in
-  `RESOLUTIONS.md` beside it, per-lane `MIX_BUILD_ROOT=_build-lane<N>` build
-  isolation, and every git transition owned by the coordinator. The earlier
-  `git worktree`/`agent-worktree` guidance in this section is retired — worktrees
-  are refused by the topology guard.
-- Fan out authoring/exploration as wide as useful; serialize only the merge/integration
-  step — one merge at a time, full gate re-run on `main` after each.
-- Only one autonomous/scheduled loop (ERRC/DMEDI/ultracode/defect-round) may run
-  against this repo at a time. Concurrent loops on the same repo have broken tests via
-  colliding config changes and produced phantom "Cannot find module"-class staleness
-  from concurrent writers — check for an in-flight pass before starting another.
-
-## Destructive operations
-
-- `rm -rf`, `git reset --hard`, `git push --force` require enumerating the exact
-  resolved paths/refs and explicit user confirmation first — never issue these based on
-  a plan alone. (The `Bash`-matcher `PreToolUse` hook in `.claude/settings.json` blocks
-  the raw commands and prompts for this; the `Edit|Write` matcher is a different guard —
-  see "Repo-local skills and hooks" below.)
-- Per the global git workflow rule: fix forward only, never `git reset --hard`;
-  `git revert` is the one destructive-looking operation that's actually fine (it's a
-  new commit).
-
-## Prefer in-ecosystem tooling
-
-- For scaffolding, templates, or ontology/pack research, use `ggen`/`ggen-marketplace`
-  packs first (`GgenIgniter.Pack.fetch_pack!/2`, the `--pack` convention) — don't
-  `WebFetch` external material or hand-roll ad hoc scaffolding when a pack already
-  covers it.
-
-## Repo-local skills and hooks
-
-- `.claude/skills/gate/` — the verification gate above, invokable as a skill.
-- `.claude/skills/defect-round/` — one falsification-hardened defect-hunting round
-  (failing test first, fix, mutate, disk-verify, ledger receipt); `/defect-round` command
-  wraps it.
-- `.claude/skills/agent-worktree/` — worktree isolation contract for parallel agents.
-- `.claude/settings.json` — four hooks, and note there are **two separate `PreToolUse`
-  matchers**, not one:
-  - `PostToolUse` / `Edit|Write` — formatter (`mix format`/`rustfmt` on the edited file).
-  - `PreToolUse` / `Bash` — blocks raw `rm -rf`/`git reset --hard`/`git push --force`
-    until the exact resolved paths/refs are enumerated and confirmed.
-  - `PreToolUse` / `Edit|Write` — runs `.claude/hooks/refuse-handwritten-ash.sh`, which
-    exits 2 (blocking the write) when the tool payload hand-authors an Ash surface:
-    `use Ash.Resource`/`use Ash.Domain`, or a base-resource header (`otp_app:` paired with
-    `domain:`). Its purpose is doctrinal, not stylistic — Ash surfaces are manufactured by
-    the real upstream generators via the composed `manufacture` task, because writing them
-    by hand silently skips domain registration in `config/`, the create/update accept
-    lists derived from public attributes, `ash_postgres` repo wiring, and the migration
-    snapshot `ash.codegen` diffs against. The file looks right and the project is wrong.
-    Doctrine: `AGENTS.md` ("The admitted path", "What is structurally refused"). The
-    allowlist of surfaces permitted to mention those constructs (pack templates, `.eex`/
-    `.ttl`/`.rq`/`.md`, `lib/mix/tasks/`, the ash-lifecycle fixture pack, `deps/`,
-    `_build/`, `config/*.exs`, `test/*.exs`) lives in the script — read it there rather
-    than trusting this summary, which is a pointer and not the source of record.
-  - `Stop` — deterministically blocks ending a turn while `mix compile
-    --warnings-as-errors` is failing (fast compile-only check; the full `mix test` stays
-    inside the `gate` skill, invoked explicitly before claiming completion).
-- `.claude/agents/ggen-reviewer.md` — adversarial-review subagent scoped to this
-  repo's real correctness surfaces (manifest staleness, Reactor admission/
-  compensation, cross-engine divergence, `docs/status.md` alignment). Invoke with
-  "use a subagent to review this diff" before treating multi-file changes as done.
-
-## Path-specific rules (loaded automatically when working in that subtree)
-
-- `lib/ggen_igniter/CLAUDE.md` — moduledoc style, behaviour/subdirectory-impl
-  structure, when to add a new module here.
-- `lib/mix/tasks/CLAUDE.md` — CLI task naming/structure, doctor-checklist sync rule.
-- `native/CLAUDE.md` — Rust NIF doc-comment style, vendoring rule, verification.
-- `test/CLAUDE.md` — required per-file test shape, fixture placement, e2e vs unit split.
-- `docs/CLAUDE.md` — evidence-sourcing rule for every status claim, Diátaxis structure,
-  ADR numbering/status conventions.
-- `priv/ggen/CLAUDE.md` — the `--pack` convention's fixed subpath shape and naming.
-
-## Documentation map
-
-- `docs/status.md` — real IMPLEMENTED/PARTIAL_ALIVE/PLANNED status per capability
-- `docs/glossary.md` — one sourced definition per domain term (admission, actuation,
-  compensation, stale artifact, etc.)
-- `docs/architecture/overview.md` — full layer-ownership table
-- `docs/architecture/adr/` — accepted architecture decisions
-- `docs/reference/cli/{sync,doctor}.md` — full flag/check reference
-- `docs/reference/reconciliation/`, `docs/reference/reactor/` — manifest and Reactor pipeline internals
+- Path rules (auto-loaded per subtree): `lib/ggen_igniter/`, `lib/mix/tasks/`, `native/`, `test/`, `docs/`, `priv/ggen/` — each has a `CLAUDE.md`.
+- Docs: `docs/status.md`, `docs/glossary.md`, `docs/reference/cli/`, ADRs in `docs/architecture/adr/` (its README is generated — edit `priv/ggen/adr-index-pack`, re-sync).
+- Hooks/skills: `.claude/settings.json` (formatter, Bash guard, Ash-write guard, Stop-on-red compile), `.claude/skills/{gate,defect-round}/`, `.claude/agents/ggen-reviewer.md` (adversarial diff review).
