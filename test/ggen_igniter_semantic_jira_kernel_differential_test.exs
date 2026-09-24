@@ -5,7 +5,8 @@ defmodule GgenIgniter.SemanticJiraKernelDifferentialTest do
 
     * the committed v26.9.22 work-order snapshot
       (`test/fixtures/kernel_differential/v26.9.22/orders.json`, a byte copy of
-      `/Users/sac/wt/v26922/orders.json`) and the repo identities observed from
+      the v26.9.22 driver's orders.json, preserved in chatman-ecosystem at
+      `refs/archive/pre-single-repo-migration/20260924T0600Z/shadow-files`) and the repo identities observed from
       each release/v26.9.22 integration worktree (`repos.json`);
     * the real semantic-jira-pack ontology and shape file;
     * kernel A: this repository's real SHACL court,
