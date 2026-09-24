@@ -17,7 +17,7 @@
 
 sj:WorkOrder a rdfs:Class ;
     rdfs:label "Semantic Jira work order" ;
-    rdfs:comment "Canonical semantic unit projected into Jira-shaped Markdown." .
+    rdfs:comment "Canonical semantic unit projected into Jira-shaped Markdown. A work order's origin must derive from an admitted semantic authority in the canonical ontology graph (an sj:CodeWorkAuthority individual witnessed by sj:admissionDigest, named by exactly one sj:originAuthority); it is never authored directly from prose, chat, Markdown, or an unadmitted proposition." .
 
 sj:Court a rdfs:Class ; rdfs:label "Verification court" .
 sj:EvidenceRequirement a rdfs:Class ; rdfs:label "Evidence requirement" .
@@ -64,6 +64,7 @@ sj:semantic-jira-mvp a sj:WorkOrder ;
     sj:authorityCeiling "CONSTRUCT" ;
     sj:promotionRule "Standing may advance only from an independent exact-head court receipt for the same subject; generated Markdown cannot promote itself." ;
     sj:replayIdentity "semantic-jira:v26.9.19:SJ-001" ;
+    sj:originAuthority sj:objective-semantic-jira-mvp ;
     sj:requiresCourt sj:exact-head-projection-court ;
     sj:requiresEvidence sj:graph-receipt-evidence ;
     sj:acceptance sj:canonical-source, sj:deterministic-projection, sj:fail-closed-invalid ;
@@ -336,6 +337,7 @@ sj:gall-001 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-001" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-001 ;
     sj:requiresEvidence sj:source-evidence, sj:receipt-evidence, sj:replay-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -384,6 +386,7 @@ sj:gall-002 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-002" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-002 ;
     sj:requiresEvidence sj:source-evidence, sj:generated-artifact-evidence, sj:local-execution-evidence, sj:receipt-evidence, sj:replay-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -432,6 +435,7 @@ sj:gall-003 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-003" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-003 ;
     sj:requiresEvidence sj:authority-evidence, sj:receipt-evidence, sj:postcondition-evidence, sj:replay-evidence ;
     sj:requiresReceiptClass "authority_preparation", "actuation", "verification", "postcondition", "replay" ;
@@ -480,6 +484,7 @@ sj:gall-004 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-004" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-004 ;
     sj:requiresEvidence sj:telemetry-evidence, sj:postcondition-evidence, sj:receipt-evidence ;
     sj:requiresReceiptClass "actuation", "verification", "postcondition", "replay" ;
@@ -528,6 +533,7 @@ sj:gall-005 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-005" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-005 ;
     sj:requiresEvidence sj:receipt-evidence, sj:postcondition-evidence, sj:replay-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -576,6 +582,7 @@ sj:gall-006 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-006" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-006 ;
     sj:requiresEvidence sj:generated-artifact-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -624,6 +631,7 @@ sj:gall-007 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-007" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-007 ;
     sj:requiresEvidence sj:local-execution-evidence, sj:receipt-evidence, sj:replay-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -672,6 +680,7 @@ sj:gall-008 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-008" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-008 ;
     sj:requiresEvidence sj:telemetry-evidence, sj:receipt-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -720,6 +729,7 @@ sj:gall-009 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-009" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-009 ;
     sj:requiresEvidence sj:runtime-evidence, sj:telemetry-evidence, sj:receipt-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -768,6 +778,7 @@ sj:gall-010 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-010" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-010 ;
     sj:requiresEvidence sj:telemetry-evidence, sj:process-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -816,6 +827,7 @@ sj:gall-011 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-011" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-011 ;
     sj:requiresEvidence sj:local-execution-evidence, sj:receipt-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -864,6 +876,7 @@ sj:gall-012 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-012" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-012 ;
     sj:requiresEvidence sj:source-evidence, sj:local-execution-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -912,6 +925,7 @@ sj:gall-013 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-013" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-013 ;
     sj:requiresEvidence sj:runtime-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -960,6 +974,7 @@ sj:gall-014 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-014" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-014 ;
     sj:requiresEvidence sj:runtime-evidence, sj:telemetry-evidence, sj:postcondition-evidence, sj:receipt-evidence, sj:replay-evidence ;
     sj:requiresReceiptClass "actuation", "verification", "postcondition", "replay" ;
@@ -1008,6 +1023,7 @@ sj:gall-015 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-015" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-015 ;
     sj:requiresEvidence sj:process-evidence, sj:source-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1056,6 +1072,7 @@ sj:gall-016 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-016" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-016 ;
     sj:requiresEvidence sj:process-evidence, sj:source-evidence, sj:local-execution-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1104,6 +1121,7 @@ sj:gall-017 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-017" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-017 ;
     sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1152,6 +1170,7 @@ sj:gall-018 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-018" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-018 ;
     sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1200,6 +1219,7 @@ sj:gall-019 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-019" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-019 ;
     sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1248,6 +1268,7 @@ sj:gall-020 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-020" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-020 ;
     sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1296,6 +1317,7 @@ sj:gall-021 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-021" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-021 ;
     sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence, sj:replay-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1344,6 +1366,7 @@ sj:gall-022 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-022" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-022 ;
     sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1392,6 +1415,7 @@ sj:gall-023 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-023" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-023 ;
     sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence, sj:replay-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1440,6 +1464,7 @@ sj:gall-024 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-024" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-024 ;
     sj:requiresEvidence sj:telemetry-evidence, sj:process-evidence, sj:receipt-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1488,6 +1513,7 @@ sj:gall-025 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-025" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-025 ;
     sj:requiresEvidence sj:process-evidence, sj:telemetry-evidence, sj:local-execution-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1536,6 +1562,7 @@ sj:gall-026 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-026" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-026 ;
     sj:requiresEvidence sj:process-evidence, sj:telemetry-evidence, sj:local-execution-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1584,6 +1611,7 @@ sj:gall-027 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-027" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-027 ;
     sj:requiresEvidence sj:process-evidence, sj:telemetry-evidence, sj:local-execution-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1632,6 +1660,7 @@ sj:gall-028 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-028" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-028 ;
     sj:requiresEvidence sj:telemetry-evidence, sj:runtime-evidence, sj:process-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1680,6 +1709,7 @@ sj:gall-029 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-029" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-029 ;
     sj:requiresEvidence sj:process-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
     sj:requiresReceiptClass "verification", "replay" ;
@@ -1728,6 +1758,7 @@ sj:gall-030 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-030" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-030 ;
     sj:requiresEvidence sj:process-evidence, sj:authority-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
     sj:requiresReceiptClass "actuation", "verification", "postcondition", "replay" ;
@@ -1776,6 +1807,7 @@ sj:gall-031 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-031" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-031 ;
     sj:requiresEvidence sj:process-evidence, sj:runtime-evidence, sj:local-execution-evidence, sj:receipt-evidence ;
     sj:requiresReceiptClass "actuation", "verification", "postcondition", "replay" ;
@@ -1824,6 +1856,7 @@ sj:gall-032 a sj:WorkOrder, sj:Checkpoint ;
     sj:authorityRequirement "NONE" ;
     sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
     sj:replayIdentity "semantic-jira:v26.9.19:GALL-032" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
     sj:requiresCourt sj:court-gall-032 ;
     sj:requiresEvidence sj:process-evidence, sj:runtime-evidence, sj:telemetry-evidence, sj:postcondition-evidence, sj:receipt-evidence, sj:replay-evidence ;
     sj:requiresReceiptClass "actuation", "verification", "postcondition", "replay" ;
@@ -2042,7 +2075,7 @@ sj:a2a-attr-receipt-digest a a2a:ResourceAttribute ; a2a:attributeOf sj:a2a-targ
 # gall:SemanticCheckpoint as a gall:CheckpointArchetype individual (OWL 2
 # punning), so no validator or gate in this pack reasons over the triple.
 sj:GoalCheckpoint a rdfs:Class ;
-    rdfs:subClassOf sj:Checkpoint ;
+    rdfs:subClassOf sj:Checkpoint, sj:CodeWorkAuthority ;
     owl:equivalentClass gall:SemanticCheckpoint ;
     rdfs:label "Goal checkpoint" ;
     rdfs:comment "A finite goal-graph checkpoint closed by a court. A non-root GoalCheckpoint (one with sj:checkpointOf) carries a runnable sj:courtCommand and a sj:boundaryClass; the root carries sj:stopQuery, a SPARQL ASK over receipts that is true only when STOP holds." .
@@ -2133,9 +2166,11 @@ sj:ledger-unsupported-002 a rdfs:Resource ;
 # prose, bound to its exact source span. Candidate IRIs are
 # <goal namespace>P-<first 16 hex of sha256("<sourceSha256>:<start>:<end>:<kind>")>.
 # Admission (shapes/proposition.shacl.ttl + GgenIgniter.SemanticJira.Prose)
-# replaces sj:candidateStanding "UNKNOWN" by sj:admissionDigest; the admitted
-# graph -> WorkOrder delta is the deterministic pack query
-# prose/delta.construct.rq (no second LLM interpretation, ARD section 5.5).
+# complements sj:candidateStanding "UNKNOWN" with sj:admissionDigest on
+# admission paths that admit propositions. Since SJ-002 (2026-09-24) observe
+# never replaces candidate standing and no admitted-graph -> WorkOrder delta
+# exists: observe_prose emits only candidate propositions, never WorkOrders
+# (no second LLM interpretation, ARD section 5.5).
 sj:Proposition a rdfs:Class ;
     rdfs:label "Semantic proposition" ;
     rdfs:comment "One proposition extracted from accepted prose (ARD section 5.2 kinds), bound to an exact UTF-8 byte span of its source document. Candidate until admitted; the prose itself is never executable authority (PR-001)." .
@@ -2192,11 +2227,108 @@ sj:extractedBy a rdf:Property ;
 sj:admissionDigest a rdf:Property ;
     rdfs:domain sj:Proposition ;
     rdfs:range xsd:string ;
-    rdfs:comment "\"sha256:<hex>\" over the admission context (source, candidates, goal, ontology, shapes and query digests) and the proposition's own triples; present exactly when sj:candidateStanding is absent." .
+    rdfs:comment "\"sha256:<hex>\" over the admission context (source, candidates, goal, ontology, shapes and query digests) and the subject's own triples; for admitted propositions it is present exactly when sj:candidateStanding is absent. Carried by admitted propositions AND by admitted sj:CodeWorkAuthority individuals (sj:StrategicObjective, sj:GoalCheckpoint): a work-order origin authority is admitted only while its digest resolves byte-equal in the canonical ontology graph." .
 
 # ---- HANDWRITTEN ledger: UNSUPPORTED(generator, element) row ----
 sj:ledger-unsupported-003 a rdfs:Resource ;
     rdfs:label "UNSUPPORTED(semantic-jira-pack, prose-admission-orchestrator)" ;
-    dcterms:description "UNSUPPORTED(generator-capability): no admitted generator manufactures the prose admission orchestrator (byte-level provenance binding, SHACL admission scoping, receipt-witness projection, delta conservation twin, sorted N-Triples serialization), so lib/ggen_igniter/semantic_jira/prose.ex, lib/mix/tasks/semantic_jira.compile_prose.ex and the Chicago proof test/ggen_igniter_semantic_jira_prose_test.exs with its fixture test/fixtures/semantic-jira-prose/ are admitted hand-authored residue. The semantic rules themselves are pack data: shapes/proposition.shacl.ttl and prose/*.rq. Paydown plan: move provenance binding into a pack SPARQL function once the admitted sparql engine exposes byte-span access, and extend the pack-integration-proof generator of sj:ledger-unsupported-001 to emit one refusal case per prose/*.rq rule; when admitted, this row and its HANDWRITTEN.md entry retire." ;
+    dcterms:description "UNSUPPORTED(generator-capability): no admitted generator manufactures the prose observation surface (byte-level provenance binding, SHACL candidate scoping, sorted N-Triples serialization), so lib/ggen_igniter/semantic_jira/prose.ex, lib/mix/tasks/semantic_jira.observe_prose.ex and the Chicago proof test/ggen_igniter_semantic_jira_prose_test.exs with its fixture test/fixtures/semantic-jira-prose/ are admitted hand-authored residue. Observe-only since SJ-002 (2026-09-24): compile_prose was renamed observe_prose and emits only UNKNOWN candidate propositions with sj:authorityClaim \"NONE\"; the receipt-witness projection, the delta conservation twin, and the admitted-graph -> WorkOrder delta query (prose/delta.construct.rq) are excised -- prose originates no code work. The semantic rules themselves are pack data: shapes/proposition.shacl.ttl and prose/*.rq. Paydown plan: move provenance binding into a pack SPARQL function once the admitted sparql engine exposes byte-span access, and extend the pack-integration-proof generator of sj:ledger-unsupported-001 to emit one refusal case per prose/*.rq rule; when admitted, this row and its HANDWRITTEN.md entry retire." ;
     dcterms:date "2026-09-23"^^xsd:date ;
     dcterms:references <https://ggen-igniter.dev/ontology/semantic-jira#pack-integration-proof-test> .
+
+# ── Origin-authority vocabulary (SJ-002, v26.9.24) ──────────────────────────
+# A work order's origin resolves to an ADMITTED sj:CodeWorkAuthority
+# individual. Admitted = its sj:admissionDigest resolves byte-equal in the
+# canonical ontology graph via GgenIgniter.SemanticJira.Authority.verify_origin/3.
+# sj:Proposition and its subclasses are never code-work authority; prose
+# compiles to candidate propositions only, never WorkOrders.
+
+sj:CodeWorkAuthority a rdfs:Class ;
+    rdfs:label "Code work authority" ;
+    rdfs:comment "An individual that may originate code work. Admitted = exactly one sj:admissionDigest resolving byte-equal in the canonical ontology graph; sj:Proposition and its subclasses are never code-work authority." .
+
+sj:StrategicObjective a rdfs:Class ;
+    rdfs:subClassOf sj:CodeWorkAuthority ;
+    rdfs:label "Strategic objective" ;
+    rdfs:comment "Long-horizon code-work authority spanning many work orders; admitted as a whole, not per order." .
+
+# STANDALONE by resolution R3: deliberately NOT a sj:Proposition subclass --
+# a prose observation originates no work order; it is provenance, never
+# authority.
+sj:ProseObservation a rdfs:Class ;
+    rdfs:label "Prose observation" ;
+    rdfs:comment "An observation extracted from prose; a candidate proposition carrying sj:candidateStanding \"UNKNOWN\" and sj:authorityClaim \"NONE\"; may be cited by sj:originObservation; originates no work order." .
+
+sj:originAuthority a rdf:Property ;
+    rdfs:domain sj:WorkOrder ;
+    rdfs:range sj:CodeWorkAuthority ;
+    rdfs:comment "Exactly one per WorkOrder, enforced by WorkOrderOriginShape; refused when missing, untyped, proposition-typed, or without a verifying sj:admissionDigest." .
+
+sj:originObservation a rdf:Property ;
+    rdfs:domain sj:WorkOrder ;
+    rdfs:range sj:ProseObservation ;
+    rdfs:comment "Optional, at most one; provenance never authority." .
+
+sj:objective-semantic-jira-mvp a sj:StrategicObjective ;
+    rdfs:label "Semantic Jira MVP strategy" ;
+    dcterms:description "Canonical RDF work-order graph, SHACL admission court, typed receipts; origin of SJ-001; projects work from admitted graph state, never from generated Markdown." ;
+    sj:admissionDigest "sha256:7b3b5c6c16552d5e9eefbb070f8c10182b86034733aa018d1c57c6880f8bfb1f" .
+
+sj:objective-project-manufacturer a sj:StrategicObjective ;
+    rdfs:label "Project manufacturer strategy" ;
+    dcterms:description "Receipt-replayable GALL checkpoint ladder, every rung closes through an independent exact-subject court and survives byte-identical replay; origin of GALL-001..032." ;
+    sj:admissionDigest "sha256:639c07b80d557781fc76da0820feb43ac8b3161d527ccbb147533b7e645af0f8" .
+
+sj:objective-code-work-authority a sj:StrategicObjective ;
+    rdfs:label "Code work originates from admitted semantic authority" ;
+    dcterms:description "All code work originates from admitted semantic authority in the canonical graph; agents communicate only through sJira state; prose, chat, and Markdown are observation surfaces, never work authority." ;
+    sj:admissionDigest "sha256:310e14f1e30a9bb4d6ebd4388036e10ce3c973b13c0d45a7b550fa3dfd53c72c" .
+
+sj:review-26924-prose-authority a sj:ProseObservation ;
+    rdfs:label "2026-09-24 exact-head architecture review: prose-to-WorkOrder edge" ;
+    dcterms:description "The review found the prose-to-WorkOrder edge (prose/delta.construct.rq) granting prose manufactured-order authority; this observation itself originated no code work; it only surfaces the need SJ-002's admitted origin authority covers." .
+
+sj:sj-002 a sj:WorkOrder ;
+    dcterms:identifier "SJ-002" ;
+    dcterms:title "Prose never originates code work; typed-and-admitted origin authority" ;
+    dcterms:description "The prose-to-WorkOrder edge is removed (prose/delta.construct.rq deleted; observe_prose emits only UNKNOWN candidate propositions with sj:authorityClaim \"NONE\"); WorkOrderOriginShape enforces the origin type law, the admission-witness law, and the anti-prose falsifier; the kernel requires origin_authority; observation candidates are lawful only when authority-bound (invariant A)." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "292e40ab08a250ef3f049f9a80b4a65e332d9155" ;
+    sj:subject "semantic-jira:sj-002-origin-authority" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack", "lib/ggen_igniter/semantic_jira" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.24:SJ-002" ;
+    sj:originAuthority sj:objective-code-work-authority ;
+    sj:originObservation sj:review-26924-prose-authority ;
+    sj:requiresCourt sj:court-sj-002 ;
+    sj:requiresEvidence sj:source-evidence, sj:receipt-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-sj-002 ;
+    sj:falsifier sj:falsifier-sj-002 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a ;
+    sj:nextAction sj:run-sj-002-court ;
+    sj:nextCheckpoint sj:sj-002-checkpoint .
+
+sj:court-sj-002 a sj:Court ;
+    rdfs:label "SJ-002 exact-subject court" ;
+    dcterms:description "Independent court for typed-and-admitted origin authority; execution binds exact head, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-sj-002 a sj:AcceptanceCriterion ;
+    rdfs:label "SJ-002 acceptance" ;
+    dcterms:description "observe_prose emits zero WorkOrders; WorkOrderOriginShape refuses missing-origin, typed-unadmitted-origin, and proposition-origin orders and admits witness-carrying authority origins; observation candidates refuse without admitted origin; full pack sync green on exact head." .
+
+sj:falsifier-sj-002 a sj:Falsifier ;
+    rdfs:label "SJ-002 falsifier" ;
+    dcterms:description "A fresh sj:StrategicObjective declared beside a WorkOrder in a candidate graph — even with a forged well-formed admissionDigest — is admitted, or observe_prose produces orders.ttl, or a WorkOrder without sj:originAuthority is admitted." .
+
+sj:run-sj-002-court a sj:Action ;
+    rdfs:label "Run SJ-002 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:sj-002-checkpoint a sj:Checkpoint ;
+    rdfs:label "SJ-002 checkpoint" ;
+    dcterms:description "SJ-002 gates green on exact head." .

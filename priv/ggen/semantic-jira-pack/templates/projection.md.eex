@@ -8,7 +8,7 @@ sparql:
     PREFIX dcterms: <http://purl.org/dc/terms/>
     SELECT ?work_order ?work_order_id ?title ?description ?repository ?base_sha ?subject
            ?standing ?evidence_ceiling ?promotion_rule ?replay_identity
-           ?authority_requirement ?projection_type ?extension WHERE {
+           ?authority_requirement ?origin_authority ?projection_type ?extension WHERE {
       ?work_order a sj:WorkOrder ;
                   dcterms:identifier ?work_order_id ;
                   dcterms:title ?title ;
@@ -21,6 +21,7 @@ sparql:
                   sj:promotionRule ?promotion_rule ;
                   sj:replayIdentity ?replay_identity ;
                   sj:authorityRequirement ?authority_requirement ;
+                  sj:originAuthority ?origin_authority ;
                   sj:projection ?projection .
       ?projection a sj:ProjectionSpec ;
                   sj:projectionType ?projection_type ;
@@ -62,6 +63,7 @@ work_order_row = %{
   "promotion_rule" => promotion_rule,
   "replay_identity" => replay_identity,
   "authority_requirement" => authority_requirement,
+  "origin_authority" => origin_authority,
   "required_courts" => values_for.("requiresCourt"),
   "required_evidence" => values_for.("requiresEvidence"),
   "acceptance" => values_for.("acceptance"),
