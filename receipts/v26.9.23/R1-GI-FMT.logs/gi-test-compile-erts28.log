@@ -1,0 +1,32 @@
+Erlang/OTP 28 [erts-16.4.0.2] [source] [64-bit] [smp:16:16] [ds:16:16:10] [async-threads:1] [jit]
+
+Elixir 1.18.4 (compiled with Erlang/OTP 27)
+==> sparql
+Compiling 2 files (.erl)
+Compiling 43 files (.ex)
+Generated sparql app
+==> sparql_client
+Compiling 9 files (.ex)
+Generated sparql_client app
+==> gno
+Compiling 36 files (.ex)
+Generated gno app
+==> ash_r2rml
+Compiling 111 files (.ex)
+Generated ash_r2rml app
+==> durable_server
+warning: the dependency :durable_server requires Elixir "~> 1.19" but you are running on v1.18.4
+Compiling 18 files (.ex)
+Generated durable_server app
+==> ash_a2a
+warning: the dependency :ash_a2a requires Elixir "~> 1.19" but you are running on v1.18.4
+Compiling 309 files (.ex)
+Compiling lib/ash_a2a/chicago/fixtures/authority.ex (it's taking more than 10s)
+Generated ash_a2a app
+==> ggen_igniter
+Compiling 104 files (.ex)
+Compiling crate ggen_graph_nif in release mode (native/ggen_graph_nif)
+Compiling lib/ggen_igniter/native/graph_nif.ex (it's taking more than 10s)
+Copying /Users/sac/wt/v26922/v23/R1-GI-FMT/native/ggen_graph_nif/target/release/libggen_graph_nif.dylib to priv/native/ggen_graph_nif.so
+Generated ggen_igniter app
+EXIT=0

@@ -36,9 +36,22 @@ defmodule Mix.Tasks.GgenIgniter.Ocel.Seal do
   Exit code `0` seals the log `applied`; any other value seals it
   `aborted`. Sealing a log twice is refused rather than silently appended
   to, so a stale seal cannot be laundered into a fresh one.
+
+  ## EDS receipt
+
+  Sealing is itself a falsifiable claim ("this append left the log
+  conformant: exactly one outcome event, declared as an eventType, related
+  to the run it was derived from"), so a successful seal also constructs and
+  verifies a real `GgenIgniter.EDS.Claim` against the just-written file (a
+  fresh disk read, not the in-memory events this task already held -- the
+  claim's evidence is what actually landed, not what this task intended to
+  write) and persists the resulting `GgenIgniter.EDS.Receipt` next to the
+  OCEL log, at `<path>.eds-receipt.json`.
   """
 
   use Mix.Task
+
+  alias GgenIgniter.EDS.{Claim, Falsifier}
 
   @activity_applied "manufacture_run_applied"
   @activity_aborted "manufacture_run_aborted"
@@ -110,7 +123,138 @@ defmodule Mix.Tasks.GgenIgniter.Ocel.Seal do
       run_type: "manufacture_run"
     )
 
+    receipt = seal_eds_receipt!(path, activity, run_id, exit_code, observed)
+
     Mix.shell().info("ggen_igniter: sealed #{path} as #{activity} (exit #{exit_code})")
+    Mix.shell().info("ggen_igniter: #{GgenIgniter.EDS.Receipt.summary(receipt)}")
+  end
+
+  # Builds and verifies a real GgenIgniter.EDS.Claim that the seal just
+  # written to `path` left the log conformant, then persists the resulting
+  # GgenIgniter.EDS.Receipt as `<path>.eds-receipt.json`. The claim's
+  # evidence comes from re-reading `path` off disk -- a real observation of
+  # what actually landed, not a restatement of the `events`/`activity`
+  # values this task already held in memory (EDS S7: EXECUTABLE !=
+  # OBSERVED_CONSEQUENCE).
+  @spec seal_eds_receipt!(String.t(), String.t(), String.t(), integer(), String.t()) ::
+          GgenIgniter.EDS.Receipt.t()
+  defp seal_eds_receipt!(path, activity, run_id, exit_code, observed) do
+    claim =
+      Claim.new(%{
+        hypothesis:
+          "sealing #{path} with exit #{exit_code} leaves the OCEL log conformant: exactly one " <>
+            "#{activity} event, declared as an eventType, related to run #{run_id} exactly once",
+        artifact: path,
+        falsifiers: eds_falsifiers(activity, run_id),
+        protocol:
+          "GgenIgniter.Telemetry.Ocel2Export.write!/3 append seal event -> re-read #{path} from disk",
+        identity: %{
+          source: path,
+          environment: %{run_type: "manufacture_run"},
+          inputs: %{exit: exit_code, observed: observed, run_id: run_id, activity: activity}
+        },
+        verifier: &eds_verifier/2
+      })
+      |> Claim.execute(&read_sealed_evidence!/1)
+      |> Claim.verify()
+
+    File.write!(
+      eds_receipt_path(path),
+      Jason.encode!(eds_receipt_json(claim.receipt), pretty: true)
+    )
+
+    claim.receipt
+  end
+
+  defp eds_receipt_path(path), do: path <> ".eds-receipt.json"
+
+  # Real, fresh disk read of the just-sealed log -- deliberately re-decodes
+  # `path` rather than reusing `events`/`doc` already held in this run/1
+  # invocation, so the claim's evidence is what actually landed on disk.
+  defp read_sealed_evidence!(path) do
+    doc = path |> File.read!() |> Jason.decode!()
+
+    %{
+      seal_events:
+        Enum.filter(doc["events"] || [], &(&1["type"] in [@activity_applied, @activity_aborted])),
+      event_type_names: Enum.map(doc["eventTypes"] || [], & &1["name"]),
+      last_event: List.last(doc["events"] || [])
+    }
+  end
+
+  defp eds_falsifiers(activity, run_id) do
+    [
+      Falsifier.new(
+        "exactly one #{activity} event",
+        "the sealed log does not contain exactly one #{activity} event",
+        fn evidence ->
+          count = Enum.count(evidence.seal_events, &(&1["type"] == activity))
+
+          if count == 1,
+            do: {:survived, "count=1"},
+            else: {:falsified, "count=#{count}"}
+        end
+      ),
+      Falsifier.new(
+        "#{activity} is a declared eventType",
+        "the sealed log's eventTypes does not name #{activity}",
+        fn evidence ->
+          if activity in evidence.event_type_names,
+            do: {:survived, "declared"},
+            else: {:falsified, "missing from eventTypes: #{inspect(evidence.event_type_names)}"}
+        end
+      ),
+      Falsifier.new(
+        "seal event relates to run #{run_id} exactly once",
+        "the appended event's relationships are not exactly [{run_id, \"run\"}]",
+        fn evidence ->
+          expected = [%{"objectId" => run_id, "qualifier" => "run"}]
+
+          case evidence.last_event do
+            %{"relationships" => ^expected} -> {:survived, "relationships match"}
+            other -> {:falsified, "got #{inspect(other && other["relationships"])}"}
+          end
+        end
+      )
+    ]
+  end
+
+  defp eds_verifier(_evidence, verdicts) do
+    validators = [
+      "seal event count == 1",
+      "activity declared in eventTypes",
+      "seal event relationships == [{run_id, \"run\"}]"
+    ]
+
+    if Falsifier.all_survived?(verdicts) do
+      {:verified, %{validators: validators}}
+    else
+      {:falsified, %{validators: validators}}
+    end
+  end
+
+  # GgenIgniter.EDS.Receipt embeds falsifier-verdict tuples and an atom
+  # :state, neither of which Jason can encode directly (no Jason.Encoder
+  # impl for tuples) -- normalize to a plain JSON-safe map here rather than
+  # widen GgenIgniter.EDS.Receipt's own contract for one caller's disk
+  # format.
+  defp eds_receipt_json(%GgenIgniter.EDS.Receipt{} = r) do
+    %{
+      hypothesis: r.hypothesis,
+      artifact_identity: r.artifact_identity,
+      source_identity: r.source_identity,
+      environment: r.environment,
+      inputs: r.inputs,
+      execution: r.execution,
+      outputs: r.outputs,
+      falsifier_verdicts:
+        Enum.map(r.falsifier_verdicts, fn {name, {verdict, detail}} ->
+          %{name: name, verdict: verdict, detail: inspect(detail)}
+        end),
+      validators: r.validators,
+      state: r.state,
+      fingerprint: r.fingerprint
+    }
   end
 
   defp run_id_from_doc(doc) do

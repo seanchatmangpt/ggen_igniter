@@ -1,0 +1,1 @@
+! grep -rn 'unittest.mock|Mock(|MagicMock|patch(|monkeypatch|Mox|:meck|Mimic' test/ggen_igniter_semantic_jira_bootstrap_test.exs lib/ggen_igniter/semantic_jira/bootstrap* lib/mix/tasks/semantic_jira.bootstrap.ex => exit 0 (0 matches)

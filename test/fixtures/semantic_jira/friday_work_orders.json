@@ -1,0 +1,48 @@
+{
+  "work_orders": [
+    {
+      "identity": "FRI-FMT-A",
+      "title": "Repair mix format drift in the reference subject",
+      "description": "KNOWN class recipe:mix-format. Postcondition: mix format --check-formatted exits 0 at the candidate head.",
+      "subject": "ggen_igniter:format-drift:lib",
+      "repository": "seanchatmangpt/ggen_igniter",
+      "base_sha": "5984ec480c2318e86aa621da5f496e5e014b0fac",
+      "standing": "UNKNOWN",
+      "evidence_ceiling": "repository-local",
+      "promotion_rule": "Standing advances only from an exact-head fabric receipt for the same subject at the same base.",
+      "replay_identity": "friday:v26.9.22:FRI-FMT-A",
+      "required_courts": ["ggen-igniter-format"],
+      "required_evidence": ["verification"],
+      "acceptance": ["urn:semantic-jira:acceptance:FRI-FMT-A:format-clean"],
+      "falsifiers": ["urn:semantic-jira:falsifier:FRI-FMT-A:revert-reddens"],
+      "projections": ["jira", "worker"],
+      "path_scope": ["lib"],
+      "dependencies": []
+    },
+    {
+      "identity": "FRI-FMT-B",
+      "title": "Guard the repaired format postcondition",
+      "description": "Dependent of FRI-FMT-A: eligible only once FRI-FMT-A is ALIVE in the ledger.",
+      "subject": "ggen_igniter:format-drift:guard",
+      "repository": "seanchatmangpt/ggen_igniter",
+      "base_sha": "5984ec480c2318e86aa621da5f496e5e014b0fac",
+      "standing": "UNKNOWN",
+      "evidence_ceiling": "repository-local",
+      "promotion_rule": "Standing advances only from an exact-head fabric receipt for the same subject at the same base.",
+      "replay_identity": "friday:v26.9.22:FRI-FMT-B",
+      "required_courts": ["ggen-igniter-format"],
+      "required_evidence": ["verification"],
+      "acceptance": ["urn:semantic-jira:acceptance:FRI-FMT-B:guard-holds"],
+      "falsifiers": ["urn:semantic-jira:falsifier:FRI-FMT-B:revert-reddens"],
+      "projections": ["jira", "worker"],
+      "path_scope": ["test"],
+      "dependencies": [
+        {
+          "upstream": "FRI-FMT-A",
+          "type": "requiresReceipt",
+          "required_standing": "ALIVE"
+        }
+      ]
+    }
+  ]
+}

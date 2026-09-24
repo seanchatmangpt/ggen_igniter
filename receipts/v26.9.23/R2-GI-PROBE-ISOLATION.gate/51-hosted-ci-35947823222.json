@@ -1,0 +1,183 @@
+{
+ "conclusion": "cancelled",
+ "createdAt": "2026-09-24T02:34:24Z",
+ "databaseId": 35947823222,
+ "event": "push",
+ "headSha": "6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0",
+ "jobs": [
+  {
+   "completedAt": "2026-09-24T03:04:41Z",
+   "conclusion": "cancelled",
+   "databaseId": 107469600054,
+   "name": "Elixir tests (mix credo + mix test)",
+   "startedAt": "2026-09-24T02:34:27Z",
+   "status": "completed",
+   "steps": [
+    {
+     "completedAt": "2026-09-24T02:34:29Z",
+     "conclusion": "success",
+     "name": "Set up job",
+     "number": 1,
+     "startedAt": "2026-09-24T02:34:27Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:34:31Z",
+     "conclusion": "success",
+     "name": "Checkout",
+     "number": 2,
+     "startedAt": "2026-09-24T02:34:29Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:34:32Z",
+     "conclusion": "success",
+     "name": "Clone ex4pm fixture repo (full history, not shallow -- see comment)",
+     "number": 3,
+     "startedAt": "2026-09-24T02:34:31Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:34:33Z",
+     "conclusion": "success",
+     "name": "Install ggen (pinned release, checksum-verified)",
+     "number": 4,
+     "startedAt": "2026-09-24T02:34:32Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:34:40Z",
+     "conclusion": "success",
+     "name": "Set up Erlang/OTP + Elixir + rebar3",
+     "number": 5,
+     "startedAt": "2026-09-24T02:34:33Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:34:41Z",
+     "conclusion": "success",
+     "name": "Cache mix dependencies",
+     "number": 6,
+     "startedAt": "2026-09-24T02:34:40Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:34:41Z",
+     "conclusion": "success",
+     "name": "Cache exact compiled build",
+     "number": 7,
+     "startedAt": "2026-09-24T02:34:41Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:34:41Z",
+     "conclusion": "success",
+     "name": "Cache NIF cargo target",
+     "number": 8,
+     "startedAt": "2026-09-24T02:34:41Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:34:46Z",
+     "conclusion": "success",
+     "name": "mix deps.get",
+     "number": 9,
+     "startedAt": "2026-09-24T02:34:41Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:34:46Z",
+     "conclusion": "success",
+     "name": "Force ggen_igniter app rebuild so the rustler NIF is always (re)built",
+     "number": 10,
+     "startedAt": "2026-09-24T02:34:46Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:34:47Z",
+     "conclusion": "success",
+     "name": "mix format --check-formatted",
+     "number": 11,
+     "startedAt": "2026-09-24T02:34:46Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:39:52Z",
+     "conclusion": "success",
+     "name": "mix credo",
+     "number": 12,
+     "startedAt": "2026-09-24T02:34:47Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:47:52Z",
+     "conclusion": "success",
+     "name": "mix compile (dev env, so test subprocesses never pay the first compile)",
+     "number": 13,
+     "startedAt": "2026-09-24T02:39:52Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T02:47:53Z",
+     "conclusion": "success",
+     "name": "mix ggen_igniter.verify (fail-CLOSED pack check)",
+     "number": 14,
+     "startedAt": "2026-09-24T02:47:52Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T03:04:39Z",
+     "conclusion": "cancelled",
+     "name": "mix test",
+     "number": 15,
+     "startedAt": "2026-09-24T02:47:53Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T03:04:39Z",
+     "conclusion": "skipped",
+     "name": "Post Cache NIF cargo target",
+     "number": 27,
+     "startedAt": "2026-09-24T03:04:39Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T03:04:39Z",
+     "conclusion": "skipped",
+     "name": "Post Cache exact compiled build",
+     "number": 28,
+     "startedAt": "2026-09-24T03:04:39Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T03:04:39Z",
+     "conclusion": "skipped",
+     "name": "Post Cache mix dependencies",
+     "number": 29,
+     "startedAt": "2026-09-24T03:04:39Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T03:04:40Z",
+     "conclusion": "success",
+     "name": "Post Checkout",
+     "number": 30,
+     "startedAt": "2026-09-24T03:04:39Z",
+     "status": "completed"
+    },
+    {
+     "completedAt": "2026-09-24T03:04:40Z",
+     "conclusion": "success",
+     "name": "Complete job",
+     "number": 31,
+     "startedAt": "2026-09-24T03:04:40Z",
+     "status": "completed"
+    }
+   ],
+   "url": "https://github.com/seanchatmangpt/ggen_igniter/actions/runs/35947823222/job/107469600054"
+  }
+ ],
+ "status": "completed",
+ "updatedAt": "2026-09-24T03:04:42Z",
+ "url": "https://github.com/seanchatmangpt/ggen_igniter/actions/runs/35947823222"
+}

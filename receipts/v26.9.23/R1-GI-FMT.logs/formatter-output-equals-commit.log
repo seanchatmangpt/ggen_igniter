@@ -1,0 +1,20 @@
+head=3937a4f89ecf2b7fa12068406377c05ec1a1b8fc
+Elixir 1.18.4 (compiled with Erlang/OTP 27)
+mix_format_EXIT=0
+changed:
+ M lib/ggen_igniter/semantic_jira/bootstrap.ex
+worktree_vs_8b9dcfb_diff_quiet_EXIT=0
+diff --git a/lib/ggen_igniter/semantic_jira/bootstrap.ex b/lib/ggen_igniter/semantic_jira/bootstrap.ex
+index 3feaf4a..7bebf30 100644
+--- a/lib/ggen_igniter/semantic_jira/bootstrap.ex
++++ b/lib/ggen_igniter/semantic_jira/bootstrap.ex
+@@ -242,7 +242,8 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
+          {:ok, goal} <- parse_ttl(goal_bytes, "goal"),
+          {:ok, root} <- root(goal, queries),
+          {:ok, graphs} <- read_graphs(args.graphs, subjects),
+-         {:ok, orders} <- orders(goal, graphs, queries, Subjects.ref(subjects, args.goal, "goal")),
++         {:ok, orders} <-
++           orders(goal, graphs, queries, Subjects.ref(subjects, args.goal, "goal")),
+          {:ok, receipts, receipt_dirs} <- read_receipts(args.receipts_dirs, subjects),
+          {:ok, events} <- read_ledger(args.ledger),
+          {:ok, registry} <- read_registry(args.registry, subjects) do

@@ -1,0 +1,44 @@
+name: GALL-002 portable receipt court
+
+on:
+  pull_request:
+    branches:
+      - gall/checkpoint-002-project-manufacturer
+    paths:
+      - "lib/ggen_igniter/gall/project_manufacturer.ex"
+      - "lib/ggen_igniter/ephemeral_manufacture.ex"
+      - "lib/ggen_igniter/receipt.ex"
+      - "scripts/gall_checkpoint_002_receipt.exs"
+      - "test/gall_checkpoint_002_project_manufacturer_test.exs"
+      - ".github/workflows/gall-002-receipt.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  receipt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Assert exact head
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.18.4"
+          otp-version: "27.2.4"
+      - run: mix deps.get
+      - name: Run narrow manufacturer court
+        run: mix test test/gall_checkpoint_002_project_manufacturer_test.exs
+      - name: Emit typed GALL-002 receipt
+        run: mix run scripts/gall_checkpoint_002_receipt.exs --self-test "$RUNNER_TEMP/gall-002-receipt.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gall-002-receipt-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/gall-002-receipt.json
+          if-no-files-found: error
+          retention-days: 14

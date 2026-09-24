@@ -1,0 +1,17 @@
+# ALIVE-receipt-crown gate, mirroring shapes/work-order.shacl.ttl's law
+# "ALIVE requires exact candidate/subject SHA and a durable receipt":
+# a WorkOrder may only claim standing ALIVE when it binds sj:candidateSha,
+# sj:subjectSha, and sj:receipt. Without this gate a graph can smuggle the
+# strongest standing into admission with zero observed-execution evidence.
+# Selected rows are admission violations; the jira template refuses on any.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?work_order ?id WHERE {
+  ?work_order a sj:WorkOrder ;
+              dcterms:identifier ?id ;
+              sj:standing "ALIVE" .
+  OPTIONAL { ?work_order sj:candidateSha ?candidate . }
+  OPTIONAL { ?work_order sj:subjectSha ?subject_sha . }
+  OPTIONAL { ?work_order sj:receipt ?receipt . }
+  FILTER(!BOUND(?candidate) || !BOUND(?subject_sha) || !BOUND(?receipt))
+}

@@ -1,0 +1,5 @@
+# head=0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b
+1 test, 0 failures
+orphan_beams=0
+next_dev_child_first_line=mix ggen_igniter.plan -- read-only admission preview (no filesystem mutation)
+lib_porcelain=[]

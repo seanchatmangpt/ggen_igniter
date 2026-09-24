@@ -1,0 +1,4 @@
+PREFIX zc: <https://ggen-igniter.dev/ontology/zcode-ocel#>
+SELECT DISTINCT ?event ?object ?qualifier WHERE {
+  ?q a zc:Qualifier ; zc:event ?event ; zc:object ?object ; zc:qualifier ?qualifier .
+}

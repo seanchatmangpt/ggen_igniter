@@ -150,8 +150,10 @@ defmodule GgenIgniter.LockStalenessPropertiesTest do
       task_a = Task.async(run_subprocess)
       task_b = Task.async(run_subprocess)
 
-      {output_a, exit_a} = Task.await(task_a, 30_000)
-      {output_b, exit_b} = Task.await(task_b, 30_000)
+      # Generous await: two concurrent `mix run` boots contend on the build
+      # dir lock under a parallel suite; ExUnit's own timeout is the backstop.
+      {output_a, exit_a} = Task.await(task_a, 240_000)
+      {output_b, exit_b} = Task.await(task_b, 240_000)
 
       assert exit_a == 0, "subprocess A failed:\n#{output_a}"
       assert exit_b == 0, "subprocess B failed:\n#{output_b}"

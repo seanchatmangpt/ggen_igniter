@@ -1,0 +1,19 @@
+# calver-ticket-day-pack — public-vocabulary edition.
+# No custom namespace: tickets are oslc_cm:ChangeRequest (OASIS OSLC-CM),
+# days are prov:Activity, acceptance anchors EARL, status reuses the public
+# APS standing individuals (https://w3id.org/chatman/aps#). Stage chain
+# 守→柲→算→除→偽→延→実 per APS OperatorGlyph (admitted 2026-09-17).
+@prefix oslc:  <http://open-services.net/ns/core#> .
+@prefix oslc_cm: <http://open-services.net/ns/cm#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix earl: <http://www.w3.org/ns/earl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://ggen-igniter.dev/packs/calver-ticket-day> a skos:ConceptScheme ;
+  dcterms:title "CalVer Ticket Day pack" ;
+  dcterms:description "Manufactures initial per-day ticket files. Session state lives in files (APS SessionHistoryLaw). All classes/properties reused from public vocabularies; no custom namespace." .
+
+# The day itself: one prov:Activity whose identifier is the CalVer tag.
+# Tickets hang off it via prov:wasInformedBy inversion (query uses day -> ticket through dcterms:references).

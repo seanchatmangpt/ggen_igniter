@@ -1,0 +1,16 @@
+head=8b9dcfb8885defb79afa22e31f33c4282715a73f
+Elixir 1.19.5 (compiled with Erlang/OTP 28)
+warning: setting :preferred_cli_env in your mix.exs "def project" is deprecated, set it inside "def cli" instead:
+
+    def cli do
+      [preferred_envs: [coveralls: :test, "coveralls.detail": :test, "coveralls.html": :test]]
+    end
+
+  (mix 1.19.5) lib/mix/cli.ex:187: Mix.CLI.preferred_cli_env/3
+  (mix 1.19.5) lib/mix/cli.ex:170: Mix.CLI.maybe_change_env_and_target/2
+  (mix 1.19.5) lib/mix/cli.ex:59: Mix.CLI.proceed/2
+  /opt/homebrew/bin/mix:7: (file)
+  (elixir 1.19.5) src/elixir_compiler.erl:81: :elixir_compiler.dispatch/4
+  (elixir 1.19.5) src/elixir_compiler.erl:56: :elixir_compiler.compile/4
+
+EXIT=0

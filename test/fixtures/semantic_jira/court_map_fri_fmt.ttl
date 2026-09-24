@@ -1,0 +1,46 @@
+# Court-map mint fixture (V23-T6R; PRD PR-012; ARD section 4 ggen_igniter,
+# XaaS descriptor manufacture). Real Turtle in the pack's own generated shape
+# (prefix blocks, period-terminated statements): FRI-FMT-A binds each
+# acceptance/falsifier IRI of test/fixtures/semantic_jira/friday_work_orders.json
+# to the ONE suite test that witnesses it (sj:witnessedBy); FRI-FMT-B carries a
+# typed court. sj:witnessedBy is NOT declared in the current pack ontology (the
+# declaration is in the deferred wo-03-wip ontology hunk). Consumed by
+# test/ggen_igniter_semantic_jira_observe_court_map_test.exs.
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+sj:fri-fmt-a
+    a sj:WorkOrder ;
+    dcterms:identifier "FRI-FMT-A" ;
+    dcterms:title "Repair mix format drift in the reference subject" ;
+    sj:acceptance <urn:semantic-jira:acceptance:FRI-FMT-A:format-clean> ;
+    sj:falsifier <urn:semantic-jira:falsifier:FRI-FMT-A:revert-reddens> .
+
+<urn:semantic-jira:acceptance:FRI-FMT-A:format-clean>
+    a sj:AcceptanceCriterion ;
+    rdfs:label "Format clean at the candidate head" ;
+    sj:witnessedBy "test/ggen_igniter_format_test.exs::format clean at candidate head" .
+
+<urn:semantic-jira:falsifier:FRI-FMT-A:revert-reddens>
+    a sj:Falsifier ;
+    rdfs:label "Reverting the repair reddens the court" ;
+    sj:witnessedBy "test/ggen_igniter_format_test.exs::revert reddens format court" .
+
+sj:fri-fmt-b
+    a sj:WorkOrder ;
+    dcterms:identifier "FRI-FMT-B" ;
+    dcterms:title "Guard the repaired format postcondition" ;
+    sj:acceptance <urn:semantic-jira:acceptance:FRI-FMT-B:guard-holds> ;
+    sj:falsifier <urn:semantic-jira:falsifier:FRI-FMT-B:revert-reddens> ;
+    sj:requiresCourt sj:exact-head-projection-court .
+
+<urn:semantic-jira:acceptance:FRI-FMT-B:guard-holds>
+    a sj:AcceptanceCriterion ;
+    rdfs:label "Guard holds" ;
+    sj:witnessedBy "test/ggen_igniter_format_test.exs::guard holds" .
+
+<urn:semantic-jira:falsifier:FRI-FMT-B:revert-reddens>
+    a sj:Falsifier ;
+    rdfs:label "Reverting the guard reddens the court" ;
+    sj:witnessedBy "test/ggen_igniter_format_test.exs::guard revert reddens" .

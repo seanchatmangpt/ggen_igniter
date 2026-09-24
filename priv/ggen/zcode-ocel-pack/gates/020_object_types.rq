@@ -1,0 +1,4 @@
+PREFIX zc: <https://ggen-igniter.dev/ontology/zcode-ocel#>
+SELECT DISTINCT ?name ?order WHERE {
+  ?o a zc:ObjectType ; zc:name ?name ; zc:order ?order .
+}

@@ -241,6 +241,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         on_stale: :string,
         manifest_dir: :string,
         verify_cwd: :string,
+        verify_base_sha: :boolean,
         allow_sh: :boolean,
         help: :boolean,
         version: :boolean
@@ -549,6 +550,43 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   this flag to the raised `RuntimeError`, rather than surfacing the bare Mix
   crash text alone.
 
+  ## `--verify-base-sha` (opt-in git ground truth for WorkOrder baseSha)
+
+  Admission for semantic WorkOrders verifies `baseSha` as an exact 40-hex
+  FORMAT only; a well-formed but WRONG commit SHA is admitted because
+  admission has no git ground truth in-graph (the witnessed
+  `residual_base_sha_wrong_commit` residual). This flag opts a run into real
+  git verification -- it is never default-on, because a pack's canonical
+  WorkOrders may legitimately carry baseSha values that do not exist in the
+  verifying checkout.
+
+  When the flag is on, every query row this run rendered that carries a
+  `base_sha` column is verified against the `--verify-cwd` directory
+  (default: the current working directory) with two real git commands that
+  must BOTH exit 0:
+
+      git -C <cwd> cat-file -e <sha>^{commit}
+      git -C <cwd> merge-base --is-ancestor <sha> HEAD
+
+  i.e. the SHA must name a real commit reachable from HEAD. Any failure
+  raises the typed refusal
+  `REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED: baseSha <sha> is not a commit
+  reachable in <cwd>` BEFORE the Reactor dispatch -- zero files are written.
+  A `--verify-cwd` that is not a git work tree refuses the same clean way
+  while the flag is on.
+
+  Independent of the flag, an in-graph per-order refinement exists: a
+  WorkOrder row carrying a truthy `requires_git_ground_truth` column (the
+  semantic-jira-pack's `sj:requiresGitGroundTruth true` triple, surfaced by
+  its `020_work_orders.rq` gate) verifies that ONE order's baseSha even
+  without the flag. Neither opt-in active means byte-for-byte unchanged
+  behavior. On the `--for-each` path the rows are already materialized, so
+  this check costs nothing extra; on the single-target path (no
+  `--for-each`) the task otherwise never materializes rows (the Reactor
+  does), so with the flag on, the same named queries run once more through
+  the identical engine call path purely to verify -- a disclosed, opt-in,
+  read-only extra query execution.
+
   ## Controller delegation (opt-in, thin-adapter mode)
 
   When a real `GgenIgniter.Controller` `GenServer` is already running,
@@ -712,6 +750,10 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         --mode MODE         file (default, writes to disk) or eval (evaluates in-process).
         --on-stale POLICY   refuse (default) | prune | preserve stale manifest paths.
         --manifest-dir DIR  Directory holding .ggen_igniter/manifest.json. Default: cwd.
+        --verify-base-sha   Opt-in git ground truth: every WorkOrder base_sha
+                             rendered by this run must be a real commit
+                             reachable from HEAD in --verify-cwd (default
+                             cwd), else the run refuses before actuation.
         --unless-exists     Skip writing if the output path already exists.
         --skip-if EXPR      Skip writing if EXPR (literal string) matches.
         --allow-sh          Required if any template frontmatter sets sh_before:/sh_after:
@@ -866,6 +908,18 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
                 "--out is required (directly, or via the template's own frontmatter \"to:\" field)"
         end
 
+        # Opt-in git ground truth (see "## `--verify-base-sha`" in the
+        # moduledoc): the single-target path never materializes query rows in
+        # this task -- the Reactor renders them -- so with the flag on, the
+        # same named queries run once more through the identical engine call
+        # path (`run_for_each_via_reactor!/7`'s) purely to verify every
+        # rendered base_sha BEFORE dispatching. A disclosed, opt-in,
+        # read-only extra query execution; without the flag this block never
+        # runs and behavior is byte-for-byte unchanged.
+        if opts[:verify_base_sha] do
+          verify_base_shas_before_dispatch!(opts, frontmatter)
+        end
+
         # AR-10: `ReconcileReactor.run_target_queries/3` reads `:mode`/
         # `:out`/`:unless_exists`/`:skip_if` ONLY from this flat keyword
         # list (or a `:targets` entry) -- it never re-reads the template's
@@ -958,6 +1012,12 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     named_results = run_queries(engine_module, graph, opts, named_queries)
     rows = fetch_driver_rows!(named_results, for_each)
 
+    # Opt-in git ground truth: rows are already materialized here, so the
+    # `--verify-base-sha` flag and the in-graph per-order
+    # `requires_git_ground_truth` opt-in both check for free, BEFORE the
+    # Reactor dispatch (a refusal writes zero files).
+    maybe_verify_base_shas!(opts, named_results)
+
     resolved_out = opts[:out] || frontmatter_field(frontmatter, :to)
 
     if mode == :file and resolved_out == nil do
@@ -1014,6 +1074,42 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         raise "ggen_igniter: reactor reconciliation failed (#{receipt.standing}): " <>
                 (receipt.reason || "no reason recorded")
     end
+  end
+
+  # -- Opt-in git ground truth for WorkOrder baseSha --------------------------
+  #
+  # Closes the witnessed `residual_base_sha_wrong_commit` admission residual
+  # (wave-1 falsifier matrix, commit 58460d0): admission verifies baseSha as
+  # 40-hex FORMAT only. Deliberately OPT-IN -- never default-on -- because a
+  # pack's canonical WorkOrders (the fabric GALL-001..032 set) may carry
+  # baseSha values that do not exist in the verifying checkout. The real git
+  # mechanics live in `GgenIgniter.SemanticJira.GitGroundTruth`; these two
+  # helpers are only the task-level plumbing for its two hook sites.
+  defp maybe_verify_base_shas!(opts, named_results) do
+    %{"skipped" => skipped} =
+      GgenIgniter.SemanticJira.GitGroundTruth.verify_base_shas!(named_results,
+        verify_cwd: opts[:verify_cwd] || File.cwd!(),
+        all: opts[:verify_base_sha] || false
+      )
+
+    # Rows outside the verified work tree's repository are reported as typed
+    # skips, never silently dropped (V23-T6R).
+    Enum.each(skipped, fn skip ->
+      Mix.shell().info(GgenIgniter.SemanticJira.GitGroundTruth.skip_line(skip))
+    end)
+  end
+
+  # Single-target hook site: materializes the named query rows through the
+  # EXACT same call path `run_for_each_via_reactor!/7` uses (never a second,
+  # drifting query mechanism) so `--verify-base-sha` verifies what this run
+  # would render, then raises the typed refusal before any dispatch.
+  defp verify_base_shas_before_dispatch!(opts, frontmatter) do
+    engine_module = Engine.fetch!(opts[:engine] || "oxigraph")
+    graph = resolve_ontology!(opts) |> Ontology.load!()
+    named_queries = resolve_named_queries!(opts, frontmatter)
+    named_results = run_queries(engine_module, graph, opts, named_queries)
+
+    maybe_verify_base_shas!(opts, named_results)
   end
 
   # -- ADR-0008: evidence-ranked multi-engine registry (comparison mode) -----

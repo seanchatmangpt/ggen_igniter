@@ -1,8 +1,8 @@
 defmodule GgenIgniter.Reactors.ReconcileReactor do
   @moduledoc """
   The real Reactor coordination pipeline for `ggen_igniter`'s reconciliation
-  spine: observe -> load -> resolve -> query -> render -> admit -> actuate ->
-  verify -> finalize evidence. `use Reactor` (plain `Reactor`, NOT
+  spine: observe -> load -> resolve -> manifest admission -> SHACL admission ->
+  query -> render -> admit -> actuate -> verify -> finalize evidence. `use Reactor` (plain `Reactor`, NOT
   `Ash.Reactor` -- `ggen_igniter` must stay usable without Ash as a mandatory
   runtime dependency).
 
@@ -122,9 +122,12 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
                                   packs must carry a strict pack.toml whose
                                   [pack].name corresponds with the graph's
                                   gp:name; legacy packs pass through unchanged;
-                                  refusal HERE precedes every query/render/
-                                  actuation step, as a typed
-                                  REFUSED:PACK_MANIFEST_* / REFUSED:PACK_IDENTITY_MISMATCH)
+                                  refusal HERE precedes every later court)
+      admit_semantic_jira_shacl
+                                -- pure read: semantic-jira-pack's shipped SHACL
+                                   court over the SAME loaded graph; a typed
+                                   REFUSED:SEMANTIC_JIRA_SHACL refusal precedes
+                                   query/render/actuation and is receipted by run/1
       run_queries             -- GgenIgniter.Engine.fetch!/run, per target
       render                  -- GgenIgniter.Render.render/2 PLUS
                                   GgenIgniter.Manifest lookups, produces the
@@ -474,9 +477,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # REFUSED:PACK_IDENTITY_MISMATCH (Appendix C vocabulary). Legacy packs (no
   # gp:profile) pass through without even reading pack.toml -- today's
   # optional-manifest behavior, byte-compat, zero new refusals (§86 step 2,
-  # §89). `:run_queries` takes this step's result as an argument purely to
-  # force the dependency edge (admission strictly precedes query work in every
-  # execution order), not to consume its value.
+  # §89). The SHACL court below depends on this result solely to force the
+  # ordering edge: bootstrap identity must admit before semantic shape law.
   step :admit_pack do
     argument(:reconcile_opts, input(:reconcile_opts))
     argument(:ontology, result(:load_ontology))
@@ -492,7 +494,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         :ok ->
           {:ok, %{pack_admission: :ok}}
 
-        {:refused, {type, [diagnostic: diagnostic]}} = refusal when is_atom(type) ->
+        {:refused, {type, [diagnostic: diagnostic]}} when is_atom(type) ->
           OcelEmitter.emit(opts[:event_sink], "GUARD_REFUSED", [], %{
             "reason" => "REFUSED:#{pack_refusal_code(type)}",
             "diagnostic" => diagnostic
@@ -503,15 +505,47 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     end)
   end
 
+  # side_effect: pure -- semantic-jira-pack only. Executes its shipped SHACL
+  # law over the SAME in-memory graph admitted above. This is deliberately a
+  # distinct Reactor step: manifest identity and semantic shape conformity are
+  # independent courts with independent typed refusals and replayable topology.
+  step :admit_semantic_jira_shacl do
+    argument(:reconcile_opts, input(:reconcile_opts))
+    argument(:ontology, result(:load_ontology))
+    argument(:pack, result(:resolve_pack))
+    argument(:pack_admission, result(:admit_pack))
+
+    run(fn %{
+             reconcile_opts: opts,
+             ontology: %{graph: graph},
+             pack: %{pack_dir: pack_dir},
+             pack_admission: _
+           },
+           _context ->
+      case maybe_admit_semantic_jira_shacl(pack_dir, graph) do
+        :ok ->
+          {:ok, %{shacl_admission: :ok}}
+
+        {:refused_semantic_jira_shacl, violations} ->
+          OcelEmitter.emit(opts[:event_sink], "GUARD_REFUSED", [], %{
+            "reason" => "REFUSED:SEMANTIC_JIRA_SHACL",
+            "diagnostic" => inspect(violations)
+          })
+
+          {:error, {:refused_semantic_jira_shacl, violations}}
+      end
+    end)
+  end
+
   # side_effect: pure -- runs `Engine.prepare!/run` against the already-loaded
   # in-memory `graph`; no disk/network write, deterministic given the same
   # graph + query text.
   step :run_queries do
     argument(:reconcile_opts, input(:reconcile_opts))
     argument(:ontology, result(:load_ontology))
-    argument(:pack_admission, result(:admit_pack))
+    argument(:shacl_admission, result(:admit_semantic_jira_shacl))
 
-    run(fn %{reconcile_opts: opts, ontology: %{graph: graph}, pack_admission: _}, _context ->
+    run(fn %{reconcile_opts: opts, ontology: %{graph: graph}, shacl_admission: _}, _context ->
       queried =
         opts
         |> normalize_targets()
@@ -952,7 +986,11 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   `{:error, {:unsupported_capability, reason}}` when the resolved template
   has a `---` frontmatter header -- this bounded pipeline (like `run/1`,
   via `Mix.Tasks.GgenIgniter.Sync`'s own `run_via_reactor/3` guard) does not
-  implement frontmatter parsing. `{:error, reason}` for any other
+  implement frontmatter parsing. `reason` names the concrete alternative
+  (`mix ggen_igniter.sync --dry-run`, whose inline pipeline previews
+  frontmatter-bearing templates -- including `inject: true` targets -- for
+  real, without writing anything) rather than only stating the limitation.
+  `{:error, reason}` for any other
   admission-time refusal (one of `admit_pending/2`'s own tagged reasons:
   `:refused_duplicate_output_path` / `:refused_path_escapes_root` /
   `:refused_unowned_delete` / `:refused_stale_outputs`), or
@@ -987,12 +1025,15 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     # would on the actuating path (never a plan-only blind eye).
     pack_dir = if pack_given?(reconcile_opts), do: Pack.resolve_dir!(reconcile_opts)
 
-    case Pack.admit_pack_manifest(pack_dir, graph) do
+    case admit_pack_courts(pack_dir, graph) do
       :ok ->
         :ok
 
       {:refused, {type, [diagnostic: diagnostic]}} when is_atom(type) ->
         {:error, {:refused_pack_manifest, type, diagnostic}}
+
+      {:refused_semantic_jira_shacl, violations} ->
+        {:error, {:refused_semantic_jira_shacl, violations}}
     end
     |> case do
       :ok ->
@@ -1000,6 +1041,38 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
       {:error, _refusal} = refusal ->
         refusal
+    end
+  end
+
+  # One admission function for both actuating reconciliation and read-only
+  # planning. Manifest identity is admitted first; only the semantic-jira
+  # pack then runs its shipped SHACL shapes over the SAME already-loaded graph
+  # the downstream queries will consume. No second ontology read, no TOCTOU
+  # subject drift, and no direct-Reactor/plan bypass.
+  defp admit_pack_courts(pack_dir, graph) do
+    case Pack.admit_pack_manifest(pack_dir, graph) do
+      :ok -> maybe_admit_semantic_jira_shacl(pack_dir, graph)
+      {:refused, _reason} = refusal -> refusal
+    end
+  end
+
+  defp maybe_admit_semantic_jira_shacl(nil, _graph), do: :ok
+
+  defp maybe_admit_semantic_jira_shacl(pack_dir, graph) do
+    case Pack.parse_manifest(pack_dir) do
+      {:ok, %{name: "semantic-jira-pack"}} ->
+        report =
+          GgenIgniter.SemanticJira.Shacl.validate_file(
+            graph,
+            Path.join(pack_dir, "shapes/work-order.shacl.ttl")
+          )
+
+        if report.conforms,
+          do: :ok,
+          else: {:refused_semantic_jira_shacl, report.violations}
+
+      _legacy_or_other_pack ->
+        :ok
     end
   end
 
@@ -1016,7 +1089,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       {:error,
        {:unsupported_capability,
         "template frontmatter (#{template_path} has a --- header -- " <>
-          "GgenIgniter.Reactors.ReconcileReactor.plan/1 does not implement frontmatter parsing)"}}
+          "GgenIgniter.Reactors.ReconcileReactor.plan/1 does not implement frontmatter parsing). " <>
+          "Use `mix ggen_igniter.sync --dry-run` instead -- its inline pipeline previews " <>
+          "frontmatter-bearing templates, including inject: true targets."}}
     else
       targets =
         reconcile_opts
@@ -1126,6 +1201,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         :load_ontology,
         :resolve_pack,
         :admit_pack,
+        :admit_semantic_jira_shacl,
         :run_queries,
         :render,
         :admit
@@ -1182,6 +1258,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
        when is_atom(type) do
     "refused: REFUSED:#{pack_refusal_code(type)} -- #{diagnostic}"
   end
+
+  defp describe_failure({:refused_semantic_jira_shacl, violations}),
+    do: "refused: REFUSED:SEMANTIC_JIRA_SHACL -- #{inspect(violations)}"
 
   defp describe_failure(other), do: inspect(other)
 

@@ -1,0 +1,18 @@
+Erlang/OTP 28 [erts-16.4.0.2] [source] [64-bit] [smp:16:16] [ds:16:16:10] [async-threads:1] [jit]
+
+Elixir 1.20.2 (compiled with Erlang/OTP 28)
+... (    4900 lines total; deps compile output elided) ...
+Compiling lib/mix/tasks/xaas.autonomic.controls.ex (it's taking more than 10s)
+Compiling lib/xaas/library/changes/fulfill_next_hold.ex (it's taking more than 10s)
+Compiling lib/xaas/governance/internal_api_token_auth.ex (it's taking more than 10s)
+Compiling lib/xaas/dev_seeds.ex (it's taking more than 10s)
+Compiling lib/mix/tasks/xaas.ultracode.learn.ex (it's taking more than 10s)
+    warning: unused require Ash.Query
+    │
+ 78 │   require Ash.Query
+    │   ~
+    │
+    └─ lib/xaas/ultracode/semantic_drive.ex:78:3
+
+Compilation failed due to warnings while using the --warnings-as-errors option
+EXIT=1

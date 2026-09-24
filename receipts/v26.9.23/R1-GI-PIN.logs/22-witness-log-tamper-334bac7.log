@@ -1,0 +1,37 @@
+# cwd=/private/tmp/claude-501/-Users-sac/1fecd79a-9323-4b57-a949-d7892a3ea283/scratchpad/r1gipin-r1/wit head=334bac764adb7833272329441b319a4e0a5ef297 started=2026-09-23T23:57:14Z
+# cmd=mix test test/ggen_igniter_toolchain_pin_qualification_test.exs
+
+16:57:15.708 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+16:57:15.720 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+16:57:15.720 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+16:57:15.720 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+Running ExUnit with seed: 806019, max_cases: 32
+Excluding tags: [:requires_qlever_server]
+
+...
+
+  1) test Receipts.check/1 and cited logs (receipts/v26.9.23/R1-GI-PIN.json) every log the receipt cites is committed and hashes to its recorded sha256 (GgenIgniter.ToolchainPinQualificationTest)
+     test/ggen_igniter_toolchain_pin_qualification_test.exs:86
+     cited log receipts/v26.9.23/R1-GI-PIN.logs/04-test-3ed6a7a.log does not hash to eab483e7c19cbc4f9352695febeccfa7296b8887780ac0c25a6b0451cee9b623
+     code: for {log, recorded} <- cited do
+     stacktrace:
+       test/ggen_igniter_toolchain_pin_qualification_test.exs:102: anonymous fn/2 in GgenIgniter.ToolchainPinQualificationTest."test Receipts.check/1 and cited logs (receipts/v26.9.23/R1-GI-PIN.json) every log the receipt cites is committed and hashes to its recorded sha256"/1
+       (elixir 1.18.4) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+       test/ggen_igniter_toolchain_pin_qualification_test.exs:98: (test)
+
+..
+Finished in 0.06 seconds (0.06s async, 0.00s sync)
+6 tests, 1 failure
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+[os_mon] memory supervisor port (memsup): Erlang has closed
+# ended=2026-09-23T23:57:16Z exit=2

@@ -1,0 +1,15 @@
+# Root GoalCheckpoint of a goal graph (lane V23-C, ARD section 17): a
+# GoalCheckpoint that has at least one child GoalCheckpoint (a gate whose
+# sj:checkpointOf is the root), has no parent, and is not itself a successor
+# bucket (sj:boundaryClass sj:Successor -- e.g. GC-26.9.24, whose only children
+# are WorkOrders typed out of the current goal).
+# GgenIgniter.SemanticJira.Prose refuses unless exactly one root is found.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT DISTINCT ?root WHERE {
+  ?root a sj:GoalCheckpoint .
+  ?gate a sj:GoalCheckpoint ;
+        sj:checkpointOf ?root .
+  OPTIONAL { ?root sj:checkpointOf ?parent . }
+  OPTIONAL { ?root sj:boundaryClass ?boundary . }
+  FILTER(!BOUND(?parent) && (!BOUND(?boundary) || ?boundary != sj:Successor))
+}

@@ -1,0 +1,316 @@
+---
+to: "docs/semantic-jira/ocel.json"
+mode: file
+---
+<%
+# OCEL (object-centric event log) projection of the canonical WorkOrder graph.
+#
+# Shape decision: NO `for_each` -- this template renders ONE log document per
+# manufacture run covering every WorkOrder, because an object-centric event log
+# is a single document whose objects and events cross WorkOrder boundaries. The
+# driver's bounded (non-`for_each`) path binds every pack gate query as a list
+# (`work_orders`, `work_order_subjects`, `properties`, `nodes`,
+# `description_integrity`, `alive_receipt_crown`), which is exactly the
+# aggregate shape this document needs.
+#
+# Zero timestamps: the log carries no wall-clock time. Identity and ordering
+# derive exclusively from stable graph keys (WorkOrder identifiers, target
+# IRIs, the fixed relation-family order), so two renders of one graph are
+# byte-identical.
+#
+# Zero authority: the Markdown projections' GENERATED comment convention,
+# adapted to top-level `generated_by` / `authority` / `authority_statement`
+# fields.
+sj = "https://ggen-igniter.dev/ontology/semantic-jira#"
+
+refuse = fn reason ->
+  raise ArgumentError, "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER: #{reason}"
+end
+
+subject_set =
+  work_order_subjects
+  |> Enum.map(& &1["work_order"])
+  |> Enum.sort()
+
+renderable_set =
+  work_orders
+  |> Enum.map(& &1["work_order"])
+  |> Enum.sort()
+
+if subject_set != renderable_set do
+  refuse.(
+    "every sj:WorkOrder must resolve to exactly one complete scalar row; " <>
+      "subjects=#{inspect(subject_set)} rows=#{inspect(renderable_set)}"
+  )
+end
+
+ids = Enum.map(work_orders, & &1["id"])
+
+if length(ids) != length(Enum.uniq(ids)) do
+  refuse.("dcterms:identifier must be unique across WorkOrders: #{inspect(ids)}")
+end
+
+replay_identities = Enum.map(work_orders, & &1["replay_identity"])
+
+if length(replay_identities) != length(Enum.uniq(replay_identities)) do
+  refuse.(
+    "sj:replayIdentity must be unique across WorkOrders (shapes/work-order.shacl.ttl): " <>
+      "#{inspect(replay_identities)}"
+  )
+end
+
+# The ALIVE-receipt-crown gate and the description-integrity gate return only
+# admission violations; any row at all is a refusal.
+Enum.each(alive_receipt_crown, fn violation ->
+  refuse.(
+    "standing ALIVE requires sj:candidateSha, sj:subjectSha, and sj:receipt evidence " <>
+      "(shapes/work-order.shacl.ttl) for #{inspect(violation["id"])}"
+  )
+end)
+
+Enum.each(description_integrity, fn violation ->
+  refuse.(
+    "semantic node #{inspect(violation["node"])} lacks a real description: blank, " <>
+      "self-label, or self-IRI echo carries no semantic content"
+  )
+end)
+
+# Whitespace-only labels/descriptions evade exact-match gate comparison but
+# describe nothing; the nodes gate already returns every described node.
+Enum.each(nodes, fn node ->
+  if String.trim(node["label"]) == "" or String.trim(node["description"]) == "" do
+    refuse.(
+      "semantic node #{inspect(node["node"])} has a blank or whitespace-only " <>
+        "rdfs:label/dcterms:description"
+    )
+  end
+end)
+
+values_for = fn work_order_iri, predicate_iri ->
+  properties
+  |> Enum.filter(fn row ->
+    row["work_order"] == work_order_iri and row["predicate"] == predicate_iri
+  end)
+  |> Enum.map(& &1["value"])
+  |> Enum.sort()
+end
+
+node_for = fn iri ->
+  Enum.find(nodes, &(&1["node"] == iri))
+end
+
+core_fields = [
+  "id",
+  "title",
+  "description",
+  "repository",
+  "base_sha",
+  "subject",
+  "standing",
+  "evidence_ceiling",
+  "authority_ceiling",
+  "promotion_rule",
+  "replay_identity"
+]
+
+# Fields with no format pattern below still must be more than whitespace;
+# a whitespace-only scalar is an incomplete identity, not a value.
+blank_checked_fields = [
+  "title",
+  "description",
+  "subject",
+  "evidence_ceiling",
+  "promotion_rule",
+  "replay_identity"
+]
+
+required_node_relations = [
+  "requiresCourt",
+  "requiresEvidence",
+  "acceptance",
+  "falsifier",
+  "projection",
+  "nextAction",
+  "nextCheckpoint"
+]
+
+valid_standings = [
+  "UNKNOWN",
+  "PARTIAL_ALIVE",
+  "ALIVE",
+  "BLOCKED",
+  "BUILD_BROKEN",
+  "UNSUPPORTED"
+]
+
+valid_authority_ceilings = ["OBSERVE", "SELECT", "CONSTRUCT"]
+
+Enum.each(work_orders, fn row ->
+  Enum.each(core_fields, fn field ->
+    value = row[field]
+
+    if not is_binary(value) or value == "" do
+      refuse.("missing core field #{field} for #{inspect(row["work_order"])}")
+    end
+  end)
+
+  Enum.each(blank_checked_fields, fn field ->
+    if String.trim(row[field]) == "" do
+      refuse.("blank core field #{field} for #{inspect(row["work_order"])}")
+    end
+  end)
+
+  unless Regex.match?(~r/\A[A-Z][A-Z0-9-]{1,63}\z/, row["id"]) do
+    refuse.("invalid WorkOrder identifier #{inspect(row["id"])}")
+  end
+
+  unless Regex.match?(~r/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/, row["repository"]) do
+    refuse.("invalid repository identity #{inspect(row["repository"])} for #{row["id"]}")
+  end
+
+  unless Regex.match?(~r/\A[0-9a-f]{40}\z/, row["base_sha"]) do
+    refuse.("baseSha must be an exact 40-hex commit SHA for #{row["id"]}")
+  end
+
+  standing = row["standing"]
+
+  refuted_standing =
+    String.starts_with?(standing, "REFUSED(") and String.ends_with?(standing, ")") and
+      byte_size(standing) > 9
+
+  unless standing in valid_standings or refuted_standing do
+    refuse.("invalid standing #{inspect(standing)} for #{row["id"]}")
+  end
+
+  unless row["authority_ceiling"] in valid_authority_ceilings do
+    refuse.(
+      "authority ceiling #{inspect(row["authority_ceiling"])} exceeds Semantic Jira's " <>
+        "OBSERVE/SELECT/CONSTRUCT boundary for #{row["id"]}"
+    )
+  end
+
+  Enum.each(required_node_relations, fn relation ->
+    targets = values_for.(row["work_order"], sj <> relation)
+
+    if targets == [] do
+      refuse.("missing required #{relation} relation for #{row["id"]}")
+    end
+
+    Enum.each(targets, fn target ->
+      if node_for.(target) == nil do
+        refuse.(
+          "#{relation} target #{inspect(target)} for #{row["id"]} lacks " <>
+            "rdfs:label + dcterms:description"
+        )
+      end
+    end)
+  end)
+end)
+
+# The five admission-relevant fact families this log emits as typed events.
+# `event_type` names the OCEL event class, `qualifier` names the target side
+# of the event->object relationship, `object_type` names the OCEL object class
+# a non-WorkOrder target carries.
+event_families = [
+  {"requiresCourt", "court-required", "requiresCourt", "Court"},
+  {"requiresEvidence", "evidence-required", "requiresEvidence", "Evidence"},
+  {"falsifier", "falsifier-registered", "falsifier", "Falsifier"},
+  {"projection", "projection-listed", "projection", "Projection"},
+  {"nextCheckpoint", "checkpoint-set", "nextCheckpoint", "Checkpoint"}
+]
+
+work_orders_sorted = Enum.sort_by(work_orders, & &1["id"])
+
+work_order_iris = MapSet.new(renderable_set)
+
+# Events: one typed event per (WorkOrder, relation family, target) triple.
+# Event identity is the stable composite key, never a positional index.
+events =
+  for row <- work_orders_sorted,
+      {relation, event_type, _qualifier, _object_type} <- event_families,
+      target <- values_for.(row["work_order"], sj <> relation) do
+    node = node_for.(target)
+
+    %{
+      "ocel:id" => "#{row["id"]}/#{event_type}/#{target}",
+      "ocel:type" => event_type,
+      "ocel:attributes" => %{"label" => node["label"]},
+      "ocel:relationships" => [
+        %{"ocel:object" => row["work_order"], "ocel:qualifier" => "work_order"},
+        %{"ocel:object" => target, "ocel:qualifier" => relation}
+      ]
+    }
+  end
+  |> Enum.sort_by(& &1["ocel:id"])
+
+# Objects: every WorkOrder (boundary attributes only) plus every distinct
+# non-WorkOrder relation target referenced by an event, so every relationship
+# endpoint resolves to a real object. A target that is itself a WorkOrder
+# stays a single WorkOrder object; its role in other families shows up through
+# relationships, not duplicate ids. A non-WorkOrder target referenced by
+# several families gets its type from the first family in the fixed
+# event_families order that references it.
+node_object_types =
+  event_families
+  |> Enum.flat_map(fn {relation, _event_type, _qualifier, object_type} ->
+    work_orders_sorted
+    |> Enum.flat_map(&values_for.(&1["work_order"], sj <> relation))
+    |> Enum.map(&{&1, object_type})
+  end)
+  |> Enum.into(%{})
+
+node_objects =
+  node_object_types
+  |> Enum.reject(fn {iri, _object_type} -> MapSet.member?(work_order_iris, iri) end)
+  |> Enum.map(fn {iri, object_type} ->
+    node = node_for.(iri)
+
+    %{
+      "ocel:id" => iri,
+      "ocel:type" => object_type,
+      "ocel:attributes" => %{"label" => node["label"], "description" => node["description"]}
+    }
+  end)
+
+work_order_objects =
+  Enum.map(work_orders_sorted, fn row ->
+    %{
+      "ocel:id" => row["work_order"],
+      "ocel:type" => "WorkOrder",
+      "ocel:attributes" => %{
+        "id" => row["id"],
+        "standing" => row["standing"],
+        "baseSha" => row["base_sha"],
+        "authorityCeiling" => row["authority_ceiling"],
+        "evidenceCeiling" => row["evidence_ceiling"]
+      }
+    }
+  end)
+
+objects = Enum.sort_by(work_order_objects ++ node_objects, & &1["ocel:id"])
+
+relationships =
+  Enum.flat_map(events, fn event ->
+    Enum.map(event["ocel:relationships"], fn relationship ->
+      %{
+        "ocel:event" => event["ocel:id"],
+        "ocel:object" => relationship["ocel:object"],
+        "ocel:qualifier" => relationship["ocel:qualifier"]
+      }
+    end)
+  end)
+
+log = %{
+  "generated_by" =>
+    "semantic-jira-pack OCEL event-log projection from canonical RDF WorkOrder graph. DO NOT EDIT.",
+  "authority" => "NONE",
+  "authority_statement" =>
+    "This JSON document is a deterministic projection. It has zero independent " <>
+      "actuation, merge, publication, deployment, or standing-promotion authority. " <>
+      "The real reconciliation receipt binds the projection to the exact ontology " <>
+      "bytes through receipt metadata graph_hash.",
+  "ocel:objects" => objects,
+  "ocel:events" => events,
+  "ocel:relationships" => relationships
+}
+%><%= JSON.encode!(log) %>

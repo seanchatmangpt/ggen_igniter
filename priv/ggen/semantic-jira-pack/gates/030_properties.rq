@@ -1,0 +1,5 @@
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT ?work_order ?predicate ?value WHERE {
+  ?work_order a sj:WorkOrder .
+  ?work_order ?predicate ?value .
+}

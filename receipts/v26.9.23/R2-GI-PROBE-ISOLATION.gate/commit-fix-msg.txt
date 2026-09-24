@@ -1,0 +1,26 @@
+test(v26.9.23): R2-GI-PROBE-ISOLATION - probe test re-syncs the shared dev build on exit
+
+Release defect repair (subject defect; defect_key ggen_igniter-test-orphan-dev-beam).
+ARD §25 multi-repo exact-head qualification rung; PRD §13 stop condition (green exact-head CI).
+
+CI 35925710605 @aa07ee7 (seed 648358): 1349 tests, 1 failure --
+test/ggen_igniter_plan_task_test.exs:91 (--help / -h byte-identical) got output
+starting with "Generated ggen_igniter app".
+
+Cause: GgenIgniterBaseMixTaskEndUserTest writes lib/tmp_ex4pm_probe_N/application.ex
+into the shared checkout and runs a dev-env `mix igniter.refactor.rename_function`
+child that compiles it into _build/dev/lib/ggen_igniter/ebin. on_exit removed only
+the source, so the next dev-env mix child purged the orphan beam and Mix compile.app
+printed "Generated ggen_igniter app" into that child's stdout, breaking every
+exact-stdout test that runs after it (plan --help/-h identity, the plan --json
+single-document test). Latent since 4aa5f36.
+
+Fix at the source of the staleness, not its victims: after File.rm_rf!(probe_dir),
+on_exit re-syncs the dev build with `mix compile` (asserting exit 0). The byte-identity
+and single-JSON-document assertions are unchanged.
+
+Candidate O: lanes/r2/candidates/r2-gi-probe-isolation.patch
+(sha256 6e61bfd4d92e812f3eba224bd922067d744ce7afb5f9bd24913ec935870e9513), applied
+with git apply. Generation path: hand-authored test, not generator-owned.
+Preserved alternative (not built): run the probe in a temp Mix project with
+path/symlink-shared deps so lib/ and _build/dev are never touched.

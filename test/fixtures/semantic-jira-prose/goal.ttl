@@ -1,0 +1,65 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix fx: <https://ggen-igniter.dev/sjira/fixture-prose#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Minimal goal graph for test/ggen_igniter_semantic_jira_prose_test.exs
+# (lane V23-C, PRD PR-002..PR-005, ARD sections 5 and 17). The root binds the
+# accepted prose by digest (sj:sourceSha256 of prose.md); three gates are its
+# children, so coverage requires >= 1 admitted proposition per gate. One
+# capability is declared so a proposition's sj:requiresCapability hint
+# resolves to this node instead of a manufactured one. Merged with the pack
+# ontology this graph conforms to shapes/work-order.shacl.ttl on its own.
+
+fx:GC-PROSE a sj:GoalCheckpoint ;
+    dcterms:identifier "GC-PROSE" ;
+    rdfs:label "GC-PROSE fixture goal" ;
+    dcterms:description "Root goal compiled from test/fixtures/semantic-jira-prose/prose.md; STOP is computed by its stop query." ;
+    sj:sourceSha256 "sha256:a08df167fb31a4493373cd19c70249acc722cdc5e8253c2632a3aa461380f5d6" ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "52798a00a7c36314ba6bb65249626ea50f6763a3" ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:successorPolicy "Discovered work that falsifies no GC-PROSE proposition is typed Successor under fx:GC-PROSE-NEXT." ;
+    sj:courtCommand "mix test test/ggen_igniter_semantic_jira_prose_test.exs" ;
+    sj:stopQuery """PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+# STOP holds when every gate under the root carries an ALIVE receipt.
+ASK {
+  ?gate sj:checkpointOf <https://ggen-igniter.dev/sjira/fixture-prose#GC-PROSE> .
+}""" .
+
+fx:GCP-0 a sj:GoalCheckpoint ;
+    dcterms:identifier "GCP-0" ;
+    rdfs:label "GCP-0 formatted subject" ;
+    dcterms:description "The exact subject is formatted by the registered recipe with no LLM." ;
+    sj:checkpointOf fx:GC-PROSE ;
+    sj:boundaryClass sj:Core ;
+    sj:courtCommand "sh courts/GCP-0.sh" .
+
+fx:GCP-1 a sj:GoalCheckpoint ;
+    dcterms:identifier "GCP-1" ;
+    rdfs:label "GCP-1 deterministic compiler" ;
+    dcterms:description "Accepted prose compiles into a byte-identical finite delta." ;
+    sj:checkpointOf fx:GC-PROSE ;
+    sj:boundaryClass sj:FirstMile ;
+    sj:courtCommand "sh courts/GCP-1.sh" .
+
+fx:GCP-2 a sj:GoalCheckpoint ;
+    dcterms:identifier "GCP-2" ;
+    rdfs:label "GCP-2 measured admission" ;
+    dcterms:description "Every admission run leaves a measurement behind." ;
+    sj:checkpointOf fx:GC-PROSE ;
+    sj:boundaryClass sj:LastMile ;
+    sj:courtCommand "sh courts/GCP-2.sh" .
+
+fx:GC-PROSE-NEXT a sj:GoalCheckpoint ;
+    dcterms:identifier "GC-PROSE-NEXT" ;
+    rdfs:label "GC-PROSE successor goal" ;
+    dcterms:description "Successor goal that receives every item typed out of GC-PROSE." ;
+    sj:successorOf fx:GC-PROSE ;
+    sj:boundaryClass sj:Successor ;
+    sj:stopQuery "ASK { FILTER(false) }" .
+
+fx:cap-recipe-mix-format a sj:Capability ;
+    rdfs:label "Recipe: mix format" ;
+    dcterms:description "Deterministic formatter recipe; resolved to a provider by the executor registry, never by this graph." ;
+    sj:capabilityId "recipe:mix-format" .

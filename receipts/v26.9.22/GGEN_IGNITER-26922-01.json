@@ -1,0 +1,15 @@
+{
+  "wo": "GGEN_IGNITER-26922-01",
+  "base_sha": "c1aa83910172f177158ce9862474492d79c37178",
+  "command": "git fetch origin && git fetch origin main:main && git merge-base --is-ancestor origin/main main && for s in f283790 e20c552 3edd2ec 775d0f3 8032dab 186c74c; do git cat-file -e $s^{commit} || echo MISSING $s; done",
+  "exit": 0,
+  "output_excerpt": [
+    "From https://github.com/seanchatmangpt/ggen_igniter",
+    "   15305ce..d84da14  main       -> main",
+    "ancestor-OK",
+    "heads-OK (f283790 e20c552 3edd2ec 775d0f3 8032dab 186c74c all present)",
+    "local main fast-forwarded 15305ce -> d84da14; origin/main is ancestor of main; no MISSING lines"
+  ],
+  "standing": "ALIVE",
+  "notes": "Observed run in this session against release/v26.9.22 base c1aa839 (union of main d84da14 + canonical feat/zcode-ocel-pack f81cf54). No --prune used; stashes preserved as preserve/v26.9.22/stash-0/1; dirty checkout preserved as preserve/v26.9.22/ggen_igniter (991cbaf)."
+}

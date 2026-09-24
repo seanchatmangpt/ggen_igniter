@@ -1,0 +1,321 @@
+---
+to: "docs/plan/<%= id %>.hddl"
+for_each: work_orders
+mode: file
+---
+<%
+sj = "https://ggen-igniter.dev/ontology/semantic-jira#"
+
+refuse = fn reason ->
+  raise ArgumentError, "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER: #{reason}"
+end
+
+subject_set =
+  work_order_subjects
+  |> Enum.map(& &1["work_order"])
+  |> Enum.sort()
+
+renderable_set =
+  work_orders
+  |> Enum.map(& &1["work_order"])
+  |> Enum.sort()
+
+if subject_set != renderable_set do
+  refuse.(
+    "every sj:WorkOrder must resolve to exactly one complete scalar row; " <>
+      "subjects=#{inspect(subject_set)} rows=#{inspect(renderable_set)}"
+  )
+end
+
+ids = Enum.map(work_orders, & &1["id"])
+
+if length(ids) != length(Enum.uniq(ids)) do
+  refuse.("dcterms:identifier must be unique across WorkOrders: #{inspect(ids)}")
+end
+
+replay_identities = Enum.map(work_orders, & &1["replay_identity"])
+
+if length(replay_identities) != length(Enum.uniq(replay_identities)) do
+  refuse.(
+    "sj:replayIdentity must be unique across WorkOrders (shapes/work-order.shacl.ttl): " <>
+      "#{inspect(replay_identities)}"
+  )
+end
+
+# The goal of this projection is ALIVE-with-receipt; a graph that claims the
+# strongest standing without the receipt crown has already smuggled the goal
+# into the state. The gate returns only admission violations; any row is a
+# refusal.
+Enum.each(alive_receipt_crown, fn violation ->
+  refuse.(
+    "standing ALIVE requires sj:candidateSha, sj:subjectSha, and sj:receipt evidence " <>
+      "(shapes/work-order.shacl.ttl) for #{inspect(violation["id"])}"
+  )
+end)
+
+Enum.each(description_integrity, fn violation ->
+  refuse.(
+    "semantic node #{inspect(violation["node"])} lacks a real description: blank, " <>
+      "self-label, or self-IRI echo carries no semantic content"
+  )
+end)
+
+Enum.each(nodes, fn node ->
+  if String.trim(node["label"]) == "" or String.trim(node["description"]) == "" do
+    refuse.(
+      "semantic node #{inspect(node["node"])} has a blank or whitespace-only " <>
+        "rdfs:label/dcterms:description"
+    )
+  end
+end)
+
+values_for = fn work_order_iri, predicate_iri ->
+  properties
+  |> Enum.filter(fn row ->
+    row["work_order"] == work_order_iri and row["predicate"] == predicate_iri
+  end)
+  |> Enum.map(& &1["value"])
+  |> Enum.sort()
+end
+
+node_for = fn iri ->
+  Enum.find(nodes, &(&1["node"] == iri))
+end
+
+core_fields = [
+  "id",
+  "title",
+  "description",
+  "repository",
+  "base_sha",
+  "subject",
+  "standing",
+  "evidence_ceiling",
+  "authority_ceiling",
+  "promotion_rule",
+  "replay_identity"
+]
+
+# Fields with no format pattern below still must be more than whitespace;
+# a whitespace-only scalar is an incomplete identity, not a value.
+blank_checked_fields = [
+  "title",
+  "description",
+  "subject",
+  "evidence_ceiling",
+  "promotion_rule",
+  "replay_identity"
+]
+
+required_node_relations = [
+  "requiresCourt",
+  "requiresEvidence",
+  "acceptance",
+  "falsifier",
+  "projection",
+  "nextAction",
+  "nextCheckpoint"
+]
+
+valid_standings = [
+  "UNKNOWN",
+  "PARTIAL_ALIVE",
+  "ALIVE",
+  "BLOCKED",
+  "BUILD_BROKEN",
+  "UNSUPPORTED"
+]
+
+valid_authority_ceilings = ["OBSERVE", "SELECT", "CONSTRUCT"]
+
+Enum.each(work_orders, fn row ->
+  Enum.each(core_fields, fn field ->
+    value = row[field]
+
+    if not is_binary(value) or value == "" do
+      refuse.("missing core field #{field} for #{inspect(row["work_order"])}")
+    end
+  end)
+
+  Enum.each(blank_checked_fields, fn field ->
+    if String.trim(row[field]) == "" do
+      refuse.("blank core field #{field} for #{inspect(row["work_order"])}")
+    end
+  end)
+
+  unless Regex.match?(~r/\A[A-Z][A-Z0-9-]{1,63}\z/, row["id"]) do
+    refuse.("invalid WorkOrder identifier #{inspect(row["id"])}")
+  end
+
+  unless Regex.match?(~r/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/, row["repository"]) do
+    refuse.("invalid repository identity #{inspect(row["repository"])} for #{row["id"]}")
+  end
+
+  unless Regex.match?(~r/\A[0-9a-f]{40}\z/, row["base_sha"]) do
+    refuse.("baseSha must be an exact 40-hex commit SHA for #{row["id"]}")
+  end
+
+  standing = row["standing"]
+
+  refuted_standing =
+    String.starts_with?(standing, "REFUSED(") and String.ends_with?(standing, ")") and
+      byte_size(standing) > 9
+
+  unless standing in valid_standings or refuted_standing do
+    refuse.("invalid standing #{inspect(standing)} for #{row["id"]}")
+  end
+
+  unless row["authority_ceiling"] in valid_authority_ceilings do
+    refuse.(
+      "authority ceiling #{inspect(row["authority_ceiling"])} exceeds Semantic Jira's " <>
+        "OBSERVE/SELECT/CONSTRUCT boundary for #{row["id"]}"
+    )
+  end
+
+  Enum.each(required_node_relations, fn relation ->
+    targets = values_for.(row["work_order"], sj <> relation)
+
+    if targets == [] do
+      refuse.("missing required #{relation} relation for #{row["id"]}")
+    end
+
+    Enum.each(targets, fn target ->
+      if node_for.(target) == nil do
+        refuse.(
+          "#{relation} target #{inspect(target)} for #{row["id"]} lacks " <>
+            "rdfs:label + dcterms:description"
+        )
+      end
+    end)
+  end)
+end)
+
+# ── HDDL plan-as-declared assembly ─────────────────────────────────────────
+# This is a projection of the plan AS DECLARED by the canonical graph, never a
+# solved plan: the only decomposition below is the graph's own court /
+# evidence / receipt-class / falsifier / checkpoint structure, one subtask per
+# required satisfaction, siblings in stable-key (sorted IRI) order. No solver
+# runs, no invented ordering, no invented steps.
+
+local_name = fn iri ->
+  iri
+  |> String.split("#")
+  |> List.last()
+  |> String.split("/")
+  |> List.last()
+end
+
+# HDDL tokens must be atomic; anything outside the safe token alphabet is
+# emitted as a quoted string instead of being mangled.
+safe_token = fn value ->
+  if Regex.match?(~r/\A[A-Za-z0-9][A-Za-z0-9_-]*\z/, value), do: value, else: inspect(value)
+end
+
+node_comment = fn iri ->
+  case node_for.(iri) do
+    nil -> ""
+    node -> " ;; #{node["label"]}"
+  end
+end
+
+hddl_id = safe_token.(id)
+
+subtask_line = fn op, target ->
+  "      (#{op} #{hddl_id} #{safe_token.(local_name.(target))})#{node_comment.(target)}"
+end
+
+courts = values_for.(work_order, sj <> "requiresCourt")
+required_evidence = values_for.(work_order, sj <> "requiresEvidence")
+falsifiers = values_for.(work_order, sj <> "falsifier")
+next_checkpoints = values_for.(work_order, sj <> "nextCheckpoint")
+receipt_classes = values_for.(work_order, sj <> "requiresReceiptClass")
+dependencies = values_for.(work_order, sj <> "dependsOn")
+
+subtask_groups = [
+  {"      ;; required courts - sj:requiresCourt - stable-key order",
+   Enum.map(courts, &subtask_line.("close-court", &1))},
+  {"      ;; required evidence - sj:requiresEvidence - stable-key order",
+   Enum.map(required_evidence, &subtask_line.("produce-evidence", &1))},
+  {"      ;; required receipt classes - sj:requiresReceiptClass - stable-key order",
+   Enum.map(receipt_classes, fn value ->
+     "      (record-receipt-class #{hddl_id} #{safe_token.(value)})"
+   end)},
+  {"      ;; falsifiers to discharge - sj:falsifier - stable-key order",
+   Enum.map(falsifiers, &subtask_line.("discharge-falsifier", &1))},
+  {"      ;; terminal checkpoint - sj:nextCheckpoint",
+   Enum.map(next_checkpoints, &subtask_line.("reach-checkpoint", &1))}
+]
+
+subtask_lines = Enum.flat_map(subtask_groups, fn {comment, lines} -> [comment | lines] end)
+
+task_line = "(promote #{hddl_id} ALIVE)"
+
+object_group = fn type, targets ->
+  case targets do
+    [] ->
+      []
+
+    _ ->
+      names =
+        targets
+        |> Enum.map(&safe_token.(local_name.(&1)))
+        |> Enum.sort()
+        |> Enum.uniq()
+
+      ["    #{Enum.join(names, " ")} - #{type}"]
+  end
+end
+
+object_lines =
+  ["    #{hddl_id} - workorder"] ++
+    object_group.("court", courts) ++
+    object_group.("evidence", required_evidence) ++
+    object_group.("falsifier", falsifiers) ++
+    object_group.("checkpoint", next_checkpoints) ++
+    object_group.("dependency-edge", dependencies)
+
+init_facts =
+  [
+    "(workorder #{hddl_id})",
+    "(standing #{hddl_id} #{safe_token.(standing)})",
+    "(base-sha #{hddl_id} #{safe_token.(base_sha)})",
+    "(authority-ceiling #{hddl_id} #{safe_token.(authority_ceiling)})",
+    "(exact-subject #{hddl_id} #{inspect(subject)})",
+    "(repository #{hddl_id} #{inspect(repository)})",
+    "(replay-identity #{hddl_id} #{inspect(replay_identity)})",
+    "(projection-authority NONE)"
+  ] ++
+    Enum.map(dependencies, fn edge ->
+      "(depends-on #{hddl_id} #{safe_token.(local_name.(edge))})"
+    end)
+
+init_lines = Enum.map(init_facts, &"    #{&1}")
+
+goal_line = "(and (standing #{hddl_id} ALIVE) (has-receipt #{hddl_id}))"
+%>
+;; GENERATED by semantic-jira-pack from canonical RDF WorkOrder <%= work_order %>. DO NOT EDIT.
+;;
+;; Zero-authority projection: this HDDL file is the promotion plan AS DECLARED
+;; by the canonical RDF graph. It executes nothing and holds no authority to
+;; actuate, merge, publish, deploy, or promote standing. It is a
+;; plan-as-declared projection, not a solved or executed plan: the subtask
+;; order below is the declared court / evidence / receipt-class / falsifier /
+;; checkpoint structure of the graph in stable-key order and carries no
+;; solver-derived ordering. The declared goal follows
+;; shapes/work-order.shacl.ttl: standing ALIVE only with the receipt crown.
+;; The real reconciliation receipt binds this file to the exact ontology bytes
+;; through receipt metadata graph_hash.
+
+(defproblem promote-<%= id %> semantic-jira-workorder
+  (:objects
+<%= Enum.join(object_lines, "\n") %>)
+  (:task <%= task_line %>)
+  (:method decompose-promote-<%= id %>
+    :task <%= task_line %>
+    :subtasks (
+<%= Enum.join(subtask_lines, "\n") %>
+      ))
+  (:init
+<%= Enum.join(init_lines, "\n") %>)
+  ;; Declared goal, not observed standing: ALIVE with the receipt crown.
+  (:goal <%= goal_line %>))

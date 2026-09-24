@@ -14,7 +14,15 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Budget from measured runs, not a guess: a cold run (no cache for the
+    # ref -- actions/cache saves only on job success, so a timed-out run
+    # never seeds one) spends ~14 min before `mix test` (deps + release-mode
+    # ggen_graph_nif build; run 35895256423), and the last green full suite
+    # took 28 min on a suite ~18% smaller than today's (run 35682930334).
+    # 30 min cancelled five consecutive runs on 2026-09-23 mid-suite.
+    # Complete cold jobs then took 54.6 min (run 35925710605) and 56.5 min
+    # (run 35933570910); budget >= ceil(1.5 x 56.5) = 85, rounded to 90.
+    timeout-minutes: 90
     permissions:
       contents: read
 
@@ -25,6 +33,13 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          # Semantic Jira's git-ground-truth court proves that the canonical
+          # baseSha is an actual ancestor of this exact head. A depth-1
+          # checkout makes every older honest SHA observationally absent and
+          # turns the positive control into a false refusal. This repository's
+          # own history is therefore a required test collaborator, just like
+          # the explicitly full-history ex4pm fixture clone below.
+          fetch-depth: 0
 
       # Real fixture checkout: 10 real ExUnit test files
       # (test/ggen_igniter_base_*_test.exs, test/ggen_igniter_install_task_
@@ -96,17 +111,72 @@ jobs:
           otp-version: '27.2.4'
           rebar3-version: '3.24.0'
 
+      # Dependency downloads are reusable across source revisions. Compiled
+      # application state is not: Rustler manufactures the native NIF during
+      # Elixir compilation, so restoring _build under a mix.lock-only key can
+      # restore a BEAM that expects priv/native/ggen_graph_nif.so without the
+      # NIF artifact itself. Keep dependency and build identities separate.
       - name: Cache mix dependencies
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          restore-keys: "${{ runner.os }}-mix-27.2.4-1.18.4-\n${{ runner.os }}-mix-27.2.4-\n${{ runner.os }}-mix-\n"
-          key: ${{ runner.os }}-mix-27.2.4-1.18.4-${{ hashFiles('mix.lock') }}
-          path: "deps\n~/.hex\n~/.mix\n_build\n"
+          restore-keys: "${{ runner.os }}-mix-deps-27.2.4-1.18.4-\n${{ runner.os }}-mix-deps-27.2.4-\n${{ runner.os }}-mix-deps-\n"
+          key: ${{ runner.os }}-mix-deps-27.2.4-1.18.4-${{ hashFiles('mix.lock') }}
+          path: "deps\n~/.hex\n~/.mix\n"
+
+      # Exact build cache: no prefix restore. Any Elixir/NIF/mix input change
+      # gets a fresh compilation, while an exact-subject retry can reuse its
+      # own compiled tree.
+      - name: Cache exact compiled build
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: ${{ runner.os }}-mix-build-27.2.4-1.18.4-${{ hashFiles('mix.lock', 'mix.exs', 'lib/**/*.ex', 'native/**') }}
+          path: _build
+
+      # Cargo target dir for the NIF, keyed on its own lockfile so it rotates
+      # whenever the crate's rust dependencies change.
+      - name: Cache NIF cargo target
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: ${{ runner.os }}-nif-target-27.2.4-1.18.4-${{ hashFiles('native/ggen_graph_nif/Cargo.lock') }}
+          path: native/ggen_graph_nif/target
 
       - name: mix deps.get
         shell: bash
         run: |
           mix deps.get
+
+      # The `_build` cache is an immutable per-key actions/cache snapshot:
+      # since the run that first saved the current `mix.lock`-keyed snapshot
+      # (the only green run, 35021796291 on 2026-09-15 -- a cache MISS that
+      # built everything for real), every later run restores that same
+      # `_build`. Mix then marks `GgenIgniter.Native.GraphNif` (the rustler
+      # loader module) up-to-date whenever neither `graph_nif.ex` nor its
+      # `@external_resource` crate sources changed -- so rustler never runs,
+      # `ggen_graph_nif` is never compiled, and
+      # `_build/<env>/lib/ggen_igniter/priv/native/ggen_graph_nif.so` is
+      # missing. Every NIF-backed test then fails with "function
+      # GgenIgniter.Native.GraphNif.query_turtle/2 is undefined (module ...
+      # is not available)": the 9 oxigraph/ASK-CONSTRUCT failures on every
+      # run since 2026-09-18, pre-existing on main (35315548332), NOT
+      # introduced by any branch's commits. Verified 2026-09-20: in the
+      # failing runs, ggen_igniter DOES recompile its changed modules
+      # ("Compiling 4 files (.ex)" + "Generated ggen_igniter app") with no
+      # "Compiling crate ggen_graph_nif" line anywhere, and the repo's own
+      # `ggen_igniter.doctor --json` reports `nif_compiles: ok` (real cargo
+      # build) next to `oxigraph_smoke_test: error` (NIF absent) in the same
+      # JSON document. Deleting ONLY this app's build artifacts (deps' beams
+      # stay cached) forces a real ggen_igniter + NIF rebuild on every run --
+      # the state a fresh checkout gets. The cargo target dir is cached (see
+      # key above), so the forced rustler pass is incremental in steady
+      # state. Locally reproduced and verified: with the app dirs wiped,
+      # `mix compile` + `mix test test/*oxigraph*` rebuild the crate and go
+      # 24/0 green; without the wipe, a deleted .so is never restored
+      # (checksum-based manifest -- `touch` alone does not stale the module).
+      - name: Force ggen_igniter app rebuild so the rustler NIF is always (re)built
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _build/dev/lib/ggen_igniter _build/test/lib/ggen_igniter
 
       # GI-08 follow-up (2026-09-02): the disclosed CI-07 gap above is
       # closed -- `mix format` was run for real across the whole tree
@@ -178,7 +248,39 @@ jobs:
         run: |
           mix compile
 
+      # gi-verify-task closure: `mix ggen_igniter.verify` (lib/mix/tasks/
+      # ggen_igniter.verify.ex) had zero callers anywhere in this repo before
+      # this step -- confirmed by `grep -rn "ggen_igniter.verify"
+      # --exclude-dir=deps --exclude-dir=_build .` returning only the task's
+      # own source and docs. Runs the task's real fail-CLOSED checks (the
+      # inverted `verify/*.unbound.rq` companion queries plus the per-gate
+      # cardinality contract) against the real, checked-in
+      # `test/fixtures/ash_manufacture_pack` fixture on every PR, independent
+      # of `test/mix/tasks/ggen_igniter_verify_task_test.exs`'s own coverage
+      # below -- so a regression that broke the task itself (not just its
+      # test) still fails CI even if the test file were ever skipped or
+      # reverted. That fixture is kept lawful by
+      # `test/ggen_igniter_gate_verify_test.exs` and this step, so `--json`
+      # here must exit 0; a nonzero exit fails the job.
+      - name: mix ggen_igniter.verify (fail-CLOSED pack check)
+        shell: bash
+        run: |
+          mix ggen_igniter.verify --pack test/fixtures/ash_manufacture_pack --json
+
       - name: mix test
         shell: bash
         run: |
+          # Cache-restore hardening (2026-09-15): a restored _build/test can
+          # carry current beams WITHOUT the rustler ggen_graph_nif.so (mix
+          # considers the app compiled and never rebuilds the artifact),
+          # which surfaces as NIF load_failed in every oxigraph/divergence
+          # test. Proven environmental, not diff-related: the base branch's
+          # own previously-green run (35004492197) fails identically on
+          # rerun after the exact-key mix.lock cache was evicted and the
+          # broad `restore-keys` prefix fallback restored a pre-NIF _build.
+          # Force a full test-env recompile only when the artifact is
+          # missing, so the NIF is always built before tests run.
+          if [ ! -f _build/test/lib/ggen_igniter/priv/native/ggen_graph_nif.so ]; then
+            MIX_ENV=test mix compile --force
+          fi
           mix test

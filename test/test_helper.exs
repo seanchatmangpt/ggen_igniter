@@ -128,4 +128,17 @@ unless excludes == [] do
   ExUnit.configure(exclude: excludes)
 end
 
-ExUnit.start()
+# Many tests spawn real `mix` subprocesses (compile, sync, verify). Under a
+# fully parallel run (max_cases 32, plus other work on the machine) a `mix`
+# boot alone can exceed ExUnit's 60s default, which surfaced as
+# `ExUnit.TimeoutError` flakes (reconcile_reactor, lock_staleness two-OS-process,
+# reconciliation_manifest, e2e_all_engines) that pass in isolation. The
+# timeout is a hang backstop, not an assertion; raise it (override with
+# GGEN_TEST_TIMEOUT_MS).
+timeout_ms =
+  case Integer.parse(System.get_env("GGEN_TEST_TIMEOUT_MS", "")) do
+    {n, ""} when n > 0 -> n
+    _ -> 300_000
+  end
+
+ExUnit.start(timeout: timeout_ms)

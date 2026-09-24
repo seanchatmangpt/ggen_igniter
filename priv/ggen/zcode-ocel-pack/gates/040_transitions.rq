@@ -1,0 +1,4 @@
+PREFIX zc: <https://ggen-igniter.dev/ontology/zcode-ocel#>
+SELECT DISTINCT ?event ?fromState ?toState WHERE {
+  ?t a zc:Transition ; zc:event ?event ; zc:fromState ?fromState ; zc:toState ?toState .
+}

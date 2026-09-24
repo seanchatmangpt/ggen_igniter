@@ -1,0 +1,42 @@
+warning: setting :preferred_cli_env in your mix.exs "def project" is deprecated, set it inside "def cli" instead:
+
+    def cli do
+      [preferred_envs: [coveralls: :test, "coveralls.detail": :test, "coveralls.html": :test]]
+    end
+
+  (mix 1.19.5) lib/mix/cli.ex:187: Mix.CLI.preferred_cli_env/3
+  (mix 1.19.5) lib/mix/cli.ex:170: Mix.CLI.maybe_change_env_and_target/2
+  (mix 1.19.5) lib/mix/cli.ex:59: Mix.CLI.proceed/2
+  /opt/homebrew/bin/mix:7: (file)
+  (elixir 1.19.5) src/elixir_compiler.erl:81: :elixir_compiler.dispatch/4
+  (elixir 1.19.5) src/elixir_compiler.erl:56: :elixir_compiler.compile/4
+
+Compiling 7 files (.ex)
+Generated ggen_igniter app
+
+07:12:33.178 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+07:12:33.186 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+07:12:33.186 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+07:12:33.186 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+Running ExUnit with seed: 323453, max_cases: 32
+Excluding tags: [:requires_qlever_server]
+
+.................fatal: unable to read tree (17e2923d5270835783fa7879e7fc0c8730f4667b)
+fatal: unable to read tree (17e2923d5270835783fa7879e7fc0c8730f4667b)
+fatal: unable to read tree (17e2923d5270835783fa7879e7fc0c8730f4667b)
+.........
+Finished in 12.7 seconds (0.00s async, 12.7s sync)
+26 tests, 0 failures
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+test exit=0

@@ -1,0 +1,16 @@
+{
+  "schema": <%= Jason.encode!(schema) %>,
+  "work_order_id": <%= Jason.encode!(work_order_id) %>,
+  "subject": <%= Jason.encode!(subject) %>,
+  "repository": <%= Jason.encode!(repository) %>,
+  "base_sha": <%= Jason.encode!(base_sha) %>,
+  "definition_digest": <%= Jason.encode!(definition_digest) %>,
+  "snapshot_digest": <%= Jason.encode!(snapshot_digest) %>,
+  "graph_digest": <%= Jason.encode!(graph_digest) %>,
+  "provider": <%= Jason.encode!(provider) %>,
+  "worker_identity": <%= Jason.encode!(worker_identity) %>,
+  "verifier_identity": <%= Jason.encode!(verifier_identity) %>,
+  "replay_identity": <%= Jason.encode!(replay_identity) %>,
+  "authority": <%= Jason.encode!(authority) %>,
+  "package": <%= package_json %>
+}

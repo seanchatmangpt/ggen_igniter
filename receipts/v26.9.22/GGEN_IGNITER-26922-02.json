@@ -1,0 +1,15 @@
+{
+  "wo": "GGEN_IGNITER-26922-02",
+  "base_sha": "c1aa83910172f177158ce9862474492d79c37178 (branch), merge 0bd65be into release/v26.9.22",
+  "command": "mix credo && mix compile --warnings-as-errors",
+  "exit": 0,
+  "output_excerpt": [
+    "Analysis took 18.8 seconds ... 2253 mods/funs, found no issues.",
+    "credo exit: 0",
+    "Generated ggen_igniter app",
+    "warn exit: 0",
+    "mix test test/ggen_igniter_hand_authored_task_test.exs: 26 tests, 0 failures (581.4s)"
+  ],
+  "standing": "ALIVE",
+  "notes": "Behavior-preserving refactor of lib/mix/tasks/ggen_igniter.hand_authored.ex (run_admit 38->staged pipeline, run_list 12, render_with_templates 13+nesting, render single-branch cond). Baseline credo on c1aa839 observed exit 8 with the same 6 findings (pre-existing). Re-verified after --no-ff merge into release/v26.9.22 at 0bd65be."
+}

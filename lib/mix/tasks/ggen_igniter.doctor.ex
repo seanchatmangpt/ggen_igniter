@@ -75,10 +75,22 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       `--force-unlock` flag, so this never invents one). Never `:error`: a held lock,
       stale or not, is advisory information about another invocation, not a defect in
       the current project.
+  19. `semantic_jira_pack` health (`GgenIgniter.SemanticJira.PackHealth`): the shipped
+      `priv/ggen/semantic-jira-pack/` (resolved against the same ggen_igniter root
+      `check_nif_compiles` uses) loads its `ontology.ttl`, executes EVERY gate query
+      clean through `mix ggen_igniter.sync`'s default engine path (`oxigraph`, real
+      execution -- not the parse-only check 12), and renders every template once per
+      driver row through the sync pipeline's own `build_bindings/2` +
+      `Render.render/2` convention. Fail-closed: any broken component (Turtle syntax,
+      crashing gate, undefined template binding, zero-row driver query) is an honest
+      `✘` naming it, never a crash of the whole doctor run. A pack DIRECTORY absent
+      from the resolved root (the Hex package's `files:` list does not ship `priv/`)
+      is `⚠` advisory, never `:error` -- a package form that ships no pack has no
+      pack health to fail on.
 
   Checks 9-12 only run when `--pack`/`--pack-dir` is given; without it, only checks 1-3
   and 4-7 (and 8, if `--engine qlever` was explicitly passed with a graph-free reachability
-  check is not possible, so 8 is skipped) run. Checks 4-7, 13-15, 17, and 18 always run.
+  check is not possible, so 8 is skipped) run. Checks 4-7, 13-15, 17, 18, and 19 always run.
   Check 16 only runs with `--hex-check` (it shells out to `mix hex.build`, which is slow,
   so it stays off by default to keep `mix ggen_igniter.doctor` fast).
 
@@ -135,6 +147,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   use Igniter.Mix.Task
 
   alias GgenIgniter.{DoctorFixes, Engine, Frontmatter, Ontology, Pack}
+  alias GgenIgniter.SemanticJira.PackHealth
 
   @impl Igniter.Mix.Task
   def info(_argv, _composing_task) do
@@ -286,6 +299,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
           tag("git_status", check_git_status()),
           tag("nif_compiles", check_nif_compiles()),
           tag("oxigraph_smoke_test", check_oxigraph_smoke_test()),
+          tag("semantic_jira_pack", check_semantic_jira_pack()),
           tag("lock_status", check_lock_status())
         ] ++
         maybe_check_hex_publish(opts)
@@ -1036,6 +1050,38 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
     end
   rescue
     error -> {:error, "GgenIgniter.Query.Oxigraph smoke test raised: #{Exception.message(error)}"}
+  end
+
+  # 19. semantic-jira-pack health (GgenIgniter.SemanticJira.PackHealth):
+  # the shipped dogfood pack's ontology loads, every gate query EXECUTES
+  # clean through the same default-engine path `mix ggen_igniter.sync` uses,
+  # and every template renders once per driver row through the pipeline's own
+  # `build_bindings/2` + `Render.render/2` convention -- real execution, no
+  # subprocess, no filesystem writes. Fail-closed both levels down: PackHealth
+  # never raises (any broken component becomes `{:error, detail}` naming it),
+  # and this wrapper never lets an unexpected raise escape the checklist.
+  # A missing pack DIRECTORY (`priv/ggen/semantic-jira-pack/` absent from the
+  # resolved ggen_igniter root -- the Hex package's `files:` list does not
+  # ship `priv/`) is `:warn`, not `:error`: a package form that ships no pack
+  # has no pack health to report, and must not fail every consumer's doctor
+  # run (the same consumer-shape reasoning `check_nif_compiles`' root
+  # resolution applies); a pack directory that EXISTS but is broken is a real
+  # `:error`.
+  defp check_semantic_jira_pack do
+    pack_dir = PackHealth.pack_dir(ggen_igniter_root())
+
+    if File.dir?(pack_dir) do
+      case PackHealth.check(pack_dir) do
+        {:ok, summary} -> {:ok, "semantic-jira-pack: #{summary}"}
+        {:error, detail} -> {:error, detail}
+      end
+    else
+      {:warn,
+       "semantic-jira-pack not present at #{pack_dir} (this ggen_igniter package form does " <>
+         "not ship priv/ggen packs) -- nothing to health-check"}
+    end
+  rescue
+    error -> {:error, "semantic-jira-pack health check raised: #{Exception.message(error)}"}
   end
 
   # 16. hex-publish readiness (only with --hex-check)

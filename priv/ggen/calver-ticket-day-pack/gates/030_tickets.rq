@@ -1,0 +1,14 @@
+PREFIX oslc: <http://open-services.net/ns/core#>
+PREFIX oslc_cm: <http://open-services.net/ns/cm#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX earl: <http://www.w3.org/ns/earl#>
+SELECT DISTINCT ?calver ?slug ?number ?title ?mission ?acceptance WHERE {
+  ?day a prov:Activity ; dcterms:identifier ?calver ; dcterms:references ?t .
+  ?t a oslc_cm:ChangeRequest, earl:TestRequirement ;
+     oslc:shortTitle ?slug ;
+     dcterms:identifier ?number ;
+     dcterms:title ?title ;
+     dcterms:description ?mission .
+  OPTIONAL { ?t earl:testCase ?g . ?g dcterms:title ?acceptance . }
+} ORDER BY ?number
