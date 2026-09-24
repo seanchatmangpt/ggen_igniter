@@ -1,0 +1,5 @@
+# revert-mutation of HEAD=0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b (test file content = d6a6e5b)
+1 test, 0 failures
+orphan_beams=1
+next_dev_child_first_line=Generated ggen_igniter app
+lib_porcelain=[]

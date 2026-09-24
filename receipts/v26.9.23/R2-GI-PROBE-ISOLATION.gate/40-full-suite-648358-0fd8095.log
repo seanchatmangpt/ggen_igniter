@@ -1,0 +1,523 @@
+# full suite at head=0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b, toolchain: Elixir 1.18.4 (compiled with Erlang/OTP 27)
+# cmd: mix compile && mix test --seed 648358 (pinned PATH); exit=0
+
+18:59:03.842 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+18:59:03.854 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+18:59:03.854 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+18:59:03.855 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+warning: test/e2e/lifecycle_test.ex does not match "*_test.exs" and won't be loaded
+Running ExUnit with seed: 648358, max_cases: 32
+Excluding tags: [:requires_qlever_server]
+
+.............................    warning: redefining module Ex4pmFixture (current version loaded from _build/test/lib/ggen_igniter/ebin/Elixir.Ex4pmFixture.beam)
+    │
+  1 │ defmodule Ex4pmFixture do
+    │ ~~~~~~~~~~~~~~~~~~~~~~~~~
+    │
+    └─ test/support/ex4pm_fixture.ex:1: Ex4pmFixture (module)
+
+...........................................................................................................................................................................................................................................................................................................................................................................................................................................
+18:59:09.218 [debug] # Debug information for step `:log_charge`.
+
+## Arguments
+
+```
+%{message: "charge completed", charge: %GgenIgniter.Reactors.Examples.Support.Charge{card_token: "tok_123", amount: 42, refunded?: false}}
+```
+
+## Context
+```
+%{:private => %{inputs: %{email: "alice@example.com", amount: 42, card_token: "tok_123"}, composed_reactors: MapSet.new([GgenIgniter.Reactors.Examples.ExpenseApprovalReactor])}, Reactor.Middleware.Telemetry => %{metadata: %{id: GgenIgniter.Reactors.Examples.ExpenseApprovalReactor, initial_state: :pending, middleware: [Reactor.Middleware.Telemetry], run_id: #Reference<0.1404505379.56885259.164418>, inputs: [%Reactor.Input{name: :card_token, description: nil}, %Reactor.Input{name: :amount, description: nil}, %Reactor.Input{name: :email, description: nil}], step_count: 13}, start_time: -576460746666355084}, :run_id => #Reference<0.1404505379.56885259.164418>, :async? => true, :__reactor__ => %{id: GgenIgniter.Reactors.Examples.ExpenseApprovalReactor, initial_state: :pending, middleware: [Reactor.Middleware.Telemetry], run_id: #Reference<0.1404505379.56885259.164418>, inputs: [%Reactor.Input{name: :card_token, description: nil}, %Reactor.Input{name: :amount, description: nil}, %Reactor.Input{name: :email, description: nil}], step_count: 13}, :concurrency_key => #Reference<0.1404505379.56885259.164417>, :nested_dependencies => %{}, :current_step => %Reactor.Step{arguments: [%Reactor.Argument{description: nil, name: :message, source: %Reactor.Template.Value{value: "charge completed", sub_path: []}, transform: nil}, %Reactor.Argument{description: nil, name: :charge, source: %Reactor.Template.Result{name: :charge_payment, sub_path: []}, transform: nil}], async?: true, context: %{}, description: nil, impl: {Reactor.Step.Debug, [level: :debug]}, name: :log_charge, max_retries: 0, ref: :log_charge, transform: nil, guards: []}, :current_try => 0, :retries_remaining => 0}
+```
+
+## Options
+```
+[]
+```
+
+
+18:59:09.218 [debug] around: entering wrapped steps
+
+18:59:09.219 [debug] around: leaving wrapped steps
+...................
+18:59:09.920 [info] ggen_igniter: verified hex:jason@1.4.1 sha256=fbb01ecdfd565b56261302f7e1fcc27c4fb8f32d56eab74db621fc154604a7a1 against hex.pm's published release checksum
+........................................................................................................    warning: Beam4pmSmoke.Discovery.InductiveMiner.mine/1 is undefined (module Beam4pmSmoke.Discovery.InductiveMiner is not available or is yet to be defined)
+    │
+ 78 │     assert {:ok, tree} = Beam4pmSmoke.Discovery.InductiveMiner.mine(log)
+    │                                                                ~
+    │
+    └─ test/process_discovery_pack_test.exs:78:64: GgenIgniter.ProcessDiscoveryPackTest."test rendered inductive_miner + token_replay modules actually compile and run together"/1
+
+.    warning: Beam4pmSmoke.Conformance.TokenReplay.replay/2 is undefined (module Beam4pmSmoke.Conformance.TokenReplay is not available or is yet to be defined)
+    │
+ 80 │     result = Beam4pmSmoke.Conformance.TokenReplay.replay(tree, ["a", "b"])
+    │                                                   ~
+    │
+    └─ test/process_discovery_pack_test.exs:80:51: GgenIgniter.ProcessDiscoveryPackTest."test rendered inductive_miner + token_replay modules actually compile and run together"/1
+
+..................................................................
+18:59:13.903 [info] ggen_igniter: verified hex:jason@1.4.5 sha256=b0c823996102bcd0239b3c2444eb00409b72f6a140c1950bc8b457d836b30684 against hex.pm's published release checksum
+................................................................
+18:59:14.838 [warning] GgenIgniter.Receipt.read_all!/1: skipping unparseable line 2 in /Users/sac/.cache/tmp/ggen_igniter_receipt_test_22658/.ggen_igniter/receipts/2026-09-24.jsonl (%Jason.DecodeError{position: 34, token: nil, data: "{\"standing\":\"alive\",\"reason\":\"torn"}) -- likely a torn line from a crash mid-write; discarding it rather than raising and losing every other receipt in this partition.
+.........................................
+18:59:16.770 [info] ggen_igniter: fetched github:octocat/Hello-World@master (258 bytes), sha256=ab7006ec9cea1c8cb012961328029a9d178e947ab6f997c6dbae12a9019407a4 -- GitHub's archive endpoint publishes no checksum to verify against; record this digest yourself if you need to pin/verify this fetch.
+.....................warning: variable "args" is unused (if the variable is not meant to be used, prefix it with an underscore)
+└─ nofile:7:31: Test.Architecto28931.Cupiditate28995.expression/2
+
+...........
+18:59:18.089 [info] ggen_igniter: fetched github:octocat/Hello-World@master (258 bytes), sha256=ab7006ec9cea1c8cb012961328029a9d178e947ab6f997c6dbae12a9019407a4 -- GitHub's archive endpoint publishes no checksum to verify against; record this digest yourself if you need to pin/verify this fetch.
+.............
+18:59:18.763 [info] ggen_igniter: fetched github:octocat/Hello-World@master (258 bytes), sha256=ab7006ec9cea1c8cb012961328029a9d178e947ab6f997c6dbae12a9019407a4 -- GitHub's archive endpoint publishes no checksum to verify against; record this digest yourself if you need to pin/verify this fetch.
+...
+18:59:19.360 [info] ggen_igniter: verified hex:jason@1.4.1 sha256=fbb01ecdfd565b56261302f7e1fcc27c4fb8f32d56eab74db621fc154604a7a1 against hex.pm's published release checksum
+..........................................................................
+19:01:46.348 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_compensation_failure_test_57283/lib/new_from_broken.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_compensation_failure_test.exs:208: GgenIgniter.CompensationFailureTest."test compensation itself fails: a real revert write against a real read-only target surfaces the distinct :compensation_failed standing, never :refused or :alive, and names the exact inconsistent files"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+.................
+19:02:06.401 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_actuation_failure_injection_test_59075/lib/verify_existing_target.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_actuation_failure_injection_test.exs:361: GgenIgniter.ActuationFailureInjectionTest."test :verify failure after two real writes reverts both to pre-run state the pre-existing file is restored; the newly-created file is deleted; whole-tree hash is identical"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+19:02:06.407 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_actuation_failure_injection_test_59075/lib/verify_new_target.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_actuation_failure_injection_test.exs:361: GgenIgniter.ActuationFailureInjectionTest."test :verify failure after two real writes reverts both to pre-run state the pre-existing file is restored; the newly-created file is deleted; whole-tree hash is identical"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+...................................................................................................
+19:04:26.101 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_format_test_108163/lib/broken.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_reconcile_reactor_format_test.exs:232: GgenIgniter.ReconcileReactorFormatTest."test a Code.format_string!/1 failure never crashes or blocks the sync invalid Elixir is still written unformatted; mix compile is what fails the run"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+.*...................................................    warning: redefining module Beam4pm.Bench.VirtualCost (current version defined in memory)
+    │
+ 14 │ defmodule Beam4pm.Bench.VirtualCost do
+    │ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    │
+    └─ /Users/sac/.cache/tmp/ggen_igniter_beam4pm_bench_combined_518594/virtual_cost.ex:14: Beam4pm.Bench.VirtualCost (module)
+
+....
+19:05:11.732 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_reactor_test_108867/lib/existing.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_reconcile_reactor_test.exs:256: GgenIgniter.ReconcileReactorTest."test a real failure at :verify reverts every file :actuate wrote restores pre-existing content, deletes the new file, and persists a real :build_broken receipt"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+19:05:11.739 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_reactor_test_108867/lib/new_from_run.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_reconcile_reactor_test.exs:256: GgenIgniter.ReconcileReactorTest."test a real failure at :verify reverts every file :actuate wrote restores pre-existing content, deletes the new file, and persists a real :build_broken receipt"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+..............................fatal: unable to read tree (17e2923d5270835783fa7879e7fc0c8730f4667b)
+fatal: unable to read tree (17e2923d5270835783fa7879e7fc0c8730f4667b)
+fatal: unable to read tree (17e2923d5270835783fa7879e7fc0c8730f4667b)
+........
+19:05:26.629 [info] The function passed as a handler with ID "ocel-emitter-test-110339" is a local function.
+This means that it is either an anonymous function or a capture of a function without a module specified. That may cause a performance penalty when calling that handler. For more details see the note in `telemetry:attach/4` documentation.
+
+https://hexdocs.pm/telemetry/telemetry.html#attach/4
+.....................................error: undefined variable "undefined_health_probe_binding"
+└─ nofile:336:5
+
+....................
+19:07:27.908 [warning] ggen_igniter: --engine all excludes qlever (the QLever endpoint at --store-id "http://example.com/whatever" is unreachable (or its ontology could not be resolved/loaded)) -- pass --store-id and ensure the QLever endpoint is running to include it, or name it explicitly (--engine oxigraph,sparql,qlever) to see the real error instead of a silent exclusion
+...........................................................................................................................................................** (Mix) no pack directory at does/not/exist
+...** (Mix) ggen_igniter.verify: pack did not verify (see findings above)
+.** (Mix) --pack is required
+
+USAGE
+
+    mix ggen_igniter.verify --pack PACK_DIR [--ontology PATH]
+                            [--cardinality PATH] [--json]
+
+Runs a pack's fail-CLOSED checks: every `<pack>/verify/*.unbound.rq`
+inverted companion query (zero rows is the pass condition) plus the
+per-gate cardinality contract in `<pack>/verify/cardinality.json`.
+
+FLAGS
+
+    --pack, -p PATH         pack directory holding gates/ and verify/ (required)
+    --ontology, -o PATH     ontology to verify (default: <pack>/ontology.ttl)
+    --cardinality PATH      contract file (default: <pack>/verify/cardinality.json)
+    --json                  one JSON document on stdout
+    --help, -h              this text
+
+Exits 0 when both checks pass, 1 otherwise.
+
+..........warning: the Inspect protocol has already been consolidated, an implementation for SemanticJira.Work.Task has no effect. If you want to implement protocols after compilation or during tests, check the "Consolidation" section in the Protocol module documentation
+└─ lib/semantic_jira/work/task.ex:10: SemanticJira.Work.Task (module)
+
+...
+19:23:48.176 [debug] Creating SemanticJira.Work.Task:
+
+Setting %{id: "d8e05ed6-4e3f-4089-9ef0-7ee2e6a283ed", task_id: "t2",
+ standing: "UNKNOWN"}
+
+..
+19:23:48.210 [debug] Creating SemanticJira.Work.Task:
+
+Setting %{id: "3d412a37-3eae-4c60-bb76-b86e8771626f", task_id: "GALL-001",
+ standing: "ALIVE", receipt_digest: "sha256:d27fca7d6706c6ed2f0256b52125...}
+
+........
+19:23:50.594 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_compensation_telemetry_test_12104/lib/a.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs:250: GgenIgniter.ReconcileReactorCompensationTelemetryTest."test CompensationTelemetryMiddleware.counters/0 after real ReconcileReactor runs two real sequential ReconcileReactor.run/1 calls with distinct telemetry_run_id are independently readable via counters/1"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+19:23:50.601 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_compensation_telemetry_test_12104/lib/b.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs:250: GgenIgniter.ReconcileReactorCompensationTelemetryTest."test CompensationTelemetryMiddleware.counters/0 after real ReconcileReactor runs two real sequential ReconcileReactor.run/1 calls with distinct telemetry_run_id are independently readable via counters/1"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+19:23:50.968 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_compensation_telemetry_test_12232/lib/a.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs:259: GgenIgniter.ReconcileReactorCompensationTelemetryTest."test CompensationTelemetryMiddleware.counters/0 after real ReconcileReactor runs two real sequential ReconcileReactor.run/1 calls with distinct telemetry_run_id are independently readable via counters/1"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+19:23:50.975 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_compensation_telemetry_test_12232/lib/b.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs:259: GgenIgniter.ReconcileReactorCompensationTelemetryTest."test CompensationTelemetryMiddleware.counters/0 after real ReconcileReactor runs two real sequential ReconcileReactor.run/1 calls with distinct telemetry_run_id are independently readable via counters/1"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+.
+19:23:51.354 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_compensation_telemetry_test_168899/lib/existing.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs:177: GgenIgniter.ReconcileReactorCompensationTelemetryTest."test CompensationTelemetryMiddleware.counters/0 after real ReconcileReactor runs a real :verify failure (undo/4 on :actuate) increments :undo_start and, via error/2, :build_broken"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+
+19:23:51.361 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_compensation_telemetry_test_168899/lib/new_from_run.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_reconcile_reactor_compensation_telemetry_test.exs:177: GgenIgniter.ReconcileReactorCompensationTelemetryTest."test CompensationTelemetryMiddleware.counters/0 after real ReconcileReactor runs a real :verify failure (undo/4 on :actuate) increments :undo_start and, via error/2, :build_broken"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+................................
+19:25:15.842 [warning] GgenIgniter.Reactors.ReconcileReactor: Code.format_string!/1 failed for /Users/sac/.cache/tmp/ggen_igniter_reactor_inject_test_1050306/lib/broken_target.ex -- writing unformatted content unchanged. Error: ** (MismatchedDelimiterError) mismatched delimiter found on nofile:3:1:
+    error: unexpected reserved word: end
+    │
+  2 │   def broken(
+    │             └ unclosed delimiter
+  3 │ end
+    │ └ mismatched closing delimiter (expected ")")
+    │
+    └─ nofile:3:1
+    (elixir 1.18.4) lib/code.ex:1031: Code.format_string!/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1742: GgenIgniter.Reactors.ReconcileReactor.format_generated_content/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1711: GgenIgniter.Reactors.ReconcileReactor.render_target/3
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:1504: GgenIgniter.Reactors.ReconcileReactor.build_plan/3
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:572: GgenIgniter.Reactors.ReconcileReactor.run_0_generated_A38A1C3F74D980A8408C5D13DA25283B/2
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:169: Reactor.Executor.StepRunner.do_run/4
+    (reactor 1.0.6) lib/reactor/executor/step_runner.ex:58: Reactor.Executor.StepRunner.run/4
+    (reactor 1.0.6) lib/reactor/executor/sync.ex:23: Reactor.Executor.Sync.run/3
+    (reactor 1.0.6) lib/reactor/executor.ex:110: Reactor.Executor.execute/2
+    (ggen_igniter 26.9.20) lib/ggen_igniter/reactors/reconcile_reactor.ex:868: GgenIgniter.Reactors.ReconcileReactor.run/1
+    test/ggen_igniter_reconcile_reactor_inject_test.exs:370: GgenIgniter.ReconcileReactorInjectTest."test compensation restores an already-injected target's prior content a second target's real :verify failure reverts BOTH the inject splice and the write"/1
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:511: ExUnit.Runner.exec_test/2
+    (stdlib 6.2) timer.erl:595: :timer.tc/2
+    (ex_unit 1.18.4) lib/ex_unit/runner.ex:433: anonymous fn/6 in ExUnit.Runner.spawn_test_monitor/4
+
+.........pruned: /Users/sac/.cache/tmp/ggen_igniter_sync_inprocess_reconcile_1057666/ticket.ex
+.....
+19:25:32.500 [info] The function passed as a handler with ID "telemetry-test-1066178" is a local function.
+This means that it is either an anonymous function or a capture of a function without a module specified. That may cause a performance penalty when calling that handler. For more details see the note in `telemetry:attach/4` documentation.
+
+https://hexdocs.pm/telemetry/telemetry.html#attach/4
+..................
+== ArtifactIdentity fix: real 11-run alias-collision reproducer ==
+batch=equal_delay iter=1 order=alpha_first delay_a=150 delay_b=150 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_equal_1_1106306/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_equal_1_1106306/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_equal_1_1106306/lib/collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_equal_1_1106306/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_equal_1_1106306/lib/./collision.ex\"]}]"
+batch=equal_delay iter=2 order=alpha_first delay_a=150 delay_b=150 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_equal_2_1106498/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_equal_2_1106498/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_equal_2_1106498/lib/collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_equal_2_1106498/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_equal_2_1106498/lib/./collision.ex\"]}]"
+batch=equal_delay iter=3 order=alpha_first delay_a=150 delay_b=150 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_equal_3_1106690/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_equal_3_1106690/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_equal_3_1106690/lib/collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_equal_3_1106690/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_equal_3_1106690/lib/./collision.ex\"]}]"
+batch=swapped_order iter=1 order=beta_first delay_a=150 delay_b=150 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_swapped_1_1106882/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_swapped_1_1106882/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_swapped_1_1106882/lib/./collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_swapped_1_1106882/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_swapped_1_1106882/lib/collision.ex\"]}]"
+batch=swapped_order iter=2 order=beta_first delay_a=150 delay_b=150 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_swapped_2_1107074/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_swapped_2_1107074/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_swapped_2_1107074/lib/./collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_swapped_2_1107074/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_swapped_2_1107074/lib/collision.ex\"]}]"
+batch=swapped_order iter=3 order=beta_first delay_a=150 delay_b=150 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_swapped_3_1107266/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_swapped_3_1107266/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_swapped_3_1107266/lib/./collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_swapped_3_1107266/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_swapped_3_1107266/lib/collision.ex\"]}]"
+batch=jittered_delay iter=1 order=alpha_first delay_a=142 delay_b=129 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_jitter_1_1107458/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_jitter_1_1107458/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_jitter_1_1107458/lib/collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_jitter_1_1107458/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_jitter_1_1107458/lib/./collision.ex\"]}]"
+batch=jittered_delay iter=2 order=alpha_first delay_a=170 delay_b=159 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_jitter_2_1107650/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_jitter_2_1107650/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_jitter_2_1107650/lib/collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_jitter_2_1107650/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_jitter_2_1107650/lib/./collision.ex\"]}]"
+batch=jittered_delay iter=3 order=alpha_first delay_a=176 delay_b=146 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_jitter_3_1107842/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_jitter_3_1107842/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_jitter_3_1107842/lib/collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_jitter_3_1107842/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_jitter_3_1107842/lib/./collision.ex\"]}]"
+batch=jittered_delay iter=4 order=alpha_first delay_a=124 delay_b=148 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_jitter_4_1108034/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_jitter_4_1108034/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_jitter_4_1108034/lib/collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_jitter_4_1108034/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_jitter_4_1108034/lib/./collision.ex\"]}]"
+batch=jittered_delay iter=5 order=alpha_first delay_a=115 delay_b=178 standing=:refused real_overlap=:unknown canonical_exists=false winner=neither SilentLastWriterWins=false
+  reason="refused: duplicate output path(s): [{\"/Users/sac/.cache/tmp/redteam_refix_jitter_5_1108226/lib/collision.ex\", [\"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_jitter_5_1108226/lib/collision.ex::/Users/sac/.cache/tmp/redteam_refix_jitter_5_1108226/lib/collision.ex\", \"/Users/sac/.cache/tmp/redteam_refix_fixtures_1106242/valid.ex.eex=>/Users/sac/.cache/tmp/redteam_refix_jitter_5_1108226/lib/./collision.ex::/Users/sac/.cache/tmp/redteam_refix_jitter_5_1108226/lib/./collision.ex\"]}]"
+
+== SUMMARY: SilentLastWriterWins=0/11, standings=%{refused: 11}, winners=%{neither: 11} ==
+....................
+Finished in 1598.2 seconds (27.9s async, 1570.2s sync)
+20 doctests, 42 properties, 1355 tests, 0 failures, 9 excluded, 1 skipped
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+mix test --seed 648358  463.23s user 43.18s system 31% cpu 26:40.90 total
