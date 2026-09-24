@@ -32,7 +32,7 @@
   stamped authority in the CANONICAL graph and any restatement must match its
   digest set (`:authority_digest_mismatch`), so a fresh self-declared
   objective or a forged witness refuses (`admission_digest/2` recomputes, and
-  the replay gate recomputes every committed witness).
+  the replay gate recomputes every committed ontology witness).
 - **Kernel** (`lib/ggen_igniter/semantic_jira.ex`): `origin_authority` joins
   `@required` and the closed `@definition_fields` take (an order without an
   admitted origin is inadmissible; origin changes move the definition digest
