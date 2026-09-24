@@ -1,6 +1,7 @@
 # TLA+ generation adapter for BRCE
 
-**Status:** PLANNED  
+**Specification status:** FINAL_SPEC v0.1 (v26.9.24)  
+**Implementation standing:** PLANNED / not claimed  
 **Role:** ontology-to-formal-spec projection
 
 ## 1. Purpose
@@ -240,3 +241,8 @@ The adapter design is invalid if generation itself:
 - silently edits a generated projection by hand;
 - calls verification success without observed verifier execution;
 - promotes a bounded TLC result into a claim about unmodeled production behavior.
+
+
+## Specification closure
+
+The adapter contract is complete for v26.9.24. The executable capability remains `PLANNED` until the nine admission criteria above are observed at one exact subject. No specification label may promote that implementation standing.
