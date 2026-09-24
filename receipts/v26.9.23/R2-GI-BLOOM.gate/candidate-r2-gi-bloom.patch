@@ -1,0 +1,43 @@
+diff --git a/test/ggen_igniter_semantic_jira_bootstrap_test.exs b/test/ggen_igniter_semantic_jira_bootstrap_test.exs
+index d893c53..b094098 100644
+--- a/test/ggen_igniter_semantic_jira_bootstrap_test.exs
++++ b/test/ggen_igniter_semantic_jira_bootstrap_test.exs
+@@ -46,6 +46,15 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
+     repo = Path.join(dir, "subject")
+     File.mkdir_p!(repo)
+     git!(repo, ["init", "-q"])
++    # The "unreadable covered commit" cases corrupt the object store by
++    # deleting a tree. A commit-graph with changed-path Bloom filters (written
++    # by the runner's git maintenance, or explicitly) lets `git log -- <path>`
++    # answer without reading that tree, so the corruption would be invisible
++    # and the fixture nondeterministic across git versions (CI 35933570910).
++    # Pin the fixture repository to plain object reads.
++    git!(repo, ["config", "core.commitGraph", "false"])
++    git!(repo, ["config", "maintenance.auto", "false"])
++    git!(repo, ["config", "gc.auto", "0"])
+     git!(repo, ["config", "user.email", "v23-b@example.invalid"])
+     git!(repo, ["config", "user.name", "V23-B"])
+     git!(repo, ["config", "commit.gpgsign", "false"])
+@@ -862,6 +871,22 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
+       assert covered == ctx.covered
+     end
+ 
++    test "the unreadable corruption stays unreadable when a changed-path commit-graph exists",
++         ctx do
++      # CI run 35933570910 (git 2.55.0): the case above saw "observed". With
++      # changed-path Bloom filters in a commit-graph, `git log -1 HEAD -- lib/`
++      # skips the commits that did not touch lib/ WITHOUT reading their trees,
++      # so deleting HEAD~1's root tree no longer makes the read fail. Write
++      # such a graph explicitly, then corrupt exactly as above.
++      git!(ctx.repo, ["commit-graph", "write", "--reachable", "--changed-paths"])
++      tree = git!(ctx.repo, ["rev-parse", "HEAD~1^{tree}"])
++      {prefix, rest} = String.split_at(tree, 2)
++      File.rm!(Path.join([ctx.repo, ".git", "objects", prefix, rest]))
++
++      t_a = order(run!(ctx), "T-A")
++      assert %{"covered_commit" => nil, "covered_commit_status" => "unreadable"} = t_a
++    end
++
+     test "an observed covered commit is reported with its status", ctx do
+       t_a = order(run!(ctx), "T-A")
+       assert %{"covered_commit_status" => "observed", "standing" => "ALIVE"} = t_a

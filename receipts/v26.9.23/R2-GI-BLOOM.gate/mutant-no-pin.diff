@@ -1,0 +1,14 @@
+diff --git a/test/ggen_igniter_semantic_jira_bootstrap_test.exs b/test/ggen_igniter_semantic_jira_bootstrap_test.exs
+index b094098..08fcb60 100644
+--- a/test/ggen_igniter_semantic_jira_bootstrap_test.exs
++++ b/test/ggen_igniter_semantic_jira_bootstrap_test.exs
+@@ -52,9 +52,6 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
+     # answer without reading that tree, so the corruption would be invisible
+     # and the fixture nondeterministic across git versions (CI 35933570910).
+     # Pin the fixture repository to plain object reads.
+-    git!(repo, ["config", "core.commitGraph", "false"])
+-    git!(repo, ["config", "maintenance.auto", "false"])
+-    git!(repo, ["config", "gc.auto", "0"])
+     git!(repo, ["config", "user.email", "v23-b@example.invalid"])
+     git!(repo, ["config", "user.name", "V23-B"])
+     git!(repo, ["config", "commit.gpgsign", "false"])
