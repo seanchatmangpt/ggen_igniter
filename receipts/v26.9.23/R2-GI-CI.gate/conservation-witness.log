@@ -1,0 +1,11 @@
+# conservation witness at 363916f266138b2c5542df72bc9b10dea15a17b9: a39921b's ci.yml hunk is present verbatim (reverse-apply check) and the fetch-depth: 0 line count per commit
+reverse-apply-check a39921b@363916f exit 0
+error: patch failed: .github/workflows/ci.yml:25
+error: .github/workflows/ci.yml: patch does not apply
+reverse-apply-check a39921b@d6a6e5b exit 1
+2f26c0b parents=[864099d] fetch-depth0_lines=1
+a39921b parents=[b8f9ddd] fetch-depth0_lines=1
+070dbd5 parents=[8820295 652c9f8] fetch-depth0_lines=0
+4ffa201 parents=[76279a9 a39921b] fetch-depth0_lines=0
+d6a6e5b parents=[3ed6a7a 1cbd0bb] fetch-depth0_lines=0
+363916f parents=[d6a6e5b] fetch-depth0_lines=1

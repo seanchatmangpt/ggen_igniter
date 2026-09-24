@@ -1,0 +1,24 @@
+commit a39921b2bd320289e38ff9deff157e1e62b7bdb2
+Author: Sean Chatman <136349053+seanchatmangpt@users.noreply.github.com>
+Date:   Sun Sep 20 21:03:08 2026 -0700
+
+    ci: provide history to git-ground-truth court
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 3b3610f..d88666b 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -25,6 +25,13 @@ jobs:
+         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+         with:
+           persist-credentials: false
++          # Semantic Jira's git-ground-truth court proves that the canonical
++          # baseSha is an actual ancestor of this exact head. A depth-1
++          # checkout makes every older honest SHA observationally absent and
++          # turns the positive control into a false refusal. This repository's
++          # own history is therefore a required test collaborator, just like
++          # the explicitly full-history ex4pm fixture clone below.
++          fetch-depth: 0
+ 
+       # Real fixture checkout: 10 real ExUnit test files
+       # (test/ggen_igniter_base_*_test.exs, test/ggen_igniter_install_task_

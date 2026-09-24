@@ -1,0 +1,19 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index a75aa50..22bc3cd 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -14,7 +14,13 @@ permissions:
+ jobs:
+   test:
+     runs-on: ubuntu-latest
+-    timeout-minutes: 30
++    # Budget from measured runs, not a guess: a cold run (no cache for the
++    # ref -- actions/cache saves only on job success, so a timed-out run
++    # never seeds one) spends ~14 min before `mix test` (deps + release-mode
++    # ggen_graph_nif build; run 35895256423), and the last green full suite
++    # took 28 min on a suite ~18% smaller than today's (run 35682930334).
++    # 30 min cancelled five consecutive runs on 2026-09-23 mid-suite.
++    timeout-minutes: 90
+     permissions:
+       contents: read
+ 

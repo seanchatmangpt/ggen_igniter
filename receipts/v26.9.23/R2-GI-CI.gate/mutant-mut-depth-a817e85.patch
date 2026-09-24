@@ -1,0 +1,25 @@
+From a817e85d7b7fb49b2983615812d71b43d78b3152 Mon Sep 17 00:00:00 2001
+From: Sean Chatman <136349053+seanchatmangpt@users.noreply.github.com>
+Date: Wed, 23 Sep 2026 18:44:02 -0700
+Subject: [PATCH] mutant M1: drop fetch-depth: 0 (R2-GI-CI anti-vacuity,
+ scratch only)
+
+---
+ .github/workflows/ci.yml | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 2d38502..d8c568c 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -39,7 +39,6 @@ jobs:
+           # turns the positive control into a false refusal. This repository's
+           # own history is therefore a required test collaborator, just like
+           # the explicitly full-history ex4pm fixture clone below.
+-          fetch-depth: 0
+ 
+       # Real fixture checkout: 10 real ExUnit test files
+       # (test/ggen_igniter_base_*_test.exs, test/ggen_igniter_install_task_
+-- 
+2.51.2
+

@@ -1,0 +1,5 @@
+#!/bin/sh
+# static part of lanes/scan-plan.json R2-GI-CI gate (the hosted-run part is run separately after the push-event run completes)
+set -e
+python3 -c "import yaml,sys; d=yaml.safe_load(open('.github/workflows/ci.yml')); t=d['jobs']['test']; s=t['steps'][0]; sys.exit(0 if s['name']=='Checkout' and s.get('with',{}).get('fetch-depth')==0 and t['timeout-minutes']==90 else 1)"
+git show 3937a4f:.github/workflows/ci.yml | python3 -c "import yaml,sys; s=yaml.safe_load(sys.stdin)['jobs']['test']['steps'][0]; sys.exit(1 if s.get('with',{}).get('fetch-depth')==0 else 0)"
