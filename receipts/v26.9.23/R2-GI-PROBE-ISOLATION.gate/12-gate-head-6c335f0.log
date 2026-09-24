@@ -1,0 +1,104 @@
+# subject=/Users/sac/wt/v26922/v23/R2-GI-PROBE-ISOLATION head=6c335f0da3c2a1d9e7d57729b9a667973bf3f1b0
+Elixir 1.18.4 (compiled with Erlang/OTP 27)
+Checking 1 source file ...
+
+Please report incorrect results: https://github.com/rrrene/credo/issues
+
+Analysis took 0.04 seconds (0.02s to load, 0.02s running 57 checks on 1 file)
+1 mods/funs, found no issues.
+
+Showing priority issues: ↑ ↗ →  (use `mix credo explain` to explain issues, `mix credo --help` for options).
+
+22:18:03.352 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+22:18:03.365 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+22:18:03.365 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+22:18:03.365 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+Running ExUnit with seed: 0, max_cases: 32
+Excluding tags: [:requires_qlever_server]
+
+..........
+Finished in 24.4 seconds (14.5s async, 9.8s sync)
+10 tests, 0 failures
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+
+22:18:30.296 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+22:18:30.307 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+22:18:30.307 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+22:18:30.307 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+Running ExUnit with seed: 648358, max_cases: 32
+Excluding tags: [:requires_qlever_server]
+
+..........
+Finished in 24.3 seconds (16.6s async, 7.6s sync)
+10 tests, 0 failures
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+
+22:18:58.312 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+22:18:58.333 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+22:18:58.333 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+22:18:58.333 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+Running ExUnit with seed: 1, max_cases: 32
+Excluding tags: [:requires_qlever_server]
+
+..........
+Finished in 91.0 seconds (26.8s async, 64.1s sync)
+10 tests, 0 failures
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+[os_mon] memory supervisor port (memsup): Erlang has closed
+
+22:20:32.247 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+22:20:32.262 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+22:20:32.262 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+22:20:32.262 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+Running ExUnit with seed: 2, max_cases: 32
+Excluding tags: [:requires_qlever_server]
+
+..........
+Finished in 38.6 seconds (24.2s async, 14.4s sync)
+10 tests, 0 failures
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+PROBE_ISOLATION_GATE OK
+GATE_EXIT=0

@@ -1,0 +1,43 @@
+# subject=/Users/sac/wt/v26922/v23/R2-GI-PROBE-ISOLATION head=0fd8095c96e2ec6fe30a6b62f2b12b1772098b1b
+Elixir 1.18.4 (compiled with Erlang/OTP 27)
+Checking 1 source file ...
+
+Please report incorrect results: https://github.com/rrrene/credo/issues
+
+Analysis took 0.04 seconds (0.02s to load, 0.02s running 57 checks on 1 file)
+1 mods/funs, found no issues.
+
+Showing priority issues: ↑ ↗ →  (use `mix credo explain` to explain issues, `mix credo --help` for options).
+
+18:56:49.479 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+18:56:49.491 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+18:56:49.491 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+18:56:49.491 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+Running ExUnit with seed: 0, max_cases: 32
+Excluding tags: [:requires_qlever_server]
+
+........
+
+  1) test mix ggen_igniter.plan --json emits exactly one valid JSON document, verified by a real external python3 -m json.tool subprocess (GgenIgniter.PlanTaskTest)
+     test/ggen_igniter_plan_task_test.exs:25
+     ** (Jason.DecodeError) unexpected byte at position 0: 0x47 ("G")
+     code: payload = Jason.decode!(output)
+     stacktrace:
+       (jason 1.4.5) lib/jason.ex:92: Jason.decode!/2
+       test/ggen_igniter_plan_task_test.exs:51: (test)
+
+.
+Finished in 80.0 seconds (59.9s async, 20.0s sync)
+10 tests, 1 failure
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed

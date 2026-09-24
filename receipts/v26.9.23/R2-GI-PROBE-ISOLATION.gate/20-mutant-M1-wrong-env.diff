@@ -1,0 +1,18 @@
+diff --git a/test/ggen_igniter_base_mix_task_end_user_test.exs b/test/ggen_igniter_base_mix_task_end_user_test.exs
+index 18adf2d..90e46ff 100644
+--- a/test/ggen_igniter_base_mix_task_end_user_test.exs
++++ b/test/ggen_igniter_base_mix_task_end_user_test.exs
+@@ -68,7 +68,12 @@ defmodule GgenIgniterBaseMixTaskEndUserTest do
+       # (plan --help/-h identity, the single-JSON-document tests; CI run
+       # 35925710605, seed 648358). Re-sync the shared dev build here, inside
+       # this test's own lifetime, so it is left exactly as it was found.
+-      {_out, 0} = System.cmd("mix", ["compile"], cd: repo_root, stderr_to_stdout: true)
++      {_out, 0} =
++        System.cmd("mix", ["compile"],
++          cd: repo_root,
++          env: [{"MIX_ENV", "test"}],
++          stderr_to_stdout: true
++        )
+     end)
+ 
+     {:ok, repo_root: repo_root, target_path: target_path}
