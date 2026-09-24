@@ -1,14 +1,15 @@
 defmodule GgenIgniter.SemanticJira.Prose do
   @moduledoc """
-  First-mile compiler for accepted prose (GC-26.9.23 gates GC23-0 and GC23-2;
+  First-mile observer for accepted prose (GC-26.9.23 gates GC23-0 and GC23-2;
   PRD PR-002..PR-005, ARD sections 5 and 17): candidate propositions ->
-  admitted semantic graph -> deterministic finite WorkOrder delta.
+  observed semantic graph. Prose never manufactures WorkOrders
+  (SJ-002: Prose ↛ WorkOrder) -- this module is observation-only.
 
-  Pipeline (ARD section 17):
+  Pipeline (origin-authority revision of ARD section 17):
 
       narrative -> candidate extraction (the only LLM edge; NOT here)
-        -> provenance binding -> SHACL -> admission -> GoalCheckpoint
-        -> current-state query -> semantic diff -> WorkOrder graph
+        -> provenance binding -> SHACL admission -> observation stamp
+        -> domain rules -> observed graph (a single propositions.ttl)
 
   Everything this module runs is deterministic: no LLM, no network, no
   clock. The same inputs always produce byte-identical outputs (ARD 5.5:
@@ -27,46 +28,48 @@ defmodule GgenIgniter.SemanticJira.Prose do
        hint node (`sj:Falsifier`/`sj:AcceptanceCriterion`) referenced by a
        proposition -- a candidate file cannot smuggle a WorkOrder, a receipt
        or an edit to a goal node past admission (`foreign_subject`).
-    2. **SHACL**: `GgenIgniter.SemanticJira.Shacl` over the pack ontology +
-       the goal graph + the candidates, against `shapes/work-order.shacl.ttl`
-       merged with `shapes/proposition.shacl.ttl`. Violations are scoped to
-       focus nodes of the candidate graph (the goal graph's own admission is
-       gate GC23-3's court, not this one).
-    3. **Domain rules** (pack queries `prose/*.rq`): `contradictions.rq` (a
-       statement that is both an Exclusion and a required Postcondition of
-       the same gate), `foreign_requirements.rq` (a proposition required by a
-       checkpoint outside the root's gates), `uncovered_gates.rq` (every gate
-       of the root has >= 1 admitted proposition).
 
-  ## Delta (PR-004)
+  ## Observation stamp
 
-  `prose/delta.construct.rq` over goal + admitted propositions + projected
-  receipts manufactures one `sj:WorkOrder` per required, unwitnessed
-  Postcondition/Invariant/Falsifier proposition, IRI
-  `<ns>WO-<first 16 hex of sha256(proposition IRI)>`, with the full FRI-T1
-  tuple. A receipt in `--receipts-dir` witnesses a proposition when it is a
-  fleet R-schema object with `standing.value == "ALIVE"` whose
-  `identity.subject` names the proposition or its gate (see `names?/2`).
-  The manufacture is checked by a conservation twin (the expected order set
-  is recomputed here from the admitted graph; any difference is
-  `delta_nonconservation`) and by SHACL over the pack ontology + goal +
-  orders (`order_inadmissible`: falsifier F1 at manufacture time).
+  Every admitted proposition gains `sj:candidateStanding "UNKNOWN"` and
+  `sj:authorityClaim "NONE"` -- add-only (pre-existing triples are kept,
+  nothing is deleted, no `sj:admissionDigest` is computed). The SHACL court
+  (`GgenIgniter.SemanticJira.Shacl` over the pack ontology + the goal graph +
+  the stamped graph, against `shapes/work-order.shacl.ttl` merged with
+  `shapes/proposition.shacl.ttl`) runs AFTER the stamp, so the court sees the
+  observation triples: a proposition without an authority claim is refused by
+  the shape (which carries `sj:authorityClaim sh:minCount 1`). Violations are
+  scoped to focus nodes of the stamped candidate graph (the goal graph's own
+  admission is gate GC23-3's court, not this one).
+
+  ## Domain rules (pack queries `prose/*.rq`)
+
+  Run over goal + stamped graph: `contradictions.rq` (a statement that is
+  both an Exclusion and a required Postcondition of the same gate),
+  `foreign_requirements.rq` (a proposition required by a checkpoint outside
+  the root's gates), `uncovered_gates.rq` (every gate of the root has >= 1
+  admitted proposition).
 
   ## Outputs
 
-  `propositions.ttl` (admitted; `sj:candidateStanding` replaced by
-  `sj:admissionDigest`) and `orders.ttl`, each serialized as sorted
-  N-Triples lines (valid Turtle) under a digest header: byte-identical
-  across runs. `check/2` recomputes and compares them byte for byte.
+  A single `propositions.ttl` (the stamped observed graph), serialized as
+  sorted N-Triples lines (valid Turtle) under a digest header: byte-identical
+  across runs. `check/2` recomputes and compares it byte for byte. There is
+  no `orders.ttl` and the output contains zero `sj:WorkOrder` (SJ-002).
 
-  ## Goal admission (GC23-3 shapes court)
+  ## Goal admission (GC23-3 shapes court + authority stamping)
 
   `admit_goal/1` is the ggen_igniter half of the GC23-3 court: the goal graph
   merged with the pack ontology and any `:context` graphs (e.g. the
   predecessor goal that defines `sj:successorOf` targets) is validated
   against both pack shape files; violations are scoped to subjects of the
   goal graph (context graphs only resolve references), so a WorkOrder with
-  one mandatory tuple field deleted is refused naming that field (F1).
+  one mandatory tuple field deleted is refused naming that field (F1). A
+  goal that passes the court then gets its authorities stamped by
+  `GgenIgniter.SemanticJira.Authority.admit/2` (typed ≠ admitted): the
+  stamping is delete+add, so pre-existing digests -- placeholders included --
+  are replaced. The summary carries `:stamped` (authority IRI -> digest)
+  and `:stamped_ttl`.
   """
 
   alias GgenIgniter.Digest
@@ -76,7 +79,6 @@ defmodule GgenIgniter.SemanticJira.Prose do
   @dcterms "http://purl.org/dc/terms/"
   @rdf_type RDF.type()
 
-  @delta_kinds ~w(Postcondition Invariant Falsifier)
   @hint_predicates %{"falsifier" => "Falsifier", "acceptance" => "AcceptanceCriterion"}
   @hint_node_predicates [
     RDF.type(),
@@ -86,60 +88,54 @@ defmodule GgenIgniter.SemanticJira.Prose do
   ]
 
   @default_pack_dir "priv/ggen/semantic-jira-pack"
-  @queries ~w(root foreign_requirements contradictions uncovered_gates delta.construct)
+  @queries ~w(root contradictions foreign_requirements uncovered_gates)
 
   @type refusal :: %{code: atom(), subject: String.t() | nil, detail: String.t()}
   @type result :: %{
           propositions_ttl: String.t(),
-          orders_ttl: String.t(),
           summary: map()
         }
 
   @doc "Output file names written into `--out-dir`."
   @spec output_files() :: [String.t()]
-  def output_files, do: ["propositions.ttl", "orders.ttl"]
-
-  @doc "The ARD section 5.2 proposition kinds that manufacture WorkOrders when required."
-  @spec delta_kinds() :: [String.t()]
-  def delta_kinds, do: @delta_kinds
+  def output_files, do: ["propositions.ttl"]
 
   @doc """
-  Admits `:candidates` against `:source` and `:goal` and manufactures the
-  delta. Options: `:source`, `:candidates`, `:goal` (paths, required),
-  `:receipts_dir` (optional), `:pack_dir` (default
-  `#{@default_pack_dir}`).
+  Observes `:candidates` against `:source` and `:goal` and stamps the
+  observed graph. Options: `:source`, `:candidates`, `:goal` (paths,
+  required), `:pack_dir` (default `#{@default_pack_dir}`).
   """
-  @spec compile(keyword()) :: {:ok, result()} | {:refused, [refusal()]}
-  def compile(opts) do
+  @spec observe(keyword()) :: {:ok, result()} | {:refused, [refusal()]}
+  def observe(opts) do
     with {:ok, inputs} <- read_inputs(opts),
          {:ok, root} <- find_root(inputs),
-         :ok <- admit(inputs, root),
-         {:ok, witnesses} <- read_receipts(Keyword.get(opts, :receipts_dir)) do
-      manufacture(inputs, root, witnesses)
+         :ok <- admit(inputs, root) do
+      observe_stamped(inputs, root)
     end
   end
 
-  @doc "Writes a compiled result into `out_dir` (created if missing)."
+  @doc "Writes an observed result into `out_dir` (created if missing)."
   @spec write!(result(), String.t()) :: :ok
-  def write!(%{propositions_ttl: propositions, orders_ttl: orders}, out_dir) do
+  def write!(%{propositions_ttl: propositions}, out_dir) do
     File.mkdir_p!(out_dir)
     File.write!(Path.join(out_dir, "propositions.ttl"), propositions)
-    File.write!(Path.join(out_dir, "orders.ttl"), orders)
   end
 
-  @doc "Verifies that `out_dir` holds byte-identical outputs of `result`."
+  @doc "Verifies that `out_dir` holds a byte-identical output of `result`."
   @spec check(result(), String.t()) :: :ok | {:refused, [refusal()]}
-  def check(%{propositions_ttl: propositions, orders_ttl: orders}, out_dir) do
-    [{"propositions.ttl", propositions}, {"orders.ttl", orders}]
-    |> Enum.flat_map(fn {name, expected} -> drift(Path.join(out_dir, name), expected) end)
+  def check(%{propositions_ttl: propositions}, out_dir) do
+    out_dir
+    |> Path.join("propositions.ttl")
+    |> drift(propositions)
     |> verdict()
   end
 
   @doc """
-  Admits a goal graph under the pack shapes (GC23-3). Options: `:goal`
-  (path, required), `:context` (list of paths whose graphs only resolve
-  references), `:pack_dir`. Returns a summary of the admitted graph or the
-  scoped violations as `goal_inadmissible` refusals.
+  Admits a goal graph under the pack shapes (GC23-3) and stamps its
+  authorities. Options: `:goal` (path, required), `:context` (list of paths
+  whose graphs only resolve references), `:pack_dir`. Returns a summary of
+  the admitted graph plus the authority stamp, or the scoped violations as
+  `goal_inadmissible` refusals.
   """
   @spec admit_goal(keyword()) :: {:ok, map()} | {:refused, [refusal()]}
   def admit_goal(opts) do
@@ -169,11 +165,38 @@ defmodule GgenIgniter.SemanticJira.Prose do
       |> scoped_violations(shapes, subjects(goal), :goal_inadmissible)
       |> verdict()
       |> case do
-        :ok -> {:ok, goal_summary(goal, bytes.goal)}
+        :ok -> stamp_authorities(opts, goal, bytes.goal)
         refused -> refused
       end
     end
   end
+
+  # The goal court (GC23-3) admits the graph; authority stamping is delegated
+  # to GgenIgniter.SemanticJira.Authority (typed ≠ admitted). Its delete+add
+  # replaces pre-existing digests, so placeholders cannot survive.
+  defp stamp_authorities(opts, goal, goal_bytes) do
+    case GgenIgniter.SemanticJira.Authority.admit(goal, []) do
+      {:ok, stamped, report} ->
+        {:ok,
+         goal_summary(goal, goal_bytes)
+         |> Map.put(:stamped, stamped_map(report))
+         |> Map.put(:stamped_ttl, RDF.Turtle.write_string!(stamped))}
+
+      {:error, {:refused_authority_admission, reason}} ->
+        {:refused,
+         [
+           refusal(
+             :authority_admission_refused,
+             opts[:goal],
+             "GgenIgniter.SemanticJira.Authority.admit refused: #{inspect(reason)}"
+           )
+         ]}
+    end
+  end
+
+  # Authority.admit/2 report: %{authority_iri_string => digest} directly.
+  defp stamped_map(report) when is_map(report), do: report
+  defp stamped_map(_), do: %{}
 
   defp goal_summary(goal, bytes) do
     %{
@@ -303,6 +326,8 @@ defmodule GgenIgniter.SemanticJira.Prose do
 
   ## Admission
 
+  # Provenance only (byte checks); the SHACL court runs after the stamp so it
+  # validates the stamped output (see observe_stamped/2).
   defp admit(inputs, root) do
     source_sha = Digest.sha256(inputs.bytes.source)
     candidates = inputs.graphs.candidates
@@ -311,9 +336,7 @@ defmodule GgenIgniter.SemanticJira.Prose do
     [
       root_refusals(root, source_sha),
       foreign_subject_refusals(candidates, propositions),
-      Enum.flat_map(propositions, &provenance_refusals(&1, candidates, inputs, root, source_sha)),
-      shacl_refusals(inputs, candidates),
-      rule_refusals(inputs, root)
+      Enum.flat_map(propositions, &provenance_refusals(&1, candidates, inputs, root, source_sha))
     ]
     |> List.flatten()
     |> verdict()
@@ -482,16 +505,57 @@ defmodule GgenIgniter.SemanticJira.Prose do
     namespace <> "P-" <> binary_part(Digest.hex("#{sha}:#{start}:#{stop}:#{kind}"), 0, 16)
   end
 
-  @doc "Manufactured WorkOrder IRI: `<ns>WO-<first 16 hex of sha256(proposition IRI)>`."
-  @spec order_iri(String.t(), String.t()) :: String.t()
-  def order_iri(namespace, proposition),
-    do: namespace <> "WO-" <> binary_part(Digest.hex(proposition), 0, 16)
+  ## Observation stamp
 
-  defp shacl_refusals(inputs, candidates) do
+  # SJ-002: Prose ↛ WorkOrder. The observer stamps, it never manufactures:
+  # every admitted proposition gains sj:candidateStanding "UNKNOWN" and
+  # sj:authorityClaim "NONE". Add-only -- pre-existing triples are kept,
+  # nothing is deleted, no sj:admissionDigest is computed.
+  defp stamp(candidates) do
+    candidates
+    |> propositions()
+    |> Enum.reduce(candidates, fn proposition, graph ->
+      description =
+        graph
+        |> RDF.Graph.get(proposition)
+        |> RDF.Description.add({sj("candidateStanding"), RDF.literal("UNKNOWN")})
+        |> RDF.Description.add({sj("authorityClaim"), RDF.literal("NONE")})
+
+      graph
+      |> RDF.Graph.delete_descriptions(proposition)
+      |> RDF.Graph.add(description)
+    end)
+  end
+
+  ## Courts
+
+  defp observe_stamped(inputs, root) do
+    context = admission_context(inputs)
+    observed = stamp(inputs.graphs.candidates)
+
+    with :ok <- verdict(shacl_refusals(inputs, observed)),
+         :ok <- verdict(rule_refusals(inputs, root, observed)) do
+      summary = summary(inputs, observed)
+      ttl = propositions_ttl(inputs, context, observed, summary)
+
+      {:ok,
+       %{
+         propositions_ttl: ttl,
+         summary:
+           Map.merge(summary, %{
+             admission_context: context,
+             propositions_sha256: Digest.sha256(ttl)
+           })
+       }}
+    end
+  end
+
+  # Runs over the STAMPED graph, so the court sees the observation triples.
+  defp shacl_refusals(inputs, observed) do
     data =
-      inputs.graphs.ontology |> RDF.Graph.add(inputs.graphs.goal) |> RDF.Graph.add(candidates)
+      inputs.graphs.ontology |> RDF.Graph.add(inputs.graphs.goal) |> RDF.Graph.add(observed)
 
-    scoped_violations(data, inputs.shapes, subjects(candidates), :shacl_violation)
+    scoped_violations(data, inputs.shapes, subjects(observed), :shacl_violation)
   end
 
   defp scoped_violations(data, shapes, scope, code) do
@@ -514,8 +578,8 @@ defmodule GgenIgniter.SemanticJira.Prose do
     graph |> RDF.Graph.subjects() |> MapSet.new(&term/1)
   end
 
-  defp rule_refusals(inputs, root) do
-    data = RDF.Graph.add(inputs.graphs.goal, inputs.graphs.candidates)
+  defp rule_refusals(inputs, root, observed) do
+    data = RDF.Graph.add(inputs.graphs.goal, observed)
 
     foreign =
       for row <- select(data, query(inputs, "foreign_requirements"), root),
@@ -548,74 +612,14 @@ defmodule GgenIgniter.SemanticJira.Prose do
     Enum.sort_by(foreign ++ contradictions ++ uncovered, &{&1.code, &1.subject, &1.detail})
   end
 
-  ## Receipts (AdmittedCurrentState)
-
-  defp read_receipts(nil), do: {:ok, []}
-
-  defp read_receipts(dir) do
-    case File.ls(dir) do
-      {:ok, names} ->
-        {:ok,
-         names
-         |> Enum.filter(&String.ends_with?(&1, ".json"))
-         |> Enum.sort()
-         |> Enum.flat_map(&alive_receipt(Path.join(dir, &1)))}
-
-      {:error, reason} ->
-        {:refused,
-         [
-           refusal(
-             :input_unreadable,
-             dir,
-             "cannot list receipts dir: #{:file.format_error(reason)}"
-           )
-         ]}
-    end
+  defp instances(graph, class) do
+    graph
+    |> RDF.Graph.descriptions()
+    |> Enum.filter(&typed?(&1, class))
+    |> Enum.map(&term(&1.subject))
   end
 
-  # A witness is a fleet R-schema object (identity/authority/consequence/
-  # replay/standing all present) with standing.value ALIVE and a string
-  # identity.subject. Anything else witnesses nothing.
-  defp alive_receipt(path) do
-    with {:ok, bytes} <- File.read(path),
-         {:ok,
-          %{"identity" => %{"subject" => subject}, "standing" => %{"value" => "ALIVE"}} = receipt}
-         when is_binary(subject) <- Jason.decode(bytes),
-         true <- Enum.all?(~w(authority consequence replay), &Map.has_key?(receipt, &1)) do
-      [%{subject: subject, file: Path.basename(path), digest: Digest.hex(bytes)}]
-    else
-      _ -> []
-    end
-  end
-
-  ## Manufacture
-
-  defp manufacture(inputs, root, receipts) do
-    context = admission_context(inputs)
-    admitted = admitted_graph(inputs.graphs.candidates, context)
-    witness = witness_graph(admitted, inputs.graphs.goal, receipts)
-
-    orders =
-      inputs.graphs.goal
-      |> RDF.Graph.add(admitted)
-      |> RDF.Graph.add(witness)
-      |> construct(query(inputs, "delta.construct"), root)
-
-    expected = expected_orders(admitted, witness, root.namespace)
-    actual = orders |> instances(sj("WorkOrder")) |> MapSet.new()
-
-    with :ok <- conservation(expected, actual),
-         :ok <- admit_orders(inputs, orders) do
-      {:ok,
-       result(
-         inputs,
-         context,
-         admitted,
-         orders,
-         summary(inputs, admitted, witness, actual, receipts)
-       )}
-    end
-  end
+  ## Serialization and summary
 
   defp admission_context(inputs) do
     inputs.bytes
@@ -626,163 +630,16 @@ defmodule GgenIgniter.SemanticJira.Prose do
     |> Digest.sha256()
   end
 
-  defp admitted_graph(candidates, context) do
-    candidate_standing = sj("candidateStanding")
-
-    Enum.reduce(propositions(candidates), candidates, fn proposition, graph ->
-      description =
-        graph
-        |> RDF.Graph.get(proposition)
-        |> RDF.Description.delete_predicates(candidate_standing)
-
-      digest =
-        Digest.sha256(
-          context <>
-            "\n" <> term(proposition) <> "\n" <> sorted_ntriples(RDF.Graph.new(description))
-        )
-
-      graph
-      |> RDF.Graph.delete_descriptions(proposition)
-      |> RDF.Graph.add(
-        RDF.Description.add(description, {sj("admissionDigest"), RDF.literal(digest)})
-      )
-    end)
-  end
-
-  # Projects each ALIVE receipt that names an admitted proposition or its
-  # required checkpoint as `<target> sj:receipt <urn:sha256:...>` plus
-  # `<urn:...> a sj:Receipt ; sj:standing "ALIVE"` -- the representation the
-  # xaas stop court uses for admitted receipts.
-  defp witness_graph(admitted, goal, receipts) do
-    targets = witness_targets(admitted, goal)
-
-    for receipt <- receipts,
-        {target, names} <- targets,
-        Enum.any?(names, &names?(receipt.subject, &1)),
-        reduce: RDF.Graph.new() do
-      graph ->
-        node = RDF.iri("urn:sha256:" <> receipt.digest)
-
-        RDF.Graph.add(graph, [
-          {target, sj("receipt"), node},
-          {node, @rdf_type, sj("Receipt")},
-          {node, sj("standing"), RDF.literal("ALIVE")}
-        ])
-    end
-  end
-
-  defp witness_targets(admitted, goal) do
-    props = propositions(admitted)
-
-    gates =
-      props
-      |> Enum.flat_map(&RDF.Description.get(RDF.Graph.get(admitted, &1), sj("requiredBy"), []))
-      |> Enum.uniq()
-
-    Enum.map(props, &{&1, [iri(&1), local(&1)]}) ++
-      Enum.map(gates, fn gate -> {gate, [iri(gate), local(gate) | identifiers(goal, gate)]} end)
-  end
-
-  defp identifiers(goal, node) do
-    case RDF.Graph.get(goal, node) do
-      nil ->
-        []
-
-      description ->
-        description
-        |> RDF.Description.get(RDF.iri(@dcterms <> "identifier"), [])
-        |> Enum.map(&literal/1)
-    end
-  end
-
-  # Conservation twin of delta.construct.rq: the orders that MUST exist,
-  # recomputed from the admitted graph and the witness projection alone.
-  defp expected_orders(admitted, witness, namespace) do
-    admitted
-    |> propositions()
-    |> Enum.map(&RDF.Graph.get(admitted, &1))
-    |> Enum.filter(&delta_order?(&1, witness))
-    |> MapSet.new(&order_iri(namespace, term(&1.subject)))
-  end
-
-  defp delta_order?(description, witness) do
-    kind = literal(RDF.Description.first(description, sj("propositionKind")))
-    gate = RDF.Description.first(description, sj("requiredBy"))
-
-    kind in @delta_kinds and gate != nil and not witnessed?(witness, description.subject) and
-      not witnessed?(witness, gate)
-  end
-
-  defp witnessed?(witness, node) do
-    case RDF.Graph.get(witness, node) do
-      nil -> false
-      description -> RDF.Description.get(description, sj("receipt"), []) != []
-    end
-  end
-
-  defp conservation(expected, actual) do
-    missing = MapSet.difference(expected, actual)
-    extra = MapSet.difference(actual, expected)
-
-    (Enum.map(
-       Enum.sort(missing),
-       &refusal(:delta_nonconservation, &1, "required delta order was not manufactured")
-     ) ++
-       Enum.map(
-         Enum.sort(extra),
-         &refusal(:delta_nonconservation, &1, "manufactured order is not in the required delta")
-       ))
-    |> verdict()
-  end
-
-  defp admit_orders(inputs, orders) do
-    inputs.graphs.ontology
-    |> RDF.Graph.add(inputs.graphs.goal)
-    |> RDF.Graph.add(orders)
-    |> scoped_violations(inputs.shapes, subjects(orders), :order_inadmissible)
-    |> verdict()
-  end
-
-  defp instances(graph, class) do
-    graph
-    |> RDF.Graph.descriptions()
-    |> Enum.filter(&typed?(&1, class))
-    |> Enum.map(&term(&1.subject))
-  end
-
-  ## Serialization and summary
-
-  defp result(inputs, context, admitted, orders, summary) do
+  defp propositions_ttl(inputs, context, observed, summary) do
     header = [
-      "# GENERATED by mix semantic_jira.compile_prose (ggen_igniter GgenIgniter.SemanticJira.Prose); do not edit.",
+      "# GENERATED by mix semantic_jira.observe_prose (ggen_igniter GgenIgniter.SemanticJira.Prose); do not edit.",
       "# source: #{summary.source_document} #{Digest.sha256(inputs.bytes.source)}",
       "# candidates: #{Digest.sha256(inputs.bytes.candidates)}; goal: #{Digest.sha256(inputs.bytes.goal)}",
-      "# admission context: #{context}"
+      "# admission context: #{context}",
+      "# candidate propositions: #{summary.observed} (standing UNKNOWN, authority claim NONE)"
     ]
 
-    propositions_ttl =
-      render(
-        header ++ ["# admitted propositions: #{summary.admitted} (required #{summary.required})"],
-        admitted
-      )
-
-    orders_ttl =
-      render(
-        header ++
-          [
-            "# work orders: #{summary.orders} (#{summary.witnessed} required propositions witnessed ALIVE)"
-          ],
-        orders
-      )
-
-    summary =
-      Map.merge(summary, %{
-        admission_context: context,
-        propositions_sha256: Digest.sha256(propositions_ttl),
-        orders_sha256: Digest.sha256(orders_ttl)
-      })
-
-    %{propositions_ttl: propositions_ttl, orders_ttl: orders_ttl, summary: summary}
+    render(header, observed)
   end
 
   defp render(header, graph), do: Enum.join(header, "\n") <> "\n\n" <> sorted_ntriples(graph)
@@ -795,21 +652,16 @@ defmodule GgenIgniter.SemanticJira.Prose do
     |> Enum.map_join("", &(&1 <> "\n"))
   end
 
-  defp summary(inputs, admitted, witness, orders, receipts) do
-    props = Enum.map(propositions(admitted), &RDF.Graph.get(admitted, &1))
+  defp summary(inputs, observed) do
+    props = Enum.map(propositions(observed), &RDF.Graph.get(observed, &1))
     required = Enum.filter(props, &(RDF.Description.first(&1, sj("requiredBy")) != nil))
-
-    delta_required =
-      Enum.filter(
-        required,
-        &(literal(RDF.Description.first(&1, sj("propositionKind"))) in @delta_kinds)
-      )
 
     %{
       source_document:
         props
         |> Enum.map(&literal(RDF.Description.first(&1, sj("sourceDocument"))))
         |> Enum.min(fn -> "-" end),
+      observed: length(props),
       admitted: length(props),
       required: length(required),
       not_required: length(props) - length(required),
@@ -819,25 +671,19 @@ defmodule GgenIgniter.SemanticJira.Prose do
         Enum.frequencies_by(
           required,
           &gate_name(inputs.graphs.goal, RDF.Description.first(&1, sj("requiredBy")))
-        ),
-      delta_required: length(delta_required),
-      witnessed:
-        Enum.count(
-          delta_required,
-          &(witnessed?(witness, &1.subject) or gate_witnessed?(witness, &1))
-        ),
-      orders: MapSet.size(orders),
-      receipts_alive: length(receipts)
+        )
     }
   end
 
-  defp gate_witnessed?(witness, description) do
-    witnessed?(witness, RDF.Description.first(description, sj("requiredBy")))
-  end
-
   defp gate_name(goal, gate) do
-    case identifiers(goal, gate) do
-      [identifier | _] -> identifier
+    identifiers =
+      case RDF.Graph.get(goal, gate) do
+        nil -> []
+        description -> RDF.Description.get(description, RDF.iri(@dcterms <> "identifier"), [])
+      end
+
+    case identifiers do
+      [identifier | _] -> literal(identifier)
       [] -> iri(gate)
     end
   end
@@ -850,13 +696,6 @@ defmodule GgenIgniter.SemanticJira.Prose do
     case SPARQL.execute_query(graph, bind(query, root)) do
       %SPARQL.Query.Result{results: rows} -> rows
       {:error, reason} -> raise ArgumentError, "prose query failed: #{inspect(reason)}"
-    end
-  end
-
-  defp construct(graph, query, root) do
-    case SPARQL.execute_query(graph, bind(query, root)) do
-      %RDF.Graph{} = constructed -> constructed
-      other -> raise ArgumentError, "delta.construct.rq did not return a graph: #{inspect(other)}"
     end
   end
 
@@ -900,10 +739,6 @@ defmodule GgenIgniter.SemanticJira.Prose do
 
   defp term(%RDF.IRI{} = iri), do: RDF.IRI.to_string(iri)
   defp term(other), do: to_string(other)
-
-  defp local(%RDF.IRI{} = iri) do
-    iri |> RDF.IRI.to_string() |> String.split(["#", "/"]) |> List.last()
-  end
 
   defp integer_value(%RDF.Literal{} = literal) do
     value = RDF.Literal.value(literal)
