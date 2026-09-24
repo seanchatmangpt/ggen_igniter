@@ -38,8 +38,12 @@ live in each module's `schema:`/moduledoc)
   --work-orders --ledger`, `...reconcile --work-orders --ledger --receipt`,
   `...xaas_receipt --bridge --xaas-receipt [--out]`, `...bootstrap --fleet
   --goal [--graphs|--receipts-dir|--ledger|--registry|--checkout|--out|--pack-dir]`,
-  `...compile_prose --source --candidates --goal
-  [--receipts-dir|--out-dir|--check|--pack-dir|--admit-goal]`.
+  `...observe_prose --source --candidates --goal
+  [--out-dir|--check|--pack-dir|--admit-goal|--context]` — observation only:
+  admits prose propositions (`sj:candidateStanding` "UNKNOWN",
+  `sj:authorityClaim` "NONE") and writes zero WorkOrders; the former
+  compile_prose delta manufacture (and its `--receipts-dir`) is removed by
+  the origin-authority law (ADR-012).
 
 Both core tasks are real `Igniter.Mix.Task` modules (`use Igniter.Mix.Task`), so they
 compose with other Igniter tasks and honor Igniter's own `--dry-run`-adjacent
@@ -54,7 +58,11 @@ directly against the real moduledocs and schemas in
 The flag tables for the two core tasks were last fully re-verified on
 2026-08-27 (repo version `26.8.27`); since then `sync` gained
 `--verify-base-sha` (documented in `sync.md`'s flag table) and `doctor`
-gained check 19 `semantic_jira_pack` (documented in `doctor.md`).
+gained check 19 `semantic_jira_pack` (documented in `doctor.md`). The
+Semantic Jira suite entry was re-verified against
+`lib/mix/tasks/semantic_jira.observe_prose.ex` on 2026-09-24 (repo version
+`26.9.24`), when `compile_prose` became the observation-only `observe_prose`
+(ADR-012).
 
 ## Related references
 

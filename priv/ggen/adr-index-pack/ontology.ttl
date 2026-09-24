@@ -63,3 +63,27 @@ adr:d0008 a adr:Decision ;
     adr:filename "0008-evidence-ranked-multi-engine-registry.md" ;
     adr:title "Evidence-Ranked Multi-Engine Registry for `--engine` Comparison Mode" ;
     adr:status "Accepted" .
+
+# d0010/d0011 were hand-added to README.md's table by the v26.9.20 release
+# (7af7cf2) without individuals here -- a projection edit with no graph row,
+# which the next re-run would have silently dropped. They are recorded as
+# data here (number/filename/status and README-row title wording, matching
+# the pre-existing README rows for docs/architecture/adr/ADR-010*-*.md,
+# 2026-09-24) so the projection is regenerable again.
+adr:d0010 a adr:Decision ;
+    adr:number "ADR-010" ;
+    adr:filename "ADR-010-event-sourced-standing.md" ;
+    adr:title "Event-sourced standing (definition_digest + append-only log)" ;
+    adr:status "Accepted" .
+
+adr:d0011 a adr:Decision ;
+    adr:number "ADR-011" ;
+    adr:filename "ADR-011-reduce-sj-toward-public-vocabularies.md" ;
+    adr:title "Reduce `sj:` toward oslc_cm/dcterms/PROV-O/SHACL" ;
+    adr:status "PLANNED" .
+
+adr:d0012 a adr:Decision ;
+    adr:number "ADR-012" ;
+    adr:filename "ADR-012-prose-never-originates-work-orders.md" ;
+    adr:title "Prose never originates work orders" ;
+    adr:status "Accepted" .

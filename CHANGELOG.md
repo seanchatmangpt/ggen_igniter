@@ -1,5 +1,61 @@
 # Changelog
 
+## v26.9.24
+
+- **The origin-authority law (SJ-002, ADR-012)** — prose never originates
+  code work. Every admissible `sj:WorkOrder` now carries exactly one
+  `sj:originAuthority`, an admitted `sj:CodeWorkAuthority`; an observation of
+  prose records propositions, never orders. Accepted 2026-09-24 on
+  `feat/sjira-origin-authority`; see
+  `docs/architecture/adr/ADR-012-prose-never-originates-work-orders.md`.
+- **`compile_prose` -> `observe_prose`**: the first-mile task is demoted to
+  observation only — it admits prose propositions (`sj:candidateStanding`
+  "UNKNOWN", `sj:authorityClaim` "NONE") and writes zero WorkOrders. The
+  delta manufacture (`prose/delta.construct.rq`) is deleted from the pack and
+  the `--receipts-dir` witness-projection flag is removed; `observe_prose`
+  cannot emit an order even under a hostile candidate file.
+- **Vocabulary** (`priv/ggen/semantic-jira-pack/ontology.ttl`): new
+  `sj:CodeWorkAuthority` (with `sj:StrategicObjective` and
+  `sj:GoalCheckpoint` as `rdfs:subClassOf`), standalone `sj:ProseObservation`
+  class, `sj:originAuthority` (exactly 1 per WorkOrder), optional
+  `sj:originObservation`, and `sj:admissionDigest` widened to witness
+  authorities as well (for admitted propositions still present exactly when
+  `sj:candidateStanding` is absent).
+- **SHACL**: new `sj:WorkOrderOriginShape` (type law, admission-witness law,
+  anti-prose falsifier; messages
+  `REFUSED(NON_SEMANTIC_WORK_AUTHORITY): ...`) and `sj:AdmissionDigestShape`
+  in `shapes/work-order.shacl.ttl` — typed is not admitted.
+- **`GgenIgniter.SemanticJira.Authority`**
+  (`lib/ggen_igniter/semantic_jira/authority.ex`): `admission_digest/2`,
+  `admit/2` (validate-and-stamp; the caller's court runs first), and
+  `verify_origin/3` — typed ≠ admitted; the origin must resolve to a typed,
+  stamped authority in the CANONICAL graph and any restatement must match its
+  digest set (`:authority_digest_mismatch`), so a fresh self-declared
+  objective or a forged witness refuses (`admission_digest/2` recomputes, and
+  the replay gate recomputes every committed witness).
+- **Kernel** (`lib/ggen_igniter/semantic_jira.ex`): `origin_authority` joins
+  `@required` and the closed `@definition_fields` take (an order without an
+  admitted origin is inadmissible; origin changes move the definition digest
+  by law — the one-time digest move is absorbed per ADR-010), and the origin
+  fields join `@semantic_fields`.
+- **Observation invariant A adopted**: an authority-bound observation may
+  manufacture an executable WorkOrder, fenced by the required origin,
+  `verify_origin/3`, the SHACL origin shapes, and the frontier. Invariant B
+  (candidate-only until a further transition) is recorded as the explicit
+  EXCLUSION — a decision, not drift.
+- **Bootstrap** extracts `sj:originAuthority`
+  (`bootstrap/work_orders.rq`), so cold-bootstrap graphs carry origins from
+  the first run.
+- **33-order origin backfill**: all existing canonical work orders carry
+  `sj:originAuthority`; no order is grandfathered past the law.
+- **SJ-002 admitted**; its ticket projects to `docs/jira/SJ-002.md`.
+- **Falsifier suite**: `test/ggen_igniter_semantic_jira_shacl_test.exs`
+  (type law, admission-witness law, anti-prose falsifier, and the pinned
+  forged-witness conformance hole) and
+  `test/ggen_igniter_semantic_jira_authority_test.exs` (digest laws, replay
+  gate, `admit/2` idempotency, `verify_origin/3` refusals, the typed ≠
+  admitted centerpiece), plus the prose suite's zero-order guarantee.
+
 ## v26.9.23
 
 - **Semantic manufacturing reference loop (GC-26.9.23)** — merged to `main`
