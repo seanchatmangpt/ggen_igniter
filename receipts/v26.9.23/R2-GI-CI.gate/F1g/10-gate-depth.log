@@ -1,0 +1,548 @@
+2026-09-24T05:20:06Z
+# subject=/Users/sac/wt/v26922/v23/R2-GI-CI head=7c97f5244109b22adb783cbd464f31d97aa2e348 branch=v23/R2-GI-CI ci.yml fetch-depth=0 clone=/private/tmp/claude-501/v23-scratch/R2-GI-DEPTH-cishape-7c97f52
+# shallow=false
+# probe: d84da14 reachable from HEAD
+Elixir 1.18.4 (compiled with Erlang/OTP 27)
+Found packages with security advisories, see above for details
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 264 │   defp handle_token(lexer, original, doc, type, skip, _data, lines) when type in '-_' do
+     │                                                                                  ~
+     │
+     └─ lib/decoder.ex:264:82
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 371 │       {:ok, {type, _skip, _data, _lines}} when type in '-+' ->
+     │                                                        ~
+     │
+     └─ lib/decoder.ex:371:56
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 419 │           {:ok, {:alpha, _, <<c::utf8>>, _}} when c in 'eE' ->
+     │                                                        ~
+     │
+     └─ lib/decoder.ex:419:56
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 474 │       {:ok, {:alpha, _, <<c::utf8>>, _}} when c in 'eE' ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:474:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 514 │       {:ok, {sign, _, _, _}} when sign in '-+' and last == ?e ->
+     │                                           ~
+     │
+     └─ lib/decoder.ex:514:43
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 518 │       {:ok, {:alpha, _, <<c::utf8>>, _}} when c in 'eE' and signal == ?. ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:518:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 522 │       {:ok, {?_, skip, _, lines}} when last not in '_e.' ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:522:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 538 │       {:ok, {type, skip, data, lines}} when last in 'e.' ->
+     │                                                     ~
+     │
+     └─ lib/decoder.ex:538:53
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 542 │       {:ok, {_type, skip, _data, lines} = token} when last not in '_e.' ->
+     │                                                                   ~
+     │
+     └─ lib/decoder.ex:542:67
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 682 │         {:ok, {sign, _, _, _}} when sign in '-+' ->
+     │                                             ~
+     │
+     └─ lib/decoder.ex:682:45
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 796 │       {:ok, {sign, _, _, _}} when sign in '-+' ->
+     │                                           ~
+     │
+     └─ lib/decoder.ex:796:43
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 916 │         {:ok, {type, skip, _, lines}} when type in '-_' ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:916:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 954 │               {:ok, {type, _, _, _}} when type in '-_' ->
+     │                                                   ~
+     │
+     └─ lib/decoder.ex:954:51
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 969 │       {:ok, {type, _, _, _}} when type in '-_' ->
+     │                                           ~
+     │
+     └─ lib/decoder.ex:969:43
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 983 │           {:ok, {type, _, _, _}} when type in '-_' ->
+     │                                               ~
+     │
+     └─ lib/decoder.ex:983:47
+
+     warning: CAStore.file_path/0 is undefined (module CAStore is not available or is yet to be defined). Make sure the module name is correct and has been specified in full (or that an alias has been defined)
+     │
+ 111 │         [cacertfile: String.to_charlist(CAStore.file_path())]
+     │                                                 ~
+     │
+     └─ lib/excoveralls/poster.ex:111:49: ExCoveralls.Poster.cacert_option/0
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+  9 │   def operator_level_2(prev \\ empty()), do: prev |> choice(Enum.map('+#', &ascii_char([&1])))
+    │                                                                      ~
+    │
+    └─ lib/yuri_template/parsec.ex:9:70
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 12 │     do: prev |> choice(Enum.map('./;?&', &ascii_char([&1])))
+    │                                 ~
+    │
+    └─ lib/yuri_template/parsec.ex:12:33
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 15 │     do: prev |> choice(Enum.map('=,!@|', &ascii_char([&1])))
+    │                                 ~
+    │
+    └─ lib/yuri_template/parsec.ex:15:33
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 15 │   defguardp is_op(op) when op in '+#?./;?&'
+    │                                  ~
+    │
+    └─ lib/yuri_template/rfc6570.ex:15:34
+
+warning: the dependency :group requires Elixir "~> 1.19" but you are running on v1.18.4
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 50 │   @alphabet 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    │             ~
+    │
+    └─ lib/faker.ex:50:13
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+  6 │   @geobase32 '0123456789bcdefghjkmnpqrstuvwxyz'
+    │              ~
+    │
+    └─ lib/faker/address.ex:6:14
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 501 │     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+     │                ~
+     │
+     └─ lib/faker/lorem.ex:501:16
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:299: Faker.Lorem.characters/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:333: Faker.Lorem.paragraph/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:363: Faker.Lorem.paragraphs/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:397: Faker.Lorem.sentence/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:454: Faker.Lorem.sentences/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:488: Faker.Lorem.words/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/pizza.ex:50: Faker.Pizza.pizzas/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/pizza.ex:105: Faker.Pizza.toppings/1
+
+warning: the dependency :ekv requires Elixir "~> 1.19" but you are running on v1.18.4
+Error happened while installing ekv from precompiled binary: "precompiled \"ekv-nif-2.17-aarch64-apple-darwin-0.4.3.tar.gz\" does not exist in checksum.exs".
+
+Attempting to compile ekv from source...
+warning: the dependency :durable_server requires Elixir "~> 1.19" but you are running on v1.18.4
+warning: the dependency :ash_a2a requires Elixir "~> 1.19" but you are running on v1.18.4
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 264 │   defp handle_token(lexer, original, doc, type, skip, _data, lines) when type in '-_' do
+     │                                                                                  ~
+     │
+     └─ lib/decoder.ex:264:82
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 371 │       {:ok, {type, _skip, _data, _lines}} when type in '-+' ->
+     │                                                        ~
+     │
+     └─ lib/decoder.ex:371:56
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 419 │           {:ok, {:alpha, _, <<c::utf8>>, _}} when c in 'eE' ->
+     │                                                        ~
+     │
+     └─ lib/decoder.ex:419:56
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 474 │       {:ok, {:alpha, _, <<c::utf8>>, _}} when c in 'eE' ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:474:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 514 │       {:ok, {sign, _, _, _}} when sign in '-+' and last == ?e ->
+     │                                           ~
+     │
+     └─ lib/decoder.ex:514:43
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 518 │       {:ok, {:alpha, _, <<c::utf8>>, _}} when c in 'eE' and signal == ?. ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:518:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 522 │       {:ok, {?_, skip, _, lines}} when last not in '_e.' ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:522:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 538 │       {:ok, {type, skip, data, lines}} when last in 'e.' ->
+     │                                                     ~
+     │
+     └─ lib/decoder.ex:538:53
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 542 │       {:ok, {_type, skip, _data, lines} = token} when last not in '_e.' ->
+     │                                                                   ~
+     │
+     └─ lib/decoder.ex:542:67
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 682 │         {:ok, {sign, _, _, _}} when sign in '-+' ->
+     │                                             ~
+     │
+     └─ lib/decoder.ex:682:45
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 796 │       {:ok, {sign, _, _, _}} when sign in '-+' ->
+     │                                           ~
+     │
+     └─ lib/decoder.ex:796:43
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 916 │         {:ok, {type, skip, _, lines}} when type in '-_' ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:916:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 954 │               {:ok, {type, _, _, _}} when type in '-_' ->
+     │                                                   ~
+     │
+     └─ lib/decoder.ex:954:51
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 969 │       {:ok, {type, _, _, _}} when type in '-_' ->
+     │                                           ~
+     │
+     └─ lib/decoder.ex:969:43
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 983 │           {:ok, {type, _, _, _}} when type in '-_' ->
+     │                                               ~
+     │
+     └─ lib/decoder.ex:983:47
+
+     warning: CAStore.file_path/0 is undefined (module CAStore is not available or is yet to be defined). Make sure the module name is correct and has been specified in full (or that an alias has been defined)
+     │
+ 111 │         [cacertfile: String.to_charlist(CAStore.file_path())]
+     │                                                 ~
+     │
+     └─ lib/excoveralls/poster.ex:111:49: ExCoveralls.Poster.cacert_option/0
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+  9 │   def operator_level_2(prev \\ empty()), do: prev |> choice(Enum.map('+#', &ascii_char([&1])))
+    │                                                                      ~
+    │
+    └─ lib/yuri_template/parsec.ex:9:70
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 12 │     do: prev |> choice(Enum.map('./;?&', &ascii_char([&1])))
+    │                                 ~
+    │
+    └─ lib/yuri_template/parsec.ex:12:33
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 15 │     do: prev |> choice(Enum.map('=,!@|', &ascii_char([&1])))
+    │                                 ~
+    │
+    └─ lib/yuri_template/parsec.ex:15:33
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 15 │   defguardp is_op(op) when op in '+#?./;?&'
+    │                                  ~
+    │
+    └─ lib/yuri_template/rfc6570.ex:15:34
+
+warning: the dependency :group requires Elixir "~> 1.19" but you are running on v1.18.4
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 50 │   @alphabet 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    │             ~
+    │
+    └─ lib/faker.ex:50:13
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+  6 │   @geobase32 '0123456789bcdefghjkmnpqrstuvwxyz'
+    │              ~
+    │
+    └─ lib/faker/address.ex:6:14
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 501 │     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+     │                ~
+     │
+     └─ lib/faker/lorem.ex:501:16
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:299: Faker.Lorem.characters/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:333: Faker.Lorem.paragraph/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:363: Faker.Lorem.paragraphs/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:397: Faker.Lorem.sentence/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:454: Faker.Lorem.sentences/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:488: Faker.Lorem.words/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/pizza.ex:50: Faker.Pizza.pizzas/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/pizza.ex:105: Faker.Pizza.toppings/1
+
+warning: the dependency :ekv requires Elixir "~> 1.19" but you are running on v1.18.4
+Error happened while installing ekv from precompiled binary: "precompiled \"ekv-nif-2.17-aarch64-apple-darwin-0.4.3.tar.gz\" does not exist in checksum.exs".
+
+Attempting to compile ekv from source...
+warning: the dependency :durable_server requires Elixir "~> 1.19" but you are running on v1.18.4
+warning: the dependency :ash_a2a requires Elixir "~> 1.19" but you are running on v1.18.4
+
+22:32:21.433 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+22:32:21.450 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+22:32:21.450 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+22:32:21.451 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+Running ExUnit with seed: 653100, max_cases: 32
+Excluding tags: [:test, :requires_qlever_server]
+Including tags: [describe: "opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure)", module: "GgenIgniter.SemanticJiraGitGroundTruthTest"]
+
+...........
+Finished in 153.9 seconds (0.5s async, 153.4s sync)
+72 tests, 0 failures, 61 excluded
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+EXIT 0
+2026-09-24T05:34:56Z

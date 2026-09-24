@@ -1,0 +1,21 @@
+# conservation witness (C06): fetch-depth: 0 line count in ci.yml per commit; parents; 2026-09-24T05:22:38Z
+2f26c0b parents=[864099d] fetch-depth0_lines=1     timeout-minutes: 30 :: fix(ci): full-history checkout so git-ground-truth baseSha tests see the canonical ancesto
+070dbd5 parents=[8820295 652c9f8] fetch-depth0_lines=0     timeout-minutes: 30 :: Merge branch 'feat/semantic-jira-descriptor-bridge' into feat/zcode-ocel-pack
+a39921b parents=[b8f9ddd] fetch-depth0_lines=1     timeout-minutes: 30 :: ci: provide history to git-ground-truth court
+4ffa201 parents=[76279a9 a39921b] fetch-depth0_lines=0     timeout-minutes: 30 :: Merge remote-tracking branch 'origin/fix/pr20-dfcm-shacl-court' into feat/zcode-ocel-pack
+3937a4f parents=[f5575d3] fetch-depth0_lines=0     timeout-minutes: 30 :: receipts(v26.9.23): V23-B integration addendum - merged into friday/gc-fri-0800, lane gate
+d6a6e5b parents=[3ed6a7a 1cbd0bb] fetch-depth0_lines=0     timeout-minutes: 30 :: merge(v26.9.23): integrate v23/R1-GI-PIN - release defect toolchain pin qualification (GC2
+363916f parents=[d6a6e5b] fetch-depth0_lines=1     timeout-minutes: 90 :: ci(v26.9.23): restore full-history checkout (conserve a39921b) and a measured 90-min job b
+09a369e parents=[363916f] fetch-depth0_lines=1     timeout-minutes: 90 :: wip(R2-GI-CI): preserve in-flight lane work halted by the Claude weekly usage limit
+7c97f52 parents=[09a369e] fetch-depth0_lines=1     timeout-minutes: 90 :: docs(v26.9.23): HANDWRITTEN.md row for the R2-GI-CI ci.yml hunks (UNSUPPORTED(generator-ca
+## ancestry
+2f26c0b ancestor-of d6a6e5b exit 0
+a39921b ancestor-of d6a6e5b exit 0
+070dbd5 ancestor-of d6a6e5b exit 0
+4ffa201 ancestor-of d6a6e5b exit 0
+## merge 070dbd5: ci.yml per parent (fetch-depth0 lines)
+  parent 8820295 fetch-depth0_lines=0
+  parent 652c9f8 fetch-depth0_lines=1
+## merge 4ffa201: ci.yml per parent (fetch-depth0 lines)
+  parent 76279a9 fetch-depth0_lines=0
+  parent a39921b fetch-depth0_lines=1

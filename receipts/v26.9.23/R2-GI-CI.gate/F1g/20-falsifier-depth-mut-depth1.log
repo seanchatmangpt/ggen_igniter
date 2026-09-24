@@ -1,0 +1,5 @@
+2026-09-24T05:20:54Z
+# subject=/private/tmp/claude-501/v23-scratch/F1g-R2-GI-CI/subj head=c222f79a0deee881db16123ca6e15930827df580 branch=mut-depth1 ci.yml fetch-depth=1 clone=/private/tmp/claude-501/v23-scratch/R2-GI-DEPTH-cishape-c222f79
+# shallow=true
+# probe: d84da14 NOT reachable from HEAD (the CI checkout will refuse the honest graph)
+EXIT 1

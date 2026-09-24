@@ -1,0 +1,103 @@
+# static composition witness at 09a369e1e75b394c9b6666ab1fe0b6c41da12824 2026-09-24T05:19:21Z
+## product diff d6a6e5b..HEAD excluding receipts/
+ .github/workflows/ci.yml | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+## ci.yml blob: HEAD=2d38502e8745df1af553d35101ed0fe6849f4b11 363916f=2d38502e8745df1af553d35101ed0fe6849f4b11 d6a6e5b=a75aa50288219b1989d17cd14181cac719d4377d
+## a39921b ci.yml patch sha256 8701c651fa7c9105cc625e6c7418f83014939ecb0cef1ecdc52e55cc7d241c1a
+reverse-apply-check a39921b@HEAD exit 0
+forward-apply-check a39921b@d6a6e5b exit 0
+reverse-apply-check a39921b@d6a6e5b exit 1 (nonzero = hunk absent at base)
+## candidate sha256 764e04f4b196354a817b68e807007aeccaa6016c03ce101f06a81aa7c533fd90
+## HEAD ci.yml diff vs d6a6e5b
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index a75aa50..2d38502 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -14,7 +14,15 @@ permissions:
+ jobs:
+   test:
+     runs-on: ubuntu-latest
+-    timeout-minutes: 30
++    # Budget from measured runs, not a guess: a cold run (no cache for the
++    # ref -- actions/cache saves only on job success, so a timed-out run
++    # never seeds one) spends ~14 min before `mix test` (deps + release-mode
++    # ggen_graph_nif build; run 35895256423), and the last green full suite
++    # took 28 min on a suite ~18% smaller than today's (run 35682930334).
++    # 30 min cancelled five consecutive runs on 2026-09-23 mid-suite.
++    # Complete cold jobs then took 54.6 min (run 35925710605) and 56.5 min
++    # (run 35933570910); budget >= ceil(1.5 x 56.5) = 85, rounded to 90.
++    timeout-minutes: 90
+     permissions:
+       contents: read
+ 
+@@ -25,6 +33,13 @@ jobs:
+         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+         with:
+           persist-credentials: false
++          # Semantic Jira's git-ground-truth court proves that the canonical
++          # baseSha is an actual ancestor of this exact head. A depth-1
++          # checkout makes every older honest SHA observationally absent and
++          # turns the positive control into a false refusal. This repository's
++          # own history is therefore a required test collaborator, just like
++          # the explicitly full-history ex4pm fixture clone below.
++          fetch-depth: 0
+ 
+       # Real fixture checkout: 10 real ExUnit test files
+       # (test/ggen_igniter_base_*_test.exs, test/ggen_igniter_install_task_
+## candidate patch
+From aa07ee76ba02c280f9af21687b6c805af96564a1 Mon Sep 17 00:00:00 2001
+From: R2 scratch <r2-scratch@example.invalid>
+Date: Wed, 23 Sep 2026 14:57:45 -0700
+Subject: [PATCH] ci(v26.9.23): restore full-history checkout and a measured
+ job budget (R2 candidate, scratch only)
+
+- fetch-depth: 0 restored from a39921b (dropped by merge 4ffa201): the
+  git-ground-truth tests need d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3
+  reachable from HEAD; depth 1 fails 3 tests (CI runs 35895254599,
+  35895253020, 35895256423; reproduced locally under the pin).
+- timeout-minutes 30 -> 90: five push runs on 2026-09-23 hit
+  "The job has exceeded the maximum execution time of 30m0s" mid-suite.
+---
+ .github/workflows/ci.yml | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index a75aa50..22bc3cd 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -14,7 +14,13 @@ permissions:
+ jobs:
+   test:
+     runs-on: ubuntu-latest
+-    timeout-minutes: 30
++    # Budget from measured runs, not a guess: a cold run (no cache for the
++    # ref -- actions/cache saves only on job success, so a timed-out run
++    # never seeds one) spends ~14 min before `mix test` (deps + release-mode
++    # ggen_graph_nif build; run 35895256423), and the last green full suite
++    # took 28 min on a suite ~18% smaller than today's (run 35682930334).
++    # 30 min cancelled five consecutive runs on 2026-09-23 mid-suite.
++    timeout-minutes: 90
+     permissions:
+       contents: read
+ 
+@@ -25,6 +31,17 @@ jobs:
+         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+         with:
+           persist-credentials: false
++          # Semantic Jira's git-ground-truth court proves that the canonical
++          # baseSha is an actual ancestor of this exact head. A depth-1
++          # checkout makes every older honest SHA observationally absent and
++          # turns the positive control into a false refusal. This repository's
++          # own history is therefore a required test collaborator, just like
++          # the explicitly full-history ex4pm fixture clone below.
++          # (Restored from a39921b; merge 4ffa201 dropped it, and the three
++          # "opt-in git ground truth for baseSha" tests in
++          # test/ggen_igniter_semantic_jira_pack_test.exs then refuse
++          # d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3 as unreachable.)
++          fetch-depth: 0
+ 
+       # Real fixture checkout: 10 real ExUnit test files
+       # (test/ggen_igniter_base_*_test.exs, test/ggen_igniter_install_task_
+-- 
+2.51.2
+

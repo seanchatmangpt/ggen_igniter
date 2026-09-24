@@ -1,0 +1,13 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 2d38502..9d90235 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -39,7 +39,7 @@ jobs:
+           # turns the positive control into a false refusal. This repository's
+           # own history is therefore a required test collaborator, just like
+           # the explicitly full-history ex4pm fixture clone below.
+-          fetch-depth: 0
++          fetch-depth: 1
+ 
+       # Real fixture checkout: 10 real ExUnit test files
+       # (test/ggen_igniter_base_*_test.exs, test/ggen_igniter_install_task_

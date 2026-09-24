@@ -1,0 +1,13 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 2d38502..63a988d 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -22,7 +22,7 @@ jobs:
+     # 30 min cancelled five consecutive runs on 2026-09-23 mid-suite.
+     # Complete cold jobs then took 54.6 min (run 35925710605) and 56.5 min
+     # (run 35933570910); budget >= ceil(1.5 x 56.5) = 85, rounded to 90.
+-    timeout-minutes: 90
++    timeout-minutes: 84
+     permissions:
+       contents: read
+ 

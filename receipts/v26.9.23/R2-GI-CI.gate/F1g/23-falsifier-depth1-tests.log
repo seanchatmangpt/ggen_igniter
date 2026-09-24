@@ -1,0 +1,83 @@
+2026-09-24T05:35:19Z
+# depth-1 clone of 7c97f5244109b22adb783cbd464f31d97aa2e348 shallow=true origin=https://github.com/seanchatmangpt/ggen_igniter.git (deps/_build/native target APFS-cloned from the lane gate clone R2-GI-DEPTH-cishape-7c97f52; probe bypassed: the real describe runs)
+Elixir 1.18.4 (compiled with Erlang/OTP 27)
+# MIX_ENV=test mix compile exit 0
+
+22:35:41.926 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+22:35:41.947 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full,
+   ~c"/Library/Developer/CoreSimulator/Cryptex/Images/bundle/SimRuntimeBundle-D726FE0C-2CD4-406E-97CD-6972CDB24A30"},
+  []}}
+
+22:35:41.947 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_22C150"},
+  []}}
+
+22:35:41.947 [notice]     :alarm_handler: {:set,
+ {{:disk_almost_full, ~c"/Library/Developer/CoreSimulator/Volumes/iOS_23D8133"},
+  []}}
+Running ExUnit with seed: 430985, max_cases: 32
+Excluding tags: [:test, :requires_qlever_server]
+Including tags: [describe: "opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure)", module: "GgenIgniter.SemanticJiraGitGroundTruthTest"]
+
+.....
+
+  1) test opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure) per-order control: requiresGitGroundTruth true over a real ancestor admits without the flag (GgenIgniter.SemanticJiraPackTest)
+     test/ggen_igniter_semantic_jira_pack_test.exs:1637
+     per-order git-ground-truth control failed:
+     Compiling 99 files (.ex)
+     Compiling crate ggen_graph_nif in release mode (native/ggen_graph_nif)
+     Copying /private/tmp/claude-501/v23-scratch/F1g-R2-GI-CI/depth1/native/ggen_graph_nif/target/release/libggen_graph_nif.dylib to priv/native/ggen_graph_nif.so
+     Generated ggen_igniter app
+     ** (ArgumentError) REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED: baseSha d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3 is not a commit reachable in /private/tmp/claude-501/v23-scratch/F1g-R2-GI-CI/depth1
+         (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_jira/git_ground_truth.ex:200: GgenIgniter.SemanticJira.GitGroundTruth.verify_sha!/2
+         (elixir 1.18.4) lib/enum.ex:987: Enum."-each/2-lists^foreach/1-0-"/2
+         (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_jira/git_ground_truth.ex:110: GgenIgniter.SemanticJira.GitGroundTruth.verify_base_shas!/2
+         (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:1090: Mix.Tasks.GgenIgniter.Sync.maybe_verify_base_shas!/2
+         (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:1019: Mix.Tasks.GgenIgniter.Sync.run_for_each_via_reactor!/7
+         (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:806: Mix.Tasks.GgenIgniter.Sync.run_sync/3
+         (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:207: Mix.Tasks.GgenIgniter.Sync."run (overridable 1)"/1
+         (mix 1.18.4) lib/mix/task.ex:495: anonymous fn/3 in Mix.Task.run_task/5
+
+     code: assert exit_code == 0, "per-order git-ground-truth control failed:\n#{output}"
+     stacktrace:
+       test/ggen_igniter_semantic_jira_pack_test.exs:1647: (test)
+
+.
+
+  2) test opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure) flag on over the honest graph manufactures (honest-pass side) (GgenIgniter.SemanticJiraPackTest)
+     test/ggen_igniter_semantic_jira_pack_test.exs:1554
+     git-ground-truth honest sync failed:
+     ** (ArgumentError) REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED: baseSha d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3 is not a commit reachable in /private/tmp/claude-501/v23-scratch/F1g-R2-GI-CI/depth1
+         (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_jira/git_ground_truth.ex:200: GgenIgniter.SemanticJira.GitGroundTruth.verify_sha!/2
+         (elixir 1.18.4) lib/enum.ex:987: Enum."-each/2-lists^foreach/1-0-"/2
+         (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_jira/git_ground_truth.ex:110: GgenIgniter.SemanticJira.GitGroundTruth.verify_base_shas!/2
+         (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:1090: Mix.Tasks.GgenIgniter.Sync.maybe_verify_base_shas!/2
+         (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:1019: Mix.Tasks.GgenIgniter.Sync.run_for_each_via_reactor!/7
+         (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:806: Mix.Tasks.GgenIgniter.Sync.run_sync/3
+         (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:207: Mix.Tasks.GgenIgniter.Sync."run (overridable 1)"/1
+         (mix 1.18.4) lib/mix/task.ex:495: anonymous fn/3 in Mix.Task.run_task/5
+
+     code: assert exit_code == 0, "git-ground-truth honest sync failed:\n#{output}"
+     stacktrace:
+       test/ggen_igniter_semantic_jira_pack_test.exs:1559: (test)
+
+
+
+  3) test opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure) flag on over a forged-but-well-formed 40-hex baseSha refuses before any actuation (GgenIgniter.SemanticJiraPackTest)
+     test/ggen_igniter_semantic_jira_pack_test.exs:1566
+     Assertion with =~ failed
+     code:  assert output =~ "baseSha #{String.duplicate("d", 40)} is not a commit reachable in"
+     left:  "** (ArgumentError) REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED: baseSha d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3 is not a commit reachable in /private/tmp/claude-501/v23-scratch/F1g-R2-GI-CI/depth1\n    (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_jira/git_ground_truth.ex:200: GgenIgniter.SemanticJira.GitGroundTruth.verify_sha!/2\n    (elixir 1.18.4) lib/enum.ex:987: Enum.\"-each/2-lists^foreach/1-0-\"/2\n    (ggen_igniter 26.9.20) lib/ggen_igniter/semantic_jira/git_ground_truth.ex:110: GgenIgniter.SemanticJira.GitGroundTruth.verify_base_shas!/2\n    (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:1090: Mix.Tasks.GgenIgniter.Sync.maybe_verify_base_shas!/2\n    (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:1019: Mix.Tasks.GgenIgniter.Sync.run_for_each_via_reactor!/7\n    (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:806: Mix.Tasks.GgenIgniter.Sync.run_sync/3\n    (ggen_igniter 26.9.20) lib/mix/tasks/ggen_igniter.sync.ex:207: Mix.Tasks.GgenIgniter.Sync.\"run (overridable 1)\"/1\n    (mix 1.18.4) lib/mix/task.ex:495: anonymous fn/3 in Mix.Task.run_task/5\n"
+     right: "baseSha dddddddddddddddddddddddddddddddddddddddd is not a commit reachable in"
+     stacktrace:
+       test/ggen_igniter_semantic_jira_pack_test.exs:1580: (test)
+
+..
+Finished in 43.2 seconds (0.5s async, 42.6s sync)
+72 tests, 3 failures, 61 excluded
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+EXIT 2
+2026-09-24T05:36:27Z

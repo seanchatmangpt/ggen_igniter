@@ -1,0 +1,19 @@
+# hosted CI at earlier lane heads with the identical ci.yml blob 2d38502e (excerpts; full-log sha256 recorded) 2026-09-24T05:36:50Z
+run 35944182649 head=363916f266138b2c5542df72bc9b10dea15a17b9 event=push run_conclusion=success job[Elixir tests (mix credo + mix test)] id=107458369617 success 2026-09-24T01:43:38Z..2026-09-24T02:38:25Z
+  full log: gh run view 35944182649 --log, sha256 89e0ec7b6556c65c1c2f21bd257f03f9919e55997a75d06a43c6eccdba72f19a, 2566 lines
+Elixir tests (mix credo + mix test)	UNKNOWN STEP	2026-09-24T01:43:40.4366799Z   fetch-depth: 0
+Elixir tests (mix credo + mix test)	UNKNOWN STEP	2026-09-24T01:43:52.8519969Z Cache not found for input keys: Linux-mix-deps-27.2.4-1.18.4-fbfa9fca4422c9b0b149af177cd4b563cf6f8740c95a911f9e5754e35d32a73d, Linux-mix-deps-27.2.4-1.18.4-, Linux-mix-deps-27.2.4-, Linux-mix-deps-
+Elixir tests (mix credo + mix test)	UNKNOWN STEP	2026-09-24T01:43:53.2584888Z Cache not found for input keys: Linux-mix-build-27.2.4-1.18.4-c90adab6931fd88e0acd756512e5ac346c417f38c9a0cc3024cdf47a44ca4a9c
+Elixir tests (mix credo + mix test)	UNKNOWN STEP	2026-09-24T01:43:53.5976420Z Cache not found for input keys: Linux-nif-target-27.2.4-1.18.4-6e7b78f1038f4a17b73c21a2f33ae5c57ec8fe127b7b8f400f6cf9df2c1a7677
+Elixir tests (mix credo + mix test)	UNKNOWN STEP	2026-09-24T02:02:28.5652597Z Excluding tags: [:requires_ash_r2rml, :requires_qlever_server]
+Elixir tests (mix credo + mix test)	UNKNOWN STEP	2026-09-24T02:38:14.0495709Z Finished in 2145.4 seconds (58.4s async, 2087.0s sync)
+Elixir tests (mix credo + mix test)	UNKNOWN STEP	2026-09-24T02:38:14.0496528Z 20 doctests, 42 properties, 1355 tests, 0 failures, 14 excluded, 3 skipped
+run 35954998442 head=09a369e1e75b394c9b6666ab1fe0b6c41da12824 event=push run_conclusion=success job[Elixir tests (mix credo + mix test)] id=107491323301 success 2026-09-24T04:17:09Z..2026-09-24T04:54:11Z
+  full log: gh run view 35954998442 --log, sha256 d8ba85f03251a4130f951fdbcdd152c51572bd239231d327bc2248df069f15aa, 1248 lines
+Elixir tests (mix credo + mix test)	Checkout	2026-09-24T04:17:11.7451150Z   fetch-depth: 0
+Elixir tests (mix credo + mix test)	Cache mix dependencies	2026-09-24T04:17:34.9873306Z Cache hit for: Linux-mix-deps-27.2.4-1.18.4-fbfa9fca4422c9b0b149af177cd4b563cf6f8740c95a911f9e5754e35d32a73d
+Elixir tests (mix credo + mix test)	Cache exact compiled build	2026-09-24T04:17:37.0491652Z Cache hit for: Linux-mix-build-27.2.4-1.18.4-c90adab6931fd88e0acd756512e5ac346c417f38c9a0cc3024cdf47a44ca4a9c
+Elixir tests (mix credo + mix test)	Cache NIF cargo target	2026-09-24T04:17:39.9430105Z Cache hit for: Linux-nif-target-27.2.4-1.18.4-6e7b78f1038f4a17b73c21a2f33ae5c57ec8fe127b7b8f400f6cf9df2c1a7677
+Elixir tests (mix credo + mix test)	mix test	2026-09-24T04:18:38.7121061Z Excluding tags: [:requires_ash_r2rml, :requires_qlever_server]
+Elixir tests (mix credo + mix test)	mix test	2026-09-24T04:54:06.8368368Z Finished in 2128.1 seconds (63.1s async, 2065.0s sync)
+Elixir tests (mix credo + mix test)	mix test	2026-09-24T04:54:06.8369272Z 20 doctests, 42 properties, 1355 tests, 0 failures, 14 excluded, 3 skipped

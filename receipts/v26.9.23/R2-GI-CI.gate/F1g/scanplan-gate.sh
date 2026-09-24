@@ -1,0 +1,4 @@
+#!/bin/sh
+# lanes/scan-plan.json R2-GI-CI gate, verbatim
+set -e
+python3 -c "import yaml,sys; d=yaml.safe_load(open('.github/workflows/ci.yml')); t=d['jobs']['test']; s=t['steps'][0]; sys.exit(0 if s['name']=='Checkout' and s.get('with',{}).get('fetch-depth')==0 and t['timeout-minutes']==90 else 1)" && git show 3937a4f:.github/workflows/ci.yml | python3 -c "import yaml,sys; s=yaml.safe_load(sys.stdin)['jobs']['test']['steps'][0]; sys.exit(1 if s.get('with',{}).get('fetch-depth')==0 else 0)" && H=$(git rev-parse HEAD) && J=$(gh api "repos/seanchatmangpt/ggen_igniter/actions/runs?head_sha=$H" --jq '.workflow_runs[]|select(.name=="ggen_igniter CI")|.id' | head -1) && test -n "$J" && gh run view $J -R seanchatmangpt/ggen_igniter --json jobs --jq '.jobs[]|select(.name|test("Elixir tests"))|.conclusion' | grep -vqx cancelled
