@@ -268,4 +268,18 @@ jobs:
           if [ ! -f _build/test/lib/ggen_igniter/priv/native/ggen_graph_nif.so ]; then
             MIX_ENV=test mix compile --force
           fi
-          mix test
+          # R2-GI-BLOOM hosted witness (witness branch only, never merged):
+          # the lane head's bootstrap test file on the runner's git, then the
+          # no-pin mutant of the same file, which must fail.
+          git --version
+          echo "--- system/global git config (commit-graph related)"
+          { git config --system --list --show-origin 2>/dev/null || true; git config --global --list --show-origin 2>/dev/null || true; } | grep -i -E 'commitgraph|changedpaths|maintenance|gc\.|fetch\.write' || echo "(none)"
+          mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs
+          echo "--- mutant: remove the three fixture pin lines"
+          sed -i -e '/"core.commitGraph", "false"/d' -e '/"maintenance.auto", "false"/d' -e '/"gc.auto", "0"/d' test/ggen_igniter_semantic_jira_bootstrap_test.exs
+          git diff --stat
+          if mix test test/ggen_igniter_semantic_jira_bootstrap_test.exs; then
+            echo "MUTANT SURVIVED (vacuous regression test)"; exit 1
+          else
+            echo "MUTANT KILLED"
+          fi
