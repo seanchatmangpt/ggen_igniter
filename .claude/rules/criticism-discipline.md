@@ -136,10 +136,10 @@ critique/dismissal and applies regardless of register.
 
 ## See Also
 
-- `~/.claude/rules/no-overclaiming-conversational.md` — status-claim precision this layers on
-- `~/.claude/rules/no-overclaiming-rust.md` — the vocabulary floor (ALIVE/…/UNVERIFIED)
-- `~/.claude/rules/explore-exploit-premises.md` — the register switch this file's dismissal
+- `~/.zcode/rules/no-overclaiming-conversational.md` — status-claim precision this layers on
+- `~/.zcode/rules/no-overclaiming-rust.md` — the vocabulary floor (ALIVE/…/UNVERIFIED)
+- `~/.zcode/rules/explore-exploit-premises.md` — the register switch this file's dismissal
   machinery defers to when a request is an explicit thought exercise
-- `~/.claude/rules/enacted-not-narrated-restraint.md` — rule 7's principle turned inward, on
+- `~/.zcode/rules/enacted-not-narrated-restraint.md` — rule 7's principle turned inward, on
   narrating the assistant's own restraint instead of exercising it
-- `~/.claude/rules/tools.md` — global tool-usage and markdown-authoring rules
+- `~/.zcode/rules/tools.md` — global tool-usage and markdown-authoring rules

@@ -21,8 +21,17 @@ python3 <xaas>/scripts/sjira/prose_spans.py emit --source prose.md --extract ext
 - `goal.ttl` -- root `fx:GC-PROSE` (binds the prose by `sj:sourceSha256`), gates
   `fx:GCP-0..2`, successor bucket `fx:GC-PROSE-NEXT`, and the `recipe:mix-format` capability.
 
-Compile it with
-`mix semantic_jira.compile_prose --source test/fixtures/semantic-jira-prose/prose.md
+Observe it with
+`mix semantic_jira.observe_prose --source test/fixtures/semantic-jira-prose/prose.md
 --candidates test/fixtures/semantic-jira-prose/candidates.ttl
 --goal test/fixtures/semantic-jira-prose/goal.ttl --out-dir <dir>`:
-9 admitted propositions, 7 required, 5 WorkOrders.
+9 candidate propositions (7 required, 2 not required), each stamped
+`sj:candidateStanding "UNKNOWN"` and `sj:authorityClaim "NONE"`. The only
+output is `propositions.ttl` and it contains zero `sj:WorkOrder`
+(SJ-002: Prose never manufactures WorkOrders -- Prose ↛ WorkOrder).
+
+Admit the goal alone with
+`mix semantic_jira.observe_prose --admit-goal --goal test/fixtures/semantic-jira-prose/goal.ttl`:
+the GC23-3 shapes court runs scoped to the goal's subjects, then
+`GgenIgniter.SemanticJira.Authority.admit/2` stamps the authorities
+(delete+add, so placeholder digests are replaced).

@@ -27,6 +27,9 @@ defmodule GgenIgniter.SemanticJiraEventSourcingKernelTest do
 
   alias GgenIgniter.SemanticJira
 
+  @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
+  @origin_observation "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-observation"
+
   # ── Kernel-side helpers ──────────────────────────────────────────────────
 
   # Always a form-valid sha256 digest (64 hex chars), distinct per seed —
@@ -58,6 +61,7 @@ defmodule GgenIgniter.SemanticJiraEventSourcingKernelTest do
         "required_receipt_classes" => ["verification"],
         "path_scope" => ["lib/ggen_igniter"],
         "authority_requirement" => "NONE",
+        "origin_authority" => @origin_authority,
         "replay_required" => false
       },
       overrides
@@ -147,6 +151,85 @@ defmodule GgenIgniter.SemanticJiraEventSourcingKernelTest do
       # The standalone function agrees with the admission stamp.
       assert {:ok, definition_digest} = SemanticJira.definition_digest(work_order)
       assert definition_digest == first["definition_digest"]
+    end
+  end
+
+  # ── Origin authority law ─────────────────────────────────────────────────
+
+  describe "origin authority law" do
+    test "a work order without origin_authority refuses with the typed missing-field tuple" do
+      assert {:error, {:refused_work_order, {:missing_required_field, "origin_authority"}}} =
+               SemanticJira.admit_work_order(Map.delete(sample_work_order(), "origin_authority"))
+    end
+
+    test "an empty-string origin_authority refuses identically" do
+      assert {:error, {:refused_work_order, {:missing_required_field, "origin_authority"}}} =
+               SemanticJira.admit_work_order(sample_work_order(%{"origin_authority" => ""}))
+    end
+
+    test "an origin_authority change moves both the definition digest and the snapshot digest" do
+      {:ok, first} = SemanticJira.admit_work_order(sample_work_order())
+
+      {:ok, second} =
+        SemanticJira.admit_work_order(
+          sample_work_order(%{
+            "origin_authority" =>
+              "https://ggen-igniter.dev/ontology/semantic-jira#objective-research-work-authority"
+          })
+        )
+
+      refute first["definition_digest"] == second["definition_digest"]
+      refute first["work_order_digest"] == second["work_order_digest"]
+    end
+
+    test "origin_observation is optional: admitted, blind to the definition digest, visible to the snapshot digest" do
+      {:ok, plain} = SemanticJira.admit_work_order(sample_work_order())
+
+      {:ok, observed} =
+        SemanticJira.admit_work_order(
+          sample_work_order(%{"origin_observation" => @origin_observation})
+        )
+
+      assert observed["admitted"] == true
+      assert plain["definition_digest"] == observed["definition_digest"]
+      refute plain["work_order_digest"] == observed["work_order_digest"]
+    end
+
+    test "semantic_diff reports an origin_authority change as exactly one semantic change" do
+      before = sample_work_order()
+
+      after_map =
+        Map.put(before, "origin_authority", "https://example.com/other-work-authority")
+
+      diff = SemanticJira.semantic_diff(before, after_map)
+
+      assert diff["semantic_change_count"] == 1
+
+      assert [
+               %{
+                 "field" => "origin_authority",
+                 "before" => @origin_authority,
+                 "after" => "https://example.com/other-work-authority"
+               }
+             ] = diff["semantic_changes"]
+
+      refute diff["semantic_equal"]
+      refute diff["before_digest"] == diff["after_digest"]
+    end
+
+    test "semantic_diff reports an origin_observation change as exactly one semantic change" do
+      before = sample_work_order()
+
+      after_map =
+        Map.put(before, "origin_observation", "https://example.com/other-work-observation")
+
+      diff = SemanticJira.semantic_diff(before, after_map)
+
+      assert diff["semantic_change_count"] == 1
+      assert [%{"field" => "origin_observation"}] = diff["semantic_changes"]
+
+      refute diff["semantic_equal"]
+      refute diff["before_digest"] == diff["after_digest"]
     end
   end
 

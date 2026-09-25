@@ -41,7 +41,7 @@ defmodule GgenIgniterFortune5ReadyTaskTest do
   A real `ggen` binary is required for the sync-shellout steps in every
   case (skipped with a named, visible reason when `ggen` is not on `PATH`
   -- never silently substituted with a mock, per
-  `~/.claude/rules/testing-chicago-style.md`'s worked example).
+  `~/.zcode/rules/testing-chicago-style.md`'s worked example).
   """
 
   use ExUnit.Case, async: false

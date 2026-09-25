@@ -42,7 +42,7 @@ it adds the concrete per-file conventions.
 Real oxigraph NIF, real `sparql` hex engine, real file I/O, real subprocess
 calls (`mix archive.install`, `mix igniter.new` in `test/e2e/`) are all used
 directly — this repo has never needed the one-legitimate-exception carve-out
-from `~/.claude/rules/testing-chicago-style.md` and a new test shouldn't be
+from `~/.zcode/rules/testing-chicago-style.md` and a new test shouldn't be
 the first to need it without a stated, reviewed reason.
 
 ### The check to run

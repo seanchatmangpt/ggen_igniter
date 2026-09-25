@@ -46,5 +46,10 @@ SELECT ?work_order ?field ?value WHERE {
   UNION { ?work_order sj:exclusion ?value . BIND("exclusions" AS ?field) }
   UNION { ?work_order sj:successorPolicy ?value . BIND("successor_policy" AS ?field) }
   UNION { ?work_order sj:checkpointOf ?value . BIND("checkpoint_of" AS ?field) }
+  # SJ-002 origin authority: IRI-valued rows, stringified by Graph.term/1 like
+  # checkpoint_of. sj:originAuthority is required -- kernel admission refuses
+  # the order without it; sj:originObservation is optional.
+  UNION { ?work_order sj:originAuthority ?value . BIND("origin_authority" AS ?field) }
+  UNION { ?work_order sj:originObservation ?value . BIND("origin_observation" AS ?field) }
   UNION { ?work_order sj:boundaryClass ?value . BIND("boundary_class" AS ?field) }
 }

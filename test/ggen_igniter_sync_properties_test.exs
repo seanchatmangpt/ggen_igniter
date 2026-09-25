@@ -15,7 +15,7 @@ defmodule GgenIgniter.SyncPropertiesTest do
   calling convention (not even `apply/3`), so there is no way to call them
   from an external test module without either widening their visibility or
   reimplementing their logic in the test (which WOULD be a fake, banned by
-  `~/.claude/rules/testing-chicago-style.md`). This session widened both to
+  `~/.zcode/rules/testing-chicago-style.md`). This session widened both to
   `def` with `@doc false` (a visibility change only -- zero logic changed,
   verified by `mix compile --warnings-as-errors` succeeding unchanged and
   every pre-existing sync integration test in

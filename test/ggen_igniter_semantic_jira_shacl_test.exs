@@ -16,6 +16,7 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
 
   @moduletag :integration
 
+  alias GgenIgniter.Ontology
   alias GgenIgniter.SemanticJira.Shacl
 
   @ontology_path "priv/ggen/semantic-jira-pack/ontology.ttl"
@@ -39,7 +40,8 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
                  process_finding_shape lease_request_shape receipt_shape
                  skill_shape task_state_shape state_mapping_shape generator_capability_shape
                  checkpoint_shape goal_checkpoint_shape boundary_class_value_shape
-                 capability_shape friday_work_order_shape machine_experience_shape))
+                 capability_shape friday_work_order_shape machine_experience_shape
+                 work_order_origin_shape admission_digest_shape))
     end
 
     test "gate-shaped run/2 reports one pass per node shape" do
@@ -52,9 +54,12 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
       assert {"state_mapping_shape", :pass} in results
       # 13 pre-Friday node shapes + 6 GC-FRI-0800 shapes (checkpoint,
       # goal_checkpoint, boundary_class_value, capability, friday_work_order,
-      # machine_experience).
+      # machine_experience) + 2 origin-authority shapes (work_order_origin,
+      # admission_digest).
       assert {"friday_work_order_shape", :pass} in results
-      assert length(results) == 19
+      assert {"work_order_origin_shape", :pass} in results
+      assert {"admission_digest_shape", :pass} in results
+      assert length(results) == 21
     end
   end
 
@@ -365,6 +370,134 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
     end
   end
 
+  # ── Origin authority (SJ-002): the pinned sj:WorkOrderOriginShape laws ─────
+  # The three sh:message strings of sj:WorkOrderOriginShape, pinned verbatim;
+  # the attrs drop only the trailing period and assertions re-attach it.
+  @type_law "REFUSED(NON_SEMANTIC_WORK_AUTHORITY): origin is not code-work authority"
+  @witness_law "REFUSED(NON_SEMANTIC_WORK_AUTHORITY): origin authority carries no admission witness"
+  @anti_prose_law "REFUSED(NON_SEMANTIC_WORK_AUTHORITY): prose/proposition cannot originate a WorkOrder"
+
+  describe "origin authority (sj:WorkOrderOriginShape, SJ-002)" do
+    test "the real ontology with SJ-002's origin authority conforms: the origin court is not vacuous" do
+      data = Ontology.load!(@ontology_path)
+      # Resolving by identifier doubles as the SJ-002 existence check.
+      sjira_002_iri!(data)
+
+      report = validate_data!(data)
+
+      assert report.conforms, "violations:\n#{inspect(report.violations, pretty: true)}"
+      assert "work_order_origin_shape" in report.shapes_checked
+      assert report.focus_node_count > 0
+
+      refute Enum.any?(report.violations, &(&1.message =~ "NON_SEMANTIC_WORK_AUTHORITY"))
+    end
+
+    test "deleting SJ-002's originAuthority: the count shape refuses while the origin laws stay silent on absence" do
+      # Deviation from the pinned case text, ledgered: the landed
+      # sj:WorkOrderOriginShape laws bind ?origin from the REQUIRED triple
+      # `$this sj:originAuthority ?origin`, so with the origin deleted they
+      # produce no rows. Absence is refused by the WorkOrderShape sh:minCount
+      # row L2 added with the origin law; the type/witness/anti-prose laws are
+      # origin-present laws and are witnessed firing in the three tests below.
+      data = Ontology.load!(@ontology_path)
+      sj002 = sjira_002_iri!(data)
+
+      report = data |> delete_origin_authority(sj002) |> validate_data!()
+
+      refute report.conforms
+
+      count_violation =
+        fetch_violation!(report, constraint: :min_count, path: @sj_base <> "originAuthority")
+
+      assert count_violation.shape == "work_order_shape"
+      assert count_violation.focus_node == RDF.IRI.to_string(sj002)
+
+      refute Enum.any?(report.violations, fn v ->
+               v.shape == "work_order_origin_shape" and v.focus_node == RDF.IRI.to_string(sj002)
+             end)
+    end
+
+    test "a Proposition origin with a well-formed digest trips the anti-prose law" do
+      data = Ontology.load!(@ontology_path)
+      sj002 = sjira_002_iri!(data)
+      proposition = sj_iri("proposition-origin-test")
+
+      report =
+        data
+        |> set_origin_authority(sj002, proposition)
+        |> RDF.Graph.add({proposition, RDF.type(), sj_iri("Proposition")})
+        |> RDF.Graph.add(
+          {proposition, sj_iri("admissionDigest"), RDF.literal(well_formed_digest())}
+        )
+        |> validate_data!()
+
+      refusal = origin_refusal!(report, sj002, @anti_prose_law)
+      assert refusal.shape == "work_order_origin_shape"
+    end
+
+    test "a digestless StrategicObjective origin trips the witness law and not the type law" do
+      data = Ontology.load!(@ontology_path)
+      sj002 = sjira_002_iri!(data)
+      objective = sj_iri("digestless-objective-test")
+
+      report =
+        data
+        |> set_origin_authority(sj002, objective)
+        |> RDF.Graph.add({objective, RDF.type(), sj_iri("StrategicObjective")})
+        |> validate_data!()
+
+      origin_refusal!(report, sj002, @witness_law)
+
+      refute Enum.any?(report.violations, fn v ->
+               v.shape == "work_order_origin_shape" and
+                 v.focus_node == RDF.IRI.to_string(sj002) and v.message =~ @type_law
+             end)
+    end
+
+    test "a fresh objective with a well-formed FORGED digest conforms: SHACL cannot catch forgery" do
+      # The court sees types and shapes, never admission history: a
+      # self-declared objective whose digest merely matches
+      # ^sha256:[0-9a-f]{64}$ passes every shape. verify_origin/3 in
+      # GgenIgniter.SemanticJira.Authority exists for exactly this hole --
+      # test/ggen_igniter_semantic_jira_authority_test.exs pins that law.
+      data = Ontology.load!(@ontology_path)
+      sj002 = sjira_002_iri!(data)
+      forged = sj_iri("forged-objective-test")
+
+      report =
+        data
+        |> set_origin_authority(sj002, forged)
+        |> RDF.Graph.add({forged, RDF.type(), sj_iri("StrategicObjective")})
+        |> RDF.Graph.add(
+          {forged, sj_iri("admissionDigest"), RDF.literal("sha256:" <> String.duplicate("f", 64))}
+        )
+        |> validate_data!()
+
+      assert report.conforms, "violations:\n#{inspect(report.violations, pretty: true)}"
+    end
+
+    test "a second sj:originObservation on SJ-002 violates sh:maxCount on that path" do
+      data = Ontology.load!(@ontology_path)
+      sj002 = sjira_002_iri!(data)
+
+      report =
+        data
+        |> RDF.Graph.add(
+          {sj002, sj_iri("originObservation"), sj_iri("origin-observation-extra-1")}
+        )
+        |> RDF.Graph.add(
+          {sj002, sj_iri("originObservation"), sj_iri("origin-observation-extra-2")}
+        )
+        |> validate_data!()
+
+      violation =
+        fetch_violation!(report, constraint: :max_count, path: @sj_base <> "originObservation")
+
+      assert violation.shape == "work_order_shape"
+      assert violation.focus_node == RDF.IRI.to_string(sj002)
+    end
+  end
+
   describe "fail-closed on unsupported SHACL" do
     test "an unsupported constraint component (sh:in) is itself a violation, never a silent skip" do
       data = GgenIgniter.Ontology.load!(@ontology_path)
@@ -472,4 +605,68 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
         violation
     end
   end
+
+  # Resolves SJ-002 by dcterms:identifier, never by IRI: the order's IRI is a
+  # projection detail, its identifier is the contract.
+  defp sjira_002_iri!(graph) do
+    found =
+      graph
+      |> RDF.Graph.descriptions()
+      |> Enum.find_value(fn description ->
+        if sj002_identifier?(RDF.Description.first(description, dcterms_iri("identifier"))),
+          do: description.subject
+      end)
+
+    found || flunk("no WorkOrder carries dcterms:identifier \"SJ-002\" in #{@ontology_path}")
+  end
+
+  defp sj002_identifier?(%RDF.Literal{} = identifier),
+    do: RDF.Term.equal?(identifier, RDF.literal("SJ-002"))
+
+  defp sj002_identifier?(_other), do: false
+
+  defp delete_origin_authority(graph, sj002) do
+    delete_predicates_about(graph, sj002, sj_iri("originAuthority"))
+  end
+
+  defp set_origin_authority(graph, sj002, origin_iri) do
+    graph
+    |> delete_origin_authority(sj002)
+    |> RDF.Graph.add({sj002, sj_iri("originAuthority"), origin_iri})
+  end
+
+  defp delete_predicates_about(graph, subject, predicate) do
+    case RDF.Graph.get(graph, subject) do
+      nil ->
+        graph
+
+      description ->
+        graph
+        |> RDF.Graph.delete_descriptions([subject])
+        |> RDF.Graph.add(RDF.Description.delete_predicates(description, predicate))
+    end
+  end
+
+  defp validate_data!(graph) do
+    Shacl.validate(graph, Ontology.load!(@shapes_path))
+  end
+
+  defp origin_refusal!(report, sj002, law) do
+    sj002_string = RDF.IRI.to_string(sj002)
+
+    Enum.find(report.violations, fn v ->
+      v.shape == "work_order_origin_shape" and v.focus_node == sj002_string and
+        v.message == law <> "."
+    end) ||
+      flunk(
+        "no work_order_origin_shape refusal \"#{law}.\" for #{sj002_string} in:\n" <>
+          inspect(report.violations, pretty: true)
+      )
+  end
+
+  defp well_formed_digest, do: "sha256:" <> String.duplicate("a", 64)
+
+  defp sj_iri(local), do: RDF.iri(@sj_base <> local)
+
+  defp dcterms_iri(local), do: RDF.iri(@dcterms_base <> local)
 end

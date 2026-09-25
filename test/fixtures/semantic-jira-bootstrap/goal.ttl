@@ -9,6 +9,12 @@
 # successor bucket, tuple-complete WorkOrders (T-A, T-B under the root; T-S
 # typed Successor under the bucket). The sj:standing literals are placeholders
 # the bootstrap never reads (PR-006).
+#
+# SJ-002 origin authority: every WorkOrder carries sj:originAuthority t:GC-T
+# (the root GoalCheckpoint is each order's origin authority); kernel admission
+# refuses an order without it. The sj:admissionDigest below is the computed
+# admission witness of t:GC-T (Authority.admission_digest/2 over this fixture
+# graph, stamped 2026-09-24).
 
 t:GC-T a sj:GoalCheckpoint ;
     dcterms:identifier "GC-T" ;
@@ -21,6 +27,7 @@ t:GC-T a sj:GoalCheckpoint ;
     sj:successorCheckpoint t:GC-T-next ;
     sj:exclusion "Fixture root exclusion." ;
     sj:courtCommand "mix xaas.stop_court --checkpoint GC-T" ;
+    sj:admissionDigest "sha256:09cf78e0fb3543d4fb00d6e1205b15e2fec344972b15915bc0c3ac99e1a91330" ;
     sj:stopQuery "ASK { FILTER(false) }" .
 
 t:G-1 a sj:GoalCheckpoint ;
@@ -67,6 +74,7 @@ t:WO-T-A a sj:WorkOrder ;
     sj:falsifier t:falsifier-T-A ;
     sj:projection sj:markdown-projection ;
     sj:checkpointOf t:G-1 ;
+    sj:originAuthority t:GC-T ;
     sj:postcondition "Order A postcondition." ;
     sj:requiresCapability t:cap-a ;
     sj:evidenceHorizon "EXECUTED_VERIFIED" ;
@@ -95,6 +103,7 @@ t:WO-T-B a sj:WorkOrder ;
     sj:falsifier t:falsifier-T-B ;
     sj:projection sj:markdown-projection ;
     sj:checkpointOf t:G-2 ;
+    sj:originAuthority t:GC-T ;
     sj:dependsOn t:dep-T-B-on-T-A ;
     sj:postcondition "Order B postcondition." ;
     sj:requiresCapability t:cap-b ;
@@ -128,6 +137,7 @@ t:WO-T-S a sj:WorkOrder ;
     sj:falsifier t:falsifier-T-S ;
     sj:projection sj:markdown-projection ;
     sj:checkpointOf t:GC-T-next ;
+    sj:originAuthority t:GC-T ;
     sj:boundaryClass sj:Successor ;
     sj:postcondition "Successor postcondition." ;
     sj:requiresCapability t:cap-b ;

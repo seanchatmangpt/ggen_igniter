@@ -63,6 +63,13 @@ sj:WorkOrderShape a sh:NodeShape ;
     sh:property [ sh:path sj:exclusion ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
     sh:property [ sh:path sj:consequenceClass ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(manufacture|projection|authority_preparation|actuation|verification|postcondition|replay|publication|deployment)$" ] ;
     sh:property [ sh:path sj:successorPolicy ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    # Origin law: every WorkOrder names the authority it originated from and,
+    # optionally, the observation that sourced it. Deliberately kind-only
+    # rows (sh:nodeKind sh:IRI, no sh:class/sh:datatype): the
+    # sj:WorkOrderOriginShape sparql constraints below carry the semantics --
+    # typed StrategicObjective/GoalCheckpoint AND an admission witness.
+    sh:property [ sh:path sj:originAuthority ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path sj:originObservation ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
     sh:sparql [
       sh:message "Work order identifiers must be unique across WorkOrders." ;
       sh:select """
@@ -113,6 +120,65 @@ sj:WorkOrderShape a sh:NodeShape ;
         }
       """
     ] .
+
+# ── Origin authority shapes (typed ≠ admitted) ─────────────────────────────
+# An IRI typed sj:StrategicObjective or sj:GoalCheckpoint is TYPED, not
+# ADMITTED: only one that also carries an sj:admissionDigest witness may
+# originate a WorkOrder. The witness is not trusted lexically here -- the
+# digest resolves through GgenIgniter.SemanticJira.Authority.verify_origin/3,
+# which recomputes the sha256 over the admitted source bytes before the order
+# is manufactured. Prose artefacts (sj:Proposition, sj:ProseObservation) can
+# never originate a WorkOrder regardless of what else they carry. Each
+# constraint SELECTs ?path bound to sj:originAuthority so the court names the
+# refused field as the violation path, in the Friday-tuple style above.
+
+sj:WorkOrderOriginShape a sh:NodeShape ;
+    sh:targetClass sj:WorkOrder ;
+    sh:sparql [
+      sh:message "REFUSED(NON_SEMANTIC_WORK_AUTHORITY): origin is not code-work authority." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this sj:originAuthority ?origin .
+          BIND(sj:originAuthority AS ?path)
+          OPTIONAL { ?origin a sj:StrategicObjective . BIND(true AS ?strategic) }
+          OPTIONAL { ?origin a sj:GoalCheckpoint . BIND(true AS ?checkpoint) }
+          FILTER(!BOUND(?strategic) && !BOUND(?checkpoint))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "REFUSED(NON_SEMANTIC_WORK_AUTHORITY): origin authority carries no admission witness." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this sj:originAuthority ?origin .
+          BIND(sj:originAuthority AS ?path)
+          OPTIONAL { ?origin sj:admissionDigest ?digest . }
+          FILTER(!BOUND(?digest))
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "REFUSED(NON_SEMANTIC_WORK_AUTHORITY): prose/proposition cannot originate a WorkOrder." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this sj:originAuthority ?origin . ?origin a ?cls .
+          BIND(sj:originAuthority AS ?path)
+          FILTER(?cls = sj:Proposition || ?cls = sj:ProseObservation)
+        }
+      """
+    ] .
+
+# Lexical law for every admission witness, proposition or authority: exactly
+# one xsd:string matching sha256:<64 lowercase hex>. Lowercase is mandatory
+# and no sh:flags is on purpose -- the case is part of the law, so a
+# case-insensitive match would admit a witness the verifier would refuse.
+
+sj:AdmissionDigestShape a sh:NodeShape ;
+    sh:targetSubjectsOf sj:admissionDigest ;
+    sh:property [ sh:path sj:admissionDigest ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] .
 
 sj:DependencyEdgeShape a sh:NodeShape ;
     sh:targetClass sj:DependencyEdge ;

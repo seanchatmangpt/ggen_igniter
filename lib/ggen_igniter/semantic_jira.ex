@@ -12,6 +12,7 @@ defmodule GgenIgniter.SemanticJira do
   """
 
   alias GgenIgniter.{Digest, RuntimeShape}
+  alias GgenIgniter.SemanticJira.Authority
 
   @standings ~w(UNKNOWN PARTIAL_ALIVE ALIVE BLOCKED BUILD_BROKEN UNSUPPORTED)
   @dimensions ~w(observed admitted inferred selected constructed executed changed verified receipted replayed merged published deployed)
@@ -22,22 +23,30 @@ defmodule GgenIgniter.SemanticJira do
 
   @projection_types ~w(jira wbpr prd ard vision fond hddl sa2a a2a_agent_card worker verification executive machine receipt replay)
 
-  @semantic_fields ~w(subject repository base_sha candidate_sha dependencies acceptance falsifiers authority_requirement evidence_ceiling promotion_rule required_courts required_evidence required_receipt_classes projections expected_consequence path_scope)
+  # origin law: both fields are semantic; semantic_diff/2 covers them.
+  @semantic_fields ~w(subject repository base_sha candidate_sha dependencies acceptance falsifiers authority_requirement evidence_ceiling promotion_rule required_courts required_evidence required_receipt_classes projections expected_consequence path_scope origin_authority origin_observation)
 
-  @required ~w(identity title description subject repository base_sha standing evidence_ceiling promotion_rule replay_identity required_courts required_evidence acceptance falsifiers projections)
+  @required ~w(identity title description subject repository base_sha standing evidence_ceiling promotion_rule replay_identity required_courts required_evidence acceptance falsifiers projections origin_authority)
   # The closed definition take (event-sourced standing law, v26.9.19 —
   # restored by WO-03): exactly the identity scalars, subject binding,
-  # ceilings/law, required relations, and bounded scope. EXCLUDES standing,
-  # candidate_sha, dimensions, and every derived digest, so public
-  # dual-assertion carry (oslc_cm/prov facts) is blind to the digest.
+  # ceilings/law, required relations, and bounded scope, plus the origin
+  # binding — origin_authority names the admitted authority node the
+  # definition was manufactured from; replacing the origin moves the
+  # definition digest. EXCLUDES standing, candidate_sha, origin_observation,
+  # dimensions, and every derived digest, so public dual-assertion carry
+  # (oslc_cm/prov facts) is blind to the digest.
   @definition_fields ~w(identity title description subject repository base_sha
     evidence_ceiling authority_requirement promotion_rule replay_identity
     dependencies required_courts required_evidence required_receipt_classes
-    acceptance falsifiers projections path_scope)
+    acceptance falsifiers projections path_scope origin_authority)
 
   @sha ~r/\A[0-9a-f]{40}\z/
   @digest ~r/\Asha256:[0-9a-f]{64}\z/
   @repo ~r/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/
+  # Absolute-IRI check: RFC 3986 scheme prefix plus a non-empty,
+  # whitespace-free rest — an origin authority is an IRI string, never a
+  # bare local name.
+  @iri ~r/\A[A-Za-z][A-Za-z0-9+.-]*:\S+\z/
 
   @type json_map :: %{optional(String.t()) => term()}
   @type refusal :: {:error, term()}
@@ -99,10 +108,13 @@ defmodule GgenIgniter.SemanticJira do
          :ok <- dependencies(Map.get(work_order, "dependencies", [])),
          :ok <- projection_types(Map.get(work_order, "projections", [])),
          :ok <- receipt_classes(Map.get(work_order, "required_receipt_classes", [])),
-         :ok <- path_scope(Map.get(work_order, "path_scope", [])) do
+         :ok <- path_scope(Map.get(work_order, "path_scope", [])),
+         :ok <- origin_authority(work_order["origin_authority"]),
+         :ok <- optional_origin_observation(work_order["origin_observation"]) do
       normalized =
         work_order
         |> Map.put_new("candidate_sha", nil)
+        |> Map.put_new("origin_observation", nil)
         |> Map.put_new("dependencies", [])
         |> Map.put_new("required_receipt_classes", [])
         |> Map.put_new("path_scope", [])
@@ -147,11 +159,13 @@ defmodule GgenIgniter.SemanticJira do
   Frontier over the projection of an append-only transition log: each work
   order's standing is the latest logged `to`, and dependency evidence is the
   logged standing/receipt of each upstream (caller evidence is overridden).
+  `opts[:authority]` is the origin-authority index (see `frontier/4`).
   """
-  @spec frontier_from_events([map()], [map()], map()) :: %{eligible: [map()], blocked: [map()]}
-  def frontier_from_events(work_orders, events, evidence_by_id \\ %{}) do
+  @spec frontier_from_events([map()], [map()], map(), keyword()) ::
+          %{eligible: [map()], blocked: [map()]}
+  def frontier_from_events(work_orders, events, evidence_by_id \\ %{}, opts \\ []) do
     {projected, logged} = project(work_orders, events)
-    frontier(projected, Map.merge(evidence_by_id, logged))
+    frontier(projected, Map.merge(evidence_by_id, logged), nil, opts)
   end
 
   @doc "Projects standing over work orders from events (ordered by `seq`); pure."
@@ -194,7 +208,8 @@ defmodule GgenIgniter.SemanticJira do
   end
 
   @doc """
-  Selects UNKNOWN work whose typed dependency requirements are satisfied.
+  Selects UNKNOWN work whose typed dependency requirements are satisfied and
+  whose `origin_authority` RESOLVES to an admitted authority (AC-04).
 
   With a third `transitions` argument, selection consults the EVENT-SOURCED
   standing projection (graph-side `project_standing/1` law): a work order
@@ -203,31 +218,60 @@ defmodule GgenIgniter.SemanticJira do
   immutable `definition_digest`. A malformed transition log fails the whole
   selection closed (`blocked: [%{"reason" => "malformed_transition_log"}]`);
   ambiguity never silently picks a branch.
-  """
-  @spec frontier([map()], map(), [map()] | nil) :: %{eligible: [map()], blocked: [map()]}
-  def frontier(work_orders, evidence_by_id \\ %{}, transitions \\ nil)
 
-  def frontier(work_orders, evidence_by_id, nil) do
-    work_orders
-    |> Enum.reduce(%{eligible: [], blocked: []}, &frontier_one(&1, &2, evidence_by_id))
-    |> then(fn result ->
-      %{
-        eligible: Enum.reverse(result.eligible),
-        blocked: Enum.reverse(result.blocked)
-      }
-    end)
+  Origin law (SJ-002, AC-04): `opts[:authority]` is an admission index
+  (`Authority.index/1`), an `RDF.Graph` (indexed here), or a Turtle path
+  (`Authority.canonical_index(path: ...)`); absent, the canonical
+  semantic-jira-pack index (`Authority.canonical_index/1`) is used. An order
+  whose origin does not resolve is blocked with reason `origin_not_admitted`,
+  its `origin_authority`, and the typed `refusal` as a JSON-safe list
+  (`["authority_not_admitted" | "authority_type_mismatch" |
+  "authority_digest_mismatch", iri]`). An eligible candidate carries
+  `origin_authority` and the resolved `origin_admission_digest`. An
+  unavailable index blocks EVERY order (`authority_index_unavailable`) --
+  selection fails closed, never open.
+  """
+  @spec frontier([map()], map(), [map()] | nil, keyword()) ::
+          %{eligible: [map()], blocked: [map()]}
+  def frontier(work_orders, evidence_by_id \\ %{}, transitions \\ nil, opts \\ [])
+
+  def frontier(work_orders, evidence_by_id, nil, opts) do
+    case Authority.index_from(opts) do
+      {:ok, index} ->
+        work_orders
+        |> Enum.reduce(%{eligible: [], blocked: []}, &frontier_one(&1, &2, evidence_by_id, index))
+        |> then(fn result ->
+          %{
+            eligible: Enum.reverse(result.eligible),
+            blocked: Enum.reverse(result.blocked)
+          }
+        end)
+
+      {:error, reason} ->
+        %{eligible: [], blocked: Enum.map(work_orders, &index_unavailable(&1, reason))}
+    end
   end
 
-  def frontier(work_orders, evidence_by_id, transitions) do
+  def frontier(work_orders, evidence_by_id, transitions, opts) do
     case project_standing(transitions) do
       {:ok, projected_standings} ->
         work_orders
         |> Enum.map(&with_projected_standing(strings(&1), projected_standings))
-        |> frontier(evidence_by_id)
+        |> frontier(evidence_by_id, nil, opts)
 
       {:error, {:refused_standing_projection, _reason}} ->
         %{eligible: [], blocked: [%{"reason" => "malformed_transition_log"}]}
     end
+  end
+
+  defp index_unavailable(raw, {:authority_index_unavailable, _path, detail}) do
+    identity = if is_map(raw), do: strings(raw)["identity"]
+
+    %{
+      "identity" => identity,
+      "reason" => "authority_index_unavailable",
+      "refusal" => ["authority_index_unavailable", inspect(detail)]
+    }
   end
 
   defp with_projected_standing(work_order, projected_standings) do
@@ -237,7 +281,7 @@ defmodule GgenIgniter.SemanticJira do
     end
   end
 
-  defp frontier_one(raw, acc, evidence_by_id) do
+  defp frontier_one(raw, acc, evidence_by_id, index) do
     case admit_work_order(raw) do
       {:error, reason} ->
         block(acc, %{"reason" => inspect(reason)})
@@ -249,7 +293,28 @@ defmodule GgenIgniter.SemanticJira do
         })
 
       {:ok, work_order} ->
-        frontier_admitted(work_order, acc, evidence_by_id)
+        frontier_origin(work_order, acc, evidence_by_id, index)
+    end
+  end
+
+  # AC-04: syntactic admission (a present IRI) is not origin admission; the
+  # origin must RESOLVE in the authority index before dependencies are read.
+  defp frontier_origin(work_order, acc, evidence_by_id, index) do
+    origin = work_order["origin_authority"]
+
+    case Authority.resolve(index, origin) do
+      {:ok, digest} ->
+        work_order
+        |> Map.put("origin_admission_digest", digest)
+        |> frontier_admitted(acc, evidence_by_id)
+
+      {:error, {:refused_origin, {tag, iri}}} ->
+        block(acc, %{
+          "identity" => work_order["identity"],
+          "reason" => "origin_not_admitted",
+          "origin_authority" => origin,
+          "refusal" => [Atom.to_string(tag), iri]
+        })
     end
   end
 
@@ -267,7 +332,7 @@ defmodule GgenIgniter.SemanticJira do
     candidate =
       work_order
       |> Map.take(
-        ~w(identity title subject repository base_sha candidate_sha path_scope work_order_digest definition_digest)
+        ~w(identity title subject repository base_sha candidate_sha path_scope work_order_digest definition_digest origin_authority origin_admission_digest)
       )
       |> Map.put("authority", "NONE")
 
@@ -282,10 +347,13 @@ defmodule GgenIgniter.SemanticJira do
     })
   end
 
-  @doc "Adds active-lease conflict fencing to frontier selection."
-  @spec schedule([map()], [map()], map()) :: %{eligible: [map()], blocked: [map()]}
-  def schedule(work_orders, active_leases, evidence_by_id \\ %{}) do
-    selected = frontier(work_orders, evidence_by_id)
+  @doc """
+  Adds active-lease conflict fencing to frontier selection. `opts[:authority]`
+  is the origin-authority index (see `frontier/4`).
+  """
+  @spec schedule([map()], [map()], map(), keyword()) :: %{eligible: [map()], blocked: [map()]}
+  def schedule(work_orders, active_leases, evidence_by_id \\ %{}, opts \\ []) do
+    selected = frontier(work_orders, evidence_by_id, nil, opts)
 
     {ready, collisions} =
       Enum.split_with(selected.eligible, fn candidate ->
@@ -1261,6 +1329,24 @@ defmodule GgenIgniter.SemanticJira do
 
   defp optional_sha(_, nil), do: :ok
   defp optional_sha(field, value), do: sha(field, value)
+
+  defp origin_authority(value) when is_binary(value) do
+    if Regex.match?(@iri, value),
+      do: :ok,
+      else: {:error, {:invalid_origin_authority, value}}
+  end
+
+  defp origin_authority(value), do: {:error, {:invalid_origin_authority, value}}
+
+  defp optional_origin_observation(nil), do: :ok
+
+  defp optional_origin_observation(value) when is_binary(value) do
+    if Regex.match?(@iri, value),
+      do: :ok,
+      else: {:error, {:invalid_origin_observation, value}}
+  end
+
+  defp optional_origin_observation(value), do: {:error, {:invalid_origin_observation, value}}
 
   defp standing(value) when value in @standings, do: :ok
 

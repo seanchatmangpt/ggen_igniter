@@ -11,7 +11,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Receipts do
   exits, the standing pattern, `broken_term` required for
   BLOCKED/BUILD_BROKEN/REFUSED -- plus the validator's semantic rule that an
   ALIVE receipt has no non-zero replay exit (`admission_vacuous`). The
-  schema file itself lives under `~/.claude`, which the bootstrap may not
+  schema file itself lives under `~/.zcode/dfcm`, which the bootstrap may not
   read (ARD section 16), so its law is restated here.
 
   Linking mirrors `mix xaas.stop_court`: a receipt is linked to work order

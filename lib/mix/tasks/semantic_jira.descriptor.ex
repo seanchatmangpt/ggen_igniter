@@ -7,7 +7,7 @@ defmodule Mix.Tasks.SemanticJira.Descriptor do
 
       mix semantic_jira.descriptor --work-orders PATH --ledger PATH --identity ID \\
         --alias owner/repo=alias --verifier-suite NAME [--provider NAME] \\
-        [--court-map PATH] [--out PATH]
+        [--court-map PATH] [--authority-graph PATH] [--out PATH]
 
   `--alias` (repeatable) maps a WorkOrder's `repository` to the XaaS
   `execution_repo_alias`; `--verifier-suite` names the registered XaaS suite.
@@ -16,7 +16,10 @@ defmodule Mix.Tasks.SemanticJira.Descriptor do
   as `zcode` is bound only when passed explicitly, e.g. `--provider zcode`).
   `--court-map` is the minted court map JSON (`mix semantic_jira.court_map`)
   binding the work order's acceptance/falsifier IRIs to witnessing tests; the
-  fabric uses it at close time to witness IRI-keyed verdicts. Nothing is
+  fabric uses it at close time to witness IRI-keyed verdicts.
+  `--authority-graph` is the Turtle origin-authority graph (default: the
+  canonical semantic-jira-pack ontology); an identity whose origin does not
+  resolve is refused `not_eligible ... origin_not_admitted`. Nothing is
   defaulted except `--provider`. The JSON object printed on stdout is the
   descriptor plus a `"bridge"` key that XaaS must echo back in its receipt.
 
@@ -40,6 +43,7 @@ defmodule Mix.Tasks.SemanticJira.Descriptor do
           verifier_suite: :string,
           provider: :string,
           court_map: :string,
+          authority_graph: :string,
           out: :string
         ]
       )

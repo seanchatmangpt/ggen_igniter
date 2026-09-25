@@ -4,7 +4,7 @@ defmodule GgenIgniter.ActuatePropertiesTest do
   decision table, using real StreamData-generated file content against a REAL
   temp directory and REAL `File` reads/writes -- Chicago-style, no mocking of
   the filesystem, per this project's testing convention
-  (`~/.claude/rules/testing-chicago-style.md`).
+  (`~/.zcode/rules/testing-chicago-style.md`).
 
   Decision order under test (first match wins), copied from
   `GgenIgniter.Actuate.write_file!/3`'s own moduledoc:

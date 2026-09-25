@@ -1,7 +1,7 @@
 # `mix ggen_igniter.doctor`
 
 Source: `lib/mix/tasks/ggen_igniter.doctor.ex` (`Mix.Tasks.GgenIgniter.Doctor`).
-Status: **IMPLEMENTED** — every flag and every one of the 18 checks below is
+Status: **IMPLEMENTED** — every flag and every one of the 19 checks below is
 verified against that module's `info/2` schema (lines 84–93) and the
 `igniter/1` implementation.
 
@@ -24,11 +24,11 @@ own `--check` halt mechanism) if and only if any check comes back `:error`.
 | `--fix` | boolean | `false` | Applies real, safely-recognized fixes for checks #4–#7 and #17 directly to the current project (`File.cwd!()`) instead of only reporting them. |
 | `--strict` | boolean | `false` | Treats `:warn`-level findings as failures too (exit `1`), not just `:error`. Each strict-mode-only failure line is suffixed `[STRICT]` in human output (`"strict_failure": true` in `--json` output). |
 
-## The 18 checks
+## The 19 checks
 
 Checks always run unless noted. Checks 9–12 run **only** with
 `--pack`/`--pack-dir`. Check 8 runs only with `--engine qlever`. Check 16
-runs only with `--hex-check`. Checks 4–7, 13–15, 17, and 18 always run.
+runs only with `--hex-check`. Checks 4–7, 13–15, 17, 18, and 19 always run.
 
 1. **Elixir/OTP version** — `System.version()` satisfies `~> 1.17` and
    `:erlang.system_info(:otp_release)` is `>= 25` (this project's own
@@ -123,6 +123,12 @@ runs only with `--hex-check`. Checks 4–7, 13–15, 17, and 18 always run.
     one). Never `:error`: a held lock, stale or not, is advisory
     information about another invocation, not a defect in the current
     project.
+19. **`semantic_jira_pack`** (`GgenIgniter.SemanticJira.PackHealth`, added
+    2026-09-19) — always-run pack health check: loads the shipped
+    `semantic-jira-pack` ontology, executes every gate query through the
+    real engine path, and renders templates against first/last driver rows.
+    Fail-closed; appears in `--json` output as
+    `checks[].check_id == "semantic_jira_pack"`.
 
 ## `--fix`
 

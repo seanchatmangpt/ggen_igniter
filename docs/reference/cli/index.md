@@ -1,6 +1,9 @@
 # CLI Reference
 
-`ggen_igniter` ships two Igniter Mix tasks, both defined under `lib/mix/tasks/`:
+`ggen_igniter` ships its Mix tasks under `lib/mix/tasks/`. The two core
+tasks plus the full task inventory:
+
+**Core tasks**
 
 - **`mix ggen_igniter.sync`** — the generator. Loads an RDF/Turtle ontology, runs
   one or more named SPARQL queries against it, renders an EEx template with the
@@ -11,7 +14,48 @@
   native NIF build freshness, pack shape, etc.) and can auto-`--fix` a subset
   of them. See `docs/reference/cli/doctor.md`.
 
-Both tasks are real `Igniter.Mix.Task` modules (`use Igniter.Mix.Task`), so they
+**Other shipped tasks** (each is a real `Mix.Task` with a `@shortdoc`; flags
+live in each module's `schema:`/moduledoc)
+
+- `mix ggen_igniter.plan` — plan-only counterpart of `sync`.
+- `mix ggen_igniter.verify` — fails a pack CLOSED: inverted verify queries
+  plus per-gate cardinality contracts.
+- `mix ggen_igniter.hand_authored` — hand-authored-ledger accounting
+  (documented in CHANGELOG v26.9.18).
+- `mix ggen_igniter.rename --from --to [--arity] [--deprecate soft|hard]`.
+- `mix ggen_igniter.replay` — replays a receipt and reports real drift.
+- `mix ggen_igniter.pack.fetch` — marketplace pack fetch
+  (`github:`/`hex:` specs).
+- `mix ggen_igniter.ocel.seal` — seals an OCEL v2 manufacturing log with the
+  run's observed outcome (post-seal it builds an EDS Claim and runs 3 real
+  falsifiers over the re-read log).
+- `mix ggen_igniter.fortune5_ready`, `mix ggen_igniter.frontier_release_plan`
+  (read-only preview), `mix ggen_igniter.install`.
+- **Semantic Jira suite** — `mix semantic_jira.observe --finding
+  --base-work-order --origin-authority IRI [--origin-observation IRI]
+  [--repair|--identity|--out]` — `--origin-authority` is REQUIRED (INVARIANT
+  A): a missing flag is the typed refusal `{:missing_origin_authority, _}`
+  and an unadmitted origin is `{:origin_not_admitted, _}` — both exit 1, not
+  invalid invocation; `...court_map --ontology
+  --identity [--out]`, `...descriptor --work-orders --ledger --identity
+  --alias --verifier-suite [--provider|--court-map|--authority-graph|--out]`,
+  `...frontier --work-orders --ledger [--authority-graph]`, `...reconcile
+  --work-orders --ledger --receipt [--authority-graph]` — `--authority-graph
+  PATH` (Turtle) is the origin-authority graph an order's `origin_authority`
+  must resolve in (typed objective/checkpoint, not prose, one recomputing
+  `sj:admissionDigest`; default the canonical semantic-jira-pack ontology);
+  an unresolved origin is blocked `origin_not_admitted` (SJ-002 AC-04), an
+  unreadable file is exit 2 and an unparseable one exit 1;
+  `...xaas_receipt --bridge --xaas-receipt [--out]`, `...bootstrap --fleet
+  --goal [--graphs|--receipts-dir|--ledger|--registry|--checkout|--out|--pack-dir]`,
+  `...observe_prose --source --candidates --goal
+  [--out-dir|--check|--pack-dir|--admit-goal|--context]` — observation only:
+  admits prose propositions (`sj:candidateStanding` "UNKNOWN",
+  `sj:authorityClaim` "NONE") and writes zero WorkOrders; the former
+  compile_prose delta manufacture (and its `--receipts-dir`) is removed by
+  the origin-authority law (ADR-012).
+
+Both core tasks are real `Igniter.Mix.Task` modules (`use Igniter.Mix.Task`), so they
 compose with other Igniter tasks and honor Igniter's own `--dry-run`-adjacent
 conventions where applicable; `sync`'s own `--dry-run` flag (documented in
 `sync.md`) is this project's own guarded-write preview, not Igniter's.
@@ -20,10 +64,15 @@ conventions where applicable; `sync`'s own `--dry-run` flag (documented in
 
 Everything in this `docs/reference/cli/` tree is **IMPLEMENTED** — verified
 directly against the real moduledocs and schemas in
-`lib/mix/tasks/ggen_igniter.sync.ex` and `lib/mix/tasks/ggen_igniter.doctor.ex`
-on 2026-08-27 (repo version `26.8.27`, per `mix.exs` and `CHANGELOG.md`'s
-topmost `## v26.8.27` heading). No flag described here is planned-but-unshipped;
-conversely, every real flag in both tasks' `schema:` is covered.
+`lib/mix/tasks/ggen_igniter.sync.ex` and `lib/mix/tasks/ggen_igniter.doctor.ex`.
+The flag tables for the two core tasks were last fully re-verified on
+2026-08-27 (repo version `26.8.27`); since then `sync` gained
+`--verify-base-sha` (documented in `sync.md`'s flag table) and `doctor`
+gained check 19 `semantic_jira_pack` (documented in `doctor.md`). The
+Semantic Jira suite entry was re-verified against
+`lib/mix/tasks/semantic_jira.observe_prose.ex` on 2026-09-24 (repo version
+`26.9.24`), when `compile_prose` became the observation-only `observe_prose`
+(ADR-012).
 
 ## Related references
 

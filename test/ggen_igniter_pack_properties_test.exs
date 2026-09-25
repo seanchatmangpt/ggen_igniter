@@ -4,7 +4,7 @@ defmodule GgenIgniter.PackPropertiesTest do
   `GgenIgniter.Pack`'s pure file-discovery helpers, exercised against REAL
   temp directories and REAL files on disk -- Chicago-style, no faking of the
   filesystem, per this project's testing convention
-  (`~/.claude/rules/testing-chicago-style.md`), mirroring the existing
+  (`~/.zcode/rules/testing-chicago-style.md`), mirroring the existing
   `test/ggen_igniter_actuate_properties_test.exs` and
   `test/ggen_igniter_frontmatter_properties_test.exs` conventions.
 

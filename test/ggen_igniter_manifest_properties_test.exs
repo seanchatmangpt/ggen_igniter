@@ -7,7 +7,7 @@ defmodule GgenIgniterManifestPropertiesTest do
   assertion is on the real returned value. No test doubles are used anywhere
   in this file (nothing here is a collaborator to fake in the first place --
   every function under test is pure), fully compatible with this repo's
-  Chicago-testing rule (`~/.claude/rules/testing-chicago-style.md`,
+  Chicago-testing rule (`~/.zcode/rules/testing-chicago-style.md`,
   `test/CLAUDE.md`).
   """
 

@@ -5,6 +5,7 @@
   "orders": [
    {
     "id": "GGEN_IGNITER-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Sync refs: fetch the 6 missing heads and fast-forward local main",
     "acceptance": "`cd /Users/sac/ggen_igniter && git fetch origin && git fetch origin main:main && git merge-base --is-ancestor origin/main main && for s in f283790 e20c552 3edd2ec 775d0f3 8032dab 186c74c; do git cat-file -e $s^{commit} || echo MISSING $s; done` prints nothing",
     "deps": [],
@@ -12,6 +13,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Clear the credo gate (6 refactoring findings in lib/mix/tasks/ggen_igniter.hand_authored.ex) and the new #20 gate (compile --warnings-as-errors)",
     "acceptance": "`cd /Users/sac/ggen_igniter && mix credo && mix compile --warnings-as-errors` exit 0",
     "deps": [],
@@ -19,6 +21,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Restore content dropped by the six ours-strategy merges (38596ce, 1b586f9, 8fc6ce6, 4ffa201, 76279a9, 070dbd5) according to the chosen canonical lineage, by cherry-picking each discarded range and resolving by hand, then merge 3edd2ec/e20c552/8032dab/186c74c",
     "acceptance": "`cd /Users/sac/ggen_igniter && for s in 3edd2ec e20c552 8032dab 186c74c; do git merge-base --is-ancestor $s HEAD || echo MISSING $s; done; test -f lib/ggen_igniter/crown.ex || test -f docs/supersession/crown.md; [ $(grep -c oslc_cm priv/ggen/semantic-jira-pack/ontology.ttl) -gt 0 ] || test -f docs/supersession/adr-011.md; mix test` gives 0 failures and no MISSING lines",
     "deps": [
@@ -31,6 +34,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge the 7 local errc/* branches serially (sj-vocab-reduction only if chosen over 188d3d1; transition-store adds optional postgrex) and fold their stream notes into docs/status.md",
     "acceptance": "`cd /Users/sac/ggen_igniter && for b in errc/xaas-bridge-log-integrity errc/prov-o-events errc/transition-store errc/full-shacl-crown errc/brce-receipt-emitter errc/external-do-capability; do git merge-base --is-ancestor $b HEAD || echo MISSING $b; done && mix test` prints nothing and 0 failures",
     "deps": [
@@ -40,6 +44,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Fix PR #25's CompileError (`defp binding` conflicts with Kernel.binding/0 at test/ggen_igniter_semantic_jira_observation_delta_test.exs:8) and land the observation-delta work that marketplace #477 and ggen-ecosystem #350 consume",
     "acceptance": "`mix test test/ggen_igniter_semantic_jira_observation_delta_test.exs test/ggen_igniter_semantic_jira_meeting_delta_test.exs` 0 failures and `gh pr checks 25 -R seanchatmangpt/ggen_igniter` shows no fail",
     "deps": [
@@ -49,6 +54,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Graph-side execution surface: put mix semantic_jira.{frontier,descriptor,reconcile,xaas_receipt,observe} back on top of Reconciler.reconcile/4 + a file-backed TransitionLog, so xaas has a non-test caller",
     "acceptance": "`rg -n 'Reconciler.reconcile' lib/mix | wc -l` is at least 1, and `mix test test/ggen_igniter_semantic_jira_reconcile_task_test.exs` passes. That test runs the task twice on the same receipt (first appended, second already_recorded) and checks the dependent WorkOrder appears in the emitted descriptors",
     "deps": [
@@ -59,6 +65,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Frontier over events: make gates/050_frontier.rq or the frontier path read the TransitionLog projection instead of the static sj:standing \"UNKNOWN\", so a reconciled order leaves the frontier and unlocks its dependents",
     "acceptance": "a new test in which reconciling ALIVE for WO-A removes WO-A and adds dependent WO-B to `mix semantic_jira.frontier` output, 0 failures",
     "deps": [
@@ -68,6 +75,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Add a TTL-to-work-order loader and make descriptors a sync projection, closing the UNSUPPORTED(generator-capability) rows in /Users/sac/dev/zcode-cli/docs/sjira/v26.9.21/HANDWRITTEN.md",
     "acceptance": "sync the descriptor projection twice over zcode work-orders.ttl into a scratch dir; output is byte-identical both times and equals Descriptor.build/4 for ZOCEL-001 (snapshot_digest reproduces)",
     "deps": [
@@ -77,6 +85,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Record git HEAD in GgenIgniter.Receipt metadata",
     "acceptance": "`mix test test/ggen_igniter_receipt_test.exs` passes, and after a sync `tail -1 .ggen_igniter/receipts/$(date +%F).jsonl | jq -r .metadata.git_head` equals `git rev-parse HEAD`",
     "deps": [],
@@ -84,6 +93,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-10",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Open an integration PR feat/zcode-ocel-pack -> main and get it green, including #20's Chicago-boundary step",
     "acceptance": "`gh pr checks <n> -R seanchatmangpt/ggen_igniter` all pass",
     "deps": [
@@ -96,6 +106,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-11",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Flip the ash_a2a external_do row: bump the ash_a2a lock from 26.9.17 to 26.9.22 after ASH_A2A-26922-08 ships, and land errc/external-do-capability",
     "acceptance": "`mix test test/ggen_igniter_semantic_a2a_manufacture_test.exs && ! grep -n 'UNSUPPORTED(generator-capability): ash_a2a.install' priv/ggen/semantic-jira-pack/ontology.ttl`",
     "deps": [
@@ -106,6 +117,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-12",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "PR cleanup: close #21 with a supersession note (its content is absent even though its head is an ancestor via 4ffa201), and land or close #16/#18/#19/#22/#23/#26",
     "acceptance": "`gh pr list -R seanchatmangpt/ggen_igniter --state open --json number -q length` is at most 1",
     "deps": [
@@ -115,6 +127,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-13",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Release v26.9.22: mix.exs 26.9.20 -> 26.9.22, CHANGELOG top heading, tag, hex publish (hex currently tops out at 26.9.15)",
     "acceptance": "`mix ggen_igniter.doctor` exit 0 (check 17); `git ls-remote --tags origin v26.9.22 | wc -l` = 1; `curl -s https://hex.pm/api/packages/ggen_igniter | jq -r '.releases[0].version'` = 26.9.22",
     "deps": [
@@ -126,6 +139,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-14",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Commit the day graph and generate docs/jira/v26.9.22, running once per calver-ticket-day-pack template (`--pack calver-ticket-day-pack:ticket|runbook|runlog --out ...`)",
     "acceptance": "run twice, then `git diff --exit-code docs/jira/v26.9.22` exit 0, and the receipt's metadata.graph_hash equals \"sha256:\" plus sha256(day.ttl)",
     "deps": [
@@ -135,6 +149,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-15",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Fleet observation: mix semantic_jira.observe --fleet emits obs.ttl (PROV-O activities; per repo refs, ls-remote delta, dirty worktrees, stashes, open PRs + checks, CI conclusion at default SHA), every observation bound to the observed SHA",
     "acceptance": "cd /Users/sac/ggen_igniter && mix test test/ggen_igniter_semantic_jira_fleet_observe_test.exs (real git repos built in tmp with known state: unpushed commit, ff-able remote, dirty worktree, stash; two runs byte-identical modulo the prov:endedAtTime triple) && mix semantic_jira.observe --fleet /Users/sac/wt/v26922/fleet.ttl --out /tmp/obs.ttl && test $(grep -c \"sj:observedRepository\" /tmp/obs.ttl) -ge 15",
     "deps": [
@@ -144,6 +159,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-16",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Rule-derived work orders: SPARQL CONSTRUCT rules (gates/1xx_derive_*.rq) turn observations into sj:WorkOrder for the mechanical classes (unpushed->push, ff-able->ff, green PR->merge, red default CI->repair, version!=cycle->bump+tag, dirty worktree/stash->preserve, path-pinned dep->repin, merge that dropped a capability->restore)",
     "acceptance": "mix test test/ggen_igniter_semantic_jira_derive_test.exs (each rule: observation present -> order derived and admitted; observation removed -> order absent) && mix semantic_jira.derive /tmp/obs.ttl --out /tmp/derived.ttl reports per-class recall against /Users/sac/wt/v26922/order-classes.json mechanical classes, every derived order ADMITTED by GgenIgniter.SemanticJira",
     "deps": [
@@ -153,6 +169,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-17",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Standing is derived, not stored: standing(wo) computed from TransitionLog receipts bound to a subject SHA and invalidated when a later commit touches the order path_scope; frontier reads derived standing",
     "acceptance": "mix test test/ggen_igniter_semantic_jira_standing_decay_test.exs (real git repo: reconcile ALIVE at SHA A -> order leaves frontier; commit touching path_scope -> standing UNKNOWN and order re-enters frontier; commit outside path_scope -> stays ALIVE; dependents unlock only while ALIVE holds)",
     "deps": [
@@ -163,6 +180,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-18",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Capability conservation court: mix semantic_jira.conserve BASE HEAD refuses any transition where declared+witnessed capabilities C(HEAD) is not a superset of C(BASE) without an sj:Retirement receipt; wired as a pre-merge CI job",
     "acceptance": "mix test test/ggen_igniter_semantic_jira_conservation_test.exs, whose falsifier replays the historical ours-merge 76279a9 (parent pair from git) and must REFUSE naming lib/mix/tasks/semantic_jira.*.ex capabilities, and replays an ordinary merge that must ADMIT; .github/workflows contains a conserve job",
     "deps": [
@@ -173,6 +191,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-19",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "One-kernel probe: differential admission of the v26.9.22 work graph through GgenIgniter.SemanticJira.Shacl and praxis_graphlaw.wasm (as ash_a2a loads it via wasmex); agreement matrix incl. mutation cases",
     "acceptance": "mix test test/ggen_igniter_semantic_jira_kernel_differential_test.exs produces receipts/v26.9.22/kernel-differential.json with per-order and per-mutation verdicts from both kernels; any disagreement is a typed diff, not a failure to run; standing UNKNOWN->PARTIAL_ALIVE only if both kernels execute",
     "deps": [
@@ -182,6 +201,7 @@
    },
    {
     "id": "GGEN_IGNITER-26922-21",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "C11 proof-carrying decisions: every admission emits an in-toto Statement v1 (subject = work order digest + subject SHA; predicateType https://chatmangpt.com/sj/admission/v1 carrying courts, falsifiers, authority, standing) next to the receipt; offline verifier replays it",
     "acceptance": "mix test test/ggen_igniter_semantic_jira_attestation_test.exs: statement validates against the in-toto Statement v1 JSON schema (vendored), replay recomputes identical subject digests, a tampered predicate is refused",
     "deps": [
@@ -197,6 +217,7 @@
   "orders": [
    {
     "id": "XAAS-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Preserve work that is on no ref by committing each dirty worktree on its own branch: auto/t3-sa2a-execute (20, the SA2A executor), auto/t6-ash-atlassian (4, the ARD court), auto/t4-dod-trust (17), errc/sj001-guard (10), errc/zcode-package-verify (10)",
     "acceptance": "`for w in auto/t3-sa2a-execute auto/t6-ash-atlassian auto/t4-dod-trust errc/sj001-guard errc/zcode-package-verify; do git -C /Users/sac/xaas/worktrees/$w status --porcelain | wc -l; done` prints 0 for each",
     "deps": [],
@@ -204,6 +225,7 @@
    },
    {
     "id": "XAAS-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Verify and push main 2d229c2 (the ERRC wave plus 20 earlier commits; the commit message's 1462/0 claim has no receipt), then restart phx.server PID 34803 on the committed code with autofde on PATH",
     "acceptance": "`cd /Users/sac/xaas && test -z \"$(git status --porcelain)\" && mix format --check-formatted && MIX_ENV=test mix compile --force --warnings-as-errors && mix test && git rev-list --left-right --count origin/main...main` ends in `0\t0`",
     "deps": [],
@@ -214,6 +236,7 @@
    },
    {
     "id": "XAAS-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge PR #60, reconciling the computation.ex fallback (local d169530/439be8a vs `:deterministic_must_be_boolean`) and semantics_computation_test.exs:34; then clear the 19 dialyzer errors",
     "acceptance": "`git merge-base --is-ancestor 602dac5 main && mix test test/xaas/semantics_computation_test.exs test/xaas/semantics/registry_test.exs && MIX_ENV=dev mix dialyzer` exit 0",
     "deps": [
@@ -223,6 +246,7 @@
    },
    {
     "id": "XAAS-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Rerun and merge #59, and merge #61 after renumbering the SJ-010 collision (PR #61 WD-CS2 vs sj-007's 010-atlassian-public-vocab-pin.md and sa2a-admit-SJ-010.json)",
     "acceptance": "`gh pr checks 59 -R seanchatmangpt/xaas` and `gh pr checks 61 -R seanchatmangpt/xaas` show no fail; `rg -l '\"identity\": \"SJ-010\"' docs/sjira | wc -l` is at most 1",
     "deps": [
@@ -232,6 +256,7 @@
    },
    {
     "id": "XAAS-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge docs/v26.9.21-sjira-wip 70761b1 (work-orders.ttl XAAS-SJIRA-2621-001..003) and feat/v26.9.21-zoe-private-meeting-inference 495236d, resolving the README add/add by hand; recheck 2621-003's BUILD_BROKEN since bddfc43 is merged",
     "acceptance": "`git merge-base --is-ancestor 70761b1 main && git merge-base --is-ancestor 495236d main && test -f docs/sjira/v26.9.21/work-orders.ttl && mix test test/xaas/zoe test/xaas_web/a2a`",
     "deps": [
@@ -241,6 +266,7 @@
    },
    {
     "id": "XAAS-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "SJ-001: merge errc2/sj001-guard (the superset code), then sjira/sj-001 doc e70da11",
     "acceptance": "`git merge-base --is-ancestor e514980 main && mix test --trace test/xaas/ultracode/semantic_work_test.exs test/xaas/ultracode/semantic_work_falsifier_test.exs test/xaas/ultracode/semantic_jira_e2e_test.exs 2>&1 | tail -3` shows 0 failures and 0 skipped (the e2e test needs the ~/ggen_igniter checkout)",
     "deps": [
@@ -251,6 +277,7 @@
    },
    {
     "id": "XAAS-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Treat standing as a generator input: make generate.py read standing for every order (extending errc2/sj004-registry's standing/*.json) and take a configurable OUT, then merge errc2/sj004-registry, sjira/sj-004 doc, sj-005, sj-009, sj-002 (add/add) and sj-003",
     "acceptance": "`mix test test/xaas/sjira_orders_generation_test.exs && OUT=$PWD/docs/sjira/v26.9.21 WO_JSON=/dev/null python3 docs/sjira/v26.9.21/generate.py && test -z \"$(git status --porcelain docs/sjira/v26.9.21)\" && jq -e '[.[]|select(.id==\"SJ-005\")][0].standing==\"ALIVE\"' docs/sjira/v26.9.21/index.json`",
     "deps": [
@@ -260,6 +287,7 @@
    },
    {
     "id": "XAAS-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "SJ-007/ash_atlassian: commit the t6 ARD court, reconcile sjira/sj-007 on the sj-007 line (current ARD, AshAi packs in the REUSE table, a standing that SemanticJira.promote admits), and run the court with --receipt, recording the ash_atlassian SHA",
     "acceptance": "`MIX_TEST_PARTITION=t6 mix test test/xaas/sjira && mix xaas.sjira.ard_court docs/sjira/v26.9.21/ash-atlassian-ard.md --receipt docs/sjira/v26.9.21/receipts/SJ-007-ard-court.json` exit 0 (ACCEPTED) and the receipt exists",
     "deps": [
@@ -270,6 +298,7 @@
    },
    {
     "id": "XAAS-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Cross-repo standing write-back for SJ-006 (autofde-lab) and SJ-008 (gymact) through receipts that bind each target repo's merged SHA, following the dependency protocol (SJ-001 and SJ-002 first)",
     "acceptance": "each receipts/SJ-00{6,8}-*.json names a commit that is an ancestor of `git -C ~/autofde-lab rev-parse origin/master` and `git -C ~/gymact rev-parse origin/main` respectively, and index.json standing matches that receipt",
     "deps": [
@@ -281,6 +310,7 @@
    },
    {
     "id": "XAAS-26922-10",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Integrate errc2/zcode-package (plus the committed zcode-package-verify WIP) and auto/t1-register-merge, reconciling repos.ex with main's ba76798 and the `refresh` keys in ultracode-repos.json",
     "acceptance": "`git merge-base --is-ancestor 6a4edb1 main && git merge-base --is-ancestor 7b7055e main && mix test test/xaas/ultracode/provider_health_test.exs test/xaas/ultracode/zcode_package_test.exs test/xaas/ultracode/repos_refresh_test.exs test/xaas/ultracode/sj_program_registry_test.exs`",
     "deps": [
@@ -291,6 +321,7 @@
    },
    {
     "id": "XAAS-26922-11",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge errc/semantic-jira-bridge with a durable ggen_igniter dependency (hex 26.9.22 or a pushed git ref), move SemanticCrown off the deleted mix semantic_jira.* calls, and point semantic_crown_test.exs:30 at a real checkout",
     "acceptance": "`! rg -n 'ggen_igniter.*path:' mix.exs && mix deps.get --check-locked && mix test test/xaas/ultracode/semantic_jira_bridge_test.exs test/xaas/ultracode/semantic_jira_bridge_crown_test.exs test/xaas/ultracode/semantic_jira_bridge_falsifier_test.exs test/xaas/ultracode/semantic_crown_test.exs` with 0 failures and 0 skipped",
     "deps": [
@@ -301,6 +332,7 @@
    },
    {
     "id": "XAAS-26922-12",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Scheduled frontier feeder: an AshOban action on Run that goes SemanticJiraBridge.frontier/2 -> descriptor/4 -> SemanticWork.materialize/2 and reconciles receipts into the TransitionLog; either route the committed xaas-sjira sensing fallback (ba76798/2d229c2) through admission and dependencies, or remove it",
     "acceptance": "`mix test test/xaas/ultracode/semantic_frontier_schedule_test.exs`: one cron fire materializes exactly one epoch from one admitted order, and a second fire with no new receipt materializes none",
     "deps": [
@@ -311,6 +343,7 @@
    },
    {
     "id": "XAAS-26922-13",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Bump the ash_a2a lock from 26.9.12 to 26.9.22 (WorkEnvelope-conserved lease identity; ash/mint advisories)",
     "acceptance": "`mix deps.get && mix test test/xaas/sa2a test/xaas/ultracode` 0 failures and `grep -c '\"ash_a2a\"' mix.lock` shows 26.9.22",
     "deps": [
@@ -320,6 +353,7 @@
    },
    {
     "id": "XAAS-26922-14",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "SA2A in the loop (if the user keeps SA2A in the loop): commit the t3 executor, add a fail-closed Bridge.plan/admit gate before materialize, and make _sa2a_admit able to refuse",
     "acceptance": "`PATH=$HOME/autofde-lab/.venv/bin:$PATH mix test test/xaas/sa2a test/xaas/ultracode/semantic_work_test.exs` 0 failures and `rg -n 'Sa2a' lib/xaas/ultracode | wc -l` is at least 1",
     "deps": [
@@ -333,6 +367,7 @@
    },
    {
     "id": "XAAS-26922-15",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Land-back hop: stop re-sensing already-integrated APS items (32 unlanded aps-autonomic-* branches) and add an authority-gated promote-to-default edge, or an explicit human gate",
     "acceptance": "a test showing a wave re-senses no item already on an aps-autonomic-* integration branch, and `git -C worktrees/repos/aps branch --list 'aps-autonomic-*' --no-merged main | wc -l` does not grow across one wave",
     "deps": [],
@@ -342,6 +377,7 @@
    },
    {
     "id": "XAAS-26922-16",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Durable unattended trigger: install a launchd agent for the server or dispatcher (pattern in scripts/install-glm-failover-launchd.sh), reset or re-scope the DurationBudget, and fix or disable claude-daily-drain.yml",
     "acceptance": "`launchctl list | grep -c dev.xaas` is at least 1, and after one :semantic_wave the newest worktrees/tickets/budget-receipt-*.json has within_budget=true and epochs.completed >= 1",
     "deps": [
@@ -353,6 +389,7 @@
    },
    {
     "id": "XAAS-26922-17",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "docs/sjira/v26.9.22 as the multi-repo graph host: a TTL work-orders.ttl in sj: vocabulary with orders for xaas, autofde-lab, gymact, ash_atlassian, beam4pm, ash_surface, ferroplan, gitvan, ggen and ggen-marketplace (owner/name repository slugs), projected by semantic-jira-pack and admitted by GgenIgniter.SemanticJira, with standings from the TransitionLog and not from literals",
     "acceptance": "from ~/ggen_igniter, `WO=/Users/sac/xaas/docs/sjira/v26.9.22/wo.json mix run /Users/sac/xaas/docs/sjira/v26.9.22/admit.exs | grep -c '^REFUSED'` prints 0, and the ADMITTED line count equals `jq length /Users/sac/xaas/docs/sjira/v26.9.22/index.json`",
     "deps": [
@@ -363,6 +400,7 @@
    },
    {
     "id": "XAAS-26922-18",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Release v26.9.22 plus hygiene: VERSION 26.9.17 -> 26.9.22, the full gate, the first v26.9.x tag, retire backup/errc-semantic-jira-bridge and the merged worktrees",
     "acceptance": "`[ \"$(cat VERSION)\" = 26.9.22 ] && mix deps.get --check-locked && mix format --check-formatted && mix compile --force --warnings-as-errors && mix test && MIX_ENV=dev mix dialyzer && mix deps.unlock --check-unused && npx --yes @asyncapi/cli@6.0.2 validate priv/static/asyncapi.yaml && git ls-remote --tags origin v26.9.22 | grep -q .`",
     "deps": [
@@ -376,6 +414,7 @@
    },
    {
     "id": "XAAS-26922-19",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Autonomy criterion + event clock: W(t) = unmerged candidate refs across the registered fleet (local-only commits, open PRs, unlanded integration branches) computed from obs.ttl each cycle; the loop is triggered by ref-change events (reference-transaction hook / launchd WatchPaths on fleet refs, polling fallback for GitHub) instead of cron+DurationBudget",
     "acceptance": "a commit in a registered fleet repo produces one observe->derive->admit->frontier cycle receipt within 120s with no manual step (mix test test/xaas/ultracode/event_clock_test.exs over a real tmp repo), and priv/telemetry W(t) series gains a point per cycle; falsifier: a 24h unattended window in which W(t) is non-increasing",
     "deps": [
@@ -388,6 +427,7 @@
    },
    {
     "id": "XAAS-26922-20",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Lawful auto-admission (BRCE merge edge = decision 1 codified): merge iff exact-head court PASS and conservation ADMIT and CI success at the exact SHA and authorityCeiling permits; each conjunct has a witnessed typed refusal (anti-vacuity)",
     "acceptance": "mix test test/xaas/ultracode/auto_admission_test.exs: 4 refusal cases (court FAIL, conservation REFUSE, CI not success at SHA, ceiling) each typed, 1 admit case performs a real local --no-ff merge in a tmp repo and writes a receipt",
     "deps": [
@@ -398,6 +438,7 @@
    },
    {
     "id": "XAAS-26922-21",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "C02 factory learns its own yield (+C10 retirement curve): mix xaas.sjira.yield mines outcome rates per (class, repo, stage) from the v26.9.22 OCEL log (/Users/sac/wt/v26922/ocel/v26922.ocel.json, projected from workflow journals) and feeds sa2a_loop plan; no literal historical_yield table remains; also emits machinery-vs-LLM hop share",
     "acceptance": "mix test test/xaas/sjira/yield_test.exs (real OCEL fixture: flipping one outcome changes the ranking) && ! rg -n '\"UNSUPPORTED\" => 0.9' docs/sjira/v26.9.22/ && mix xaas.sjira.yield /Users/sac/wt/v26922/ocel/v26922.ocel.json | jq -e '.classes|length>0 and .machinery_share!=null'",
     "deps": [],
@@ -405,6 +446,7 @@
    },
    {
     "id": "XAAS-26922-22",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "C07 autonomy as a lattice: sj:AuthorityLease per sj:Edge (receipted, revocable, expiring); SPARQL autonomy-frontier query = edges lacking an active lease; BRCE actuation checks the edge lease",
     "acceptance": "mix test test/xaas/ultracode/edge_lease_test.exs: granting a lease enables exactly that edge; revoking it yields a typed REFUSED on the next actuation; the frontier query lists the revoked edge",
     "deps": [
@@ -415,6 +457,7 @@
    },
    {
     "id": "XAAS-26922-23",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "C08 edge standing: handoff edges H0..H10 as sj:Edge objects in docs/sjira/v26.9.22 with one cross-repo court each; autonomy score = product of edge standings (SPARQL); first failing edge named",
     "acceptance": "mix test test/xaas/ultracode/edge_court_test.exs: with a real zcode-cli binary lacking gall-work the H6 court REFUSES and the score is 0 naming H6; with gall-work present the court passes; score query runs over the committed graph",
     "deps": [
@@ -424,6 +467,7 @@
    },
    {
     "id": "XAAS-26922-24",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "C09 continuous ground truth + calibration: SPC (individuals + moving range, Western Electric rules) over W(t) and per-repo drift from successive obs.ttl; per-agent-type claim error rates from skeptic corrections (seed: /Users/sac/wt/v26922/survey.json)",
     "acceptance": "mix test test/xaas/ultracode/fleet_spc_test.exs: an injected step change in W(t) is flagged by a Western Electric rule; calibration table recomputed from survey.json has one row per surveyor claim type with n and error rate",
     "deps": [
@@ -433,6 +477,7 @@
    },
    {
     "id": "XAAS-26922-25",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "C13 self-hosting fixed point: the unattended feeder takes a v26.9.22 loop-closure order (one of XAAS-26922-19..24) from the graph it hosts, executes it through the loop, and the frontier advances",
     "acceptance": "after one launchd-started :semantic_wave, the newest receipt under docs/sjira/v26.9.22/receipts names a loop-closure order id, its subject_sha is an ancestor of main, the TransitionLog has the transition, and the frontier query output changed",
     "deps": [
@@ -444,6 +489,7 @@
    },
    {
     "id": "XAAS-26922-26",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Ultracode takeover: zcode can execute and resume Claude Code Workflow scripts when Claude is down \u2014 spec skill + /ultracode command + ultracode-run.mjs runtime (resume from Claude journal by label) + ultracode-watch.mjs stall detector + Claude-side handoff registry hook; generated through the zcode-plugin pack (priv/zcode_plugin)",
     "acceptance": "cd priv/zcode_plugin && ggen sync run && git diff --exit-code marketplace/ (idempotent projection) && node marketplace/xaas-fabric/scripts/ultracode-run.mjs selftest (real tmp git repo + a real workflow script; dry-run resume from a real Claude journal returns every completed label from cache and spawns zero agents) && a live 2-agent workflow run through zcode --prompt --json returns schema-valid results and writes a journal.jsonl whose shape matches Claude journals (launched/started/result)",
     "deps": [],
@@ -457,6 +503,7 @@
   "orders": [
    {
     "id": "ZCODE-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge the v26.9.21 fin/* branches (ZOCEL-002/003/006/007 receipts, the 009 review prep) and feat/headless-mcp-contract (the xaas worker .mcp.json contract) into main",
     "acceptance": "`cd /Users/sac/dev/zcode-cli && for b in fin/consumer-hardening fin/maxturns-live fin/snapshot-verify feat/headless-mcp-contract; do git merge-base --is-ancestor $b main || echo MISSING $b; done && bun run typecheck && bun test test/ocel-*.test.ts test/max-turns.test.ts test/mcp-user-scope-registration.test.ts && python3 -m pytest -q test/py && bun scripts/gen-ocel.ts --check` prints nothing and exits 0",
     "deps": [],
@@ -464,6 +511,7 @@
    },
    {
     "id": "ZCODE-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "ZOCEL-009: redo the review of integrate/gall-into-main against the post-01 main (new overlaps: package.json, test/release-package.test.ts, src/launcher.ts), merge it, then rebuild the live binary",
     "acceptance": "`git merge-base --is-ancestor b01634f main && bun test test/gall-work.test.ts test/runtime/gall-fresh-consumer.test.ts test/runtime/gall-work-e2e.test.ts && cmp test/fixtures/gall-work.contract.json /Users/sac/xaas/priv/zcode_plugin/gall-work.contract.json && bun run build && { node bin/zcode.js gall-work --lease /nonexistent.json --json; test $? -eq 2; } && grep -c 'reviewed-by:' docs/sjira/v26.9.21/receipts/ZOCEL-009-review.md` is at least 1",
     "deps": [
@@ -475,6 +523,7 @@
    },
    {
     "id": "ZCODE-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Headless worker permission client: remove BLOCKED:BASH_PERMISSION_CLIENT_ABSENT ('No permission client configured for Bash') for gall-work runs",
     "acceptance": "`bun test test/gall-work-permission.test.ts`: a real gall-work run on a fixture lease executes one Bash step inside the lease cwd and closes the lease, with no mocks",
     "deps": [
@@ -484,6 +533,7 @@
    },
    {
     "id": "ZCODE-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Live proof that xaas dispatch reaches gall-work",
     "acceptance": "the newest `$TMPDIR/xaas-dispatch-*.log` after one materialized semantic epoch has 0 'unknown command: gall-work' lines and at least 1 claim_next and close line",
     "deps": [
@@ -496,6 +546,7 @@
    },
    {
     "id": "ZCODE-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge upstream kingsword09 main dc82485 (3.14.0-27/3.14.1-27, #163 SQLite contention fix for concurrent workers) and relock the runtime to 3.14.1, skipping origin/release/zcode-upstream 05d3f49",
     "acceptance": "`git fetch origin && git merge-base --is-ancestor origin/main main && test \"$(jq -r .appVersion zcode-runtime.lock.json)\" = 3.14.1 && bun run sync:locked && bun run typecheck && bun run test:all` exit 0",
     "deps": [
@@ -506,6 +557,7 @@
    },
    {
     "id": "ZCODE-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Bind OCEL receipts to the exact subject and lease identity (subject_sha, work_order_iri, epoch_id) when running under gall-work",
     "acceptance": "after a gall-work run on a fixture lease with ZCODE_OCEL=1, `jq -r .subject_sha $R` equals `git rev-parse HEAD` and `jq -r .work_order_iri $R` equals the lease's value; `bun test test/ocel-*.test.ts` passes",
     "deps": [
@@ -515,6 +567,7 @@
    },
    {
     "id": "ZCODE-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "ZOCEL-013/010: exact-head release:build receipt taken after the upstream merge; the receipt names the subject commit, not the commit that contains it",
     "acceptance": "`bun install --frozen-lockfile && bun run release:build` exit 0, and `grep -c \"Exact Head Commit: $(git rev-parse HEAD^)\" docs/sjira/v26.9.21/receipts/ZOCEL-010.md` is at least 1",
     "deps": [
@@ -524,6 +577,7 @@
    },
    {
     "id": "ZCODE-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "docs/sjira/v26.9.22 generated by semantic-jira-pack, carrying receipt standings forward through the TransitionLog, with descriptors re-pinned to merged main",
     "acceptance": "`cd /Users/sac/dev/zcode-cli && D=$(shasum -a 256 docs/sjira/v26.9.22/work-orders.ttl | cut -d' ' -f1); for f in docs/sjira/v26.9.22/execution/*.json; do jq -e --arg d \"sha256:$D\" --arg h \"$(git rev-parse main)\" '.graph_digest==$d and .base_sha==$h' $f >/dev/null || echo BAD $f; done; grep -L 'GENERATED by semantic-jira-pack' docs/sjira/v26.9.22/{jira,prd,ard,wbpr,plan}/*.md` prints nothing, and `grep -c 'sj:standing \"UNKNOWN\"' docs/sjira/v26.9.22/work-orders.ttl` is below 13",
     "deps": [
@@ -535,6 +589,7 @@
    },
    {
     "id": "ZCODE-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "ZOCEL-011/012: retire PR #2 and fork/feat/v26.9.19-work-envelope-v2 (lease/2 has no consumer), close contained #1/#3, triage the d17-5 OCEL WIP, prune merged worktrees and the 4 dead tracking refs, apply the fork/main decision",
     "acceptance": "`git worktree list | wc -l` is at most 6, and `git -C .claude/worktrees/wf_d1f79f3f-d17-5 status --short 2>/dev/null | wc -l` = 0",
     "deps": [
@@ -546,6 +601,7 @@
    },
    {
     "id": "ZCODE-26922-10",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Provider capacity: typed bounded backoff and a concurrency cap for 429/1302 ('High concurrency usage'), seen in up to about 1474 dispatch logs",
     "acceptance": "`bun test test/provider-backoff.test.ts` against a real local HTTP server that returns 429: typed retry, then typed refusal, no prompt fallback",
     "deps": [
@@ -561,6 +617,7 @@
   "orders": [
    {
     "id": "ASH_A2A-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Commit the format worktree's stream doc, then merge errc/ash-a2a-format (8815f5b..f31df40: seven wasm resolvers default to the vendored priv/graphlaw/praxis_graphlaw.wasm) into main, keeping both tag sets in 17 test files",
     "acceptance": "`cd /Users/sac/ash_a2a && git merge-base --is-ancestor f31df40 main && ! git grep -n 'praxis/crates' main -- lib && mix test.all test/ash_a2a/chicago/wasm_default_resolution_test.exs test/ash_a2a/chicago/falsifier_wasm_default_reachability_test.exs test/ash_a2a/chicago/graphlaw_engine_stop_host_test.exs` 0 failures",
     "deps": [],
@@ -568,6 +625,7 @@
    },
    {
     "id": "ASH_A2A-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Fix the test.all regression from 5969606: `--include serial` re-admits :external_api/:benchmark tests tagged :serial in 10 files; move the Zai skip to @moduletag, or exclude external_api in a way --include serial cannot override",
     "acceptance": "`env -u ZAI_API_KEY mix test.all test/ash_a2a_zai_concurrency_ocel_test.exs` 0 failures (skipped by tag)",
     "deps": [
@@ -577,6 +635,7 @@
    },
    {
     "id": "ASH_A2A-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge fix/test-determinism-v26.9.21 (215cc2a, bdacf7a), deduplicating GraphlawEngine.stop_host/1 onto f31df40's stop_pid/1",
     "acceptance": "`for i in 1 2 3; do mix test.all test/ash_a2a_agent_semantic_replan_test.exs test/ash_a2a/chicago/hardening/bounds_exhaustion_test.exs test/ash_a2a/chicago/graphlaw_engine_test.exs || exit 1; done` exit 0",
     "deps": [
@@ -586,6 +645,7 @@
    },
    {
     "id": "ASH_A2A-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Hosted CI green on main",
     "acceptance": "`gh run list -R seanchatmangpt/ash_a2a --branch main --workflow CI --limit 1 --json conclusion,headSha -q '.[0].conclusion'` = success with headSha equal to `git rev-parse origin/main`, and `gh run view <id> --log | grep -c 'EXCLUDING :graphlaw'` = 0",
     "deps": [
@@ -599,6 +659,7 @@
    },
    {
     "id": "ASH_A2A-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Bump the vulnerable locks ash 3.33.1 (EEF-CVE-2026-86338) and mint 1.10.0 (EEF-CVE-2026-82672)",
     "acceptance": "`mix deps.get && mix hex.audit && mix test.all` exit 0 and CI deps audit clean",
     "deps": [
@@ -608,6 +669,7 @@
    },
    {
     "id": "ASH_A2A-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "WorkEnvelope to main: retarget PR #27 to main before touching #24, merge main and 488ae22 (S42 refusal classes), retire feat/v26.9.19-work-envelope-v2, dispatch the Semantic Work Envelope Court",
     "acceptance": "`git cat-file -e origin/main:lib/ash_a2a/semantic/work_envelope.ex && mix test.all test/ash_a2a_semantic_work_envelope_test.exs test/ash_a2a/semantic_refusal_test.exs && gh pr view 27 --json state,baseRefName -q '.state+\" \"+.baseRefName'` = 'MERGED main'",
     "deps": [
@@ -617,6 +679,7 @@
    },
    {
     "id": "ASH_A2A-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "GALL residual: retarget #28 to main and merge main into it; close #23/#25/#26/#29/#30 citing 8eb4335/bb47a99/185da12/5969606; close #22 after the gall-003 workflow decision",
     "acceptance": "`mix test.all test/gall_process_intervention_test.exs` 0 failures, and `gh pr list --state open --json number -q '[.[].number]'` contains none of 22, 23, 25, 26, 29, 30",
     "deps": [
@@ -626,6 +689,7 @@
    },
    {
     "id": "ASH_A2A-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Make ash_a2a.install emit explicit skill consequences (`--skill name:action:external_do`) and write the `a2a do` block idempotently; this unblocks ggen_igniter's UNSUPPORTED row",
     "acceptance": "`mix test.all test/mix/tasks/ash_a2a_install_test.exs` including a new case where two runs yield exactly one `a2a do` block and `consequence: :external_do`",
     "deps": [],
@@ -633,6 +697,7 @@
    },
    {
     "id": "ASH_A2A-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Repin native/hddl_cli ferroplan/ferroplan-hddl from 29134d7 (v0.26.0) to e90928d, the commit beam4pm's submodule carries",
     "acceptance": "`grep -c 'rev = \"e90928d' native/hddl_cli/Cargo.toml` is at least 1 && `cargo +1.97.1 build --manifest-path native/hddl_cli/Cargo.toml --release --locked && mix test.all test/ash_a2a/chicago/sa2a_v26_9_17_fond_qualification_test.exs test/ash_a2a/chicago/sa2a_v26_9_17_reachability_analysis_test.exs` exit 0",
     "deps": [
@@ -642,6 +707,7 @@
    },
    {
     "id": "ASH_A2A-26922-10",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Durable exact-SHA SA2A court receipts in CI plus a schedule",
     "acceptance": "`grep -n 'schedule:' .github/workflows/*.yml` matches; after one run, `gh run download <id> -n sa2a-conformance-$(git rev-parse origin/main) && jq -e '.result==\"PASS\"' sa2a-conformance.json && [ \"$(jq -r .standing chicago/standing_receipt.json)\" = CONFORMANT ]`",
     "deps": [
@@ -651,6 +717,7 @@
    },
    {
     "id": "ASH_A2A-26922-11",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge PR #31 re-rendered against the final v26.9.22 base, so it does not carry an ALIVE claim pinned to red 5969606",
     "acceptance": "`git cat-file -e origin/main:engineering-standards.json && git cat-file -e origin/main:semantic/engineering-standards-profile.ttl && git cat-file -e origin/main:AGENTS.md` exit 0 and base_sha is not 5969606",
     "deps": [
@@ -660,6 +727,7 @@
    },
    {
     "id": "ASH_A2A-26922-12",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Release v26.9.22: mix.exs, CHANGELOG [26.9.22], tag on CI-green main, hex publish (consumers lock hex versions)",
     "acceptance": "`grep -q 'version: \"26.9.22\"' mix.exs && git ls-remote --tags origin v26.9.22 | grep -q . && mix hex.info ash_a2a | grep -q 26.9.22`",
     "deps": [
@@ -677,6 +745,7 @@
    },
    {
     "id": "ASH_A2A-26922-13",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Workspace hygiene: commit or gitignore research/erc ERC-003/004, triage the 5 stashes, retire the qual-sim/basecheck/duplicate-8d61f46 worktrees and the ported feat/sa2a-*-v26.9.16 branches",
     "acceptance": "`git -C /Users/sac/ash_a2a status --porcelain | wc -l` = 0 and `git stash list | wc -l` = 0 (each stash recorded before dropping)",
     "deps": [
@@ -686,6 +755,7 @@
    },
    {
     "id": "ASH_A2A-26922-14",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "C03 standing-addressed dependency: mix ash_a2a.standing_ref --court sa2a --standing CONFORMANT resolves the newest main SHA with a durable CONFORMANT court receipt; consumers pin that SHA (git ref) instead of a version",
     "acceptance": "mix test test/mix/tasks/ash_a2a_standing_ref_test.exs (real git repo with two receipted commits, one NON_CONFORMANT: task returns the CONFORMANT one) && mix ash_a2a.standing_ref --court sa2a --standing CONFORMANT prints a SHA whose receipt artifact verifies",
     "deps": [
@@ -701,6 +771,7 @@
   "orders": [
    {
     "id": "AFDE-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Land SJ-006: merge local sjira/sj-006 455cc7b5 and rewrite the Pass 5 SA2A row to cite a run in ~/autofde-lab at the merged SHA",
     "acceptance": "`cd /Users/sac/autofde-lab && git merge-base --is-ancestor 455cc7b5 master && .venv/bin/python -m pytest tests/beam -q` gives 4 passed, and `rg -n 'xaas-worktrees/sjira/sj-006' docs/ecosystem-standing.md` finds nothing",
     "deps": [],
@@ -708,6 +779,7 @@
    },
    {
     "id": "AFDE-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Fix SA2A-B2 BUILD_BROKEN: harness.py:493 calls DatalogEngine.compute_closure, which does not exist (datalog_layer.py:130 has execute_fixpoint)",
     "acceptance": "`.venv/bin/python scripts/run_sa2a_benchmarks.py && python3 -c \"import json;d=json.load(open('reports/rfc_sa2a_002_benchmarks.json'));assert d['all_passed']\"`",
     "deps": [],
@@ -715,6 +787,7 @@
    },
    {
     "id": "AFDE-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Refresh SA2A qualification receipts at the exact subject, generating first and verifying second",
     "acceptance": "`.venv/bin/python scripts/run_chicago_qualification.py && .venv/bin/python scripts/verify_rfc_sa2a_002_qualification.py` exit 0; receipts name the pre-commit subject SHA",
     "deps": [
@@ -725,6 +798,7 @@
    },
    {
     "id": "AFDE-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "agentic-fabric.yml: install gymnasium so exact-head-fabric can collect tests/fabric, which holds the SA2A real-caller test",
     "acceptance": "`gh pr checks 169 -R seanchatmangpt/autofde-lab | grep exact-head-fabric | grep -c pass` = 1",
     "deps": [],
@@ -732,6 +806,7 @@
    },
    {
     "id": "AFDE-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Land #171 (modifies AGENTS.md, adds 2 files), #170 (ruff-format 1 file), #157 and #159; delete the superseded feat/sa2a-gnn-candidate-inference",
     "acceptance": "`for n in 157 159 170 171; do gh pr view $n -R seanchatmangpt/autofde-lab --json state -q .state; done` prints MERGED 4 times, and `git ls-remote --heads origin feat/sa2a-gnn-candidate-inference | wc -l` = 0",
     "deps": [],
@@ -739,6 +814,7 @@
    },
    {
     "id": "AFDE-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Frontier-to-descriptor stack: #163 then #167, picking #167 or feat/v26.9.19-work-envelope-v2; push local feat/gall-swf-v26.9.18 (select_frontier in sa2a/gall_swf.py) or supersede it with #163's frontier()",
     "acceptance": "`gh pr view 163 --json state -q .state` = MERGED and the same for 167; `rg -n 'def (select_frontier|frontier)\\(' src/autofde_lab | wc -l` is at least 1; `.venv/bin/python -m pytest tests/fabric/test_gall_semantic_work.py -q` passes",
     "deps": [
@@ -748,6 +824,7 @@
    },
    {
     "id": "AFDE-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "GALL-005 stacks bottom-up: #161 -> #166; #160 -> #164, #165 (needs a real court run) -> #168 (resolve CONFLICTING)",
     "acceptance": "`for n in 160 161 164 165 166 168; do gh pr view $n -R seanchatmangpt/autofde-lab --json state -q .state; done` prints MERGED 6 times, and `.venv/bin/python -m pytest tests/sa2a/test_gall_composition_crown.py tests/sa2a/test_gall_process_spine.py -q` passes",
     "deps": [
@@ -757,6 +834,7 @@
    },
    {
     "id": "AFDE-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "First-ever green master ci.yml (0 successes in 306 runs): make the hub C++ extension importable in the Linux integration partition, then regenerate the #169 format sweep on current master with the pinned pre-commit revisions and merge it last",
     "acceptance": "`gh run list -R seanchatmangpt/autofde-lab --workflow ci.yml --branch master -L1 --json conclusion -q '.[0].conclusion'` = success",
     "deps": [
@@ -769,6 +847,7 @@
    },
    {
     "id": "AFDE-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Unattended Phase H: a scheduled workflow for phase_h_trigger.run_once that writes state outside the tracked .phase_h_baseline.json/.phase_h_coverage_state.json and uploads JSON named by github.sha",
     "acceptance": "`rg -n phase_h_trigger .github/workflows | wc -l` is at least 1; after a local run_once, `git status --porcelain src/autofde_lab/fabric | wc -l` = 0",
     "deps": [
@@ -778,6 +857,7 @@
    },
    {
     "id": "AFDE-26922-10",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "gymact Receipt schema drift (planning_provenance_digest extra_forbidden: pinned 26.8.8 vs live 26.8.23)",
     "acceptance": "`.venv/bin/python -m pytest tests/domains/python/test_level4_crown_real_trial_chicago.py -q` gives 6 passed",
     "deps": [],
@@ -785,6 +865,7 @@
    },
    {
     "id": "AFDE-26922-11",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Hygiene: commit docs/jira/v26.9.19, resolve submodule dirt, commit the uncommitted work in .claude/worktrees wf_5556f1de-848-2 / wf_095332b4-828-3 and crown-2/* before pruning, update the stale docs/2026-09-21-zero-human-factory-standing.md",
     "acceptance": "`git status --porcelain | wc -l` = 0, and each listed worktree reports 0 porcelain lines or has been removed after its commit",
     "deps": [
@@ -800,6 +881,7 @@
   "orders": [
    {
     "id": "GGMKT-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Reconcile the diverged main: merge origin/main (#466/#467) into local main and publish the 13 local commits (sa2a-bridge-pack, es-receipt-chain, pi-ocel-tap, st-fsm-codegen, targets-shacl-zod) through a PR",
     "acceptance": "`cd /Users/sac/ggen-marketplace && git fetch origin && git merge-base --is-ancestor origin/main HEAD && git branch -r --contains afc850afc | grep -q origin/ && python3 scripts/marketplace.py validate | grep -q 'packs=320'`, and the PR's admission, 4 qualify shards (pinned ggen v26.8.11) and vacuity checks show no fail",
     "deps": [],
@@ -809,6 +891,7 @@
    },
    {
     "id": "GGMKT-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Main CI debt: re-lock mdbook-pattern-language-pack (FM-PACK-008), give ggen-platform-pack real templates (FM-PACK-005 in publish.yml), refresh the source-correspondence admitted SHAs for wasm4pm/cargo-cicd, inline VALUES in xaas-public-ash-projection-pack (E0010)",
     "acceptance": "`gh run list -R seanchatmangpt/ggen-marketplace --workflow pages.yml --branch main -L1 --json conclusion -q '.[0].conclusion'` = success, and likewise for publish.yml and the next scheduled source-correspondence.yml",
     "deps": [
@@ -818,6 +901,7 @@
    },
    {
     "id": "GGMKT-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "sa2a-bridge-pack exact-head court: fail witnesses for all 8 gates plus a byte-drift check against the xaas vendored copy, with the receipt bound to the commit SHA and ggen v26.8.11",
     "acceptance": "`python3 -m pytest tests/test_sa2a_bridge_pack.py -q && for f in queries/contract.rq queries/edges.rq queries/mcp_descriptor.rq; do cmp packs/sa2a-bridge-pack/ggen_igniter/$f /Users/sac/xaas/priv/sa2a_bridge/$f; done && cmp packs/sa2a-bridge-pack/ontology.ttl /Users/sac/xaas/priv/sa2a_bridge/ontology/ontology.ttl`",
     "deps": [
@@ -827,6 +911,7 @@
    },
    {
     "id": "GGMKT-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Land PR #477 semantic-life-loop-pack after fixing FM-PACK-013: drop the `a sosa:Procedure` typing on bare urn:biblegym:capability:devotion_prompt_packet (ontology.ttl:45), or reference bg:capability-05",
     "acceptance": "`gh pr checks 477 -R seanchatmangpt/ggen-marketplace` shows no fail, `gh pr view 477 --json state -q .state` = MERGED, and `python3 scripts/marketplace.py validate | grep -q 'packs=321'`",
     "deps": [
@@ -837,6 +922,7 @@
    },
    {
     "id": "GGMKT-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Push or merge the local-only pack branches other repos depend on: pack/frozen-duckdb-capabilities-g9 (includes c6), pack/wave-26918-integration (vendor raise f2ae5382e/6750aa19f that beam4pm pins), fin/second-consumer, feat/ash-extension-pack-{doc-template,license-file}",
     "acceptance": "`git for-each-ref refs/heads --format='%(refname:short) %(upstream:short)' | awk '$2==\"\" && $1!=\"main\"' | wc -l` = 0, and `gh api repos/seanchatmangpt/ggen-marketplace/commits/f2ae5382e -q .sha` resolves",
     "deps": [
@@ -846,6 +932,7 @@
    },
    {
     "id": "GGMKT-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "One canonical Zod projection (shacl-projection-pack shacl_zod.ts.tmpl vs #475 shacl-to-zod-pack vs #474 shacl-to-zod-jsdoc-pack); merge #475, retarget #478 to main, fix FM-TPL-017 (frontend_layout.js.tmpl 6:32)",
     "acceptance": "`python3 -m pytest scripts/test_shacl_projection_pack.py -q && gh pr checks 475 -R seanchatmangpt/ggen-marketplace && gh pr checks 478 -R seanchatmangpt/ggen-marketplace` show no fail",
     "deps": [
@@ -855,6 +942,7 @@
    },
    {
     "id": "GGMKT-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "PR #474: fix its one blocking vacuity regression (packs/shacl-to-fastapi-pack/pack.toml:4 'STUB'), reconcile the sa2a-fastapi-pack (s2a:) and sa2a-bridge-pack (s2b:) vocabularies or record why they do not compose, and fold WORKGRAPH.ttl into sj:WorkOrder shape or supersede it",
     "acceptance": "`gh pr checks 474 -R seanchatmangpt/ggen-marketplace | awk -F'\\t' '$2==\"fail\"' | wc -l` = 0",
     "deps": [
@@ -865,6 +953,7 @@
    },
    {
     "id": "GGMKT-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "ZOCEL-004 receipt: SHA-bound acc-1..acc-6 on published main (acc-4 runs packs/*/test*.py; the ceiling is BLOCKED-on-human for signing keys)",
     "acceptance": "a receipt JSON whose subject_sha equals `git rev-parse origin/main`, with the validate line, qualify failed N/total matching mp-baseline-failures.txt, es_chain lines with each DIFF/UNVERIFIED triaged, and the literal 'signing-keys: BLOCKED-on-human'",
     "deps": [
@@ -875,6 +964,7 @@
    },
    {
     "id": "GGMKT-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "PR hygiene: merge #468/#471/#473/#476, rerun #472, close #440/#441/#442/#458 (heads already in main), delete the merged gpack/mkt-01/02 branches",
     "acceptance": "`gh pr list -R seanchatmangpt/ggen-marketplace --state open --json number -q length` is at most 3, each with a recorded keep reason",
     "deps": [
@@ -884,6 +974,7 @@
    },
    {
     "id": "GGMKT-26922-10",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Release v26.9.22 through publish.yml: clean tree (commit docs/jira/v26.9.19 and docs/rfc/RFC-GGEN-001, gitignore packages/marketplace-cli/.ggen_igniter), set marketplace.toml [marketplace].version = \"v26.9.22\"",
     "acceptance": "`test -z \"$(git status --porcelain)\" && gh release view v26.9.22 -R seanchatmangpt/ggen-marketplace --json tagName -q .tagName` = v26.9.22, with publish.yml 'Verify the live registry end-to-end' success",
     "deps": [
@@ -902,6 +993,7 @@
   "orders": [
    {
     "id": "GGEN-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Repair the main CI baseline: Deep core/integration/quality lanes red at 5de2ba735, Live examples, invalid YAML in receipt-chain-migration-constructor.yml (lines 49-55), rf:packCount 86 vs 92 tracked dirs",
     "acceptance": "`cd /Users/sac/ggen && python3 -c \"import yaml;yaml.safe_load(open('.github/workflows/receipt-chain-migration-constructor.yml'))\" && just pre-commit` exit 0, and `gh run list -R seanchatmangpt/ggen --workflow ci.yml --branch main -L1 --json conclusion -q '.[0].conclusion'` = success",
     "deps": [],
@@ -909,6 +1001,7 @@
    },
    {
     "id": "GGEN-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge #725 (LFS smudge fence for ggen-sync-run.yml) and #724 (engineering standards), both green drafts",
     "acceptance": "`gh pr view 725 -R seanchatmangpt/ggen --json state -q .state` = MERGED, and the same for 724",
     "deps": [],
@@ -916,6 +1009,7 @@
    },
    {
     "id": "GGEN-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Land the GALL-001 replay court #720 (merge main into it after 01). Ordinary receipts stay UNKNOWN and only the court writes PASS",
     "acceptance": "`gh pr view 720 --json state -q .state` = MERGED; then on origin/main `cargo test -p ggen-engine --test portable_receipt_e2e && cargo test -p ggen-engine --test gall_checkpoint_001_replay_e2e -- --nocapture` passes",
     "deps": [
@@ -925,6 +1019,7 @@
    },
    {
     "id": "GGEN-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "One gall-semantic-work descriptor that meets the xaas consumer contract: execution_repo_alias (from #723) plus typed dependencies and authority NONE (from the v2 branch); retire the other line",
     "acceptance": "render the pack on a fixture; every key in `@required` of /Users/sac/xaas/lib/xaas/ultracode/semantic_work.ex is present in the descriptor, and the declared-vs-used template variable check prints []",
     "deps": [
@@ -934,6 +1029,7 @@
    },
    {
     "id": "GGEN-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Release v26.9.13 (the sequential counter) containing #720; fix the homebrew-release.yml formula (arm64 gets the x86_64 tarball, and Intel/Linux are stuck at v26.8.18); move the local install to seanchatmangpt/homebrew-tap; fix the ~/.local/bin/ggen symlink and the stale ~/.cargo/bin/ggen",
     "acceptance": "`ggen --version` on PATH reports a version above 26.9.12, and `test -e \"$(readlink /Users/sac/.local/bin/ggen)\" || ! test -L /Users/sac/.local/bin/ggen`",
     "deps": [
@@ -946,6 +1042,7 @@
    },
    {
     "id": "GGEN-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "HEAD branch (= #672 plus 10 commits on no remote): merge origin/main into it, recompute rf:packCount for a clean checkout, push as an update to #672",
     "acceptance": "`git log --oneline fix/ggen-v26.9.17-boundary --not --remotes=origin | wc -l` = 0, and `gh pr checks 672 -R seanchatmangpt/ggen` shows no fail",
     "deps": [
@@ -957,6 +1054,7 @@
    },
    {
     "id": "GGEN-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Divergence and PR cleanup: decide #694 (local main is its head), push or archive release/v26.8.9 (51 unpushed), close CONFLICTING #681/#692, settle #717 and close the superseded dependabot singles",
     "acceptance": "`git rev-list --left-right --count main...origin/main` = `0\t0` and `gh pr list -R seanchatmangpt/ggen --state open --author app/dependabot --json number -q length` is at most 1",
     "deps": [
@@ -972,6 +1070,7 @@
   "orders": [
    {
     "id": "GYMACT-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Land SJ-008: `git worktree repair /Users/sac/xaas/worktrees/sjira/sj-008` (never prune), drop its OCEL churn, push sjira/sj-008 333aeb5 and merge it into main",
     "acceptance": "`cd /Users/sac/gymact && git merge-base --is-ancestor 333aeb5 origin/main && test -f docs/sjira/SJ-008-sa2a-replay-receipt.json && [ \"$(grep -c 'Status\\*\\*: Done' docs/2026-08-13-gymact-jira-backlog.md)\" -ge 4 ] && ! git worktree list | grep -q prunable`",
     "deps": [],
@@ -981,6 +1080,7 @@
    },
    {
     "id": "GYMACT-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "GYMACT-5: move AUTHORITY and the shared constants out of the module-level-skipped tests/test_terraform_plan.py",
     "acceptance": "`uv run pytest -q -p no:cacheprovider tests/test_terraform_plan.py tests/test_verify_replay.py` exit 0 with no 'cannot import name AUTHORITY'",
     "deps": [],
@@ -988,6 +1088,7 @@
    },
    {
     "id": "GYMACT-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "GYMACT-6 as it appears in CI: deterministically close the fastmcp.Client event loop and self-pipe AF_UNIX sockets in tests/test_sregym_provider.py::ConcurrentMcpDispatchTests (no filterwarnings suppression), and salvage only the conftest sessionfinish sweep",
     "acceptance": "`uv run pytest -q -W error::pytest.PytestUnraisableExceptionWarning tests/test_sregym_provider.py tests/test_world_cyber.py tests/test_ontology_gym.py` exit 0",
     "deps": [],
@@ -995,6 +1096,7 @@
    },
    {
     "id": "GYMACT-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "py3.13 FM-CONFIG-004 (rust/togaf_gym/templates missing from the ephemeral workspace), with ggen on PATH",
     "acceptance": "`command -v ggen && uv run --python 3.13 pytest -q -rs tests/test_ggen_togaf_gym_pack.py` exit 0 with 0 skipped",
     "deps": [
@@ -1004,6 +1106,7 @@
    },
    {
     "id": "GYMACT-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "GYMACT-7: convert the environment-gated failures (wpm mine-declare, docker swegym, cube collection ImportError) into named require_standing skips",
     "acceptance": "`uv run pytest -q --co 2>&1 | grep -ci 'error'` = 0",
     "deps": [],
@@ -1011,6 +1114,7 @@
    },
    {
     "id": "GYMACT-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Hermetic suite plus a committed uv.lock, so xaas can register gymact-dod/gymact-canonical: stop rewriting tracked reports/ocel and tests/fixtures, stop writing .inspect_logs/*.eval, fix chatman_state PROVIDER_ERROR and discovery",
     "acceptance": "`uv run pytest -q; test -z \"$(git status --porcelain)\" && git ls-files --error-unmatch uv.lock`",
     "deps": [
@@ -1022,6 +1126,7 @@
    },
    {
     "id": "GYMACT-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Green exact-head CI on main, including the world execution crown and the GCP census",
     "acceptance": "`gh run list -R seanchatmangpt/gymact --commit $(git rev-parse origin/main) --json workflowName,conclusion -q '[.[].conclusion]|unique'` = [\"success\"]",
     "deps": [
@@ -1033,6 +1138,7 @@
    },
    {
     "id": "GYMACT-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "PR #135: ruff-format model_advice.py:8 and test_model_advice.py:98, merge main into the branch (it is 9 behind), rerun the crown, fix the stale body (head 291e599), merge; merge #136",
     "acceptance": "`gh pr view 135 -R seanchatmangpt/gymact --json state -q .state` = MERGED and `git fetch origin && git merge-base --is-ancestor 9966cd0 origin/main`",
     "deps": [],
@@ -1040,6 +1146,7 @@
    },
    {
     "id": "GYMACT-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Branch triage: the 15 unmerged remote heads (ci/local-act-parity has new s4-mk1 work), mark v26.9.19 tickets 003-008 resolved-by-push, commit docs/jira/v26.9.19, handle agent-af75a90's divergent kubernetes_goat.py, delete the merged feat/v26.9.21-zoe-devotional-outcome",
     "acceptance": "`git fetch --prune origin && git branch -r --no-merged origin/main | wc -l` = 0 and `git ls-files docs/jira/v26.9.19 | wc -l` = 9",
     "deps": [
@@ -1049,6 +1156,7 @@
    },
    {
     "id": "GYMACT-26922-10",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Register the gymact-dod/gymact-canonical suites in xaas TargetSuites (lifting the deliberate non-registration in target_suites.ex, 09defab)",
     "acceptance": "`rg -n 'gymact-dod' /Users/sac/xaas/lib/xaas/ultracode/target_suites.ex` matches and `cd /Users/sac/xaas && mix test test/xaas/ultracode` gives 0 failures",
     "deps": [
@@ -1065,6 +1173,7 @@
   "orders": [
    {
     "id": "ASHATL-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Seal the verification gate at HEAD 36b1799 and write a durable receipt: the full README gate plus F8 regeneration",
     "acceptance": "`cd /Users/sac/ash_atlassian && mix compile --warnings-as-errors && mix format --check-formatted && mix test 2>&1 | grep -c '23 tests, 0 failures'` = 1 (GgenGatesTest not skipped because ggen is on PATH) && `bash ash-atlassian-GENERATED.sh && git diff --exit-code -- lib config`",
     "deps": [],
@@ -1072,6 +1181,7 @@
    },
    {
     "id": "ASHATL-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Remote plus CI with ggen on PATH, so the repo can be leased and triggered",
     "acceptance": "`gh repo view seanchatmangpt/ash_atlassian --json name` succeeds, and the latest `gh run list -R seanchatmangpt/ash_atlassian -L1` is success with a log showing GgenGatesTest executed",
     "deps": [
@@ -1083,6 +1193,7 @@
    },
    {
     "id": "ASHATL-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Register in the xaas ultracode registry (`mix xaas.ultracode.repos --register`) with a suite in TargetSuites.devs() that satisfies Verifier.registered?",
     "acceptance": "`rg -n ash_atlassian /Users/sac/xaas/worktrees/ultracode-repos.json /Users/sac/xaas/lib/xaas/ultracode/target_suites.ex | wc -l` is at least 2, and `cd /Users/sac/xaas && mix test test/xaas/ultracode` gives 0 failures",
     "deps": [
@@ -1093,6 +1204,7 @@
    },
    {
     "id": "ASHATL-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Release: @version and ggen.toml [project].version -> 26.9.22, ggen sync, commit, tag",
     "acceptance": "`grep -q '@version \"26.9.22\"' mix.exs && grep -q 'version = \"26.9.22\"' ggen.toml && ggen sync run && git diff --exit-code && mix test && git tag -l v26.9.22 | grep -q v26.9.22`",
     "deps": [
@@ -1108,6 +1220,7 @@
   "orders": [
    {
     "id": "BEAM4PM-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge origin/main 5743687 (PR #67) into chore/consume-ash-a2a-26.9.21; git rm the tracked .beam4pm-a2a-gate-bootstrap and gitignore it (fixing the gate that committed it in e80f0eb); make guard Q6 derive the skill count from the domain (647 resources, not 1194)",
     "acceptance": "`cd /Users/sac/beam4pm && git fetch origin && git merge-base --is-ancestor origin/main HEAD && ! git ls-files --error-unmatch .beam4pm-a2a-gate-bootstrap 2>/dev/null && mix test && mix run qualification/sa2a_e2e_qualification.exs` exit 0",
     "deps": [],
@@ -1115,6 +1228,7 @@
    },
    {
     "id": "BEAM4PM-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Fix the shared base determinism regression (a 1324-line reprojection hash diff on every PR since 2026-09-20T17:07Z)",
     "acceptance": "`bash scripts/gate_m2_check.sh` exit 0 on the merged tree, and the 'Erlang/Elixir/Gleam tests + determinism check' job passes on the next PR run",
     "deps": [
@@ -1124,6 +1238,7 @@
    },
    {
     "id": "BEAM4PM-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "The SA2A guard writes a durable receipt bound to the subject SHA; land the ash_a2a 26.9.21 consumption via PR",
     "acceptance": "`mix run qualification/sa2a_e2e_qualification.exs && jq -r .subject_sha docs/jira/v26.9.22/receipts/sa2a-e2e-latest.json` equals the pre-commit HEAD, and `gh pr list -R seanchatmangpt/beam4pm --state merged --head chore/consume-ash-a2a-26.9.21 --json number -q length` = 1",
     "deps": [
@@ -1134,6 +1249,7 @@
    },
    {
     "id": "BEAM4PM-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Vendored ggen-marketplace raise: once f2ae5382e/6750aa19f are upstream, merge chore/ggen-consumption-max and clear the dirty submodule",
     "acceptance": "`git -C vendor/ggen-marketplace merge-base --is-ancestor f2ae5382e HEAD && test -z \"$(git -C vendor/ggen-marketplace status --porcelain)\" && bash scripts/gate_authorship_check.sh`",
     "deps": [
@@ -1144,6 +1260,7 @@
    },
    {
     "id": "BEAM4PM-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge parity/integration 70e2662 (Dfcm.sa2a_validate_card/admit/replay, AutofdeBridge, fabric, cmca, graphlaw) and re-prove it on a clean subject",
     "acceptance": "`git merge-base --is-ancestor 70e2662 HEAD && mix test test/beam4pm_dfcm_sa2a_replay_test.exs test/beam4pm_dfcm_sa2a_validate_card_test.exs test/beam4pm_sa2a_admit_parity_test.exs test/beam4pm_autofde_bridge_test.exs && bash scripts/gate_authorship_check.sh && git ls-files --error-unmatch priv/bin/autofde && test -z \"$(git status --porcelain)\"`",
     "deps": [
@@ -1153,6 +1270,7 @@
    },
    {
     "id": "BEAM4PM-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Add sa2a_plan/sa2a_admit/sa2a_replay wrappers to AutofdeBridge over autofde-lab beam_port_bridge (today it only has ping, cmca_allocate, calculate_salience and request/2)",
     "acceptance": "`PATH=$HOME/autofde-lab/.venv/bin:$PATH mix test test/beam4pm_autofde_bridge_test.exs` with new plan/admit/replay cases, 0 failures",
     "deps": [
@@ -1162,6 +1280,7 @@
    },
    {
     "id": "BEAM4PM-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "GALL: land feat/gall-swf-v26.9.18; open a PR for remote feat/v26.9.19-work-envelope-v2 superseding #78; land #75->#76->#79 and #77->#80 after fixing their checks",
     "acceptance": "`mix test test/beam4pm_gall_ocel_test.exs` passes, and `gh pr list -R seanchatmangpt/beam4pm --state open --json number -q '[.[].number]'` contains none of 75, 76, 77, 78, 79, 80",
     "deps": [
@@ -1172,6 +1291,7 @@
    },
    {
     "id": "BEAM4PM-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "PR/branch hygiene: close #63, retarget #70/#64/#66 (bases already merged), resolve #59 (CONFLICTING, with #61 stacked), fix #84's lfs-smudge checkout, commit or discard the uncommitted scratch g1-g3 proof work, triage ~/beam4pm_ws2",
     "acceptance": "`gh pr list -R seanchatmangpt/beam4pm --state open --json number -q length` is at most 3, each with a recorded keep reason",
     "deps": [
@@ -1181,6 +1301,7 @@
    },
    {
     "id": "BEAM4PM-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Release: `mix beam4pm.version_bump 26.9.22 --yes`, tag v26.9.22, and push or retire the local-only v26.9.10",
     "acceptance": "`grep -c 'version: \"26.9.22\"' mix.exs` = 1 and `git ls-remote --tags origin refs/tags/v26.9.22 | wc -l` = 1",
     "deps": [
@@ -1199,6 +1320,7 @@
   "orders": [
    {
     "id": "FDDB-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Land the 48 commits made after the merge: fast-forward local master, push the 2 local commits, open and merge a PR feat/duckdb-1.5.5 -> master",
     "acceptance": "`cd /Users/sac/frozen-duckdb && git fetch origin && git merge-base --is-ancestor 632d3f5a1eeda382a256d7eaac078df215a6bcda origin/master && test \"$(git rev-parse master)\" = \"$(git rev-parse origin/master)\"`, and every run whose headSha is the new origin/master is success",
     "deps": [],
@@ -1208,6 +1330,7 @@
    },
    {
     "id": "FDDB-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Reproducible verify receipt: record the git HEAD/tree hash in scripts/verify-evidence.ttl, with the pack imports resolved against published ggen-marketplace main",
     "acceptance": "`make verify && make gates && cargo run --example basic_usage` exit 0, and `grep -c 'subjectTree' scripts/verify-evidence.ttl` is at least 1",
     "deps": [
@@ -1218,6 +1341,7 @@
    },
    {
     "id": "FDDB-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Reconcile standing without clobbering History: add a standing column to the SPECS generators and write each ticket's frontmatter from its final History standing, mapping non-aps rows (T2B, TR2, TR3, TR7, G9) explicitly; backfill C3 citing 53759ff/8efa6ee; fix G10's timestamp",
     "acceptance": "a checker over T*.md, TR*.md, C[0-9]*.md, G*.md and TPUB.md (excluding CI_PROJECTION.md) reports 0 mismatches, and `make genesis-check` exit 0",
     "deps": [],
@@ -1225,6 +1349,7 @@
    },
    {
     "id": "FDDB-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "docs/sjira/v26.9.22 as admitted orders in the xaas shape (top-level array index.json, wo.json list keyed by identity, repository seanchatmangpt/frozen-duckdb)",
     "acceptance": "from ~/ggen_igniter, `WO=/Users/sac/frozen-duckdb/docs/sjira/v26.9.22/wo.json mix run /Users/sac/xaas/docs/sjira/v26.9.21/admit.exs | grep -c '^REFUSED'` prints 0, and the ADMITTED count equals `jq length /Users/sac/frozen-duckdb/docs/sjira/v26.9.22/index.json`",
     "deps": [
@@ -1235,6 +1360,7 @@
    },
    {
     "id": "FDDB-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Operator v1.5.5: re-pin the tag target to post-01 master (a3a69e4 lacks the CLI clap fix ac77ae3/031597c), tag, verify release assets, cargo publish builder -> sys -> frozen-duckdb, post ISSUE_1_COMMENT (issue #1 is already closed)",
     "acceptance": "`git ls-remote --tags origin refs/tags/v1.5.5 | wc -l` = 1, and crates.io max_version = 1.5.5 for all three crates",
     "deps": [
@@ -1247,6 +1373,7 @@
    },
    {
     "id": "FDDB-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Drop the stale stash@{0} (verify-evidence timestamps superseded by 8025b23/db0cfcf)",
     "acceptance": "`git stash list | wc -l` = 0",
     "deps": [],
@@ -1262,6 +1389,7 @@
   "orders": [
    {
     "id": "GGE-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Fast-forward main to origin/main 21a8deee and sync submodules without LFS smudge",
     "acceptance": "`cd /Users/sac/ggen-ecosystem && git fetch origin --prune && git checkout main && git merge --ff-only origin/main && test \"$(git rev-parse main)\" = \"$(git ls-remote origin refs/heads/main | cut -f1)\" && GIT_LFS_SKIP_SMUDGE=1 git submodule update --init && test \"$(git submodule status | grep -c '^[+-]')\" = 0`",
     "deps": [],
@@ -1269,6 +1397,7 @@
    },
    {
     "id": "GGE-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Preserve at-risk work: commit or explicitly discard the uncommitted code in /Users/sac/wt-v26918/{ggen-06-queries-dir, ggen-09-alias, ign-12-gate-semantics, ign-14-bindings}, and push gpack/mkt-03-invalid-corpus d2d52edf2",
     "acceptance": "`for w in ggen-06-queries-dir ggen-09-alias ign-12-gate-semantics ign-14-bindings; do git -C /Users/sac/wt-v26918/$w status --porcelain | wc -l; done` prints 0 four times",
     "deps": [],
@@ -1276,6 +1405,7 @@
    },
    {
     "id": "GGE-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "LFS guard (GIT_LFS_SKIP_SMUDGE=1) for autonomic-crown.yml and pragprog-tps.yml, and remove the marketplace SHA from the ggen.toml comment (the crown's authorized-path gate forbids ggen.toml edits)",
     "acceptance": "`grep -c GIT_LFS_SKIP_SMUDGE .github/workflows/autonomic-crown.yml .github/workflows/pragprog-tps.yml` is at least 1 each; `python3 -m unittest tests.lock_contracts.test_ecosystem_lock_consistency -v` OK; the dispatched crown run is success",
     "deps": [
@@ -1285,6 +1415,7 @@
    },
    {
     "id": "GGE-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Land docs/v26.9.18-wave-plan and the 27 untracked tickets, with v26.9.19 tickets 003/004/005/009 marked resolved (#248/#263/#266/#174)",
     "acceptance": "`git status --porcelain | wc -l` = 0 and `gh pr list --head docs/v26.9.18-wave-plan --state all --json number -q length` is at least 1",
     "deps": [
@@ -1294,6 +1425,7 @@
    },
    {
     "id": "GGE-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Re-qualify and merge #348 (its only red check was BLOCKED[LFS_BUDGET])",
     "acceptance": "`gh pr checks 348 -R seanchatmangpt/ggen-ecosystem | grep -vc pass` = 0 and state = MERGED",
     "deps": [
@@ -1303,6 +1435,7 @@
    },
    {
     "id": "GGE-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Producer-first #350: once igniter #25 and marketplace #477 are on their mains, rebind the lock, gitlink, ggen.toml comment, [semantic_life_loop].marketplace_sha and source digest; close #345 as superseded",
     "acceptance": "`gh pr checks 350 -R seanchatmangpt/ggen-ecosystem | grep -E 'Qualify linux/(amd64|arm64)' | grep -vc pass` = 0, and `gh run view <run> --log | grep -cE 'SEMANTIC_LIFE_LOOP_MANUFACTURE_ALIVE sha256=[0-9a-f]{64}'` is at least 2 (the emitted form, not the echo line)",
     "deps": [
@@ -1314,6 +1447,7 @@
    },
    {
     "id": "GGE-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Wire igniter semantic-jira-pack admission of the observation delta (SLL-001 -> WorkOrder) into an ecosystem court; #350 today never invokes it",
     "acceptance": "the court log shows GgenIgniter.SemanticJira admitting SLL-001 on both architectures",
     "deps": [
@@ -1323,6 +1457,7 @@
    },
    {
     "id": "GGE-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "SA2A plan-only court in the composed image, bound to the lock's autofde-lab pin",
     "acceptance": "`docker run --rm ghcr.io/seanchatmangpt/ggen-ecosystem:sha-$(git rev-parse origin/main) python3 -c 'import autofde_lab.sa2a, autofde_lab.sa2a.admission.pipeline; print(\"SA2A_IMPORT_ALIVE\")'` prints SA2A_IMPORT_ALIVE, and the new court check passes on amd64 and arm64",
     "deps": [
@@ -1332,6 +1467,7 @@
    },
    {
     "id": "GGE-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Standing write-back: [semantic_life_loop].standing UNKNOWN -> ALIVE with observed_success_run and head SHA, plus receipts/semantic-life-loop-v26.9.22.json",
     "acceptance": "`python3 -c 'import tomllib;d=tomllib.load(open(\"ecosystem.lock.toml\",\"rb\"))[\"semantic_life_loop\"];assert d[\"standing\"]==\"ALIVE\" and d[\"observed_success_run\"] and d[\"observed_success_head_sha\"]' && test -f receipts/semantic-life-loop-v26.9.22.json`",
     "deps": [
@@ -1342,6 +1478,7 @@
    },
    {
     "id": "GGE-26922-10",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Triage: #329 (bump the pins in ontology.ttl, regenerate, close), the stale #159/#174/#201/#225/#229/#310, about 40 stale branches, the 116 auto-filed repair issues, stash@{0}, and the [gone] branches",
     "acceptance": "`gh pr list -R seanchatmangpt/ggen-ecosystem --state open --json number -q length` is at most 4, each with a recorded reason",
     "deps": [
@@ -1351,6 +1488,7 @@
    },
    {
     "id": "GGE-26922-11",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Release v26.9.22: lock release identity, CHANGELOG, tag, GHCR container, receipts/release-v26.9.22-container.json",
     "acceptance": "`git ls-remote --tags origin refs/tags/v26.9.22 | wc -l` is at least 1 && `test -f receipts/release-v26.9.22-container.json && docker run --rm ghcr.io/seanchatmangpt/ggen-ecosystem:v26.9.22 ggen --version` exit 0",
     "deps": [
@@ -1370,6 +1508,7 @@
   "orders": [
    {
     "id": "ASF-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Reconcile the two lineages: record origin/main ancestry on feat/dfcm-surface-core (precondition `git diff --quiet 78cbb84 origin/main`) using the method the user approves, and open a PR to main",
     "acceptance": "`cd /Users/sac/ash_surface && git merge-base --is-ancestor origin/main feat/dfcm-surface-core && gh pr list -R seanchatmangpt/ash_surface --head feat/dfcm-surface-core --state open --json number --jq length` = 1",
     "deps": [],
@@ -1379,6 +1518,7 @@
    },
    {
     "id": "ASF-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Port PR #6's 01e8b49 (ash 3.33.9, mint 1.10.1) and 164a07b (LFS-fenced manufacture pin e2a5e88)",
     "acceptance": "`mix deps.get && mix hex.audit` exit 0, and the manufacture job succeeds on the PR head",
     "deps": [
@@ -1388,6 +1528,7 @@
    },
    {
     "id": "ASF-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge PR #4 blue-river-dam 0d99161 (OBSERVE-only SA2A command center), keeping the OTP 28.3/Elixir 1.20.3 pins and adding the exact-subject checkout",
     "acceptance": "`git merge-base --is-ancestor 0d9916141da37fbf1907706e0713611435db77cd HEAD && mix test test/ash_surface/command_center_test.exs test/ash_surface/obligation_test.exs && mix test.all` exit 0",
     "deps": [
@@ -1398,6 +1539,7 @@
    },
    {
     "id": "ASF-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge PR #6 df0e859 (ZOE human surface): keep mix.exs at the HEAD version under version_sync_test, re-freeze the runtime.mjs golden SHA, add HANDWRITTEN/UNSUPPORTED ledger pairs, update the chicago census",
     "acceptance": "`git merge-base --is-ancestor df0e8590f8ca7e5644e353c216ec01188a287dca HEAD && mix test test/ash_surface/human_surface_test.exs test/ash_surface/zoe_demo_test.exs test/ash_surface/handwritten_ledger_test.exs test/ash_surface/runtime_source_test.exs && mix test.all && bash scripts/ci_falsifier.sh` exit 0",
     "deps": [
@@ -1407,6 +1549,7 @@
    },
    {
     "id": "ASF-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Exact-HEAD CI receipt on the reconciled PR head (elixir, javascript, falsifier, zero-config, zero-config-v2, dialyzer, coverage, manufacture)",
     "acceptance": "`gh api repos/seanchatmangpt/ash_surface/commits/$(git rev-parse HEAD)/check-runs --jq '[.check_runs[].conclusion]|unique'` = [\"success\"]",
     "deps": [
@@ -1416,6 +1559,7 @@
    },
    {
     "id": "ASF-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "PR #5: regenerate engineering-standards.json with render-repository-adoption.py against the reconciled base, with no ALIVE claim before green; close #3 as superseded by #4",
     "acceptance": "`gh pr checks 5 -R seanchatmangpt/ash_surface` shows no fail, and `gh pr view 3 --json state -q .state` = CLOSED",
     "deps": [
@@ -1425,6 +1569,7 @@
    },
    {
     "id": "ASF-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Repin ash_a2a from e25ed6e to ash_a2a v26.9.22 (pulls rdf ~>3.0 and the wasmex NIF) and re-prove delegation, the env -i battery and the dialyzer PLT",
     "acceptance": "`mix deps.get && mix test test/ash_surface/capability_delegation_test.exs test/ash_surface/compiler/capability_section_test.exs test/ash_surface/no_local_do_test.exs && bash scripts/zero_config_check.sh && mix dialyzer` exit 0",
     "deps": [
@@ -1435,6 +1580,7 @@
    },
    {
     "id": "ASF-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Unblock paydowns 026/050 once the marketplace ash-extension-pack branches are published: repin ggen.toml off the deleted ash-extension-core-pack@7c50bef",
     "acceptance": "`! grep -q ash-extension-core-pack ggen.toml && mix test test/ash_surface/handwritten_ledger_test.exs` exit 0",
     "deps": [
@@ -1444,6 +1590,7 @@
    },
    {
     "id": "ASF-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Re-scope gapfix-blob-purge-016: close it as SUPERSEDED via squash landing plus deleting the feature branch (no filter-repo or force-push)",
     "acceptance": "`grep -m1 '^status:' docs/jira/v26.9.17/gapfix-blob-purge-016.md | grep -vc OPEN` = 1",
     "deps": [
@@ -1453,6 +1600,7 @@
    },
    {
     "id": "ASF-26922-10",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Bump to 26.9.22 through the lawful mechanism and tag",
     "acceptance": "`bash scripts/bump_version.sh --check 26.9.22 && bash scripts/bump_version.sh 26.9.22 && grep -q '@version \"26.9.22\"' mix.exs && mix test.all && git tag --list v26.9.22 | grep -q v26.9.22`",
     "deps": [
@@ -1463,6 +1611,7 @@
    },
    {
     "id": "ASF-26922-11",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Worktree and branch hygiene: remove the 31 ash-surface-wt worktrees (their content is verified to be in HEAD); coordinate removal of /private/tmp/xaas-w9-sweep-ash_surface with xaas; correct the stale g07 note before committing cleanup-merge-plan.md",
     "acceptance": "`git worktree list | wc -l` = 1 and `git status --porcelain | wc -l` = 0",
     "deps": [
@@ -1478,6 +1627,7 @@
   "orders": [
    {
     "id": "FERROPLAN-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "rustfmt the 4 hunks in crates/ferroplan/src/policy_validation.rs (from the ppcx merge)",
     "acceptance": "`cd /Users/sac/ferroplan && cargo fmt --all -- --check && cargo check -p ferroplan --lib --locked` exit 0",
     "deps": [],
@@ -1485,6 +1635,7 @@
    },
    {
     "id": "FERROPLAN-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "A deep lane that can pass: make the oracle and corpus durable (FERROPLAN_ORACLE_DIR/FERROPLAN_CORPUS_DIR defaulting to ~/.cache/ferroplan) so fond_flat_oracle, differential_fuzz, grounding_prune_ipc_rerun and ground_caps_ipc_addendum run or skip by name in CI; fix the Chatman Ecosystem projection-law job (CE-GALL-35 receipt stems and missing test refs)",
     "acceptance": "`gh run list -R seanchatmangpt/ferroplan --branch main --workflow CI -L1 --json conclusion -q '.[0].conclusion'` = success, and `(cd plugins/chatman-ecosystem && pytest)` exit 0",
     "deps": [
@@ -1494,6 +1645,7 @@
    },
    {
     "id": "FERROPLAN-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Rule on fond-htn-67: vendor autofde-lab's sa2a-v26.9.17 domain and problem (no :goal, htn root only), run it fresh at HEAD, and record ruling (a), or implement (b) as a flag-gated accepted-terminal mode that is byte-identical with the flag off",
     "acceptance": "`cargo test -p ferroplan --test sa2a_goal_set_ruling && cargo test -p ferroplan --lib planning_runtime` exit 0, and `git ls-files --error-unmatch docs/jira/v26.9.17/fond-htn-67-sa2a-goal-set-semantics-divergence.md` succeeds with a new dated standing row",
     "deps": [
@@ -1505,6 +1657,7 @@
    },
    {
     "id": "FERROPLAN-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Bookkeeping: commit docs/jira/v26.9.19; close #43/#44 as landed; delete the superseded origin branches (planning-type-constitution v1/v2, eve-genesis v1/v2, sync-upstream-c8d43f9); drop format-recovery.yml",
     "acceptance": "`test \"$(gh pr list -R seanchatmangpt/ferroplan --state open --json number --jq length)\" -eq 0 && test -z \"$(git status --porcelain)\" && ! test -f .github/workflows/format-recovery.yml`",
     "deps": [
@@ -1514,6 +1667,7 @@
    },
    {
     "id": "FERROPLAN-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge upstream hhh42 main, re-resolved via `git ls-remote upstream refs/heads/main` at execution time because the 0.28 cut is in progress",
     "acceptance": "`git fetch upstream && git merge-base --is-ancestor $(git ls-remote upstream refs/heads/main | cut -f1) main && cargo fmt --all -- --check && cargo clippy --workspace --exclude ferroplan-bevy --all-targets --all-features -- -D warnings && cargo test --workspace --exclude ferroplan-bevy && (cd crucible && cargo test)` exit 0",
     "deps": [
@@ -1525,6 +1679,7 @@
    },
    {
     "id": "FERROPLAN-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Standing guard: scripts/verify_ticket_standing.py fails when frontmatter disagrees with the last History row (49 contradictions in v26.9.17 today); reconcile those tickets",
     "acceptance": "`python3 scripts/verify_ticket_standing.py docs/jira` exit 0, and non-zero on a copy with one frontmatter mutated",
     "deps": [
@@ -1534,6 +1689,7 @@
    },
    {
     "id": "FERROPLAN-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Finish or retire respawn tickets fond-htn-47..56 (55 wasip1-clippy, 48 hygiene, 54 fond-unsafe-hddl which feeds 03), and prune the 43 merged worktrees",
     "acceptance": "`CARGO_TARGET_WASM32_WASIP1_RUNNER='wasmtime run' cargo clippy -p ferroplan-wasm --target wasm32-wasip1 -- -D warnings` exit 0, and `git worktree list | wc -l` is at most 5",
     "deps": [
@@ -1543,6 +1699,7 @@
    },
    {
     "id": "FERROPLAN-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "integration/all-open-prs-2026-07-31 (69 unique patches: the v26.8.1 ggen full_planning graph): land it by merge or delete it with a rationale recorded in v26.9.19 tickets 008/009",
     "acceptance": "`(git merge-base --is-ancestor 18dbc73 main || ! git ls-remote --exit-code origin refs/heads/integration/all-open-prs-2026-07-31) && grep -Eq 'Standing: (CLOSED|DONE|ALIVE)' docs/jira/v26.9.19/008-*.md docs/jira/v26.9.19/009-*.md`",
     "deps": [],
@@ -1550,6 +1707,7 @@
    },
    {
     "id": "FERROPLAN-26922-09",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "C01 release as policy synthesis: compile the v26.9.22 work graph (orders = tasks, outcomes ALIVE/REFUTED/BLOCKED nondeterministic, depends_on = preconditions) into an HDDL/FOND domain+problem and solve for a strong-cyclic policy with ferroplan",
     "acceptance": "cargo test -p ferroplan --test sjira_release_policy (loads a fixture generated from /Users/sac/wt/v26922/orders.json; asserts every (order x outcome) pair is covered, no action precedes a dependency, and the policy is strong-cyclic); falsifier: removing one dependency edge from the fixture changes the policy",
     "deps": [
@@ -1565,6 +1723,7 @@
   "orders": [
    {
     "id": "GITVAN-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Clean the dirty tree without destroying anything: stash (do not discard) the local pnpm-lock.yaml and the placeholder pnpm-workspace.yaml, deactivate .claude/ralph-loop.local.md, commit docs/jira/v26.9.19, resolve the memory/agents/README.md deletion, triage the 4 stashes",
     "acceptance": "`cd /Users/sac/gitvan && git status --porcelain | wc -l` = 0",
     "deps": [],
@@ -1572,6 +1731,7 @@
    },
    {
     "id": "GITVAN-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Build fix: cherry-pick aabbb82 and d645b6e from #22 (workflow-engine.mjs:77 is missing `async initialize() {`)",
     "acceptance": "`pnpm install --frozen-lockfile && pnpm build` exit 0",
     "deps": [
@@ -1581,6 +1741,7 @@
    },
    {
     "id": "GITVAN-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Merge origin/main (3 commits, disjoint files) into local main and push the 26 local commits",
     "acceptance": "`git fetch origin && git rev-list --left-right --count origin/main...main` = `0\t0`",
     "deps": [
@@ -1592,6 +1753,7 @@
    },
    {
     "id": "GITVAN-26922-04",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "A test gate that can fail: `pnpm test` must exit non-zero on failing tests and on heap OOM (split or bail), and the docs verifier threshold must not pass with 262 failures",
     "acceptance": "after injecting one failing assertion in a scratch copy, `pnpm exec vitest run; echo $?` prints non-zero; on the real tree it prints 0",
     "deps": [
@@ -1601,6 +1763,7 @@
    },
    {
     "id": "GITVAN-26922-05",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Land #23 with #24's checks fix, retarget #24 to main, undraft and merge; extend the kgc4d-receipt-qualification triggers to main and the frontier-evidence paths",
     "acceptance": "`pnpm exec vitest run tests/frontier-evidence.test.mjs tests/foundation-spike.test.mjs` exit 0, and `gh pr view 24 -R seanchatmangpt/gitvan --json state,baseRefName -q '.state+\" \"+.baseRefName'` = 'MERGED main'",
     "deps": [
@@ -1611,6 +1774,7 @@
    },
    {
     "id": "GITVAN-26922-06",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Live frontier-evidence/v1 emitter at main HEAD (kgc-4d-event-capture -> receipt -> frontierEvidenceFromKgc), with xaas binding the live artifact instead of fixture 6e5dee0",
     "acceptance": "`node scripts/emit-frontier-evidence.mjs > \"$OUT\" && test \"$(jq -r .producer_head \"$OUT\")\" = \"$(git rev-parse HEAD)\" && cd /Users/sac/xaas && mix test test/xaas/frontier_evidence_test.exs` gives 0 failures",
     "deps": [
@@ -1620,6 +1784,7 @@
    },
    {
     "id": "GITVAN-26922-07",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Decide #22 after harvesting aabbb82/d645b6e; delete or reopen the 4 PR-less branches (3 had closed PRs #20/#9/#4); delete the 13 merged claude/* heads and brand/forward-deployment-os-2026-08",
     "acceptance": "`git fetch --prune origin && git branch -r --no-merged origin/main | grep -cE 'manufacture-capability-system|complete-project-DHPYa|refactor-job-system-xMn9W|validate-project-01NW3'` = 0",
     "deps": [
@@ -1629,6 +1794,7 @@
    },
    {
     "id": "GITVAN-26922-08",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Version and lockfile drift: VERSION 3.0.0 vs package.json 4.0.1, the missing v4.0.1 tag, and test.yml using npm ci against a pnpm lockfile",
     "acceptance": "`test \"$(cat VERSION)\" = \"$(jq -r .version package.json)\" && ! grep -n 'npm ci' .github/workflows/*.yml`",
     "deps": [
@@ -1644,6 +1810,7 @@
   "orders": [
    {
     "id": "CHATMAN-ECOSYSTEM-26922-01",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Land the 2026-09-21 doc refresh (an operator cut). Record the base SHA and gate results, not a self-referential HEAD",
     "acceptance": "`cd /Users/sac/chatman-ecosystem && bash scripts/validate_sigma.sh && python3.13 -m pytest prototype/tests -q && python3.13 prototype/demo.py && test -z \"$(git status --porcelain)\"` exit 0",
     "deps": [],
@@ -1653,6 +1820,7 @@
    },
    {
     "id": "CHATMAN-ECOSYSTEM-26922-02",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Jurisdiction contracts for the uncontracted loop participants (xaas, ggen_igniter, zcode-cli, ash_surface, dfcm-autonomous): edit the AGENTS.md table, JURISDICTION_TABLE/MUST_NOT_OWN, and test_jurisdiction_contracts.py:102 (13 -> 18)",
     "acceptance": "`python3.13 -m pytest prototype/tests -q` passes, including a new REFUSED_JURISDICTION_FORBIDDEN case for xaas",
     "deps": [
@@ -1664,6 +1832,7 @@
    },
    {
     "id": "CHATMAN-ECOSYSTEM-26922-03",
+    "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
     "title": "Sigma alignment with the SA2A calculus (Observation -> Candidate -> Admission -> Authority -> Actuation -> Receipt -> Replay): add Candidate, Admission and Replay classes or explicit mappings to Possibility/Action, using zCoordinates from the shapes.ttl sh:in list, and update the pack.toml description",
     "acceptance": "`bash scripts/validate_sigma.sh` exit 0, with the round-trip class count matching the new ontology",
     "deps": [

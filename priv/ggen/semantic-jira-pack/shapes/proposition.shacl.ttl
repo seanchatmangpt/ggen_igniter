@@ -9,7 +9,7 @@
 # PRD PR-003, ARD section 5.4, lane V23-C). Executed by
 # GgenIgniter.SemanticJira.Shacl merged with shapes/work-order.shacl.ttl, over
 # the pack ontology + the goal graph + the candidate (or admitted) graph, by
-# GgenIgniter.SemanticJira.Prose (mix semantic_jira.compile_prose). Same
+# GgenIgniter.SemanticJira.Prose (mix semantic_jira.observe_prose). Same
 # supported surface as work-order.shacl.ttl (no sh:in: enumerations are
 # anchored sh:pattern alternations or sh:class over a closed enumeration).
 # Byte-level provenance (sj:sourceSha256 equals the source file digest,
@@ -24,17 +24,15 @@
 # predicate, so an untyped candidate cannot slip past admission (the
 # rdf:type sh:hasValue constraint refuses it). sj:sourceSha256 is not a
 # target predicate: a root GoalCheckpoint uses it to bind its prose.
-#
-# Tuple hints (optional, copied into manufactured WorkOrders by
-# prose/delta.construct.rq): sj:postcondition, sj:requiresCapability (the
-# capability id STRING here; the WorkOrder carries an sj:Capability node),
-# sj:evidenceHorizon, sj:exclusion (0..n), sj:consequenceClass,
-# sj:successorPolicy, sj:acceptance and sj:falsifier (nodes).
+# sj:admissionDigest is not a target predicate either: authority nodes
+# (StrategicObjective / GoalCheckpoint) now carry the same witness and must
+# not be dragged under this closed shape; every proposition -- candidate and
+# admitted -- is reached through sh:targetClass sj:Proposition.
 
 sj:PropositionShape a sh:NodeShape ;
     sh:targetClass sj:Proposition ;
     sh:targetSubjectsOf sj:propositionKind, sj:statement, sj:sourceText, sj:sourceStart, sj:sourceEnd,
-        sj:candidateStanding, sj:admissionDigest, sj:extractedBy, sj:requiredBy ;
+        sj:candidateStanding, sj:extractedBy, sj:requiredBy ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type rdfs:label rdfs:comment ) ;
     sh:property [ sh:path rdf:type ; sh:hasValue sj:Proposition ] ;
@@ -49,6 +47,9 @@ sj:PropositionShape a sh:NodeShape ;
     sh:property [ sh:path sj:requiredBy ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:GoalCheckpoint ] ;
     sh:property [ sh:path sj:candidateStanding ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^UNKNOWN$" ] ;
     sh:property [ sh:path sj:admissionDigest ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    # Propositions never hold authority: candidate and admitted forms alike
+    # carry the constant NONE (observe stamps it before the court runs).
+    sh:property [ sh:path sj:authorityClaim ; sh:minCount 1 ; sh:maxCount 1 ; sh:hasValue "NONE" ] ;
     sh:property [ sh:path sj:extractedBy ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
     sh:property [ sh:path sj:postcondition ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
     # Canonical capabilityId value space (the SA2A route grammar; identical to

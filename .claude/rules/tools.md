@@ -28,7 +28,7 @@ LSP workspaceSymbol "CompiledRule"                             # Find all Compil
 
 ### Java — jdtls-lsp currently DISABLED on this machine
 
-`jdtls-lsp@claude-plugins-official` is disabled in `~/.claude/settings.json`, so the
+`jdtls-lsp@claude-plugins-official` is disabled in `~/.zcode/cli/config.json`, so the
 guidance below has no LSP server backing it right now — grep/text search is the actual
 fallback for Java until this plugin is re-enabled:
 

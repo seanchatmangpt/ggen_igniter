@@ -15,7 +15,7 @@ defmodule GgenIgniter.FullPipelinePropertiesTest do
   No mocking anywhere: every run uses a real temp directory, real
   `File.write!/2`/`File.read!/1` calls (via the real `Actuate.write_file!/3`),
   and the real `EEx.eval_string/2` (via the real `Render.render/2`) --
-  per `~/.claude/rules/testing-chicago-style.md`.
+  per `~/.zcode/rules/testing-chicago-style.md`.
 
   ## Real constraints verified against the actual source before writing this
   file (not assumed)

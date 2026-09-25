@@ -14,6 +14,15 @@
 > `GgenIgniter.Crown`), and `test/ggen_igniter_semantic_jira_vocabulary_test.exs`. Every
 > "enforced"/"proven" claim below refers to that deferred content, which stays reachable from
 > `preserve/v26.9.22/wo-03-wip` (2d1fadb) and is successor `v23:GC-26.9.24` (V23-T6R receipt).
+>
+> **Update 2026-09-24 (v26.9.24, SJ-002 / ADR-012).** The origin-authority terms ARE present
+> in this tree now, and they are residue by the analysis below: `sj:CodeWorkAuthority` (with
+> `sj:StrategicObjective` and `sj:GoalCheckpoint` as `rdfs:subClassOf` it), the standalone
+> `sj:ProseObservation` class, `sj:originAuthority` (exactly 1 per WorkOrder), optional
+> `sj:originObservation`, and `sj:admissionDigest` widened to witness authorities as well
+> (for admitted propositions still present exactly when `sj:candidateStanding` is absent),
+> enforced by the `sj:WorkOrderOriginShape` / `sj:AdmissionDigestShape` shapes in
+> `shapes/work-order.shacl.ttl` and `GgenIgniter.SemanticJira.Authority` (typed ≠ admitted).
 
 Mission: the work/change/provenance semantics of this pack map to PUBLIC
 vocabularies — OSLC CM 3.0, Dublin Core Terms (dcterms), and W3C PROV-O.
@@ -161,6 +170,11 @@ wave may carry an edge where the vocabulary or a persisted value arrives.
 | `sj:witnessedBy` | Receipt-bound witnessing fact minted by the CROWN2 provisioning wave (W9-G5): an observation WorkOrder carries `sj:witnessedBy` the committed regression-guard test that must stay RED at the base head for the provisioning to be lawful. `prov:wasInformedBy`/`dcterms:references` were considered and rejected: the link is a typed witnessing obligation on an exact test artifact, not an influence or bibliographic reference. Failed edges: prov:wasInformedBy, dcterms:references. |
 | `sj:concurrencyKey` / `sj:active` / `sj:exclusive` / `sj:candidateOnly` / `sj:normativeMutation` / `sj:transitionWorkOrder` | Lease fencing and event binding are DfCM 並/記 law. `sj:transitionWorkOrder`'s nearest slot, PROV-O `prov:wasInformedBy` (Activity→Activity), would assert the work order is itself an Activity — a type confusion the admission court must refuse. Failed edge: prov:wasInformedBy. |
 | the `sj:EvidenceRequirement` individuals (`sj:source-evidence`, `sj:receipt-evidence`, `sj:replay-evidence`, and siblings) | Typed DfCM evidence individuals; no OSLC/PROV individual vocabulary for evidence classes at this granularity. |
+| `sj:CodeWorkAuthority` (+ `sj:StrategicObjective`, and `sj:GoalCheckpoint` as `rdfs:subClassOf` it) | The class of ADMITTED work authorities — authority held by law (admission + witness digest), not by fact. `prov:Agent` holds authority in fact (it participated in an activity), not in law; `org:Role` and `foaf:Group` model organizational structure, not admitted authority (org:/foaf: are outside the authorized set besides). Failed edges: prov:Agent, org:Role, foaf:Group. |
+| `sj:ProseObservation` | The observation discipline over accepted prose (propositions observed, zero orders manufactured). `prov:Entity` types the observed artifact, not the observation discipline; there is no PROV class for "an observation that cannot originate work". Failed edge: prov:Entity. |
+| `sj:originAuthority` | Exactly-one admitted authority an order originates from. `prov:wasAttributedTo` is provenance attribution (who was involved), not admission-gated authority; `dcterms:provenance` is an untyped statement-about. The exactly-one cardinality plus the SHACL admission-witness law have no public slot. Failed edges: prov:wasAttributedTo, dcterms:provenance. |
+| `sj:originObservation` | The optional observation an order was manufactured from. `prov:wasDerivedFrom` is too strong: it asserts the order is a transformation of the observation, whereas the observation is motivation evidence the order cites, not a thing the order is derived from by transformation. Failed edge: prov:wasDerivedFrom. |
+| `sj:admissionDigest` (widened 2026-09-24, SJ-002) | Now witnesses admitted authorities as well as admitted propositions (for propositions, still present exactly when `sj:candidateStanding` is absent). The hash-slot analysis is unchanged from the digest row above: sha256 digests have no OSLC/PROV slot (`prov:quotation` takes an Entity, `prov:value` needs reification). Failed edges: prov:quotation, prov:value (unchanged). |
 
 ## prov: nodes minted by this pack (public additions)
 

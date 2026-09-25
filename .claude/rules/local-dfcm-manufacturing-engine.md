@@ -32,7 +32,7 @@ the other.
 
 3. **Worktrees are combinatorial isolation boundaries.** One agent/candidate/workstream
    per worktree when practical, so parallel width isn't bottlenecked by a shared
-   working tree. See `~/.claude/rules/tools.md` and the `superpowers:using-git-worktrees`
+   working tree. See `~/.zcode/rules/tools.md` and the `superpowers:using-git-worktrees`
    skill for the mechanics; this rule sets the *reason* to reach for them (maximize
    concurrent candidates), not just the how.
 
@@ -40,7 +40,7 @@ the other.
    prior claims (including the assistant's own) are observations, not proof. Establish
    real CWD, exact SHA, binary identity, and a failing command before intervening;
    reproduce the failure; fix; rerun the identical check. This is the same discipline
-   as `~/.claude/rules/no-overclaiming-conversational.md`'s "a run, not a survey" —
+   as `~/.zcode/rules/no-overclaiming-conversational.md`'s "a run, not a survey" —
    applied here specifically to the local-manufacturing role.
 
 5. **A blocker branches the search graph; it does not terminate manufacturing.**
@@ -107,12 +107,12 @@ reusable structure rather than a one-off.
 
 ## See Also
 
-- `~/.claude/rules/dmedi-methodology.md` — the Explore-phase concept-generation
+- `~/.zcode/rules/dmedi-methodology.md` — the Explore-phase concept-generation
   discipline this file's "maximize the search space before selection" specializes
   for the local-manufacturing role specifically
-- `~/.claude/rules/no-overclaiming-conversational.md` — the evidence/execution
+- `~/.zcode/rules/no-overclaiming-conversational.md` — the evidence/execution
   discipline law 4 and the QUALIFICATION mode both draw on
-- `~/.claude/rules/testing-chicago-style.md` — real-collaborator discipline; law 6's
+- `~/.zcode/rules/testing-chicago-style.md` — real-collaborator discipline; law 6's
   "don't fake away a side of a merge" is the same principle applied to conflict
   resolution
-- `~/.claude/rules/tools.md` — practical worktree/git mechanics referenced by law 3
+- `~/.zcode/rules/tools.md` — practical worktree/git mechanics referenced by law 3

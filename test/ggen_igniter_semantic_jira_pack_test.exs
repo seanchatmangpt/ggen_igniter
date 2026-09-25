@@ -107,7 +107,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 34
 
       first_bytes = File.read!(output_path)
 
@@ -218,7 +218,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.prd.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.prd.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.prd.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.prd.md"))) == 34
 
       first_bytes = File.read!(output_path)
 
@@ -306,7 +306,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.hddl"))
       assert File.exists?(Path.join(work_dir, "GALL-032.hddl"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.hddl"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.hddl"))) == 34
 
       first_bytes = File.read!(output_path)
 
@@ -374,7 +374,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert exit_code == 0, "HDDL sync failed:\n#{output}"
 
       paths = Path.wildcard(Path.join(work_dir, "*.hddl"))
-      assert length(paths) == 33
+      assert length(paths) == 34
 
       for path <- paths do
         id = Path.basename(path, ".hddl")
@@ -469,7 +469,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       # One WorkOrder object per canonical WorkOrder, boundary attributes bound.
       work_order_objects = Enum.filter(objects, &(&1["ocel:type"] == "WorkOrder"))
-      assert length(work_order_objects) == 33
+      assert length(work_order_objects) == 34
 
       object_ids = Enum.map(objects, & &1["ocel:id"])
       assert length(object_ids) == length(Enum.uniq(object_ids))
@@ -595,7 +595,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.ard.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.ard.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.ard.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.ard.md"))) == 34
 
       first_bytes = File.read!(output_path)
 
@@ -712,7 +712,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.vision.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.vision.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.vision.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.vision.md"))) == 34
 
       first_bytes = File.read!(output_path)
 
@@ -802,7 +802,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.wbpr.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.wbpr.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.wbpr.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.wbpr.md"))) == 34
 
       first_bytes = File.read!(output_path)
 
@@ -1560,7 +1560,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(Path.join(work_dir, "SJ-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 34
     end
 
     test "flag on over a forged-but-well-formed 40-hex baseSha refuses before any actuation" do
@@ -1593,7 +1593,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       {output, exit_code} = run_sync(work_dir)
 
       assert exit_code == 0, "flag-off honest sync failed:\n#{output}"
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 34
     end
 
     test "flag on with a non-git --verify-cwd refuses cleanly, not a crash" do
@@ -1646,7 +1646,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       assert exit_code == 0, "per-order git-ground-truth control failed:\n#{output}"
       assert File.exists?(Path.join(work_dir, "SJ-001.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 33
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 34
     end
   end
 
@@ -1765,6 +1765,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
   defp semantic_digest(seed), do: "sha256:" <> String.duplicate(seed, 64)
 
+  @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
+
   defp sample_work_order(overrides \\ %{}) do
     Map.merge(
       %{
@@ -1787,6 +1789,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         "required_receipt_classes" => ["verification"],
         "path_scope" => ["lib/ggen_igniter"],
         "authority_requirement" => "NONE",
+        "origin_authority" => @origin_authority,
         "replay_required" => false
       },
       overrides

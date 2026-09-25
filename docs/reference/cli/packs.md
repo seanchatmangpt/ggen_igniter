@@ -7,11 +7,23 @@ Source: `lib/ggen_igniter/pack.ex` (`GgenIgniter.Pack`), consumed by both
 
 ```
 priv/ggen/<pack-name>/
-├── pack.toml              # optional, not read by GgenIgniter.Pack itself
+├── pack.toml              # pack identity: [pack] name/version/description (required for Core-profile packs)
 ├── ontology.ttl           # default --ontology
 ├── gates/*.rq             # default --query source, one named query per file
 └── templates/*.{eex,tmpl} # default --template source (single-file case)
 ```
+
+## `pack.toml` is read and enforced (since 2026-09-17)
+
+`GgenIgniter.Pack.parse_manifest/1` strictly parses `pack.toml`'s `[pack]`
+table: `name`, `version`, and `description` are required and unknown keys
+refuse with `REFUSED:PACK_MANIFEST_INVALID`. For Core-profile packs
+(`gp:profile` Core), `pack.toml` is REQUIRED (`REFUSED:PACK_MANIFEST_MISSING`
+when absent) and every graph's `gp:name` must equal `[pack].name`
+(`REFUSED:PACK_IDENTITY_MISMATCH`). Pack admission (`:admit_pack` step in
+`GgenIgniter.Reactors.ReconcileReactor`, used by both `run/1` and `plan/1`)
+runs these checks before any query/render/actuation. The shipped
+`semantic-jira-pack` and `zcode-ocel-pack` both carry `pack.toml`.
 
 `GgenIgniter.Pack` is a pure helper with no `Igniter` dependency, so both
 Mix tasks and the test suite call it directly.

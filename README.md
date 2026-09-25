@@ -64,15 +64,15 @@ See `docs/status.md` for the complete, sourced capability table and
 
 ## Packs
 
-`priv/ggen/*` ships the following packs (the `--pack NAME` convention;
-purpose and test coverage sourced from `docs/v26.9.1-requirements.md` §3):
+`priv/ggen/*` ships the following 15 packs (the `--pack NAME` convention;
+original pack purposes sourced from `docs/v26.9.1-requirements.md` §3 — the
+disk inventory below is authoritative):
 
 - **`adr-index-pack`** — regenerates `docs/architecture/adr/README.md`'s own
   machine-generated ADR index table.
 - **`reactor-scaffold-pack`** — scaffolds a new Reactor-pipeline coordination
   module.
-- **`ash_manufacture_pack`** — generative Ash domain and resource manufacturing
-  pack certifying all 6 crowns against real PostgreSQL.
+- **`ash-notifier-load2-pack`** — Ash notifier load-path projections.
 - **`incremental-discovery-pack`** — streaming directly-follows-graph (DFG)
   discovery, ported from ex4pm's `incremental.ex`; covered by
   `test/ggen_igniter_incremental_dfg_test.exs`.
@@ -98,10 +98,22 @@ purpose and test coverage sourced from `docs/v26.9.1-requirements.md` §3):
   `topology` templates are covered by
   `test/ggen_igniter_sync_beam4pm_bench_pack_test.exs` and
   `test/fixtures/beam4pm-bench-pack-wasm-adapter/`.
+- **`calver-ticket-day-pack`** — manufactures a day's calver ticket
+  scaffolding from the day's ontology (`mix ggen_igniter.sync --for-each`).
+- **`dfcm-agent-pack`** — DfCM agent-pack projections (`dfa:` ontology).
+- **`gall_work`** — GALL TTL→ticket projection pack.
+- **`semantic-jira-pack`** (pack.toml v26.9.19) — ontology-native Semantic
+  Jira work orders projected through ggen_igniter; work-order shapes, gates,
+  runtime templates, prose/bootstrap directories.
+- **`zcode-ocel-pack`** (pack.toml v0.1.0) — OCEL 2.0 event/object-type
+  registry for the zcode agent loop (TypeScript projection).
+
+The former `gall-semantic-work-pack` was deleted 2026-09-20 (folded into
+`semantic-jira-pack`). `ash_manufacture_pack`, listed here previously, never
+landed in this repository.
 
 See `priv/ggen/CLAUDE.md` for the fixed `--pack` subpath/naming convention
-and `docs/v26.9.1-requirements.md` for the source-of-truth requirements this
-list is drawn from.
+and `docs/v26.9.1-requirements.md` for the original requirements list.
 
 ## How do I run it
 

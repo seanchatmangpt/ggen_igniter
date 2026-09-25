@@ -45,7 +45,7 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
   style: real subprocess, real files on disk, real state-based assertions on
   the real written/unwritten/injected/evaluated artifact -- no
   `unittest.mock`/`Mox`/interaction-based assertion of any kind, per
-  `~/.claude/rules/testing-chicago-style.md`).
+  `~/.zcode/rules/testing-chicago-style.md`).
 
   ## Working out the real valid combination set (not brute-forced)
 
