@@ -578,3 +578,37 @@ gi:GeneratorCapabilityShape a sh:NodeShape ;
         }
       """
     ] .
+
+# G1 (v26.9.25 hardening): an authority trust root pins exactly one
+# code-work authority IRI to exactly one well-formed digest under exactly one
+# durable locator (CE23-9 grammar; absolute/scratch/tmp/~ paths refused).
+sj:AuthorityTrustRootShape a sh:NodeShape ;
+    sh:targetClass sj:AuthorityTrustRoot ;
+    sh:property [ sh:path sj:authorityIri ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [
+      sh:path sj:admissionDigest ;
+      sh:minCount 1 ;
+      sh:maxCount 1 ;
+      sh:datatype xsd:string ;
+      sh:pattern "^sha256:[0-9a-f]{64}$"
+    ] ;
+    sh:property [
+      sh:path sj:sourceLocator ;
+      sh:minCount 1 ;
+      sh:maxCount 1 ;
+      sh:datatype xsd:string ;
+      sh:pattern "^(git:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}:[^/~].*|git-notes:refs/notes/[^@]+@[0-9a-f]{40}|https://.+)$"
+    ] ;
+    sh:sparql [
+      sh:message "REFUSED(AUTHORITY_NOT_PINNED): a trust root must pin a typed code-work authority (sj:StrategicObjective or sj:GoalCheckpoint)." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this ?path WHERE {
+          $this sj:authorityIri ?authority .
+          BIND(sj:authorityIri AS ?path)
+          OPTIONAL { ?authority a sj:StrategicObjective . BIND(true AS ?strategic) }
+          OPTIONAL { ?authority a sj:GoalCheckpoint . BIND(true AS ?checkpoint) }
+          FILTER(!BOUND(?strategic) && !BOUND(?checkpoint))
+        }
+      """
+    ] .

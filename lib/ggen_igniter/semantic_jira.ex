@@ -368,12 +368,16 @@ defmodule GgenIgniter.SemanticJira do
     %{eligible: ready, blocked: selected.blocked ++ blocked}
   end
 
-  @doc "Constructs an XaaS/Ultracode lease request; it is not an issued Lease."
-  @spec lease_request(map(), map()) :: {:ok, json_map()} | refusal()
-  def lease_request(work_order, attrs) when is_map(attrs) do
+  @doc """
+  Constructs an XaaS/Ultracode lease request; it is not an issued Lease.
+  `opts[:authority]` names the origin-authority index (`Authority.require_origin/2`).
+  """
+  @spec lease_request(map(), map(), keyword()) :: {:ok, json_map()} | refusal()
+  def lease_request(work_order, attrs, opts \\ []) when is_map(attrs) do
     attrs = strings(attrs)
 
     with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),
          :ok <-
            required(
              attrs,
@@ -408,12 +412,16 @@ defmodule GgenIgniter.SemanticJira do
     end
   end
 
-  @doc "Manufactures a portable RuntimeShape worker package from a WorkOrder."
-  @spec execution_package(map(), map()) :: {:ok, RuntimeShape.t()} | {:error, term()}
-  def execution_package(work_order, attrs) when is_map(attrs) do
+  @doc """
+  Manufactures a portable RuntimeShape worker package from a WorkOrder.
+  `opts[:authority]` names the origin-authority index (`Authority.require_origin/2`).
+  """
+  @spec execution_package(map(), map(), keyword()) :: {:ok, RuntimeShape.t()} | {:error, term()}
+  def execution_package(work_order, attrs, opts \\ []) when is_map(attrs) do
     attrs = strings(attrs)
 
     with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),
          :ok <- required(attrs, ~w(graph_digest source_digest worker_identity verifier_identity)),
          :ok <- digest_value(:graph_digest, attrs["graph_digest"]),
          :ok <- digest_value(:source_digest, attrs["source_digest"]) do
@@ -457,12 +465,16 @@ defmodule GgenIgniter.SemanticJira do
     end
   end
 
-  @doc "Constructs a BRCE DO intent; this function never performs DO."
-  @spec do_intent(map(), map()) :: {:ok, json_map()} | refusal()
-  def do_intent(work_order, attrs) when is_map(attrs) do
+  @doc """
+  Constructs a BRCE DO intent; this function never performs DO.
+  `opts[:authority]` names the origin-authority index (`Authority.require_origin/2`).
+  """
+  @spec do_intent(map(), map(), keyword()) :: {:ok, json_map()} | refusal()
+  def do_intent(work_order, attrs, opts \\ []) when is_map(attrs) do
     attrs = strings(attrs)
 
     with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),
          "available" <- attrs["claim_store_status"],
          %{} = authority <- attrs["prepared_authority_receipt"],
          "prepared" <- authority["status"],
@@ -488,6 +500,9 @@ defmodule GgenIgniter.SemanticJira do
 
       {:ok, Map.put(intent, "idempotency_identity", digest(intent))}
     else
+      {:error, {:refused_origin, _refusal} = refused} ->
+        {:error, {:refused_do, refused}}
+
       status when status in [nil, "error", "unavailable"] ->
         {:error, {:refused_do, :claim_store_unavailable}}
 
@@ -570,19 +585,33 @@ defmodule GgenIgniter.SemanticJira do
     end
   end
 
-  @doc "Evaluates promotion calculus and returns a transition intent."
-  @spec promote(map(), String.t(), map()) :: {:ok, json_map()} | refusal()
-  def promote(work_order, target, evidence) when is_map(evidence) do
+  @doc """
+  Evaluates promotion calculus and returns a transition intent.
+  `opts[:authority]` names the origin-authority index: an order whose origin
+  does not resolve in the pinned index is refused before any check runs, and
+  `authority_requirement: "NONE"` no longer passes the authority check on its
+  own -- the check also requires the resolved origin admission digest.
+  """
+  @spec promote(map(), String.t(), map(), keyword()) :: {:ok, json_map()} | refusal()
+  def promote(work_order, target, evidence, opts \\ []) when is_map(evidence) do
     evidence = strings(evidence)
 
     with {:ok, admitted} <- admit_work_order(work_order),
-         :ok <- standing(target) do
-      checks = promotion_checks(admitted, target, evidence)
+         :ok <- standing(target),
+         {:ok, origin_digest} <- promotion_origin(admitted, opts) do
+      checks = promotion_checks(admitted, target, evidence, origin_digest)
       promotion_result(admitted, target, checks)
     end
   end
 
-  defp promotion_checks(admitted, target, evidence) do
+  defp promotion_origin(admitted, opts) do
+    case Authority.require_origin(admitted, opts) do
+      {:ok, digest} -> {:ok, digest}
+      {:error, refused} -> {:error, {:promotion_refused, refused}}
+    end
+  end
+
+  defp promotion_checks(admitted, target, evidence, origin_digest) do
     [
       subject_exact: exact_subject?(admitted, evidence),
       dependencies: dependencies_satisfied?(admitted, evidence),
@@ -590,7 +619,7 @@ defmodule GgenIgniter.SemanticJira do
       evidence: subset?(admitted["required_evidence"], Map.get(evidence, "evidence_types", [])),
       acceptance: acceptance_satisfied?(admitted, evidence),
       falsifiers: falsifiers_satisfied?(admitted, evidence),
-      authority: authority_satisfied?(admitted, evidence),
+      authority: authority_satisfied?(admitted, evidence, origin_digest),
       receipts:
         subset?(
           admitted["required_receipt_classes"],
@@ -656,9 +685,12 @@ defmodule GgenIgniter.SemanticJira do
     )
   end
 
-  defp authority_satisfied?(admitted, evidence) do
-    admitted["authority_requirement"] == "NONE" or
-      get_in(evidence, ["authority_receipt", "status"]) == "prepared"
+  # No NONE bypass: an authority check passes only over a resolved origin
+  # admission digest; a non-NONE requirement also needs a prepared receipt.
+  defp authority_satisfied?(admitted, evidence, origin_digest) do
+    valid_digest?(origin_digest) and
+      (admitted["authority_requirement"] == "NONE" or
+         get_in(evidence, ["authority_receipt", "status"]) == "prepared")
   end
 
   defp replay_satisfied?(admitted, evidence) do
@@ -700,11 +732,14 @@ defmodule GgenIgniter.SemanticJira do
   standing). The event id is the deterministic hash of (work order id,
   to_standing, evidence identity, final head).
   """
-  @spec apply_transition(map(), map()) :: {:ok, json_map()} | refusal()
-  def apply_transition(work_order, attrs) when is_map(attrs) do
+  @spec apply_transition(map(), map(), keyword()) :: {:ok, json_map()} | refusal()
+  def apply_transition(work_order, attrs, opts \\ [])
+
+  def apply_transition(work_order, attrs, opts) when is_map(attrs) do
     attrs = strings(attrs)
 
     with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),
          %{} = intent <- attrs["intent"],
          "standing_transition_intent" <- intent["kind"],
          :ok <- genuine_intent?(intent),
@@ -740,7 +775,7 @@ defmodule GgenIgniter.SemanticJira do
     end
   end
 
-  def apply_transition(_, _), do: {:error, {:refused_transition, :expected_map}}
+  def apply_transition(_, _, _), do: {:error, {:refused_transition, :expected_map}}
 
   # The intent is genuine when its content re-derives its own transition
   # digest: a tampered or hand-forged intent carries a stale digest and refuses.
@@ -1074,12 +1109,16 @@ defmodule GgenIgniter.SemanticJira do
     }
   end
 
-  @doc "Constructs bounded repair lineage from preserved failure evidence."
-  @spec repair_work_order(map(), map()) :: {:ok, json_map()} | refusal()
-  def repair_work_order(work_order, attrs) when is_map(attrs) do
+  @doc """
+  Constructs bounded repair lineage from preserved failure evidence.
+  `opts[:authority]` names the origin-authority index (`Authority.require_origin/2`).
+  """
+  @spec repair_work_order(map(), map(), keyword()) :: {:ok, json_map()} | refusal()
+  def repair_work_order(work_order, attrs, opts \\ []) when is_map(attrs) do
     attrs = strings(attrs)
 
     with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),
          :ok <-
            required(
              attrs,

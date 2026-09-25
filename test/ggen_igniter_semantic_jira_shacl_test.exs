@@ -41,7 +41,8 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
                  skill_shape task_state_shape state_mapping_shape generator_capability_shape
                  checkpoint_shape goal_checkpoint_shape boundary_class_value_shape
                  capability_shape friday_work_order_shape machine_experience_shape
-                 work_order_origin_shape admission_digest_shape))
+                 work_order_origin_shape admission_digest_shape
+                 authority_trust_root_shape))
     end
 
     test "gate-shaped run/2 reports one pass per node shape" do
@@ -55,11 +56,12 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
       # 13 pre-Friday node shapes + 6 GC-FRI-0800 shapes (checkpoint,
       # goal_checkpoint, boundary_class_value, capability, friday_work_order,
       # machine_experience) + 2 origin-authority shapes (work_order_origin,
-      # admission_digest).
+      # admission_digest) + 1 G1 trust-root shape (authority_trust_root).
       assert {"friday_work_order_shape", :pass} in results
       assert {"work_order_origin_shape", :pass} in results
       assert {"admission_digest_shape", :pass} in results
-      assert length(results) == 21
+      assert {"authority_trust_root_shape", :pass} in results
+      assert length(results) == 22
     end
   end
 

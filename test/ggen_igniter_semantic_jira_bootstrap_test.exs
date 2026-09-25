@@ -29,8 +29,10 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
 
   @fixture_goal Path.expand("fixtures/semantic-jira-bootstrap/goal.ttl", __DIR__)
   @pack_dir "priv/ggen/semantic-jira-pack"
-  # The fixture root GoalCheckpoint: every order's sj:originAuthority (SJ-002).
-  @root_iri "https://ggen-igniter.dev/sjira/bootstrap-fixture#GC-T"
+  # Every order's sj:originAuthority (SJ-002): the pinned canonical objective,
+  # restated verbatim in the fixture goal (G1 trust-root pin law; the fixture
+  # root GoalCheckpoint t:GC-T is self-stamped and not pinned).
+  @origin_iri "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
   # Independent witness: python3 json.dumps(tuple, sort_keys=True,
   # separators=(",", ":"), ensure_ascii=False) over T-A's contract tuple.
   @t_a_tuple_digest "sha256:531183e0033603b9ff0fbde841dde6400a9738143d8665eac2e3d005e16f2100"
@@ -168,7 +170,7 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
       sj:requiresCourt t:court-T-Z ; sj:requiresEvidence sj:receipt-evidence ;
       sj:requiresReceiptClass "verification" ; sj:acceptance t:acceptance-T-Z ;
       sj:falsifier t:falsifier-T-Z ; sj:projection sj:markdown-projection ;
-      sj:checkpointOf t:G-1 ; sj:originAuthority t:GC-T ;
+      sj:checkpointOf t:G-1 ; sj:originAuthority sj:objective-code-work-authority ;
       sj:postcondition "Order Z postcondition." ;
       sj:requiresCapability t:cap-z ; sj:evidenceHorizon "EXECUTED_VERIFIED" ;
       sj:consequenceClass "verification" ;
@@ -187,7 +189,7 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
       sj:requiresCourt t:court-T-N ; sj:requiresEvidence sj:receipt-evidence ;
       sj:requiresReceiptClass "verification" ; sj:acceptance t:acceptance-T-N ;
       sj:falsifier t:falsifier-T-N ; sj:projection sj:markdown-projection ;
-      sj:checkpointOf t:G-1 ; sj:originAuthority t:GC-T ;
+      sj:checkpointOf t:G-1 ; sj:originAuthority sj:objective-code-work-authority ;
       sj:postcondition "Order N postcondition." ;
       sj:requiresCapability t:cap-n ; sj:evidenceHorizon "EXECUTED_VERIFIED" ;
       sj:exclusion "No LLM on the path." ; sj:consequenceClass "verification" ;
@@ -300,9 +302,9 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
                state["orders"]["T-A"]
 
       assert state["orders"]["T-A"]["tuple_digest"] == @t_a_tuple_digest
-      assert state["orders"]["T-A"]["origin_authority"] == @root_iri
-      assert state["orders"]["T-B"]["origin_authority"] == @root_iri
-      assert state["orders"]["T-S"]["origin_authority"] == @root_iri
+      assert state["orders"]["T-A"]["origin_authority"] == @origin_iri
+      assert state["orders"]["T-B"]["origin_authority"] == @origin_iri
+      assert state["orders"]["T-S"]["origin_authority"] == @origin_iri
       assert state["orders"]["T-A"]["covered_commit"] == ctx.covered
       assert %{"frontier" => "eligible", "critical_path" => true} = state["orders"]["T-B"]
       assert %{"critical_path" => false, "successor" => true} = state["orders"]["T-S"]
@@ -604,7 +606,7 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
         sj:requiresCourt t:court-T-C ; sj:requiresEvidence sj:receipt-evidence ;
         sj:requiresReceiptClass "verification" ; sj:acceptance t:acceptance-T-C ;
         sj:falsifier t:falsifier-T-C ; sj:projection sj:markdown-projection ;
-        sj:checkpointOf t:G-1 ; sj:originAuthority t:GC-T ;
+        sj:checkpointOf t:G-1 ; sj:originAuthority sj:objective-code-work-authority ;
         sj:postcondition "Order C postcondition." ;
         sj:requiresCapability t:cap-c ; sj:evidenceHorizon "EXECUTED_VERIFIED" ;
         sj:consequenceClass "verification" ;
@@ -952,8 +954,8 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
 
       for order <- orders do
         # IRI-valued row stringified by Graph.term/1, like checkpoint_of
-        assert order.fields["origin_authority"] == [@root_iri]
-        assert order.kernel["origin_authority"] == @root_iri
+        assert order.fields["origin_authority"] == [@origin_iri]
+        assert order.kernel["origin_authority"] == @origin_iri
       end
     end
 

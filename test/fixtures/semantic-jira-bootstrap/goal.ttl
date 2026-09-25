@@ -10,11 +10,16 @@
 # typed Successor under the bucket). The sj:standing literals are placeholders
 # the bootstrap never reads (PR-006).
 #
-# SJ-002 origin authority: every WorkOrder carries sj:originAuthority t:GC-T
-# (the root GoalCheckpoint is each order's origin authority); kernel admission
-# refuses an order without it. The sj:admissionDigest below is the computed
-# admission witness of t:GC-T (Authority.admission_digest/2 over this fixture
-# graph, stamped 2026-09-24).
+# SJ-002 origin authority: every WorkOrder carries sj:originAuthority
+# sj:objective-code-work-authority; kernel admission refuses an order without
+# it. G1 (v26.9.25 trust-root pin law): the bootstrap resolves origins against
+# THIS goal graph only, and a goal authority is admitted only when its
+# (iri, digest) pair is pinned by the canonical ontology's
+# sj:AuthorityTrustRoot nodes. The fixture root t:GC-T keeps its self-computed
+# sj:admissionDigest (stamped 2026-09-24) but is NOT pinned, so it is no
+# longer an origin; the orders instead cite the canonical objective, restated
+# below verbatim from priv/ggen/semantic-jira-pack/ontology.ttl (its digest
+# recomputes to the pinned value).
 
 t:GC-T a sj:GoalCheckpoint ;
     dcterms:identifier "GC-T" ;
@@ -74,7 +79,7 @@ t:WO-T-A a sj:WorkOrder ;
     sj:falsifier t:falsifier-T-A ;
     sj:projection sj:markdown-projection ;
     sj:checkpointOf t:G-1 ;
-    sj:originAuthority t:GC-T ;
+    sj:originAuthority sj:objective-code-work-authority ;
     sj:postcondition "Order A postcondition." ;
     sj:requiresCapability t:cap-a ;
     sj:evidenceHorizon "EXECUTED_VERIFIED" ;
@@ -103,7 +108,7 @@ t:WO-T-B a sj:WorkOrder ;
     sj:falsifier t:falsifier-T-B ;
     sj:projection sj:markdown-projection ;
     sj:checkpointOf t:G-2 ;
-    sj:originAuthority t:GC-T ;
+    sj:originAuthority sj:objective-code-work-authority ;
     sj:dependsOn t:dep-T-B-on-T-A ;
     sj:postcondition "Order B postcondition." ;
     sj:requiresCapability t:cap-b ;
@@ -137,7 +142,7 @@ t:WO-T-S a sj:WorkOrder ;
     sj:falsifier t:falsifier-T-S ;
     sj:projection sj:markdown-projection ;
     sj:checkpointOf t:GC-T-next ;
-    sj:originAuthority t:GC-T ;
+    sj:originAuthority sj:objective-code-work-authority ;
     sj:boundaryClass sj:Successor ;
     sj:postcondition "Successor postcondition." ;
     sj:requiresCapability t:cap-b ;
@@ -145,3 +150,9 @@ t:WO-T-S a sj:WorkOrder ;
     sj:exclusion "Not required by GC-T." ;
     sj:consequenceClass "verification" ;
     sj:successorPolicy "stays in t:GC-T-next" .
+
+# Verbatim restatement of the pinned canonical objective (G1).
+sj:objective-code-work-authority a sj:StrategicObjective ;
+    rdfs:label "Code work originates from admitted semantic authority" ;
+    dcterms:description "All code work originates from admitted semantic authority in the canonical graph; agents communicate only through sJira state; prose, chat, and Markdown are observation surfaces, never work authority." ;
+    sj:admissionDigest "sha256:310e14f1e30a9bb4d6ebd4388036e10ce3c973b13c0d45a7b550fa3dfd53c72c" .

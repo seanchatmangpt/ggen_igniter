@@ -258,8 +258,10 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
          root: root,
          # SJ-002 AC-04: origins resolve against the GOAL graph only --
          # never `merged`, so a work graph read from another repository can
-         # neither mint nor re-stamp an authority.
-         authority: Authority.index(goal),
+         # neither mint nor re-stamp an authority. G1: the goal index is
+         # pinned against the canonical trust roots here, and again by
+         # `Authority.index_from/1` wherever it is resolved.
+         authority: pinned_goal_index(goal),
          checkpoints: Graph.checkpoints(merged, queries),
          capabilities: Graph.capabilities(merged, queries),
          orders: orders,
@@ -268,6 +270,15 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
          registry: registry,
          inputs: inputs(args, subjects, goal_bytes, graphs, queries, registry, receipt_dirs)
        }}
+    end
+  end
+
+  # An unreadable trust root pins nothing: every goal authority is refused
+  # (fail closed), never admitted unpinned.
+  defp pinned_goal_index(goal) do
+    case Authority.trust_roots() do
+      {:ok, pins} -> Authority.pin(Authority.index(goal), pins)
+      {:error, _unavailable} -> Authority.pin(Authority.index(goal), %{})
     end
   end
 
