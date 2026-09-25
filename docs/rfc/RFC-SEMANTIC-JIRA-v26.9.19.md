@@ -1,6 +1,7 @@
 # RFC — Semantic Jira: ontology-native work-order fabric (v26.9.19)
 
-**Specification status:** FINAL_SPEC — closed for v26.9.24  
+Status: FINAL_SPEC — closed for v26.9.24  
+Implementation standing: MERGED@292e40ab08a250ef3f049f9a80b4a65e332d9155  
 **Implementation subject at closure base:** `seanchatmangpt/ggen_igniter@292e40ab08a250ef3f049f9a80b4a65e332d9155`  
 **Authority ceiling:** SELECT/CONSTRUCT; consequential DO remains external
 
