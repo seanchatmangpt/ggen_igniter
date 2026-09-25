@@ -6,7 +6,7 @@ defmodule GgenIgniterProjectConfigTest do
   Elixir's own `%Module{}` construction (default values, `@enforce_keys`
   enforcement, nested composition), the real collaborator in this case being
   the Elixir struct system itself. Fully compatible with
-  `~/.claude/rules/testing-chicago-style.md` and `test/CLAUDE.md`.
+  `~/.zcode/rules/testing-chicago-style.md` and `test/CLAUDE.md`.
   """
 
   use ExUnit.Case, async: true

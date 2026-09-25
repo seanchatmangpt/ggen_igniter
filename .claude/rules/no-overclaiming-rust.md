@@ -20,9 +20,9 @@ repo-specific vocabulary layered on this floor.
 
 ## See Also
 
-- `~/.claude/rules/testing-chicago-style.md` — for Rust test code, that file owns the
+- `~/.zcode/rules/testing-chicago-style.md` — for Rust test code, that file owns the
   gate on whether a test double may exist at all (narrow justified exception only);
   the `MOCKED` status above only applies to a double already permitted under that
   gate, not as a routine, freely-reachable label.
-- `~/.claude/rules/no-overclaiming-conversational.md` — the same status-vocabulary
+- `~/.zcode/rules/no-overclaiming-conversational.md` — the same status-vocabulary
   and evidence discipline generalized past Rust to every claim made in chat.

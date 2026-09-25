@@ -32,7 +32,11 @@ live in each module's `schema:`/moduledoc)
 - `mix ggen_igniter.fortune5_ready`, `mix ggen_igniter.frontier_release_plan`
   (read-only preview), `mix ggen_igniter.install`.
 - **Semantic Jira suite** — `mix semantic_jira.observe --finding
-  --base-work-order [--repair|--identity|--out]`, `...court_map --ontology
+  --base-work-order --origin-authority IRI [--origin-observation IRI]
+  [--repair|--identity|--out]` — `--origin-authority` is REQUIRED (INVARIANT
+  A): a missing flag is the typed refusal `{:missing_origin_authority, _}`
+  and an unadmitted origin is `{:origin_not_admitted, _}` — both exit 1, not
+  invalid invocation; `...court_map --ontology
   --identity [--out]`, `...descriptor --work-orders --ledger --identity
   --alias --verifier-suite [--provider|--court-map|--out]`, `...frontier
   --work-orders --ledger`, `...reconcile --work-orders --ledger --receipt`,

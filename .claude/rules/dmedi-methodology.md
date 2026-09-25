@@ -64,7 +64,7 @@ but no Measure baseline to test it against" is a real, actionable gap, not a
 formality).
 
 ## See Also
-- `~/.claude/rules/no-overclaiming-conversational.md` — the Measure-phase evidence
+- `~/.zcode/rules/no-overclaiming-conversational.md` — the Measure-phase evidence
   discipline this framework assumes
 - `~/.claude/big-loop/tracker.md` — the standing loop currently operating in this
   shape

@@ -101,10 +101,10 @@ Both together, every time — an old passing run does not certify code changed s
 
 ## See Also
 
-- `~/.claude/rules/no-overclaiming-conversational.md` — grounding claims in a run,
+- `~/.zcode/rules/no-overclaiming-conversational.md` — grounding claims in a run,
   not a description; this rule is the testing-specific instance of that discipline.
-- `~/.claude/rules/tools.md` — general tool-usage and markdown-authoring rules.
-- `~/.claude/rules/no-overclaiming-rust.md` — for Rust test code specifically, this
+- `~/.zcode/rules/tools.md` — general tool-usage and markdown-authoring rules.
+- `~/.zcode/rules/no-overclaiming-rust.md` — for Rust test code specifically, this
   file owns the gate (whether a test double may exist at all — narrow justified
   exception only); that file's `MOCKED` status label only applies to a double this
   file's "one legitimate use" section has already permitted, not as a routine,

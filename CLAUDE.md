@@ -23,7 +23,7 @@ mix e2e                   # manual only, never in mix test; CI = .github/workflo
 - **A summary is not a receipt.** Done = `mix compile --warnings-as-errors` + `mix test` (the `gate` skill) with real output pasted. Re-`Read` after Edit/Write. Show `git diff` of claimed hunks. Label pre-existing vs introduced failures.
 - **Never hand-write Ash surfaces** (`use Ash.Resource`/`use Ash.Domain`) — the hook `.claude/hooks/refuse-handwritten-ash.sh` blocks them: hand-writing silently skips config registration, derived accept lists, repo wiring, migration snapshots. Doctrine: `AGENTS.md`.
 - **Topology is transport, never ontology.** No `git worktree`, no `~/wt/` (guard refuses). Subagents get the absolute path and first echo `pwd && git remote -v && git rev-parse --abbrev-ref HEAD`; remote mismatch = stop.
-- **Parallel agents are lanes in this one checkout** (operator 2026-09-23/24): disjoint file ownership in `docs/jira/<milestone>/_LANES.md`, seams pinned as RESOLUTIONS, per-lane `MIX_BUILD_ROOT=_build-lane<N>`, coordinator owns all git transitions. See `~/.claude/rules/same-checkout-fanout.md`. One autonomous loop per repo at a time.
+- **Parallel agents are lanes in this one checkout** (operator 2026-09-23/24): disjoint file ownership in `docs/jira/<milestone>/_LANES.md`, seams pinned as RESOLUTIONS, per-lane `MIX_BUILD_ROOT=_build-lane<N>`, coordinator owns all git transitions. See `~/.zcode/rules/same-checkout-fanout.md`. One autonomous loop per repo at a time.
 - **Destructive ops** (`rm -rf`, `git reset --hard`, `git push --force`): enumerate exact paths/refs and confirm (Bash PreToolUse hook enforces). Fix forward; `git revert` is fine. Multi-line commit messages: `git commit -F <file>`, never `-m`.
 
 ## Architecture map (details live in docs/)

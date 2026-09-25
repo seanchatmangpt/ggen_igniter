@@ -35,10 +35,10 @@ current evidence instead; that is a different register, not a violation of this 
 
 ## See Also
 
-- `~/.claude/rules/no-overclaiming-rust.md` — the Rust-scoped floor this file layers on (global,
+- `~/.zcode/rules/no-overclaiming-rust.md` — the Rust-scoped floor this file layers on (global,
   path-scoped to `**/*.rs`)
-- `~/.claude/rules/criticism-discipline.md` — extends these rules from status claims to
+- `~/.zcode/rules/criticism-discipline.md` — extends these rules from status claims to
   critique/dismissal/endorsement of other people's claims
-- `~/.claude/rules/explore-exploit-premises.md` — when an explicit thought-exercise/what-if
+- `~/.zcode/rules/explore-exploit-premises.md` — when an explicit thought-exercise/what-if
   request means this file's grounding discipline is not the register in play
-- `~/.claude/rules/tools.md` — global tool-usage and markdown-authoring rules
+- `~/.zcode/rules/tools.md` — global tool-usage and markdown-authoring rules

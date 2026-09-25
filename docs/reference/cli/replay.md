@@ -15,12 +15,12 @@ $ echo $?
 ```
 
 A real end-to-end run against a genuinely-produced receipt (exercising the
-`"output state changed"`/`"ontology changed"` drift-detection categories
-themselves) was **not** exercised this pass — receipt production currently
-requires the now-broken `mix ggen_igniter.sync` path (see `docs/status.md`'s
-`GgenIgniter.Lock` row) — so those two categories are UNVERIFIED (this pass)
-specifically, distinct from the task's basic invocation/parsing behavior,
-which is confirmed working above.
+`"output state changed"`/`"ontology changed"`/`"work order changed"`/`"work
+order absent"` drift-detection categories themselves) was **not** exercised
+this pass — receipt production currently requires the now-broken
+`mix ggen_igniter.sync` path (see `docs/status.md`'s `GgenIgniter.Lock` row) —
+so those categories are UNVERIFIED (this pass) specifically, distinct from the
+task's basic invocation/parsing behavior, which is confirmed working above.
 
 `mix ggen_igniter.replay <receipt_file> [--verify-only] [--json] [--manifest-dir DIR]`
 
@@ -55,7 +55,7 @@ as either shape — never guesses at a receipt's content.
 |---|---|---|---|
 | `--verify-only` | boolean | *(only mode implemented so far)* | Performs only the read-only drift comparison described below. Reserved for a future re-actuation mode — that mode is not implemented; passing or omitting this flag today has no behavioral difference. |
 | `--json` | boolean | `false` | Prints the machine-readable report (`%{"drift" => bool, "categories" => [...], "receipt_id" => ..., "recipe_key" => ..., "template_path" => ..., "template_current_hash" => ...}`) instead of human-readable lines. |
-| `--manifest-dir DIR` | string | `File.cwd!()` | Where `.ggen_igniter/manifest.json` is read from, for resolving the receipt's `recipe_key` to a `pack_dir` (needed only for the "ontology changed" category — see below). |
+| `--manifest-dir DIR` | string | `File.cwd!()` | Where `.ggen_igniter/manifest.json` is read from, for resolving the receipt's `recipe_key` to a `pack_dir` (needed for the "ontology changed" category) and for resolving the receipt's work-order `path` (needed for the "work order changed"/"work order absent" categories — see below). |
 
 ## What real drift this can and cannot detect
 
@@ -68,8 +68,9 @@ free-form `metadata` map — on an `:alive` receipt written by
 `"sha256:" <> hex` digest of the ontology file that produced this run.
 
 This task recomputes and compares exactly what the schema makes
-recomputable, and reports each as its own category rather than a single
-pass/fail:
+recomputable — including the work-order baseline a receipt carries in
+`metadata["work_order"]` (`path` + `source_digest`) — and reports each as its
+own category rather than a single pass/fail:
 
 - **"output state changed"** — `GgenIgniter.Receipt.hash_files/1` is re-run
   over the receipt's own `files` list, right now, and compared to the
@@ -83,6 +84,12 @@ pass/fail:
   subpath — see `priv/ggen/CLAUDE.md`) is re-read and re-hashed with the
   same `"sha256:" <> hex` algorithm the reactor used, and compared to
   `graph_hash`.
+- **"work order changed" / "work order absent"** — only checked when the
+  receipt's `metadata["work_order"]` records a `path` and `source_digest`.
+  `SemanticWorkOrder.identity/2` re-reads `<manifest-dir>/<path>` (the
+  `--manifest-dir` root) and re-digests the file with the same algorithm the
+  reactor used: a differing digest reports "work order changed"; a file that
+  no longer resolves reports "work order absent".
 
 `GgenIgniter.Receipt`'s schema does **not** record a standalone baseline
 hash of the template file, the gate query, the pack directory as a whole,

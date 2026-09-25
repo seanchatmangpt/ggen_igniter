@@ -25,10 +25,10 @@ tell from the next sentence simply not overclaiming or not speculating — drop 
 
 ## See Also
 
-- `~/.claude/rules/criticism-discipline.md` — rule 7 (channel spec) is the outward-facing
+- `~/.zcode/rules/criticism-discipline.md` — rule 7 (channel spec) is the outward-facing
   version of the same principle: register parity extends to affect and to narrated intent,
   not just to content
-- `~/.claude/rules/explore-exploit-premises.md` — a different axis (which reasoning register
+- `~/.zcode/rules/explore-exploit-premises.md` — a different axis (which reasoning register
   applies), not to be conflated with this one (whether to narrate compliance at all)
-- `~/.claude/rules/no-overclaiming-conversational.md` — precision of claims made; this file
+- `~/.zcode/rules/no-overclaiming-conversational.md` — precision of claims made; this file
   is about not making a claim (of restraint) that didn't need making
