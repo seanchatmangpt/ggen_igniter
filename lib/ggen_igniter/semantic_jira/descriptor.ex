@@ -22,6 +22,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   """
 
   alias GgenIgniter.{Render, RuntimeShape, SemanticA2A, SemanticJira}
+  alias GgenIgniter.SemanticJira.Authority
 
   @schema "semantic-jira/execution-descriptor/v1"
   @identity_keys ~w(definition_digest snapshot_digest base_sha graph_digest)
@@ -117,11 +118,14 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
 
   @doc """
   A2A task envelope for the descriptor. Refuses when the descriptor's graph
-  identity disagrees with the work order it claims to describe.
+  identity disagrees with the work order it claims to describe, or when the
+  work order's origin does not resolve in the pinned authority index named by
+  `opts[:authority]` (`Authority.require_origin/2`, G1).
   """
   @spec to_a2a_task(map(), map(), keyword()) :: {:ok, map()} | {:error, term()}
   def to_a2a_task(descriptor, work_order, opts \\ []) do
     with {:ok, admitted} <- refuse(SemanticJira.admit_work_order(work_order)),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),
          {:ok, definition} <- refuse(SemanticJira.definition_digest(work_order)),
          :ok <-
            same(descriptor, %{

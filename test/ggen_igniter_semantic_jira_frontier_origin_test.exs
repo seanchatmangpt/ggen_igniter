@@ -502,7 +502,7 @@ defmodule GgenIgniter.SemanticJiraFrontierOriginTest do
       |> Enum.sort()
     end
 
-    test "the committed goal yields eligible work; a tampered GC-T description yields none",
+    test "the committed goal yields eligible work; a tampered origin description yields none",
          %{dir: dir} do
       opts = bootstrap_ctx(dir)
 
@@ -515,7 +515,10 @@ defmodule GgenIgniter.SemanticJiraFrontierOriginTest do
         tampered,
         @bootstrap_goal
         |> File.read!()
-        |> String.replace(~s(rdfs:label "GC-T fixture root"), ~s(rdfs:label "GC-T tampered root"))
+        |> String.replace(
+          ~s(rdfs:label "Code work originates from admitted semantic authority"),
+          ~s(rdfs:label "Code work originates from a tampered authority")
+        )
       )
 
       refute File.read!(tampered) == File.read!(@bootstrap_goal)

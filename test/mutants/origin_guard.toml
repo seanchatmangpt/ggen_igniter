@@ -1,0 +1,198 @@
+# G1 origin-guard mutation catalog (v26.9.25 post-tag hardening).
+# scripts/sjira/origin_mutants.sh applies each mutant to a FRESH `git archive`
+# extraction of the subject, runs `test`, and requires it to FAIL (killed).
+# `search` must occur exactly once in `file`; otherwise the mutant is
+# REFUSED(MUTANT_NOT_APPLICABLE) and the court fails (never skipped).
+# Literal strings (''') carry the exact bytes; no escapes are processed.
+
+[[mutant]]
+id = "M01-lease-request-guard"
+file = "lib/ggen_igniter/semantic_jira.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "lease_request/3 skips the origin guard"
+search = '''
+  def lease_request(work_order, attrs, opts \\ []) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),'''
+replace = '''
+  def lease_request(work_order, attrs, opts \\ []) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- {:ok, :mutant_bypass},'''
+
+[[mutant]]
+id = "M02-execution-package-guard"
+file = "lib/ggen_igniter/semantic_jira.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "execution_package/3 skips the origin guard"
+search = '''
+  def execution_package(work_order, attrs, opts \\ []) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),'''
+replace = '''
+  def execution_package(work_order, attrs, opts \\ []) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- {:ok, :mutant_bypass},'''
+
+[[mutant]]
+id = "M03-do-intent-guard"
+file = "lib/ggen_igniter/semantic_jira.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "do_intent/3 skips the origin guard"
+search = '''
+  def do_intent(work_order, attrs, opts \\ []) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),'''
+replace = '''
+  def do_intent(work_order, attrs, opts \\ []) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- {:ok, :mutant_bypass},'''
+
+[[mutant]]
+id = "M04-promote-guard-and-none-bypass"
+file = "lib/ggen_igniter/semantic_jira.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "promote/4 skips the origin guard and restores the NONE bypass (any digest-shaped origin passes)"
+search = '''
+         {:ok, origin_digest} <- promotion_origin(admitted, opts) do'''
+replace = '''
+         origin_digest = "sha256:" <> String.duplicate("0", 64) do'''
+
+[[mutant]]
+id = "M05-apply-transition-guard"
+file = "lib/ggen_igniter/semantic_jira.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "apply_transition/3 skips the origin guard"
+search = '''
+  def apply_transition(work_order, attrs, opts) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),'''
+replace = '''
+  def apply_transition(work_order, attrs, opts) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- {:ok, :mutant_bypass},'''
+
+[[mutant]]
+id = "M06-repair-work-order-guard"
+file = "lib/ggen_igniter/semantic_jira.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "repair_work_order/3 skips the origin guard"
+search = '''
+  def repair_work_order(work_order, attrs, opts \\ []) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),'''
+replace = '''
+  def repair_work_order(work_order, attrs, opts \\ []) when is_map(attrs) do
+    attrs = strings(attrs)
+
+    with {:ok, admitted} <- admit_work_order(work_order),
+         {:ok, _origin_digest} <- {:ok, :mutant_bypass},'''
+
+[[mutant]]
+id = "M07-descriptor-to-a2a-task-guard"
+file = "lib/ggen_igniter/semantic_jira/descriptor.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "Descriptor.to_a2a_task/3 skips the origin guard"
+search = '''
+         {:ok, _origin_digest} <- Authority.require_origin(admitted, opts),'''
+replace = '''
+         {:ok, _origin_digest} <- {:ok, :mutant_bypass},'''
+
+[[mutant]]
+id = "M08-a2a-task-from-work-order-guard"
+file = "lib/ggen_igniter/semantic_a2a.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "SemanticA2A.task_from_work_order/2 skips the origin guard"
+search = '''
+         {:ok, _origin_digest} <- Authority.require_origin(work_order, opts),'''
+replace = '''
+         {:ok, _origin_digest} <- {:ok, :mutant_bypass},'''
+
+[[mutant]]
+id = "M09-index-from-unpinned"
+file = "lib/ggen_igniter/semantic_jira/authority.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "index_from/1 returns the unpinned index (caller self-stamps admitted)"
+search = '''
+      {:ok, pin(unpinned, pins)}'''
+replace = '''
+      {:ok, unpinned}'''
+
+[[mutant]]
+id = "M10-pin-ignores-digest"
+file = "lib/ggen_igniter/semantic_jira/authority.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "pin/2 keeps any pinned IRI whatever its digest (forged digest admitted)"
+search = '''
+        is_binary(iri) and is_binary(digest) and Map.get(pins, iri) == digest'''
+replace = '''
+        is_binary(iri) and is_binary(digest) and Map.has_key?(pins, iri)'''
+
+[[mutant]]
+id = "M11-pins-accept-malformed-digest"
+file = "lib/ggen_igniter/semantic_jira/authority.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "pins/1 accepts a malformed pin digest"
+search = '''
+         true <- Regex.match?(@digest_pattern, digest),'''
+replace = '''
+         true <- is_binary(digest),'''
+
+[[mutant]]
+id = "M12-verify-origin-unpinned"
+file = "lib/ggen_igniter/semantic_jira/authority.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "verify_origin/3 resolves a caller canonical graph without the pins"
+search = '''
+    with {:ok, _digest} <- resolve_pinned(index(canonical_graph), literal(origin)) do'''
+replace = '''
+    with {:ok, _digest} <- resolve(index(canonical_graph), literal(origin)) do'''
+
+[[mutant]]
+id = "M13-cli-authority-graph-dropped"
+file = "lib/ggen_igniter/semantic_jira/cli.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "--authority-graph is parsed but not handed to the kernel"
+search = '''
+      {:ok, graph} -> {:ok, [authority: graph]}'''
+replace = '''
+      {:ok, _graph} -> {:ok, []}'''
+
+[[mutant]]
+id = "M14-prose-admits-every-stamp"
+file = "lib/ggen_igniter/semantic_jira/prose.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "admit_goal reports every stamped authority as admitted (prose admits)"
+search = '''
+        {admitted, not_pinned} = pin_verdict(stamped_map(report))'''
+replace = '''
+        {admitted, not_pinned} = {stamped_map(report) |> Map.keys() |> Enum.sort(), []}'''
+
+[[mutant]]
+id = "M15-pins-accept-ambiguous"
+file = "lib/ggen_igniter/semantic_jira/authority.ex"
+test = "test/ggen_igniter_semantic_jira_origin_guard_test.exs"
+description = "pins/1 keeps an IRI pinned to two different digests"
+search = '''
+        [digest] -> [{iri, digest}]
+        _ambiguous -> []'''
+replace = '''
+        [digest | _] -> [{iri, digest}]
+        _ambiguous -> []'''

@@ -2332,3 +2332,49 @@ sj:run-sj-002-court a sj:Action ;
 sj:sj-002-checkpoint a sj:Checkpoint ;
     rdfs:label "SJ-002 checkpoint" ;
     dcterms:description "SJ-002 gates green on exact head." .
+
+# ── Authority trust roots (G1, v26.9.25 post-tag hardening) ──────────────────
+# A recomputing sj:admissionDigest is an UNKEYED content hash: a caller-supplied
+# graph can type a fresh node sj:StrategicObjective and stamp its own digest.
+# The trust root closes that channel: an authority node is admitted only when
+# its (IRI, recomputed digest) pair is pinned by an sj:AuthorityTrustRoot node
+# of THIS canonical graph (GgenIgniter.SemanticJira.Authority.trust_roots/0,
+# pin/2, require_origin/2). Pins were enumerated by git grep of
+# authority-graph|authority: |originAuthority|admissionDigest over origin
+# default branches of ggen_igniter, xaas, chatman-ecosystem, zoela,
+# autofde-lab, affidavit and engineering-standards (2026-09-25): the only
+# legitimate admitted code-work authorities are the three canonical strategic
+# objectives below; no production GoalCheckpoint carries an admissionDigest
+# (only test fixtures do), so no goal checkpoint is pinned.
+
+sj:AuthorityTrustRoot a rdfs:Class ;
+    rdfs:label "Authority trust root" ;
+    rdfs:comment "A canonical pin of one admitted code-work authority: exactly one sj:authorityIri, exactly one sj:admissionDigest (the node's recomputed digest) and exactly one durable sj:sourceLocator. Only pins in the canonical semantic-jira-pack ontology count; a caller graph can never pin." .
+
+sj:authorityIri a rdf:Property ;
+    rdfs:domain sj:AuthorityTrustRoot ;
+    rdfs:range sj:CodeWorkAuthority ;
+    rdfs:comment "The IRI of the sj:CodeWorkAuthority individual this trust root pins." .
+
+sj:sourceLocator a rdf:Property ;
+    rdfs:domain sj:AuthorityTrustRoot ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Durable locator of the admitting source (git:<owner/repo>@<40hex>:<path> | git-notes:refs/notes/<ref>@<40hex> | https://...); never a local, scratch or tmp path." .
+
+sj:trust-root-objective-semantic-jira-mvp a sj:AuthorityTrustRoot ;
+    rdfs:label "Trust root: Semantic Jira MVP strategy" ;
+    sj:authorityIri sj:objective-semantic-jira-mvp ;
+    sj:admissionDigest "sha256:7b3b5c6c16552d5e9eefbb070f8c10182b86034733aa018d1c57c6880f8bfb1f" ;
+    sj:sourceLocator "git:seanchatmangpt/ggen_igniter@4988ac61bb6903d2cd9c6855d9c0c942ac9eb57e:priv/ggen/semantic-jira-pack/ontology.ttl" .
+
+sj:trust-root-objective-project-manufacturer a sj:AuthorityTrustRoot ;
+    rdfs:label "Trust root: Project manufacturer strategy" ;
+    sj:authorityIri sj:objective-project-manufacturer ;
+    sj:admissionDigest "sha256:639c07b80d557781fc76da0820feb43ac8b3161d527ccbb147533b7e645af0f8" ;
+    sj:sourceLocator "git:seanchatmangpt/ggen_igniter@4988ac61bb6903d2cd9c6855d9c0c942ac9eb57e:priv/ggen/semantic-jira-pack/ontology.ttl" .
+
+sj:trust-root-objective-code-work-authority a sj:AuthorityTrustRoot ;
+    rdfs:label "Trust root: Code work originates from admitted semantic authority" ;
+    sj:authorityIri sj:objective-code-work-authority ;
+    sj:admissionDigest "sha256:310e14f1e30a9bb4d6ebd4388036e10ce3c973b13c0d45a7b550fa3dfd53c72c" ;
+    sj:sourceLocator "git:seanchatmangpt/ggen_igniter@4988ac61bb6903d2cd9c6855d9c0c942ac9eb57e:priv/ggen/semantic-jira-pack/ontology.ttl" .

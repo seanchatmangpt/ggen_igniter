@@ -78,8 +78,9 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
       assert {"friday_work_order_shape", :pass} in results
       assert {"goal_checkpoint_shape", :pass} in results
       # 19 pre-SJ-002 shapes + work_order_origin_shape + admission_digest_shape
-      # (v26.9.24 R10; the same count Shacl.run reports here).
-      assert length(results) == 21
+      # (v26.9.24 R10) + authority_trust_root_shape (G1, v26.9.25); the same
+      # count Shacl.run reports here.
+      assert length(results) == 22
     end
 
     for {field, shape, constraint} <- @mutation_table do

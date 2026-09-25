@@ -24,6 +24,19 @@ defmodule GgenIgniter.SemanticJira.Authority do
   an admitted origin is one whose digest RECOMPUTES, not merely one that
   states a well-formed digest. `canonical_index/1` is the default index. NO SHACL validation runs inside `admit/2` — callers run
   their court first.
+
+  Trust-root pin law (G1, v26.9.25 hardening): a recomputing digest is an
+  UNKEYED content hash, so a caller-supplied graph can self-stamp any node.
+  Admission therefore also requires the `(iri, digest)` pair to be pinned
+  by an `sj:AuthorityTrustRoot` node of the CANONICAL semantic-jira-pack
+  ontology (`trust_roots/0`, never a caller path). Every index a
+  selection/promotion surface resolves through `index_from/1` -- the
+  canonical index, a caller `RDF.Graph`, a Turtle path, or a ready-made
+  `index/1` map (revalidated) -- passes through `pin/2`: an admitted node
+  whose pair is not pinned is refused `{:authority_not_pinned, iri}`.
+  `require_origin/2` is the one guard every entry point (lease request,
+  execution package, DO intent, promotion, transition, repair, A2A task)
+  runs. `admit/2` STAMPS only; a stamped node is admitted only when pinned.
   """
 
   alias GgenIgniter.Digest
@@ -47,6 +60,9 @@ defmodule GgenIgniter.SemanticJira.Authority do
 
   @canonical_ontology ["priv", "ggen", "semantic-jira-pack", "ontology.ttl"]
 
+  @trust_root_class RDF.iri(@sj <> "AuthorityTrustRoot")
+  @digest_pattern ~r/\Asha256:[0-9a-f]{64}\z/
+
   @type digest :: String.t()
   @type origin_refusal ::
           :order_absent
@@ -55,6 +71,8 @@ defmodule GgenIgniter.SemanticJira.Authority do
           | {:authority_not_admitted, String.t()}
           | {:authority_digest_mismatch, String.t()}
           | {:authority_type_mismatch, String.t()}
+          | {:authority_not_pinned, String.t()}
+          | {:authority_index_unavailable, Path.t() | nil, term()}
 
   @typedoc """
   The admission index of an authority graph: every node typed
@@ -204,20 +222,149 @@ defmodule GgenIgniter.SemanticJira.Authority do
   end
 
   @doc """
-  The admission index named by `opts[:authority]`, the one option every
-  selection/promotion surface takes: an `index/1` map (used as is), an
-  `RDF.Graph` (indexed), or a Turtle path (`canonical_index(path: path)`).
-  Absent, the canonical index. Anything else fails closed.
+  The PINNED admission index named by `opts[:authority]`, the one option
+  every selection/promotion surface takes: an `index/1` map (revalidated),
+  an `RDF.Graph` (indexed), or a Turtle path (`canonical_index(path: path)`).
+  Absent, the canonical index. Every form passes through `pin/2` against
+  `trust_roots/0`. Anything else fails closed.
   """
   @spec index_from(keyword()) ::
           {:ok, index()} | {:error, {:authority_index_unavailable, Path.t() | nil, term()}}
   def index_from(opts) do
-    case Keyword.get(opts, :authority) do
-      nil -> canonical_index()
-      %RDF.Graph{} = graph -> {:ok, index(graph)}
-      %{admitted: _, refused: _} = index -> {:ok, index}
-      path when is_binary(path) -> canonical_index(path: path)
-      other -> {:error, {:authority_index_unavailable, nil, {:invalid_authority, inspect(other)}}}
+    with {:ok, unpinned} <- unpinned_index(Keyword.get(opts, :authority)),
+         {:ok, pins} <- trust_roots() do
+      {:ok, pin(unpinned, pins)}
+    end
+  end
+
+  defp unpinned_index(nil), do: canonical_index()
+  defp unpinned_index(%RDF.Graph{} = graph), do: {:ok, index(graph)}
+  defp unpinned_index(path) when is_binary(path), do: canonical_index(path: path)
+
+  defp unpinned_index(%{admitted: admitted, refused: refused} = index)
+       when is_map(admitted) and is_map(refused),
+       do: {:ok, index}
+
+  defp unpinned_index(other),
+    do: {:error, {:authority_index_unavailable, nil, {:invalid_authority, inspect(other)}}}
+
+  @doc """
+  The trust-root pins of the CANONICAL semantic-jira-pack ontology:
+  `%{authority_iri => digest}` read from its `sj:AuthorityTrustRoot` nodes
+  (`sj:authorityIri`, `sj:admissionDigest`, `sj:sourceLocator`). Always the
+  app's canonical path -- never a caller path -- cached by file-byte digest
+  like `canonical_index/1`. An unreadable or unparseable file fails closed.
+  """
+  @spec trust_roots() ::
+          {:ok, %{String.t() => digest()}}
+          | {:error, {:authority_index_unavailable, Path.t(), term()}}
+  def trust_roots do
+    path = canonical_path()
+
+    with {:ok, bytes} <- read_authority(path) do
+      key = {__MODULE__, :pins, Digest.sha256(bytes)}
+
+      case :persistent_term.get(key, nil) do
+        nil -> parse_pins(bytes, path, key)
+        pins -> {:ok, pins}
+      end
+    end
+  end
+
+  defp parse_pins(bytes, path, key) do
+    case RDF.Turtle.read_string(bytes) do
+      {:ok, graph} ->
+        pins = pins(graph)
+        :persistent_term.put(key, pins)
+        {:ok, pins}
+
+      {:error, reason} ->
+        {:error, {:authority_index_unavailable, path, inspect(reason)}}
+    end
+  end
+
+  @doc """
+  The pins declared by `sj:AuthorityTrustRoot` nodes of `graph`. A pin is
+  well-formed only with exactly one IRI `sj:authorityIri`, exactly one
+  `sj:admissionDigest` matching `sha256:<64 hex>` and exactly one
+  `sj:sourceLocator`; malformed pins pin nothing. An IRI pinned to two
+  different digests is ambiguous and pins nothing (fail closed).
+  """
+  @spec pins(RDF.Graph.t()) :: %{String.t() => digest()}
+  def pins(%RDF.Graph{} = graph) do
+    graph
+    |> typed_nodes([@trust_root_class])
+    |> Enum.flat_map(fn {_node, description} -> pin_of(description) end)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Enum.flat_map(fn {iri, digests} ->
+      case Enum.uniq(digests) do
+        [digest] -> [{iri, digest}]
+        _ambiguous -> []
+      end
+    end)
+    |> Map.new()
+  end
+
+  defp pin_of(description) do
+    with [%RDF.IRI{} = iri] <- RDF.Description.get(description, sj("authorityIri"), []),
+         [digest] <- value_set(description, sj("admissionDigest")),
+         true <- Regex.match?(@digest_pattern, digest),
+         [_locator] <- RDF.Description.get(description, sj("sourceLocator"), []) do
+      [{RDF.IRI.to_string(iri), digest}]
+    else
+      _ -> []
+    end
+  end
+
+  @doc """
+  Applies the trust-root pin law to an admission `index`: an admitted entry
+  stays admitted only when its `(iri, digest)` pair is exactly pinned;
+  otherwise it moves to `refused` as `{:authority_not_pinned, iri}`.
+  Already-refused entries keep their refusal.
+  """
+  @spec pin(index(), %{String.t() => digest()}) :: index()
+  def pin(%{admitted: admitted, refused: refused}, pins) when is_map(pins) do
+    {kept, unpinned} =
+      Enum.split_with(admitted, fn {iri, digest} ->
+        is_binary(iri) and is_binary(digest) and Map.get(pins, iri) == digest
+      end)
+
+    %{
+      admitted: Map.new(kept),
+      refused:
+        Enum.reduce(unpinned, refused, fn {iri, _digest}, acc ->
+          Map.put(acc, iri, {:authority_not_pinned, iri})
+        end)
+    }
+  end
+
+  @doc """
+  The origin guard every kernel entry point runs (G1): `work_order`'s
+  `origin_authority` must be present and RESOLVE in the pinned index named
+  by `opts[:authority]` (`index_from/1`). Returns `{:ok, digest}` or
+  `{:error, {:refused_origin, refusal}}` -- `:origin_authority_missing`,
+  `{:authority_not_pinned, iri}`, `{:authority_not_admitted, iri}`, ... or
+  `{:authority_index_unavailable, path, detail}` (fail closed).
+  """
+  @spec require_origin(map(), keyword()) ::
+          {:ok, digest()} | {:error, {:refused_origin, origin_refusal()}}
+  def require_origin(work_order, opts) when is_map(work_order) and is_list(opts) do
+    case origin_of(work_order) do
+      origin when is_binary(origin) and origin != "" ->
+        case index_from(opts) do
+          {:ok, index} -> resolve(index, origin)
+          {:error, unavailable} -> {:error, {:refused_origin, unavailable}}
+        end
+
+      _missing ->
+        {:error, {:refused_origin, :origin_authority_missing}}
+    end
+  end
+
+  defp origin_of(work_order) do
+    case Map.fetch(work_order, "origin_authority") do
+      {:ok, origin} -> origin
+      :error -> Map.get(work_order, :origin_authority)
     end
   end
 
@@ -290,7 +437,7 @@ defmodule GgenIgniter.SemanticJira.Authority do
   # canonical graph's admission index (typed, not prose, one digest that
   # recomputes), then a candidate restatement must agree with canonical.
   defp admitted_origin?(candidate_graph, canonical_graph, origin) do
-    with {:ok, _digest} <- resolve(index(canonical_graph), literal(origin)) do
+    with {:ok, _digest} <- resolve_pinned(index(canonical_graph), literal(origin)) do
       restatement_check(
         RDF.Graph.get(candidate_graph, origin),
         RDF.Graph.get(canonical_graph, origin),
@@ -315,6 +462,15 @@ defmodule GgenIgniter.SemanticJira.Authority do
 
       true ->
         :ok
+    end
+  end
+
+  # The canonical graph handed to verify_origin/3 may come from a caller
+  # path (`:ontology_path`); its admission is still bounded by the pins.
+  defp resolve_pinned(index, origin) do
+    case trust_roots() do
+      {:ok, pins} -> resolve(pin(index, pins), origin)
+      {:error, unavailable} -> {:error, {:refused_origin, unavailable}}
     end
   end
 

@@ -13,14 +13,15 @@ defmodule GgenIgniter.SemanticJira.Cli do
   `reconcile`, `frontier` and `descriptor` take an optional
   `--authority-graph PATH` (Turtle): the origin-authority graph whose
   admission index (`Authority.index/1`) an order's `origin_authority` must
-  resolve in (SJ-002 AC-04). Absent, the canonical semantic-jira-pack
-  ontology is the authority. An unreadable file is invalid invocation
+  resolve in (SJ-002 AC-04), bounded by the canonical trust-root pins
+  (G1: a node the canonical ontology does not pin is refused
+  `authority_not_pinned`, whatever digest the file stamps). Absent, the
+  canonical semantic-jira-pack ontology is the authority. An unreadable file is invalid invocation
   (exit 2); a file that does not parse as Turtle is a typed refusal
   `authority_index_unavailable` (exit 1).
   """
 
   alias GgenIgniter.SemanticJira.{
-    Authority,
     CourtMap,
     Descriptor,
     Observation,
@@ -234,7 +235,10 @@ defmodule GgenIgniter.SemanticJira.Cli do
 
   defp index_authority(bytes, path) do
     case RDF.Turtle.read_string(bytes) do
-      {:ok, graph} -> {:ok, [authority: Authority.index(graph)]}
+      # The caller graph is handed to the kernel as a graph, so
+      # `Authority.index_from/1` indexes it AND applies the canonical
+      # trust-root pin law: a self-stamped node is `authority_not_pinned`.
+      {:ok, graph} -> {:ok, [authority: graph]}
       {:error, reason} -> {:error, {:authority_index_unavailable, path, inspect(reason)}}
     end
   end

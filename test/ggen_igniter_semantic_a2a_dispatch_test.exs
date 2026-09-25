@@ -290,7 +290,10 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
       work_order = %{
         "replay_identity" => "semantic-jira:v26.9.19:GALL-001",
         "standing" => "ALIVE",
-        "base_sha" => String.duplicate("b", 40)
+        "base_sha" => String.duplicate("b", 40),
+        # G1: the task view requires an origin pinned by the canonical trust root.
+        "origin_authority" =>
+          "https://ggen-igniter.dev/ontology/semantic-jira#objective-project-manufacturer"
       }
 
       digest = "sha256:" <> String.duplicate("f", 64)

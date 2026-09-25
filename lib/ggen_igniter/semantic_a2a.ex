@@ -31,6 +31,7 @@ defmodule GgenIgniter.SemanticA2A do
   """
 
   alias GgenIgniter.{Digest, Ontology, Query, SemanticWorkOrder}
+  alias GgenIgniter.SemanticJira.Authority
 
   @pack_dir "semantic-jira-pack"
   @receipt_schema "semantic-jira/a2a-receipt/v1"
@@ -116,7 +117,9 @@ defmodule GgenIgniter.SemanticA2A do
   Options: `:graph_digest` (required), `:package` (an
   `execution-package/v1` map), `:receipts` (default `[]`), `:state_map`
   (default: loaded from the ontology), `:identity` (descriptor graph identity;
-  `definition_digest` and `snapshot_digest` land in metadata).
+  `definition_digest` and `snapshot_digest` land in metadata), `:authority`
+  (origin-authority index; the work order's `origin_authority` must resolve in
+  the pinned index, `Authority.require_origin/2`, G1).
   """
   @spec task_from_work_order(map(), keyword()) :: {:ok, map()} | {:error, term()}
   def task_from_work_order(work_order, opts) when is_map(work_order) and is_list(opts) do
@@ -129,6 +132,7 @@ defmodule GgenIgniter.SemanticA2A do
     with {:ok, replay} <- fetch(work_order, "replay_identity"),
          {:ok, standing} <- fetch(work_order, "standing"),
          {:ok, base_sha} <- fetch(work_order, "base_sha"),
+         {:ok, _origin_digest} <- Authority.require_origin(work_order, opts),
          {:ok, %{state: state, reason_code: reason}} <- state_for(standing, receipts, map) do
       {:ok,
        %{

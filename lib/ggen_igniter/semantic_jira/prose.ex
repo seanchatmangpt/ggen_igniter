@@ -174,12 +174,20 @@ defmodule GgenIgniter.SemanticJira.Prose do
   # The goal court (GC23-3) admits the graph; authority stamping is delegated
   # to GgenIgniter.SemanticJira.Authority (typed ≠ admitted). Its delete+add
   # replaces pre-existing digests, so placeholders cannot survive.
+  # G1: prose may STAMP but never ADMIT -- a stamp is admission only when the
+  # canonical trust root pins its (iri, digest) pair. `:authority_admitted`
+  # lists the pinned stamps, `:authority_not_pinned` the rest (fail closed:
+  # an unreadable trust root pins nothing).
   defp stamp_authorities(opts, goal, goal_bytes) do
     case GgenIgniter.SemanticJira.Authority.admit(goal, []) do
       {:ok, stamped, report} ->
+        {admitted, not_pinned} = pin_verdict(stamped_map(report))
+
         {:ok,
          goal_summary(goal, goal_bytes)
          |> Map.put(:stamped, stamped_map(report))
+         |> Map.put(:authority_admitted, admitted)
+         |> Map.put(:authority_not_pinned, not_pinned)
          |> Map.put(:stamped_ttl, RDF.Turtle.write_string!(stamped))}
 
       {:error, {:refused_authority_admission, reason}} ->
@@ -192,6 +200,19 @@ defmodule GgenIgniter.SemanticJira.Prose do
            )
          ]}
     end
+  end
+
+  defp pin_verdict(stamped) do
+    pins =
+      case GgenIgniter.SemanticJira.Authority.trust_roots() do
+        {:ok, pins} -> pins
+        {:error, _unavailable} -> %{}
+      end
+
+    %{admitted: admitted, refused: refused} =
+      GgenIgniter.SemanticJira.Authority.pin(%{admitted: stamped, refused: %{}}, pins)
+
+    {admitted |> Map.keys() |> Enum.sort(), refused |> Map.keys() |> Enum.sort()}
   end
 
   # Authority.admit/2 report: %{authority_iri_string => digest} directly.
