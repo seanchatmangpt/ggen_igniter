@@ -92,6 +92,7 @@ output pasted in.
 - Igniter: [Project Actuation](integrations/igniter/project-actuation.md), [AST Mutation](integrations/igniter/ast-mutation.md), [Safety](integrations/igniter/safety.md)
 - Ash (optional): [Overview](integrations/ash/overview.md), [Domains](integrations/ash/domains.md), [Resources](integrations/ash/resources.md), [Actions](integrations/ash/actions.md), [Reactor vs. Ash.Reactor](integrations/ash/reactor.md)
 - Phoenix (optional): [Overview](integrations/phoenix/overview.md), [LiveView](integrations/phoenix/liveview.md)
+- BRCE (planned): [Integration boundary](integrations/brce/README.md), [TLA+ generation adapter](integrations/brce/tla-plus-adapter.md)
 
 **Testing philosophy**
 
