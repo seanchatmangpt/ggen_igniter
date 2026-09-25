@@ -1,5 +1,10 @@
 # RFC — Semantic Jira: ontology-native work-order fabric (v26.9.19)
 
+Status: FINAL_SPEC — closed for v26.9.24  
+Implementation standing: MERGED@292e40ab08a250ef3f049f9a80b4a65e332d9155  
+**Implementation subject at closure base:** `seanchatmangpt/ggen_igniter@292e40ab08a250ef3f049f9a80b4a65e332d9155`  
+**Authority ceiling:** SELECT/CONSTRUCT; consequential DO remains external
+
 ## 0. Status of this document: RE-MANUFACTURE
 
 This file is a **re-manufacture**, not the original text.
@@ -226,3 +231,12 @@ observation window only and must be re-checked against the branch tip before mer
   `feat/semantic-jira-v26.9.19` per the no-force-push collision protocol; the PR body
   gains exactly one appended line recording the commit SHA. No merge, publication,
   deployment, Jira SaaS mutation, or standing promotion is claimed or authorized.
+
+
+## v26.9.24 closure addendum
+
+The forensic re-manufacture history in section 0 remains part of the record; it no longer means the specification is open.
+
+The v26.9.24 implementation carries the Friday GoalCheckpoint tuple in the canonical RDF/SHACL surface: GoalCheckpoint identity, capability requirement, postcondition, evidence horizon, exclusions, and successor policy. Generated Jira/PRD/ARD/projection artifacts remain consequences of the graph and cannot grant authority.
+
+Specification closure does not self-promote runtime standing. Exact-head courts, receipt identity, and replay remain the promotion mechanism for implementation claims.
