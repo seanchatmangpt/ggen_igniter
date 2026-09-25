@@ -948,7 +948,11 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         |> Path.wildcard()
         |> Enum.sort()
 
-      assert length(gates) == 12
+      # 13 since gates/047_provider_neutral_admission.rq (ALOOP-ZCODE-DOGFOOD-001
+      # provider-neutrality contract, additive at pack version 26.9.19): the
+      # count tracks the shipped gate set; the assertion itself is unchanged --
+      # every gate must still execute cleanly against the canonical graph.
+      assert length(gates) == 13
 
       Enum.each(gates, fn gate ->
         assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),

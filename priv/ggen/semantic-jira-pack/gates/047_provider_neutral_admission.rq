@@ -1,0 +1,77 @@
+# Provider-neutrality admission gate (ALOOP-ZCODE-DOGFOOD-001 contract):
+# a rendered order's identity, authority, acceptance and replay surface must
+# carry NO provider identity. Provider names are lawful in exactly one place
+# on an order -- the "provider:id" left segment of sj:capabilityId -- and in
+# the runtime execution descriptor (shaped by
+# shapes/execution-descriptor.shacl.ttl). An order that dies when one provider
+# is cancelled is not a work order; it is a provider lease pretending to be
+# one.
+# Violation-row style (FM-PACK-013): zero rows on the canonical graph = every
+# admitted order is provider-neutral; one row per leaking literal / malformed
+# capabilityId / direct sj:provider assertion.
+# Branches:
+#   A  provider token (closed list: claude|zcode|anthropic|codex|gemini|
+#      openai|copilot|kimi|glm -- extend the alternation only when a provider
+#      class is admitted, never silently) inside any semantic field.
+#   B  sj:capabilityId whose left segment is empty (no "provider:" prefix).
+#   C  sj:provider asserted directly on an order (the predicate is declared in
+#      the pack ontology precisely so this branch can name it).
+# RECORDED FAILED EDGE (falsifier-witnessed 2026-09-25, ALOOP lane 5):
+# dcterms:identifier is EXEMPT from the token scan -- identifiers are upstream
+# pointers, not work semantics (the ALOOP episode identifier
+# "ALOOP-ZCODE-DOGFOOD-001" embeds its bootstrap provider name; it resolves
+# identically no matter which provider executes). Branch B still refuses a
+# capabilityId that cannot name its provider class.
+# sparql law (locked 0.3.12 + oxigraph): no FILTER inside EXISTS; per-branch
+# group-level FILTER only (same convention as 050_frontier.rq's header). The
+# token filter lives INSIDE each branch A group -- a single top-level FILTER
+# over ?value would error on branches B/C (unbound ?value) and silently drop
+# their rows. Case-insensitivity via LCASE(STR()) + unflagged REGEX.
+# Declared sj: terms only (graph-binding tripwire: every term a gate names is
+# an rdf:type subject of the pack ontology).
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?work_order ?field ?value WHERE {
+  {
+    ?work_order a sj:WorkOrder ; dcterms:title ?value .
+    BIND("title" AS ?field)
+    FILTER(REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; dcterms:description ?value .
+    BIND("description" AS ?field)
+    FILTER(REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:subject ?value .
+    BIND("subject" AS ?field)
+    FILTER(REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:repository ?value .
+    BIND("repository" AS ?field)
+    FILTER(REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:evidenceCeiling ?value .
+    BIND("evidenceCeiling" AS ?field)
+    FILTER(REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:authorityCeiling ?value .
+    BIND("authorityCeiling" AS ?field)
+    FILTER(REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:promotionRule ?value .
+    BIND("promotionRule" AS ?field)
+    FILTER(REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:replayIdentity ?value .
+    BIND("replayIdentity" AS ?field)
+    FILTER(REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:capabilityId ?value .
+    BIND(STRBEFORE(?value, ":") AS ?capability_segment)
+    FILTER(?capability_segment = "")
+    BIND("capabilityId_missing_provider_segment" AS ?field)
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:provider ?provider_node .
+    BIND("provider_asserted_on_work_order" AS ?field)
+  }
+}
+ORDER BY ?field ?work_order
