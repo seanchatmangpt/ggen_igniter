@@ -1,0 +1,259 @@
+{
+  "work_order_id": "G1-origin-trust-root",
+  "origin_authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "NONE (plan section ggen_igniter G1; work originates from sj:objective-code-work-authority)",
+    "actor": "workflow orchestrator stage G1-origin-trust-root"
+  },
+  "provider": {
+    "name": "claude-code",
+    "transport": "local CLI subagent",
+    "authority_ceiling": "CONSTRUCT",
+    "receipt_protocol": "ggen_igniter.post-tag-receipt/v1"
+  },
+  "provider_execution_id": "claude-code-session:90d06f90-3c25-4b15-bede-3d0e7e58ac78/lane:G1-origin-trust-root",
+  "identity": {
+    "subject": "semantic-jira:G1:origin-trust-root",
+    "repo": "seanchatmangpt/ggen_igniter",
+    "subject_sha": "0abf43db9df797ab725b8fdffd18579bde2e6720",
+    "subject_tree": "987bd0d0e9784240fc5c5e84b3b3f2971b0b2907",
+    "base_sha": "9639198b5c3e0e25906acc5b36dd9eb17bd592be",
+    "subject_locator": "git:seanchatmangpt/ggen_igniter@0abf43db9df797ab725b8fdffd18579bde2e6720:lib/ggen_igniter/semantic_jira/authority.ex",
+    "note": "subject = this receipt commit's parent; the receipt commit adds only this file"
+  },
+  "authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "NONE (branch + draft PR only; merge gated on xaas X1 verification)",
+    "actor": "claude-code G1 implement lane"
+  },
+  "consequence": {
+    "commits": [
+      "0abf43db9df797ab725b8fdffd18579bde2e6720"
+    ],
+    "files_changed": [
+      "HANDWRITTEN.md",
+      "lib/ggen_igniter/semantic_a2a.ex",
+      "lib/ggen_igniter/semantic_jira.ex",
+      "lib/ggen_igniter/semantic_jira/authority.ex",
+      "lib/ggen_igniter/semantic_jira/bootstrap.ex",
+      "lib/ggen_igniter/semantic_jira/cli.ex",
+      "lib/ggen_igniter/semantic_jira/descriptor.ex",
+      "lib/ggen_igniter/semantic_jira/prose.ex",
+      "priv/ggen/semantic-jira-pack/ontology.ttl",
+      "priv/ggen/semantic-jira-pack/shapes/work-order.shacl.ttl",
+      "scripts/sjira/origin_mutants.sh",
+      "test/fixtures/semantic-jira-bootstrap/goal.ttl",
+      "test/ggen_igniter_semantic_a2a_dispatch_test.exs",
+      "test/ggen_igniter_semantic_a2a_pack_test.exs",
+      "test/ggen_igniter_semantic_jira_bootstrap_test.exs",
+      "test/ggen_igniter_semantic_jira_frontier_origin_test.exs",
+      "test/ggen_igniter_semantic_jira_goal_checkpoint_test.exs",
+      "test/ggen_igniter_semantic_jira_origin_guard_test.exs",
+      "test/ggen_igniter_semantic_jira_shacl_test.exs",
+      "test/mutants/origin_guard.toml"
+    ],
+    "remote_effects": [
+      "push refs/heads/hardening/sjira-origin-trust-root -> 0abf43db9df797ab725b8fdffd18579bde2e6720 (seanchatmangpt/ggen_igniter)"
+    ]
+  },
+  "replay": {
+    "commands": [
+      {
+        "cmd": "mix format --check-formatted",
+        "cwd": "git archive seanchatmangpt/ggen_igniter@0abf43db9df797ab725b8fdffd18579bde2e6720 (MIX_ENV=test, MIX_BUILD_ROOT=_build-g1)",
+        "exit": 0,
+        "summary": "formatted"
+      },
+      {
+        "cmd": "mix compile --warnings-as-errors",
+        "cwd": "git archive seanchatmangpt/ggen_igniter@0abf43db9df797ab725b8fdffd18579bde2e6720 (MIX_ENV=test, MIX_BUILD_ROOT=_build-g1)",
+        "exit": 0,
+        "summary": "Generated ggen_igniter app; no warnings from ggen_igniter sources"
+      },
+      {
+        "cmd": "mix credo",
+        "cwd": "git archive seanchatmangpt/ggen_igniter@0abf43db9df797ab725b8fdffd18579bde2e6720 (MIX_ENV=test, MIX_BUILD_ROOT=_build-g1)",
+        "exit": 0,
+        "summary": "3066 mods/funs, found no issues"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_semantic_jira_origin_guard_test.exs",
+        "cwd": "git archive seanchatmangpt/ggen_igniter@0abf43db9df797ab725b8fdffd18579bde2e6720 (MIX_ENV=test, MIX_BUILD_ROOT=_build-g1)",
+        "exit": 0,
+        "summary": "45 tests, 0 failures (mutation-court baseline run)"
+      },
+      {
+        "cmd": "mix test",
+        "cwd": "git archive seanchatmangpt/ggen_igniter@0abf43db9df797ab725b8fdffd18579bde2e6720 (MIX_ENV=test, MIX_BUILD_ROOT=_build-g1)",
+        "exit": 2,
+        "summary": "20 doctests, 42 properties, 1451 tests, 10 failures, 1 skipped (9 excluded); the 10 failures are exactly the 10 reproduced on base 9639198b (1406 tests, 10 failures): toolchain pin, topology guard (archive extracted outside the canonical checkout), doctor hygiene, 3 git-ground-truth tests (archive has no .git), 4 env -i cold-process bootstrap tests (cargo absent from the env -i PATH)",
+        "output_sha256": "47a8bf9e8f02e3f276770ab797cd21cbd70502b7bfe768484a164dbd91c05975"
+      },
+      {
+        "cmd": "mix test",
+        "cwd": "git archive seanchatmangpt/ggen_igniter@9639198b5c3e0e25906acc5b36dd9eb17bd592be (MIX_ENV=test, MIX_BUILD_ROOT=_build-g1)",
+        "exit": 2,
+        "summary": "BASELINE: 1406 tests, 10 failures (same 10 names)",
+        "output_sha256": "420461647cc14ff31a5ee53ae8027feb03137c19a455b26a233e5f6dbb977291"
+      },
+      {
+        "cmd": "scripts/sjira/origin_mutants.sh <repo> 0abf43db9df797ab725b8fdffd18579bde2e6720 <work>",
+        "cwd": "git archive seanchatmangpt/ggen_igniter@0abf43db9df797ab725b8fdffd18579bde2e6720 per mutant",
+        "exit": 0,
+        "summary": "15/15 mutants KILLED; baseline GREEN",
+        "output_sha256": "2d231525258633127b6e4b1b667a8f4773fdacdedd422542672294dff86634e4"
+      },
+      {
+        "cmd": "act-ci.sh ggen_igniter 0abf43db9df797ab725b8fdffd18579bde2e6720 ci.yml push test",
+        "cwd": "act 0.2.87 on colima default, image catthehacker/ubuntu:act-24.04, --pull=false",
+        "exit": 1,
+        "summary": "BLOCKED(TRANSPORT_FAILURE:act-runtime): erlef/setup-beam OTP 27.2.4 build needs libcrypto.so.1.1, absent from the only local ubuntu image (act-24.04); fails in 'Set up Erlang/OTP' before any subject code runs",
+        "output_sha256": "479f84b0f537126cc479966b589c44f32627a353d3aa26259ee2c3e93f890bc9"
+      },
+      {
+        "cmd": "act-ci.sh ggen_igniter 9639198b5c3e0e25906acc5b36dd9eb17bd592be ci.yml push test",
+        "cwd": "act 0.2.87 on colima default, image catthehacker/ubuntu:act-24.04, --pull=false",
+        "exit": 1,
+        "summary": "BASELINE reproduction of the same setup-beam libcrypto.so.1.1 failure on base",
+        "output_sha256": "445cd45c334e85de1292d80912d644f714bc0aae352e91786fa454bff2b80a18"
+      }
+    ],
+    "mutation_court": {
+      "baseline": "GREEN",
+      "catalog": "test/mutants/origin_guard.toml",
+      "killed": 15,
+      "mutants": [
+        {
+          "id": "M01-lease-request-guard",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M02-execution-package-guard",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M03-do-intent-guard",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M04-promote-guard-and-none-bypass",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M05-apply-transition-guard",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M06-repair-work-order-guard",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M07-descriptor-to-a2a-task-guard",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M08-a2a-task-from-work-order-guard",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M09-index-from-unpinned",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M10-pin-ignores-digest",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M11-pins-accept-malformed-digest",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M12-verify-origin-unpinned",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M13-cli-authority-graph-dropped",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M14-prose-admits-every-stamp",
+          "verdict": "KILLED"
+        },
+        {
+          "id": "M15-pins-accept-ambiguous",
+          "verdict": "KILLED"
+        }
+      ],
+      "schema": "ggen_igniter.origin_mutants/v1",
+      "standing": "ALIVE",
+      "subject_sha": "0abf43db9df797ab725b8fdffd18579bde2e6720",
+      "total": 15
+    },
+    "durable_location": "git:seanchatmangpt/ggen_igniter@<receipt commit>:receipts/v26.9.25/sjira-origin-trust-root.json"
+  },
+  "standing": {
+    "value": "PARTIAL_ALIVE",
+    "derived_from": "local ladder at 0abf43db9df797ab725b8fdffd18579bde2e6720: format/compile/credo green, full suite red only on the 10 base-reproduced failures, origin-guard file 45/45, mutation court 15/15 killed; act CI BLOCKED(TRANSPORT_FAILURE:act-runtime) reproduced on base; not merged"
+  },
+  "provider_ext.claude-code": {
+    "schema": "ggen_igniter.post-tag-receipt/v1",
+    "work_order": {
+      "id": "G1-origin-trust-root",
+      "plan_section": "ggen_igniter G1 hardening/sjira-origin-trust-root",
+      "title": "Origin trust-root pin law: caller-supplied authority admitted only when (iri, recomputed digest) is pinned by the canonical ontology",
+      "post_tag_of": "chatman-ecosystem tag v26.9.25 (tag object 337e839937c247de4ee58b744c8b8e43950d18e3 -> 68bacd8dcc9ae12e4e97727a284c14abdc7520c5); no retroactive claim on the tagged subject"
+    },
+    "trust_root_enumeration": {
+      "command": "git grep -lE 'authority-graph|authority: |originAuthority|admissionDigest' <origin default> over ggen_igniter, xaas, chatman-ecosystem, zoela, autofde-lab, affidavit, engineering-standards; then per-file admissionDigest count on every *.ttl carrying sj:GoalCheckpoint",
+      "origin_defaults": {
+        "ggen_igniter": "9639198b5c3e0e25906acc5b36dd9eb17bd592be",
+        "xaas": "e039967dac9f88961873b6a958f3979a106854f2",
+        "chatman-ecosystem": "68bacd8dcc9ae12e4e97727a284c14abdc7520c5",
+        "zoela": "3d16cf3e43e195092161aaba4d481c7654b4035d",
+        "autofde-lab": "98b6cc9bfe3af8a25b3ad53019f5fb71fe2d37d0",
+        "affidavit": "d70b0e40f9920136510cb0f7f24bf9720feeb4f2",
+        "engineering-standards": "7e8d4c5cb5ae9f4b691d1cd342ee1d7ddb308629"
+      },
+      "pinned": {
+        "https://ggen-igniter.dev/ontology/semantic-jira#objective-semantic-jira-mvp": "sha256:7b3b5c6c16552d5e9eefbb070f8c10182b86034733aa018d1c57c6880f8bfb1f",
+        "https://ggen-igniter.dev/ontology/semantic-jira#objective-project-manufacturer": "sha256:639c07b80d557781fc76da0820feb43ac8b3161d527ccbb147533b7e645af0f8",
+        "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority": "sha256:310e14f1e30a9bb4d6ebd4388036e10ce3c973b13c0d45a7b550fa3dfd53c72c"
+      },
+      "pin_source_locator": "git:seanchatmangpt/ggen_igniter@4988ac61bb6903d2cd9c6855d9c0c942ac9eb57e:priv/ggen/semantic-jira-pack/ontology.ttl",
+      "goal_checkpoints_pinned": [],
+      "goal_checkpoint_finding": "no production GoalCheckpoint carries sj:admissionDigest in any enumerated repo (xaas docs/sjira/v26.9.23/compiled/propositions.ttl digests are sj:Proposition admissions, never authority); only ggen_igniter test fixtures do, and those are not pinned",
+      "xaas_origin_authority_callers": "0 on origin/main e039967d (xaas X1 adds origin_authority -> sj#objective-semantic-jira-mvp or code-work-authority)"
+    },
+    "baseline_failures": [
+      "test mix semantic_jira.bootstrap (two cold processes) a forbidden path argument is refused by the task and nothing is written (GgenIgniter.SemanticJiraBootstrapTest)",
+      "test mix semantic_jira.bootstrap (two cold processes) an LLM credential variable in the task's environment is refused (mu_on_O) (GgenIgniter.SemanticJiraBootstrapTest)",
+      "test mix semantic_jira.bootstrap (two cold processes) two runs under env -i with fresh HOMEs write byte-identical, digest-bound state (GgenIgniter.SemanticJiraBootstrapTest)",
+      "test no --pack: real environment/project-hygiene checks all pass in-process, real notice added (GgenIgniter.DoctorInProcessTest)",
+      "test no executable file references a ~/wt shadow checkout or creates git worktrees (GgenIgniter.TopologyGuardTest)",
+      "test opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure) flag on over a forged-but-well-formed 40-hex baseSha refuses before any actuation (GgenIgniter.SemanticJiraPackTest)",
+      "test opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure) flag on over the honest graph manufactures (honest-pass side) (GgenIgniter.SemanticJiraPackTest)",
+      "test opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure) per-order control: requiresGitGroundTruth true over a real ancestor admits without the flag (GgenIgniter.SemanticJiraPackTest)",
+      "test running VM and CI vs .tool-versions (toolchain pin) the running VM is the .tool-versions pin (else BUILD_BROKEN(toolchain)) (GgenIgniter.ToolchainPinQualificationTest)",
+      "test scripts/sjira/bootstrap_court.sh passes on two identical cold runs reconstructing every critical-path order (GgenIgniter.SemanticJiraBootstrapTest)"
+    ],
+    "falsifiers": [
+      "a caller graph that types a fresh sj:StrategicObjective and self-stamps a recomputing digest is admitted by any of lease_request, execution_package, do_intent, promote, apply_transition, repair_work_order, Descriptor.to_a2a_task, SemanticA2A.task_from_work_order or --authority-graph",
+      "a ready-made index map restating a pinned IRI under a forged digest is admitted",
+      "Prose.admit_goal reports a non-pinned stamp as admitted",
+      "any catalog mutant survives scripts/sjira/origin_mutants.sh"
+    ],
+    "blockers": [
+      {
+        "what": "local CI (act ci.yml)",
+        "standing": "BLOCKED(TRANSPORT_FAILURE:act-runtime)",
+        "broken_term": "R_missing_replay",
+        "rfc0004_s39_class": "transport",
+        "baseline_reproduced_on": "9639198b5c3e0e25906acc5b36dd9eb17bd592be"
+      }
+    ],
+    "residue": [
+      "promote/4 authority_satisfied?/3 origin conjunct is defense in depth behind the promote guard; it is not independently mutation-killable (M04 mutates guard and conjunct together)",
+      "xaas callers of lease_request/execution_package/task_from_work_order must send origin_authority (xaas X1); merge of this branch waits for X1 against this head"
+    ]
+  }
+}
