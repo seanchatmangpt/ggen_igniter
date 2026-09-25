@@ -6,7 +6,7 @@ defmodule GgenIgniter.MixProject do
   def project do
     [
       app: :ggen_igniter,
-      version: "26.9.20",
+      version: "26.9.24",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
