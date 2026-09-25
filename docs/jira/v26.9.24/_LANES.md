@@ -71,6 +71,7 @@ R12. Integration (coordinator): substitute computed digests for every
 ## History
 
 - 2026-09-24 | OPEN | branch feat/sjira-origin-authority@390e363 | release-prep committed | wave 1 (10 Explore lane plans) complete; resolutions fixed | wave 2 dispatch next
+- 2026-09-25 | A1 CLOSED | branch feat/sjira-origin-authority@23c36c8 (merged origin/main 7d53cb3 at 7c30df3) | AC-04: frontier/4, frontier_from_events/4, schedule/4, Descriptor, Reconciler.frontier/3 and Reconciler.reconcile/4 resolve origin_authority through Authority.index/1 + resolve/2 (digest recomputed; prose-typed refused); falsifier test/ggen_igniter_semantic_jira_frontier_origin_test.exs red (23/24) on 7c30df3, green on 23c36c8 | R2's "33" is the historical pre-SJ-002 backfill count; the pack now carries 34 WorkOrders (32 manufacturer + 1 mvp + 1 SJ-002)
 
 ## Receipt (2026-09-24, SJ-002 complete on branch, unmerged)
 

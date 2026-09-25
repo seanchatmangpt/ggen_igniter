@@ -46,8 +46,28 @@
 - **Bootstrap** extracts `sj:originAuthority`
   (`bootstrap/work_orders.rq`), so cold-bootstrap graphs carry origins from
   the first run.
-- **33-order origin backfill**: all existing canonical work orders carry
-  `sj:originAuthority`; no order is grandfathered past the law.
+- **33-order origin backfill**: the 33 pre-SJ-002 canonical work orders
+  carry `sj:originAuthority`; no order is grandfathered past the law. With
+  SJ-002 the pack carries 34 WorkOrders, 34/34 with an origin (32
+  manufacturer, 1 mvp, 1 code-work-authority).
+- **Frontier origin resolution (AC-04)**: `SemanticJira.frontier/4`,
+  `frontier_from_events/4` and `schedule/4` take `:authority` (an
+  `Authority.index/1`, an `RDF.Graph`, or a Turtle path; default the
+  canonical pack index via `Authority.canonical_index/1`, cached in
+  `:persistent_term` keyed by the file's content digest). An order whose
+  `origin_authority` does not resolve — not an authority node, typed as
+  prose (`authority_type_mismatch`), undigested (`authority_not_admitted`),
+  or with a digest that does not recompute (`authority_digest_mismatch`,
+  incl. `sha256:PENDING-*` placeholders) — is blocked `origin_not_admitted`;
+  eligible candidates carry `origin_authority` and
+  `origin_admission_digest`. An unavailable index blocks every order
+  (`authority_index_unavailable`). `Descriptor.build/4`,
+  `build_xaas_contract/4`, `Reconciler.frontier/3` and
+  `Reconciler.reconcile/4` (the promote path) apply the same law;
+  `verify_origin/3` now resolves through the same index. Bootstrap resolves
+  against the goal graph only. New `--authority-graph PATH` on
+  `mix semantic_jira.frontier|descriptor|reconcile`. Falsifier:
+  `test/ggen_igniter_semantic_jira_frontier_origin_test.exs`.
 - **SJ-002 admitted**; its ticket projects to `docs/jira/SJ-002.md`.
 - **Falsifier suite**: `test/ggen_igniter_semantic_jira_shacl_test.exs`
   (type law, admission-witness law, anti-prose falsifier, and the pinned

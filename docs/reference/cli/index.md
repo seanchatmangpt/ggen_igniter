@@ -38,8 +38,14 @@ live in each module's `schema:`/moduledoc)
   and an unadmitted origin is `{:origin_not_admitted, _}` — both exit 1, not
   invalid invocation; `...court_map --ontology
   --identity [--out]`, `...descriptor --work-orders --ledger --identity
-  --alias --verifier-suite [--provider|--court-map|--out]`, `...frontier
-  --work-orders --ledger`, `...reconcile --work-orders --ledger --receipt`,
+  --alias --verifier-suite [--provider|--court-map|--authority-graph|--out]`,
+  `...frontier --work-orders --ledger [--authority-graph]`, `...reconcile
+  --work-orders --ledger --receipt [--authority-graph]` — `--authority-graph
+  PATH` (Turtle) is the origin-authority graph an order's `origin_authority`
+  must resolve in (typed objective/checkpoint, not prose, one recomputing
+  `sj:admissionDigest`; default the canonical semantic-jira-pack ontology);
+  an unresolved origin is blocked `origin_not_admitted` (SJ-002 AC-04), an
+  unreadable file is exit 2 and an unparseable one exit 1;
   `...xaas_receipt --bridge --xaas-receipt [--out]`, `...bootstrap --fleet
   --goal [--graphs|--receipts-dir|--ledger|--registry|--checkout|--out|--pack-dir]`,
   `...observe_prose --source --candidates --goal

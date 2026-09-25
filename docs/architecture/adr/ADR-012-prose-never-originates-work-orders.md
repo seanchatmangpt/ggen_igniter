@@ -79,9 +79,18 @@ projection) made that manufacture the documented first-mile behavior.
 - The manufacture rule is gone: `observe_prose` cannot emit a WorkOrder even
   under a hostile candidate file — the delta query it would need no longer
   exists in the pack.
-- All 33 existing canonical work orders are backfilled with
+- The 33 pre-existing canonical work orders are backfilled with
   `sj:originAuthority` pointing at their admitted authorities, so no
-  grandfathered order bypasses the law.
+  grandfathered order bypasses the law. With SJ-002 itself the pack carries
+  34 WorkOrders, 34/34 with an origin (32 `objective-project-manufacturer`,
+  1 `objective-semantic-jira-mvp`, 1 `objective-code-work-authority`).
+- Frontier selection enforces the law, not only admission (AC-04): an order
+  is eligible only when its `origin_authority` RESOLVES in an authority
+  index (`Authority.index/1` + `resolve/2`) — typed
+  `sj:StrategicObjective`/`sj:GoalCheckpoint`, not also typed as prose, with
+  exactly one `sj:admissionDigest` that recomputes. Unresolved origins are
+  blocked `origin_not_admitted`; `Reconciler.reconcile/4` applies the same
+  check before promotion, and `verify_origin/3` shares the law.
 - The `origin_authority` addition to the closed `@definition_fields` take
   moves every order's definition digest once; ADR-010's law absorbs exactly
   this move (receipts made against pre-origin digests are invalidated by
