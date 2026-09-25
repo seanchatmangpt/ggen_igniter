@@ -1,0 +1,98 @@
+{
+  "authority_claim": "NONE",
+  "command": "MIX_BUILD_ROOT=_build-receipts MIX_ENV=test mix run --no-start release/v26.9.25/receipts/replay/origin_probe.exs",
+  "cwd": "/Users/sac/ggen_igniter @ 780a81d81c6e579084ba3048037419aab7d7386e",
+  "dfcm_receipt": {
+    "authority": {
+      "actor": "claude-code lane receipts-ggen_igniter",
+      "ceiling": "OBSERVE",
+      "grant": "NONE"
+    },
+    "consequence": {
+      "commits": [],
+      "files_changed": [
+        "release/v26.9.25/receipts/sjira-origin-authority.json"
+      ],
+      "remote_effects": []
+    },
+    "identity": {
+      "base_sha": "780a81d81c6e579084ba3048037419aab7d7386e",
+      "repo": "seanchatmangpt/ggen_igniter",
+      "subject": "sjira-origin-authority",
+      "subject_sha": "780a81d81c6e579084ba3048037419aab7d7386e"
+    },
+    "replay": {
+      "commands": [
+        {
+          "cmd": "MIX_BUILD_ROOT=_build-receipts MIX_ENV=test mix run --no-start release/v26.9.25/receipts/replay/origin_probe.exs",
+          "cwd": "ggen_igniter@780a81d81c6e579084ba3048037419aab7d7386e",
+          "exit": 0,
+          "output_sha256": "97f235292388767b08f32037e8e0a123b6266f300977127827314b59b19249c0",
+          "summary": "34/34 orders one admitted origin; counts 32/1/1; 0 unadmitted; zero/multiple-origin mutations refused"
+        }
+      ],
+      "durable_location": "release/v26.9.25/receipts/replay/"
+    },
+    "standing": {
+      "derived_from": "origin_probe.exs at 780a81d81c6e579084ba3048037419aab7d7386e",
+      "value": "ALIVE"
+    }
+  },
+  "evidence_ceiling": "LOCAL_RUN",
+  "evidence_kind": "origin_authority",
+  "exit_code": 0,
+  "falsifiers_refused": {
+    "multiple_origin": {
+      "order": "https://ggen-igniter.dev/ontology/semantic-jira#gall-023",
+      "shacl_conforms": false,
+      "shacl_violations": 1,
+      "verify_origin": "{:error, {:refused_origin, {:ambiguous_origin_authority, [\"https://ggen-igniter.dev/ontology/semantic-jira#objective-project-manufacturer\", \"https://ggen-igniter.dev/ontology/semantic-jira#objective-semantic-jira-mvp\"]}}}"
+    },
+    "zero_origin": {
+      "order": "https://ggen-igniter.dev/ontology/semantic-jira#gall-023",
+      "shacl_conforms": false,
+      "shacl_violations": 1,
+      "verify_origin": "{:error, {:refused_origin, :origin_authority_missing}}"
+    }
+  },
+  "inputs": {
+    "law": "GgenIgniter.SemanticJira.Shacl.validate/2 + Authority.index/1 + Authority.resolve/2 (+ verify_origin/3 for falsifiers)",
+    "ontology": "priv/ggen/semantic-jira-pack/ontology.ttl",
+    "shapes": "priv/ggen/semantic-jira-pack/shapes/work-order.shacl.ttl"
+  },
+  "observed_at": "2026-09-25T13:24:05Z",
+  "output_path": "release/v26.9.25/receipts/replay/origin-probe.out.json",
+  "output_sha256": "97f235292388767b08f32037e8e0a123b6266f300977127827314b59b19249c0",
+  "release": "v26.9.25",
+  "repo": "seanchatmangpt/ggen_igniter",
+  "requirement_ids": [
+    "AC-03",
+    "F-02"
+  ],
+  "result": {
+    "authority_admitted": [
+      "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
+      "https://ggen-igniter.dev/ontology/semantic-jira#objective-project-manufacturer",
+      "https://ggen-igniter.dev/ontology/semantic-jira#objective-semantic-jira-mvp"
+    ],
+    "authority_refused": [],
+    "origin_counts": {
+      "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority": 1,
+      "https://ggen-igniter.dev/ontology/semantic-jira#objective-project-manufacturer": 32,
+      "https://ggen-igniter.dev/ontology/semantic-jira#objective-semantic-jira-mvp": 1
+    },
+    "shacl_conforms": true,
+    "shacl_focus_nodes": 243,
+    "shacl_violations": 0,
+    "unadmitted": [],
+    "work_orders_total": 34,
+    "work_orders_with_exactly_one_admitted_origin": 34
+  },
+  "schema": "ggen_igniter/sjira-origin-authority/v1",
+  "standing": "ALIVE",
+  "subject": {
+    "repo": "seanchatmangpt/ggen_igniter",
+    "sha": "780a81d81c6e579084ba3048037419aab7d7386e"
+  },
+  "subject_sha": "780a81d81c6e579084ba3048037419aab7d7386e"
+}

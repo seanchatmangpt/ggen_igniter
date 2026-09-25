@@ -1,0 +1,152 @@
+{
+  "authority_claim": "NONE",
+  "command": "MIX_BUILD_ROOT=_build-receipts mix test test/ggen_igniter_semantic_jira_frontier_origin_test.exs test/ggen_igniter_semantic_jira_prose_test.exs test/ggen_igniter_semantic_jira_authority_test.exs --include integration --trace --seed 0",
+  "cwd": "/Users/sac/ggen_igniter @ 780a81d81c6e579084ba3048037419aab7d7386e",
+  "dfcm_receipt": {
+    "authority": {
+      "actor": "claude-code lane receipts-ggen_igniter",
+      "ceiling": "OBSERVE",
+      "grant": "NONE"
+    },
+    "consequence": {
+      "commits": [],
+      "files_changed": [
+        "release/v26.9.25/receipts/prose-inert.json"
+      ],
+      "remote_effects": []
+    },
+    "identity": {
+      "base_sha": "780a81d81c6e579084ba3048037419aab7d7386e",
+      "repo": "seanchatmangpt/ggen_igniter",
+      "subject": "prose-inert",
+      "subject_sha": "780a81d81c6e579084ba3048037419aab7d7386e"
+    },
+    "replay": {
+      "commands": [
+        {
+          "cmd": "MIX_BUILD_ROOT=_build-receipts mix test test/ggen_igniter_semantic_jira_frontier_origin_test.exs test/ggen_igniter_semantic_jira_prose_test.exs test/ggen_igniter_semantic_jira_authority_test.exs --include integration --trace --seed 0",
+          "cwd": "ggen_igniter@780a81d81c6e579084ba3048037419aab7d7386e",
+          "exit": 0,
+          "output_sha256": "ff2fb3350ae0ec99a0b6fc839a6698a0ea56ea37d33de902a369cff7b0323638",
+          "summary": "56 tests, 0 failures"
+        }
+      ],
+      "durable_location": "release/v26.9.25/receipts/prose-inert.json"
+    },
+    "standing": {
+      "derived_from": "mix test (3 files) at 780a81d81c6e579084ba3048037419aab7d7386e",
+      "value": "ALIVE"
+    }
+  },
+  "evidence_ceiling": "LOCAL_RUN",
+  "evidence_kind": "receipt_artifact",
+  "exit_code": 0,
+  "falsifier_cases_refused": [
+    "verify_origin/3 refuses a fresh self-declared objective with a forged digest",
+    "verify_origin/3 refuses a forged digest restated on the canonical code-work-authority IRI",
+    "the centerpiece falsifier \u2014 typed is not admitted a typed, well-formed rogue passes the SHACL court and is still refused by verify_origin/3",
+    "AC-04: a prose-typed origin with a correct self-computed digest is blocked the proposition's stated digest really does recompute (the forgery is internally valid)",
+    "AC-04: a prose-typed origin with a correct self-computed digest is blocked in-process frontier/4 blocks it with origin_not_admitted",
+    "AC-04: a prose-typed origin with a correct self-computed digest is blocked Cli.frontier/1 with real temp JSON and Turtle files blocks it",
+    "AC-04: a prose-typed origin with a correct self-computed digest is blocked a real `mix semantic_jira.frontier --authority-graph` subprocess blocks it",
+    "the default path is gated (no authority passed) a ProseObservation origin in the real ontology is blocked",
+    "the default path is gated (no authority passed) a fresh, nonexistent IRI is blocked",
+    "the refusal vocabulary a node typed both StrategicObjective and Proposition is authority_type_mismatch",
+    "the refusal vocabulary an edited description under a kept digest is authority_digest_mismatch",
+    "the refusal vocabulary a sha256:PENDING-SJ-002 placeholder is authority_digest_mismatch",
+    "the refusal vocabulary Authority.resolve/2 over index/1 names each refusal",
+    "the refusal vocabulary verify_origin/3 shares the law: a tampered canonical objective is refused",
+    "every selection surface applies the gate frontier_from_events/4",
+    "every selection surface applies the gate schedule/4",
+    "every selection surface applies the gate Descriptor.build/4",
+    "every selection surface applies the gate Descriptor.build_xaas_contract/4",
+    "every selection surface applies the gate Reconciler.frontier/3",
+    "Reconciler.reconcile/4 (promote path) refuses an unadmitted origin the admitted origin's receipt appends; the prose origin's identical receipt is refused",
+    "fail closed an unreadable authority path blocks every order with authority_index_unavailable",
+    "fail closed Cli.frontier/1 with an unreadable --authority-graph is invalid invocation (exit 2)",
+    "fail closed Cli.frontier/1 with an unparseable --authority-graph is a typed refusal (exit 1)",
+    "fail closed canonical_index/1 is keyed by content: an edited file is never served stale",
+    "observation authority discipline the observed projection contains zero work orders",
+    "observation authority discipline every proposition is stamped UNKNOWN standing, NONE authority claim, and no digest",
+    "observation authority discipline the observer writes exactly one file, propositions.ttl",
+    "observation authority discipline the manufacture surface is deleted from the observer module"
+  ],
+  "mock_grep": {
+    "cmd": "grep -n 'unittest.mock|Mock|mock(|patch(|monkeypatch|Mox|:meck' <3 test files>",
+    "matches": 0
+  },
+  "observed_at": "2026-09-25T13:24:05Z",
+  "output_sha256": "ff2fb3350ae0ec99a0b6fc839a6698a0ea56ea37d33de902a369cff7b0323638",
+  "release": "v26.9.25",
+  "repo": "seanchatmangpt/ggen_igniter",
+  "requirement_ids": [
+    "AC-04",
+    "F-01"
+  ],
+  "schema": "ggen_igniter/prose-inert/v1",
+  "standing": "ALIVE",
+  "subject": {
+    "repo": "seanchatmangpt/ggen_igniter",
+    "sha": "780a81d81c6e579084ba3048037419aab7d7386e"
+  },
+  "subject_sha": "780a81d81c6e579084ba3048037419aab7d7386e",
+  "test_summary": "56 tests, 0 failures",
+  "tests_passed": [
+    "admission_digest/2 is deterministic over the same graph and IRI and matches the sha256 shape",
+    "admission_digest/2 the exclusion law: stated sj:admissionDigest literals never enter the digest",
+    "admission_digest/2 content sensitivity: changing the node's dcterms:description changes the digest",
+    "replay gate each pinned objective's stated digest matches the pattern AND the recomputed digest",
+    "admit/2 stamps the real ontology and returns a report of every pinned objective digest",
+    "admit/2 admit over an already-stamped graph is idempotent (byte-identical N-Triples)",
+    "verify_origin/3 accepts SJ-002 when the candidate restates no objective (order names origin; no restatement)",
+    "verify_origin/3 accepts SJ-002 against the canonical graph verbatim",
+    "verify_origin/3 refuses a fresh self-declared objective with a forged digest",
+    "verify_origin/3 refuses a forged digest restated on the canonical code-work-authority IRI",
+    "the centerpiece falsifier \u2014 typed is not admitted a typed, well-formed rogue passes the SHACL court and is still refused by verify_origin/3",
+    "positive control: an admitted origin is eligible and carries its witness default (canonical) authority index",
+    "positive control: an admitted origin is eligible and carries its witness explicit authority graph and explicit index agree with the default",
+    "AC-04: a prose-typed origin with a correct self-computed digest is blocked the proposition's stated digest really does recompute (the forgery is internally valid)",
+    "AC-04: a prose-typed origin with a correct self-computed digest is blocked in-process frontier/4 blocks it with origin_not_admitted",
+    "AC-04: a prose-typed origin with a correct self-computed digest is blocked Cli.frontier/1 with real temp JSON and Turtle files blocks it",
+    "AC-04: a prose-typed origin with a correct self-computed digest is blocked a real `mix semantic_jira.frontier --authority-graph` subprocess blocks it",
+    "the default path is gated (no authority passed) a ProseObservation origin in the real ontology is blocked",
+    "the default path is gated (no authority passed) a fresh, nonexistent IRI is blocked",
+    "the refusal vocabulary a node typed both StrategicObjective and Proposition is authority_type_mismatch",
+    "the refusal vocabulary an edited description under a kept digest is authority_digest_mismatch",
+    "the refusal vocabulary a sha256:PENDING-SJ-002 placeholder is authority_digest_mismatch",
+    "the refusal vocabulary Authority.resolve/2 over index/1 names each refusal",
+    "the refusal vocabulary verify_origin/3 shares the law: a tampered canonical objective is refused",
+    "every selection surface applies the gate frontier_from_events/4",
+    "every selection surface applies the gate schedule/4",
+    "every selection surface applies the gate Descriptor.build/4",
+    "every selection surface applies the gate Descriptor.build_xaas_contract/4",
+    "every selection surface applies the gate Reconciler.frontier/3",
+    "Reconciler.reconcile/4 (promote path) refuses an unadmitted origin the admitted origin's receipt appends; the prose origin's identical receipt is refused",
+    "bootstrap selects only from an admitted goal root the committed goal yields eligible work; a tampered GC-T description yields none",
+    "fail closed an unreadable authority path blocks every order with authority_index_unavailable",
+    "fail closed Cli.frontier/1 with an unreadable --authority-graph is invalid invocation (exit 2)",
+    "fail closed Cli.frontier/1 with an unparseable --authority-graph is a typed refusal (exit 1)",
+    "fail closed canonical_index/1 is keyed by content: an edited file is never served stale",
+    "observe/1 (observation over the committed fixture) admits every candidate and stamps UNKNOWN standing with NO authority onto each",
+    "observe/1 (observation over the committed fixture) a second run is byte-identical and check/2 confirms the written propositions",
+    "observe/1 provenance admission (step a) one changed source byte refuses every proposition and the root, each by IRI",
+    "observe/1 provenance admission (step a) a changed sj:sourceText refuses exactly that proposition",
+    "observe/1 provenance admission (step a) a shifted offset refuses the proposition (span bytes and IRI no longer recompute)",
+    "observe/1 provenance admission (step a) a renamed candidate IRI refuses (the IRI must recompute per PVOCAB)",
+    "observe/1 provenance admission (step a) an anonymous (blank-node) candidate has no identity and is refused",
+    "observe/1 provenance admission (step a) a candidate file cannot smuggle a non-proposition subject past admission",
+    "observe/1 SHACL and domain admission (steps b, c) a kind outside the ARD 5.2 list is refused by the proposition shape",
+    "observe/1 SHACL and domain admission (steps b, c) an uncovered gate is refused by name",
+    "observe/1 SHACL and domain admission (steps b, c) an Exclusion that restates a required Postcondition of the same gate is a contradiction",
+    "observe/1 SHACL and domain admission (steps b, c) a proposition required by a checkpoint outside the root's gates is refused",
+    "admit_goal/1 (GC23-3 shapes court, then Authority stamping) the fixture goal admits and every GoalCheckpoint carries exactly one recomputable digest",
+    "admit_goal/1 (GC23-3 shapes court, then Authority stamping) F1: deleting one mandatory tuple field of the goal's order is refused, naming it",
+    "admit_goal/1 (GC23-3 shapes court, then Authority stamping) a pre-existing placeholder digest is refused, never trusted or silently restamped",
+    "admit_goal/1 (GC23-3 shapes court, then Authority stamping) a predecessor reference resolves only through --context; context violations are out of scope",
+    "mix semantic_jira.observe_prose (real subprocess, no LLM credentials) writes propositions only, --check confirms them, drift and refusals exit 1",
+    "observation authority discipline the observed projection contains zero work orders",
+    "observation authority discipline every proposition is stamped UNKNOWN standing, NONE authority claim, and no digest",
+    "observation authority discipline the observer writes exactly one file, propositions.ttl",
+    "observation authority discipline the manufacture surface is deleted from the observer module"
+  ]
+}
