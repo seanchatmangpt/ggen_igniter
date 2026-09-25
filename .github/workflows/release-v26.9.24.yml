@@ -2,7 +2,8 @@ name: v26.9.24 Hex release
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - mix.exs
       - .github/workflows/release-v26.9.24.yml
@@ -10,70 +11,60 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: v26.9.24-release
-  cancel-in-progress: false
-
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
-      - name: Checkout exact release subject
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Admit exact version
-        run: |
-          set -euo pipefail
-          grep -Eq '(@version[[:space:]]+|version:[[:space:]]*)"26\.9\.24"' mix.exs
-      - name: Set up Erlang/OTP and Elixir
-        uses: erlef/setup-beam@v1
+          submodules: recursive
+      - uses: erlef/setup-beam@v1
         with:
           elixir-version: "1.18.4"
           otp-version: "27.3.4"
-      - name: Prepare Hex and build package
+      - name: Build exact package subject
         run: |
+          set -euo pipefail
+          grep -Eq '(@version[[:space:]]+|version:[[:space:]]*)"26\.9\.24"' mix.exs
           mix local.hex --force
           mix local.rebar --force
           mix deps.get
           mix compile --warnings-as-errors
           mix hex.build
-      - name: Observe registry
+      - name: Observe Hex registry
         id: registry
         run: |
-          set -euo pipefail
           if curl -fsS "https://hex.pm/api/packages/ggen_igniter" | jq -e '.releases[]? | select(.version == "26.9.24")' >/dev/null; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Admit publish authority
+      - name: Publish Hex package
         if: steps.registry.outputs.exists != 'true'
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
-        run: test -n "$HEX_API_KEY" || { echo "BLOCKED(authority:HEX_API_KEY)" >&2; exit 2; }
-      - name: Publish to Hex
-        if: steps.registry.outputs.exists != 'true'
-        env:
-          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
-        run: mix hex.publish --yes
-      - name: Verify registry and cut exact tag/release
+        run: |
+          test -n "$HEX_API_KEY" || { echo "BLOCKED(authority:HEX_API_KEY)" >&2; exit 2; }
+          mix hex.publish --yes
+      - name: Verify registry and exact lightweight tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          curl -fsS "https://hex.pm/api/packages/ggen_igniter" | jq -e '.releases[]? | select(.version == "26.9.24")' >/dev/null
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS "https://hex.pm/api/packages/ggen_igniter" | jq -e '.releases[]? | select(.version == "26.9.24")' >/dev/null; then break; fi
+            test "$i" != 10
+            sleep 3
+          done
           subject="$(git rev-parse HEAD)"
-          if git ls-remote --exit-code --tags origin refs/tags/v26.9.24 >/dev/null 2>&1; then
-            test "$(git ls-remote --tags origin refs/tags/v26.9.24 | cut -f1)" = "$subject"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v26.9.24" >/dev/null 2>&1; then
+            test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v26.9.24" --jq .object.sha)" = "$subject"
           else
-            git config user.name github-actions
-            git config user.email github-actions@users.noreply.github.com
-            git tag -a v26.9.24 "$subject" -m "v26.9.24"
-            git push origin refs/tags/v26.9.24
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/v26.9.24" -f sha="$subject" >/dev/null
           fi
           if ! gh release view v26.9.24 >/dev/null 2>&1; then
             gh release create v26.9.24 --target "$subject" --title "v26.9.24" --generate-notes
           fi
-          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/v26.9.24" --jq .sha)" = "$subject"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v26.9.24" --jq .object.sha)" = "$subject"
