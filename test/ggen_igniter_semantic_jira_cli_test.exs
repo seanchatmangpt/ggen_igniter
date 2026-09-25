@@ -248,9 +248,7 @@ defmodule GgenIgniter.SemanticJiraCliTest do
       # identity, so it refuses with not_eligible/unknown_identity in the
       # CLI's jsonable refusal vocabulary.
       assert {1, %{"status" => "refused", "reason" => reason}} =
-               Cli.descriptor(
-                 descriptor_opts_with(stripped_path, ledger, "FRI-FMT-A")
-               )
+               Cli.descriptor(descriptor_opts_with(stripped_path, ledger, "FRI-FMT-A"))
 
       assert reason == ["descriptor_refused", ["not_eligible", "FRI-FMT-A", "unknown_identity"]]
     end

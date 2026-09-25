@@ -45,9 +45,10 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
     * `orders` -- per work order: derived standing and its source, the
       linked receipt, invalidated/unlinked receipts, tuple digest,
       definition digest, dependencies and frontier class;
-    * `frontier` -- `GgenIgniter.SemanticJira.frontier_from_events/3` over
+    * `frontier` -- `GgenIgniter.SemanticJira.frontier_from_events/4` over
       the kernel orders, the applicable ledger events and the receipt
-      evidence;
+      evidence, with origins resolved against the goal graph's admission
+      index (`Authority.index/1`, SJ-002 AC-04);
     * `ledger`, `receipts`, `registry`, `inputs` (content digests and
       host-independent refs of every input and pack query) and
       `exceptions` (BLOCKED / UNSUPPORTED / REFUSED state).
@@ -93,7 +94,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
 
   alias GgenIgniter.Digest
   alias GgenIgniter.SemanticJira
-  alias GgenIgniter.SemanticJira.{Reconciler, TransitionLog}
+  alias GgenIgniter.SemanticJira.{Authority, Reconciler, TransitionLog}
   alias GgenIgniter.SemanticJira.Bootstrap.{Git, Graph, Guard, Receipts, Subjects}
 
   @schema "semantic-jira-bootstrap/v1"
@@ -255,6 +256,10 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
          queries: queries,
          subjects: subjects,
          root: root,
+         # SJ-002 AC-04: origins resolve against the GOAL graph only --
+         # never `merged`, so a work graph read from another repository can
+         # neither mint nor re-stamp an authority.
+         authority: Authority.index(goal),
          checkpoints: Graph.checkpoints(merged, queries),
          capabilities: Graph.capabilities(merged, queries),
          orders: orders,
@@ -491,7 +496,12 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
       end
 
     {projected, _logged} = SemanticJira.project(kernel_orders, applied)
-    frontier = SemanticJira.frontier_from_events(kernel_orders, applied, evidence)
+
+    frontier =
+      SemanticJira.frontier_from_events(kernel_orders, applied, evidence,
+        authority: world.authority
+      )
+
     logged_ids = applied |> Enum.map(& &1["identity"]) |> MapSet.new()
 
     orders =

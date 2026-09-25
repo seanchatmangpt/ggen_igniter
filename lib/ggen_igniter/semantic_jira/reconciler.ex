@@ -11,10 +11,17 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
      moved since the receipt was made): a stale snapshot with a matching
      definition is admissible, so sibling transitions are not invalidated.
   3. `candidate_sha` must equal the WorkOrder's when the latter is set.
-  4. `SemanticJira.promote/3` is the pure admission function (exact subject,
+  4. The WorkOrder's `origin_authority` must RESOLVE in the authority index
+     (`opts[:authority]`: an `Authority.index/1`, an `RDF.Graph`, or a Turtle
+     path; default the canonical semantic-jira-pack index), the same law
+     frontier selection applies (SJ-002 AC-04): an order that could never be
+     selected can never be promoted either. Refused as
+     `{:error, {:refused, {:origin_not_admitted, refusal}}}`; an unavailable
+     index is `{:error, {:refused, {:authority_index_unavailable, path, _}}}`.
+  5. `SemanticJira.promote/3` is the pure admission function (exact subject,
      courts, evidence class/ceiling, falsifiers, replay identity). Dependency
      evidence comes from the log projection, never from the receipt.
-  5. On admit an event is appended to the `TransitionLog`; replaying the same
+  6. On admit an event is appended to the `TransitionLog`; replaying the same
      receipt is idempotent (`:already_recorded`).
 
   The ledger is read through `TransitionLog.fetch/1`, so a tampered or
@@ -26,11 +33,11 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
   """
 
   alias GgenIgniter.SemanticJira
-  alias GgenIgniter.SemanticJira.TransitionLog
+  alias GgenIgniter.SemanticJira.{Authority, TransitionLog}
 
   @spec reconcile(map(), map(), Path.t(), keyword()) ::
           {:ok, map(), :appended | :already_recorded} | {:error, {:refused, term()}}
-  def reconcile(work_order, receipt, dir, _opts \\ []) do
+  def reconcile(work_order, receipt, dir, opts \\ []) do
     receipt = stringify(receipt)
 
     with {:ok, events} <- refuse(TransitionLog.fetch(dir)),
@@ -39,6 +46,7 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
          :ok <- check(digest?(receipt["snapshot_digest"]), :invalid_snapshot_digest),
          nil <- recorded(events, receipt),
          {:ok, admitted} <- refuse(SemanticJira.admit_work_order(work_order)),
+         :ok <- origin_admitted(admitted, opts),
          :ok <-
            check(
              is_nil(admitted["candidate_sha"]) or
@@ -73,6 +81,19 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
     else
       {:already, event} -> {:ok, event, :already_recorded}
       other -> other
+    end
+  end
+
+  # The promote path applies the frontier's origin law (closes the A1 class).
+  defp origin_admitted(admitted, opts) do
+    with {:ok, index} <- refuse(Authority.index_from(opts)) do
+      case Authority.resolve(index, admitted["origin_authority"]) do
+        {:ok, _digest} ->
+          :ok
+
+        {:error, {:refused_origin, refusal}} ->
+          {:error, {:refused, {:origin_not_admitted, refusal}}}
+      end
     end
   end
 
@@ -117,13 +138,15 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
 
   @doc """
   Frontier over the projection: UNKNOWN work whose typed dependencies are
-  satisfied by *ledger* evidence. Settled work (e.g. ALIVE) is reported by
-  the kernel as blocked with `standing=<value>`, never eligible.
+  satisfied by *ledger* evidence and whose origin resolves in
+  `opts[:authority]` (default: the canonical index). Settled work (e.g.
+  ALIVE) is reported by the kernel as blocked with `standing=<value>`, never
+  eligible.
   """
-  @spec frontier([map()], [map()]) ::
+  @spec frontier([map()], [map()], keyword()) ::
           {:ok, %{eligible: [map()], blocked: [map()]}} | {:error, term()}
-  def frontier(work_orders, events) do
-    {:ok, SemanticJira.frontier_from_events(work_orders, events)}
+  def frontier(work_orders, events, opts \\ []) do
+    {:ok, SemanticJira.frontier_from_events(work_orders, events, %{}, opts)}
   end
 
   @doc "Chain tail: the last event's digest, or the genesis digest for an empty log."

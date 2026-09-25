@@ -9,16 +9,32 @@ defmodule GgenIgniter.SemanticJira.Cli do
 
   `observe` requires `--origin-authority` (INVARIANT A): its absence is a
   typed refusal at exit 1, not invalid invocation.
+
+  `reconcile`, `frontier` and `descriptor` take an optional
+  `--authority-graph PATH` (Turtle): the origin-authority graph whose
+  admission index (`Authority.index/1`) an order's `origin_authority` must
+  resolve in (SJ-002 AC-04). Absent, the canonical semantic-jira-pack
+  ontology is the authority. An unreadable file is invalid invocation
+  (exit 2); a file that does not parse as Turtle is a typed refusal
+  `authority_index_unavailable` (exit 1).
   """
 
-  alias GgenIgniter.SemanticJira.{CourtMap, Descriptor, Observation, Reconciler, TransitionLog}
+  alias GgenIgniter.SemanticJira.{
+    Authority,
+    CourtMap,
+    Descriptor,
+    Observation,
+    Reconciler,
+    TransitionLog
+  }
 
   @spec reconcile(keyword()) :: {0 | 1 | 2, map()}
   def reconcile(opts) do
     with {:ok, work_orders} <- work_orders(opts),
          {:ok, receipt} <- json_file(opts, :receipt),
-         {:ok, dir} <- required(opts, :ledger) do
-      case reconcile_receipt(work_orders, receipt, dir) do
+         {:ok, dir} <- required(opts, :ledger),
+         {:ok, authority} <- authority_graph(opts) do
+      case reconcile_receipt(work_orders, receipt, dir, authority) do
         {:ok, event, :appended} ->
           {0, %{"status" => "applied", "event" => event}}
 
@@ -37,9 +53,12 @@ defmodule GgenIgniter.SemanticJira.Cli do
   # digest (`Reconciler.reconcile/4` + the file-backed TransitionLog); the CLI
   # accepts the whole graph and finds the row the receipt targets. A
   # definition mismatch on a non-targeting row is skipped, not fatal.
-  defp reconcile_receipt(work_orders, receipt, dir) do
+  defp reconcile_receipt(_work_orders, _receipt, _dir, {:error, reason}),
+    do: {:error, {:refused, reason}}
+
+  defp reconcile_receipt(work_orders, receipt, dir, {:ok, authority}) do
     Enum.find_value(work_orders, {:error, {:refused, :no_matching_work_order}}, fn work_order ->
-      case Reconciler.reconcile(work_order, receipt, dir) do
+      case Reconciler.reconcile(work_order, receipt, dir, authority) do
         {:ok, event, which} -> {:ok, event, which}
         {:error, {:refused, :definition_mismatch}} -> nil
         {:error, _} = refusal -> refusal
@@ -53,10 +72,12 @@ defmodule GgenIgniter.SemanticJira.Cli do
   @spec frontier(keyword()) :: {0 | 1 | 2, map()}
   def frontier(opts) do
     with {:ok, work_orders} <- work_orders(opts),
-         {:ok, dir} <- required(opts, :ledger) do
-      with {:ok, events} <- TransitionLog.fetch(dir),
+         {:ok, dir} <- required(opts, :ledger),
+         {:ok, authority} <- authority_graph(opts) do
+      with {:ok, authority} <- authority,
+           {:ok, events} <- TransitionLog.fetch(dir),
            {:ok, projected, _evidence} <- Reconciler.project(work_orders, events),
-           {:ok, frontier} <- Reconciler.frontier(work_orders, events) do
+           {:ok, frontier} <- Reconciler.frontier(work_orders, events, authority) do
         {0,
          %{
            "status" => "ok",
@@ -83,14 +104,21 @@ defmodule GgenIgniter.SemanticJira.Cli do
          {:ok, suite} <- required(opts, :verifier_suite),
          {:ok, aliases} <- aliases(opts),
          {:ok, court_map} <- optional_court_map(opts),
-         {:ok, provider} <- optional(opts, :provider) do
+         {:ok, provider} <- optional(opts, :provider),
+         {:ok, authority} <- authority_graph(opts) do
       contract_opts =
         [verifier_suite: suite, aliases: aliases, court_map: court_map, provider: provider]
         |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 
-      with {:ok, events} <- TransitionLog.fetch(dir),
+      with {:ok, authority} <- authority,
+           {:ok, events} <- TransitionLog.fetch(dir),
            {:ok, descriptor} <-
-             Descriptor.build_xaas_contract(work_orders, events, identity, contract_opts) do
+             Descriptor.build_xaas_contract(
+               work_orders,
+               events,
+               identity,
+               contract_opts ++ authority
+             ) do
         {0, descriptor}
       else
         {:error, reason} -> refused(reason)
@@ -183,6 +211,32 @@ defmodule GgenIgniter.SemanticJira.Cli do
   def emit({code, result}, _opts) do
     IO.puts(:stderr, Jason.encode!(result))
     exit({:shutdown, code})
+  end
+
+  # --authority-graph PATH -> {:ok, {:ok, authority_opts} | {:error, refusal}}.
+  # Absent = [] (the kernel's canonical index); unreadable = invalid
+  # invocation (exit 2); not Turtle = typed refusal carried to exit 1.
+  defp authority_graph(opts) do
+    case Keyword.fetch(opts, :authority_graph) do
+      :error ->
+        {:ok, {:ok, []}}
+
+      {:ok, path} when is_binary(path) and path != "" ->
+        case File.read(path) do
+          {:ok, bytes} -> {:ok, index_authority(bytes, path)}
+          {:error, reason} -> {:invalid, "#{path}: #{inspect(reason)}"}
+        end
+
+      {:ok, _} ->
+        {:invalid, "missing --authority-graph"}
+    end
+  end
+
+  defp index_authority(bytes, path) do
+    case RDF.Turtle.read_string(bytes) do
+      {:ok, graph} -> {:ok, [authority: Authority.index(graph)]}
+      {:error, reason} -> {:error, {:authority_index_unavailable, path, inspect(reason)}}
+    end
   end
 
   defp optional_json(opts, key) do

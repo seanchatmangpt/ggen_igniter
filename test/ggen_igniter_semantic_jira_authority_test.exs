@@ -270,17 +270,19 @@ defmodule GgenIgniter.SemanticJiraAuthorityTest do
       graph
       |> RDF.Graph.descriptions()
       |> Enum.find_value(fn description ->
-        case RDF.Description.first(description, RDF.iri(@dcterms_base <> "identifier")) do
-          %RDF.Literal{} = identifier ->
-            if RDF.Term.equal?(identifier, RDF.literal("SJ-002")), do: description.subject
-
-          _other ->
-            nil
-        end
+        if sj002_identifier?(
+             RDF.Description.first(description, RDF.iri(@dcterms_base <> "identifier"))
+           ),
+           do: description.subject
       end)
 
     found || flunk("no WorkOrder carries dcterms:identifier \"SJ-002\" in #{@ontology_path}")
   end
+
+  defp sj002_identifier?(%RDF.Literal{} = identifier),
+    do: RDF.Term.equal?(identifier, RDF.literal("SJ-002"))
+
+  defp sj002_identifier?(_other), do: false
 
   defp set_origin_authority(graph, subject, origin_iri) do
     graph

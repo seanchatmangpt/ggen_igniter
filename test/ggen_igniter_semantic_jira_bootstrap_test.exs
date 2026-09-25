@@ -964,7 +964,8 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
       File.write!(
         goal,
         Regex.replace(~r/^    sj:originAuthority [^\n]*;\n/m, File.read!(@fixture_goal), "",
-          global: false)
+          global: false
+        )
       )
 
       t_a = order(run!(ctx, goal: goal), "T-A")

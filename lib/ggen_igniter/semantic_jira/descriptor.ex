@@ -2,8 +2,8 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   @moduledoc """
   XaaS execution descriptor generated from the admitted frontier.
 
-  A descriptor exists only for a work order that `SemanticJira.frontier/2`
-  (or `frontier_from_events/3` when `:events` is given) currently lists as
+  A descriptor exists only for a work order that `SemanticJira.frontier/4`
+  (or `frontier_from_events/4` when `:events` is given) currently lists as
   eligible. Any other work order (unadmitted, non-UNKNOWN standing, unmet
   dependencies, not present) yields a typed
   `{:error, {:refused_descriptor, reason}}` and no descriptor.
@@ -42,7 +42,10 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   `"zcode"` is bound only when named explicitly), validated against the same
   provider-name pattern `build_xaas_contract/4` enforces: a malformed provider
   is `{:error, {:refused_descriptor, {:invalid_option, :provider}}}`.
-  Options: `:events` (transition log), `:evidence` (dependency evidence map).
+  Options: `:events` (transition log), `:evidence` (dependency evidence map),
+  `:authority` (origin-authority index, graph or Turtle path; default the
+  canonical index -- `SemanticJira.frontier/4`). An order whose origin does
+  not resolve is `{:not_on_frontier, "origin_not_admitted"}`.
   """
   @spec build([map()], String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
   def build(work_orders, identity, attrs, opts \\ [])
@@ -50,14 +53,16 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
     evidence = Keyword.get(opts, :evidence, %{})
     attrs = Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
 
+    authority = Keyword.take(opts, [:authority])
+
     {projected, front} =
       case Keyword.get(opts, :events) do
         nil ->
-          {work_orders, SemanticJira.frontier(work_orders, evidence)}
+          {work_orders, SemanticJira.frontier(work_orders, evidence, nil, authority)}
 
         events ->
           {p, _} = SemanticJira.project(work_orders, events)
-          {p, SemanticJira.frontier_from_events(work_orders, events, evidence)}
+          {p, SemanticJira.frontier_from_events(work_orders, events, evidence, authority)}
       end
 
     with {:ok, provider} <- build_provider(attrs),
@@ -227,7 +232,10 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   `:execution_repo_alias` (required unless `:aliases` maps the WorkOrder's
   `repository` to one), `:aliases` (`%{"owner/repo" => alias}`), `:iri_prefix`,
   `:provider` (the XaaS construction provider, default `"recipe"`, the
-  deterministic RecipeWorker; an LLM provider such as `"zcode"` only when named).
+  deterministic RecipeWorker; an LLM provider such as `"zcode"` only when named),
+  `:authority` (origin-authority index, graph or Turtle path; default the
+  canonical index -- an unresolved origin is
+  `{:not_eligible, identity, "origin_not_admitted"}`).
   Nothing is invented: a missing or malformed option is a typed refusal.
 
   The eligible row is ADMITTED (`SemanticJira.admit_work_order/1`) before it
@@ -242,7 +250,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
     prefix = Keyword.get(opts, :iri_prefix, @iri_prefix)
 
     with {:ok, projected, evidence} <- project(work_orders, events),
-         {:ok, row} <- eligible(projected, evidence, identity),
+         {:ok, row} <- eligible(projected, evidence, identity, Keyword.take(opts, [:authority])),
          {:ok, work_order} <- admit(row),
          {:ok, provider} <- provider(opts),
          {:ok, suite} <- verifier_suite(opts),
@@ -313,8 +321,9 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
 
   defp project(work_orders, events), do: Reconciler.project(work_orders, events)
 
-  defp eligible(projected, evidence, identity) do
-    %{eligible: eligible, blocked: blocked} = SemanticJira.frontier(projected, evidence)
+  defp eligible(projected, evidence, identity, authority) do
+    %{eligible: eligible, blocked: blocked} =
+      SemanticJira.frontier(projected, evidence, nil, authority)
 
     cond do
       Enum.any?(eligible, &(&1["identity"] == identity)) ->

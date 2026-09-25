@@ -292,17 +292,19 @@ defmodule GgenIgniter.SemanticJira.Observation do
     # manufacture an executable WorkOrder only when the origin it declares is
     # admitted by the canonical ontology. An unverified origin is a typed
     # refusal before any SHACL work — the candidate never merges.
-    with :ok <- Authority.verify_origin(candidate_graph, canonical, @sj <> ids.node) do
-      # Fence 2 (INVARIANT A): the merged graph must conform to the pack
-      # shapes; the frontier is unchanged by this observation either way.
-      graph = RDF.Graph.add(canonical, candidate_graph)
-      report = Shacl.validate_file(graph, shapes_path)
+    case Authority.verify_origin(candidate_graph, canonical, @sj <> ids.node) do
+      :ok ->
+        # Fence 2 (INVARIANT A): the merged graph must conform to the pack
+        # shapes; the frontier is unchanged by this observation either way.
+        graph = RDF.Graph.add(canonical, candidate_graph)
+        report = Shacl.validate_file(graph, shapes_path)
 
-      if report.conforms,
-        do: {:ok, report},
-        else: refuse({:shacl_violations, Enum.map(report.violations, &violation/1)})
-    else
-      {:error, {:refused_origin, reason}} -> refuse({:origin_not_admitted, reason})
+        if report.conforms,
+          do: {:ok, report},
+          else: refuse({:shacl_violations, Enum.map(report.violations, &violation/1)})
+
+      {:error, {:refused_origin, reason}} ->
+        refuse({:origin_not_admitted, reason})
     end
   end
 

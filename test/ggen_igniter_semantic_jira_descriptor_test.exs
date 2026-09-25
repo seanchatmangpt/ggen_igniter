@@ -159,10 +159,10 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
 
       # build_xaas_contract/4: the same law in the XaaS bridge vocabulary.
       assert {:error, {:descriptor_refused, {:not_eligible, "A", "unknown_identity"}}} =
-               Descriptor.build_xaas_contract([stripped], [], "A", [
+               Descriptor.build_xaas_contract([stripped], [], "A",
                  verifier_suite: "ci-suite",
                  aliases: %{"o/r" => "o_r"}
-               ])
+               )
     end
 
     test "unknown identity" do

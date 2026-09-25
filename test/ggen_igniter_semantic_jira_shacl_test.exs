@@ -613,17 +613,17 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
       graph
       |> RDF.Graph.descriptions()
       |> Enum.find_value(fn description ->
-        case RDF.Description.first(description, dcterms_iri("identifier")) do
-          %RDF.Literal{} = identifier ->
-            if RDF.Term.equal?(identifier, RDF.literal("SJ-002")), do: description.subject
-
-          _other ->
-            nil
-        end
+        if sj002_identifier?(RDF.Description.first(description, dcterms_iri("identifier"))),
+          do: description.subject
       end)
 
     found || flunk("no WorkOrder carries dcterms:identifier \"SJ-002\" in #{@ontology_path}")
   end
+
+  defp sj002_identifier?(%RDF.Literal{} = identifier),
+    do: RDF.Term.equal?(identifier, RDF.literal("SJ-002"))
+
+  defp sj002_identifier?(_other), do: false
 
   defp delete_origin_authority(graph, sj002) do
     delete_predicates_about(graph, sj002, sj_iri("originAuthority"))

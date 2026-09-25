@@ -144,7 +144,8 @@ defmodule GgenIgniter.SemanticJiraReconcilerTest do
     # The receipt is built from the full root: reconcile computes
     # definition_digest/1 of the WORK ORDER first and refuses there, so the
     # receipt's contents never matter for this refusal path.
-    assert {:error, {:refused, {:refused_work_order, {:missing_required_field, "origin_authority"}}}} =
+    assert {:error,
+            {:refused, {:refused_work_order, {:missing_required_field, "origin_authority"}}}} =
              Reconciler.reconcile(Map.delete(root, "origin_authority"), receipt(root), dir)
 
     assert TransitionLog.read(dir) == []
