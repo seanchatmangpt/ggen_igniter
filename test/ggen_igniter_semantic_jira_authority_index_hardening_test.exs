@@ -21,8 +21,7 @@ defmodule GgenIgniter.SemanticJiraAuthorityIndexHardeningTest do
 
     tampered = put_in(index, [:admitted, @pinned], @forged)
 
-    assert {:error,
-            {:authority_index_unavailable, nil, :precomputed_authority_index_mismatch}} =
+    assert {:error, {:authority_index_unavailable, nil, :precomputed_authority_index_mismatch}} =
              Authority.index_from(authority: tampered)
   end
 
@@ -31,8 +30,7 @@ defmodule GgenIgniter.SemanticJiraAuthorityIndexHardeningTest do
     tampered = %{index | source_digest: @forged}
 
     assert {:error,
-            {:authority_index_unavailable, nil,
-             :precomputed_authority_source_digest_mismatch}} =
+            {:authority_index_unavailable, nil, :precomputed_authority_source_digest_mismatch}} =
              Authority.index_from(authority: tampered)
   end
 

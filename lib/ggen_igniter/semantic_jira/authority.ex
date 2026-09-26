@@ -271,14 +271,12 @@ defmodule GgenIgniter.SemanticJira.Authority do
   defp unpinned_index(%RDF.Graph{} = graph), do: {:ok, index(graph)}
   defp unpinned_index(path) when is_binary(path), do: canonical_index(path: path)
 
-  defp unpinned_index(
-         %{
-           admitted: admitted,
-           refused: refused,
-           source_graph: %RDF.Graph{} = source_graph,
-           source_digest: source_digest
-         }
-       )
+  defp unpinned_index(%{
+         admitted: admitted,
+         refused: refused,
+         source_graph: %RDF.Graph{} = source_graph,
+         source_digest: source_digest
+       })
        when is_map(admitted) and is_map(refused) and is_binary(source_digest) do
     recomputed = index(source_graph)
 
@@ -287,12 +285,35 @@ defmodule GgenIgniter.SemanticJira.Authority do
         {:error,
          {:authority_index_unavailable, nil, :precomputed_authority_source_digest_mismatch}}
 
-      admitted != recomputed.admitted or refused != recomputed.refused ->
-        {:error,
-         {:authority_index_unavailable, nil, :precomputed_authority_index_mismatch}}
+      presented_matches?(admitted, refused, recomputed) ->
+        {:ok, recomputed}
 
       true ->
-        {:ok, recomputed}
+        {:error, {:authority_index_unavailable, nil, :precomputed_authority_index_mismatch}}
+    end
+  end
+
+  # A presented precomputed index is honored only when it is the exact
+  # deterministic derivation of its own source graph: either the raw
+  # `index/1` output or its `pin/2` projection against the canonical trust
+  # roots -- the shape `pinned_goal_index/1` (bootstrap) presents and hands
+  # back through `index_from/1`. Anything else (a forged admitted/refused
+  # entry, a stale pin) still fails closed with
+  # `:precomputed_authority_index_mismatch`.
+  defp presented_matches?(admitted, refused, recomputed) do
+    raw_match? = admitted == recomputed.admitted and refused == recomputed.refused
+
+    raw_match? or pinned_match?(admitted, refused, recomputed)
+  end
+
+  defp pinned_match?(admitted, refused, recomputed) do
+    case trust_roots() do
+      {:ok, pins} ->
+        pinned = pin(recomputed, pins)
+        admitted == pinned.admitted and refused == pinned.refused
+
+      {:error, _unavailable} ->
+        false
     end
   end
 
