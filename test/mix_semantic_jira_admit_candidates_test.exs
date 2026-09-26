@@ -87,6 +87,60 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidatesTest do
            ]
   end
 
+  test "a repeated identity, replay identity, or work order is admitted once, then refused",
+       %{dir: dir} do
+    first = candidate("DUP", @objective)
+    same = candidate("DUP", @objective)
+
+    replay_clash =
+      candidate("DUP-2", @objective) |> Map.put("replay_identity", first["replay_identity"])
+
+    other = candidate("UNIQUE", @objective)
+
+    path = Path.join(dir, "dups.jsonl")
+    File.write!(path, Enum.map_join([first, same, replay_clash, other], "\n", &Jason.encode!/1))
+
+    lines = run_task(["--candidates", path]) |> String.split("\n", trim: true)
+
+    assert "admitted 1 DUP " <> _ = Enum.at(lines, 0)
+
+    assert Enum.at(lines, 1) ==
+             "refused 2 DUP {:refused_candidate, {:duplicate, \"identity\", 1}}"
+
+    assert Enum.at(lines, 2) ==
+             "refused 3 DUP-2 {:refused_candidate, {:duplicate, \"replay_identity\", 1}}"
+
+    assert "admitted 4 UNIQUE " <> _ = Enum.at(lines, 3)
+    assert List.last(lines) == "summary admitted=2 refused=2"
+  end
+
+  test "a candidate claiming literal standing or an actuation ceiling is refused before admission",
+       %{dir: dir} do
+    alive = candidate("X-STANDING", @objective) |> Map.put("standing", "ALIVE")
+    do_ceiling = candidate("X-DO", @objective) |> Map.put("evidence_ceiling", "DO")
+    merge_ceiling = candidate("X-MERGE", @objective) |> Map.put("evidence_ceiling", " merge ")
+    authority = candidate("X-AUTH", @objective) |> Map.put("authority_requirement", "DO")
+
+    # Each of these passes the kernel on its own: the refusal is this task's.
+    for c <- [alive, do_ceiling, merge_ceiling, authority],
+        do: assert({:ok, _} = SemanticJira.admit_work_order(c))
+
+    path = Path.join(dir, "bounds.jsonl")
+
+    File.write!(
+      path,
+      Enum.map_join([alive, do_ceiling, merge_ceiling, authority], "\n", &Jason.encode!/1)
+    )
+
+    assert run_task(["--candidates", path]) |> String.split("\n", trim: true) == [
+             "refused 1 X-STANDING {:refused_candidate, {:literal_standing, \"ALIVE\"}}",
+             "refused 2 X-DO {:refused_candidate, {:ceiling_exceeds_construct, \"evidence_ceiling\", \"DO\"}}",
+             "refused 3 X-MERGE {:refused_candidate, {:ceiling_exceeds_construct, \"evidence_ceiling\", \" merge \"}}",
+             "refused 4 X-AUTH {:refused_candidate, {:ceiling_exceeds_construct, \"authority_requirement\", \"DO\"}}",
+             "summary admitted=0 refused=4"
+           ]
+  end
+
   test "missing --candidates is an invalid invocation (exit 2)" do
     Mix.Task.reenable("semantic_jira.admit_candidates")
 

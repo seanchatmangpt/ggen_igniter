@@ -154,7 +154,10 @@ defmodule GgenIgniter.DoctrineHddlPackTest do
     domain = render(base_graph(), "domain.hddl.eex")
 
     assert domain =~ "(define (domain strategic-doctrine)"
-    assert domain =~ "(:requirements :hierarchy :typing :negative-preconditions)"
+    # :non-deterministic is declared because falsifier observations use oneof
+    assert domain =~
+             "(:requirements :hierarchy :typing :negative-preconditions :non-deterministic)"
+
     assert count(domain, "(:method ") == 3
     assert count(domain, "(:task ") == 2
     # 14 primitive actions + one observation action per admitted falsifier (3)
@@ -226,6 +229,118 @@ defmodule GgenIgniter.DoctrineHddlPackTest do
     error = assert_raise ArgumentError, fn -> render(graph, "domain.hddl.eex") end
     assert error.message =~ "REFUSED:DOCTRINE_HDDL"
     assert error.message =~ "strategy-17-step-2 of strategy-17 has no integer sd:order"
+  end
+
+  # Every method's :ordering must be the total chain s1 < s2 < ... < sn over
+  # exactly its subtasks. ferroplan admits a method with NO :ordering (it is
+  # then partially ordered), so step order is this pack's law, checked here on
+  # the rendered text, not delegated to the HDDL gate.
+  defp ordering_is_total_chain?(domain) do
+    methods =
+      domain
+      |> String.split("(:method ")
+      |> tl()
+      |> Enum.map(&(&1 |> String.split("(:action ") |> hd()))
+
+    methods != [] and
+      Enum.all?(methods, fn m ->
+        ids = Regex.scan(~r/\((s\d+) \(/, m, capture: :all_but_first) |> List.flatten()
+        edges = Regex.scan(~r/\(< (s\d+) (s\d+)\)/, m, capture: :all_but_first)
+        expected = Enum.chunk_every(Enum.map(1..length(ids), &"s#{&1}"), 2, 1, :discard)
+        ids == Enum.map(1..length(ids), &"s#{&1}") and edges == expected
+      end)
+  end
+
+  test "every rendered method is totally ordered over exactly its subtasks" do
+    domain = render(base_graph(), "domain.hddl.eex")
+    assert ordering_is_total_chain?(domain)
+
+    # anti-vacuity: the check rejects a method whose :ordering was dropped
+    unordered =
+      String.replace(domain, ~r/\n    :ordering \(and[^\n]*\)\)/, ")", global: false)
+
+    assert unordered != domain, "mutation must apply"
+    refute ordering_is_total_chain?(unordered)
+  end
+
+  test "a step whose operator is not a primitive is refused by name, even as the last step" do
+    for {step, op} <- [{"strategy-11-step-4", "probe"}, {"strategy-11-step-1", "withdraw"}] do
+      graph =
+        base_graph()
+        |> RDF.Graph.delete({iri(@sd <> step), iri(@sd <> "operator"), iri(@sd <> op)})
+        |> RDF.Graph.add({iri(@sd <> step), iri(@sd <> "operator"), iri(@sd <> "teleport")})
+
+      error = assert_raise ArgumentError, fn -> render(graph, "domain.hddl.eex") end
+      assert error.message =~ "REFUSED:DOCTRINE_HDDL"
+
+      assert error.message =~
+               "step #{step} of strategy-11 uses teleport, which is not a labelled sd:PrimitiveOperator"
+    end
+  end
+
+  test "a step with no sd:operator is refused, never dropped" do
+    graph =
+      RDF.Graph.delete(
+        base_graph(),
+        {iri(@sd <> "strategy-11-step-4"), iri(@sd <> "operator"), iri(@sd <> "probe")}
+      )
+
+    error = assert_raise ArgumentError, fn -> render(graph, "domain.hddl.eex") end
+    assert error.message =~ "step strategy-11-step-4 of strategy-11 has no sd:operator"
+  end
+
+  test "a primitive outside gate 010's action set is refused (unknown primitive)" do
+    # typed and labelled as sd:PrimitiveOperator but with no sd:ordinal, so
+    # gate 010 yields no action for it while gate 030 names it: the template's
+    # cross-gate check must fire
+    teleport = iri(@sd <> "teleport")
+    step = iri(@sd <> "strategy-11-step-4")
+
+    graph =
+      base_graph()
+      |> RDF.Graph.add({teleport, RDF.type(), iri(@sd <> "PrimitiveOperator")})
+      |> RDF.Graph.add(
+        {teleport, RDF.iri("http://www.w3.org/2000/01/rdf-schema#label"), RDF.literal("teleport")}
+      )
+      |> RDF.Graph.delete({step, iri(@sd <> "operator"), iri(@sd <> "probe")})
+      |> RDF.Graph.add({step, iri(@sd <> "operator"), teleport})
+
+    refute "teleport" in Enum.map(bindings(graph)[:domain_actions], & &1["name"])
+
+    error = assert_raise ArgumentError, fn -> render(graph, "domain.hddl.eex") end
+
+    assert error.message =~
+             "REFUSED:DOCTRINE_HDDL: strategy-11 uses unknown primitive \"teleport\""
+  end
+
+  test "a step with two sd:order or two sd:operator values is refused as ambiguous" do
+    step = iri(@sd <> "strategy-11-step-1")
+
+    two_orders = RDF.Graph.add(base_graph(), {step, iri(@sd <> "order"), RDF.literal(9)})
+    error = assert_raise ArgumentError, fn -> render(two_orders, "domain.hddl.eex") end
+    assert error.message =~ "step strategy-11-step-1 of strategy-11 has 2 sd:order values"
+
+    two_ops = RDF.Graph.add(base_graph(), {step, iri(@sd <> "operator"), iri(@sd <> "reveal")})
+    error = assert_raise ArgumentError, fn -> render(two_ops, "domain.hddl.eex") end
+    assert error.message =~ "step strategy-11-step-1 of strategy-11 has 2 sd:operator values"
+  end
+
+  test "an admitted strategy with no sd:hasFalsifier refuses domain and contingency" do
+    graph =
+      RDF.Graph.delete(
+        base_graph(),
+        {iri(@sd <> "strategy-11"), iri(@sd <> "hasFalsifier"), iri(@sd <> "falsifier-11")}
+      )
+
+    error = assert_raise ArgumentError, fn -> render(graph, "domain.hddl.eex") end
+
+    assert error.message =~
+             "REFUSED:DOCTRINE_HDDL: strategy-11 has no sd:hasFalsifier; an unfalsifiable strategy is not decomposed"
+
+    error = assert_raise ArgumentError, fn -> render(graph, "contingency.fond.pddl.eex") end
+
+    assert error.message =~
+             "REFUSED:DOCTRINE_HDDL: strategy-11 has no sd:hasFalsifier; an unfalsifiable commitment has no contingency"
   end
 
   test "admission is data-driven: 20 months of runway admits 14 and refuses 27" do

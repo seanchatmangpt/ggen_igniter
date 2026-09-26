@@ -6,9 +6,13 @@
 # SOSA observation of the actor for the condition's property satisfies the
 # comparator against the threshold).
 #
-# sd:order is OPTIONAL here on purpose: a step without an order is still
-# returned (?order unbound) so the template REFUSES it instead of silently
-# dropping a step. SELECT only; authority NONE.
+# Every per-step fact is OPTIONAL on purpose: a step without an sd:order, a
+# step without an sd:operator, and a step whose operator is not an
+# sd:PrimitiveOperator (or has no label) are all still returned with the
+# missing variable unbound, and a step with two orders/operators/labels
+# returns one row per value, so the template REFUSES each case by name
+# instead of silently dropping or collapsing a step. SELECT only; authority
+# NONE.
 PREFIX sd: <https://ggen.dev/ontology/strategic-doctrine#>
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -21,9 +25,10 @@ SELECT ?applicability ?actor ?strategy ?strategy_ordinal ?objective ?step ?order
     sd:ordinal ?strategy_ordinal ;
     sd:servesObjective ?objective ;
     sd:composedOf ?step .
-  ?step sd:operator ?operator .
-  ?operator a sd:PrimitiveOperator ;
-    rdfs:label ?operator_name .
+  OPTIONAL {
+    ?step sd:operator ?operator .
+    OPTIONAL { ?operator a sd:PrimitiveOperator ; rdfs:label ?operator_name }
+  }
   OPTIONAL { ?step sd:order ?order }
   FILTER EXISTS { ?strategy sd:appliesWhen ?someCondition }
   FILTER NOT EXISTS {

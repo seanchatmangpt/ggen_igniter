@@ -16,6 +16,22 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
        node typed `sj:StrategicObjective`/`sj:GoalCheckpoint`, not prose,
        whose `sj:admissionDigest` recomputes. A prose origin never admits.
 
+  Before either gate, the candidate line is refused when it claims what only
+  receipts may confer (`candidate_bounds/1`):
+
+    * `standing` other than `"UNKNOWN"` -- a candidate enters at UNKNOWN;
+      standing is derived from receipts, never stored as a literal
+      (`{:refused_candidate, {:literal_standing, s}}`);
+    * `authority_requirement` other than `"NONE"`, or an `evidence_ceiling`
+      naming an actuation (`DO`, `MERGE`, `PUBLISH`, `DEPLOY`, `PUSH`,
+      `RELEASE`, any case) -- the ceiling is at most CONSTRUCT
+      (`{:refused_candidate, {:ceiling_exceeds_construct, field, value}}`).
+
+  Within one batch, a later line whose `identity`, `replay_identity`, or
+  admitted `work_order_digest` repeats an earlier ADMITTED line is refused
+  (`{:refused_candidate, {:duplicate, field, first_line}}`): one candidate,
+  one admission.
+
   Output, one line per candidate line, in input order:
 
       admitted <line> <identity> origin=<iri> origin_digest=<digest> work_order_digest=<digest>
@@ -81,6 +97,7 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
       |> Enum.with_index(1)
       |> Enum.reject(fn {line, _n} -> String.trim(line) == "" end)
       |> Enum.map(fn {line, n} -> {n, judge_line(line, index)} end)
+      |> dedupe()
 
     Enum.each(verdicts, fn {n, verdict} -> Mix.shell().info(format(n, verdict)) end)
 
@@ -97,7 +114,8 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
       {:ok, candidate} when is_map(candidate) ->
         identity = identity_of(candidate)
 
-        with {:ok, admitted} <- SemanticJira.admit_work_order(candidate),
+        with :ok <- candidate_bounds(candidate),
+             {:ok, admitted} <- SemanticJira.admit_work_order(candidate),
              {:ok, origin_digest} <- Authority.resolve(index, admitted["origin_authority"]) do
           {:admitted, admitted, origin_digest}
         else
@@ -110,6 +128,57 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
       {:error, %Jason.DecodeError{position: position}} ->
         {:refused, nil, {:refused_work_order, {:invalid_json, position}}}
     end
+  end
+
+  @actuation_ceilings ~w(DO MERGE PUBLISH DEPLOY PUSH RELEASE)
+
+  @doc false
+  @spec candidate_bounds(map()) :: :ok | {:error, term()}
+  def candidate_bounds(candidate) do
+    standing = Map.get(candidate, "standing", "UNKNOWN")
+    requirement = Map.get(candidate, "authority_requirement", "NONE")
+    ceiling = Map.get(candidate, "evidence_ceiling")
+
+    cond do
+      standing != "UNKNOWN" ->
+        {:error, {:refused_candidate, {:literal_standing, standing}}}
+
+      requirement != "NONE" ->
+        {:error,
+         {:refused_candidate, {:ceiling_exceeds_construct, "authority_requirement", requirement}}}
+
+      is_binary(ceiling) and String.upcase(String.trim(ceiling)) in @actuation_ceilings ->
+        {:error, {:refused_candidate, {:ceiling_exceeds_construct, "evidence_ceiling", ceiling}}}
+
+      true ->
+        :ok
+    end
+  end
+
+  # One candidate, one admission: a later admitted line that repeats an
+  # earlier admitted line's identity, replay_identity, or work_order_digest is
+  # refused, naming the field and the first line.
+  defp dedupe(verdicts) do
+    {out, _seen} =
+      Enum.map_reduce(verdicts, %{}, fn
+        {n, {:admitted, wo, _digest}} = verdict, seen ->
+          keys = for f <- ~w(identity replay_identity work_order_digest), do: {f, wo[f]}
+
+          case Enum.find(keys, &Map.has_key?(seen, &1)) do
+            nil ->
+              {verdict, Enum.reduce(keys, seen, &Map.put(&2, &1, n))}
+
+            {field, _} = key ->
+              {{n,
+                {:refused, wo["identity"], {:refused_candidate, {:duplicate, field, seen[key]}}}},
+               seen}
+          end
+
+        other, seen ->
+          {other, seen}
+      end)
+
+    out
   end
 
   defp identity_of(%{"identity" => identity}) when is_binary(identity), do: identity
