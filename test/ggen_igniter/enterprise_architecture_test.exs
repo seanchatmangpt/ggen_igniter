@@ -6,10 +6,10 @@ defmodule GgenIgniter.EnterpriseArchitectureTest do
   defp input(overrides \\ %{}) do
     Map.merge(
       %{
-        abb_digest: "sha256:abb",
-        contract_digest: "sha256:contract",
-        sbb_digest: "sha256:sbb-a",
-        qualification_digest: "sha256:qualification-a",
+        abb_digest: GgenIgniter.Digest.sha256("abb"),
+        contract_digest: GgenIgniter.Digest.sha256("contract"),
+        sbb_digest: GgenIgniter.Digest.sha256("sbb-a"),
+        qualification_digest: GgenIgniter.Digest.sha256("qualification-a"),
         origin_authority: :construct,
         requested_authority: :construct,
         standing: :qualified,
@@ -41,8 +41,8 @@ defmodule GgenIgniter.EnterpriseArchitectureTest do
   test "substituting SBBs preserves architecture identity and emits a deterministic receipt" do
     replacement =
       input(%{
-        sbb_digest: "sha256:sbb-b",
-        qualification_digest: "sha256:qualification-b"
+        sbb_digest: GgenIgniter.Digest.sha256("sbb-b"),
+        qualification_digest: GgenIgniter.Digest.sha256("qualification-b")
       })
 
     assert {:ok, one} = EA.migrate(input(), replacement)
@@ -54,7 +54,7 @@ defmodule GgenIgniter.EnterpriseArchitectureTest do
   end
 
   test "cross-ABB substitution is refused" do
-    replacement = input(%{abb_digest: "sha256:other-abb"})
+    replacement = input(%{abb_digest: GgenIgniter.Digest.sha256("other-abb")})
     assert {:error, {:refused, :abb_mismatch}} = EA.migrate(input(), replacement)
   end
 end

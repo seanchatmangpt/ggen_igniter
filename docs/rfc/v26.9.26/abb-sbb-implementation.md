@@ -16,6 +16,14 @@ ggen_igniter bootstraps a project/system from admitted enterprise-architecture s
 No generated project may manufacture new consequential authority.
 
 ## Implementation status (v26.9.26 hardening pass)
+Two admission kernels exist on this branch as preserved alternatives:
+`GgenIgniter.EnterpriseArchitecture` (atom-keyed, authority levels, `scaffold/1`,
+`migrate/2`, `verify_receipt/1`; hardened by
+`test/ggen_igniter/enterprise_architecture_hardening_test.exs`) and
+`GgenIgniter.EA.Ignition` (string-keyed IRI+digest binding, persisted lock).
+Converging them on one kernel (or a differential court) is open work; until then
+each carries its own falsifiers and bound.
+
 `GgenIgniter.EA.Ignition` (`lib/ggen_igniter/ea/ignition.ex`) is the admission kernel for
 DoD 1, 3, 4, 5, 6 and 8: exact digest binding of contract/ABB/SBB/origin/provenance,
 a deterministic lock (`lock/1`, `verify_lock/2`), typed refusals for mutable

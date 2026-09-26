@@ -1,4 +1,5 @@
-# Deterministic timing benchmark for GgenIgniter.EA.Ignition (RFC v26.9.26
+# Deterministic timing benchmark for GgenIgniter.EA.Ignition and
+# GgenIgniter.EnterpriseArchitecture (RFC v26.9.26
 # abb-sbb-implementation). Run: MIX_ENV=test mix run bench/ea_ignition_bench.exs
 # Prints one JSON line per operation: iterations, median/p99 microseconds per op
 # over 7 rounds (median of rounds, not a single sample).
@@ -32,7 +33,27 @@ lock = Ignition.lock(b)
 {:ok, nb, r} = Ignition.substitute(b, kafka)
 refused = %{input | "authorityCeiling" => "DO"}
 
+alias GgenIgniter.EnterpriseArchitecture, as: EA
+
+ea_input = %{
+  abb_digest: d.("abb"),
+  contract_digest: d.("contract"),
+  sbb_digest: d.("sbb-a"),
+  qualification_digest: d.("qualification-a"),
+  origin_authority: :construct,
+  requested_authority: :construct,
+  standing: :qualified,
+  mutable: false
+}
+
+ea_repl = %{ea_input | sbb_digest: d.("sbb-b"), qualification_digest: d.("qualification-b")}
+{:ok, ea_receipt} = EA.migrate(ea_input, ea_repl)
+
 ops = [
+  {"EnterpriseArchitecture.admit", fn -> EA.admit(ea_input) end},
+  {"EnterpriseArchitecture.scaffold", fn -> EA.scaffold(ea_input) end},
+  {"EnterpriseArchitecture.migrate", fn -> EA.migrate(ea_input, ea_repl) end},
+  {"EnterpriseArchitecture.verify_receipt", fn -> EA.verify_receipt(ea_receipt) end},
   {"admit", fn -> Ignition.admit(input) end},
   {"admit_refuse_widening", fn -> Ignition.admit(refused) end},
   {"lock", fn -> Ignition.lock(b) end},
