@@ -271,14 +271,12 @@ defmodule GgenIgniter.SemanticJira.Authority do
   defp unpinned_index(%RDF.Graph{} = graph), do: {:ok, index(graph)}
   defp unpinned_index(path) when is_binary(path), do: canonical_index(path: path)
 
-  defp unpinned_index(
-         %{
-           admitted: admitted,
-           refused: refused,
-           source_graph: %RDF.Graph{} = source_graph,
-           source_digest: source_digest
-         }
-       )
+  defp unpinned_index(%{
+         admitted: admitted,
+         refused: refused,
+         source_graph: %RDF.Graph{} = source_graph,
+         source_digest: source_digest
+       })
        when is_map(admitted) and is_map(refused) and is_binary(source_digest) do
     recomputed = index(source_graph)
 
@@ -288,8 +286,7 @@ defmodule GgenIgniter.SemanticJira.Authority do
          {:authority_index_unavailable, nil, :precomputed_authority_source_digest_mismatch}}
 
       admitted != recomputed.admitted or refused != recomputed.refused ->
-        {:error,
-         {:authority_index_unavailable, nil, :precomputed_authority_index_mismatch}}
+        {:error, {:authority_index_unavailable, nil, :precomputed_authority_index_mismatch}}
 
       true ->
         {:ok, recomputed}
