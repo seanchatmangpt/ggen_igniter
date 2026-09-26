@@ -397,7 +397,16 @@ defmodule GgenIgniter.SemanticJira.Authority do
   Already-refused entries keep their refusal.
   """
   @spec pin(index(), %{String.t() => digest()}) :: index()
-  def pin(%{admitted: admitted, refused: refused} = index, pins) when is_map(pins) do
+  def pin(
+        %{
+          admitted: admitted,
+          refused: refused,
+          source_graph: %RDF.Graph{},
+          source_digest: source_digest
+        } = index,
+        pins
+      )
+      when is_map(pins) and is_binary(source_digest) do
     conflicts =
       admitted
       |> Map.keys()
@@ -434,6 +443,82 @@ defmodule GgenIgniter.SemanticJira.Authority do
 
     %{index | admitted: Map.new(kept), refused: final_refusals}
   end
+
+  # Direct callers of the low-level pin/2 helper may still supply the legacy
+  # two-map shape. That shape is never accepted as an admission source by
+  # index_from/1; here it is retained only for explicit pin-set calculations.
+  def pin(%{admitted: admitted, refused: refused}, pins)
+      when is_map(admitted) and is_map(refused) and is_map(pins) do
+    source_graph = RDF.Graph.new()
+
+    pin(
+      %{
+        admitted: admitted,
+        refused: refused,
+        source_graph: source_graph,
+        source_digest: graph_digest(source_graph)
+      },
+      pins
+    )
+  end
+
+  @doc """
+  Deterministic, authority-inert receipt for an authority index.
+
+  The receipt preserves the complete typed refusal set so failed admission is
+  replayable instead of being reduced to a boolean. It is a CONSTRUCT
+  artifact only: `authority` is always `"NONE"`.
+  """
+  @spec index_receipt(index()) :: map()
+  def index_receipt(%{
+        admitted: admitted,
+        refused: refused,
+        source_digest: source_digest
+      })
+      when is_map(admitted) and is_map(refused) and is_binary(source_digest) do
+    admitted_rows =
+      admitted
+      |> Enum.map(fn {iri, digest} -> %{"iri" => iri, "digest" => digest} end)
+      |> Enum.sort_by(& &1["iri"])
+
+    refused_rows =
+      refused
+      |> Enum.map(fn {iri, refusal} ->
+        %{"iri" => iri, "refusal" => normalize_refusal(refusal)}
+      end)
+      |> Enum.sort_by(& &1["iri"])
+
+    canonical =
+      [
+        "semantic-jira/authority-index-receipt/v1",
+        source_digest,
+        Enum.map_join(admitted_rows, "", fn row ->
+          "A\t#{row["iri"]}\t#{row["digest"]}\n"
+        end),
+        Enum.map_join(refused_rows, "", fn row ->
+          "R\t#{row["iri"]}\t#{inspect(row["refusal"], limit: :infinity)}\n"
+        end)
+      ]
+      |> IO.iodata_to_binary()
+
+    %{
+      "schema" => "semantic-jira/authority-index-receipt/v1",
+      "source_digest" => source_digest,
+      "admitted" => admitted_rows,
+      "refused" => refused_rows,
+      "authority" => "NONE",
+      "grants_do_authority" => false,
+      "receipt_digest" => Digest.sha256(canonical)
+    }
+  end
+
+  defp normalize_refusal(value) when is_atom(value), do: Atom.to_string(value)
+
+  defp normalize_refusal(value) when is_tuple(value),
+    do: value |> Tuple.to_list() |> Enum.map(&normalize_refusal/1)
+
+  defp normalize_refusal(value) when is_list(value), do: Enum.map(value, &normalize_refusal/1)
+  defp normalize_refusal(value), do: value
 
   @doc """
   The origin guard every kernel entry point runs (G1): `work_order`'s
