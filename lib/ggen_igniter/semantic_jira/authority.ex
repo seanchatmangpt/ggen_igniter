@@ -72,6 +72,8 @@ defmodule GgenIgniter.SemanticJira.Authority do
           | {:authority_digest_mismatch, String.t()}
           | {:authority_type_mismatch, String.t()}
           | {:authority_not_pinned, String.t()}
+          | {:authority_digest_invalid, String.t()}
+          | {:authority_index_conflict, String.t()}
           | {:authority_index_unavailable, Path.t() | nil, term()}
 
   @typedoc """
@@ -82,7 +84,9 @@ defmodule GgenIgniter.SemanticJira.Authority do
   """
   @type index :: %{
           admitted: %{String.t() => digest()},
-          refused: %{String.t() => origin_refusal()}
+          refused: %{String.t() => origin_refusal()},
+          source_graph: RDF.Graph.t(),
+          source_digest: digest()
         }
 
   @doc """
@@ -144,16 +148,34 @@ defmodule GgenIgniter.SemanticJira.Authority do
   """
   @spec index(RDF.Graph.t()) :: index()
   def index(%RDF.Graph{} = graph) do
-    graph
-    |> typed_nodes(@authority_classes)
-    |> Enum.reduce(%{admitted: %{}, refused: %{}}, fn {iri, description}, acc ->
-      key = RDF.IRI.to_string(iri)
+    judged =
+      graph
+      |> typed_nodes(@authority_classes)
+      |> Enum.reduce(%{admitted: %{}, refused: %{}}, fn {iri, description}, acc ->
+        key = RDF.IRI.to_string(iri)
 
-      case judge(graph, iri, description) do
-        {:ok, digest} -> put_in(acc, [:admitted, key], digest)
-        {:error, refusal} -> put_in(acc, [:refused, key], refusal)
-      end
-    end)
+        case judge(graph, iri, description) do
+          {:ok, digest} -> put_in(acc, [:admitted, key], digest)
+          {:error, refusal} -> put_in(acc, [:refused, key], refusal)
+        end
+      end)
+
+    Map.merge(judged, %{
+      source_graph: graph,
+      source_digest: graph_digest(graph)
+    })
+  end
+
+  @doc """
+  Stable digest of the complete authority source graph.
+
+  Unlike an admission digest (which covers one authority description with the
+  self-referential digest predicate excluded), this digest binds a reusable
+  index to the complete sorted N-Triples source from which it was recomputed.
+  """
+  @spec graph_digest(RDF.Graph.t()) :: digest()
+  def graph_digest(%RDF.Graph{} = graph) do
+    Digest.sha256("authority-index:v1\n" <> sorted_ntriples(graph))
   end
 
   defp judge(graph, iri, description) do
@@ -186,12 +208,20 @@ defmodule GgenIgniter.SemanticJira.Authority do
   def resolve(index, %RDF.IRI{} = origin), do: resolve(index, RDF.IRI.to_string(origin))
 
   def resolve(%{admitted: admitted, refused: refused}, origin) when is_binary(origin) do
-    case admitted do
-      %{^origin => digest} ->
-        {:ok, digest}
+    case {Map.fetch(admitted, origin), Map.fetch(refused, origin)} do
+      {{:ok, _digest}, {:ok, _refusal}} ->
+        {:error, {:refused_origin, {:authority_index_conflict, origin}}}
 
-      _ ->
-        {:error, {:refused_origin, Map.get(refused, origin, {:authority_not_admitted, origin})}}
+      {{:ok, digest}, :error} ->
+        if is_binary(digest) and Regex.match?(@digest_pattern, digest),
+          do: {:ok, digest},
+          else: {:error, {:refused_origin, {:authority_digest_invalid, origin}}}
+
+      {:error, {:ok, refusal}} ->
+        {:error, {:refused_origin, refusal}}
+
+      {:error, :error} ->
+        {:error, {:refused_origin, {:authority_not_admitted, origin}}}
     end
   end
 
@@ -241,9 +271,53 @@ defmodule GgenIgniter.SemanticJira.Authority do
   defp unpinned_index(%RDF.Graph{} = graph), do: {:ok, index(graph)}
   defp unpinned_index(path) when is_binary(path), do: canonical_index(path: path)
 
-  defp unpinned_index(%{admitted: admitted, refused: refused} = index)
-       when is_map(admitted) and is_map(refused),
-       do: {:ok, index}
+  defp unpinned_index(
+         %{
+           admitted: admitted,
+           refused: refused,
+           source_graph: %RDF.Graph{} = source_graph,
+           source_digest: source_digest
+         }
+       )
+       when is_map(admitted) and is_map(refused) and is_binary(source_digest) do
+    recomputed = index(source_graph)
+
+    cond do
+      source_digest != recomputed.source_digest ->
+        {:error,
+         {:authority_index_unavailable, nil, :precomputed_authority_source_digest_mismatch}}
+
+      admitted != recomputed.admitted or refused != recomputed.refused ->
+        {:error,
+         {:authority_index_unavailable, nil, :precomputed_authority_index_mismatch}}
+
+      true ->
+        {:ok, recomputed}
+    end
+  end
+
+  # Legacy bare maps carry no source graph, so their admitted claims can
+  # never be recomputed. Preserve them only as a fail-closed refusal carrier:
+  # every claimed admission becomes authority_not_pinned. This retains the
+  # historical caller shape without permitting a precomputed map to grant
+  # authority.
+  defp unpinned_index(%{admitted: admitted, refused: refused})
+       when is_map(admitted) and is_map(refused) do
+    source_graph = RDF.Graph.new()
+
+    refused =
+      Enum.reduce(admitted, refused, fn {iri, _digest}, acc ->
+        Map.put(acc, iri, {:authority_not_pinned, iri})
+      end)
+
+    {:ok,
+     %{
+       admitted: %{},
+       refused: refused,
+       source_graph: source_graph,
+       source_digest: graph_digest(source_graph)
+     }}
+  end
 
   defp unpinned_index(other),
     do: {:error, {:authority_index_unavailable, nil, {:invalid_authority, inspect(other)}}}
@@ -323,20 +397,128 @@ defmodule GgenIgniter.SemanticJira.Authority do
   Already-refused entries keep their refusal.
   """
   @spec pin(index(), %{String.t() => digest()}) :: index()
-  def pin(%{admitted: admitted, refused: refused}, pins) when is_map(pins) do
-    {kept, unpinned} =
-      Enum.split_with(admitted, fn {iri, digest} ->
-        is_binary(iri) and is_binary(digest) and Map.get(pins, iri) == digest
+  def pin(
+        %{
+          admitted: admitted,
+          refused: refused,
+          source_graph: %RDF.Graph{},
+          source_digest: source_digest
+        } = index,
+        pins
+      )
+      when is_map(pins) and is_binary(source_digest) do
+    conflicts =
+      admitted
+      |> Map.keys()
+      |> MapSet.new()
+      |> MapSet.intersection(MapSet.new(Map.keys(refused)))
+      |> MapSet.to_list()
+
+    conflict_refusals =
+      Enum.reduce(conflicts, refused, fn iri, acc ->
+        Map.put(acc, iri, {:authority_index_conflict, iri})
       end)
 
-    %{
-      admitted: Map.new(kept),
-      refused:
-        Enum.reduce(unpinned, refused, fn {iri, _digest}, acc ->
-          Map.put(acc, iri, {:authority_not_pinned, iri})
+    admitted_without_conflicts = Map.drop(admitted, conflicts)
+
+    {invalid, digest_valid} =
+      Enum.split_with(admitted_without_conflicts, fn {iri, digest} ->
+        not (is_binary(iri) and is_binary(digest) and Regex.match?(@digest_pattern, digest))
+      end)
+
+    invalid_refusals =
+      Enum.reduce(invalid, conflict_refusals, fn {iri, _digest}, acc ->
+        Map.put(acc, iri, {:authority_digest_invalid, iri})
+      end)
+
+    {kept, unpinned} =
+      Enum.split_with(digest_valid, fn {iri, digest} ->
+        Map.get(pins, iri) == digest
+      end)
+
+    final_refusals =
+      Enum.reduce(unpinned, invalid_refusals, fn {iri, _digest}, acc ->
+        Map.put(acc, iri, {:authority_not_pinned, iri})
+      end)
+
+    %{index | admitted: Map.new(kept), refused: final_refusals}
+  end
+
+  # Direct callers of the low-level pin/2 helper may still supply the legacy
+  # two-map shape. That shape is never accepted as an admission source by
+  # index_from/1; here it is retained only for explicit pin-set calculations.
+  def pin(%{admitted: admitted, refused: refused}, pins)
+      when is_map(admitted) and is_map(refused) and is_map(pins) do
+    source_graph = RDF.Graph.new()
+
+    pin(
+      %{
+        admitted: admitted,
+        refused: refused,
+        source_graph: source_graph,
+        source_digest: graph_digest(source_graph)
+      },
+      pins
+    )
+  end
+
+  @doc """
+  Deterministic, authority-inert receipt for an authority index.
+
+  The receipt preserves the complete typed refusal set so failed admission is
+  replayable instead of being reduced to a boolean. It is a CONSTRUCT
+  artifact only: `authority` is always `"NONE"`.
+  """
+  @spec index_receipt(index()) :: map()
+  def index_receipt(%{
+        admitted: admitted,
+        refused: refused,
+        source_digest: source_digest
+      })
+      when is_map(admitted) and is_map(refused) and is_binary(source_digest) do
+    admitted_rows =
+      admitted
+      |> Enum.map(fn {iri, digest} -> %{"iri" => iri, "digest" => digest} end)
+      |> Enum.sort_by(& &1["iri"])
+
+    refused_rows =
+      refused
+      |> Enum.map(fn {iri, refusal} ->
+        %{"iri" => iri, "refusal" => normalize_refusal(refusal)}
+      end)
+      |> Enum.sort_by(& &1["iri"])
+
+    canonical =
+      [
+        "semantic-jira/authority-index-receipt/v1",
+        source_digest,
+        Enum.map_join(admitted_rows, "", fn row ->
+          "A\t#{row["iri"]}\t#{row["digest"]}\n"
+        end),
+        Enum.map_join(refused_rows, "", fn row ->
+          "R\t#{row["iri"]}\t#{inspect(row["refusal"], limit: :infinity)}\n"
         end)
+      ]
+      |> IO.iodata_to_binary()
+
+    %{
+      "schema" => "semantic-jira/authority-index-receipt/v1",
+      "source_digest" => source_digest,
+      "admitted" => admitted_rows,
+      "refused" => refused_rows,
+      "authority" => "NONE",
+      "grants_do_authority" => false,
+      "receipt_digest" => Digest.sha256(canonical)
     }
   end
+
+  defp normalize_refusal(value) when is_atom(value), do: Atom.to_string(value)
+
+  defp normalize_refusal(value) when is_tuple(value),
+    do: value |> Tuple.to_list() |> Enum.map(&normalize_refusal/1)
+
+  defp normalize_refusal(value) when is_list(value), do: Enum.map(value, &normalize_refusal/1)
+  defp normalize_refusal(value), do: value
 
   @doc """
   The origin guard every kernel entry point runs (G1): `work_order`'s
