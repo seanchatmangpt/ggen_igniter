@@ -1,0 +1,30 @@
+@prefix sd: <https://ggen.dev/ontology/strategic-doctrine#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# doctrine-hddl-pack: consumer of the strategic-doctrine graph.
+#
+# This pack REFERENCES sd: IRIs only; it declares no class, property or
+# individual of its own and redefines nothing of sd:. The canonical doctrine
+# graph lives in ggen-marketplace packs/strategic-doctrine-pack (ontology.ttl
+# + ontology/doctrine-33.ttl); consumers pin byte copies with a sha256 check
+# (see test/fixtures/doctrine/ and test/ggen_igniter_doctrine_hddl_pack_test.exs).
+#
+# Input graph for the gates = doctrine graph + catalog + a world model (e.g.
+# the entrant-world fixture). The gates read only:
+#   sd:PrimitiveOperator rdfs:label sd:ordinal          -> 010 (one action each)
+#   sd:DoctrineApplicability sd:applicabilityOf sd:actor
+#   sd:Strategy sd:servesObjective sd:composedOf sd:appliesWhen sd:hasFalsifier
+#   sd:Step sd:order sd:operator                        -> 020 / 030
+#   sd:StrategicCondition sd:observedProperty sd:comparator sd:threshold
+#   sosa:Observation of the actor                       -> 040
+#   sd:Falsifier sd:observedProperty sd:comparator sd:threshold sd:windowDays,
+#   sd:counteredBy                                      -> 050
+#
+# Authority NONE; ceiling CONSTRUCT; nothing here actuates.
+
+[] a owl:Ontology ;
+    owl:imports <https://ggen.dev/ontology/strategic-doctrine> ;
+    rdfs:label "doctrine-hddl-pack input contract" ;
+    rdfs:seeAlso sd:Strategy , sd:PrimitiveOperator , sd:DoctrineApplicability ,
+        sd:StrategicCondition , sd:Falsifier , sd:StrategicObjective .

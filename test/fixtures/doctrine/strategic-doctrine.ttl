@@ -1,0 +1,265 @@
+@prefix sd: <https://ggen.dev/ontology/strategic-doctrine#> .
+@prefix cs: <urn:xaas:case-study:> .
+@prefix do: <https://ggen.dev/ontology/decision-optionality#> .
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Strategic doctrine vocabulary (canonical graph for the strategic compiler).
+#
+# IRI  : https://ggen.dev/ontology/strategic-doctrine#
+# CURIE: sd:  ("33s:" is not a legal Turtle PN_PREFIX; "33S" is display only)
+#
+# Consumers (napoleon.berthier, ggen_igniter doctrine-hddl-pack, autofde-lab)
+# pin a copy of this graph plus a sha256 check; none of them redefine it.
+#
+# Composition, not redefinition:
+#   sd:Falsifier          rdfs:subClassOf do:Falsifier  (decision-optionality-pack)
+#   sd:StrategicObjective rdfs:subClassOf sj:StrategicObjective (semantic-jira);
+#     it is an origin authority only after sJira authority resolve/2 admits it.
+#   licensing boundary    typed cs:NonClaim             (semantic-case-study-pack)
+#
+# World-model alignments to public vocabularies live in ontology/world-model.ttl;
+# the 33-entry catalog lives in ontology/doctrine-33.ttl.
+#
+# Authority: every artifact of this pack carries authority NONE with a ceiling
+# of SELECT/CONSTRUCT. Nothing here actuates; DO flows only via BRCE.
+
+#################################################################
+# Classes
+#################################################################
+
+sd:Strategy a rdfs:Class ;
+    rdfs:label "Strategy" ;
+    rdfs:comment "An ordered composition of primitive operators, applicable under stated conditions and refutable by at least one falsifier." .
+
+sd:StrategyStub a rdfs:Class ;
+    rdfs:subClassOf sd:Strategy ;
+    rdfs:label "Strategy stub" ;
+    rdfs:comment "A catalog entry indexed by ordinal and titled, not yet operationalized (no composition, no falsifier). Exempt from the falsifier gate only while it has no composition." .
+
+sd:StrategicPattern a rdfs:Class ;
+    rdfs:label "Strategic pattern" ;
+    rdfs:comment "A reusable fragment of steps shared by several strategies." .
+
+sd:DoctrineApplicability a rdfs:Class ;
+    rdfs:label "Doctrine applicability" ;
+    rdfs:comment "A candidate binding of one strategy to one actor, admitted only when every condition of the strategy holds for that actor's observations." .
+
+sd:CounterStrategy a rdfs:Class ;
+    rdfs:subClassOf sd:Strategy ;
+    rdfs:label "Counter-strategy" ;
+    rdfs:comment "A strategy named as the response that defeats another strategy." .
+
+sd:StrategicCondition a rdfs:Class ;
+    rdfs:label "Strategic condition" ;
+    rdfs:comment "A threshold over an observable property of an instance of a public (or sd:) class." .
+
+sd:StrategicObjective a rdfs:Class ;
+    rdfs:subClassOf sj:StrategicObjective ;
+    rdfs:label "Strategic objective" ;
+    rdfs:comment "An objective a strategy serves. Origin authority only after sJira admission." .
+
+sd:StrategicEffect a rdfs:Class ;
+    rdfs:label "Strategic effect" ;
+    rdfs:comment "The intended change in the contest a strategy produces." .
+
+sd:PrimitiveOperator a rdfs:Class ;
+    rdfs:label "Primitive operator" ;
+    rdfs:comment "One of the fourteen operators of the primitive algebra; every step uses exactly one." .
+
+sd:Step a rdfs:Class ;
+    rdfs:label "Step" ;
+    rdfs:comment "One totally ordered position in a strategy's composition, applying one primitive operator." .
+
+sd:Falsifier a rdfs:Class ;
+    rdfs:subClassOf do:Falsifier ;
+    rdfs:label "Strategic falsifier" ;
+    rdfs:comment "An observation over a named property that, if made within its window, refutes the strategy's intended effect." .
+
+sd:SourceWork a rdfs:Class ;
+    rdfs:label "Source work" ;
+    rdfs:comment "A bibliographic anchor for catalog ordinals. Referenced, never excerpted." .
+
+sd:DoctrineCatalog a rdfs:Class ;
+    rdfs:label "Doctrine catalog" ;
+    rdfs:comment "The set of catalog entries plus its authority record and licensing non-claim." .
+
+#################################################################
+# Properties
+#################################################################
+
+sd:composedOf a rdf:Property ;
+    rdfs:domain sd:Strategy ;
+    rdfs:range sd:Step ;
+    rdfs:comment "Relates a strategy to one of its steps." .
+
+sd:operator a rdf:Property ;
+    rdfs:domain sd:Step ;
+    rdfs:range sd:PrimitiveOperator ;
+    rdfs:comment "The primitive operator a step applies." .
+
+sd:order a rdf:Property ;
+    rdfs:domain sd:Step ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Position of a step; within one strategy the orders are exactly 1..n." .
+
+sd:appliesWhen a rdf:Property ;
+    rdfs:range sd:StrategicCondition ;
+    rdfs:comment "A condition that must hold for the strategy (or applicability) to be admitted." .
+
+sd:counteredBy a rdf:Property ;
+    rdfs:domain sd:Strategy ;
+    rdfs:range sd:Strategy ;
+    rdfs:comment "A strategy that defeats this one." .
+
+sd:hasFalsifier a rdf:Property ;
+    rdfs:domain sd:Strategy ;
+    rdfs:range sd:Falsifier ;
+    rdfs:comment "An observation that refutes this strategy's intended effect." .
+
+sd:producesEffect a rdf:Property ;
+    rdfs:domain sd:Strategy ;
+    rdfs:range sd:StrategicEffect ;
+    rdfs:comment "The intended effect of the strategy." .
+
+sd:servesObjective a rdf:Property ;
+    rdfs:domain sd:Strategy ;
+    rdfs:range sd:StrategicObjective ;
+    rdfs:comment "An objective the strategy serves." .
+
+sd:dualOf a rdf:Property ;
+    rdfs:domain sd:PrimitiveOperator ;
+    rdfs:range sd:PrimitiveOperator ;
+    rdfs:comment "Symmetric dual; both directions are asserted explicitly." .
+
+sd:ordinal a rdf:Property ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Catalog index (1..33 for strategies, 1..14 for primitives)." .
+
+sd:shortTitle a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Own paraphrased title, at most 60 characters." .
+
+sd:sourceWork a rdf:Property ;
+    rdfs:range sd:SourceWork ;
+    rdfs:comment "The work whose ordinal sequence indexes the catalog." .
+
+sd:aboutClass a rdf:Property ;
+    rdfs:domain sd:StrategicCondition ;
+    rdfs:comment "The public (or sd:) class whose instances the condition is evaluated over." .
+
+sd:observedProperty a rdf:Property ;
+    rdfs:comment "The sosa:ObservableProperty a condition or falsifier reads." .
+
+sd:comparator a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "One of lt, lte, gt, gte, eq." .
+
+sd:threshold a rdf:Property ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Numeric threshold compared against sosa:hasSimpleResult." .
+
+sd:refutedWhen a rdf:Property ;
+    rdfs:domain sd:Falsifier ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Plain statement of the refuting observation." .
+
+sd:windowDays a rdf:Property ;
+    rdfs:domain sd:Falsifier ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Days after commitment within which the falsifier is evaluated." .
+
+sd:applicabilityOf a rdf:Property ;
+    rdfs:domain sd:DoctrineApplicability ;
+    rdfs:range sd:Strategy ;
+    rdfs:comment "The strategy a candidate applicability binds." .
+
+sd:actor a rdf:Property ;
+    rdfs:domain sd:DoctrineApplicability ;
+    rdfs:comment "The actor (an org:Organization) the applicability binds." .
+
+sd:authority a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Always NONE." .
+
+sd:authorityCeiling a rdf:Property ;
+    rdfs:range xsd:string ;
+    rdfs:comment "SELECT or CONSTRUCT; never DO." .
+
+sd:assertsNotLicensed a rdf:Property ;
+    rdfs:range xsd:boolean ;
+    rdfs:comment "The non-claim asserts that no license to the source work is held or implied." .
+
+sd:assertsNoEndorsement a rdf:Property ;
+    rdfs:range xsd:boolean ;
+    rdfs:comment "The non-claim asserts that no endorsement by the source author or publisher exists." .
+
+sd:assertsNoTextReproduced a rdf:Property ;
+    rdfs:range xsd:boolean ;
+    rdfs:comment "The non-claim asserts that no text of the source work is reproduced." .
+
+#################################################################
+# The primitive algebra (14 operators, 5 dual pairs)
+#################################################################
+
+sd:shape a sd:PrimitiveOperator ; sd:ordinal 1 ; rdfs:label "shape" ;
+    rdfs:comment "Arrange the conditions of the contest before engaging." .
+sd:probe a sd:PrimitiveOperator ; sd:ordinal 2 ; rdfs:label "probe" ;
+    rdfs:comment "Act at small cost to obtain an observation." .
+sd:conceal a sd:PrimitiveOperator ; sd:ordinal 3 ; rdfs:label "conceal" ;
+    rdfs:comment "Withhold information about intent or state." ;
+    sd:dualOf sd:reveal .
+sd:reveal a sd:PrimitiveOperator ; sd:ordinal 4 ; rdfs:label "reveal" ;
+    rdfs:comment "Disclose information deliberately." ;
+    sd:dualOf sd:conceal .
+sd:concentrate a sd:PrimitiveOperator ; sd:ordinal 5 ; rdfs:label "concentrate" ;
+    rdfs:comment "Mass resources on one point." ;
+    sd:dualOf sd:disperse .
+sd:disperse a sd:PrimitiveOperator ; sd:ordinal 6 ; rdfs:label "disperse" ;
+    rdfs:comment "Spread resources across many points." ;
+    sd:dualOf sd:concentrate .
+sd:delay a sd:PrimitiveOperator ; sd:ordinal 7 ; rdfs:label "delay" ;
+    rdfs:comment "Defer an engagement or decision." ;
+    sd:dualOf sd:accelerate .
+sd:accelerate a sd:PrimitiveOperator ; sd:ordinal 8 ; rdfs:label "accelerate" ;
+    rdfs:comment "Shorten the time to an engagement or decision." ;
+    sd:dualOf sd:delay .
+sd:commit a sd:PrimitiveOperator ; sd:ordinal 9 ; rdfs:label "commit" ;
+    rdfs:comment "Make an irreversible allocation." ;
+    sd:dualOf sd:withdraw .
+sd:withdraw a sd:PrimitiveOperator ; sd:ordinal 10 ; rdfs:label "withdraw" ;
+    rdfs:comment "Release an allocation or position." ;
+    sd:dualOf sd:commit .
+sd:divide a sd:PrimitiveOperator ; sd:ordinal 11 ; rdfs:label "divide" ;
+    rdfs:comment "Separate an opposing whole into parts." ;
+    sd:dualOf sd:combine .
+sd:combine a sd:PrimitiveOperator ; sd:ordinal 12 ; rdfs:label "combine" ;
+    rdfs:comment "Join parts into one whole." ;
+    sd:dualOf sd:divide .
+sd:substitute a sd:PrimitiveOperator ; sd:ordinal 13 ; rdfs:label "substitute" ;
+    rdfs:comment "Replace one means or actor with another." .
+sd:transform a sd:PrimitiveOperator ; sd:ordinal 14 ; rdfs:label "transform" ;
+    rdfs:comment "Change the rules or frame of the contest itself." .
+
+#################################################################
+# Source anchor, catalog authority record, licensing non-claim
+#################################################################
+
+sd:work-33-strategies a sd:SourceWork ;
+    rdfs:label "The 33 Strategies of War (R. Greene, 2006)" ;
+    rdfs:comment "Anchor for catalog ordinals only. No text, heading or excerpt of this work is present in this pack." .
+
+sd:catalog-33s a sd:DoctrineCatalog ;
+    rdfs:label "33S doctrine catalog" ;
+    sd:sourceWork sd:work-33-strategies ;
+    sd:authority "NONE" ;
+    sd:authorityCeiling "CONSTRUCT" .
+
+sd:nonclaim-licensing a cs:NonClaim ;
+    rdfs:label "Licensing non-claim" ;
+    rdfs:comment "This catalog is not licensed from the author or publisher of the source work; it carries no endorsement by them; and it reproduces no text of the source work. Entries hold only an ordinal, an own paraphrased title of at most 60 characters, and an own primitive composition." ;
+    sd:assertsNotLicensed true ;
+    sd:assertsNoEndorsement true ;
+    sd:assertsNoTextReproduced true .

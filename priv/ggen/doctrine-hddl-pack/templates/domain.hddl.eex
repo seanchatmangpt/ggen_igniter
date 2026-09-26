@@ -1,0 +1,211 @@
+---
+to: "docs/doctrine/domain.hddl"
+mode: file
+---
+<%
+# doctrine-hddl-pack: sd: graph -> HDDL domain. Authority NONE; ceiling CONSTRUCT.
+refuse = fn reason -> raise ArgumentError, "REFUSED:DOCTRINE_HDDL: #{reason}" end
+
+local = fn iri -> iri |> to_string() |> String.split(["#", "/"]) |> List.last() end
+
+# Engine-agnostic numbers: the default oxigraph engine yields canonical
+# lexical strings ("18", "0.35"); the sparql engine yields Decimal/integer.
+to_int = fn
+  i when is_integer(i) -> i
+  s when is_binary(s) -> (case Integer.parse(s) do {i, ""} -> i; _ -> nil end)
+  _ -> nil
+end
+
+threshold_text = fn t ->
+  d =
+    case t do
+      %Decimal{} -> t
+      i when is_integer(i) -> Decimal.new(i)
+      f when is_float(f) -> Decimal.from_float(f)
+      s when is_binary(s) -> (case Decimal.parse(s) do {d, ""} -> d; _ -> refuse.("threshold is not numeric: #{inspect(s)}") end)
+      other -> refuse.("threshold is not numeric: #{inspect(other)}")
+    end
+
+  d |> Decimal.normalize() |> Decimal.to_string(:normal)
+end
+
+# Numeric thresholds as predicates: <property>-<comparator>-<threshold>,
+# with "." -> "p" and "-" -> "m" so the name is one legal HDDL symbol.
+threshold_pred = fn property, comparator, threshold ->
+  unless comparator in ~w(lt lte gt gte eq), do: refuse.("unknown comparator #{inspect(comparator)}")
+  t = threshold |> threshold_text.() |> String.replace(".", "p") |> String.replace("-", "m")
+  "#{local.(property)}-#{comparator}-#{t}"
+end
+
+actions = Enum.sort_by(domain_actions, &to_int.(&1["ordinal"]))
+action_names = Enum.map(actions, & &1["name"])
+
+if length(action_names) != length(Enum.uniq(action_names)),
+  do: refuse.("primitive operator labels must be unique: #{inspect(action_names)}")
+
+if actions == [], do: refuse.("no sd:PrimitiveOperator in the input graph")
+
+# Gate 030 returns only ADMITTED applicabilities; group their step rows by
+# strategy: one method per applicable strategy.
+methods_by_strategy = Enum.group_by(methods, & &1["strategy"])
+
+if map_size(methods_by_strategy) == 0,
+  do: refuse.("no sd:DoctrineApplicability is admitted; an HDDL domain with no method has nothing to decompose")
+
+method_specs =
+  methods_by_strategy
+  |> Enum.map(fn {strategy, rows} ->
+    objectives = rows |> Enum.map(& &1["objective"]) |> Enum.uniq()
+
+    if length(objectives) != 1,
+      do: refuse.("#{local.(strategy)} must serve exactly one sd:StrategicObjective, got #{inspect(objectives)}")
+
+    # One row per (step, order, operator, label) combination: a step with
+    # more than one value for any of them is ambiguous and is refused, never
+    # resolved by row order.
+    steps =
+      rows
+      |> Enum.group_by(& &1["step"])
+      |> Enum.map(fn {step, step_rows} ->
+        name = "step #{local.(step)} of #{local.(strategy)}"
+
+        single = fn key, what ->
+          case step_rows |> Enum.map(& &1[key]) |> Enum.reject(&is_nil/1) |> Enum.uniq() do
+            [] -> nil
+            [v] -> v
+            many -> refuse.("#{name} has #{length(many)} #{what} values #{inspect(Enum.map(many, &(&1 |> to_string() |> local.())))}; the step is ambiguous")
+          end
+        end
+
+        order = single.("order", "sd:order")
+        operator = single.("operator", "sd:operator")
+        operator_name = single.("operator_name", "operator rdfs:label")
+
+        if is_nil(operator),
+          do: refuse.("#{name} has no sd:operator; the step cannot be projected")
+
+        if is_nil(operator_name),
+          do: refuse.("#{name} uses #{local.(operator)}, which is not a labelled sd:PrimitiveOperator")
+
+        %{"step" => step, "order" => to_int.(order), "operator_name" => operator_name}
+      end)
+
+    Enum.each(steps, fn s ->
+      unless is_integer(s["order"]),
+        do: refuse.("step #{local.(s["step"])} of #{local.(strategy)} has no integer sd:order; the method ordering is undefined")
+    end)
+
+    steps = Enum.sort_by(steps, & &1["order"])
+    orders = Enum.map(steps, & &1["order"])
+
+    if orders != Enum.to_list(1..length(steps)),
+      do: refuse.("#{local.(strategy)} step orders must be exactly 1..n, got #{inspect(orders)}")
+
+    Enum.each(steps, fn s ->
+      unless s["operator_name"] in action_names,
+        do: refuse.("#{local.(strategy)} uses unknown primitive #{inspect(s["operator_name"])}")
+    end)
+
+    # The strategy ordinal decides method order, so it is resolved like a
+    # step fact: exactly one integer value, never taken from the first row.
+    ordinal =
+      case rows |> Enum.map(& &1["strategy_ordinal"]) |> Enum.reject(&is_nil/1) |> Enum.map(to_int) |> Enum.uniq() do
+        [o] when is_integer(o) -> o
+        [] -> refuse.("#{local.(strategy)} has no sd:ordinal; the method order is undefined")
+        [nil] -> refuse.("#{local.(strategy)} has a non-integer sd:ordinal; the method order is undefined")
+        many -> refuse.("#{local.(strategy)} has #{length(many)} sd:ordinal values #{inspect(Enum.sort(many), charlists: :as_lists)}; the method order is ambiguous")
+      end
+
+    %{
+      strategy: strategy,
+      ordinal: ordinal,
+      objective: hd(objectives),
+      steps: Enum.map(steps, & &1["operator_name"])
+    }
+  end)
+  |> Enum.sort_by(& &1.ordinal)
+
+method_ordinals = Enum.map(method_specs, & &1.ordinal)
+
+if length(method_ordinals) != length(Enum.uniq(method_ordinals)),
+  do: refuse.("admitted strategies share an sd:ordinal #{inspect(Enum.sort(method_ordinals), charlists: :as_lists)}; the method order is ambiguous")
+
+admitted = MapSet.new(method_specs, & &1.strategy)
+
+# Cross-gate consistency: every admitted method's objective is a candidate
+# compound task of gate 020.
+task_pairs = MapSet.new(compound_tasks, &{&1["strategy"], &1["objective"]})
+
+Enum.each(method_specs, fn m ->
+  unless MapSet.member?(task_pairs, {m.strategy, m.objective}),
+    do: refuse.("gate 020 has no compound task for #{local.(m.strategy)} -> #{local.(m.objective)}")
+end)
+
+tasks = method_specs |> Enum.map(& &1.objective) |> Enum.uniq() |> Enum.sort()
+
+conditions_by_strategy =
+  problem
+  |> Enum.group_by(& &1["strategy"], &threshold_pred.(&1["property"], &1["comparator"], &1["threshold"]))
+  |> Map.new(fn {s, preds} -> {s, preds |> Enum.uniq() |> Enum.sort()} end)
+
+condition_preds =
+  problem
+  |> Enum.map(&threshold_pred.(&1["property"], &1["comparator"], &1["threshold"]))
+  |> Enum.uniq()
+  |> Enum.sort()
+
+falsifiers =
+  contingencies
+  |> Enum.filter(&MapSet.member?(admitted, &1["strategy"]))
+  |> Enum.uniq_by(&{&1["strategy"], &1["falsifier"]})
+  |> Enum.map(fn f ->
+    %{
+      strategy: f["strategy"],
+      action: "observe-" <> local.(f["falsifier"]),
+      refuting: threshold_pred.(f["property"], f["comparator"], f["threshold"])
+    }
+  end)
+  |> Enum.sort_by(& &1.action)
+
+falsifier_preds = falsifiers |> Enum.map(& &1.refuting) |> Enum.uniq() |> Enum.sort()
+
+Enum.each(method_specs, fn m ->
+  if Enum.count(falsifiers, &(&1.strategy == m.strategy)) == 0,
+    do: refuse.("#{local.(m.strategy)} has no sd:hasFalsifier; an unfalsifiable strategy is not decomposed")
+end)
+%>;; Generated by ggen_igniter doctrine-hddl-pack from the strategic-doctrine graph
+;; (https://ggen.dev/ontology/strategic-doctrine#). Authority NONE; ceiling CONSTRUCT.
+(define (domain strategic-doctrine)
+  (:requirements :hierarchy :typing :negative-preconditions :non-deterministic)
+
+  (:types actor)
+
+  (:predicates
+    (refuted ?a - actor)
+    (effect-held ?a - actor)
+<%= for a <- actions do %>    (applied-<%= a["name"] %> ?a - actor)
+<% end %><%= for p <- Enum.uniq(condition_preds ++ falsifier_preds) do %>    (<%= p %> ?a - actor)
+<% end %>  )
+<%= for t <- tasks do %>
+  (:task pursue-<%= local.(t) %> :parameters (?a - actor))
+<% end %><%= for m <- method_specs do %><% fs = Enum.filter(falsifiers, &(&1.strategy == m.strategy)); subtasks = m.steps ++ Enum.map(fs, & &1.action); ids = Enum.map(1..length(subtasks), &"s#{&1}"); pre = Map.get(conditions_by_strategy, m.strategy, []) %>
+  (:method m-<%= local.(m.strategy) %>
+    :parameters (?a - actor)
+    :task (pursue-<%= local.(m.objective) %> ?a)
+    :precondition (and<%= for p <- pre do %> (<%= p %> ?a)<% end %> (not (refuted ?a)))
+    :subtasks (and<%= for {id, st} <- Enum.zip(ids, subtasks) do %>
+      (<%= id %> (<%= st %> ?a))<% end %>)
+    :ordering (and<%= for [x, y] <- Enum.chunk_every(ids, 2, 1, :discard) do %> (< <%= x %> <%= y %>)<% end %>))
+<% end %><%= for a <- actions do %>
+  (:action <%= a["name"] %>
+    :parameters (?a - actor)
+    :precondition (not (refuted ?a))
+    :effect (applied-<%= a["name"] %> ?a))
+<% end %><%= for f <- falsifiers do %>
+  (:action <%= f.action %>
+    :parameters (?a - actor)
+    :precondition (not (refuted ?a))
+    :effect (oneof
+      (and (<%= f.refuting %> ?a) (refuted ?a))
+      (effect-held ?a)))
+<% end %>)
