@@ -1,0 +1,11 @@
+# One HDDL primitive action per sd:PrimitiveOperator (the 14-operator algebra).
+# SELECT only; authority NONE.
+PREFIX sd: <https://ggen.dev/ontology/strategic-doctrine#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?primitive ?name ?ordinal WHERE {
+  ?primitive a sd:PrimitiveOperator ;
+    rdfs:label ?name ;
+    sd:ordinal ?ordinal .
+}
+ORDER BY ?ordinal

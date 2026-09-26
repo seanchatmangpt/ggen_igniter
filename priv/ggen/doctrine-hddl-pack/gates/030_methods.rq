@@ -1,0 +1,49 @@
+# One HDDL method per APPLICABLE strategy: one row per step of each admitted
+# sd:DoctrineApplicability. The admission law is the strategic-doctrine pack's
+# own (queries/admitted_applicability.rq): a candidate is admitted when its
+# strategy has at least one sd:appliesWhen condition and NO condition fails
+# for the actor (the actor is an instance of the condition's class and some
+# SOSA observation of the actor for the condition's property satisfies the
+# comparator against the threshold).
+#
+# sd:order is OPTIONAL here on purpose: a step without an order is still
+# returned (?order unbound) so the template REFUSES it instead of silently
+# dropping a step. SELECT only; authority NONE.
+PREFIX sd: <https://ggen.dev/ontology/strategic-doctrine#>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?applicability ?actor ?strategy ?strategy_ordinal ?objective ?step ?order ?operator ?operator_name WHERE {
+  ?applicability a sd:DoctrineApplicability ;
+    sd:applicabilityOf ?strategy ;
+    sd:actor ?actor .
+  ?strategy a sd:Strategy ;
+    sd:ordinal ?strategy_ordinal ;
+    sd:servesObjective ?objective ;
+    sd:composedOf ?step .
+  ?step sd:operator ?operator .
+  ?operator a sd:PrimitiveOperator ;
+    rdfs:label ?operator_name .
+  OPTIONAL { ?step sd:order ?order }
+  FILTER EXISTS { ?strategy sd:appliesWhen ?someCondition }
+  FILTER NOT EXISTS {
+    ?strategy sd:appliesWhen ?condition .
+    ?condition sd:aboutClass ?class ; sd:observedProperty ?property ;
+      sd:comparator ?comparator ; sd:threshold ?threshold .
+    FILTER NOT EXISTS {
+      ?actor a ?class .
+      ?observation a sosa:Observation ;
+        sosa:hasFeatureOfInterest ?actor ;
+        sosa:observedProperty ?property ;
+        sosa:hasSimpleResult ?value .
+      FILTER(
+        (?comparator = "lt"  && ?value <  ?threshold) ||
+        (?comparator = "lte" && ?value <= ?threshold) ||
+        (?comparator = "gt"  && ?value >  ?threshold) ||
+        (?comparator = "gte" && ?value >= ?threshold) ||
+        (?comparator = "eq"  && ?value =  ?threshold)
+      )
+    }
+  }
+}
+ORDER BY ?applicability ?order

@@ -1,0 +1,197 @@
+@prefix sd: <https://ggen.dev/ontology/strategic-doctrine#> .
+@prefix org: <http://www.w3.org/ns/org#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# 33S catalog: this marketplace's own operationalization, indexed by ordinal.
+#
+# Each entry carries ONLY: an ordinal, an own paraphrased title of at most 60
+# characters, a source-work anchor, and (when operationalized) an own
+# composition of primitive operators with falsifiers, conditions and effects.
+# No text, heading or excerpt of the source work appears here; sd:quote does
+# not exist and gate 050 refuses it. See sd:nonclaim-licensing in ontology.ttl.
+#
+# Ordinal alignment with the source work's sequence is best-effort and
+# UNVERIFIED against a licensed copy; the ordinal is an index, not a citation.
+#
+# Operationalized (sd:Strategy, composition + falsifier): 11 14 17 22 23 27.
+# All other entries are sd:StrategyStub (title + ordinal only).
+
+#################################################################
+# Objectives and effects
+#################################################################
+
+sd:objective-survive a sd:StrategicObjective ;
+    rdfs:label "Survive the contest with capability intact" .
+sd:objective-gain-share a sd:StrategicObjective ;
+    rdfs:label "Gain share in a chosen segment" .
+
+sd:effect-preserve-force a sd:StrategicEffect ; rdfs:label "Resources preserved for a later engagement" .
+sd:effect-seize-initiative a sd:StrategicEffect ; rdfs:label "Initiative held before rivals react" .
+sd:effect-fragment-opposition a sd:StrategicEffect ; rdfs:label "Opposition engaged one part at a time" .
+sd:effect-bounded-downside a sd:StrategicEffect ; rdfs:label "Loss bounded by a pre-set exit" .
+sd:effect-misdirected-response a sd:StrategicEffect ; rdfs:label "Rival effort spent on a decoy front" .
+sd:effect-shared-cost a sd:StrategicEffect ; rdfs:label "Cost of advance carried by partners" .
+
+#################################################################
+# Conditions (public classes only; gate 020)
+#################################################################
+
+sd:cond-low-win-rate a sd:StrategicCondition ;
+    sd:aboutClass org:Organization ; sd:observedProperty sd:win-rate ;
+    sd:comparator "lt" ; sd:threshold 0.35 .
+sd:cond-long-runway a sd:StrategicCondition ;
+    sd:aboutClass org:Organization ; sd:observedProperty sd:runway-months ;
+    sd:comparator "gte" ; sd:threshold 18.0 .
+sd:cond-slow-rivals a sd:StrategicCondition ;
+    sd:aboutClass org:Organization ; sd:observedProperty sd:rival-response-days ;
+    sd:comparator "gte" ; sd:threshold 30.0 .
+sd:cond-many-rivals a sd:StrategicCondition ;
+    sd:aboutClass org:Organization ; sd:observedProperty sd:rival-count ;
+    sd:comparator "gte" ; sd:threshold 3.0 .
+sd:cond-high-churn a sd:StrategicCondition ;
+    sd:aboutClass org:Organization ; sd:observedProperty sd:churn-rate ;
+    sd:comparator "gte" ; sd:threshold 0.15 .
+sd:cond-fast-rivals a sd:StrategicCondition ;
+    sd:aboutClass org:Organization ; sd:observedProperty sd:rival-response-days ;
+    sd:comparator "lt" ; sd:threshold 30.0 .
+sd:cond-short-runway a sd:StrategicCondition ;
+    sd:aboutClass org:Organization ; sd:observedProperty sd:runway-months ;
+    sd:comparator "lt" ; sd:threshold 18.0 .
+
+#################################################################
+# Falsifiers (sd:Falsifier rdfs:subClassOf do:Falsifier)
+#################################################################
+
+sd:falsifier-11 a sd:Falsifier ;
+    sd:observedProperty sd:segment-share ; sd:comparator "lt" ; sd:threshold 0.05 ; sd:windowDays 180 ;
+    sd:refutedWhen "Held segment share is below 5% after 180 days of declining head-on deals." .
+sd:falsifier-14 a sd:Falsifier ;
+    sd:observedProperty sd:rival-response-days ; sd:comparator "lt" ; sd:threshold 14.0 ; sd:windowDays 60 ;
+    sd:refutedWhen "A rival visibly responds within 14 days, before the advantage compounds." .
+sd:falsifier-17 a sd:Falsifier ;
+    sd:observedProperty sd:win-rate ; sd:comparator "lt" ; sd:threshold 0.40 ; sd:windowDays 120 ;
+    sd:refutedWhen "Win rate inside the isolated segment stays below 40% after 120 days." .
+sd:falsifier-22 a sd:Falsifier ;
+    sd:observedProperty sd:runway-months ; sd:comparator "lt" ; sd:threshold 3.0 ; sd:windowDays 90 ;
+    sd:refutedWhen "Runway falls under 3 months before the pre-set exit trigger fires." .
+sd:falsifier-23 a sd:Falsifier ;
+    sd:observedProperty sd:rival-misallocation ; sd:comparator "lt" ; sd:threshold 0.20 ; sd:windowDays 60 ;
+    sd:refutedWhen "Less than 20% of rival spend moves to the decoy front within 60 days." .
+sd:falsifier-27 a sd:Falsifier ;
+    sd:observedProperty sd:partner-sourced-share ; sd:comparator "lt" ; sd:threshold 0.15 ; sd:windowDays 180 ;
+    sd:refutedWhen "Partners source less than 15% of new revenue after 180 days." .
+
+#################################################################
+# Stubs (ordinal + own title only)
+#################################################################
+
+sd:strategy-01 a sd:StrategyStub ; sd:ordinal 1 ; sd:shortTitle "Name an opponent to focus collective effort" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-02 a sd:StrategyStub ; sd:ordinal 2 ; sd:shortTitle "Fight the present contest, not the previous one" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-03 a sd:StrategyStub ; sd:ordinal 3 ; sd:shortTitle "Stay composed when conditions turn chaotic" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-04 a sd:StrategyStub ; sd:ordinal 4 ; sd:shortTitle "Cut off retreat to force full commitment" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-05 a sd:StrategyStub ; sd:ordinal 5 ; sd:shortTitle "Unify command so intent reaches the edge" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-06 a sd:StrategyStub ; sd:ordinal 6 ; sd:shortTitle "Decentralize decisions to move faster than rivals" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-07 a sd:StrategyStub ; sd:ordinal 7 ; sd:shortTitle "Tie morale to a shared cause and visible stakes" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-08 a sd:StrategyStub ; sd:ordinal 8 ; sd:shortTitle "Match resources to ends; avoid overextension" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-09 a sd:StrategyStub ; sd:ordinal 9 ; sd:shortTitle "Draw the rival out, then counter at the overreach" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-10 a sd:StrategyStub ; sd:ordinal 10 ; sd:shortTitle "Raise the cost of attacking you" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-12 a sd:StrategyStub ; sd:ordinal 12 ; sd:shortTitle "Subordinate single battles to long-horizon aims" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-13 a sd:StrategyStub ; sd:ordinal 13 ; sd:shortTitle "Learn how the rival thinks before acting" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-15 a sd:StrategyStub ; sd:ordinal 15 ; sd:shortTitle "Control where and when engagement happens" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-16 a sd:StrategyStub ; sd:ordinal 16 ; sd:shortTitle "Target the source of the rival's strength" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-18 a sd:StrategyStub ; sd:ordinal 18 ; sd:shortTitle "Expose a flank and turn the rival's position" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-19 a sd:StrategyStub ; sd:ordinal 19 ; sd:shortTitle "Envelop the rival so every option is covered" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-20 a sd:StrategyStub ; sd:ordinal 20 ; sd:shortTitle "Maneuver the rival into a weakened position" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-21 a sd:StrategyStub ; sd:ordinal 21 ; sd:shortTitle "Negotiate while still advancing your position" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-24 a sd:StrategyStub ; sd:ordinal 24 ; sd:shortTitle "Pair the expected move with an unexpected one" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-25 a sd:StrategyStub ; sd:ordinal 25 ; sd:shortTitle "Hold the moral high ground in public view" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-26 a sd:StrategyStub ; sd:ordinal 26 ; sd:shortTitle "Deny the rival any target to strike" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-28 a sd:StrategyStub ; sd:ordinal 28 ; sd:shortTitle "Give rivals room to overreach, then respond" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-29 a sd:StrategyStub ; sd:ordinal 29 ; sd:shortTitle "Take ground quietly and present it as settled" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-30 a sd:StrategyStub ; sd:ordinal 30 ; sd:shortTitle "Seed ideas that change how others decide" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-31 a sd:StrategyStub ; sd:ordinal 31 ; sd:shortTitle "Build influence inside the rival's own camp" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-32 a sd:StrategyStub ; sd:ordinal 32 ; sd:shortTitle "Resist indirectly while appearing cooperative" ; sd:sourceWork sd:work-33-strategies .
+sd:strategy-33 a sd:StrategyStub ; sd:ordinal 33 ; sd:shortTitle "Trigger a cascade that spreads uncertainty" ; sd:sourceWork sd:work-33-strategies .
+
+#################################################################
+# Operationalized strategies (own compositions)
+#################################################################
+
+sd:strategy-11 a sd:Strategy ; sd:ordinal 11 ;
+    sd:shortTitle "Trade ground for time; decline decisive battle" ;
+    sd:sourceWork sd:work-33-strategies ;
+    sd:composedOf sd:strategy-11-step-1 , sd:strategy-11-step-2 , sd:strategy-11-step-3 , sd:strategy-11-step-4 ;
+    sd:appliesWhen sd:cond-low-win-rate ;
+    sd:hasFalsifier sd:falsifier-11 ;
+    sd:producesEffect sd:effect-preserve-force ;
+    sd:servesObjective sd:objective-survive .
+sd:strategy-11-step-1 a sd:Step ; sd:order 1 ; sd:operator sd:withdraw .
+sd:strategy-11-step-2 a sd:Step ; sd:order 2 ; sd:operator sd:delay .
+sd:strategy-11-step-3 a sd:Step ; sd:order 3 ; sd:operator sd:conceal .
+sd:strategy-11-step-4 a sd:Step ; sd:order 4 ; sd:operator sd:probe .
+
+sd:strategy-14 a sd:Strategy ; sd:ordinal 14 ;
+    sd:shortTitle "Strike fast before the rival can adjust" ;
+    sd:sourceWork sd:work-33-strategies ;
+    sd:composedOf sd:strategy-14-step-1 , sd:strategy-14-step-2 , sd:strategy-14-step-3 , sd:strategy-14-step-4 ;
+    sd:appliesWhen sd:cond-long-runway , sd:cond-slow-rivals ;
+    sd:hasFalsifier sd:falsifier-14 ;
+    sd:producesEffect sd:effect-seize-initiative ;
+    sd:servesObjective sd:objective-gain-share ;
+    sd:counteredBy sd:strategy-11 .
+sd:strategy-14-step-1 a sd:Step ; sd:order 1 ; sd:operator sd:probe .
+sd:strategy-14-step-2 a sd:Step ; sd:order 2 ; sd:operator sd:concentrate .
+sd:strategy-14-step-3 a sd:Step ; sd:order 3 ; sd:operator sd:accelerate .
+sd:strategy-14-step-4 a sd:Step ; sd:order 4 ; sd:operator sd:commit .
+
+sd:strategy-17 a sd:Strategy ; sd:ordinal 17 ;
+    sd:shortTitle "Split the opposition and take the parts in turn" ;
+    sd:sourceWork sd:work-33-strategies ;
+    sd:composedOf sd:strategy-17-step-1 , sd:strategy-17-step-2 , sd:strategy-17-step-3 , sd:strategy-17-step-4 ;
+    sd:appliesWhen sd:cond-many-rivals ;
+    sd:hasFalsifier sd:falsifier-17 ;
+    sd:producesEffect sd:effect-fragment-opposition ;
+    sd:servesObjective sd:objective-gain-share ;
+    sd:counteredBy sd:strategy-27 .
+sd:strategy-17-step-1 a sd:Step ; sd:order 1 ; sd:operator sd:probe .
+sd:strategy-17-step-2 a sd:Step ; sd:order 2 ; sd:operator sd:divide .
+sd:strategy-17-step-3 a sd:Step ; sd:order 3 ; sd:operator sd:concentrate .
+sd:strategy-17-step-4 a sd:Step ; sd:order 4 ; sd:operator sd:commit .
+
+sd:strategy-22 a sd:Strategy ; sd:ordinal 22 ;
+    sd:shortTitle "Plan the exit before entering the contest" ;
+    sd:sourceWork sd:work-33-strategies ;
+    sd:composedOf sd:strategy-22-step-1 , sd:strategy-22-step-2 , sd:strategy-22-step-3 ;
+    sd:appliesWhen sd:cond-high-churn ;
+    sd:hasFalsifier sd:falsifier-22 ;
+    sd:producesEffect sd:effect-bounded-downside ;
+    sd:servesObjective sd:objective-survive .
+sd:strategy-22-step-1 a sd:Step ; sd:order 1 ; sd:operator sd:shape .
+sd:strategy-22-step-2 a sd:Step ; sd:order 2 ; sd:operator sd:commit .
+sd:strategy-22-step-3 a sd:Step ; sd:order 3 ; sd:operator sd:withdraw .
+
+sd:strategy-23 a sd:Strategy ; sd:ordinal 23 ;
+    sd:shortTitle "Shape what the rival believes it sees" ;
+    sd:sourceWork sd:work-33-strategies ;
+    sd:composedOf sd:strategy-23-step-1 , sd:strategy-23-step-2 , sd:strategy-23-step-3 , sd:strategy-23-step-4 ;
+    sd:appliesWhen sd:cond-fast-rivals ;
+    sd:hasFalsifier sd:falsifier-23 ;
+    sd:producesEffect sd:effect-misdirected-response ;
+    sd:servesObjective sd:objective-gain-share ;
+    sd:counteredBy sd:strategy-13 .
+sd:strategy-23-step-1 a sd:Step ; sd:order 1 ; sd:operator sd:conceal .
+sd:strategy-23-step-2 a sd:Step ; sd:order 2 ; sd:operator sd:shape .
+sd:strategy-23-step-3 a sd:Step ; sd:order 3 ; sd:operator sd:reveal .
+sd:strategy-23-step-4 a sd:Step ; sd:order 4 ; sd:operator sd:concentrate .
+
+sd:strategy-27 a sd:Strategy ; sd:ordinal 27 ;
+    sd:shortTitle "Advance through partners who carry the cost" ;
+    sd:sourceWork sd:work-33-strategies ;
+    sd:composedOf sd:strategy-27-step-1 , sd:strategy-27-step-2 , sd:strategy-27-step-3 ;
+    sd:appliesWhen sd:cond-short-runway ;
+    sd:hasFalsifier sd:falsifier-27 ;
+    sd:producesEffect sd:effect-shared-cost ;
+    sd:servesObjective sd:objective-survive .
+sd:strategy-27-step-1 a sd:Step ; sd:order 1 ; sd:operator sd:combine .
+sd:strategy-27-step-2 a sd:Step ; sd:order 2 ; sd:operator sd:substitute .
+sd:strategy-27-step-3 a sd:Step ; sd:order 3 ; sd:operator sd:commit .

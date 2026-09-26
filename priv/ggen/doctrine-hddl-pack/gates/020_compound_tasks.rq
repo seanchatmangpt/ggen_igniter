@@ -1,0 +1,12 @@
+# Candidate compound tasks: one per sd:StrategicObjective served by a strategy
+# that some sd:DoctrineApplicability binds. The templates keep only objectives
+# that have at least one ADMITTED method (gate 030); a task with no method is
+# never emitted. SELECT only; authority NONE.
+PREFIX sd: <https://ggen.dev/ontology/strategic-doctrine#>
+
+SELECT ?applicability ?strategy ?objective WHERE {
+  ?applicability a sd:DoctrineApplicability ;
+    sd:applicabilityOf ?strategy .
+  ?strategy sd:servesObjective ?objective .
+}
+ORDER BY ?objective ?strategy

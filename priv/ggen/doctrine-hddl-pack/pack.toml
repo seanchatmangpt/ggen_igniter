@@ -1,0 +1,4 @@
+[pack]
+name = "doctrine-hddl-pack"
+version = "26.9.26"
+description = "Projects the strategic-doctrine graph (IRI https://ggen.dev/ontology/strategic-doctrine#, prefix sd:) plus a world model into HDDL: one primitive action per sd:PrimitiveOperator, one compound task per served sd:StrategicObjective, one method per applicable sd:DoctrineApplicability (step order from sd:order), numeric sd:StrategicCondition thresholds as predicates, a problem rooted at the admitted objectives, and a FOND contingency domain whose falsifier observations use oneof as the whole effect. Doctrine is referenced, never redefined. Authority NONE, ceiling CONSTRUCT, never DO."
