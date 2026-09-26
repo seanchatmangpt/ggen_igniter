@@ -296,11 +296,28 @@ defmodule GgenIgniter.SemanticJira.Authority do
     end
   end
 
+  # Legacy bare maps carry no source graph, so their admitted claims can
+  # never be recomputed. Preserve them only as a fail-closed refusal carrier:
+  # every claimed admission becomes authority_not_pinned. This retains the
+  # historical caller shape without permitting a precomputed map to grant
+  # authority.
   defp unpinned_index(%{admitted: admitted, refused: refused})
-       when is_map(admitted) and is_map(refused),
-       do:
-         {:error,
-          {:authority_index_unavailable, nil, :precomputed_authority_index_unverifiable}}
+       when is_map(admitted) and is_map(refused) do
+    source_graph = RDF.Graph.new()
+
+    refused =
+      Enum.reduce(admitted, refused, fn {iri, _digest}, acc ->
+        Map.put(acc, iri, {:authority_not_pinned, iri})
+      end)
+
+    {:ok,
+     %{
+       admitted: %{},
+       refused: refused,
+       source_graph: source_graph,
+       source_digest: graph_digest(source_graph)
+     }}
+  end
 
   defp unpinned_index(other),
     do: {:error, {:authority_index_unavailable, nil, {:invalid_authority, inspect(other)}}}
