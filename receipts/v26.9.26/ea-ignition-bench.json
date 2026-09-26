@@ -1,0 +1,19 @@
+{
+  "subject": "GgenIgniter.EA.Ignition (lib/ggen_igniter/ea/ignition.ex)",
+  "parent_head": "c96ce885c65a139fb586e56252b4ef5c08d2519c",
+  "command": "MIX_ENV=test mix run --no-start bench/ea_ignition_bench.exs",
+  "host": "Apple M3 Max, Elixir 1.19.5, Erlang/OTP 28",
+  "method": "1000-call warmup, 7 rounds of 20000 calls, median of round means",
+  "results_us_per_op": {
+    "admit": {"median": 34.682, "max_round": 80.243},
+    "admit_refuse_widening": {"median": 15.185, "max_round": 19.716},
+    "lock": {"median": 1.407, "max_round": 2.674},
+    "verify_lock": {"median": 16.342, "max_round": 18.79},
+    "substitute": {"median": 67.259, "max_round": 125.543},
+    "apply_migration": {"median": 19.931, "max_round": 24.982}
+  },
+  "regression_bounds_us": {"admit": 1000, "verify_lock": 500, "substitute": 2000, "apply_migration": 600},
+  "bound_test": "test/ggen_igniter_ea_ignition_test.exs \"benchmark regression bound\"",
+  "authority": "NONE",
+  "standing": "measured on local host; bounds enforced by test"
+}
