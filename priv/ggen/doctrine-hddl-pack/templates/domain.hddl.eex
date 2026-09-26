@@ -106,14 +106,29 @@ method_specs =
         do: refuse.("#{local.(strategy)} uses unknown primitive #{inspect(s["operator_name"])}")
     end)
 
+    # The strategy ordinal decides method order, so it is resolved like a
+    # step fact: exactly one integer value, never taken from the first row.
+    ordinal =
+      case rows |> Enum.map(& &1["strategy_ordinal"]) |> Enum.reject(&is_nil/1) |> Enum.map(to_int) |> Enum.uniq() do
+        [o] when is_integer(o) -> o
+        [] -> refuse.("#{local.(strategy)} has no sd:ordinal; the method order is undefined")
+        [nil] -> refuse.("#{local.(strategy)} has a non-integer sd:ordinal; the method order is undefined")
+        many -> refuse.("#{local.(strategy)} has #{length(many)} sd:ordinal values #{inspect(Enum.sort(many), charlists: :as_lists)}; the method order is ambiguous")
+      end
+
     %{
       strategy: strategy,
-      ordinal: to_int.(hd(rows)["strategy_ordinal"]),
+      ordinal: ordinal,
       objective: hd(objectives),
       steps: Enum.map(steps, & &1["operator_name"])
     }
   end)
   |> Enum.sort_by(& &1.ordinal)
+
+method_ordinals = Enum.map(method_specs, & &1.ordinal)
+
+if length(method_ordinals) != length(Enum.uniq(method_ordinals)),
+  do: refuse.("admitted strategies share an sd:ordinal #{inspect(Enum.sort(method_ordinals), charlists: :as_lists)}; the method order is ambiguous")
 
 admitted = MapSet.new(method_specs, & &1.strategy)
 

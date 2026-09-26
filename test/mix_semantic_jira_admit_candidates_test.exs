@@ -141,6 +141,59 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidatesTest do
            ]
   end
 
+  test "an evidence_ceiling naming an actuation in any token form is refused", %{dir: dir} do
+    # The forms that an exact-token denylist admitted (court probe ADV-A1).
+    forms = [
+      {"C-ACTUATE", "ACTUATE"},
+      {"C-EXECUTE", "execute"},
+      {"C-DOMERGE", "DO/MERGE"},
+      {"C-MERGE-MAIN", "merge-to-main"},
+      {"C-DO-TAB", "\tdo\n"},
+      {"C-PUSHED", "local then pushed"},
+      {"C-NUMERIC", 7}
+    ]
+
+    candidates =
+      for {id, ceiling} <- forms,
+          do: candidate(id, @objective) |> Map.put("evidence_ceiling", ceiling)
+
+    path = Path.join(dir, "ceilings.jsonl")
+    File.write!(path, Enum.map_join(candidates, "\n", &Jason.encode!/1))
+
+    expected =
+      forms
+      |> Enum.with_index(1)
+      |> Enum.map(fn {{id, ceiling}, n} ->
+        "refused #{n} #{id} " <>
+          inspect({:refused_candidate, {:ceiling_exceeds_construct, "evidence_ceiling", ceiling}})
+      end)
+
+    assert run_task(["--candidates", path]) |> String.split("\n", trim: true) ==
+             expected ++ ["summary admitted=0 refused=#{length(forms)}"]
+  end
+
+  test "evidence-ladder ceilings are not actuations and are admitted", %{dir: dir} do
+    ladder =
+      ~w(SPECIFIED IMPLEMENTED_UNVERIFIED EXECUTED_VERIFIED LOCAL_RUN repository-local CONSTRUCT)
+
+    for c <- ladder,
+        do: assert(AdmitCandidates.candidate_bounds(%{"evidence_ceiling" => c}) == :ok)
+
+    candidates =
+      for {c, n} <- Enum.with_index(ladder, 1),
+          do: candidate("LADDER-#{n}", @objective) |> Map.put("evidence_ceiling", c)
+
+    path = Path.join(dir, "ladder.jsonl")
+    File.write!(path, Enum.map_join(candidates, "\n", &Jason.encode!/1))
+
+    lines = run_task(["--candidates", path]) |> String.split("\n", trim: true)
+
+    for n <- 1..length(ladder),
+        do: assert(String.starts_with?(Enum.at(lines, n - 1), "admitted #{n} LADDER-#{n} "))
+
+    assert List.last(lines) == "summary admitted=#{length(ladder)} refused=0"
+  end
+
   test "missing --candidates is an invalid invocation (exit 2)" do
     Mix.Task.reenable("semantic_jira.admit_candidates")
 

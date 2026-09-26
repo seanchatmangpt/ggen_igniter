@@ -325,6 +325,33 @@ defmodule GgenIgniter.DoctrineHddlPackTest do
     assert error.message =~ "step strategy-11-step-1 of strategy-11 has 2 sd:operator values"
   end
 
+  test "a strategy with two sd:ordinal values is refused, never ordered by row order" do
+    graph =
+      RDF.Graph.add(
+        base_graph(),
+        {iri(@sd <> "strategy-11"), iri(@sd <> "ordinal"), RDF.literal(99)}
+      )
+
+    error = assert_raise ArgumentError, fn -> render(graph, "domain.hddl.eex") end
+
+    assert error.message =~
+             "REFUSED:DOCTRINE_HDDL: strategy-11 has 2 sd:ordinal values [11, 99]; the method order is ambiguous"
+  end
+
+  test "two admitted strategies sharing one sd:ordinal are refused as an ambiguous method order" do
+    s27 = iri(@sd <> "strategy-27")
+
+    graph =
+      base_graph()
+      |> RDF.Graph.delete({s27, iri(@sd <> "ordinal"), RDF.literal(27)})
+      |> RDF.Graph.add({s27, iri(@sd <> "ordinal"), RDF.literal(17)})
+
+    error = assert_raise ArgumentError, fn -> render(graph, "domain.hddl.eex") end
+
+    assert error.message =~
+             "REFUSED:DOCTRINE_HDDL: admitted strategies share an sd:ordinal [11, 17, 17]"
+  end
+
   test "an admitted strategy with no sd:hasFalsifier refuses domain and contingency" do
     graph =
       RDF.Graph.delete(

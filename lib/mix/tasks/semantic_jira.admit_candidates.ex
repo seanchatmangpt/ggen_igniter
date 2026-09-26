@@ -23,8 +23,14 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
       standing is derived from receipts, never stored as a literal
       (`{:refused_candidate, {:literal_standing, s}}`);
     * `authority_requirement` other than `"NONE"`, or an `evidence_ceiling`
-      naming an actuation (`DO`, `MERGE`, `PUBLISH`, `DEPLOY`, `PUSH`,
-      `RELEASE`, any case) -- the ceiling is at most CONSTRUCT
+      that is not a string or names an actuation in ANY token -- the value is
+      split on every non-alphanumeric character (so `"DO/MERGE"`,
+      `"merge-to-main"`, `"\\tdo\\n"` are each tokenized) and a token is refused
+      when it is `DO`, `EXECUTE`, or begins with `ACTUAT`, `MERGE`,
+      `PUBLISH`, `DEPLOY`, `PUSH`, `RELEASE` (any case). Evidence-ladder
+      values (`SPECIFIED`, `IMPLEMENTED_UNVERIFIED`, `EXECUTED_VERIFIED`,
+      `LOCAL_RUN`, `repository-local`, `CONSTRUCT`) name evidence, not
+      actuation, and pass. The ceiling is at most CONSTRUCT
       (`{:refused_candidate, {:ceiling_exceeds_construct, field, value}}`).
 
   Within one batch, a later line whose `identity`, `replay_identity`, or
@@ -130,7 +136,11 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
     end
   end
 
-  @actuation_ceilings ~w(DO MERGE PUBLISH DEPLOY PUSH RELEASE)
+  # Whole-token actuations, and actuation roots matched as token prefixes
+  # (MERGED, PUSHED, DEPLOYMENT, ACTUATE, ACTUATION, ...). EXECUTE is exact:
+  # EXECUTED (as in EXECUTED_VERIFIED) is evidence that tests ran, not a DO.
+  @actuation_tokens ~w(DO EXECUTE)
+  @actuation_roots ~w(ACTUAT MERGE PUBLISH DEPLOY PUSH RELEASE)
 
   @doc false
   @spec candidate_bounds(map()) :: :ok | {:error, term()}
@@ -147,12 +157,26 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
         {:error,
          {:refused_candidate, {:ceiling_exceeds_construct, "authority_requirement", requirement}}}
 
-      is_binary(ceiling) and String.upcase(String.trim(ceiling)) in @actuation_ceilings ->
+      not is_nil(ceiling) and not is_binary(ceiling) ->
+        {:error, {:refused_candidate, {:ceiling_exceeds_construct, "evidence_ceiling", ceiling}}}
+
+      is_binary(ceiling) and names_actuation?(ceiling) ->
         {:error, {:refused_candidate, {:ceiling_exceeds_construct, "evidence_ceiling", ceiling}}}
 
       true ->
         :ok
     end
+  end
+
+  @doc false
+  @spec names_actuation?(String.t()) :: boolean()
+  def names_actuation?(value) when is_binary(value) do
+    value
+    |> String.upcase()
+    |> String.split(~r/[^A-Z0-9]+/u, trim: true)
+    |> Enum.any?(fn token ->
+      token in @actuation_tokens or Enum.any?(@actuation_roots, &String.starts_with?(token, &1))
+    end)
   end
 
   # One candidate, one admission: a later admitted line that repeats an
