@@ -1,0 +1,4 @@
+[pack]
+name = "ash-manufacture-pack"
+version = "26.9.27"
+description = "Canonical ggen_igniter Ash implementation profile: semantic facts are projected into one composed Igniter task which invokes real upstream Ash generators."
