@@ -1,0 +1,30 @@
+{
+  "ocel:version": "2.0",
+  "run_id": "frontier-cs2-runtime-r12-1302",
+  "objects": [
+    {
+      "id": "repo:seanchatmangpt/ggen_igniter",
+      "type": "repository"
+    },
+    {
+      "id": "branch:frontier/v26.9.27-cs2-runtime-r12-1302",
+      "type": "branch"
+    },
+    {
+      "id": "subject:cs2-semantic-jira-ingest",
+      "type": "capability"
+    }
+  ],
+  "events": [
+    {
+      "id": "e1",
+      "type": "construct",
+      "objects": [
+        "subject:cs2-semantic-jira-ingest"
+      ],
+      "attributes": {
+        "base_sha": "a332636679d1f85f59df79d61549a54844edb3df"
+      }
+    }
+  ]
+}
