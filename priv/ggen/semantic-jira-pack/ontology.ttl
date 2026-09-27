@@ -51,6 +51,19 @@ sj:nextAction a rdf:Property .
 sj:projection a rdf:Property .
 sj:receipt a rdf:Property .
 
+# Provider neutrality (ALOOP-ZCODE-DOGFOOD-001 contract; enforced additively by
+# gates/047_provider_neutral_admission.rq at this same pack version):
+#   sj:capabilityId -- the LAWFUL carrier of provider identity: a
+#     "provider:id" left-segment string, the one place a provider name may
+#     appear on an order.
+#   sj:provider -- the MISUSE surface. Declared (instead of left undeclared)
+#     so gate 047 can name the violation when an order asserts a provider
+#     directly; a WorkOrder carrying sj:provider is a refusal, never a fact.
+sj:capabilityId a rdf:Property ; rdfs:range xsd:string ;
+    rdfs:comment "capabilityId \"provider:id\" (left segment = provider identity)" .
+sj:provider a rdf:Property ;
+    rdfs:comment "FORBIDDEN on an sj:WorkOrder (gate 047 fires on any use); declared so the violation names the predicate" .
+
 # Self-dogfood work order: this pack manufactures its own first Jira projection.
 sj:semantic-jira-mvp a sj:WorkOrder ;
     dcterms:identifier "SJ-001" ;
