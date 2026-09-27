@@ -90,6 +90,13 @@ defmodule GgenIgniter.SemanticJira.CS2ProjectionTest do
              CS2Batch.dependency_layers(projected)
   end
 
+  test "different absolute subject refuses before SemanticJira admission" do
+    other = "https://chatman.ai/cs2#OTHER"
+
+    assert {:error, {:refused_cs2_projection, {:subject_mismatch, ^other}}} =
+             CS2Projection.project_batch(batch(%{"subject" => other}))
+  end
+
   test "non-NONE authority refuses before SemanticJira admission" do
     assert {:error, {:refused_cs2_projection, :authority_must_be_none}} =
              CS2Projection.project_batch(batch(%{"authority" => "EXECUTE"}))

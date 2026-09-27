@@ -14,6 +14,7 @@ defmodule GgenIgniter.SemanticJira.CS2Projection do
   @sha ~r/\A[0-9a-f]{40}\z/
   @digest ~r/\A[0-9a-f]{64}\z/
   @repo ~r/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/
+  @subject "https://chatman.ai/cs2#RFC-CS2-001"
   @default_projections ~w(worker verification machine)
 
   @spec project_batch(map()) :: {:ok, map()} | {:error, term()}
@@ -21,6 +22,7 @@ defmodule GgenIgniter.SemanticJira.CS2Projection do
     batch = strings(raw)
 
     with :ok <- require_batch(batch),
+         :ok <- exact_subject(batch["subject"]),
          :ok <- source_shape(batch["source"]),
          :ok <- authority_none(batch),
          {:ok, work_orders} <- project_work(batch) do
@@ -114,6 +116,9 @@ defmodule GgenIgniter.SemanticJira.CS2Projection do
 
     if missing == [], do: :ok, else: {:error, {:missing_work_fields, missing}}
   end
+
+  defp exact_subject(@subject), do: :ok
+  defp exact_subject(value), do: {:error, {:subject_mismatch, value}}
 
   defp source_shape(%{"repo" => repo, "sha" => sha, "digest" => digest})
        when is_binary(repo) and is_binary(sha) and is_binary(digest) do
