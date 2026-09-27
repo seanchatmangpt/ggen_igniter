@@ -117,7 +117,7 @@ defmodule GgenIgniter.SemanticJira.CS2Batch do
   end
 
   defp unique_identities(orders) do
-    ids = Enum.map(orders, &(strings(&1)["identity"]))
+    ids = Enum.map(orders, &strings(&1)["identity"])
 
     cond do
       Enum.any?(ids, &(&1 in [nil, ""])) -> {:error, :missing_work_identity}
@@ -129,7 +129,9 @@ defmodule GgenIgniter.SemanticJira.CS2Batch do
   defp admit_orders(orders) do
     Enum.reduce_while(orders, {:ok, []}, fn raw, {:ok, acc} ->
       case SemanticJira.admit_work_order(raw) do
-        {:ok, order} -> {:cont, {:ok, [order | acc]}}
+        {:ok, order} ->
+          {:cont, {:ok, [order | acc]}}
+
         {:error, reason} ->
           {:halt, {:error, {:work_order_refused, strings(raw)["identity"], reason}}}
       end

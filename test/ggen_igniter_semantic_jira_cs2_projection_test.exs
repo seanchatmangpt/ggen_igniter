@@ -48,6 +48,7 @@ defmodule GgenIgniter.SemanticJira.CS2ProjectionTest do
     assert {:ok, projected} = CS2Projection.project_batch(batch())
     assert projected["authority"] == "NONE"
     assert projected["repository"] == "seanchatmangpt/ggen-marketplace"
+
     assert Enum.map(projected["work_orders"], & &1["identity"]) ==
              ["CS2-WRK-001", "CS2-WRK-002"]
 
@@ -68,7 +69,8 @@ defmodule GgenIgniter.SemanticJira.CS2ProjectionTest do
     [first, second] = raw["work"]
     bad = %{second | "dependencies" => ["CS2-WRK-999"]}
 
-    assert {:error, {:refused_cs2_projection, {:refused_cs2_batch, {:unknown_dependency_targets, _}}}} =
+    assert {:error,
+            {:refused_cs2_projection, {:refused_cs2_batch, {:unknown_dependency_targets, _}}}} =
              CS2Projection.project_batch(%{raw | "work" => [first, bad]})
   end
 
@@ -105,8 +107,10 @@ defmodule GgenIgniter.SemanticJira.CS2ProjectionTest do
   test "ingest composes projection, admission, layering, and candidates" do
     assert {:ok, ingested} = CS2Ingest.ingest(batch())
     assert length(ingested["orders"]) == 2
+
     assert Enum.map(ingested["candidates"], &{&1["layer"], &1["identity"]}) ==
              [{0, "CS2-WRK-001"}, {1, "CS2-WRK-002"}]
+
     assert ingested["authority"] == "NONE"
   end
 end
