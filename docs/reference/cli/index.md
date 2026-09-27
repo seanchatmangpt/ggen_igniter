@@ -45,7 +45,15 @@ live in each module's `schema:`/moduledoc)
   must resolve in (typed objective/checkpoint, not prose, one recomputing
   `sj:admissionDigest`; default the canonical semantic-jira-pack ontology);
   an unresolved origin is blocked `origin_not_admitted` (SJ-002 AC-04), an
-  unreadable file is exit 2 and an unparseable one exit 1;
+  unreadable file is exit 2 and an unparseable one exit 1 — and since the G1
+  origin trust-root pin law (v26.9.25) an `(iri, sj:admissionDigest)` pair is
+  admitted only when pinned by an `sj:AuthorityTrustRoot` node of the canonical
+  semantic-jira-pack ontology (SHACL `sj:AuthorityTrustRootShape`), with
+  `Authority.require_origin/2` guarding every kernel entry point (lease request,
+  execution package, DO intent, promotion, transition, repair, A2A task), the old
+  `authority_requirement: "NONE"` bypass removed, and any unpinned pair refused
+  `{:authority_not_pinned, iri}` fail-closed (an unreadable trust root pins
+  nothing);
   `...xaas_receipt --bridge --xaas-receipt [--out]`, `...bootstrap --fleet
   --goal [--graphs|--receipts-dir|--ledger|--registry|--checkout|--out|--pack-dir]`,
   `...observe_prose --source --candidates --goal
