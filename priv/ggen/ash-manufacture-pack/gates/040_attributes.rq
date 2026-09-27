@@ -1,0 +1,15 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+SELECT ?resource_module ?attribute_name ?attribute_type ?attribute_order ?is_public ?is_required ?is_sensitive
+WHERE {
+  ?a a amp:Attribute ;
+     amp:attributeOf ?r ;
+     amp:attributeName ?attribute_name ;
+     amp:attributeType ?attribute_type ;
+     amp:attributeOrder ?attribute_order ;
+     amp:isPublic ?is_public ;
+     amp:isRequired ?is_required ;
+     amp:isSensitive ?is_sensitive .
+  ?r amp:resourceModule ?resource_module .
+}
+ORDER BY ?resource_module ?attribute_order
