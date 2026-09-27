@@ -1,0 +1,101 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+# INVERTED COMPANION to gates/030_resources.rq. ZERO ROWS IS THE PASS CONDITION.
+#
+# Why this file exists: gates/030_resources.rq is a conjunctive SELECT, so it
+# FAILS OPEN. Deleting amp:primaryKeyKind from amp:BookResource drops that gate
+# from 2 rows to 1 while gates/040_attributes.rq still returns all 9 rows, so
+# Book's 5 attributes get projected onto a resource that is never generated --
+# and the gate still scores :pass under GgenIgniter.GateVerify's `[_|_] -> :pass`
+# rule. Each UNION branch below re-emits exactly one conjunct of that gate as a
+# refutation: a row appears only when a required fact is ABSENT.
+#
+# DIALECT: OPTIONAL + BIND + UNION + FILTER + BOUND only. The `sparql` hex
+# engine (GgenIgniter.Query.run/2, the engine GateVerify itself uses) has no
+# EXISTS implementation at all -- there is no exists.ex under
+# deps/sparql/lib/sparql/algebra/expression/ -- and VALUES has no algebra behind
+# it. This subset is verified to return identical rows on both the `sparql` hex
+# engine and the oxigraph NIF (GgenIgniter.Query.Oxigraph.run/2).
+#
+# No ORDER BY: it would be cosmetic here anyway, because the `sparql` engine
+# does not honour it (a disclosed engine defect, GgenIgniter.Query's moduledoc),
+# and row ORDER is irrelevant to a zero-rows-is-pass check.
+#
+# ANCHOR LIMIT, disclosed rather than hidden: every branch anchors on
+# `?subject a amp:Resource`, so a Resource that loses its rdf:type assertion
+# outright is invisible HERE -- measured, on a copy of this ontology: deleting
+# `a amp:Resource` from amp:BookResource produces zero rows from this file.
+# That case is covered by the complementary contract in verify/cardinality.json
+# ("resources" => ROWS anchored on amp:resourceModule), which reports gate 1 vs
+# contract 2 for the same deletion. The anchors have to DIFFER for the pair to
+# work: a class-anchored contract would drop 2 -> 1 in step with the gate and
+# see nothing, sharing this file's exact blind spot. That file's ANCHOR note
+# records the full measurement.
+
+SELECT ?subject ?missing_property
+WHERE {
+  {
+    ?subject a amp:Resource .
+    OPTIONAL { ?subject amp:resourceModule ?p_resource_module }
+    FILTER (!BOUND(?p_resource_module))
+    BIND("amp:resourceModule" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:Resource .
+    OPTIONAL { ?subject amp:resourceDomain ?p_resource_domain }
+    FILTER (!BOUND(?p_resource_domain))
+    BIND("amp:resourceDomain" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:Resource .
+    OPTIONAL { ?subject amp:resourceRank ?p_resource_rank }
+    FILTER (!BOUND(?p_resource_rank))
+    BIND("amp:resourceRank" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:Resource .
+    OPTIONAL { ?subject amp:primaryKeyKind ?p_pk_kind }
+    FILTER (!BOUND(?p_pk_kind))
+    BIND("amp:primaryKeyKind" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:Resource .
+    OPTIONAL { ?subject amp:primaryKeyName ?p_pk_name }
+    FILTER (!BOUND(?p_pk_name))
+    BIND("amp:primaryKeyName" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:Resource .
+    OPTIONAL { ?subject amp:hasTimestamps ?p_has_timestamps }
+    FILTER (!BOUND(?p_has_timestamps))
+    BIND("amp:hasTimestamps" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:Resource .
+    OPTIONAL { ?subject amp:usesBaseResource ?p_uses_base }
+    FILTER (!BOUND(?p_uses_base))
+    BIND("amp:usesBaseResource" AS ?missing_property)
+  }
+  UNION
+  {
+    # THE CROSS-HOP. gates/030_resources.rq also requires the TARGET Domain to
+    # carry amp:domainModule. Its absence drops the RESOURCE row, not the domain
+    # row -- gates/020_domains.rq would drop that domain too, but a resource
+    # pointing at a domain that is merely mis-modelled loses the resource
+    # silently. ?subject is therefore the RESOURCE that disappears, and
+    # ?missing_property names the traversed path so the diagnostic is actionable.
+    # A resource missing amp:resourceDomain entirely produces nothing here; that
+    # case is the amp:resourceDomain branch above.
+    ?subject a amp:Resource ;
+             amp:resourceDomain ?dom .
+    OPTIONAL { ?dom amp:domainModule ?p_domain_module }
+    FILTER (!BOUND(?p_domain_module))
+    BIND("amp:resourceDomain/amp:domainModule" AS ?missing_property)
+  }
+}
