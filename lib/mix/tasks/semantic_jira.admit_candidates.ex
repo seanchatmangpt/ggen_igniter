@@ -5,9 +5,10 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
   Reads work-order CANDIDATES (one JSON object per line) and prints one
   verdict per non-blank line:
 
-      mix semantic_jira.admit_candidates --candidates PATH [--authority-graph PATH]
+      mix semantic_jira.admit_candidates --candidates PATH [--authority-graph PATH] \\
+        [--epoch-manifest PATH]
 
-  Each candidate is admitted only when BOTH gates pass:
+  Each candidate is admitted only when ALL gates pass:
 
     1. `GgenIgniter.SemanticJira.admit_work_order/1` (shape, subject SHA,
        standing, required relations, `origin_authority` is an IRI); and
@@ -33,6 +34,22 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
       actuation, and pass. The ceiling is at most CONSTRUCT
       (`{:refused_candidate, {:ceiling_exceeds_construct, field, value}}`).
 
+  Gate 3, opt-in exactly like git ground truth: a candidate carrying a
+  nonempty `"epoch"` value is judged by the epoch admission gate
+  (`GgenIgniter.SemanticJira.EpochPlan.check/2`) against the stamped
+  watermark passed as `--epoch-manifest PATH` (a
+  `.ggen_igniter/epoch/<epoch>/watermark.json`). An epoch candidate whose
+  plan touches a stamped pre-epoch implementation path without a
+  fresh-manufacture plan is refused `REFUSED_EPOCH_LEGACY_EDIT`; an
+  implementation-plane touch with no manufacture plan is
+  `REFUSED_EPOCH_UNATTRIBUTED_IMPLEMENTATION`; a pre-epoch artifact named as
+  a source without a regeneration plan is
+  `REFUSED_EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT`; an epoch candidate
+  with the flag missing or the manifest unreadable is
+  `REFUSED_EPOCH_WATERMARK_UNAVAILABLE` (fail closed). Candidates WITHOUT an
+  `"epoch"` value are byte-identical to a run without the option -- the
+  canonical fabric set still manufactures unchanged.
+
   Within one batch, a later line whose `identity`, `replay_identity`, or
   admitted `work_order_digest` repeats an earlier ADMITTED line is refused
   (`{:refused_candidate, {:duplicate, field, first_line}}`): one candidate,
@@ -56,26 +73,29 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
 
   alias GgenIgniter.SemanticJira
   alias GgenIgniter.SemanticJira.Authority
+  alias GgenIgniter.SemanticJira.EpochPlan
 
   @impl Mix.Task
   def run(args) do
     {opts, _rest, invalid} =
-      OptionParser.parse(args, strict: [candidates: :string, authority_graph: :string])
+      OptionParser.parse(args,
+        strict: [candidates: :string, authority_graph: :string, epoch_manifest: :string]
+      )
 
     path = opts[:candidates]
 
     if invalid != [] or is_nil(path) do
       Mix.shell().error(
-        "usage: mix semantic_jira.admit_candidates --candidates PATH [--authority-graph PATH]"
+        "usage: mix semantic_jira.admit_candidates --candidates PATH [--authority-graph PATH] [--epoch-manifest PATH]"
       )
 
       exit({:shutdown, 2})
     end
 
-    judge_file(path, opts[:authority_graph])
+    judge_file(path, opts[:authority_graph], opts[:epoch_manifest])
   end
 
-  defp judge_file(path, authority_graph) do
+  defp judge_file(path, authority_graph, epoch_manifest) do
     lines =
       case File.read(path) do
         {:ok, bytes} ->
@@ -98,11 +118,13 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
           exit({:shutdown, 1})
       end
 
+    watermark = epoch_watermark(epoch_manifest)
+
     verdicts =
       lines
       |> Enum.with_index(1)
       |> Enum.reject(fn {line, _n} -> String.trim(line) == "" end)
-      |> Enum.map(fn {line, n} -> {n, judge_line(line, index)} end)
+      |> Enum.map(fn {line, n} -> {n, judge_line(line, index, watermark)} end)
       |> dedupe()
 
     Enum.each(verdicts, fn {n, verdict} -> Mix.shell().info(format(n, verdict)) end)
@@ -112,20 +134,45 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
     Mix.shell().info("summary admitted=#{admitted} refused=#{length(verdicts) - admitted}")
   end
 
+  # Loaded once per run, lazily: a run whose candidates never carry an
+  # "epoch" value never needs the manifest (and a missing one must not turn
+  # a no-epoch run into a failure). `nil` watermark + an epoch candidate is
+  # the fail-closed refusal inside EpochPlan.check/2, so the unavailable
+  # case needs no special path here.
+  defp epoch_watermark(nil), do: nil
+
+  defp epoch_watermark(path) do
+    case File.read(path) do
+      {:ok, bytes} ->
+        case Jason.decode(bytes) do
+          {:ok, watermark} when is_map(watermark) -> watermark
+          _ -> nil
+        end
+
+      {:error, _} ->
+        nil
+    end
+  end
+
   @doc false
-  @spec judge_line(String.t(), Authority.index()) ::
+  @spec judge_line(String.t(), Authority.index(), map() | nil) ::
           {:admitted, map(), String.t()} | {:refused, String.t() | nil, term()}
-  def judge_line(line, index) do
+  def judge_line(line, index, watermark \\ nil) do
     case Jason.decode(line) do
       {:ok, candidate} when is_map(candidate) ->
         identity = identity_of(candidate)
 
-        with :ok <- candidate_bounds(candidate),
+        with :ok <- epoch_gate(candidate, watermark),
+             :ok <- candidate_bounds(candidate),
              {:ok, admitted} <- SemanticJira.admit_work_order(candidate),
              {:ok, origin_digest} <- Authority.resolve(index, admitted["origin_authority"]) do
           {:admitted, admitted, origin_digest}
         else
-          {:error, reason} -> {:refused, identity, reason}
+          {:error, {:refused_epoch_plan, code}} when is_atom(code) ->
+            {:refused, identity, EpochPlan.refusal_code_string(code)}
+
+          {:error, reason} ->
+            {:refused, identity, reason}
         end
 
       {:ok, other} ->
@@ -135,6 +182,13 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
         {:refused, nil, {:refused_work_order, {:invalid_json, position}}}
     end
   end
+
+  # The epoch gate sits BEFORE the existing gates: a plan that carries
+  # pre-epoch implementation is refused for the epoch reason first. For a
+  # candidate without an "epoch" value EpochPlan.check/2 is :ok, so the
+  # chain -- and every printed line -- is byte-identical to a run without
+  # the gate.
+  defp epoch_gate(candidate, watermark), do: EpochPlan.check(candidate, watermark)
 
   # Whole-token actuations, and actuation roots matched as token prefixes
   # (MERGED, PUSHED, DEPLOYMENT, ACTUATE, ACTUATION, ...). EXECUTE is exact:
@@ -217,6 +271,12 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
   defp format(n, {:admitted, work_order, origin_digest}) do
     "admitted #{n} #{work_order["identity"]} origin=#{work_order["origin_authority"]} " <>
       "origin_digest=#{origin_digest} work_order_digest=#{work_order["work_order_digest"]}"
+  end
+
+  # Epoch refusals arrive as bare REFUSED_EPOCH_* strings and print bare; the
+  # clause is additive and cannot change a tuple-reason line's shape.
+  defp format(n, {:refused, identity, reason}) when is_binary(reason) do
+    "refused #{n} #{identity || "-"} #{reason}"
   end
 
   defp format(n, {:refused, identity, reason}) do

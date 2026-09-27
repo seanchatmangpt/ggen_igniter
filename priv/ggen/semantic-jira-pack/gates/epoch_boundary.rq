@@ -1,0 +1,18 @@
+# Epoch boundary facts (CalVer manufacturing law): exposes every admitted
+# sj:EpochBoundary as columns for the epoch machinery
+# (GgenIgniter.EpochWatermark / GgenIgniter.EpochFreshness /
+# GgenIgniter.SemanticJira.EpochPlan). Same OPTIONAL-column pattern as
+# 020_work_orders.rq; absence of a column value never invents a default in
+# the graph — code-side defaults (threshold 0.9, glob lib/**/*.ex) apply.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?boundary ?label ?issued ?watermark_tree ?similarity_threshold
+       ?implementation_glob
+WHERE {
+  ?boundary a sj:EpochBoundary ;
+            sj:epochLabel ?label .
+  OPTIONAL { ?boundary dcterms:issued ?issued . }
+  OPTIONAL { ?boundary sj:watermarkTree ?watermark_tree . }
+  OPTIONAL { ?boundary sj:similarityThreshold ?similarity_threshold . }
+  OPTIONAL { ?boundary sj:implementationGlob ?implementation_glob . }
+}

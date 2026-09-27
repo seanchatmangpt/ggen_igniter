@@ -1,0 +1,91 @@
+# v26.9.27 day ontology — work orders for v26.10.1 preparation.
+# Public vocabulary only (calver-ticket-day-pack gates consume this):
+# tickets are oslc_cm:ChangeRequest dual-typed earl:TestRequirement, the day
+# is one prov:Activity identified by the CalVer tag, acceptance anchors EARL.
+# Rendered by: mix ggen_igniter.sync --ontology <this> --query
+#   tickets=priv/ggen/calver-ticket-day-pack/gates/030_tickets.rq --for-each
+#   tickets --template priv/ggen/calver-ticket-day-pack/templates/ticket.md.eex
+#   --out "docs/jira/v26.9.27/<%= slug %>-<%= number %>.md"
+@prefix oslc:  <http://open-services.net/ns/core#> .
+@prefix oslc_cm: <http://open-services.net/ns/cm#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix earl: <http://www.w3.org/ns/earl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://ggen-igniter.dev/jira/day/v26.9.27> a prov:Activity ;
+    dcterms:identifier "v26.9.27" ;
+    dcterms:title "v26.10.1 preparation day: epoch law executable, boundary staged" ;
+    dcterms:references
+        <https://ggen-igniter.dev/jira/v26.9.27/epoch/001>,
+        <https://ggen-igniter.dev/jira/v26.9.27/epoch/002>,
+        <https://ggen-igniter.dev/jira/v26.9.27/epoch/003>,
+        <https://ggen-igniter.dev/jira/v26.9.27/epoch/004>,
+        <https://ggen-igniter.dev/jira/v26.9.27/epoch/005>,
+        <https://ggen-igniter.dev/jira/v26.9.27/epoch/006>,
+        <https://ggen-igniter.dev/jira/v26.9.27/epoch/007>,
+        <https://ggen-igniter.dev/jira/v26.9.27/epoch/008>,
+        <https://ggen-igniter.dev/jira/v26.9.27/epoch/009> .
+
+<https://ggen-igniter.dev/jira/v26.9.27/epoch/001> a oslc_cm:ChangeRequest, earl:TestRequirement ;
+    oslc:shortTitle "finish-epoch-law" ;
+    dcterms:identifier "001" ;
+    dcterms:title "Finish the epoch freshness court: falsifier corpus green, firings witnessed" ;
+    dcterms:description "Complete test/ggen_igniter_epoch_freshness_test.exs (enriched similar-fixture so the smuggling case clears the 0.9 threshold; fix heredoc escapes; drop dead helper), write test/ggen_igniter_epoch_admission_test.exs for GgenIgniter.SemanticJira.EpochPlan (gate-not-applied, watermark-unavailable, legacy_edit, lawful regeneration, residue, unattributed implementation, knowledge-plane exemption, source reuse, malformed tolerance, refusal_code_string closed set), then run the verify ladder to green." ;
+    earl:testCase [ dcterms:title "mix compile --warnings-as-errors exits 0; both epoch test files pass with every verdict atom witnessed at least once; full mix test stays green (no-regression)" ] .
+
+<https://ggen-igniter.dev/jira/v26.9.27/epoch/002> a oslc_cm:ChangeRequest, earl:TestRequirement ;
+    oslc:shortTitle "doctrine-audit" ;
+    dcterms:identifier "002" ;
+    dcterms:title "Audit the CLAUDE.md epoch section against what the code actually does" ;
+    dcterms:description "The epoch doctrine section exists in CLAUDE.md. Every command name, option, exit code, verdict atom, refusal string and exempt-plane claim in it must be re-witnessed against the landed modules and tests; drift is corrected in the section, never papered over." ;
+    earl:testCase [ dcterms:title "each CLAUDE.md epoch-section claim traces to a module, task option, test, or observed firing; any stale claim is fixed in the same change" ] .
+
+<https://ggen-igniter.dev/jira/v26.9.27/epoch/003> a oslc_cm:ChangeRequest, earl:TestRequirement ;
+    oslc:shortTitle "boundary-watermark-runbook" ;
+    dcterms:identifier "003" ;
+    dcterms:title "Execute and record the boundary watermark runbook, in pre-form, on this tree" ;
+    dcterms:description "The 26.9->26.10 boundary procedure: at the final v26.9 head, commit all implementation state, run mix ggen_igniter.epoch.watermark --epoch v26.10.1, and archive the stamp. Today it executes in pre-form: stamp --epoch v26.9.27-pre at HEAD, run epoch.check (expected: real refusals — the gate must refuse its own makers), run epoch.explain on one file; capture command/exit/output in the day runlog." ;
+    earl:testCase [ dcterms:title "watermark stamp exits 0 with non-empty files; epoch.check exits 1 with standing REFUSED and per-file verdicts; epoch.explain exits 0 with a law string; all three transcripts in _RUNLOG.md" ] .
+
+<https://ggen-igniter.dev/jira/v26.9.27/epoch/004> a oslc_cm:ChangeRequest, earl:TestRequirement ;
+    oslc:shortTitle "legacy-implementation-inventory" ;
+    dcterms:identifier "004" ;
+    dcterms:title "Inventory the pre-epoch implementation set and classify the planes" ;
+    dcterms:description "Enumerate lib/**/*.ex at the boundary candidate tree; classify each file knowledge-plane vs implementation-plane per the epoch law (lib is implementation; config and migrations are named future courts); record counts and the exact per-file list as the day's inventory.md. This inventory is what epoch-005 extracts from and what v26.10.1 must replace." ;
+    earl:testCase [ dcterms:title "inventory.md lists every tracked lib/**/*.ex file with its classification and totals that sum to the enumerated count; count matches git ls-files output" ] .
+
+<https://ggen-igniter.dev/jira/v26.9.27/epoch/005> a oslc_cm:ChangeRequest, earl:TestRequirement ;
+    oslc:shortTitle "semantic-extraction-backlog" ;
+    dcterms:identifier "005" ;
+    dcterms:title "Extract-substance backlog: semantics that live only in legacy code" ;
+    dcterms:description "For each inventory module family (epoch law aside), name the semantics that exist ONLY in implementation (not in any priv/ggen pack ontology/shape/gate) and name the owning pack that should carry them after extraction (READ OLD -> EXTRACT -> GENERALIZE -> PACK). Product: extraction-backlog.md with one row per module family: module | code-only semantics | owning pack | extraction order." ;
+    earl:testCase [ dcterms:title "every inventory module family appears exactly once with a non-empty code-only-semantics cell or an explicit 'fully projected' claim citing the pack fact that carries it" ] .
+
+<https://ggen-igniter.dev/jira/v26.9.27/epoch/006> a oslc_cm:ChangeRequest, earl:TestRequirement ;
+    oslc:shortTitle "remanufacture-wave-plan" ;
+    dcterms:identifier "006" ;
+    dcterms:title "v26.10.1 re-manufacture wave plan: packs to projections, not patches" ;
+    dcterms:description "Order the v26.10.1 construction: waves that manufacture new projections from extracted packs via ggen_igniter (mu), never edit A_26.9 in place; note where the FOND/HDDL projection (doctrine-hddl-pack) already expresses the planning layer. Product: remanufacture-waves.md with per-wave inputs (pack facts), manufactured outputs, falsifier, and dependency order." ;
+    earl:testCase [ dcterms:title "every wave names its input pack facts, its manufactured outputs, its falsifier, and its dependency on earlier waves; no wave says 'edit lib/...'" ] .
+
+<https://ggen-igniter.dev/jira/v26.9.27/epoch/007> a oslc_cm:ChangeRequest, earl:TestRequirement ;
+    oslc:shortTitle "courts-preservation-list" ;
+    dcterms:identifier "007" ;
+    dcterms:title "Courts preservation list: which tests survive the epoch, which retire" ;
+    dcterms:description "Classify test/: behavioral courts and Chicago-style falsifiers carry forward (the judge is not the candidate; Test_t(A_26.10.1) is an independent historical falsifier), implementation-coupled unit tests retire with their subject. Product: courts.md listing carry vs retire per test file with the one-line reason." ;
+    earl:testCase [ dcterms:title "every file in test/ appears in courts.md as carry or retire with a reason; no third category" ] .
+
+<https://ggen-igniter.dev/jira/v26.9.27/epoch/008> a oslc_cm:ChangeRequest, earl:TestRequirement ;
+    oslc:shortTitle "ledger-paydown-plan" ;
+    dcterms:identifier "008" ;
+    dcterms:title "HANDWRITTEN ledger paydown plan for the epoch" ;
+    dcterms:description "The 1% ledger must shrink monotonically per milestone and growth requires a paydown plan in the same change. Read HANDWRITTEN.md rows and the UNSUPPORTED rows in owning ontologies; for each, name the 26.10.1 disposition: extracted into a pack fact (row retires), regenerated by an admitted generator (row retires), or still-irreducible (row carries with justification). Product: ledger-paydown.md." ;
+    earl:testCase [ dcterms:title "every HANDWRITTEN.md row has a 26.10.1 disposition; dispositions that keep rows name the exact missing capability and owner pack" ] .
+
+<https://ggen-igniter.dev/jira/v26.9.27/epoch/009> a oslc_cm:ChangeRequest, earl:TestRequirement ;
+    oslc:shortTitle "evidence-continuity" ;
+    dcterms:identifier "009" ;
+    dcterms:title "Evidence continuity across the boundary: receipts, OCEL, manifests" ;
+    dcterms:description "Epoch check attributes files from .ggen_igniter/manifest.json and receipts/*.jsonl — verify what is tracked vs gitignored, what survives the epoch replacement, and record the out-of-subject receipts gap (exact-head ALIVE needs receipts outside the tree they certify). Product: evidence-continuity.md with tracked/ignored classification and the boundary procedure for evidence." ;
+    earl:testCase [ dcterms:title "evidence-continuity.md states for each evidence class (manifest, receipts, OCEL, qualification) whether it is git-tracked, where it lives at the boundary, and how v26.10.1 manufacture receipts will attribute fresh files" ] .

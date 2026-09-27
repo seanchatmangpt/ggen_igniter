@@ -202,3 +202,25 @@ SoftwareAgent-typed agents under the SHACL-core `rdfs:subClassOf*` rule.
   permits them; the pack has persisted generator identity only at the
   ProjectionSpec level, not per work order. Blocked on persisted per-row
   provenance, which the reconciler may write in a future wave.
+
+## Epoch boundary terms (2026-09-27, epoch-law wave)
+
+`sj:`-retained (no exact public equivalent for a CalVer implementation-epoch
+boundary as a manufacturing constraint; instant reuses public `dcterms:issued`):
+
+| term | type | role |
+|---|---|---|
+| `sj:EpochBoundary` | `rdfs:Class` | One admitted CalVer epoch boundary; implementation files authored before its watermark are legacy evidence, not future implementation |
+| `sj:epochLabel` | `rdf:Property` | CalVer label of the epoch beginning at the boundary (e.g. `v26.10.1`) |
+| `sj:watermarkTree` | `rdf:Property` | 40-hex git tree SHA of the stamped pre-epoch implementation tree |
+| `sj:similarityThreshold` | `rdf:Property` | Jaccard refusal threshold of the freshness court (default 0.9 code-side) |
+| `sj:implementationGlob` | `rdf:Property` | Implementation-plane glob the boundary stamps (default `lib/**/*.ex`) |
+| `sj:epoch` | `rdf:Property` | WorkOrder → epoch label; presence opts the order into the epoch admission gate |
+| `sj:planTouches` | `rdf:Property` | WorkOrder → repo-relative path the plan touches (repeatable) |
+
+`dcterms:issued` is REUSED for the watermark instant (public-carried
+disposition: no new instant predicate where dcterms already speaks).
+Enforcement lives in `gates/epoch_boundary.rq`,
+`GgenIgniter.EpochWatermark`, `GgenIgniter.EpochFreshness` and
+`GgenIgniter.SemanticJira.EpochPlan`; nothing in this section is
+authority-bearing by itself.

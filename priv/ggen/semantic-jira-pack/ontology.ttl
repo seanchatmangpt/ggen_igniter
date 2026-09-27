@@ -2391,3 +2391,46 @@ sj:trust-root-objective-code-work-authority a sj:AuthorityTrustRoot ;
     sj:authorityIri sj:objective-code-work-authority ;
     sj:admissionDigest "sha256:310e14f1e30a9bb4d6ebd4388036e10ce3c973b13c0d45a7b550fa3dfd53c72c" ;
     sj:sourceLocator "git:seanchatmangpt/ggen_igniter@4988ac61bb6903d2cd9c6855d9c0c942ac9eb57e:priv/ggen/semantic-jira-pack/ontology.ttl" .
+
+# --- Epoch boundary (CalVer manufacturing law) --------------------------------
+# v26.10.1-class boundaries as first-class manufacturing facts: source
+# authored before the watermark instant is legacy evidence, not future
+# implementation. Knowledge plane (this ontology, packs, gates, templates,
+# docs) and the falsifier court (tests, fixtures, receipts) persist across
+# the boundary; the implementation plane phases. Provenance wording reuses
+# PROV-O instincts via dcterms:issued for the instant — no new instant
+# predicate is invented where dcterms already speaks.
+
+sj:EpochBoundary a rdfs:Class ;
+    rdfs:label "CalVer epoch boundary" ;
+    rdfs:comment "An admitted boundary between implementation epochs: sj:epochLabel names the CalVer epoch, dcterms:issued is the watermark instant, sj:watermarkTree pins the pre-epoch tree. Implementation files authored before the watermark are legacy evidence for the replacement; they never carry forward as edited implementation. Semantic reuse (ontology -> ggen_igniter -> new projection) is the point of the boundary; implementation carryover (A_old + delta -> A_new) is the violation." .
+
+sj:epochLabel a rdf:Property ;
+    rdfs:domain sj:EpochBoundary ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The CalVer label of the epoch beginning at this boundary (e.g. \"v26.10.1\")." .
+
+sj:watermarkTree a rdf:Property ;
+    rdfs:domain sj:EpochBoundary ;
+    rdfs:range xsd:string ;
+    rdfs:comment "40-hex git tree SHA of the pre-epoch implementation tree the boundary stamped; identity, not blame." .
+
+sj:similarityThreshold a rdf:Property ;
+    rdfs:domain sj:EpochBoundary ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Jaccard similarity at or above which an unattributed implementation file is REFUSED_UNEXPLAINED_SIMILARITY by the freshness court. Default 0.9 when absent." .
+
+sj:implementationGlob a rdf:Property ;
+    rdfs:domain sj:EpochBoundary ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Glob of the implementation plane this boundary stamps (default \"lib/**/*.ex\"). Knowledge-plane and test files are never epoch-bound." .
+
+sj:epoch a rdf:Property ;
+    rdfs:domain sj:WorkOrder ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The epoch label this work order's implementation targets. Its presence on a candidate opts the order into the epoch admission gate (GgenIgniter.SemanticJira.EpochPlan) — the same two-level opt-in discipline as sj:requiresGitGroundTruth." .
+
+sj:planTouches a rdf:Property ;
+    rdfs:domain sj:WorkOrder ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Repo-relative path the order's plan touches; repeatable. Judged against the epoch watermark's stamped paths by the admission gate." .
