@@ -1,0 +1,15 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+# The generator capability envelope. `admitted` is the fail-closed gate the
+# rendered task consults before composing any upstream morphism.
+SELECT ?mix_task ?standing ?admitted ?phase ?idempotency_mechanism ?evidence
+WHERE {
+  ?c a amp:GeneratorCapability ;
+     amp:mixTask ?mix_task ;
+     amp:standing ?standing ;
+     amp:admitted ?admitted ;
+     amp:phase ?phase ;
+     amp:idempotencyMechanism ?idempotency_mechanism ;
+     amp:evidence ?evidence .
+}
+ORDER BY ?mix_task
