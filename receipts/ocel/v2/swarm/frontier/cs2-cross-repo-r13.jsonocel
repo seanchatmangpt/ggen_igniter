@@ -1,0 +1,22 @@
+{
+  "ocel:version": "2.0",
+  "run_id": "cs2-cross-repo-r13",
+  "objects": [
+    {"id": "repo:seanchatmangpt/ggen_igniter", "type": "repository"},
+    {"id": "branch:closure/v26.9.27-cs2-cross-repo-r13-igniter", "type": "branch"},
+    {"id": "subject:cs2-marketplace-to-semantic-jira", "type": "capability"}
+  ],
+  "events": [
+    {
+      "id": "compose-cs2-batch-and-ingest",
+      "type": "compose",
+      "objects": ["subject:cs2-marketplace-to-semantic-jira"],
+      "attributes": {
+        "default_base_sha": "a332636679d1f85f59df79d61549a54844edb3df",
+        "parent_checkpoint_sha": "dc3885ef0397f2650ae5accb619ccaca231c15e1",
+        "upstream_pack_branch": "closure/v26.9.27-cs2-cross-repo-r13-marketplace",
+        "authority": "NONE"
+      }
+    }
+  ]
+}
