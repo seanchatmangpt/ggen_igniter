@@ -64,7 +64,7 @@ See `docs/status.md` for the complete, sourced capability table and
 
 ## Packs
 
-`priv/ggen/*` ships the following 15 packs (the `--pack NAME` convention;
+`priv/ggen/*` ships the following 16 packs (the `--pack NAME` convention;
 original pack purposes sourced from `docs/v26.9.1-requirements.md` §3 — the
 disk inventory below is authoritative):
 
@@ -73,6 +73,10 @@ disk inventory below is authoritative):
 - **`reactor-scaffold-pack`** — scaffolds a new Reactor-pipeline coordination
   module.
 - **`ash-notifier-load2-pack`** — Ash notifier load-path projections.
+- **`ash-manufacture-pack`** — the single shipped Ash manufacture profile:
+  admitted application semantics → one composed `Igniter.Mix.Task` → real upstream
+  Ash/Igniter generators. Historical marketplace `ash-*` names are not peer
+  construction authorities.
 - **`incremental-discovery-pack`** — streaming directly-follows-graph (DFG)
   discovery, ported from ex4pm's `incremental.ex`; covered by
   `test/ggen_igniter_incremental_dfg_test.exs`.
@@ -109,8 +113,9 @@ disk inventory below is authoritative):
   registry for the zcode agent loop (TypeScript projection).
 
 The former `gall-semantic-work-pack` was deleted 2026-09-20 (folded into
-`semantic-jira-pack`). `ash_manufacture_pack`, listed here previously, never
-landed in this repository.
+`semantic-jira-pack`). The qualified Ash manufacture fixture is now promoted as
+`ash-manufacture-pack`; `test/fixtures/ash_manufacture_pack` remains qualification
+evidence rather than a second discovery surface.
 
 See `priv/ggen/CLAUDE.md` for the fixed `--pack` subpath/naming convention
 and `docs/v26.9.1-requirements.md` for the original requirements list.
