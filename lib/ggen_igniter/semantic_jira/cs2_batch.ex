@@ -71,7 +71,7 @@ defmodule GgenIgniter.SemanticJira.CS2Batch do
              "authority" => "NONE"
            }
          end)
-       end}
+       end)}
     end
   end
 
