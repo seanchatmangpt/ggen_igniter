@@ -1,0 +1,18 @@
+# Contingencies: the falsifiers (and named counter-strategies) of every
+# strategy some candidate applicability binds. The templates keep only the
+# strategies admitted by gate 030. Each falsifier becomes one nondeterministic
+# observation whose effect is `(oneof refuted held)` -- oneof as the WHOLE
+# effect, never nested in `and`. SELECT only; authority NONE.
+PREFIX sd: <https://ggen.dev/ontology/strategic-doctrine#>
+
+SELECT ?strategy ?falsifier ?property ?comparator ?threshold ?window ?counter WHERE {
+  ?applicability a sd:DoctrineApplicability ;
+    sd:applicabilityOf ?strategy .
+  ?strategy sd:hasFalsifier ?falsifier .
+  ?falsifier sd:observedProperty ?property ;
+    sd:comparator ?comparator ;
+    sd:threshold ?threshold ;
+    sd:windowDays ?window .
+  OPTIONAL { ?strategy sd:counteredBy ?counter }
+}
+ORDER BY ?strategy ?falsifier
