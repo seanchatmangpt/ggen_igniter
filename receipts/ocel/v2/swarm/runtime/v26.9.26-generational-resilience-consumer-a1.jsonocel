@@ -1,0 +1,36 @@
+{
+  "objectTypes": [
+    {"name": "Run", "attributes": []},
+    {"name": "Repository", "attributes": []},
+    {"name": "Branch", "attributes": []},
+    {"name": "BaseCommit", "attributes": []},
+    {"name": "Capability", "attributes": []},
+    {"name": "CodeSurface", "attributes": []}
+  ],
+  "eventTypes": [
+    {"name": "task_started", "attributes": []},
+    {"name": "source_read", "attributes": []},
+    {"name": "scope_locked", "attributes": []},
+    {"name": "branch_created", "attributes": []},
+    {"name": "write_succeeded", "attributes": []},
+    {"name": "receipt_materialized", "attributes": []}
+  ],
+  "objects": [
+    {"id": "run:v26.9.26-generational-resilience-consumer-a1", "type": "Run", "attributes": [], "relationships": []},
+    {"id": "repo:seanchatmangpt/ggen_igniter", "type": "Repository", "attributes": [], "relationships": []},
+    {"id": "branch:v26.9.26/generational-resilience-consumer-a1", "type": "Branch", "attributes": [], "relationships": []},
+    {"id": "base:c33b0f676e996ae1805cd69702c60a30af27fd16", "type": "BaseCommit", "attributes": [], "relationships": []},
+    {"id": "capability:generational-resilience-consumer", "type": "Capability", "attributes": [], "relationships": []},
+    {"id": "surface:beam-policy", "type": "CodeSurface", "attributes": [], "relationships": []},
+    {"id": "surface:tests", "type": "CodeSurface", "attributes": [], "relationships": []},
+    {"id": "surface:adr", "type": "CodeSurface", "attributes": [], "relationships": []}
+  ],
+  "events": [
+    {"id": "e1", "type": "task_started", "time": "2026-09-26T00:00:00Z", "attributes": [], "relationships": [{"objectId": "run:v26.9.26-generational-resilience-consumer-a1", "qualifier": "run"}]},
+    {"id": "e2", "type": "source_read", "time": "2026-09-26T00:00:01Z", "attributes": [], "relationships": [{"objectId": "repo:seanchatmangpt/ggen_igniter", "qualifier": "repository"}, {"objectId": "base:c33b0f676e996ae1805cd69702c60a30af27fd16", "qualifier": "base"}]},
+    {"id": "e3", "type": "scope_locked", "time": "2026-09-26T00:00:02Z", "attributes": [], "relationships": [{"objectId": "capability:generational-resilience-consumer", "qualifier": "capability"}]},
+    {"id": "e4", "type": "branch_created", "time": "2026-09-26T00:00:03Z", "attributes": [], "relationships": [{"objectId": "branch:v26.9.26/generational-resilience-consumer-a1", "qualifier": "branch"}]},
+    {"id": "e5", "type": "write_succeeded", "time": "2026-09-26T00:00:04Z", "attributes": [], "relationships": [{"objectId": "surface:beam-policy", "qualifier": "surface"}, {"objectId": "surface:tests", "qualifier": "surface"}, {"objectId": "surface:adr", "qualifier": "surface"}]},
+    {"id": "e6", "type": "receipt_materialized", "time": "2026-09-26T00:00:05Z", "attributes": [], "relationships": [{"objectId": "run:v26.9.26-generational-resilience-consumer-a1", "qualifier": "run"}]}
+  ]
+}
