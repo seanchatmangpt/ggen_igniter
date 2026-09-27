@@ -2106,7 +2106,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2134,7 +2134,7 @@
       "explanation": null,
       "id": "m00_identity",
       "rule": "no change: both kernels must reproduce the unmutated verdict",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [],
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
@@ -2155,7 +2155,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2183,7 +2183,7 @@
       "explanation": null,
       "id": "m01_drop_base_sha",
       "rule": "sh:minCount 1 on sj:baseSha",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2208,7 +2208,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2236,7 +2236,7 @@
       "explanation": null,
       "id": "m02_base_sha_not_sha",
       "rule": "sh:pattern ^[0-9a-f]{40}$ on sj:baseSha",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2261,7 +2261,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2289,7 +2289,7 @@
       "explanation": null,
       "id": "m03_standing_invalid",
       "rule": "sh:pattern on sj:standing",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2314,7 +2314,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2342,7 +2342,7 @@
       "explanation": null,
       "id": "m04_authority_ceiling_do",
       "rule": "sh:pattern OBSERVE|SELECT|CONSTRUCT on sj:authorityCeiling",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2367,7 +2367,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2395,7 +2395,7 @@
       "explanation": null,
       "id": "m05_identifier_lowercase",
       "rule": "sh:pattern on dcterms:identifier",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2420,7 +2420,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2448,7 +2448,7 @@
       "explanation": null,
       "id": "m06_title_not_string",
       "rule": "sh:datatype xsd:string on dcterms:title",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2473,7 +2473,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2501,7 +2501,7 @@
       "explanation": null,
       "id": "m07_second_title",
       "rule": "sh:maxCount 1 on dcterms:title",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2526,7 +2526,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2554,7 +2554,7 @@
       "explanation": null,
       "id": "m08_empty_description",
       "rule": "sh:minLength 1 on dcterms:description",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2579,7 +2579,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2607,7 +2607,7 @@
       "explanation": null,
       "id": "m09_closed_extra_predicate",
       "rule": "sh:closed on sj:WorkOrderShape",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2632,7 +2632,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2660,7 +2660,7 @@
       "explanation": null,
       "id": "m10_court_untyped",
       "rule": "sh:class sj:Court on sj:requiresCourt",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2685,7 +2685,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2822,7 +2822,7 @@
       },
       "id": "m11_alive_without_receipt",
       "rule": "sh:sparql ALIVE requires exact SHAs and a durable receipt",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2848,7 +2848,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -2934,7 +2934,7 @@
       },
       "id": "m12_authority_unbound",
       "rule": "sh:sparql authority-requiring work binds authority/lease/worker",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -2959,7 +2959,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -3045,7 +3045,7 @@
       },
       "id": "m13_duplicate_identifier",
       "rule": "sh:sparql work order identifiers unique",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -3070,7 +3070,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -3156,7 +3156,7 @@
       },
       "id": "m14_duplicate_replay_identity",
       "rule": "sh:sparql replay identities unique",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -3181,7 +3181,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -3270,7 +3270,7 @@
       },
       "id": "m15_dangling_dependency",
       "rule": "sh:sparql dependency identities resolve to WorkOrders",
-      "shapes_sha256": "2fe3070c2fd877d3cb29f5877d1439d624e72fb5b852a88e3b4752f0dab7cf91",
+      "shapes_sha256": "fc5afdc5942aac14ea005bbdb4bc5d81d68f21780654be09c18ae74a69c15105",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01",
         "https://ggen-igniter.dev/ontology/semantic-jira#edge-afde-26922-01-on-dangling"
@@ -3298,7 +3298,7 @@
           "class": "DISAGREE",
           "stricter": "praxis_graphlaw.wasm"
         },
-        "shapes_sha256": "e7c68198841924c6aa6235a8e50028ca6e9c6b522936e33bb13fa2d8a28d5fb7",
+        "shapes_sha256": "dd75b8e61919a6b07d4179f355ea4ef1ecbc38e7185c39a0bf3b8db514ef9aa6",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -3363,7 +3363,7 @@
       },
       "id": "m16_projection_claims_authority",
       "rule": "sh:hasValue NONE on sj:authorityClaim (ProjectionSpec)",
-      "shapes_sha256": "e7c68198841924c6aa6235a8e50028ca6e9c6b522936e33bb13fa2d8a28d5fb7",
+      "shapes_sha256": "dd75b8e61919a6b07d4179f355ea4ef1ecbc38e7185c39a0bf3b8db514ef9aa6",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#projection-jira"
       ],
@@ -3388,7 +3388,7 @@
         "classification": {
           "class": "AGREE_ADMIT"
         },
-        "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+        "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
         "verdicts": {
           "ggen_igniter.semantic_jira.shacl": {
             "detail": "Report: 0 violations",
@@ -3416,7 +3416,7 @@
       "explanation": null,
       "id": "m17_repository_pattern",
       "rule": "sh:pattern owner/name on sj:repository",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "touched": [
         "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01"
       ],
@@ -3448,7 +3448,7 @@
       "id": "AFDE-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-01",
       "repo": "autofde-lab",
-      "shapes_sha256": "2d72e135d4900df5902c21b3b4354080ec6467b6e3d697b640f0672a2298f17b",
+      "shapes_sha256": "185028c317be7456e69522797d1bcdab2755980529a68702fdd7032f2a2c48db",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3473,7 +3473,7 @@
       "id": "AFDE-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-02",
       "repo": "autofde-lab",
-      "shapes_sha256": "284780264f6225419c4539aaf6ece93d2ca899d3aff7fc391199825b659dffcd",
+      "shapes_sha256": "8eb3ea626d22c9e53069084c51c4809b6d21ead7934587a911f8768b674a94d7",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3498,7 +3498,7 @@
       "id": "AFDE-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-03",
       "repo": "autofde-lab",
-      "shapes_sha256": "41bff44fe4def0b7fa4b330b1479d6595596496b3baa730c1c4af47a5b625ba3",
+      "shapes_sha256": "c338c17ec7ff1f8341b596ff7ae9468539536b59fd14ea8e08d06eb795dd8676",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3523,7 +3523,7 @@
       "id": "AFDE-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-04",
       "repo": "autofde-lab",
-      "shapes_sha256": "d4883d6551c4271eee0b544ea2834b055cf875698a21500a67e02f9d7a366d8e",
+      "shapes_sha256": "04bf955d0bf05d8b1b760afc0ac60fed8af3ce0daf3ef32b8841ed6f8c6b6182",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3548,7 +3548,7 @@
       "id": "AFDE-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-05",
       "repo": "autofde-lab",
-      "shapes_sha256": "3db07b6d05f618faa84385eb0f770518cd500a1cab25d368e902c3d4250f4ea1",
+      "shapes_sha256": "2848c71eb622088c4206422ab9dbe2f6dba960f3fccdbdb62aaf2c00e9d94d4a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3573,7 +3573,7 @@
       "id": "AFDE-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-06",
       "repo": "autofde-lab",
-      "shapes_sha256": "6f83a8295d899ec0500960a25522bb40f6a8147606470f983768d8f6319a7ccc",
+      "shapes_sha256": "8a1465d3add67d54465629f269d9558aa585e071480ab1e4b634122edfa46dfd",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3598,7 +3598,7 @@
       "id": "AFDE-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-07",
       "repo": "autofde-lab",
-      "shapes_sha256": "661c72974d93d344bfd79c5ce071251449f2170f9bd5be0879b7caa29a986e6c",
+      "shapes_sha256": "44ef8128e64e51b622765f0bf543704c1dc9baa27efecd6629ea48239f901446",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3623,7 +3623,7 @@
       "id": "AFDE-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-08",
       "repo": "autofde-lab",
-      "shapes_sha256": "bb2792765f16c41e7a78acdf5ef70cf8df27322b59be2aae542faa177297e04f",
+      "shapes_sha256": "6b3a9a1bec0c1921755324f7cce7ef18789d379c2bf3c0d12903a81b18bf2189",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3648,7 +3648,7 @@
       "id": "AFDE-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-09",
       "repo": "autofde-lab",
-      "shapes_sha256": "e4a54b42bd4ed8821cbfd38363c92f5edc3542f6690bdf025a9c83c1ba6d9ed5",
+      "shapes_sha256": "1212d3775abb24d632929fac62215a601eac1684aeeda56fa7cf86b8423d4b2c",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3673,7 +3673,7 @@
       "id": "AFDE-26922-10",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-10",
       "repo": "autofde-lab",
-      "shapes_sha256": "16f8ddb6968869be4e5c331e700a947845ce47e7e10845f632d86f85a72fa0b8",
+      "shapes_sha256": "c3360678af9b292e0203ff483a24fc3547ff035543a834cdd44dcd8ca01f36d8",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3698,7 +3698,7 @@
       "id": "AFDE-26922-11",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#afde-26922-11",
       "repo": "autofde-lab",
-      "shapes_sha256": "632eff37ebc66a4943dc359c4a56a926e4eeac12e7c7b2c3c689a02ff4b35e59",
+      "shapes_sha256": "896d5d4dea6ee82c9e5746c6c5981d372bc1ce6817ba82dcee0801a4fe11b0d3",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3781,7 +3781,7 @@
       "id": "ASF-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-01",
       "repo": "ash_surface",
-      "shapes_sha256": "166f11943120d8c5d05ea8ec23111e21e9db88c2ab6027a3c1ade2b4e6527da9",
+      "shapes_sha256": "a2f21f798f411c2973929d5e8907f2302246391c8dbb4713e1140d8d76763808",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -3808,7 +3808,7 @@
       "id": "ASF-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-02",
       "repo": "ash_surface",
-      "shapes_sha256": "e9e85531368bf909624a8ce5ef6305532fee67e24ed78fce1a244de57365a304",
+      "shapes_sha256": "b44b893de8d7dd14166b0ba9a3fd91c4ba2525187b4c20ef0c06ad862c60c386",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3833,7 +3833,7 @@
       "id": "ASF-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-03",
       "repo": "ash_surface",
-      "shapes_sha256": "739548f643c9e8f6f3110b55527e131d04b26b61b5cafba26711fb3509458c4d",
+      "shapes_sha256": "face1b788fd491baaa4860eb31c9644f14fc91ff37e4c301058ee43699a82f11",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3858,7 +3858,7 @@
       "id": "ASF-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-04",
       "repo": "ash_surface",
-      "shapes_sha256": "fef0d200a1b012d9b1d3479670a3c819b78177f1a36a0935d77ab0b0d3eeb79d",
+      "shapes_sha256": "b9b1b1f9f2f9748096d9e1513936355cb4e872e1ce4963c56295329a7fdaaa23",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3883,7 +3883,7 @@
       "id": "ASF-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-05",
       "repo": "ash_surface",
-      "shapes_sha256": "c0039e7afe8a5c7b52ba9ab484578129dcede0c8d6117283bbb3ab9ce4f4b85d",
+      "shapes_sha256": "5f4cb71a4a6fde3caac8ded3e3ebfb7bd9a47f1af448dcf20cd6f65e6c435b77",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3908,7 +3908,7 @@
       "id": "ASF-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-06",
       "repo": "ash_surface",
-      "shapes_sha256": "80b803f1f37ba4b5470f4f665dd835641691928679522a0014af53000ecf3a3a",
+      "shapes_sha256": "cf93c63e299cf0f41ad477e165061c9800a034be3fecca4d7938632d058b09a3",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3933,7 +3933,7 @@
       "id": "ASF-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-07",
       "repo": "ash_surface",
-      "shapes_sha256": "392e6652fba7fa203fc3199ad37eb7b7681168f35e09fe249b274e594474978e",
+      "shapes_sha256": "1aa55ba59b72b0127fde4433f31f53c5072423fd75c0f5a26ba320320b25793b",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3958,7 +3958,7 @@
       "id": "ASF-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-08",
       "repo": "ash_surface",
-      "shapes_sha256": "fa3e1f7e0eff9faaf94bc7be699a9fac8dc99625a91cdde2be13fc7d9b923580",
+      "shapes_sha256": "48485d80e0499af030a348743de16d74fa600429abaa8a70a155100b5819850d",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -3983,7 +3983,7 @@
       "id": "ASF-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-09",
       "repo": "ash_surface",
-      "shapes_sha256": "0670f6026070252f5aab5b98ef24dc041b9bdc01373e1bea7eac0fb6910fbe69",
+      "shapes_sha256": "4f31995e0172855c7bb2258dd5005377d918643f87068696a346095caf147e51",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4008,7 +4008,7 @@
       "id": "ASF-26922-10",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-10",
       "repo": "ash_surface",
-      "shapes_sha256": "29f1fe9e2a16cbe888e5ad87fb8520af2bf2626737f5cb782ebdff2cbadadcf9",
+      "shapes_sha256": "d232e00a5528171368edbe6a742ad61a14d7fa0f303a15c002faca4f1942bc6d",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4033,7 +4033,7 @@
       "id": "ASF-26922-11",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#asf-26922-11",
       "repo": "ash_surface",
-      "shapes_sha256": "eab35ff0ff421d7b6a6d7d2ef03c36f8750c2db1fb672f4c812e0884373dfb8f",
+      "shapes_sha256": "d7821db0790b850ec851ba50d9f73c30a19ac5e4afc96439e860f508e451b5a9",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4058,7 +4058,7 @@
       "id": "ASH_A2A-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-01",
       "repo": "ash_a2a",
-      "shapes_sha256": "1765c08cb8fbc1f49a7e38539f081d62f10c05d209d36f57aa60714b0252d279",
+      "shapes_sha256": "5c2f0758f2e2a63e5884d83eb3725c20ad917d42fc79e905626bc2757de9d19e",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4085,7 +4085,7 @@
       "id": "ASH_A2A-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-02",
       "repo": "ash_a2a",
-      "shapes_sha256": "e361fb6d29b9645f5349cd5aba49f824e4736e8b2537bb7c6c359a2b7593bb25",
+      "shapes_sha256": "c45a8d91eefb6c849bf095cffa4319c5fdf0d8d7f42dbee79b42ba52c7ed2bf0",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4112,7 +4112,7 @@
       "id": "ASH_A2A-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-03",
       "repo": "ash_a2a",
-      "shapes_sha256": "3354164f1c5a937dc75c0a4fa2a83704b52a4880a6bc46e72780021235d57a99",
+      "shapes_sha256": "cd5c1de9a87a961356063a45d1678de55e8a4ef5eb664755567f972adfb19797",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4200,7 +4200,7 @@
       "id": "ASH_A2A-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-04",
       "repo": "ash_a2a",
-      "shapes_sha256": "5e29a76ef05cce8e57955aa73ab9de5d1032d653ffcb6686e6137877ddd802fa",
+      "shapes_sha256": "9fb33c366ef117423a980fceeff6a3016188eda6ba9542b4aeabb1446ebdbb7d",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 2 violations",
@@ -4228,7 +4228,7 @@
       "id": "ASH_A2A-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-05",
       "repo": "ash_a2a",
-      "shapes_sha256": "7b6e9cde0dc14f2c0ae1525cbf194b9b1279fc1055704c5f255178d5cef3573e",
+      "shapes_sha256": "2cd824189c1fdb474a0fa668c790b5949d966a73d96d02177dc070756d878634",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4255,7 +4255,7 @@
       "id": "ASH_A2A-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-06",
       "repo": "ash_a2a",
-      "shapes_sha256": "e00d626733bcc51b3b57880f6a30a3ad10696603038834642cea6dfa0ef500c3",
+      "shapes_sha256": "b5990cdc0a29d2a01e842b66dd4fb9b0b2232edc18db4c400ae858940cf78420",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4282,7 +4282,7 @@
       "id": "ASH_A2A-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-07",
       "repo": "ash_a2a",
-      "shapes_sha256": "cdb771b39f01b8d27af1682a31ff53fd840eaea4f65a2729f23488fad1bbdd2a",
+      "shapes_sha256": "3503874790a15bef5186478af7da8dceae88571c33118ef089a7d70e31e31812",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4309,7 +4309,7 @@
       "id": "ASH_A2A-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-08",
       "repo": "ash_a2a",
-      "shapes_sha256": "6c36d095a1985e0d6affc9925e38ba072f5199ff262649ed5d0870ee16b1a9d5",
+      "shapes_sha256": "5447bc9d8717e89f578ab7220bb2f43f2054301bd769b7ced045c5ded8d50e02",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4336,7 +4336,7 @@
       "id": "ASH_A2A-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-09",
       "repo": "ash_a2a",
-      "shapes_sha256": "46b093b01251970a7d3525c057a671c92228540f31dcfc764023920f14abdfd3",
+      "shapes_sha256": "58c5ff05ef93877effc946e18854f37c9fcfaf41eff34134ef1759bb38970519",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4363,7 +4363,7 @@
       "id": "ASH_A2A-26922-10",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-10",
       "repo": "ash_a2a",
-      "shapes_sha256": "8e307199ffec2397f659090bdac6fed6cafaafd4336dc628d6a3f91440c9cd94",
+      "shapes_sha256": "0d3534a5e4c656cae2f9db036b68d2afe0f2e211b886bcee88c327fda0ae5eff",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4390,7 +4390,7 @@
       "id": "ASH_A2A-26922-11",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-11",
       "repo": "ash_a2a",
-      "shapes_sha256": "1bf52ec1ab5802b7268369cba52976cb9551c3a9e142730dfe38b10ecf76de9e",
+      "shapes_sha256": "d58deb3b8809397b2b18afbdd35e9f47f83f8eaa876e62a3e3753ff9710ddba3",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4478,7 +4478,7 @@
       "id": "ASH_A2A-26922-12",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-12",
       "repo": "ash_a2a",
-      "shapes_sha256": "d259bb766527d7ca809a421052f36ddfe2eceb59ab94c8031bee0fd86d6b3255",
+      "shapes_sha256": "66407c28b52d6fb202a68385453012bad1498f42b049f9ebd77abc11c1a69f2e",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 2 violations",
@@ -4506,7 +4506,7 @@
       "id": "ASH_A2A-26922-13",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-13",
       "repo": "ash_a2a",
-      "shapes_sha256": "7f0b734d2efda06926907b5fb08467a20fd2d0d4f1418a198a71a00bdbe2801c",
+      "shapes_sha256": "7f52f055e10c9d9ae327ad9ebf6ec903b6b3a05917b15791568d9bbd786b0fb7",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4533,7 +4533,7 @@
       "id": "ASH_A2A-26922-14",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ash_a2a-26922-14",
       "repo": "ash_a2a",
-      "shapes_sha256": "c07d80bf51c7176a56b08f8d0d162d5cdc949958f93c08539342e44435464232",
+      "shapes_sha256": "f205af24e3c181665dfca187bfa16614ef7a92a1aa05594e70c8ae53a3a8202b",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4560,7 +4560,7 @@
       "id": "ASHATL-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ashatl-26922-01",
       "repo": "ash_atlassian",
-      "shapes_sha256": "de373699144f4dade74c92eff18b282ef2951bd8933434c65c6d7b51f3dae515",
+      "shapes_sha256": "22101606e5ee177b191b1bf50e5040278db8717527712cf8a50767ce7dfaedfc",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4648,7 +4648,7 @@
       "id": "ASHATL-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ashatl-26922-02",
       "repo": "ash_atlassian",
-      "shapes_sha256": "fd834e69cf9253da01c73fa1a1df18a261487cf94dc5a7ce8c49a60baa49c85b",
+      "shapes_sha256": "41efa4d6ed5ec27fac7cc753603bfa9ab483943e2b7223a9055883f2e6bb0ce5",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 2 violations",
@@ -4676,7 +4676,7 @@
       "id": "ASHATL-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ashatl-26922-03",
       "repo": "ash_atlassian",
-      "shapes_sha256": "6fff4cd3208130a8155bd23626b8a1450e1a7a2020080e9d7ef4d65a29f00dbd",
+      "shapes_sha256": "0023f0b0420061b6eacd341925ef03b3fabc4df170ce848f211c66796c556400",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4703,7 +4703,7 @@
       "id": "ASHATL-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ashatl-26922-04",
       "repo": "ash_atlassian",
-      "shapes_sha256": "23da664b3f3cb1a02c1556bb575ea950ce51577480f9cf15cb9f1f692510adea",
+      "shapes_sha256": "1093735b7bfb6a1a4f870f21f2d741909615e879c80a6857c06e9e3382f9da43",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -4730,7 +4730,7 @@
       "id": "BEAM4PM-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#beam4pm-26922-01",
       "repo": "beam4pm",
-      "shapes_sha256": "e960734baecc86b0aede83f38ccfa196f21f2922c5e161d81ebee3d3d748c059",
+      "shapes_sha256": "8bcc3220bf1a25a76b8f00a71937e09a62733daa0384d20776b6172844f9d234",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4755,7 +4755,7 @@
       "id": "BEAM4PM-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#beam4pm-26922-02",
       "repo": "beam4pm",
-      "shapes_sha256": "a919746282809e660b57d57d52728e87f743193c2af768ad761d60ffb43c3b3d",
+      "shapes_sha256": "1812d6293868037a41e6b51849f6af799ca38185a79c08d226d0282c85b8c68e",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4780,7 +4780,7 @@
       "id": "BEAM4PM-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#beam4pm-26922-03",
       "repo": "beam4pm",
-      "shapes_sha256": "322507776602253b1dbfb55f1d2f8fa54ea18ad075e80db10f22996c57ddb7bb",
+      "shapes_sha256": "08fde626953d5487df23bbe9e98b668fccfb87f8b2e9ff32615df88cf176f27b",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4805,7 +4805,7 @@
       "id": "BEAM4PM-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#beam4pm-26922-04",
       "repo": "beam4pm",
-      "shapes_sha256": "a347d429528a9c02fe9fd846567cb92f1450d736290fa4cf766d91089892a8dc",
+      "shapes_sha256": "17d1fcb9a05b7142ffd98e38632ff12ee897f9e8f24dc299d6f3394b4c38fe9d",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4830,7 +4830,7 @@
       "id": "BEAM4PM-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#beam4pm-26922-05",
       "repo": "beam4pm",
-      "shapes_sha256": "e9f13391406c124999d5c6634ead194f9528a5addc7844d46ccb3154a98e053c",
+      "shapes_sha256": "8b13b2a9114fe9afc5bfed1f9972c3af71d41434775aa7316ef2b6c30b712740",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4855,7 +4855,7 @@
       "id": "BEAM4PM-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#beam4pm-26922-06",
       "repo": "beam4pm",
-      "shapes_sha256": "08c2dce421dfe401abf1992796b68322d4133e89f78401b3fd7f959934f55522",
+      "shapes_sha256": "a09e23c8769ed950086fd2c6bd0d18b4378a3babc368860f87be4e6e163d8777",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4880,7 +4880,7 @@
       "id": "BEAM4PM-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#beam4pm-26922-07",
       "repo": "beam4pm",
-      "shapes_sha256": "99623f1b23fd7974eb291a29f7ebd6fae0616201600cccdfeac427dd28c04503",
+      "shapes_sha256": "e584dc0a2405e5f0a6cc22a4dac1d02e1d526604799aefb1cba454584ad883ba",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4905,7 +4905,7 @@
       "id": "BEAM4PM-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#beam4pm-26922-08",
       "repo": "beam4pm",
-      "shapes_sha256": "3881d238a5a2de75c5f5ce04ac82623c365d8aab47e69a57e3148cde303e7fde",
+      "shapes_sha256": "8ab3c000572adb805a1663394a266c26b22e659b850dfbd298c7a96579b93424",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -4988,7 +4988,7 @@
       "id": "BEAM4PM-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#beam4pm-26922-09",
       "repo": "beam4pm",
-      "shapes_sha256": "740fe4fced6be196f0e0ca13769f2a4583de8c088de1c40950ca102a5ae8cb7a",
+      "shapes_sha256": "4ad905ae4f905b21089ebafbde3b2197f2ad1a53b00e9047657130206641e621",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -5076,7 +5076,7 @@
       "id": "CHATMAN-ECOSYSTEM-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#chatman-ecosystem-26922-01",
       "repo": "chatman-ecosystem",
-      "shapes_sha256": "9257c742a3e122302e867b77363129fe07c52f1bb704267a2a6e7f54f209f068",
+      "shapes_sha256": "53aafaa4604086e3e6f4dfb1f2be5ac2444000a9108c26b58e92aaac0ae52205",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 2 violations",
@@ -5165,7 +5165,7 @@
       "id": "CHATMAN-ECOSYSTEM-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#chatman-ecosystem-26922-02",
       "repo": "chatman-ecosystem",
-      "shapes_sha256": "00ddd1d50d107561c699de7fa6df41e29d34c73d2b9c66b92ac96e5db4f58e06",
+      "shapes_sha256": "f5f627bfc2cef2d41781ee62f9cbb72e2e7f48ca9d52d163e5c4fa70a8ddf283",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 2 violations",
@@ -5193,7 +5193,7 @@
       "id": "CHATMAN-ECOSYSTEM-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#chatman-ecosystem-26922-03",
       "repo": "chatman-ecosystem",
-      "shapes_sha256": "1c29ed4acf7f1bef148d9d9fce7bb785cf2f402893fad5ff97d8a7e9887c10cc",
+      "shapes_sha256": "8cfb16ee946783122d0c7fd322e1d4c6907ec63d080223f58171b34e5da63cd0",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -5278,7 +5278,7 @@
       "id": "FDDB-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#fddb-26922-01",
       "repo": "frozen-duckdb",
-      "shapes_sha256": "3c29efb2edf5dfb2df6162d14e98ab37070a88c13d0d55a1239d601b2f22a6dc",
+      "shapes_sha256": "36fb38d951d8d49157dac27b257e98938c8be4d10ee11a36e2987905b107c833",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -5305,7 +5305,7 @@
       "id": "FDDB-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#fddb-26922-02",
       "repo": "frozen-duckdb",
-      "shapes_sha256": "0bf06b8c6d44a200d0c57aa133fd15a1f61c5446c3b312389faf585f8d183a3a",
+      "shapes_sha256": "9b9ef231bdbde8866c6fe4187e634d398da858817f26b7b5992cfb2e0d3ff0db",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5330,7 +5330,7 @@
       "id": "FDDB-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#fddb-26922-03",
       "repo": "frozen-duckdb",
-      "shapes_sha256": "63f5f06fbeed81c8b5acc4cb7248e3342f34a3d565d437a3fc3e4275e79ae083",
+      "shapes_sha256": "271bdad69d2498cfbadfa760735683630ee553a25e82f1a10e018a086b3da9eb",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5355,7 +5355,7 @@
       "id": "FDDB-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#fddb-26922-04",
       "repo": "frozen-duckdb",
-      "shapes_sha256": "6f6ab20d8b58be7b7e20f1ced5cb6b22e6f0c2a5bd6a983597baca176810c31e",
+      "shapes_sha256": "6a3b8426414d742eebd26acebf0f6a3b67d210b6c69a9d27f567589e9eefa6e6",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5438,7 +5438,7 @@
       "id": "FDDB-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#fddb-26922-05",
       "repo": "frozen-duckdb",
-      "shapes_sha256": "cb88697978af9ecb0c38fedec164c90dbc9afe4285b5cc7b5ad93eb69d5210ad",
+      "shapes_sha256": "8df2a1f96d58438fa4de3ddc6e2e65a741339c42f42321737be6410c9c057f34",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -5523,7 +5523,7 @@
       "id": "FDDB-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#fddb-26922-06",
       "repo": "frozen-duckdb",
-      "shapes_sha256": "41484af5a7bc6838cf484e581b59f9973371e2f3e6e35619cb02b5ae6122bf56",
+      "shapes_sha256": "ac57aa7ba8419b6c7a104c9743f2e94ad10d94616664f1b75b3b555182a58a65",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -5550,7 +5550,7 @@
       "id": "FERROPLAN-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ferroplan-26922-01",
       "repo": "ferroplan",
-      "shapes_sha256": "40bd238fdcdf60d0a7a912428988a2c90b6e84d498828f575190d7c39423839c",
+      "shapes_sha256": "db63d7ae91771352cb614f9f8ba4cde3a65278194cff8dd456b643cd7f844335",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5575,7 +5575,7 @@
       "id": "FERROPLAN-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ferroplan-26922-02",
       "repo": "ferroplan",
-      "shapes_sha256": "15acc82e48d7334fb709690c39f1e376d6192d916a69290e6467685025e16903",
+      "shapes_sha256": "e9b5e23d72ee8d93021e5de58a8ec69640422671c76a9e0d86f4fcec9c9049cc",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5658,7 +5658,7 @@
       "id": "FERROPLAN-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ferroplan-26922-03",
       "repo": "ferroplan",
-      "shapes_sha256": "da3de5e7b606c0e18af01ab7c3c1c0e66d53b16d3353e38c578cf331fed1c08a",
+      "shapes_sha256": "5353e740f99c329bdbf9af65c7562b369055f8a48683a7e231114c05b87ec17c",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -5685,7 +5685,7 @@
       "id": "FERROPLAN-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ferroplan-26922-04",
       "repo": "ferroplan",
-      "shapes_sha256": "6a96df86828ebe7f29b781ccf163beff30ab12cd3df715ea5286d51b62a97aa2",
+      "shapes_sha256": "efd9e424ca32b67bfa45d4ac3878d8151f29ed700302cc42b6eddf97a3b34f8b",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5768,7 +5768,7 @@
       "id": "FERROPLAN-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ferroplan-26922-05",
       "repo": "ferroplan",
-      "shapes_sha256": "a1b03d5dcbc13ca3cbf709d8f042542213e9c99d8045c10952acd7b677620916",
+      "shapes_sha256": "c19444dce3cbf96272324cc1d9dd89c9f954ac3657b13b430a6772905a17dcf3",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -5795,7 +5795,7 @@
       "id": "FERROPLAN-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ferroplan-26922-06",
       "repo": "ferroplan",
-      "shapes_sha256": "7cddd07bb622745c8aa49f6ecf36961efa1e6a130965e8a17907136f155c402e",
+      "shapes_sha256": "be703bbe38f542a09847f5da88a93532fa631105c52a23824bf11c916aa7ef67",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5820,7 +5820,7 @@
       "id": "FERROPLAN-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ferroplan-26922-07",
       "repo": "ferroplan",
-      "shapes_sha256": "444a106008f6bf29849b3126aae7a0bf3a1aaca344a61390107fbe151a75030a",
+      "shapes_sha256": "e960205d6ae1909d6f479b44a52eef2bd8eba7df65022841e9d8380e6ea60b1a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5845,7 +5845,7 @@
       "id": "FERROPLAN-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ferroplan-26922-08",
       "repo": "ferroplan",
-      "shapes_sha256": "0856c17614b8f7a9e216c18b750dc9010e31bb6abe3cb91357b36199db44b67b",
+      "shapes_sha256": "baa87b09d396046b30c802a60700dcdc16cd3dd6a5ec198f0413d1e804e6b3eb",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5870,7 +5870,7 @@
       "id": "FERROPLAN-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ferroplan-26922-09",
       "repo": "ferroplan",
-      "shapes_sha256": "68a586868c10966cf351d1a86db5b6e39fb43f0557c6109a8a7f57ce94f22af6",
+      "shapes_sha256": "707d3082f382da27adbdfaa2274215435e7a1d56cf4604391a1e4b0a18768b81",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5895,7 +5895,7 @@
       "id": "GGE-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-01",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "d3dc60d9cedd16ab0f1c438ce4b19b45e235a30f0c51715a48d6077a5aef1ec8",
+      "shapes_sha256": "18ba42140b6feea54d11a36e383773782dcec3932c36324d3c97cd24d001864e",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5920,7 +5920,7 @@
       "id": "GGE-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-02",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "dff209056cee85645ed8e1063746afadb0c3e264b43e00b57edbcab898f65c53",
+      "shapes_sha256": "5344a51e95793bc05cff8bb521f5eef55e401add408aa1821d8ee57e26bc75c0",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5945,7 +5945,7 @@
       "id": "GGE-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-03",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "e50cbb791f4f3109b61f263ffff40d3b9af597666b4f4d1ab52ba163c90ca401",
+      "shapes_sha256": "068d1f288528c087feb7d9831750911fe8d28dc43522a8e4153a5853e6ef3a92",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5970,7 +5970,7 @@
       "id": "GGE-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-04",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "bb2b4db7b3fd595a2dcd15f506c55a207180376a40b8383e0d88fbe06149d0d6",
+      "shapes_sha256": "15636f6dd533b0aeec0f34d3f8d0937ed28d60c98ecdf76d1cdb2a168b6ce621",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -5995,7 +5995,7 @@
       "id": "GGE-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-05",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "ac2780d5df5b2bdec45ecf407617d0170a5cbbe486962c11a611ad7548dd12b8",
+      "shapes_sha256": "1457f99e01453e38fcde2a4adc35ec90d57c9e3dd4f2062cd42ffb0edca1a150",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6020,7 +6020,7 @@
       "id": "GGE-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-06",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "d3ebc8fec732a58ca609f74162b379316a666eb8c208dbebaec76cce7a90d6c3",
+      "shapes_sha256": "b2c01f45b5c16a977d6d146406aa507ca00b0ec9e555dd49bde7497955836f1c",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6045,7 +6045,7 @@
       "id": "GGE-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-07",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "73f7f6ba3524ed79cb628c39096dea817e96ef85610322ddfed9853d922af678",
+      "shapes_sha256": "4ad6eeb08f171b6e3c13b9a6ba3c60b484c3e27dc2ff933c4935827710e4a27a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6070,7 +6070,7 @@
       "id": "GGE-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-08",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "14308ae7f583fa97461b783ae1ccb81a4fc2496044f24415e22de63bc6f3a9b4",
+      "shapes_sha256": "dd2bb4fc71198b2c2097e4a354159b190c915747ec5e467afe4a9360e05cc6ff",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6095,7 +6095,7 @@
       "id": "GGE-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-09",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "ec8b23160b35bad9331925b476554056782a94f4159ad6e38fe06e5a0302cefc",
+      "shapes_sha256": "d13edf18809e76eee0e8f3bd12f657fe6b6896bb0b3bbde8f846e06768468d24",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6120,7 +6120,7 @@
       "id": "GGE-26922-10",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-10",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "d1f9017bc25c624dffdb3c7296e04b38f257a67d47e2dc84193afa38854b8f53",
+      "shapes_sha256": "26bb9a203f622488e8fc2cbe8c923deeb9a9ea32889708841c0c447c006dc561",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6203,7 +6203,7 @@
       "id": "GGE-26922-11",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gge-26922-11",
       "repo": "ggen-ecosystem",
-      "shapes_sha256": "080025712eb059fe656aaee5771c1f81b77a6d785d3566b22e8177e289b834e8",
+      "shapes_sha256": "c0c73ddd30178e36c68a309b62017b632eb8791f184f7ce3ad7d258040212546",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6230,7 +6230,7 @@
       "id": "GGEN-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen-26922-01",
       "repo": "ggen",
-      "shapes_sha256": "779da57f7a6624ea993e4a1fbde7136073264a37dee5b8e152eaf5ede0ff5f06",
+      "shapes_sha256": "a4de7623420a8895f349fbc28c67992d43e771b9d11483edffd3b98ac741b26c",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6255,7 +6255,7 @@
       "id": "GGEN-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen-26922-02",
       "repo": "ggen",
-      "shapes_sha256": "b7334f714c62380a11c67cc584bd736cb5c166fa948cce72b8ceb28db35d1a10",
+      "shapes_sha256": "17b7a6387f5412faab2d614da418428ada96303d7737f845be2fe718fd7a1bde",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6280,7 +6280,7 @@
       "id": "GGEN-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen-26922-03",
       "repo": "ggen",
-      "shapes_sha256": "605f64657aaf3a9faa3d3b3eb6c35e40239dce4e940896a3da678a7893c216ff",
+      "shapes_sha256": "929376b7bfb69dd3ba107f6461d3453c34324f0bccfce08891e06ee39aeb0ca0",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6305,7 +6305,7 @@
       "id": "GGEN-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen-26922-04",
       "repo": "ggen",
-      "shapes_sha256": "86e30fbbb5f0acb13033b76923c146f5890fdd48304869a7b2359beae86fb261",
+      "shapes_sha256": "41cca9655b02cdc04f697395dc54e304b5ac9939dcc6d0fa4a370e6e425c47fc",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6388,7 +6388,7 @@
       "id": "GGEN-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen-26922-05",
       "repo": "ggen",
-      "shapes_sha256": "0b77d874fb10a40427720b51a194df9ceda2f27b27a2259535f1d9954e23b422",
+      "shapes_sha256": "31eb09e36508e57aa742cd6aab0592ba0446c7d0dc84ea7ffdf69673cd4f3380",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6473,7 +6473,7 @@
       "id": "GGEN-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen-26922-06",
       "repo": "ggen",
-      "shapes_sha256": "85a6c0b3b9ea2765fa37f9e241b61b07957ee403c885e13dbdf24f68d6673744",
+      "shapes_sha256": "f2663339eac500915e3e3cdb8ebfdbe2b8730573c506d7d8b3a9de03c02a9c7c",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6500,7 +6500,7 @@
       "id": "GGEN-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen-26922-07",
       "repo": "ggen",
-      "shapes_sha256": "2ed02389f3a4e21e2dcc2b21ed1d504369122d4a4a31a029b2334024a84d4315",
+      "shapes_sha256": "dd9afdbb0f53d3c81d71be86054c6c446f2bfc939839a57538755da13331daf6",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -6525,7 +6525,7 @@
       "id": "GGEN_IGNITER-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-01",
       "repo": "ggen_igniter",
-      "shapes_sha256": "42e12d3c2b48b631c5191a7f5c9e42c096594b922eae3f00335ab92cbfb751cf",
+      "shapes_sha256": "f33855dbc653e269d4af195d501efa497993ff01681cc82491f7ed6dcd572f2a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6552,7 +6552,7 @@
       "id": "GGEN_IGNITER-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-02",
       "repo": "ggen_igniter",
-      "shapes_sha256": "ae79785941fe968ba620d41c8f66ab69d283ad0ab803ebc4ecb2f6a47c5bb38b",
+      "shapes_sha256": "b964605be454b18b42d355967385cddbda07daa02ef203b24c489e677f12af63",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6640,7 +6640,7 @@
       "id": "GGEN_IGNITER-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-03",
       "repo": "ggen_igniter",
-      "shapes_sha256": "d40b5b72270c237e0d407abf684e2f9ef0a91a1c5b4c56847079fb04a439546c",
+      "shapes_sha256": "a869ed823f54f3e9426395e8025ce5192da2dad7a0eb884c6e0c6da401603afd",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 2 violations",
@@ -6668,7 +6668,7 @@
       "id": "GGEN_IGNITER-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-04",
       "repo": "ggen_igniter",
-      "shapes_sha256": "a506fffcb3fa41c4be518684da9e122830b3d63b8171b5f999aad7a826ae92a2",
+      "shapes_sha256": "9d9db75cc06bb6270bdd591288dc474c826f3197ce88760b8bc66cc4c4c1c631",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6695,7 +6695,7 @@
       "id": "GGEN_IGNITER-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-05",
       "repo": "ggen_igniter",
-      "shapes_sha256": "c90e96ee192cb6353bd8a2adc59462af682053d580f2da5aa07997f3ebedd0a8",
+      "shapes_sha256": "bbb46e71b0b869dd13e75f7a58e9d4c56646868f20544977f983475e9f429c6b",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6722,7 +6722,7 @@
       "id": "GGEN_IGNITER-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-06",
       "repo": "ggen_igniter",
-      "shapes_sha256": "8be76ed1cc8f42cf74c1efe951520eb60d68ce4e7eabe9cd68b4910df52c795f",
+      "shapes_sha256": "bbf5551d8a43fc68e7662e93805f0bb20aae6b6201abd7e8ab2d6c874bca86bb",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6749,7 +6749,7 @@
       "id": "GGEN_IGNITER-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-07",
       "repo": "ggen_igniter",
-      "shapes_sha256": "b5dc8ff01fd0c7ac87d9d07ba19efe05cfdb6123b95354a15aba449e7a0a5264",
+      "shapes_sha256": "62cac679c7a3dd675eb595c0ff13e65d977a686f38f934a2cafabb2771ca6d21",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6776,7 +6776,7 @@
       "id": "GGEN_IGNITER-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-08",
       "repo": "ggen_igniter",
-      "shapes_sha256": "a867f7e375ffc86adc01c4cbed206ae076d3d431c98590ffadd72682dd91259a",
+      "shapes_sha256": "76182efd2db588ab76f126ca4c99c47fb80f2b3ed7c21b91408e9380f58d3d8d",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6803,7 +6803,7 @@
       "id": "GGEN_IGNITER-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-09",
       "repo": "ggen_igniter",
-      "shapes_sha256": "bebb260375c285832a0f84345df3a6e01fb6d422735f28102db15cdce2683d42",
+      "shapes_sha256": "5e9b68f6a64a477f3c525876803c07c9f42f339d42ccee2da20730ab59c82d73",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6830,7 +6830,7 @@
       "id": "GGEN_IGNITER-26922-10",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-10",
       "repo": "ggen_igniter",
-      "shapes_sha256": "7ef2171977bd1aba3d614d538b2a1a66dbf5659a469bcdeb091fa3af4cc93e67",
+      "shapes_sha256": "5747a8168df8957de0ba0f5b70beb1da810e855b1ba6fb8e75582bc32d46cf1d",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6857,7 +6857,7 @@
       "id": "GGEN_IGNITER-26922-11",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-11",
       "repo": "ggen_igniter",
-      "shapes_sha256": "7a50ea35d3dc344e2ecc8bab9de10095d0e7228df47d9d5db2907e15ef7f6907",
+      "shapes_sha256": "0235d1100febaf13be11d8af0b6d99cb7b15fcd168662895931b338e639941bc",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6884,7 +6884,7 @@
       "id": "GGEN_IGNITER-26922-12",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-12",
       "repo": "ggen_igniter",
-      "shapes_sha256": "f0528572d4c3d74aef8c439f234dd3fc97496a3fa14d45cd6323af70efe0ced2",
+      "shapes_sha256": "6b2e2e049bc5dfa806c8f489d26c266133b132b506391924987937edde0db572",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -6972,7 +6972,7 @@
       "id": "GGEN_IGNITER-26922-13",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-13",
       "repo": "ggen_igniter",
-      "shapes_sha256": "ee60f14dbc6d2124bd346e9cd5143e6f3d88c5a932a3b04b0db9432732394b75",
+      "shapes_sha256": "b9f5080473cf24ad5d45cb5523d8583c49c40efe942eacb7771593081e1b7f3a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 2 violations",
@@ -7000,7 +7000,7 @@
       "id": "GGEN_IGNITER-26922-14",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-14",
       "repo": "ggen_igniter",
-      "shapes_sha256": "4fab1c3fdf90aebb14898a3d50b08775e7404c5965b2fbb5b7b897efcc4067ea",
+      "shapes_sha256": "0b99442fedb61d66fe490676dd063f754e16fd15c662e6a4e219a7bbb32a90c5",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7027,7 +7027,7 @@
       "id": "GGEN_IGNITER-26922-15",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-15",
       "repo": "ggen_igniter",
-      "shapes_sha256": "10b9a1223ae07f6d03ce1720b7845b3769079a1774c314698155b70450453166",
+      "shapes_sha256": "02ceaeaa5a73fb132acfd66abf7478cb3d44e495a77433eeb952f6de8d67d15f",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7054,7 +7054,7 @@
       "id": "GGEN_IGNITER-26922-16",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-16",
       "repo": "ggen_igniter",
-      "shapes_sha256": "d68daedf468efc6d2da789348ae5ffcf0cb479caface361de8f8a861d9b07e10",
+      "shapes_sha256": "3ab225d5ace001d6c12c604e1881a51aad0acce08fa3434c47c226c168323418",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7081,7 +7081,7 @@
       "id": "GGEN_IGNITER-26922-17",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-17",
       "repo": "ggen_igniter",
-      "shapes_sha256": "10c033387b9a015c8cdb220e7114bb6904fc0ecb370bc294a86f48be8606162c",
+      "shapes_sha256": "c48eb77cc7d7bfdc731e3978b46f2c1061707758c943047b35b329cd2c569c2c",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7108,7 +7108,7 @@
       "id": "GGEN_IGNITER-26922-18",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-18",
       "repo": "ggen_igniter",
-      "shapes_sha256": "618dfa316f4e9790aaa6a73700ab5eada3a145fd48d204cd6155399f92d1a6e4",
+      "shapes_sha256": "4ea5f73902648dcb27f907a9c72792bd63eb5f553afa2ce6854abba5e098aec3",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7135,7 +7135,7 @@
       "id": "GGEN_IGNITER-26922-19",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-19",
       "repo": "ggen_igniter",
-      "shapes_sha256": "22ca9f4680cfd82c918a2fe9f34b4aca1624ebe114862c806efc5a8028b6ca6a",
+      "shapes_sha256": "892b5adacbd9b04d24fb291c74882f8742ecb42b3d868262624acead5f23e7a3",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7162,7 +7162,7 @@
       "id": "GGEN_IGNITER-26922-21",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggen_igniter-26922-21",
       "repo": "ggen_igniter",
-      "shapes_sha256": "6a886e62642c486c75f055f0893b8fccaf88b951069b3917be437d9752eacddc",
+      "shapes_sha256": "9e066e125f10685ccd9b6af0143af0b106910a7a3d1898c8ed3f15f0998d6ecb",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7247,7 +7247,7 @@
       "id": "GGMKT-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggmkt-26922-01",
       "repo": "ggen-marketplace",
-      "shapes_sha256": "6c7711cf2010c735d1be9950b8d1bb63c177dbc864835a482522c27ea9d9f1d3",
+      "shapes_sha256": "a7844ff644e8d3d59d2d9beda4efeca9926bda51f16d465c2f2b498127172042",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7274,7 +7274,7 @@
       "id": "GGMKT-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggmkt-26922-02",
       "repo": "ggen-marketplace",
-      "shapes_sha256": "884931d81eba653ed539337a05454482cadab17d076d7c360d4ae4af87723ec0",
+      "shapes_sha256": "f5aae9fe9a1621b90fea869097418290776e3d282d6b1d70d1e3c3bd624edf5a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7299,7 +7299,7 @@
       "id": "GGMKT-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggmkt-26922-03",
       "repo": "ggen-marketplace",
-      "shapes_sha256": "43feabb6f056315316666f540dc56e4e5ecaba5856a3dfe23a3aa24015425d98",
+      "shapes_sha256": "59516cddd019c85e0322fc917457e5fe22b709a6ba5eb3ca1685fc62aea0343e",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7324,7 +7324,7 @@
       "id": "GGMKT-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggmkt-26922-04",
       "repo": "ggen-marketplace",
-      "shapes_sha256": "3687ee912af2e9598a72da3c0b2160d79abffc503ffc94e3432b0aa927c20791",
+      "shapes_sha256": "b64b32270bbfa5a01dfcf1e712efd82d646d1b005e1286065b9a96e0cff49f1e",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7349,7 +7349,7 @@
       "id": "GGMKT-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggmkt-26922-05",
       "repo": "ggen-marketplace",
-      "shapes_sha256": "b98b5402f2958deca5342d1628d5986a5ee33b7e0f62e603c01d1cfc95f7c66e",
+      "shapes_sha256": "42b0358a0f008fdf72c437f644034eae0bf307bc4af5172f4feaf4b7a205386a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7374,7 +7374,7 @@
       "id": "GGMKT-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggmkt-26922-06",
       "repo": "ggen-marketplace",
-      "shapes_sha256": "63f8225a37b1d4ec37f2c061946d5ea6b6684913aad4116b41262fd0b44c8338",
+      "shapes_sha256": "535f258cf94764b77e0bcf98bd194a1d7ad7b84a65ddcf83d135ae2730e35347",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7399,7 +7399,7 @@
       "id": "GGMKT-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggmkt-26922-07",
       "repo": "ggen-marketplace",
-      "shapes_sha256": "5a35ceb72ec4ff7f51e878c9c048723b50094b3243ee09b100281d7040b3959e",
+      "shapes_sha256": "f02485af84acb33e0a7622b4963d3d40e8a8e1d29274a44abb24652b34be5bcd",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7424,7 +7424,7 @@
       "id": "GGMKT-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggmkt-26922-08",
       "repo": "ggen-marketplace",
-      "shapes_sha256": "5dbefc086f971bf1d2ecba8cd25e6202df4e650acdf97d9f6ba939dd8c9c321a",
+      "shapes_sha256": "16708e5233b5eec80773c1f54eec065c73a7c868c673b7b66fa3eb7d7901dfa1",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7449,7 +7449,7 @@
       "id": "GGMKT-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggmkt-26922-09",
       "repo": "ggen-marketplace",
-      "shapes_sha256": "bec8f7465a0ec23bd02c2a8ebf516fdd6f2912ac557f27add9791fee2b5226ed",
+      "shapes_sha256": "b5f7f94bdd35e5d76a3e69064d530781c1818801b2895c38243163f13e6ddc92",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7532,7 +7532,7 @@
       "id": "GGMKT-26922-10",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#ggmkt-26922-10",
       "repo": "ggen-marketplace",
-      "shapes_sha256": "a058de45321e384a5317799b5b7c3d104dfc89b0b04f1425fba151a09d341442",
+      "shapes_sha256": "f2c9d4fd7dff1fd926beb0599070ae190ca78d052f22af2bb622dac00b2b7b57",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7559,7 +7559,7 @@
       "id": "GITVAN-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gitvan-26922-01",
       "repo": "gitvan",
-      "shapes_sha256": "ae38f830d41568f6bcef320a795e05b6d73f18d008645c6beedf1d3dc59fa66b",
+      "shapes_sha256": "ab2ec2ac97906881ede92f7e503be9716ffc797fb2f7c44d363ab9b4f7402889",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7584,7 +7584,7 @@
       "id": "GITVAN-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gitvan-26922-02",
       "repo": "gitvan",
-      "shapes_sha256": "6bb5e7f8768a73733d4c77b4d22149d7c35194649b47ef0a74507a88b8acffb8",
+      "shapes_sha256": "c3c2772e9bcf5be893a037319aa7dc788b4d106be9cf2c52cea1bb92576fd7c9",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7667,7 +7667,7 @@
       "id": "GITVAN-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gitvan-26922-03",
       "repo": "gitvan",
-      "shapes_sha256": "debe3d13942a736340ae9f56412587a90b06ec944ab6d6a52f3a6c15cd476725",
+      "shapes_sha256": "8bfb3343787f841382aeaa3813740669f9325cf7aa20eec04dd8f77e12eea912",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7694,7 +7694,7 @@
       "id": "GITVAN-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gitvan-26922-04",
       "repo": "gitvan",
-      "shapes_sha256": "346a94e88b1bd1552508d07f3d4954e8e4bff975d3d17be4646dfb1543af6018",
+      "shapes_sha256": "7f0108a49d020bc129c778c464e998322c549e06c2ebdae8d85ceea2c7a48b3e",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7719,7 +7719,7 @@
       "id": "GITVAN-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gitvan-26922-05",
       "repo": "gitvan",
-      "shapes_sha256": "2f5f0fa8df7d66d68d5bf19b0e8b49d3826ef3c743c31f3a5291f4092c0f4b49",
+      "shapes_sha256": "d28cafeb7b052dc442b795854147a9bebfd3173cd91b6bc021a379d228c0385e",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7744,7 +7744,7 @@
       "id": "GITVAN-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gitvan-26922-06",
       "repo": "gitvan",
-      "shapes_sha256": "2d439aa0bfda11f4056d05360be0436ab10f61e4e365190f6280d6df2c1882ba",
+      "shapes_sha256": "e05f664a55160f7ed840daf152a1eeb3c52562140a0bc7bb7a7fd7c2884e976e",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7769,7 +7769,7 @@
       "id": "GITVAN-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gitvan-26922-07",
       "repo": "gitvan",
-      "shapes_sha256": "cbf21612abb1cfc7641bb9ca1f8b053fba2c39418242fbfaeb3467b49c7e749d",
+      "shapes_sha256": "a70900d38d5b54cbac0bde9957b79c315f2eae140a23fb69a71bc5957977985e",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7794,7 +7794,7 @@
       "id": "GITVAN-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gitvan-26922-08",
       "repo": "gitvan",
-      "shapes_sha256": "8f7351286e29526bb0761a9879484b87a04206841ccc32a478c75b389e504e5f",
+      "shapes_sha256": "2f49ca8cca63828a86ffea473c6691009478c4241d98dbda2723da366d5e79ca",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7877,7 +7877,7 @@
       "id": "GYMACT-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gymact-26922-01",
       "repo": "gymact",
-      "shapes_sha256": "799281864c23f301a04e891aa71a0a2fd74afc4fad20259c258e6d201bde99e0",
+      "shapes_sha256": "c8ab394e0cce3c32eaa72c145dff52b8bc4a4a4120dfa3906c7d83ca35e283fc",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -7904,7 +7904,7 @@
       "id": "GYMACT-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gymact-26922-02",
       "repo": "gymact",
-      "shapes_sha256": "4db45dd49521b0e3cf2697ef896b7041dfbf0f4a542f265339ab43f518688bfc",
+      "shapes_sha256": "06a087117c6f470b432929408048beecb4143c7d5c9b6f54bcc3476d66defa9f",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7929,7 +7929,7 @@
       "id": "GYMACT-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gymact-26922-03",
       "repo": "gymact",
-      "shapes_sha256": "0c55d960cced8685cc68986e7e62b7fd645bd9217ded2fb37451ca3b8812415c",
+      "shapes_sha256": "adab677791179a8ccf81f9a483b734744928ec2ac8406ff8fd8198d576095e4a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7954,7 +7954,7 @@
       "id": "GYMACT-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gymact-26922-04",
       "repo": "gymact",
-      "shapes_sha256": "a0a6904ad0bbfddbffd425a747f16698d8de053b0ef205142e6f0d98673d106d",
+      "shapes_sha256": "9fe6ccfe334d35ffe88f789a9c252a52105db8149d94cd17bf629cbae04bbcba",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -7979,7 +7979,7 @@
       "id": "GYMACT-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gymact-26922-05",
       "repo": "gymact",
-      "shapes_sha256": "7c32275d498e5dd6178e02bc3a9b674958e60fb8f4990b126038df2e6d32e812",
+      "shapes_sha256": "b36d24a4489562f8b29f576bb236f16c94531435f8136eb46bef9ad03f85aa79",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8004,7 +8004,7 @@
       "id": "GYMACT-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gymact-26922-06",
       "repo": "gymact",
-      "shapes_sha256": "e9b3598c86b3bbfeb242ede7ff258c79d584b667cb2fb6da58f9406e6d9e5a10",
+      "shapes_sha256": "9b2b265e6b0178bfaeca6dd43af788658ccfdfc1e3f069635e20e63711a32140",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8029,7 +8029,7 @@
       "id": "GYMACT-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gymact-26922-07",
       "repo": "gymact",
-      "shapes_sha256": "eebd3f1d3b4393e5ec97ecb11daeecffaf30b4b7702626b74f173fdfbb3c2ee3",
+      "shapes_sha256": "04f0c023b827fa5455a16fc1301fb0ed877671cc364d21b94ae418a47805787f",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8054,7 +8054,7 @@
       "id": "GYMACT-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gymact-26922-08",
       "repo": "gymact",
-      "shapes_sha256": "6e25352ecc670fa06ce19a823b93a453839a432361ffce78e10915d27db866e7",
+      "shapes_sha256": "3aeb839a45e167de5d7857cd070b3fb699325ec369a75735d9a43f9286b83052",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8079,7 +8079,7 @@
       "id": "GYMACT-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gymact-26922-09",
       "repo": "gymact",
-      "shapes_sha256": "cf020a2a75825804c29c9c5edd59eabc4f7cb9981bfc45f5f8fa17c4fe69f3fd",
+      "shapes_sha256": "9b9e5685b33492340d92fabf439f1199577005ac144d37e7372fabe1afedc027",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8104,7 +8104,7 @@
       "id": "GYMACT-26922-10",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#gymact-26922-10",
       "repo": "gymact",
-      "shapes_sha256": "fb3e5b361fc3dcb8f387a25888615f7db5a109b229451eb4e7a2d78f2626774c",
+      "shapes_sha256": "f61eacb3a2b20892666c8ebdb3a8646ecbe333a6765ab8acac9cf5f24b8433da",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8129,7 +8129,7 @@
       "id": "XAAS-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-01",
       "repo": "xaas",
-      "shapes_sha256": "3032b7886c1ea1d722495a6da6ba3bc307f311ac0fdcd80bbf806f5c4fce73d5",
+      "shapes_sha256": "533ac79d118eacb764ae7d6082fe88fd15a3197148426c6938d22f68d410285d",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8212,7 +8212,7 @@
       "id": "XAAS-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-02",
       "repo": "xaas",
-      "shapes_sha256": "393addc57af1665db56863fe59c24e1ad5485318265ec80a67168138a8012613",
+      "shapes_sha256": "cecaa602953e25f86dd585fe235a472a8ff311150dbb6d74fecbcd46cea509d1",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -8239,7 +8239,7 @@
       "id": "XAAS-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-03",
       "repo": "xaas",
-      "shapes_sha256": "7274741f3eceea8b26b3f502a53f56ebf39264aff25a77a93bbaf430047015ff",
+      "shapes_sha256": "ca7eb37bafedd64352e3e687e3aac2f6fdeff05e123b7c62b317101f9d2e17e9",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8264,7 +8264,7 @@
       "id": "XAAS-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-04",
       "repo": "xaas",
-      "shapes_sha256": "2ff3f89e57a03140960692dc229a577ff2ee7bf008c8aa28953741cdbf5b9f62",
+      "shapes_sha256": "6cd404b4294f348dd5b76c17e448b52d04cadd0e41b5ccfba4187fdbd92b004a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8289,7 +8289,7 @@
       "id": "XAAS-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-05",
       "repo": "xaas",
-      "shapes_sha256": "de2cd35798f70c5e4c5d096f94a0f5eac04de87512985ffbc4748e3f75748153",
+      "shapes_sha256": "a2feb495cab8dd90320a88a40f7374c14f16b92b0394531feb05351ba0c49adc",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8314,7 +8314,7 @@
       "id": "XAAS-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-06",
       "repo": "xaas",
-      "shapes_sha256": "6f1fa5c481bb86ffc4867b812784d7a5ec119c609fbaf1ec6f13cf5ffeb6d2ac",
+      "shapes_sha256": "19e95e2841398460f45726831f3e4a69e3dac989b63f3ba64fb48a0542eb7785",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8339,7 +8339,7 @@
       "id": "XAAS-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-07",
       "repo": "xaas",
-      "shapes_sha256": "85e9fc5e018efb3496df4681bf2425c22523ace8844241b4618267df730fb913",
+      "shapes_sha256": "f91f01eca7ff8e1ca346947fd5c2b96d1941a20def1c9166bffdf28e6bfd6f37",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8364,7 +8364,7 @@
       "id": "XAAS-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-08",
       "repo": "xaas",
-      "shapes_sha256": "4bfed6a44ea8be060be204a9911b4de7ddbeeeca2a936a4894078645a469d154",
+      "shapes_sha256": "eef3efdbee520a2b1a0ad8f1e1336e8209c8da8e44db77dc025346367f71d5d8",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8389,7 +8389,7 @@
       "id": "XAAS-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-09",
       "repo": "xaas",
-      "shapes_sha256": "a24dbbbfe1496eefd2f0c6fe0ebfa5a62f6e95ddd072981beb0b489e5b5548b4",
+      "shapes_sha256": "037e79b99635f9f64d66d6b1182592ac4613425cc13fa83758313966bcd7aecb",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8414,7 +8414,7 @@
       "id": "XAAS-26922-10",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-10",
       "repo": "xaas",
-      "shapes_sha256": "4b13e9113314048d12d3b973b568266acc57504d24ee3bc389b8469a4dcbf996",
+      "shapes_sha256": "5840f7a59bffdfaa86c3261b67028f38947967b844d8115bbb5a9ad4633b541a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8439,7 +8439,7 @@
       "id": "XAAS-26922-11",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-11",
       "repo": "xaas",
-      "shapes_sha256": "529a430b881a6aa1ff8ee461b11a8a0b5f5fbe7dfc970684b1a490df7e05008c",
+      "shapes_sha256": "b435132133ac0ca610d672feb56ff4ec5b0d107c66006c0b2c328dfb7997a6a8",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8464,7 +8464,7 @@
       "id": "XAAS-26922-12",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-12",
       "repo": "xaas",
-      "shapes_sha256": "2fcf41664868372ecc9c76a8826cfe3509783e3868bed05390f838b79b510748",
+      "shapes_sha256": "8c10c99163fc2c688877d0e586d098282cbd78106c769e203a14856489296b1f",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8489,7 +8489,7 @@
       "id": "XAAS-26922-13",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-13",
       "repo": "xaas",
-      "shapes_sha256": "6df197d3081f6843a4698e8a99c0514d6783e3b5a1581cd16076eed816a4a37b",
+      "shapes_sha256": "33bd07a387c79c2138752e7940de6df0968ca6120997b7039604b0dc5de1a40a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8572,7 +8572,7 @@
       "id": "XAAS-26922-14",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-14",
       "repo": "xaas",
-      "shapes_sha256": "be43ff451b0344e47720af97632c57c4f9b2aa4b6321ecee0af719fb5b63c6ed",
+      "shapes_sha256": "21c73bfbcf743c20c7c63675f935bb088139dad16cf1b1c04a3ab3471f5ab41c",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -8657,7 +8657,7 @@
       "id": "XAAS-26922-15",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-15",
       "repo": "xaas",
-      "shapes_sha256": "2a85fc212f71dee8e59aa9b0904cd44aeaf724098c0a3134ca5946b125269775",
+      "shapes_sha256": "b00c32bae7adaf4fd9f71f734e63156de3bc321dab2a36ac40103d483c42af43",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -8742,7 +8742,7 @@
       "id": "XAAS-26922-16",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-16",
       "repo": "xaas",
-      "shapes_sha256": "69ee24f3a6b71cc558c44f0b87afe0eec13b815dfdc24868ec76c2f9eb14be24",
+      "shapes_sha256": "41a5d19a45f214867a992e0aebca44971903e68f54834b986d479c07480a6f4c",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -8769,7 +8769,7 @@
       "id": "XAAS-26922-17",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-17",
       "repo": "xaas",
-      "shapes_sha256": "8b17438f87d9f1d9f2ef2763bf1064bd8e47b9c894cb9d34ebf414d5bc827246",
+      "shapes_sha256": "1f446bcc78dea57819a67c7debcdc05be768d1b445a72f0781c59a5e8f754ed3",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8794,7 +8794,7 @@
       "id": "XAAS-26922-18",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-18",
       "repo": "xaas",
-      "shapes_sha256": "457c0e3cfc774adff3a259e36a2f44d5b7201bcd5e2917d9a8f554a9396cbd06",
+      "shapes_sha256": "5dcb79478cab21b5359356ecb078ef8417d1a9f2860aae655f59d511c18e955c",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8819,7 +8819,7 @@
       "id": "XAAS-26922-19",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-19",
       "repo": "xaas",
-      "shapes_sha256": "93c2ff117a9b1980ef19e5cd12470f60bc4d4f8484cbf87b3db0f557b387f804",
+      "shapes_sha256": "b5790f4589344bdec6efe049a4da35fa8f137563d489d2c75bceac78ca7c27c7",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8844,7 +8844,7 @@
       "id": "XAAS-26922-20",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-20",
       "repo": "xaas",
-      "shapes_sha256": "418b1cb54e8ffc5784ea22376712038a287d1cf328f3a259a6111a81c5acd56d",
+      "shapes_sha256": "0d57e4582e392b5f1ff13d3f4f86d96c10a1e2336b24d3a24c4d0181969b77bc",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8869,7 +8869,7 @@
       "id": "XAAS-26922-21",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-21",
       "repo": "xaas",
-      "shapes_sha256": "e761fdbc805a5ff6428f136334c5c459ae1cd251cd66c2378ee22780f1241bcf",
+      "shapes_sha256": "f61a68d5cc9f0c584478c02662db890a7597979582d9c2256d16c9771a3a7c6d",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8894,7 +8894,7 @@
       "id": "XAAS-26922-22",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-22",
       "repo": "xaas",
-      "shapes_sha256": "035053ac2da694ddf264ec6743e52a44dd4fe77a7431d10412b413077c023e61",
+      "shapes_sha256": "2464f97ec4e42c587cb09b88caa7af4bc54a3b1e94e8cfc20100f8bcda65782f",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8919,7 +8919,7 @@
       "id": "XAAS-26922-23",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-23",
       "repo": "xaas",
-      "shapes_sha256": "76237665209774023c1822443e1a8c7f7e9fbf4001f652e6f187e99576ad289b",
+      "shapes_sha256": "de05af7c625bd2c4081bc996586464a34c11a0be06a53223e6a23649551a8f65",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8944,7 +8944,7 @@
       "id": "XAAS-26922-24",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-24",
       "repo": "xaas",
-      "shapes_sha256": "4b49608086b1146a6cf3a45ccde10c03896a77a5ceef4b343a47aa8dc39acc31",
+      "shapes_sha256": "baa3734c2c4e73b624f306b4a8e45e67ccff0bd93a85a4db7b8529bc95b7c16b",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8969,7 +8969,7 @@
       "id": "XAAS-26922-25",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-25",
       "repo": "xaas",
-      "shapes_sha256": "d931353a6eed147070cb739ae5eef052cb0f6a446ad2231894ffd33b40f97fea",
+      "shapes_sha256": "b769bcdc4db62976fe7d665a56b32cc7d2fa4eea8eda704359ba97477db19502",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -8994,7 +8994,7 @@
       "id": "XAAS-26922-26",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#xaas-26922-26",
       "repo": "xaas",
-      "shapes_sha256": "f29b33c9762aa3cd253e0545ef8737b57d4a5775335b77824b3e6e86a083c049",
+      "shapes_sha256": "5c79484fe2996eae9b8bc410a22c1f734d298e4591aa5f17852fe34a3c5a77d5",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -9019,7 +9019,7 @@
       "id": "ZCODE-26922-01",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#zcode-26922-01",
       "repo": "zcode-cli",
-      "shapes_sha256": "ea524ff1eaf67e40def6196773251d0285ef4cb535bb5c161efd6f470590a2bf",
+      "shapes_sha256": "2cab635df72a6a6caa3a3ac61d41831bed0a2954871b44198b2dd55f1cf859b1",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -9102,7 +9102,7 @@
       "id": "ZCODE-26922-02",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#zcode-26922-02",
       "repo": "zcode-cli",
-      "shapes_sha256": "3f4d299a123c89ed657286066857ef24bf6be6755549f408dcfe6b34ef785277",
+      "shapes_sha256": "d22470a66d7427be878df3bb1980989fa8f26516f75270f262f67d2659a9275c",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -9129,7 +9129,7 @@
       "id": "ZCODE-26922-03",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#zcode-26922-03",
       "repo": "zcode-cli",
-      "shapes_sha256": "20dd928b5ee21dd92d864dd0d6be9a31d1921e8c7d1cfc927115a0ca5cbe8d9b",
+      "shapes_sha256": "47e49ddc944e194650047978df1bbf1bb15bdb2edec8b0b58d3d54522887166a",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -9212,7 +9212,7 @@
       "id": "ZCODE-26922-04",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#zcode-26922-04",
       "repo": "zcode-cli",
-      "shapes_sha256": "38f4cf92ab2e7fe10ed3a754e87e6d3fe1a6bcf173952067197f52da03172851",
+      "shapes_sha256": "3582d55c90e2e7f143e84450bb77a45e1d949435d94ebf8ce8801623b5a88d53",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -9239,7 +9239,7 @@
       "id": "ZCODE-26922-05",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#zcode-26922-05",
       "repo": "zcode-cli",
-      "shapes_sha256": "b550c85308c56fdd08acd5b31c9ccd359de782817310aa94f5ac693012354ab0",
+      "shapes_sha256": "87a403150bcd0574980799ff7e2363bc6f49a6a9d981d25b34d52a90584859ed",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -9264,7 +9264,7 @@
       "id": "ZCODE-26922-06",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#zcode-26922-06",
       "repo": "zcode-cli",
-      "shapes_sha256": "3da37c704dd212c3471107f05495d1876a21f9df4f8dcd56d5e823358144ecd1",
+      "shapes_sha256": "76936aaf9aba140e5122344ea30e7ce61b114d2673a596672fc72976da1efa36",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -9289,7 +9289,7 @@
       "id": "ZCODE-26922-07",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#zcode-26922-07",
       "repo": "zcode-cli",
-      "shapes_sha256": "4d7199ee44b5a5b3d54c1446a2bddf0d3dd621aed75ee53508f850bec5010ace",
+      "shapes_sha256": "f65b23a5af3a2f2e5ab0a519bc34d72e6b9091755466d2bbfe6b4a726a97ad9b",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -9314,7 +9314,7 @@
       "id": "ZCODE-26922-08",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#zcode-26922-08",
       "repo": "zcode-cli",
-      "shapes_sha256": "a031ee0271ea95a0c06ff434a0d515430f63e15a3961d302e58f2fd82f10fb69",
+      "shapes_sha256": "bc2f38b5aa23b74983583e2b3e0296687dc5cabadfe64ba8e06993363c83bd05",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -9397,7 +9397,7 @@
       "id": "ZCODE-26922-09",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#zcode-26922-09",
       "repo": "zcode-cli",
-      "shapes_sha256": "2f975b2cb0ed6a50661b0e25b237e19861382720fd40302970406151875be9d5",
+      "shapes_sha256": "668fa132e23710097870c9794c48ccf13a0e670cfd6d88d8b00e2ae9771cfd58",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 1 violations",
@@ -9424,7 +9424,7 @@
       "id": "ZCODE-26922-10",
       "iri": "https://ggen-igniter.dev/ontology/semantic-jira#zcode-26922-10",
       "repo": "zcode-cli",
-      "shapes_sha256": "0aa5cbb41433ede90848f2931c3b0c04124df8ccfad0bd4dbc1b048cc4c0ea5e",
+      "shapes_sha256": "b5d99b6fba3b60a538793e7fbc5437c402118e80ae416d2b2bb8679ce1ae45c4",
       "verdicts": {
         "ggen_igniter.semantic_jira.shacl": {
           "detail": "Report: 0 violations",
@@ -9545,7 +9545,7 @@
       ],
       "type": "SLICE_LOCALIZED"
     },
-    "shapes_sha256": "d1cc9d5c34086aef3024915fbfbf69fb9142c46666c72ffbfc2eade43b9cd319",
+    "shapes_sha256": "5852cfe5978f3f50aff2aa16435e8ca40794a8d8ca183147a52bbd23f83eb7d3",
     "verdicts": {
       "ggen_igniter.semantic_jira.shacl": {
         "detail": "Report: 69 violations",
