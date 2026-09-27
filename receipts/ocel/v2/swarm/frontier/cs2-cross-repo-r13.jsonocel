@@ -14,7 +14,8 @@
       "attributes": {
         "default_base_sha": "a332636679d1f85f59df79d61549a54844edb3df",
         "parent_checkpoint_sha": "dc3885ef0397f2650ae5accb619ccaca231c15e1",
-        "upstream_pack_branch": "closure/v26.9.27-cs2-cross-repo-r13-marketplace",
+        "upstream_pack_branch": "closure/v26.9.27-cs2-cross-repo-r14-marketplace",
+        "upstream_pack_checkpoint": "26ce4a0237e5d94153756c5f27048e789ad8fedf",
         "authority": "NONE"
       }
     }
