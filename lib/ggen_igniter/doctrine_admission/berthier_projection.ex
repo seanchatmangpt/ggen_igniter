@@ -13,94 +13,124 @@ defmodule GgenIgniter.DoctrineAdmission.BerthierProjection do
   @consumer_sha "92cb17cda899a8d85abdaa04db10a3d2334e116d"
   @allowed_actions ~w(OBSERVE SELECT DECOMPOSE ROUTE CONSTRUCT VERIFY)
 
-  def project(%{
-        "subject" => subject,
-        "source_repository" => _,
-        "source_sha" => _,
-        "strategy_id" => strategy_id,
-        "strategy" => strategy,
-        "premise_digests" => premise_digests,
-        "invariants" => invariants,
-        "local_premise_digests" => local_premise_digests,
-        "falsifier" => falsifier,
-        "objectives" => objectives
-      } = input)
-      when is_binary(strategy_id) and is_binary(strategy) and is_map(premise_digests) and
-             is_list(invariants) and is_map(local_premise_digests) and is_binary(falsifier) and
-             is_map(objectives) do
+  def project(input) when is_map(input) do
     actions = Map.get(input, "actions", ["SELECT", "DECOMPOSE", "ROUTE", "CONSTRUCT"])
     capabilities = Map.get(input, "required_capabilities", ["HDDL", "FOND", "SEMANTIC_JIRA"])
     constraints = Map.get(input, "local_constraints", [])
 
-    with {:ok, source} <- SourceIdentity.admit(input),
+    with :ok <- admit_shape(input),
+         {:ok, source} <- SourceIdentity.admit(input),
          :ok <- admit_actions(actions),
-         :ok <- admit_objectives(objectives),
-         true <- strategy_id != "" and strategy != "" and falsifier != "",
-         true <- map_size(premise_digests) > 0 and map_size(local_premise_digests) > 0,
-         true <- invariants != [] do
-      artifact = %{
-        "schema" => @schema,
-        "source" => %{
-          "repository" => source["source_repository"],
-          "sha" => source["source_sha"],
-          "artifact_sha" => source["source_artifact_sha"],
-          "path" => source["source_path"]
-        },
-        "consumer" => %{
-          "repository" => @consumer_repository,
-          "sha" => @consumer_sha
-        },
-        "doctrine" => %{
-          "subject" => subject,
-          "premise_digests" => premise_digests,
-          "invariants" => Enum.sort(Enum.uniq(invariants)),
-          "required_capabilities" => Enum.sort(Enum.uniq(capabilities)),
-          "authority_ceiling" => "CONSTRUCT"
-        },
-        "partition" => %{
-          "strategy_id" => strategy_id,
-          "strategy" => strategy,
-          "local_premise_digests" => local_premise_digests,
-          "local_constraints" => Enum.sort(Enum.uniq(constraints))
-        },
-        "candidate" => %{
-          "candidate_id" => Map.get(input, "candidate_id", "candidate:" <> strategy_id),
-          "actions" => actions,
-          "falsifier" => falsifier,
-          "objectives" => objectives,
-          "authority_ceiling" => "CONSTRUCT"
-        },
-        "authority" => "NONE",
-        "actuation" => "NONE",
-        "successor_boundary" => "SA2A/XaaS -> BRCE -> DO"
-      }
+         :ok <- admit_objectives(input["objectives"]) do
+      artifact =
+        build_artifact(
+          input,
+          source,
+          actions,
+          capabilities,
+          constraints
+        )
 
       {:ok, Map.put(artifact, "projection_digest", Determinism.digest(artifact))}
-    else
-      false -> {:error, {:refused_doctrine, :berthier_projection, :unbounded_candidate}}
-      {:error, _} = error -> error
     end
   end
 
-  def project(_),
-    do: {:error, {:refused_doctrine, :berthier_projection, :invalid_shape}}
+  def project(_input) do
+    {:error, {:refused_doctrine, :berthier_projection, :invalid_shape}}
+  end
+
+  defp admit_shape(input) do
+    bounded? =
+      nonempty?(input["strategy_id"]) and
+        nonempty?(input["strategy"]) and
+        nonempty?(input["falsifier"]) and
+        is_map(input["premise_digests"]) and
+        map_size(input["premise_digests"]) > 0 and
+        is_map(input["local_premise_digests"]) and
+        map_size(input["local_premise_digests"]) > 0 and
+        is_list(input["invariants"]) and
+        input["invariants"] != [] and
+        is_map(input["objectives"])
+
+    if bounded? do
+      :ok
+    else
+      {:error, {:refused_doctrine, :berthier_projection, :invalid_shape}}
+    end
+  end
+
+  defp build_artifact(input, source, actions, capabilities, constraints) do
+    %{
+      "schema" => @schema,
+      "source" => %{
+        "repository" => source["source_repository"],
+        "sha" => source["source_sha"],
+        "artifact_sha" => source["source_artifact_sha"],
+        "path" => source["source_path"]
+      },
+      "consumer" => %{
+        "repository" => @consumer_repository,
+        "sha" => @consumer_sha
+      },
+      "doctrine" => %{
+        "subject" => input["subject"],
+        "premise_digests" => input["premise_digests"],
+        "invariants" => Enum.sort(Enum.uniq(input["invariants"])),
+        "required_capabilities" => Enum.sort(Enum.uniq(capabilities)),
+        "authority_ceiling" => "CONSTRUCT"
+      },
+      "partition" => %{
+        "strategy_id" => input["strategy_id"],
+        "strategy" => input["strategy"],
+        "local_premise_digests" => input["local_premise_digests"],
+        "local_constraints" => Enum.sort(Enum.uniq(constraints))
+      },
+      "candidate" => %{
+        "candidate_id" =>
+          Map.get(input, "candidate_id", "candidate:" <> input["strategy_id"]),
+        "actions" => actions,
+        "falsifier" => input["falsifier"],
+        "objectives" => input["objectives"],
+        "authority_ceiling" => "CONSTRUCT"
+      },
+      "authority" => "NONE",
+      "actuation" => "NONE",
+      "successor_boundary" => "SA2A/XaaS -> BRCE -> DO"
+    }
+  end
 
   defp admit_actions(actions) when is_list(actions) do
     illegal = Enum.reject(actions, &(&1 in @allowed_actions))
 
-    if illegal == [],
-      do: :ok,
-      else: {:error, {:refused_doctrine, :berthier_projection, {:illegal_actions, illegal}}}
+    if illegal == [] do
+      :ok
+    else
+      {:error, {:refused_doctrine, :berthier_projection, {:illegal_actions, illegal}}}
+    end
   end
 
-  defp admit_actions(_),
-    do: {:error, {:refused_doctrine, :berthier_projection, :invalid_actions}}
+  defp admit_actions(_actions) do
+    {:error, {:refused_doctrine, :berthier_projection, :invalid_actions}}
+  end
 
-  defp admit_objectives(objectives) do
-    if Enum.all?(objectives, fn {name, value} ->
-         is_binary(name) and name != "" and is_number(value)
-       end),
-      do: :ok,
-      else: {:error, {:refused_doctrine, :berthier_projection, :invalid_objectives}}
+  defp admit_objectives(objectives) when is_map(objectives) do
+    valid? =
+      Enum.all?(objectives, fn {name, value} ->
+        nonempty?(name) and is_number(value)
+      end)
+
+    if valid? do
+      :ok
+    else
+      {:error, {:refused_doctrine, :berthier_projection, :invalid_objectives}}
+    end
+  end
+
+  defp admit_objectives(_objectives) do
+    {:error, {:refused_doctrine, :berthier_projection, :invalid_objectives}}
+  end
+
+  defp nonempty?(value) do
+    is_binary(value) and value != ""
   end
 end
