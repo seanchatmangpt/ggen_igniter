@@ -1,0 +1,6 @@
+{
+  "subject": "urn:doctrine:A",
+  "observed_subject": "urn:doctrine:B",
+  "source_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+  "expected_refusal": "subject_mismatch"
+}

@@ -1,0 +1,2 @@
+PREFIX sd: <https://ggen.dev/ontology/strategic-doctrine#>
+SELECT ?subject ?sourceDigest ?item WHERE { ?item sd:sourceSubject ?subject ; sd:sourceDigest ?sourceDigest . FILTER(STRLEN(STR(?sourceDigest)) = 64) } ORDER BY ?subject ?item

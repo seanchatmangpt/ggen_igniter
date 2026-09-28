@@ -1,0 +1,7 @@
+{
+  "subject": "urn:doctrine:falsifier",
+  "source_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "kind": "falsifier",
+  "effect": "OBSERVE",
+  "authority": "NONE"
+}

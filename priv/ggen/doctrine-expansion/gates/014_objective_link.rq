@@ -1,0 +1,2 @@
+PREFIX sd: <https://ggen.dev/ontology/strategic-doctrine#>
+SELECT ?item ?value ?subject WHERE { ?item a sd:Strategy ; sd:servesObjective ?value ; sd:sourceSubject ?subject . FILTER(STRLEN(STR(?subject)) > 0) } ORDER BY ?item ?value

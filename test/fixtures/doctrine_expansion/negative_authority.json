@@ -1,0 +1,6 @@
+{
+  "subject": "urn:doctrine:authority",
+  "source_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "authority": "DO",
+  "expected_refusal": "authority_exceeds_construct"
+}

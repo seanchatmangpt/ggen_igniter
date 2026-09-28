@@ -1,0 +1,7 @@
+{
+  "subject": "urn:doctrine:stale",
+  "repository": "seanchatmangpt/ggen_igniter",
+  "base_sha": "0000000000000000000000000000000000000000",
+  "source_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "expected_refusal": "base_mismatch"
+}
