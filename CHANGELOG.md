@@ -12,6 +12,9 @@
 - **Docs**: install snippets (README, getting-started tutorial) now declare
   `{:ggen_igniter, "~> 26.9", only: [:dev, :test], runtime: false}` -- it is a
   build-time generator, not a production dependency.
+- **Tests**: removed the 10 test files (39 tests) and `test/support/ex4pm_fixture.ex`
+  that read a real external `~/ex4pm` checkout, plus the CI step that cloned it --
+  a collaborator outside this repository is not a valid test dependency.
 - Publish order: `ggen_igniter` is the root package and must be observable on
   Hex before `ash_a2a`, `beam4pm`, `xaas` and `ash_kudzu` rebind against it.
 
