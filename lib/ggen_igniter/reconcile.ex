@@ -83,7 +83,7 @@ defmodule GgenIgniter.Reconcile do
   hiding real failures behind a swallowed error tuple.
   """
 
-  alias GgenIgniter.{Actuate, Engine, Ontology, Pack, Render}
+  alias GgenIgniter.{Actuate, Engine, Ontology, Pack}
   alias GgenIgniter.Render.TeraWasm
 
   @type result :: %{
@@ -122,7 +122,9 @@ defmodule GgenIgniter.Reconcile do
     content = render_content(template_path, template_string, bindings)
 
     mode = resolve_mode!(opts)
-    {out_path, outcome, value, notice} = actuate!(mode, content, bindings, opts)
+
+    {out_path, outcome, value, notice} =
+      actuate!(mode, content, bindings, template_path, template_string, opts)
 
     {:ok,
      %{
@@ -139,12 +141,12 @@ defmodule GgenIgniter.Reconcile do
      }}
   end
 
-  defp actuate!(:file, content, bindings, opts) do
+  defp actuate!(:file, content, bindings, template_path, template_string, opts) do
     out_template =
       Keyword.get(opts, :out) ||
         raise ArgumentError, ":out is required for mode: file"
 
-    out_path = Render.render(out_template, bindings)
+    out_path = TeraWasm.render_for!(template_path, template_string, out_template, bindings)
 
     write_opts = [
       unless_exists: Keyword.get(opts, :unless_exists, false),
@@ -156,7 +158,7 @@ defmodule GgenIgniter.Reconcile do
     {out_path, outcome, nil, "#{outcome_verb(outcome)} #{out_path}"}
   end
 
-  defp actuate!(:eval, content, bindings, _opts) do
+  defp actuate!(:eval, content, bindings, _template_path, _template_string, _opts) do
     {:ok, value} = Actuate.eval_code!(content, bindings)
     {nil, nil, value, "evaluated -> #{inspect(value)}"}
   end
@@ -211,7 +213,7 @@ defmodule GgenIgniter.Reconcile do
 
           {:error, :none} ->
             raise ArgumentError,
-                  "no *.eex/*.tmpl template found in #{pack_dir}/templates/ -- pass :template explicitly"
+                  Pack.no_template_message(opts, pack_dir, ":template")
 
           {:error, {:ambiguous, paths}} ->
             raise ArgumentError,
@@ -290,14 +292,7 @@ defmodule GgenIgniter.Reconcile do
   # through the existing stdlib-EEx `GgenIgniter.Render.render/2` path,
   # unchanged.
   defp render_content(template_path, template_string, bindings) do
-    if TeraWasm.tera_template?(template_path, template_string) do
-      case TeraWasm.render(template_string, bindings) do
-        {:ok, rendered} -> rendered
-        {:error, reason} -> raise "GgenIgniter.Render.TeraWasm: #{inspect(reason)}"
-      end
-    else
-      Render.render(template_string, bindings)
-    end
+    TeraWasm.render_for!(template_path, template_string, template_string, bindings)
   end
 
   def build_bindings(named_results) do

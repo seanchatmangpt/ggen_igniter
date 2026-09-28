@@ -1,0 +1,55 @@
+{
+  "ocel:global-log": {
+    "ocel:version": "2.0",
+    "ocel:ordering": "timestamp"
+  },
+  "ocel:events": {
+    "expansion-run200-r9": {
+      "ocel:type": "research_implementation",
+      "ocel:time": "2026-09-28T08:14:00-07:00",
+      "ocel:typedOmap": [
+        {
+          "ocel:oid": "repo:seanchatmangpt/ggen_igniter",
+          "ocel:qualifier": "repository"
+        },
+        {
+          "ocel:oid": "commit:9f62c71aa4e2391c222302dd55360d2a8dd0c2c0",
+          "ocel:qualifier": "implementation_head"
+        },
+        {
+          "ocel:oid": "base:009807a9226e001acbb5c686ea1dd002d0d1ef72",
+          "ocel:qualifier": "base"
+        }
+      ],
+      "ocel:vmap": {
+        "family": "strategic-doctrine -> HDDL/FOND -> Semantic Jira downstream admission",
+        "branch": "expansion/v26.9.28/doctrine-admission-run200-r9",
+        "qualifying_files": 52,
+        "ggen_write_excluded": true,
+        "file_floor_met": true,
+        "authority": "NONE",
+        "ceiling": "CONSTRUCT"
+      }
+    }
+  },
+  "ocel:objects": {
+    "repo:seanchatmangpt/ggen_igniter": {
+      "ocel:type": "repository",
+      "ocel:ovmap": {
+        "writable": true
+      }
+    },
+    "commit:9f62c71aa4e2391c222302dd55360d2a8dd0c2c0": {
+      "ocel:type": "commit",
+      "ocel:ovmap": {
+        "standing": "IMPLEMENTED_UNVERIFIED"
+      }
+    },
+    "base:009807a9226e001acbb5c686ea1dd002d0d1ef72": {
+      "ocel:type": "commit",
+      "ocel:ovmap": {
+        "role": "exact_base"
+      }
+    }
+  }
+}

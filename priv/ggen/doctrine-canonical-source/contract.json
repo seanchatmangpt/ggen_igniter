@@ -1,0 +1,17 @@
+{
+  "schema": "ggen_igniter.strategic-doctrine-source/v1",
+  "source": {
+    "repository": "seanchatmangpt/ggen-marketplace",
+    "sha": "dcdedbcc6c8482a22487ca100bcf93c3b54291fa",
+    "artifact_sha": "225e3eff18f0570817646ebf7c210117ee1a82b5",
+    "path": "packs/strategic-doctrine-pack"
+  },
+  "consumer": {
+    "repository": "seanchatmangpt/chatman-ecosystem",
+    "sha": "92cb17cda899a8d85abdaa04db10a3d2334e116d",
+    "schema": "https://chatman.dev/root-crown/berthier-campaign/v1"
+  },
+  "authority": "NONE",
+  "ceiling": "CONSTRUCT",
+  "actuation": "NONE"
+}

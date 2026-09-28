@@ -38,6 +38,23 @@
   admits).
 - **Version policy note**: `mix.exs` remains at `26.9.24` through both
   closures (v26.9.25 and v26.9.26 shipped without a project-version bump).
+## v26.9.28
+
+- **Publish-readiness**: version bumped `26.9.24` -> `26.9.28` in `mix.exs`
+  (`version:` and the ExDoc `source_ref`); `mix ggen_igniter.doctor`'s
+  version-policy check matches this heading.
+- **Compile fix**: `GgenIgniter.SemanticJira.Authority` had its
+  `unpinned_index/1` clauses split by helper functions, which failed
+  `mix compile --warnings-as-errors`; the clauses are regrouped with no
+  behaviour change.
+- **Docs**: install snippets (README, getting-started tutorial) now declare
+  `{:ggen_igniter, "~> 26.9", only: [:dev, :test], runtime: false}` -- it is a
+  build-time generator, not a production dependency.
+- **Tests**: removed the 10 test files (39 tests) and `test/support/ex4pm_fixture.ex`
+  that read a real external `~/ex4pm` checkout, plus the CI step that cloned it --
+  a collaborator outside this repository is not a valid test dependency.
+- Publish order: `ggen_igniter` is the root package and must be observable on
+  Hex before `ash_a2a`, `beam4pm`, `xaas` and `ash_kudzu` rebind against it.
 
 ## v26.9.24
 

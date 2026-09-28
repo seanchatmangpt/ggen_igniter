@@ -803,10 +803,48 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       # to route into is now reachable ONLY via `delegate_to_controller/4`'s
       # own, unrelated `:not_delegatable` atom (see `dispatch_pipeline/3`
       # itself) -- never from here.
-      {:ok, result_igniter} = run_via_reactor(igniter, opts, pack_template_stem)
-      result_igniter
+      case pack_dir_fan_out_templates(opts, pack_template_stem) do
+        nil ->
+          {:ok, result_igniter} = run_via_reactor(igniter, opts, pack_template_stem)
+          result_igniter
+
+        templates ->
+          # `--pack-dir DIR` over a multi-template pack (ggen-marketplace
+          # shape): one full reactor run per template, each with its own
+          # frontmatter `to:`/`for_each:`/`sparql:`; per-template manifest
+          # entries are keyed by (template, out-template) as always.
+          Enum.reduce(templates, igniter, fn template, acc ->
+            {:ok, next} =
+              run_via_reactor(
+                acc,
+                opts |> Keyword.put(:template, template) |> Keyword.put(:fan_out, true),
+                pack_template_stem
+              )
+
+            next
+          end)
+      end
     after
       GgenIgniter.Lock.release(lock_ref)
+    end
+  end
+
+  # `--pack-dir DIR` with no `--template` and no `NAME:STEM` selector over a
+  # pack that holds MORE than one template => every template path, sorted (the
+  # fan-out set). `nil` in every other case (explicit `--template`, `--pack
+  # NAME`, a single-template pack, no pack) so those paths stay byte-identical.
+  # `--pack NAME` deliberately keeps today's "multiple templates found" refusal
+  # (`test/ggen_igniter_sync_pack_template_stem_test.exs`); select one with
+  # `--pack NAME:STEM` or use `--pack-dir` to fan out.
+  defp pack_dir_fan_out_templates(opts, pack_template_stem) do
+    with true <- opts[:template] in [nil, ""],
+         true <- pack_template_stem == nil,
+         true <- opts[:pack_dir] not in [nil, ""],
+         true <- opts[:pack] in [nil, ""],
+         [_, _ | _] = templates <- GgenIgniter.Pack.discover_templates(opts[:pack_dir]) do
+      templates
+    else
+      _ -> nil
     end
   end
 
@@ -1012,6 +1050,41 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     named_results = run_queries(engine_module, graph, opts, named_queries)
     rows = fetch_driver_rows!(named_results, for_each)
 
+    if rows == [] and opts[:fan_out] do
+      # Multi-template `--pack-dir` fan-out only: a marketplace template
+      # gated on an opt-in flag in its own `for_each` query (e.g.
+      # `aex:workflowReactor true`) legitimately has zero driver rows for a
+      # spec that did not opt in -- nothing to render, not a failure. (A lone
+      # `--template` with zero rows keeps its existing behaviour.) Its
+      # previously-written outputs, if any, are NOT pruned by this skip.
+      {:ok,
+       Igniter.add_notice(
+         igniter,
+         "ggen_igniter: #{Path.basename(opts[:template])}: --for-each #{for_each} query " <>
+           "returned 0 rows -- nothing to render (fan-out skip)"
+       )}
+    else
+      run_for_each_rows_via_reactor!(
+        igniter,
+        opts,
+        pack_template_stem,
+        frontmatter,
+        mode,
+        named_results,
+        rows
+      )
+    end
+  end
+
+  defp run_for_each_rows_via_reactor!(
+         igniter,
+         opts,
+         pack_template_stem,
+         frontmatter,
+         mode,
+         named_results,
+         rows
+       ) do
     # Opt-in git ground truth: rows are already materialized here, so the
     # `--verify-base-sha` flag and the in-graph per-order
     # `requires_git_ground_truth` opt-in both check for free, BEFORE the
@@ -1384,7 +1457,13 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         path = GgenIgniter.Pack.default_ontology(GgenIgniter.Pack.resolve_dir!(opts))
 
         unless File.exists?(path) do
-          raise ArgumentError, "--pack/--pack-dir resolved ontology not found at #{path}"
+          suffix =
+            case GgenIgniter.Pack.missing_dir_message(opts) do
+              nil -> ""
+              missing -> " (#{missing})"
+            end
+
+          raise ArgumentError, "--pack/--pack-dir resolved ontology not found at #{path}#{suffix}"
         end
 
         path
@@ -1483,7 +1562,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
           {:error, :none} ->
             raise ArgumentError,
-                  "no *.eex/*.tmpl template found in #{pack_dir}/templates/ -- pass --template explicitly"
+                  GgenIgniter.Pack.no_template_message(opts, pack_dir, "--template")
 
           {:error, {:ambiguous, paths}} ->
             raise ArgumentError,

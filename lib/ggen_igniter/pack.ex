@@ -8,7 +8,9 @@ defmodule GgenIgniter.Pack do
       ├── pack.toml            # legacy: optional; Core profile: REQUIRED + consumed
       ├── ontology.ttl          # default --ontology
       ├── gates/*.rq            # default --query source, one query per file
-      └── templates/*.{eex,tmpl} # default --template source (single-file case)
+      └── templates/*.{eex,tmpl} # default --template source (single-file case;
+                                 # `discover_templates/1` lists them all for
+                                 # `--pack-dir` multi-template fan-out)
 
   ## RFC-GPACK-001: pack.toml consumption + identity correspondence (D3)
 
@@ -50,7 +52,12 @@ defmodule GgenIgniter.Pack do
   Two real, simple registry sources are implemented -- **their verification
   strength is genuinely different, and this moduledoc says so honestly**:
 
-    * `"github:owner/repo"` (optionally `"@ref"`, default `"main"`) -- fetches
+    * `"github:owner/repo"` (optionally `"@ref"`, default `"main"`, and
+      optionally a monorepo subpath `"#packs/my-pack"` or `"//packs/my-pack"`,
+      e.g. `"github:seanchatmangpt/ggen-marketplace@main#packs/ash-extension-pack"`,
+      in which case the SUBDIRECTORY is returned as the pack root; a subpath
+      that is absolute, contains `..`, or passes through a symlink is refused
+      before anything is written -- see `extract_archive!/3`) -- fetches
       `https://github.com/<owner>/<repo>/archive/refs/heads/<ref>.tar.gz`.
       GitHub's archive endpoint publishes **no checksum** to verify against,
       so this path is **print-only**: the real SHA-256 of the downloaded
@@ -67,7 +74,23 @@ defmodule GgenIgniter.Pack do
 
   Neither source is fabricated -- both are real public HTTP endpoints exercised
   by the test suite (tagged `:requires_network`, see
-  `test/ggen_igniter_pack_fetch_test.exs`).
+  `test/ggen_igniter_pack_fetch_test.exs`; the subpath/extraction logic is
+  covered offline on a real local `.tar.gz` by
+  `test/ggen_igniter_pack_marketplace_fetch_test.exs`).
+
+  **Consumer requirement:** the HTTP layer is `Tesla`, an `optional: true`
+  dependency of `ggen_igniter`. A consuming app that wants `fetch_pack!/2` /
+  `mix ggen_igniter.pack.fetch` MUST add `{:tesla, "~> 1.8"}` to its own
+  `mix.exs` deps; without it `fetch_pack!/2` raises a `RuntimeError` saying so
+  (the rest of this module works without it).
+
+  ## `--pack NAME` resolution
+
+  `resolve_dir!/1` resolves `--pack NAME` to the cwd-relative
+  `priv/ggen/NAME` when that directory exists, else to the pack SHIPPED with
+  this package (`Path.join(:code.priv_dir(:ggen_igniter), "ggen/NAME")`, i.e.
+  `deps/ggen_igniter/priv/ggen/NAME` in a consumer). `missing_dir_message/1`
+  explains both searched paths when neither exists.
   """
   require Logger
 
@@ -87,10 +110,72 @@ defmodule GgenIgniter.Pack do
     end
   end
 
+  # `--pack NAME`: the cwd-relative `priv/ggen/NAME` wins when it exists; else
+  # the pack SHIPPED inside this package (`<priv_dir>/ggen/NAME`, i.e.
+  # `deps/ggen_igniter/priv/ggen/NAME` in a consumer) when that exists; else
+  # the cwd-relative path is returned unchanged so callers keep their own
+  # "not found" diagnostics -- enriched via `missing_dir_message/1`.
   defp fetch_pack(opts) do
     case fetch(opts, :pack) do
-      nil -> nil
-      name -> Path.join(["priv", "ggen", name])
+      nil ->
+        nil
+
+      name ->
+        relative = Path.join(["priv", "ggen", name])
+        shipped = shipped_pack_dir(name)
+
+        cond do
+          File.dir?(relative) -> relative
+          shipped != nil and File.dir?(shipped) -> shipped
+          true -> relative
+        end
+    end
+  end
+
+  defp shipped_pack_dir(name) do
+    case :code.priv_dir(:ggen_igniter) do
+      {:error, _} -> nil
+      priv -> Path.join([to_string(priv), "ggen", name])
+    end
+  end
+
+  @doc """
+  When the pack named by `opts` (`:pack_dir` wins over `:pack`) does not exist
+  as a directory, returns a message naming the resolved directory, the
+  cwd-relative path searched and the shipped-package path
+  (`<priv_dir>/ggen/NAME`) also searched; `nil` when the directory exists or
+  neither option is given. Callers append it to their "no template/ontology
+  found" errors so an unknown `--pack NAME` is no longer reported as a
+  template-discovery failure.
+  """
+  @spec missing_dir_message(keyword() | map()) :: String.t() | nil
+  def missing_dir_message(opts) do
+    cond do
+      (dir = fetch(opts, :pack_dir)) not in [nil, ""] ->
+        if File.dir?(dir), do: nil, else: "pack directory #{dir} does not exist"
+
+      (name = fetch(opts, :pack)) not in [nil, ""] ->
+        missing_named_pack_message(name, resolve_dir!(opts))
+
+      true ->
+        nil
+    end
+  end
+
+  defp missing_named_pack_message(name, dir) do
+    if File.dir?(dir) do
+      nil
+    else
+      shipped = shipped_pack_dir(name)
+
+      shipped_note =
+        if shipped,
+          do: " and the shipped package path #{shipped} (neither exists); ",
+          else: "; "
+
+      "pack directory #{dir} does not exist -- searched #{Path.expand(dir)} " <>
+        "(cwd-relative priv/ggen/#{name})" <>
+        shipped_note <> "check the --pack name, or pass --pack-dir DIR"
     end
   end
 
@@ -455,6 +540,40 @@ defmodule GgenIgniter.Pack do
     select_template(paths, stem)
   end
 
+  @doc """
+  The "no template" error text for `pack_dir` (resolved from `opts`). Always
+  contains `no *.eex/*.tmpl template found in <pack_dir>/templates/ -- pass
+  <flag> explicitly`; when the pack directory itself is missing it is prefixed
+  with `missing_dir_message/1`'s explanation, so an unknown `--pack NAME` is
+  diagnosed as a missing pack, not as an empty `templates/` dir.
+  """
+  @spec no_template_message(keyword() | map(), String.t(), String.t()) :: String.t()
+  def no_template_message(opts, pack_dir, flag) do
+    base = "no *.eex/*.tmpl template found in #{pack_dir}/templates/ -- pass #{flag} explicitly"
+
+    case missing_dir_message(opts) do
+      nil -> base
+      missing -> "#{missing}: #{base}"
+    end
+  end
+
+  @doc """
+  Every `<pack_dir>/templates/*.{eex,tmpl}` file, sorted -- the fan-out set
+  `mix ggen_igniter.sync --pack-dir DIR` renders (each with its own
+  frontmatter `to:`) when no `--template` is given and the pack holds more
+  than one template (the ggen-marketplace multi-template shape, e.g.
+  `ash-extension-pack`).
+  """
+  @spec discover_templates(String.t()) :: [String.t()]
+  def discover_templates(pack_dir) do
+    [
+      Path.wildcard(Path.join(pack_dir, "templates/*.eex")),
+      Path.wildcard(Path.join(pack_dir, "templates/*.tmpl"))
+    ]
+    |> List.flatten()
+    |> Enum.sort()
+  end
+
   defp select_template(paths, nil) do
     case paths do
       [] -> {:error, :none}
@@ -515,37 +634,66 @@ defmodule GgenIgniter.Pack do
     File.mkdir_p!(cache_root)
 
     case parse_spec(spec) do
-      {:github, owner, repo, ref} ->
-        fetch_github!(owner, repo, ref, cache_root)
+      {:github, owner, repo, ref, subpath} ->
+        fetch_github!(owner, repo, ref, subpath, cache_root)
 
       {:hex, name, version} ->
         fetch_hex!(name, version, cache_root)
 
       :error ->
         raise ArgumentError,
-              "unrecognized pack spec #{inspect(spec)} -- expected \"github:owner/repo[@ref]\" or \"hex:name[@version]\""
+              "unrecognized pack spec #{inspect(spec)} -- expected \"github:owner/repo[@ref][#subpath]\" or \"hex:name[@version]\""
     end
   end
 
   defp default_cache_dir, do: Path.join([System.user_home!(), ".cache", "ggen_igniter", "packs"])
 
-  defp parse_spec("github:" <> rest) do
+  @doc false
+  # `github:owner/repo[@ref][#subpath | //subpath]` -> `{:github, owner, repo,
+  # ref, subpath | nil}`; `hex:name[@version]` -> `{:hex, name, version}`.
+  @spec parse_spec(String.t()) ::
+          {:github, String.t(), String.t(), String.t(), String.t() | nil}
+          | {:hex, String.t(), String.t() | nil}
+          | :error
+  def parse_spec("github:" <> rest) do
+    {rest, subpath} = split_subpath(rest)
+
     case String.split(rest, "/", parts: 2) do
-      [owner, repo_and_ref] when owner != "" ->
+      [owner, repo_and_ref] when owner != "" and subpath != :empty ->
         {repo, ref} = split_ref(repo_and_ref, "main")
-        if repo == "", do: :error, else: {:github, owner, repo, ref}
+        if repo == "", do: :error, else: {:github, owner, repo, ref, subpath}
 
       _ ->
         :error
     end
   end
 
-  defp parse_spec("hex:" <> rest) when rest != "" do
+  def parse_spec("hex:" <> rest) when rest != "" do
     {name, version} = split_ref(rest, nil)
     if name == "", do: :error, else: {:hex, name, version}
   end
 
-  defp parse_spec(_), do: :error
+  def parse_spec(_), do: :error
+
+  # `#subpath` wins; else the first `//` after `owner/repo` (`@ref` may itself
+  # contain single slashes, e.g. `@feature/x`). `:empty` marks a present but
+  # empty subpath (`github:o/r#`), refused as an unrecognized spec.
+  defp split_subpath(rest) do
+    case String.split(rest, "#", parts: 2) do
+      [head, ""] ->
+        {head, :empty}
+
+      [head, sub] ->
+        {head, sub}
+
+      [_] ->
+        case String.split(rest, "//", parts: 2) do
+          [head, ""] -> {head, :empty}
+          [head, sub] -> {head, sub}
+          [_] -> {rest, nil}
+        end
+    end
+  end
 
   defp split_ref(str, default) do
     case String.split(str, "@", parts: 2) do
@@ -554,7 +702,7 @@ defmodule GgenIgniter.Pack do
     end
   end
 
-  defp fetch_github!(owner, repo, ref, cache_root) do
+  defp fetch_github!(owner, repo, ref, subpath, cache_root) do
     url = "https://github.com/#{owner}/#{repo}/archive/refs/heads/#{ref}.tar.gz"
     body = http_get!(url)
     digest = sha256_hex(body)
@@ -565,9 +713,15 @@ defmodule GgenIgniter.Pack do
         "record this digest yourself if you need to pin/verify this fetch."
     )
 
-    dest = Path.join(cache_root, "github-#{owner}-#{repo}-#{ref}")
-    extract_tar_gz!(body, dest, strip_top_dir: true)
+    dest = Path.join(cache_root, github_cache_name(owner, repo, ref, subpath))
+    extract_archive!(body, dest, strip_top_dir: true, subpath: subpath)
     dest
+  end
+
+  defp github_cache_name(owner, repo, ref, nil), do: "github-#{owner}-#{repo}-#{ref}"
+
+  defp github_cache_name(owner, repo, ref, subpath) do
+    "github-#{owner}-#{repo}-#{ref}--#{String.replace(subpath, ~r/[^A-Za-z0-9._-]+/, "_")}"
   end
 
   defp fetch_hex!(name, nil, cache_root) do
@@ -644,23 +798,51 @@ defmodule GgenIgniter.Pack do
     dest
   end
 
-  # GitHub's archive tarball wraps everything in a single top-level
-  # `<repo>-<ref>/` directory; strip it so `dest` itself is the pack root
-  # (matching the `priv/ggen/<pack>/ontology.ttl` convention resolve_dir!/1
-  # expects).
-  defp extract_tar_gz!(body, dest, opts) do
+  @doc false
+  # Extracts a `.tar.gz` archive `body` into `dest` and returns `dest`.
+  #
+  # Options:
+  #   * `strip_top_dir: true` -- GitHub's archive tarball wraps everything in a
+  #     single top-level `<repo>-<ref>/` directory; strip it so `dest` is the
+  #     repo root.
+  #   * `subpath: "packs/x"` -- (monorepo) after stripping, `dest` is that
+  #     subdirectory of the repo instead. The subpath must be relative, hold
+  #     no `..`/empty segments, and no component may be a symlink (an archive
+  #     could otherwise point a symlink outside the extracted tree); refused
+  #     with `ArgumentError` ("refusing subpath ...") BEFORE `dest` is touched.
+  @spec extract_archive!(binary(), String.t(), keyword()) :: String.t()
+  def extract_archive!(body, dest, opts) do
     with_scratch_dir(fn scratch ->
       archive = Path.join(scratch, "pack.tar.gz")
       File.write!(archive, body)
       extracted = Path.join(scratch, "extracted")
       File.mkdir_p!(extracted)
-      :ok = :erl_tar.extract(to_charlist(archive), [{:cwd, to_charlist(extracted)}, :compressed])
 
-      source_root =
+      case :erl_tar.extract(to_charlist(archive), [
+             {:cwd, to_charlist(extracted)},
+             :compressed
+           ]) do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          # e.g. `{path, :unsafe_symlink}` -- OTP's own extractor refuses a
+          # link pointing outside the extraction dir; surface it as a clean
+          # refusal rather than a MatchError.
+          raise ArgumentError, "refusing archive: #{inspect(reason)}"
+      end
+
+      repo_root =
         if Keyword.get(opts, :strip_top_dir, false) do
           single_top_level_dir(extracted)
         else
           extracted
+        end
+
+      source_root =
+        case Keyword.get(opts, :subpath) do
+          nil -> repo_root
+          subpath -> resolve_subpath!(repo_root, subpath)
         end
 
       File.rm_rf!(dest)
@@ -668,6 +850,52 @@ defmodule GgenIgniter.Pack do
     end)
 
     dest
+  end
+
+  defp resolve_subpath!(repo_root, subpath) do
+    segments = Path.split(subpath)
+
+    cond do
+      subpath == "" or Path.type(subpath) != :relative ->
+        raise ArgumentError,
+              "refusing subpath #{inspect(subpath)}: must be a relative path inside the repository"
+
+      Enum.any?(segments, &(&1 in ["..", ".", ""])) ->
+        raise ArgumentError,
+              "refusing subpath #{inspect(subpath)}: `..`/`.` segments could escape the extracted archive"
+
+      true ->
+        :ok
+    end
+
+    target = Path.join(repo_root, subpath)
+
+    unless Path.expand(target) |> String.starts_with?(Path.expand(repo_root) <> "/") do
+      raise ArgumentError,
+            "refusing subpath #{inspect(subpath)}: resolves outside the extracted archive"
+    end
+
+    # No component of the subpath may be a symlink (checked with lstat so a
+    # link is never followed).
+    segments
+    |> Enum.scan(repo_root, fn segment, acc -> Path.join(acc, segment) end)
+    |> Enum.each(fn path ->
+      case File.lstat(path) do
+        {:ok, %File.Stat{type: :symlink}} ->
+          raise ArgumentError,
+                "refusing subpath #{inspect(subpath)}: component #{inspect(Path.relative_to(path, repo_root))} is a symlink"
+
+        _ ->
+          :ok
+      end
+    end)
+
+    unless File.dir?(target) do
+      raise ArgumentError,
+            "subpath #{inspect(subpath)} not found in the fetched archive (a directory is required)"
+    end
+
+    target
   end
 
   # GitHub's archive layout wraps everything in exactly one top-level
@@ -759,6 +987,12 @@ defmodule GgenIgniter.Pack do
                   "are behind a proxy, ensure HTTPS_PROXY is set for this shell."
       end
     end
+
+    defp http_get_json!(url) do
+      url
+      |> http_get!()
+      |> Jason.decode!()
+    end
   else
     defp http_get!(_url) do
       raise RuntimeError,
@@ -766,11 +1000,11 @@ defmodule GgenIgniter.Pack do
           "ggen_igniter: :tesla is required for --pack fetch from github:/hex: URLs " <>
             "but is not loaded -- add {:tesla, \"~> 1.8\"} to your own mix.exs deps"
     end
-  end
 
-  defp http_get_json!(url) do
-    url
-    |> http_get!()
-    |> Jason.decode!()
+    # Without :tesla `http_get!/1` never returns, so decoding its result is
+    # statically dead code (Elixir's type checker warns "incompatible types
+    # given to Jason.decode!/1 ... none()" on the piped form). Delegate
+    # directly instead.
+    defp http_get_json!(url), do: http_get!(url)
   end
 end

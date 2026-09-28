@@ -417,7 +417,6 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     PendingActuation,
     Receipt,
     Reconcile,
-    Render,
     ShellHook
   }
 
@@ -1619,14 +1618,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # through the existing stdlib-EEx `GgenIgniter.Render.render/2` path,
   # unchanged. Mirrors `GgenIgniter.Reconcile`'s own `render_content/3`.
   defp render_body(template_path, body, bindings) do
-    if TeraWasm.tera_template?(template_path, body) do
-      case TeraWasm.render(body, bindings) do
-        {:ok, rendered} -> rendered
-        {:error, reason} -> raise "GgenIgniter.Render.TeraWasm: #{inspect(reason)}"
-      end
-    else
-      Render.render(body, bindings)
-    end
+    TeraWasm.render_for!(template_path, body, body, bindings)
   end
 
   defp render_target(t, manifest, base_dir) do
@@ -1661,7 +1653,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           t.out_template ||
             raise ArgumentError, "target #{t.index}: :out is required for mode: file"
 
-        out_path = Render.render(out_template, t.bindings)
+        # Frontmatter `to:`/`out` follows the SAME engine as the template body
+        # (Tera `{{ var }}` for marketplace `.tmpl`/`.tera`, EEx otherwise).
+        out_path = TeraWasm.render_for!(t.template_path, body, out_template, t.bindings)
         recipe_key = Manifest.recipe_key(t.template_path, out_template)
         old_entry = Manifest.get_entry(manifest, recipe_key)
 
@@ -1903,7 +1897,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
           {:error, :none} ->
             raise ArgumentError,
-                  "no *.eex/*.tmpl template found in #{pack_dir}/templates/ -- pass :template explicitly"
+                  Pack.no_template_message(opts, pack_dir, ":template")
 
           {:error, {:ambiguous, paths}} ->
             raise ArgumentError,
