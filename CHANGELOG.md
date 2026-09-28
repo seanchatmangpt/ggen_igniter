@@ -9,6 +9,9 @@
   `unpinned_index/1` clauses split by helper functions, which failed
   `mix compile --warnings-as-errors`; the clauses are regrouped with no
   behaviour change.
+- **Docs**: install snippets (README, getting-started tutorial) now declare
+  `{:ggen_igniter, "~> 26.9", only: [:dev, :test], runtime: false}` -- it is a
+  build-time generator, not a production dependency.
 - Publish order: `ggen_igniter` is the root package and must be observable on
   Hex before `ash_a2a`, `beam4pm`, `xaas` and `ash_kudzu` rebind against it.
 
