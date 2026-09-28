@@ -1,10 +1,19 @@
 defmodule GgenIgniter.DoctrineAdmission.ExactSubjectTest do
   use ExUnit.Case, async: true
   alias GgenIgniter.DoctrineAdmission.ExactSubject
-  @sha "009807a9226e001acbb5c686ea1dd002d0d1ef72"
-  test "exact-subject admission and refusal" do
-    assert {:ok,a}=ExactSubject.admit(%{"subject"=>"doctrine:exact_subject","source_sha"=>@sha})
-    assert a["authority"]=="NONE" and a["ceiling"]=="CONSTRUCT"
-    assert {:error,{:refused_doctrine,:exact_subject,:invalid_exact_subject}}=ExactSubject.admit(%{})
+
+  test "exact-subject admission is bound to canonical marketplace doctrine" do
+    assert {:ok, admitted} =
+             ExactSubject.admit(%{
+               "subject" => "doctrine:exact_subject",
+               "source_repository" => "seanchatmangpt/ggen-marketplace",
+               "source_sha" => "dcdedbcc6c8482a22487ca100bcf93c3b54291fa"
+             })
+
+    assert admitted["authority"] == "NONE"
+    assert admitted["ceiling"] == "CONSTRUCT"
+
+    assert {:error, {:refused_doctrine, :source_identity, :invalid_exact_subject}} =
+             ExactSubject.admit(%{})
   end
 end
