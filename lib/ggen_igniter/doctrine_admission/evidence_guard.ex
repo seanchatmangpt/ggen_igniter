@@ -9,10 +9,17 @@ defmodule GgenIgniter.DoctrineAdmission.EvidenceGuard do
     ceiling = Map.get(candidate, "evidence_ceiling", "CONSTRUCT")
 
     cond do
-      standing != "UNKNOWN" -> {:error, {:refused_doctrine, :evidence, {:literal_standing, standing}}}
-      authority != "NONE" -> {:error, {:refused_doctrine, :evidence, {:authority, authority}}}
-      ceiling not in @allowed -> {:error, {:refused_doctrine, :evidence, {:ceiling, ceiling}}}
-      true -> {:ok, candidate}
+      standing != "UNKNOWN" ->
+        {:error, {:refused_doctrine, :evidence, {:literal_standing, standing}}}
+
+      authority != "NONE" ->
+        {:error, {:refused_doctrine, :evidence, {:authority, authority}}}
+
+      ceiling not in @allowed ->
+        {:error, {:refused_doctrine, :evidence, {:ceiling, ceiling}}}
+
+      true ->
+        {:ok, candidate}
     end
   end
 

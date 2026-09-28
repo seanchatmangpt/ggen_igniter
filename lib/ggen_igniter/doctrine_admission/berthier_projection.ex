@@ -86,8 +86,7 @@ defmodule GgenIgniter.DoctrineAdmission.BerthierProjection do
         "local_constraints" => Enum.sort(Enum.uniq(constraints))
       },
       "candidate" => %{
-        "candidate_id" =>
-          Map.get(input, "candidate_id", "candidate:" <> input["strategy_id"]),
+        "candidate_id" => Map.get(input, "candidate_id", "candidate:" <> input["strategy_id"]),
         "actions" => actions,
         "falsifier" => input["falsifier"],
         "objectives" => input["objectives"],

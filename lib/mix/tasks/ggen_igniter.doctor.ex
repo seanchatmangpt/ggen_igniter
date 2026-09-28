@@ -84,7 +84,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       `Render.render/2` convention. Fail-closed: any broken component (Turtle syntax,
       crashing gate, undefined template binding, zero-row driver query) is an honest
       `✘` naming it, never a crash of the whole doctor run. A pack DIRECTORY absent
-      from the resolved root (the Hex package's `files:` list does not ship `priv/`)
+      from the resolved root (a package form or checkout that omits `priv/ggen`)
       is `⚠` advisory, never `:error` -- a package form that ships no pack has no
       pack health to fail on.
 
@@ -1061,8 +1061,8 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   # never raises (any broken component becomes `{:error, detail}` naming it),
   # and this wrapper never lets an unexpected raise escape the checklist.
   # A missing pack DIRECTORY (`priv/ggen/semantic-jira-pack/` absent from the
-  # resolved ggen_igniter root -- the Hex package's `files:` list does not
-  # ship `priv/`) is `:warn`, not `:error`: a package form that ships no pack
+  # resolved ggen_igniter root -- e.g. a trimmed package form without
+  # `priv/ggen`) is `:warn`, not `:error`: a package form that ships no pack
   # has no pack health to report, and must not fail every consumer's doctor
   # run (the same consumer-shape reasoning `check_nif_compiles`' root
   # resolution applies); a pack directory that EXISTS but is broken is a real

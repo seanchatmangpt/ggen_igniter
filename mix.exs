@@ -102,9 +102,21 @@ defmodule GgenIgniter.MixProject do
       licenses: ["MIT"],
       description: description(),
       links: %{"GitHub" => @source_url},
-      files:
-        ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/src mix.exs README.md LICENSE CHANGELOG.md .formatter.exs)
+      files: ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/Cargo.lock
+           native/ggen_graph_nif/src priv/bundles priv/schema
+           wasm-artifacts/tera_wasm_renderer.wasm
+           mix.exs README.md LICENSE CHANGELOG.md .formatter.exs) ++ shipped_packs()
     ]
+  end
+
+  # Runtime-read packs under priv/ggen (semantic-jira-pack's trust-root
+  # ontology, gall_work's ticket template). `priv/native/*.so` is a gitignored
+  # build product and must never ship (bare `priv` would include it), and Ash
+  # packs come from ggen-marketplace, not from this package.
+  defp shipped_packs do
+    "priv/ggen/*"
+    |> Path.wildcard()
+    |> Enum.reject(&String.contains?(&1, "ash"))
   end
 
   defp deps do
