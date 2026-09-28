@@ -22,6 +22,10 @@ erl_crash.dump
 /native/*/target/
 /priv/native/*.so
 
+# Root-level Rust cargo build output (a `target/release/` tree lands here when a
+# crate is built from the repo root; same GB-scale artifact class as above).
+/target/
+
 # Dialyzer PLT cache and ExCoveralls coverage output (both real, regenerable
 # tool output, not source).
 /priv/plts/

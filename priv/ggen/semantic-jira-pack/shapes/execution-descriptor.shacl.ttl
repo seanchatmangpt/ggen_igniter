@@ -1,0 +1,81 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# SHACL admission shapes for the RDF projection of an execution descriptor
+# (GgenIgniter.SemanticJira.Descriptor, rendered by the pack's
+# runtime-templates/descriptor.json.eex). This file ADDS the descriptor
+# surface at the shipped pack version 26.9.19; it does not touch
+# work-order.shacl.ttl and does not alter any definition field (the closed
+# @definition_fields take in lib/ggen_igniter/semantic_jira.ex:38-42 is what
+# makes Cancel(provider) identity-safe and MUST NOT gain provider).
+#
+# Every constraint below transcribes a constant Descriptor.build/4 already
+# enforces or guarantees -- nothing invented:
+#   sj:provider            <- build_provider/1: @suite_re
+#                             \A[a-z0-9][a-z0-9_-]{0,63}\z (default "recipe";
+#                             an LLM provider such as "zcode" only when named)
+#   sj:workerIdentity      <- attrs["worker_identity"], pattern @alias_re
+#                             \A[A-Za-z0-9_.-]{1,128}\z (the same pattern
+#                             execution_alias/1 enforces for identities --
+#                             previously UNVALIDATED in build/4; this is its
+#                             first shape)
+#   sj:verifierIdentity    <- attrs["verifier_identity"], same @alias_re
+#                             (previously UNVALIDATED; first shape)
+#   sj:replayIdentity      <- admitted["replay_identity"] (non-empty by the
+#                             @definition_fields closed take; minLength 1)
+#   sj:authority           <- ALWAYS "NONE" (Descriptor moduledoc: the
+#                             descriptor grants no lease, does no DO, never
+#                             promotes standing)
+#   sj:descriptorSchema    <- @schema "semantic-jira/execution-descriptor/v1"
+#   sj:workOrderId / sj:subject / sj:repository / sj:baseSha <- the admitted
+#                             order's identity fields, same patterns as
+#                             work-order.shacl.ttl's WorkOrderShape.
+#
+# Syntax laws: the same supported SHACL-core surface as work-order.shacl.ttl
+# (GgenIgniter.SemanticJira.Shacl); non-blank-string patterns use "[^\\s]",
+# never "\\S" (the graphlaw kernel refuses "\\S" -- work-order.shacl.ttl
+# precedent); sh:closed true means EVERY property below needs its property row
+# here. sh:sparql absence checks use OPTIONAL + FILTER(!BOUND()) -- never
+# EXISTS (sparql 0.3.12 crashes on it).
+
+sj:ExecutionDescriptorShape a sh:NodeShape ;
+    sh:targetClass sj:ExecutionDescriptor ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type rdfs:label dcterms:identifier ) ;
+    sh:property [ sh:path sj:descriptorSchema ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:hasValue "semantic-jira/execution-descriptor/v1" ] ;
+    sh:property [ sh:path sj:workOrderId ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Z][A-Z0-9-]{1,63}$" ] ;
+    sh:property [ sh:path sj:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:repository ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" ] ;
+    sh:property [ sh:path sj:baseSha ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    sh:property [ sh:path sj:provider ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-z0-9][a-z0-9_-]{0,63}$" ] ;
+    sh:property [ sh:path sj:workerIdentity ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Za-z0-9_.-]{1,128}$" ] ;
+    sh:property [ sh:path sj:verifierIdentity ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Za-z0-9_.-]{1,128}$" ] ;
+    sh:property [ sh:path sj:replayIdentity ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:authority ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:hasValue "NONE" ] ;
+    # Provider-neutrality tripwire in SPARQL form (the shape analogue of
+    # gates/047): a descriptor node that also carries sj:capabilityId is
+    # smuggling order identity into the runtime descriptor -- capabilityId
+    # belongs to the order, never to the descriptor.
+    sh:sparql [
+      sh:message "A descriptor must not smuggle order identity: sj:capabilityId is an order field, never a descriptor field." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:capabilityId ?cid .
+        }
+      """
+    ] ;
+    sh:sparql [
+      sh:message "Descriptor authority must be NONE: a descriptor that grants a lease or carries CONSTRUCT authority is a refused descriptor." ;
+      sh:select """
+        PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+        SELECT $this WHERE {
+          $this sj:authority ?a .
+          FILTER(?a != "NONE")
+        }
+      """
+    ] .

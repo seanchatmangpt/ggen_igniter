@@ -1,0 +1,101 @@
+@prefix sd: <https://ggen.dev/ontology/strategic-doctrine#> .
+@prefix org: <http://www.w3.org/ns/org#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix schema: <https://schema.org/> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ew: <https://ggen.dev/fixture/entrant-world#> .
+
+# Entrant world fixture (synthetic; every organization here is fictional).
+#
+# Acme is a 12-person software company entering a segment held by three
+# incumbents. The world is modelled only with public vocabularies (W3C ORG,
+# PROV-O, schema.org, SOSA, OWL-Time); doctrine is referenced, never
+# redefined.
+#
+# Four candidate applicabilities are declared. queries/admitted_applicability.rq
+# admits a candidate only when every sd:appliesWhen condition of its strategy
+# holds for an observation of its actor. Expected admitted set (asserted by
+# tests/test_strategic_doctrine_pack.py):
+#   strategy-11  win-rate 0.22 < 0.35                  ADMITTED
+#   strategy-17  rival-count 3.0 >= 3.0                ADMITTED
+#   strategy-27  runway-months 11.0 < 18.0             ADMITTED
+#   strategy-14  runway-months 11.0 >= 18.0 is false   REFUSED (falsifier of
+#                applicability: a long-runway blitz is not available to Acme)
+
+ew:segment a sd:Market , schema:Product ;
+    schema:name "Mid-market workflow automation (fictional segment)" .
+
+ew:acme a sd:Actor , org:Organization , prov:Agent ;
+    rdfs:label "Acme (fictional entrant)" ;
+    schema:numberOfEmployees 12 ;
+    schema:makesOffer ew:segment .
+
+ew:incumbent-north a sd:Actor , org:Organization , prov:Agent ;
+    rdfs:label "Northwind Systems (fictional incumbent)" .
+ew:incumbent-harbor a sd:Actor , org:Organization , prov:Agent ;
+    rdfs:label "Harbor Suite (fictional incumbent)" .
+ew:incumbent-summit a sd:Actor , org:Organization , prov:Agent ;
+    rdfs:label "Summit Works (fictional incumbent)" .
+
+ew:q3-2026 a sd:Timing , time:Interval ;
+    time:hasBeginning ew:q3-2026-start ;
+    time:hasEnd ew:q3-2026-end .
+ew:q3-2026-start a time:Instant ; time:inXSDDateTimeStamp "2026-07-01T00:00:00Z"^^xsd:dateTimeStamp .
+ew:q3-2026-end a time:Instant ; time:inXSDDateTimeStamp "2026-09-30T23:59:59Z"^^xsd:dateTimeStamp .
+
+# Observations (SOSA). Win rate and churn for every actor; runway, rival count
+# and rival response time for Acme.
+
+ew:obs-acme-win-rate a sosa:Observation , sd:FalsifierObservation ;
+    sosa:hasFeatureOfInterest ew:acme ; sosa:observedProperty sd:win-rate ;
+    sosa:hasSimpleResult 0.22 ; sosa:phenomenonTime ew:q3-2026 ;
+    sosa:resultTime "2026-09-30T23:59:59Z"^^xsd:dateTime .
+ew:obs-acme-churn a sosa:Observation , sd:FalsifierObservation ;
+    sosa:hasFeatureOfInterest ew:acme ; sosa:observedProperty sd:churn-rate ;
+    sosa:hasSimpleResult 0.06 ; sosa:phenomenonTime ew:q3-2026 ;
+    sosa:resultTime "2026-09-30T23:59:59Z"^^xsd:dateTime .
+ew:obs-acme-runway a sosa:Observation , sd:FalsifierObservation ;
+    sosa:hasFeatureOfInterest ew:acme ; sosa:observedProperty sd:runway-months ;
+    sosa:hasSimpleResult 11.0 ; sosa:phenomenonTime ew:q3-2026 ;
+    sosa:resultTime "2026-09-30T23:59:59Z"^^xsd:dateTime .
+ew:obs-acme-rival-count a sosa:Observation , sd:FalsifierObservation ;
+    sosa:hasFeatureOfInterest ew:acme ; sosa:observedProperty sd:rival-count ;
+    sosa:hasSimpleResult 3.0 ; sosa:phenomenonTime ew:q3-2026 ;
+    sosa:resultTime "2026-09-30T23:59:59Z"^^xsd:dateTime .
+ew:obs-acme-rival-response a sosa:Observation , sd:FalsifierObservation ;
+    sosa:hasFeatureOfInterest ew:acme ; sosa:observedProperty sd:rival-response-days ;
+    sosa:hasSimpleResult 45.0 ; sosa:phenomenonTime ew:q3-2026 ;
+    sosa:resultTime "2026-09-30T23:59:59Z"^^xsd:dateTime .
+
+ew:obs-north-win-rate a sosa:Observation ;
+    sosa:hasFeatureOfInterest ew:incumbent-north ; sosa:observedProperty sd:win-rate ;
+    sosa:hasSimpleResult 0.41 ; sosa:phenomenonTime ew:q3-2026 .
+ew:obs-north-churn a sosa:Observation ;
+    sosa:hasFeatureOfInterest ew:incumbent-north ; sosa:observedProperty sd:churn-rate ;
+    sosa:hasSimpleResult 0.14 ; sosa:phenomenonTime ew:q3-2026 .
+ew:obs-harbor-win-rate a sosa:Observation ;
+    sosa:hasFeatureOfInterest ew:incumbent-harbor ; sosa:observedProperty sd:win-rate ;
+    sosa:hasSimpleResult 0.33 ; sosa:phenomenonTime ew:q3-2026 .
+ew:obs-harbor-churn a sosa:Observation ;
+    sosa:hasFeatureOfInterest ew:incumbent-harbor ; sosa:observedProperty sd:churn-rate ;
+    sosa:hasSimpleResult 0.21 ; sosa:phenomenonTime ew:q3-2026 .
+ew:obs-summit-win-rate a sosa:Observation ;
+    sosa:hasFeatureOfInterest ew:incumbent-summit ; sosa:observedProperty sd:win-rate ;
+    sosa:hasSimpleResult 0.04 ; sosa:phenomenonTime ew:q3-2026 .
+ew:obs-summit-churn a sosa:Observation ;
+    sosa:hasFeatureOfInterest ew:incumbent-summit ; sosa:observedProperty sd:churn-rate ;
+    sosa:hasSimpleResult 0.11 ; sosa:phenomenonTime ew:q3-2026 .
+
+# Candidate applicabilities (candidates, not admissions; authority NONE).
+
+ew:app-acme-11 a sd:DoctrineApplicability ;
+    sd:applicabilityOf sd:strategy-11 ; sd:actor ew:acme .
+ew:app-acme-17 a sd:DoctrineApplicability ;
+    sd:applicabilityOf sd:strategy-17 ; sd:actor ew:acme .
+ew:app-acme-27 a sd:DoctrineApplicability ;
+    sd:applicabilityOf sd:strategy-27 ; sd:actor ew:acme .
+ew:app-acme-14 a sd:DoctrineApplicability ;
+    sd:applicabilityOf sd:strategy-14 ; sd:actor ew:acme .

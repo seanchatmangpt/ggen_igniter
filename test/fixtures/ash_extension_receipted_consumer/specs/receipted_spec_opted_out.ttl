@@ -1,0 +1,8 @@
+@prefix aex: <http://seanchatmangpt.github.io/packs/ash-extension-core#> .
+
+# Negative fixture: generatesReceiptedAction false. Expected projection: nothing --
+# neither receipt.ex nor receipted_action.ex may be written for this spec.
+<urn:aex:fixture:opted-out> a aex:AshExtensionSpec ;
+    aex:packageName "opted_out_probe" ;
+    aex:moduleName "OptedOutProbe" ;
+    aex:generatesReceiptedAction false .

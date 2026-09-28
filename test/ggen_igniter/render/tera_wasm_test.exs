@@ -43,6 +43,13 @@ defmodule GgenIgniter.Render.TeraWasmTest do
       assert TeraWasm.tera_template?("templates/foo.tera", "plain text, no tags")
     end
 
+    test "true for a .tmpl path -- the ggen/ggen-marketplace Tera template convention" do
+      # ggen-marketplace packs (e.g. packs/ash-extension-pack/templates/*.ex.tmpl) are
+      # Tera. Routing them through EEx wrote `{{ module_name }}` literally into the
+      # generated module (observed 2026-09-27, first live sync of that pack).
+      assert TeraWasm.tera_template?("templates/receipt.ex.tmpl", "defmodule {{ m }} do end")
+    end
+
     test "false for a non-.tera path even when content contains Tera-tag-shaped syntax" do
       refute TeraWasm.tera_template?("templates/foo.txt", "{% if x %}y{% endif %}")
     end

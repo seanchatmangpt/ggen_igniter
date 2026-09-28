@@ -1,0 +1,68 @@
+{
+  "subject": "GgenIgniter.EA.Ignition (lib/ggen_igniter/ea/ignition.ex) and GgenIgniter.EnterpriseArchitecture (lib/ggen_igniter/enterprise_architecture.ex)",
+  "command": "MIX_ENV=test mix run --no-start bench/ea_ignition_bench.exs",
+  "host": "Apple M3 Max, Elixir 1.19.5, Erlang/OTP 28",
+  "method": "1000-call warmup, 7 rounds of 20000 calls, median of round means",
+  "results_us_per_op": {
+    "EnterpriseArchitecture.admit": {
+      "median": 6.783,
+      "max_round": 7.587
+    },
+    "EnterpriseArchitecture.scaffold": {
+      "median": 15.341,
+      "max_round": 25.183
+    },
+    "EnterpriseArchitecture.migrate": {
+      "median": 24.196,
+      "max_round": 26.708
+    },
+    "EnterpriseArchitecture.verify_receipt": {
+      "median": 2.655,
+      "max_round": 2.891
+    },
+    "EA.Ignition.admit": {
+      "median": 29.613,
+      "max_round": 34.632
+    },
+    "EA.Ignition.admit_refuse_widening": {
+      "median": 14.026,
+      "max_round": 14.76
+    },
+    "EA.Ignition.lock": {
+      "median": 0.849,
+      "max_round": 1.0
+    },
+    "EA.Ignition.verify_lock": {
+      "median": 15.521,
+      "max_round": 16.271
+    },
+    "EA.Ignition.substitute": {
+      "median": 50.847,
+      "max_round": 56.987
+    },
+    "EA.Ignition.apply_migration": {
+      "median": 22.238,
+      "max_round": 30.484
+    }
+  },
+  "regression_bounds_us": {
+    "EA.Ignition.admit": 1000,
+    "EA.Ignition.verify_lock": 500,
+    "EA.Ignition.substitute": 2000,
+    "EA.Ignition.apply_migration": 600,
+    "EnterpriseArchitecture.admit": 250,
+    "EnterpriseArchitecture.scaffold": 500,
+    "EnterpriseArchitecture.migrate": 750,
+    "EnterpriseArchitecture.verify_receipt": 100
+  },
+  "bound_test": [
+    "test/ggen_igniter_ea_ignition_test.exs \"benchmark regression bound\"",
+    "test/ggen_igniter/enterprise_architecture_hardening_test.exs \"benchmark regression bound\""
+  ],
+  "authority": "NONE",
+  "standing": "measured on local host; bounds enforced by test",
+  "parent_heads": [
+    "cb9497b4d1408b015d10d2221e4a6734481fdf22",
+    "f44a3cce1e7586c8748c1dcce31420e16348604d"
+  ]
+}

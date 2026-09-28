@@ -1,0 +1,10 @@
+@prefix aex: <http://seanchatmangpt.github.io/packs/ash-extension-core#> .
+
+# Positive fixture: one spec opting into the receipted-action projection.
+# Expected projection: lib/receipted_probe/receipt.ex and
+# lib/receipted_probe/receipted_action.ex, both compiling as generated.
+<urn:aex:fixture:receipted-probe> a aex:AshExtensionSpec ;
+    aex:packageName "receipted_probe" ;
+    aex:moduleName "ReceiptedProbe" ;
+    aex:generatesReceiptedAction true ;
+    aex:receiptIdempotencyKeySource "caller_supplied" .

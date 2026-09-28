@@ -1,0 +1,31 @@
+# Numeric thresholds as predicates: one row per (actor, condition) of a
+# candidate applicability whose threshold HOLDS for some SOSA observation of
+# the actor. Each row becomes one ground init fact `(<property>-<cmp>-<threshold> actor)`
+# and, for admitted strategies, one method precondition. A condition that
+# does not hold yields no row, hence no init fact. SELECT only; authority NONE.
+PREFIX sd: <https://ggen.dev/ontology/strategic-doctrine#>
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+
+SELECT ?actor ?strategy ?condition ?property ?comparator ?threshold ?value WHERE {
+  ?applicability a sd:DoctrineApplicability ;
+    sd:applicabilityOf ?strategy ;
+    sd:actor ?actor .
+  ?strategy sd:appliesWhen ?condition .
+  ?condition sd:aboutClass ?class ;
+    sd:observedProperty ?property ;
+    sd:comparator ?comparator ;
+    sd:threshold ?threshold .
+  ?actor a ?class .
+  ?observation a sosa:Observation ;
+    sosa:hasFeatureOfInterest ?actor ;
+    sosa:observedProperty ?property ;
+    sosa:hasSimpleResult ?value .
+  FILTER(
+    (?comparator = "lt"  && ?value <  ?threshold) ||
+    (?comparator = "lte" && ?value <= ?threshold) ||
+    (?comparator = "gt"  && ?value >  ?threshold) ||
+    (?comparator = "gte" && ?value >= ?threshold) ||
+    (?comparator = "eq"  && ?value =  ?threshold)
+  )
+}
+ORDER BY ?actor ?strategy ?condition
