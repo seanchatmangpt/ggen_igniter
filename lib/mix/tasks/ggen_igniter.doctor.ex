@@ -716,9 +716,11 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       true ->
         try do
           graph = Ontology.load!(ontology_path)
-          store = GgenIgniter.Query.Qlever.load_store!(graph, store_id)
+          # `apply/3` on purpose: without the optional `:gno` dep the module is the
+          # raising `no_return()` stub, and a static call trips the type checker.
+          store = apply(GgenIgniter.Query.Qlever, :load_store!, [graph, store_id])
 
-          GgenIgniter.Query.Qlever.run(store, "ASK { ?s ?p ?o }")
+          apply(GgenIgniter.Query.Qlever, :run, [store, "ASK { ?s ?p ?o }"])
           {:ok, "QLever endpoint for #{store_id} reachable"}
         rescue
           error ->
