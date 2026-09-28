@@ -1,5 +1,44 @@
 # Changelog
 
+## v26.9.25
+
+- **G1 origin trust-root pin law** (`0abf43d`): a recomputing
+  `sj:admissionDigest` is an unkeyed content hash, so a caller graph could
+  type a fresh `sj:StrategicObjective`, stamp its own digest, and be
+  admitted. `Authority.require_origin/2` now fail-closes at every kernel
+  entry point (lease request, execution package, DO intent, promotion — the
+  old `authority_requirement: "NONE"` bypass removed — transition, repair,
+  A2A task): an `(iri, sj:admissionDigest)` pair is admitted only when
+  pinned by an `sj:AuthorityTrustRoot` node of the canonical
+  semantic-jira-pack ontology (SHACL `sj:AuthorityTrustRootShape` in
+  `shapes/work-order.shacl.ttl`), and the origin index is recomputed through
+  the pins by `Authority.index_from/1` (canonical, caller graph, Turtle
+  path, revalidated index map). Any unpinned pair is refused
+  `{:authority_not_pinned, iri}` — a typed origin refusal without authority;
+  an unreadable trust root pins nothing.
+
+## v26.9.26
+
+- **Provider-neutral admission gate 047 + execution-descriptor shapes**
+  (`4441282`): `gates/047_provider_neutral_admission.rq` — a violation-row
+  gate where provider tokens in order semantic fields, a `sj:capabilityId`
+  without a provider left-segment, and `sj:provider` on a work order are
+  each refusals (`dcterms:identifier` exempt, recorded failed edge); plus
+  `shapes/execution-descriptor.shacl.ttl`, the first shape for the runtime
+  execution descriptor (provider/worker/verifier identity, authority NONE).
+  Shipped gate count 12 → 13.
+- **EA qualified-SBB ignition admission kernel + benchmarks** (`ad5c029`).
+- **`GenerationalResilience` authority-free admission** (`3096763`).
+- **`doctrine-hddl-pack` + `mix semantic_jira.admit_candidates`**
+  (`be2750d`): the pack projects the strategic-doctrine (`sd:`) graph to
+  HDDL + FOND (gates 010-050, typed `REFUSED:DOCTRINE_HDDL` refusals;
+  authority NONE, ceiling CONSTRUCT); the task judges a JSONL candidates
+  file one verdict per line, admitted only when `admit_work_order/1` passes
+  AND the origin resolves in the pinned authority index (prose never
+  admits).
+- **Version policy note**: `mix.exs` remains at `26.9.24` through both
+  closures (v26.9.25 and v26.9.26 shipped without a project-version bump).
+
 ## v26.9.24
 
 - **The origin-authority law (SJ-002, ADR-012)** — prose never originates

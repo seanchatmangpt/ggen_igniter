@@ -64,7 +64,7 @@ See `docs/status.md` for the complete, sourced capability table and
 
 ## Packs
 
-`priv/ggen/*` ships the following 15 packs (the `--pack NAME` convention;
+`priv/ggen/*` ships the following 16 packs (the `--pack NAME` convention;
 original pack purposes sourced from `docs/v26.9.1-requirements.md` §3 — the
 disk inventory below is authoritative):
 
@@ -104,9 +104,23 @@ disk inventory below is authoritative):
 - **`gall_work`** — GALL TTL→ticket projection pack.
 - **`semantic-jira-pack`** (pack.toml v26.9.19) — ontology-native Semantic
   Jira work orders projected through ggen_igniter; work-order shapes, gates,
-  runtime templates, prose/bootstrap directories.
+  runtime templates, prose/bootstrap directories. Declares the epoch-boundary
+  vocabulary (`sj:EpochBoundary` plus `sj:epoch`, `sj:planTouches`, and the
+  boundary predicates `sj:epochLabel`/`sj:watermarkTree`/
+  `sj:similarityThreshold`/`sj:implementationGlob`, per `VOCABULARY.md`'s
+  "Epoch boundary terms") and ships `gates/epoch_boundary.rq` (shipped gate
+  set now 14).
 - **`zcode-ocel-pack`** (pack.toml v0.1.0) — OCEL 2.0 event/object-type
   registry for the zcode agent loop (TypeScript projection).
+- **`doctrine-hddl-pack`** (pack.toml v26.9.26) — projects the
+  strategic-doctrine (`sd:`) graph plus a world model into HDDL + FOND
+  (templates `domain.hddl`, `problem.hddl`, `contingency.fond.pddl`): one
+  action per primitive operator, candidate compound tasks per served
+  objective, one method per applicable strategy (step order from
+  `sd:order`), numeric-threshold predicates, and falsifiers as `oneof`
+  observations; gates 010-050; typed `REFUSED:DOCTRINE_HDDL` refusals
+  (missing/non-total `sd:order`, no admitted applicability, unfalsifiable
+  strategy, cross-gate mismatch). Doctrine is referenced, never redefined.
 
 The former `gall-semantic-work-pack` was deleted 2026-09-20 (folded into
 `semantic-jira-pack`). `ash_manufacture_pack`, listed here previously, never
