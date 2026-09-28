@@ -1,0 +1,3 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+# FALSIFIER: network-capable git verbs outside the deny-list vocabulary.
+utp:git-local utp:allowedVerb "send-pack" , "archive" .

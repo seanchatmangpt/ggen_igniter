@@ -1,0 +1,118 @@
+{
+  "work_order_id": "ULTRACODE-TWO-PORT-001",
+  "origin_authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "operator chat order 2026-09-27 (plan approved)",
+    "actor": "Sean Chatman"
+  },
+  "provider": {
+    "name": "claude-code",
+    "transport": "local",
+    "authority_ceiling": "CONSTRUCT"
+  },
+  "provider_execution_id": "session-62779b6f-65e3-4d3d-830f-e1867bd9c784",
+  "identity": {
+    "subject": "priv/ggen/ultracode-two-port-pack",
+    "repo": "/Users/sac/ggen_igniter",
+    "subject_sha": "a21400698108023a2d6a22c9a0b407d48100d666",
+    "base_sha": "7c4fcc03f577e5af23bbf16a6e87cb681965599c"
+  },
+  "authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "NONE",
+    "actor": "claude-code"
+  },
+  "consequence": {
+    "commits": [
+      "a21400698108023a2d6a22c9a0b407d48100d666"
+    ],
+    "files_changed": [
+      "priv/ggen/ultracode-two-port-pack/**",
+      "test/fixtures/ultracode-two-port/**",
+      "test/support/ultracode_two_port_manufactured.ex",
+      "test/ggen_igniter_ultracode_two_port_test.exs",
+      "docs/integrations/ultracode/two-port-pack.md"
+    ],
+    "remote_effects": []
+  },
+  "replay": {
+    "commands": [
+      {
+        "cmd": "mix compile --warnings-as-errors",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_ultracode_two_port_test.exs",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "58 tests, 0 failures"
+      },
+      {
+        "cmd": "mutation: firewall default-deny -> {:ok,:internal}; gate FORBIDDEN_DIRECT_EDGE branch FILTER(false); mix test test/ggen_igniter_ultracode_two_port_test.exs",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 2,
+        "summary": "58 tests, 3 failures (anti-vacuity witnessed); templates restored byte-identical"
+      },
+      {
+        "cmd": "mix test",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 2,
+        "summary": "1657 tests, 3 failures, all PRE-EXISTING/foreign: ToolchainPinQualificationTest (VM 1.19.5/OTP28 vs .tool-versions 1.18.4/OTP27); WS5.VersionContractTest + DoctorTaskTest (other session's uncommitted CHANGELOG.md top entry v26.9.25 vs mix.exs 26.9.24)"
+      },
+      {
+        "cmd": "grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps -E '(use|import) +(Mox|Mimic|Patch)\\b|(Mox|Mimic|Patch)\\.|:meck\\.|mockall|MagicMock|Mock\\(' test lib native",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 1,
+        "summary": "no matches"
+      }
+    ],
+    "durable_location": "docs/jira/v26.9.27/ultracode-two-port/receipt.json"
+  },
+  "standing": {
+    "value": "PARTIAL_ALIVE",
+    "derived_from": "mix test test/ggen_igniter_ultracode_two_port_test.exs at a214006 (58/0) proves the pack, gates, firewall and golden path on a generated consumer compiled in the ggen_igniter test VM; not ALIVE because no XaaS/standalone Mix consumer consumes the pack yet"
+  },
+  "provider_ext.claude-code": {
+    "external_semantic_ports": [
+      "SA2A",
+      "sJira"
+    ],
+    "exceptions": [
+      {
+        "class": "LOCAL_RUNTIME_PRIMITIVE",
+        "edge": "<Prefix>.Local -> System.cmd (git allowlisted verbs, mix compile/test)"
+      },
+      {
+        "class": "LOCAL_RUNTIME_PRIMITIVE",
+        "edge": "<Prefix>.Constructor -> File.write (OCEL ndjson append)"
+      },
+      {
+        "class": "UNRESOLVED_DIRECT_EDGE",
+        "edge": "xaas Xaas.Ultracode.SemanticCrown -> :httpc (MCP tools/call)",
+        "next": "render pack into xaas; route through Capabilities (SA2A)"
+      },
+      {
+        "class": "UNRESOLVED_DIRECT_EDGE",
+        "edge": "xaas autonomic.ex -> scripts/xaas-glm-failover-dispatcher.sh",
+        "next": "SA2A provider capability"
+      },
+      {
+        "class": "UNRESOLVED_DIRECT_EDGE",
+        "edge": "xaas semantic_crown/semantic_drive -> shell-out to sibling ggen_igniter checkout",
+        "next": "bump xaas dep ggen_igniter ~> 26.9.15 to a release with GgenIgniter.SemanticJira; use generated Work port"
+      },
+      {
+        "class": "UNRESOLVED_DIRECT_EDGE",
+        "edge": "xaas capability_resolver/source/sa2a.ex -> Req.post",
+        "next": "generated Capabilities port"
+      }
+    ],
+    "court": "ggen-reviewer: 10 verified findings, all fixed with falsifier tests; firewall bypass-hunt agent stopped before probing -> coordinator ran a 15-module bypass corpus instead",
+    "residue": [
+      "resolution digest is tamper-evident (sha256), not a MAC; CommandBus admission still gates :change",
+      "caller-injected construct/verify closures are outside the firewall's proof",
+      "firewall requires debug_info (fails closed without it)"
+    ]
+  }
+}

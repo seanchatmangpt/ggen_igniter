@@ -1,0 +1,154 @@
+@prefix utp:  <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix sj:   <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# ultracode-two-port-pack -- the TWO-PORT LAW for generated UltraCode agents.
+#
+#   forall generated UltraCode agent A:  ExternalSemanticPorts(A) = {SA2A, sJira}
+#
+#   WORK         = sJira  (what work exists / what happened to it)
+#   CAPABILITY   = SA2A   (what capability can satisfy this need)
+#   CONSTRUCTION = local bounded runtime (utp:LocalPrimitive)
+#   DO           = separately authorized (utp:ConsequentialActuation,
+#                  always mediated by SA2A, never implied by resolution)
+#
+# This file is the pack TBOX plus the canonical port / primitive / actuation
+# individuals. A consumer's agent declaration is a separate graph that is
+# concatenated with this one before sync (one agent = one utp:ConstructorAgent
+# individual; see test/fixtures/ultracode-two-port/agent.ttl). The pack ships
+# NO agent individual, so `--pack ultracode-two-port-pack` alone renders
+# nothing.
+#
+# Gate convention (priv/ggen/CLAUDE.md): gates/*.rq are template bindings.
+# gates/000_violations.rq is INVERTED -- every row is a typed refusal, and
+# every template refuses to render when it is non-empty, so a graph that
+# violates the law fails `mix ggen_igniter.sync` before any byte is written.
+# Do NOT score this pack with GgenIgniter.GateVerify's ">= 1 row passes" rule.
+#
+# Reused, not re-declared: sj:WorkOrder, sj:capabilityId (the SA2A capability
+# grammar), sj:authorityCeiling -- semantic-jira-pack/ontology.ttl.
+
+utp: a owl:Ontology ;
+    rdfs:label "UltraCode two-port topology" ;
+    rdfs:comment "Generated UltraCode agents see exactly two external semantic ports: sJira (work) and SA2A (capability)." .
+
+# ── Classes ───────────────────────────────────────────────────────────────
+
+utp:ConstructorAgent a owl:Class ;
+    rdfs:comment "A generated UltraCode agent. It CONSTRUCTs; it is not an integration bus." .
+
+utp:SemanticPort a owl:Class ;
+    rdfs:comment "An external semantic boundary the agent may cross." .
+
+utp:WorkPort a owl:Class ;
+    rdfs:subClassOf utp:SemanticPort ;
+    rdfs:comment "Semantic work plane: identity, state, evidence. Only sJira." .
+
+utp:CapabilityPort a owl:Class ;
+    rdfs:subClassOf utp:SemanticPort ;
+    rdfs:comment "Capability plane: resolution and invocation. Only SA2A." .
+
+utp:LocalPrimitive a owl:Class ;
+    rdfs:comment "Local, non-consequential construction primitive (compiler, local git, fs)." .
+
+utp:ExternalIntegration a owl:Class ;
+    rdfs:comment "A concrete external system (GitHub, Jira REST, Slack, ...). Never an agent edge." .
+
+utp:ConsequentialActuation a owl:Class ;
+    rdfs:comment "An external DO. Mediated by SA2A and never authorized by resolution alone." .
+
+# ── Properties ────────────────────────────────────────────────────────────
+
+utp:workPort a owl:ObjectProperty ; rdfs:domain utp:ConstructorAgent ; rdfs:range utp:WorkPort .
+utp:capabilityPort a owl:ObjectProperty ; rdfs:domain utp:ConstructorAgent ; rdfs:range utp:CapabilityPort .
+utp:usesLocalPrimitive a owl:ObjectProperty ; rdfs:domain utp:ConstructorAgent ; rdfs:range utp:LocalPrimitive .
+utp:externalIntegration a owl:ObjectProperty ;
+    rdfs:domain utp:ConstructorAgent ; rdfs:range utp:ExternalIntegration ;
+    rdfs:comment "FORBIDDEN on any agent: gates/000_violations.rq refuses it (FORBIDDEN_DIRECT_EDGE)." .
+utp:mediatedBy a owl:ObjectProperty ; rdfs:range utp:SemanticPort .
+utp:requiresAuthority a owl:DatatypeProperty ; rdfs:range xsd:boolean .
+utp:allowedVerb a owl:DatatypeProperty ; rdfs:domain utp:LocalPrimitive .
+utp:networkVerb a owl:DatatypeProperty ;
+    rdfs:comment "A verb that reaches the network; never allowed on a local primitive." .
+utp:capabilityName a owl:DatatypeProperty ; rdfs:domain utp:ConsequentialActuation .
+utp:portKey a owl:DatatypeProperty ; rdfs:domain utp:SemanticPort .
+utp:portModulePrefix a owl:DatatypeProperty ; rdfs:domain utp:SemanticPort ;
+    rdfs:comment "Module prefix through which the port is reached (firewall census)." .
+utp:runtimeApp a owl:DatatypeProperty ;
+    rdfs:comment "OTP application whose modules are local runtime (default-deny otherwise)." .
+utp:forbiddenModule a owl:DatatypeProperty ;
+    rdfs:comment "Module never reachable from agent logic, even inside an allowed runtime app." .
+utp:shellFunction a owl:DatatypeProperty ;
+    rdfs:comment "Module or M.f reaching the OS shell/ports; allowed only in the shell boundary module." .
+utp:shellBoundaryModule a owl:DatatypeProperty ;
+    rdfs:comment "The single agent module allowed to reach the OS (utp:LocalPrimitive projection)." .
+utp:otpApp a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent .
+utp:modulePrefix a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent .
+utp:agentName a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent .
+utp:libPath a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent .
+utp:sa2aTarget a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent ;
+    rdfs:comment "The SA2A resource-or-domain whose released capability index the agent resolves against." .
+
+# ── The two ports ─────────────────────────────────────────────────────────
+
+utp:sJira a utp:WorkPort ;
+    rdfs:label "sJira" ;
+    utp:portKey "sjira" ;
+    utp:portModulePrefix "GgenIgniter.SemanticJira" , "GgenIgniter.SemanticA2A" .
+
+utp:SA2A a utp:CapabilityPort ;
+    rdfs:label "SA2A" ;
+    utp:portKey "sa2a" ;
+    utp:portModulePrefix "AshA2A.Info" , "AshA2A.Dispatcher" , "AshA2A.CommandBus" ,
+        "AshA2A.Command" , "AshA2A.SemanticSubject" , "AshA2A.Authority" ,
+        "AshA2A.Identity" , "A2A.Message" , "A2A.Part" .
+
+# ── Local construction runtime ────────────────────────────────────────────
+
+utp:localPolicy
+    utp:shellBoundaryModule "Local" ;
+    utp:runtimeApp "erts" , "elixir" , "stdlib" , "kernel" , "crypto" , "logger" , "compiler" , "jason" ;
+    utp:forbiddenModule ":gen_tcp" , ":gen_udp" , ":inet" , ":socket" , ":httpc" , ":ssl" ,
+        ":erpc" , ":rpc" , ":net_kernel" , ":os" , ":prim_inet" , ":prim_socket" , ":prim_net" ,
+        ":inet_tcp" , ":inet_udp" , ":inet6_tcp" , ":inet6_udp" , ":gen_sctp" , ":inet_res" ,
+        ":inet_db" , ":global" , ":erl_epmd" , ":dist_util" , ":net" , "Req" , "Finch" , "Mint" , "Tesla" ,
+        "HTTPoison" , "Tentacat" , "Jira" , "Slack" , "Notion" ,
+        # runtime code loading / evaluation hides every edge it would make
+        "Code" , ":code" , ":erl_eval" , ":compile" , "Module" ,
+        # message passing and process machinery reach code this check never sees
+        "GenServer" , ":gen_server" , ":gen_statem" , ":gen" , "Process" , "Node" ,
+        ":net_adm" , ":proc_lib" , "Supervisor" , "DynamicSupervisor" , "Task.Supervisor" ,
+        "Registry" , "Agent" ;
+    utp:shellFunction "System.cmd" , "System.shell" , "Port" , ":erlang.open_port" ;
+    utp:networkVerb "push" , "fetch" , "pull" , "clone" , "ls-remote" , "remote" , "submodule" .
+
+utp:git-local a utp:LocalPrimitive ;
+    rdfs:label "local git (artifact/version only; never the network)" ;
+    utp:allowedVerb "status" , "diff" , "add" , "commit" , "rev-parse" , "show" , "log" , "merge-base" .
+
+utp:compiler a utp:LocalPrimitive ; rdfs:label "mix compile" .
+utp:test-runner a utp:LocalPrimitive ; rdfs:label "mix test" .
+utp:formatter a utp:LocalPrimitive ; rdfs:label "mix format" .
+utp:fs-workspace a utp:LocalPrimitive ; rdfs:label "workspace filesystem" .
+
+# ── Consequential actuation: always behind SA2A, never implied ────────────
+
+utp:git-push a utp:ConsequentialActuation ;
+    utp:capabilityName "git.push" ; utp:mediatedBy utp:SA2A ; utp:requiresAuthority true .
+utp:pr-create a utp:ConsequentialActuation ;
+    utp:capabilityName "pr.create" ; utp:mediatedBy utp:SA2A ; utp:requiresAuthority true .
+utp:merge-remote a utp:ConsequentialActuation ;
+    utp:capabilityName "merge.remote" ; utp:mediatedBy utp:SA2A ; utp:requiresAuthority true .
+utp:tracker-mutate a utp:ConsequentialActuation ;
+    utp:capabilityName "tracker.mutate" ; utp:mediatedBy utp:SA2A ; utp:requiresAuthority true .
+
+# ── Concrete integrations: named so the law can refuse them by name ───────
+
+utp:GitHubRest a utp:ExternalIntegration ; rdfs:label "GitHub REST" .
+utp:JiraRest a utp:ExternalIntegration ; rdfs:label "Jira REST" .
+utp:Slack a utp:ExternalIntegration ; rdfs:label "Slack" .
+utp:ArbitraryHttp a utp:ExternalIntegration ; rdfs:label "arbitrary HTTP" .
+utp:ArbitraryMcp a utp:ExternalIntegration ; rdfs:label "arbitrary MCP" .

@@ -1,0 +1,17 @@
+PREFIX utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#>
+SELECT DISTINCT ?policy_kind ?policy_value WHERE {
+  {
+    utp:localPolicy utp:runtimeApp ?policy_value .
+    BIND("runtime_app" AS ?policy_kind)
+  } UNION {
+    utp:localPolicy utp:forbiddenModule ?policy_value .
+    BIND("forbidden_module" AS ?policy_kind)
+  } UNION {
+    utp:localPolicy utp:shellFunction ?policy_value .
+    BIND("shell_function" AS ?policy_kind)
+  } UNION {
+    utp:localPolicy utp:shellBoundaryModule ?policy_value .
+    BIND("shell_boundary" AS ?policy_kind)
+  }
+}
+ORDER BY ?policy_kind ?policy_value

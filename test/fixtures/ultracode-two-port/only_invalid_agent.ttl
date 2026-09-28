@@ -1,0 +1,10 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix ex:  <https://ggen-igniter.dev/fixture/ultracode#> .
+# FALSIFIER (rendered WITHOUT agent.ttl): the graph's only agent lacks SA2A.
+ex:Lonely a utp:ConstructorAgent ;
+    utp:workPort utp:sJira ;
+    utp:otpApp "lonely" ;
+    utp:modulePrefix "Lonely.Agent" ;
+    utp:agentName "lonely" ;
+    utp:libPath "lib/lonely/agent" ;
+    utp:sa2aTarget "Lonely.Target" .

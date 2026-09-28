@@ -1,0 +1,4 @@
+[pack]
+name = "ultracode-two-port-pack"
+version = "26.9.27"
+description = "Generated UltraCode constructor agents whose only external semantic ports are sJira (work) and SA2A (capability)."

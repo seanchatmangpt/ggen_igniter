@@ -1,0 +1,9 @@
+PREFIX utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#>
+SELECT DISTINCT ?capability_name ?mediated_by WHERE {
+  ?act a utp:ConsequentialActuation ;
+       utp:capabilityName ?capability_name ;
+       utp:mediatedBy ?port ;
+       utp:requiresAuthority true .
+  ?port utp:portKey ?mediated_by .
+}
+ORDER BY ?capability_name

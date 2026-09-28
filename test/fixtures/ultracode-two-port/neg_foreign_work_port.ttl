@@ -1,0 +1,6 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix ex:  <https://ggen-igniter.dev/fixture/ultracode#> .
+
+# FALSIFIER: Jira REST smuggled in as a second work port.
+ex:JiraCloud a utp:WorkPort ; utp:portKey "jira_cloud" ; utp:portModulePrefix "Jira.Client" .
+ex:Constructor utp:workPort ex:JiraCloud .

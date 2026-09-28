@@ -1,0 +1,11 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix ex:  <https://ggen-igniter.dev/fixture/ultracode#> .
+# FALSIFIER: a second, otherwise compliant agent in the same consumer graph.
+ex:Second a utp:ConstructorAgent ;
+    utp:workPort utp:sJira ;
+    utp:capabilityPort utp:SA2A ;
+    utp:otpApp "ultracode_fixture" ;
+    utp:modulePrefix "UltracodeFixture.Second" ;
+    utp:agentName "second_agent" ;
+    utp:libPath "lib/ultracode_fixture/second" ;
+    utp:sa2aTarget "SemanticJira.Work.Task" .

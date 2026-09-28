@@ -1,0 +1,21 @@
+# Driver rows: exactly one per utp:ConstructorAgent -- even a violating or
+# multi-valued one -- so the template guard (000_violations) always renders
+# and raises its typed refusal instead of an unrelated fan-out error.
+PREFIX utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#>
+SELECT ?agent_iri
+       (COALESCE(SAMPLE(?o), "refused_agent") AS ?otp_app)
+       (COALESCE(SAMPLE(?m), "Refused.Agent") AS ?module_prefix)
+       (COALESCE(SAMPLE(?n), "refused_agent") AS ?agent_name)
+       (COALESCE(SAMPLE(?l), "lib/refused_agent") AS ?lib_path)
+       (COALESCE(SAMPLE(?t), "Refused.Target") AS ?sa2a_target)
+WHERE {
+  ?a a utp:ConstructorAgent .
+  OPTIONAL { ?a utp:otpApp ?o0 . BIND(STR(?o0) AS ?o) }
+  OPTIONAL { ?a utp:modulePrefix ?m0 . BIND(STR(?m0) AS ?m) }
+  OPTIONAL { ?a utp:agentName ?n0 . BIND(STR(?n0) AS ?n) }
+  OPTIONAL { ?a utp:libPath ?l0 . BIND(STR(?l0) AS ?l) }
+  OPTIONAL { ?a utp:sa2aTarget ?t0 . BIND(STR(?t0) AS ?t) }
+  BIND(STR(?a) AS ?agent_iri)
+}
+GROUP BY ?agent_iri
+ORDER BY ?agent_iri

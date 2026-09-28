@@ -1,0 +1,6 @@
+PREFIX utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#>
+SELECT DISTINCT ?verb WHERE {
+  utp:git-local a utp:LocalPrimitive ;
+                utp:allowedVerb ?verb .
+}
+ORDER BY ?verb

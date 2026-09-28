@@ -1,0 +1,5 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix ex:  <https://ggen-igniter.dev/fixture/ultracode#> .
+
+# FALSIFIER: a third, direct external edge (GitHub REST) on the agent.
+ex:Constructor utp:externalIntegration utp:GitHubRest .

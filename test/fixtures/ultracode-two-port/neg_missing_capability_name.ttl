@@ -1,0 +1,4 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix ex:  <https://ggen-igniter.dev/fixture/ultracode#> .
+# FALSIFIER: a consequential actuation that silently drops out of the actuation gate.
+ex:nameless a utp:ConsequentialActuation ; utp:mediatedBy utp:SA2A ; utp:requiresAuthority true .
