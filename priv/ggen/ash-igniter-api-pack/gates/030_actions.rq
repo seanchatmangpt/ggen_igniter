@@ -1,0 +1,11 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?action_name ?action_type ?accepts ?ord
+WHERE {
+  ?a a aia:Action ;
+     aia:actionName ?action_name ;
+     aia:actionType ?action_type ;
+     aia:accepts ?accepts ;
+     aia:order ?ord .
+}
+ORDER BY ?ord

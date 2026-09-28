@@ -1,0 +1,188 @@
+---
+to: "lib/mix/tasks/<%= task_name %>.ex"
+mode: file
+---
+<%
+  truthy = fn
+    true -> true
+    "true" -> true
+    _ -> false
+  end
+
+  atom = fn s -> inspect(String.to_atom(s)) end
+  csv_atoms = fn s ->
+    s |> String.split(",", trim: true) |> Enum.map(&String.trim/1) |> Enum.map_join(", ", atom)
+  end
+
+  attribute_code = fn a ->
+    opts =
+      (if truthy.(a["is_required"]), do: ["allow_nil?: false"], else: []) ++
+        (if truthy.(a["is_public"]), do: ["public?: true"], else: [])
+
+    Enum.join(["attribute " <> atom.(a["attribute_name"]), ":" <> a["attribute_type"]] ++ opts, ", ")
+  end
+
+  action_code = fn a ->
+    head = "#{a["action_type"]} #{atom.(a["action_name"])}"
+
+    if a["action_type"] in ["create", "update"] and a["accepts"] not in [nil, ""] do
+      head <> " do\n  accept [" <> csv_atoms.(a["accepts"]) <> "]\nend"
+    else
+      # Upstream Ash.Resource.Igniter.defines_action/3 only recognises action calls of
+      # arity 2..4, so a bare `read :name` is invisible to add_new_action/4 and would be
+      # re-added on every run. A do-block makes the call arity 2 and the add idempotent.
+      head <> " do\n  primary? false\nend"
+    end
+  end
+
+  relationship_code = fn r ->
+    opts =
+      (if truthy.(r["is_required"]), do: ["allow_nil?: false"], else: []) ++
+        (if truthy.(r["is_public"]), do: ["public?: true"], else: [])
+
+    Enum.join(
+      ["#{r["relationship_kind"]} #{atom.(r["relationship_name"])}", r["destination"]] ++ opts,
+      ", "
+    )
+  end
+
+  identity_code = fn i ->
+    "identity #{atom.(i["identity_name"])}, [#{csv_atoms.(i["identity_keys"])}]"
+  end
+
+  calculation_code = fn c ->
+    "calculate #{atom.(c["calculation_name"])}, :#{c["calculation_type"]}, #{c["calculation_expr"]}"
+  end
+
+  # name => code pairs, rendered as Elixir literals
+  pairs = fn rows, name_key, code_fn ->
+    "[" <> Enum.map_join(rows, ",\n    ", fn r ->
+      "{#{atom.(r[name_key])}, #{inspect(code_fn.(r), limit: :infinity)}}"
+    end) <> "]"
+  end
+
+  policy_literals = fn rows ->
+    "[" <> Enum.map_join(rows, ",\n    ", fn p ->
+      "{#{inspect(p["policy_condition"])}, #{inspect(p["policy_body"])}}"
+    end) <> "]"
+  end
+%>defmodule <%= task_module %> do
+  @shortdoc "Applies <%= resource_module %>'s attributes, actions, relationships, identities, calculations and policies."
+  @moduledoc """
+  MANUFACTURED by ggen_igniter from `priv/ggen/ash-igniter-api-pack` -- do not hand-edit.
+
+  Composes `ash.gen.resource` ONCE for the base module `<%= resource_module %>`
+  (domain `<%= domain_module %>`), then applies every remaining ontology fact through
+  the idempotent structural APIs `Ash.Resource.Igniter.add_new_attribute/4`,
+  `add_new_action/4`, `add_new_relationship/4`, `add_new_identity/4`,
+  `add_new_calculation/4` and `Ash.Domain.Igniter.add_resource_reference/3`.
+  Each `add_new_*` checks for an existing member by name, so a second run is inert.
+  `add_policy/4` has no such check upstream; this task guards it by looking for the
+  policy in the resource source first.
+
+      mix <%= task_name %> --yes
+  """
+
+  use Igniter.Mix.Task
+
+  @domain <%= domain_module %>
+  @resource <%= resource_module %>
+
+  @attributes <%= pairs.(attributes, "attribute_name", attribute_code) %>
+  @actions <%= pairs.(actions, "action_name", action_code) %>
+  @relationships <%= pairs.(relationships, "relationship_name", relationship_code) %>
+  @identities <%= pairs.(identities, "identity_name", identity_code) %>
+  @calculations <%= pairs.(calculations, "calculation_name", calculation_code) %>
+  @policies <%= policy_literals.(policies) %>
+
+  @doc false
+  def facts do
+    %{
+      attributes: Keyword.keys(@attributes),
+      actions: Keyword.keys(@actions),
+      relationships: Keyword.keys(@relationships),
+      identities: Keyword.keys(@identities),
+      calculations: Keyword.keys(@calculations),
+      policies: Enum.map(@policies, &elem(&1, 0))
+    }
+  end
+
+  @impl Igniter.Mix.Task
+  def info(_argv, _parent) do
+    %Igniter.Mix.Task.Info{
+      group: :<%= otp_app %>,
+      example: "mix <%= task_name %> --yes",
+      composes: ["ash.gen.domain", "ash.gen.resource"]
+    }
+  end
+
+  @impl Igniter.Mix.Task
+  def igniter(igniter) do
+    igniter
+    |> Igniter.compose_task("ash.gen.domain", [inspect(@domain), "--ignore-if-exists"])
+    |> Igniter.compose_task("ash.gen.resource", [
+      inspect(@resource),
+      "--uuid-primary-key",
+      "id",
+      "--domain",
+      inspect(@domain),
+      "--ignore-if-exists"
+    ])
+    |> apply_all(@attributes, &Ash.Resource.Igniter.add_new_attribute/4)
+    |> apply_all(@actions, &Ash.Resource.Igniter.add_new_action/4)
+    |> apply_all(@relationships, &Ash.Resource.Igniter.add_new_relationship/4)
+    |> apply_all(@identities, &Ash.Resource.Igniter.add_new_identity/4)
+    |> apply_all(@calculations, &Ash.Resource.Igniter.add_new_calculation/4)
+    |> add_policies()
+    |> add_domain_reference()
+  end
+
+  defp apply_all(igniter, pairs, fun) do
+    Enum.reduce(pairs, igniter, fn {name, code}, igniter ->
+      fun.(igniter, @resource, name, code)
+    end)
+  end
+
+  defp add_policies(igniter) do
+    Enum.reduce(@policies, igniter, fn {condition, body}, igniter ->
+      if source_contains?(igniter, @resource, ["policy(#{condition})do", "policy#{condition}do"]) do
+        igniter
+      else
+        Ash.Resource.Igniter.add_policy(
+          igniter,
+          @resource,
+          Code.string_to_quoted!(condition),
+          Code.string_to_quoted!(body)
+        )
+      end
+    end)
+  end
+
+  # add_resource_reference/3 only finds the domain via the ash_domains env or a
+  # changed-source scan; on an already-applied project it would fall through to
+  # upgrading the domain a second time. Guard on the reference itself.
+  defp add_domain_reference(igniter) do
+    if source_contains?(igniter, @domain, [
+         "resource(#{inspect(@resource)})",
+         "resource#{inspect(@resource)}"
+       ]) do
+      igniter
+    else
+      Ash.Domain.Igniter.add_resource_reference(igniter, @domain, @resource)
+    end
+  end
+
+  # Whitespace- and paren-style-insensitive: the Elixir formatter rewrites
+  # `policy cond do` to `policy(cond) do`, so needles cover both spellings and the
+  # source is compared with all whitespace removed.
+  defp source_contains?(igniter, module, needles) do
+    case Igniter.Project.Module.find_module(igniter, module) do
+      {:ok, {_igniter, source, _zipper}} ->
+        squashed = source |> Rewrite.Source.get(:content) |> String.replace(~r/\s+/, "")
+        Enum.any?(needles, &String.contains?(squashed, String.replace(&1, ~r/\s+/, "")))
+
+      {:error, _igniter} ->
+        false
+    end
+  end
+end

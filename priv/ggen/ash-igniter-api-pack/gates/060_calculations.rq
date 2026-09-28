@@ -1,0 +1,11 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?calculation_name ?calculation_type ?calculation_expr ?ord
+WHERE {
+  ?c a aia:Calculation ;
+     aia:calculationName ?calculation_name ;
+     aia:calculationType ?calculation_type ;
+     aia:calculationExpr ?calculation_expr ;
+     aia:order ?ord .
+}
+ORDER BY ?ord

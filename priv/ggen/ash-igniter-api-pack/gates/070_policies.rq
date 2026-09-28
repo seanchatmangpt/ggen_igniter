@@ -1,0 +1,10 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?policy_condition ?policy_body ?ord
+WHERE {
+  ?p a aia:Policy ;
+     aia:policyCondition ?policy_condition ;
+     aia:policyBody ?policy_body ;
+     aia:order ?ord .
+}
+ORDER BY ?ord

@@ -1,0 +1,10 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?identity_name ?identity_keys ?ord
+WHERE {
+  ?i a aia:Identity ;
+     aia:identityName ?identity_name ;
+     aia:identityKeys ?identity_keys ;
+     aia:order ?ord .
+}
+ORDER BY ?ord

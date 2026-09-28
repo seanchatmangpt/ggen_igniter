@@ -1,0 +1,78 @@
+@prefix aia:  <https://ggen-igniter.dev/ontology/ash-igniter-api#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+#################################################################
+# Vocabulary
+#
+# Semantic facts about ONE Ash resource (attributes, actions, relationships,
+# identities, calculations, policies). templates/api_task.ex.eex projects them
+# into an Igniter.Mix.Task that composes `ash.gen.resource` ONCE for the base
+# module and then applies every other fact through the idempotent structural
+# APIs of Ash.Resource.Igniter / Ash.Domain.Igniter (add_new_* checks
+# existence by name before adding). The ontology stores no CLI strings and no
+# Ash source; only names, types and flags.
+#
+# Consumer-side dev/test capability: the path contains "ash", so
+# mix.exs shipped_packs/0 keeps it out of the hex package.
+#################################################################
+
+aia:Project a rdfs:Class .
+aia:Resource a rdfs:Class .
+aia:Attribute a rdfs:Class .
+aia:Action a rdfs:Class .
+aia:Relationship a rdfs:Class .
+aia:Identity a rdfs:Class .
+aia:Calculation a rdfs:Class .
+aia:Policy a rdfs:Class .
+
+#################################################################
+# Instance: Shop.Catalog.Book
+#################################################################
+
+aia:project a aia:Project ;
+    aia:otpApp "shop" ;
+    aia:taskModule "Mix.Tasks.Shop.Manufacture.Book" ;
+    aia:taskName "shop.manufacture.book" ;
+    aia:domainModule "Shop.Catalog" ;
+    aia:resourceModule "Shop.Catalog.Book" .
+
+aia:attrTitle a aia:Attribute ;
+    aia:attributeName "title" ; aia:attributeType "string" ;
+    aia:isPublic true ; aia:isRequired true ; aia:order 1 .
+
+aia:attrIsbn a aia:Attribute ;
+    aia:attributeName "isbn" ; aia:attributeType "string" ;
+    aia:isPublic true ; aia:isRequired false ; aia:order 2 .
+
+aia:attrPages a aia:Attribute ;
+    aia:attributeName "pages" ; aia:attributeType "integer" ;
+    aia:isPublic true ; aia:isRequired false ; aia:order 3 .
+
+aia:actCreate a aia:Action ;
+    aia:actionName "register" ; aia:actionType "create" ;
+    aia:accepts "title,isbn,pages" ; aia:order 1 .
+
+aia:actUpdate a aia:Action ;
+    aia:actionName "revise" ; aia:actionType "update" ;
+    aia:accepts "title,pages" ; aia:order 2 .
+
+aia:actRead a aia:Action ;
+    aia:actionName "by_isbn" ; aia:actionType "read" ;
+    aia:accepts "" ; aia:order 3 .
+
+aia:relAuthor a aia:Relationship ;
+    aia:relationshipKind "belongs_to" ; aia:relationshipName "author" ;
+    aia:destination "Shop.Catalog.Author" ;
+    aia:isPublic true ; aia:isRequired false ; aia:order 1 .
+
+aia:idIsbn a aia:Identity ;
+    aia:identityName "unique_isbn" ; aia:identityKeys "isbn" ; aia:order 1 .
+
+aia:calcLen a aia:Calculation ;
+    aia:calculationName "title_length" ; aia:calculationType "integer" ;
+    aia:calculationExpr "expr(string_length(title))" ; aia:order 1 .
+
+aia:polRead a aia:Policy ;
+    aia:policyCondition "action_type(:read)" ;
+    aia:policyBody "authorize_if always()" ; aia:order 1 .
