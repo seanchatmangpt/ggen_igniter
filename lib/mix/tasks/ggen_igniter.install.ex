@@ -6,9 +6,18 @@ defmodule Mix.Tasks.GgenIgniter.Install do
   @dialyzer {:no_return, print_help_and_halt: 0}
 
   @moduledoc """
-  Installer task: `mix ggen_igniter.install [--domain Module.Name] [--otp-app name] [--yes]`.
+  Installer task: `mix igniter.install ggen_igniter` (or
+  `mix ggen_igniter.install [--with-ash-domain] [--domain Module.Name] [--otp-app name] [--yes]`).
 
-  Adds an `:ash` dependency (`~> 3.0`), registers `--domain` (default
+  ## Thin default (E1)
+
+  A generator's installer must not add the consumer's Ash app. By default this task only
+  runs `Igniter.Project.Formatter.import_dep(igniter, :ggen_igniter)` (idempotent: the
+  dep is prepended to `.formatter.exs` `import_deps` only when absent).
+
+  ## `--with-ash-domain` (opt-in Ash wiring)
+
+  With `--with-ash-domain`, additionally adds an `:ash` dependency (`~> 3.0`), registers `--domain` (default
   `<OtpApp>.Ash.Domain`) under `config :otp_app, ash_domains: [...]`, and adds the domain
   module as a new child in the consumer's `Application` supervision tree, via real
   `Igniter.Project.Deps`/`Igniter.Project.Config`/`Igniter.Project.Application` codemods
@@ -91,8 +100,12 @@ defmodule Mix.Tasks.GgenIgniter.Install do
   def info(_argv, _composing_task) do
     %Igniter.Mix.Task.Info{
       group: :ggen_igniter,
-      example: "mix igniter.install ggen_igniter --domain MyApp.Ash.Domain --yes",
-      schema: [domain: :string, otp_app: :string, yes: :boolean],
+      example:
+        "mix igniter.install ggen_igniter --with-ash-domain --domain MyApp.Ash.Domain --yes",
+      installs: [],
+      adds_deps: [],
+      schema: [domain: :string, otp_app: :string, yes: :boolean, with_ash_domain: :boolean],
+      defaults: [with_ash_domain: false],
       aliases: [y: :yes]
     }
   end
@@ -106,6 +119,33 @@ defmodule Mix.Tasks.GgenIgniter.Install do
 
   @impl Igniter.Mix.Task
   def igniter(igniter) do
+    igniter = import_formatter_dep(igniter)
+
+    if igniter.args.options[:with_ash_domain] do
+      install_ash_domain(igniter)
+    else
+      igniter
+    end
+  end
+
+  # `import_deps: [:ggen_igniter]` is only valid once the consumer's mix.exs lists the dep
+  # (otherwise `mix format` raises "Unknown dependency"). Under `mix igniter.install` the
+  # dep is already added, so this is the normal path; a direct `mix ggen_igniter.install`
+  # in a project without the dep gets a notice instead of a formatter that cannot load.
+  defp import_formatter_dep(igniter) do
+    case Igniter.Project.Deps.get_dep(igniter, :ggen_igniter) do
+      {:ok, declaration} when not is_nil(declaration) ->
+        Igniter.Project.Formatter.import_dep(igniter, :ggen_igniter)
+
+      _ ->
+        Igniter.add_notice(
+          igniter,
+          "ggen_igniter is not in mix.exs deps; skipped `import_deps: [:ggen_igniter]` in .formatter.exs."
+        )
+    end
+  end
+
+  defp install_ash_domain(igniter) do
     otp_app =
       igniter.args.options[:otp_app] ||
         Igniter.Project.Application.app_name(igniter) |> to_string()
@@ -250,11 +290,13 @@ defmodule Mix.Tasks.GgenIgniter.Install do
 
   defp print_help_and_halt do
     Mix.shell().info("""
-    mix ggen_igniter.install [--domain Module.Name] [--otp-app name] [--yes]
+    mix ggen_igniter.install [--with-ash-domain] [--domain Module.Name] [--otp-app name] [--yes]
 
-    Adds an :ash dependency, registers the domain module under
+    Imports :ggen_igniter into .formatter.exs. With --with-ash-domain, also adds an
+    :ash dependency, registers the domain module under
     `config :otp_app, ash_domains: [...]`, and adds it as a supervised child.
 
+      --with-ash-domain  opt in to the Ash dep/domain/supervision wiring
       --domain    domain module name (default: <OtpApp>.Ash.Domain)
       --otp-app   OTP app name (default: derived from mix.exs)
       --yes, -y   answer yes to any prompts

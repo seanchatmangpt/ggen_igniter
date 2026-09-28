@@ -79,7 +79,7 @@ defmodule GgenIgniterInstallRealFilesTest do
     %{dir: dir}
   end
 
-  defp install!(dir, mix_exs, argv \\ ["--yes"]) do
+  defp install!(dir, mix_exs, argv \\ ["--yes", "--with-ash-domain"]) do
     File.write!(Path.join(dir, "mix.exs"), mix_exs)
     File.cd!(dir)
 
@@ -108,7 +108,7 @@ defmodule GgenIgniterInstallRealFilesTest do
 
     result =
       Igniter.new()
-      |> Igniter.compose_task("ggen_igniter.install", ["--yes"])
+      |> Igniter.compose_task("ggen_igniter.install", ["--yes", "--with-ash-domain"])
       |> Igniter.do_or_dry_run(yes: true, quiet_on_no_changes?: true)
 
     refute result == :changes_made
@@ -116,7 +116,12 @@ defmodule GgenIgniterInstallRealFilesTest do
   end
 
   test "--domain overrides the default domain module in every written file", %{dir: dir} do
-    assert install!(dir, @mix_exs, ["--yes", "--domain", "MyApp.Custom.Domain"]) ==
+    assert install!(dir, @mix_exs, [
+             "--yes",
+             "--with-ash-domain",
+             "--domain",
+             "MyApp.Custom.Domain"
+           ]) ==
              :changes_made
 
     assert File.read!(Path.join(dir, "config/config.exs")) =~ "MyApp.Custom.Domain"
@@ -130,7 +135,7 @@ defmodule GgenIgniterInstallRealFilesTest do
 
     result =
       Igniter.new()
-      |> Igniter.compose_task("ggen_igniter.install", ["--yes"])
+      |> Igniter.compose_task("ggen_igniter.install", ["--yes", "--with-ash-domain"])
       |> Igniter.do_or_dry_run(yes: true, quiet_on_no_changes?: true)
 
     refute result == :changes_made
