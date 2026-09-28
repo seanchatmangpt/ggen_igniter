@@ -1,0 +1,7 @@
+{
+  "id": "SJ-replay",
+  "field": "replay_key",
+  "witness": "replay:witness",
+  "minimal_falsifier": "",
+  "expected": "admit_then_refuse"
+}

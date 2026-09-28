@@ -1,0 +1,7 @@
+{
+  "id": "SJ-consumer",
+  "field": "consumer",
+  "witness": "consumer:witness",
+  "minimal_falsifier": "",
+  "expected": "admit_then_refuse"
+}

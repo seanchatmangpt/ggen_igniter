@@ -1,0 +1,7 @@
+{
+  "id": "SJ-authority_ceiling",
+  "field": "authority",
+  "witness": "CONSTRUCT",
+  "minimal_falsifier": "DO",
+  "expected": "admit_then_refuse"
+}

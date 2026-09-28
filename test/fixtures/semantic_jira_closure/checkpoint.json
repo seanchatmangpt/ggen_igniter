@@ -1,0 +1,7 @@
+{
+  "id": "SJ-checkpoint",
+  "field": "checkpoint",
+  "witness": "0123456789abcdef0123456789abcdef01234567",
+  "minimal_falsifier": "abc",
+  "expected": "admit_then_refuse"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "SJ-standing",
+  "field": "standing",
+  "witness": "standing:witness",
+  "minimal_falsifier": "",
+  "expected": "admit_then_refuse"
+}

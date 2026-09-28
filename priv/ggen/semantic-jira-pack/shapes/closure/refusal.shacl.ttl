@@ -1,0 +1,4 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix sj: <https://seanchatman.dev/semantic-jira#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+sj:RefusalClosureShape a sh:NodeShape ; sh:targetClass sj:WorkOrder ; sh:property [ sh:path sj:refusal ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ; sh:message "refusal vocabulary must be explicit and typed" ] .

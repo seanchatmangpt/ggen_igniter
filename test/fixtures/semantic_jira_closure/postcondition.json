@@ -1,0 +1,7 @@
+{
+  "id": "SJ-postcondition",
+  "field": "postcondition",
+  "witness": "postcondition:witness",
+  "minimal_falsifier": "",
+  "expected": "admit_then_refuse"
+}

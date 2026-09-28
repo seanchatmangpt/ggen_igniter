@@ -1,0 +1,7 @@
+{
+  "id": "SJ-evidence",
+  "field": "evidence",
+  "witness": "evidence:witness",
+  "minimal_falsifier": "",
+  "expected": "admit_then_refuse"
+}

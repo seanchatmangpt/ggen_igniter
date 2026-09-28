@@ -1,0 +1,7 @@
+{
+  "id": "SJ-scope",
+  "field": "scope",
+  "witness": "scope:witness",
+  "minimal_falsifier": "",
+  "expected": "admit_then_refuse"
+}

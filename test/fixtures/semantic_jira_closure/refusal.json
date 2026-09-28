@@ -1,0 +1,7 @@
+{
+  "id": "SJ-refusal",
+  "field": "refusal",
+  "witness": "refusal:witness",
+  "minimal_falsifier": "",
+  "expected": "admit_then_refuse"
+}

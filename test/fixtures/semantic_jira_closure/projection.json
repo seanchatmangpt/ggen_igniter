@@ -1,0 +1,7 @@
+{
+  "id": "SJ-projection",
+  "field": "projection",
+  "witness": "derived",
+  "minimal_falsifier": "handwritten",
+  "expected": "admit_then_refuse"
+}
