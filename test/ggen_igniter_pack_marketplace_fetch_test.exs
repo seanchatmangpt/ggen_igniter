@@ -9,7 +9,10 @@ defmodule GgenIgniter.PackMarketplaceFetchTest do
   locally-built archive shaped exactly like GitHub's (one top-level
   `<repo>-<ref>/` directory). No test doubles.
   """
-  use ExUnit.Case, async: true
+  # `async: false`: two tests use `File.cd!/2`, which changes the process-GLOBAL
+  # working directory; run concurrently it breaks other async tests that read
+  # relative paths (CI: AshTaskCoverageTest could not read "AGENTS.md").
+  use ExUnit.Case, async: false
 
   alias GgenIgniter.Pack
 
