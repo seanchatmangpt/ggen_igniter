@@ -210,8 +210,11 @@ defmodule GgenIgniter.EngineRegistry do
   # own live-qlever SELECT case) is the in-scope fix.
   defp qlever_reachable?(ontology_path, store_id) do
     graph = Ontology.load!(ontology_path)
-    store = Query.Qlever.load_store!(graph, store_id)
-    Query.Qlever.run(store, "SELECT ?s WHERE { ?s ?p ?o } LIMIT 1")
+    # `apply/3` on purpose: without the optional `:gno` dep, `Query.Qlever` is the
+    # raising stub (`@spec ... :: no_return()`), and a static call makes the type
+    # checker report "pattern will never match" on every consumer compile.
+    store = apply(Query.Qlever, :load_store!, [graph, store_id])
+    apply(Query.Qlever, :run, [store, "SELECT ?s WHERE { ?s ?p ?o } LIMIT 1"])
     true
   rescue
     _ -> false

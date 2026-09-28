@@ -9,6 +9,9 @@ defmodule GgenIgniter.DoctrineAdmission.IdempotenceTest do
   end
 
   test "different digest remains a distinct artifact" do
-    refute Idempotence.same?(%{"identity" => "x", "receipt_digest" => "a"}, %{"identity" => "x", "receipt_digest" => "b"})
+    refute Idempotence.same?(%{"identity" => "x", "receipt_digest" => "a"}, %{
+             "identity" => "x",
+             "receipt_digest" => "b"
+           })
   end
 end

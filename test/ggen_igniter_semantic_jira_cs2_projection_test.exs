@@ -69,8 +69,11 @@ defmodule GgenIgniter.SemanticJira.CS2ProjectionTest do
     [first, second] = raw["work"]
     bad = %{second | "dependencies" => ["CS2-WRK-999"]}
 
+    # CS2Batch.admit/1 is the `with` body, not a clause, so its refusal is
+    # returned as-is (not re-wrapped as :refused_cs2_projection) -- same shape
+    # CS2Ingest and the cyclic-dependency test see from CS2Batch.
     assert {:error,
-            {:refused_cs2_projection, {:refused_cs2_batch, {:unknown_dependency_targets, _}}}} =
+            {:refused_cs2_batch, {:unknown_dependency_targets, [{"CS2-WRK-002", "CS2-WRK-999"}]}}} =
              CS2Projection.project_batch(%{raw | "work" => [first, bad]})
   end
 

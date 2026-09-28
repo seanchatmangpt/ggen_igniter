@@ -27,8 +27,18 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Fetch do
 
   `spec` accepts either real source `fetch_pack!/2` recognizes:
 
-    * `"github:owner/repo[@ref]"` -- default ref `"main"`.
+    * `"github:owner/repo[@ref][#subpath]"` -- default ref `"main"`. A
+      `#subpath` (or `//subpath`) fetches a monorepo directory as the pack
+      root, e.g. `github:seanchatmangpt/ggen-marketplace#packs/ash-extension-pack`
+      (paths escaping the archive via `..`/absolute/symlink are refused).
     * `"hex:name[@version]"` -- default: latest stable version via the Hex API.
+
+  ## Consumer requirement
+
+  The HTTP layer is `Tesla`, an `optional: true` dependency of `ggen_igniter`:
+  a consuming app must add `{:tesla, "~> 1.8"}` to its own `mix.exs` deps to
+  use this task (without it `fetch_pack!/2` raises a `RuntimeError` that says
+  so).
 
   ## Flags
 

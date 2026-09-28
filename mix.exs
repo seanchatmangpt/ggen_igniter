@@ -6,7 +6,7 @@ defmodule GgenIgniter.MixProject do
   def project do
     [
       app: :ggen_igniter,
-      version: "26.9.24",
+      version: "26.9.28",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -62,7 +62,7 @@ defmodule GgenIgniter.MixProject do
         # mix.exs/CHANGELOG.md state" test greps `mix.exs`'s raw source with
         # `~r/version:\s*"([^"]+)"/` and breaks if `version:` isn't followed
         # directly by a literal string.
-        source_ref: "v26.9.24"
+        source_ref: "v26.9.28"
       ],
       dialyzer: [
         # `:mix` is excluded from the PLT by default (it's a build-time-only
@@ -102,9 +102,21 @@ defmodule GgenIgniter.MixProject do
       licenses: ["MIT"],
       description: description(),
       links: %{"GitHub" => @source_url},
-      files:
-        ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/src mix.exs README.md LICENSE CHANGELOG.md .formatter.exs)
+      files: ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/Cargo.lock
+           native/ggen_graph_nif/src priv/bundles priv/schema
+           wasm-artifacts/tera_wasm_renderer.wasm
+           mix.exs README.md LICENSE CHANGELOG.md .formatter.exs) ++ shipped_packs()
     ]
+  end
+
+  # Runtime-read packs under priv/ggen (semantic-jira-pack's trust-root
+  # ontology, gall_work's ticket template). `priv/native/*.so` is a gitignored
+  # build product and must never ship (bare `priv` would include it), and Ash
+  # packs come from ggen-marketplace, not from this package.
+  defp shipped_packs do
+    "priv/ggen/*"
+    |> Path.wildcard()
+    |> Enum.reject(&String.contains?(&1, "ash"))
   end
 
   defp deps do

@@ -56,7 +56,7 @@ Add `ggen_igniter` to your project's `mix.exs` dependencies list:
 ```elixir
 def deps do
   [
-    {:ggen_igniter, "~> 26.8.27"}
+    {:ggen_igniter, "~> 26.9", only: [:dev, :test], runtime: false}
   ]
 end
 ```

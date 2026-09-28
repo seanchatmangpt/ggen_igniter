@@ -3,7 +3,8 @@ defmodule GgenIgniter.DoctrineAdmission.RecoveryTest do
   alias GgenIgniter.DoctrineAdmission.Recovery
 
   test "routes replay failure to exact-subject rebind" do
-    assert {:repair, :rebind_exact_subject} = Recovery.route(%{status: :refused, boundary: :replay})
+    assert {:repair, :rebind_exact_subject} =
+             Recovery.route(%{status: :refused, boundary: :replay})
   end
 
   test "unknown non-refusal does not manufacture a bypass" do

@@ -39,15 +39,15 @@ defmodule GgenIgniter.DoctrineAdmission.BerthierProjection do
     {:error, {:refused_doctrine, :berthier_projection, :invalid_shape}}
   end
 
+  defp nonempty_map?(value), do: is_map(value) and map_size(value) > 0
+
   defp admit_shape(input) do
     bounded? =
       nonempty?(input["strategy_id"]) and
         nonempty?(input["strategy"]) and
         nonempty?(input["falsifier"]) and
-        is_map(input["premise_digests"]) and
-        map_size(input["premise_digests"]) > 0 and
-        is_map(input["local_premise_digests"]) and
-        map_size(input["local_premise_digests"]) > 0 and
+        nonempty_map?(input["premise_digests"]) and
+        nonempty_map?(input["local_premise_digests"]) and
         is_list(input["invariants"]) and
         input["invariants"] != [] and
         is_map(input["objectives"])
@@ -86,8 +86,7 @@ defmodule GgenIgniter.DoctrineAdmission.BerthierProjection do
         "local_constraints" => Enum.sort(Enum.uniq(constraints))
       },
       "candidate" => %{
-        "candidate_id" =>
-          Map.get(input, "candidate_id", "candidate:" <> input["strategy_id"]),
+        "candidate_id" => Map.get(input, "candidate_id", "candidate:" <> input["strategy_id"]),
         "actions" => actions,
         "falsifier" => input["falsifier"],
         "objectives" => input["objectives"],

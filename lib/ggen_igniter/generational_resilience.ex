@@ -271,10 +271,7 @@ defmodule GgenIgniter.GenerationalResilience do
           {:halt, {:error, {:refused_generational_resilience, :policy_not_map, technique}}}
 
         true ->
-          case validate_policy(technique, policy) do
-            :ok -> {:cont, :ok}
-            {:error, _} = error -> {:halt, error}
-          end
+          policy_step(technique, policy)
       end
     end)
   end
@@ -282,57 +279,52 @@ defmodule GgenIgniter.GenerationalResilience do
   defp validate_techniques(_),
     do: {:error, {:refused_generational_resilience, :techniques_empty_or_invalid}}
 
+  defp policy_step(technique, policy) do
+    case validate_policy(technique, policy) do
+      :ok -> {:cont, :ok}
+      {:error, _} = error -> {:halt, error}
+    end
+  end
+
   defp validate_policy(:non_persistence, policy),
     do: require_positive(policy, :max_artifact_lifetime_seconds, :non_persistence)
 
   defp validate_policy(:dynamic_positioning, policy) do
     with :ok <- require_nonempty_list(policy, :change_dimensions, :dynamic_positioning),
-         :ok <- require_positive(policy, :max_static_duration_seconds, :dynamic_positioning),
-         :ok <- require_digest(policy, :strategy_digest, :dynamic_positioning) do
-      :ok
+         :ok <- require_positive(policy, :max_static_duration_seconds, :dynamic_positioning) do
+      require_digest(policy, :strategy_digest, :dynamic_positioning)
     end
   end
 
   defp validate_policy(:diversity, policy) do
-    with :ok <- require_integer_at_least(policy, :variant_count, 2, :diversity),
-         :ok <- require_digest(policy, :variant_set_digest, :diversity) do
-      :ok
+    with :ok <- require_integer_at_least(policy, :variant_count, 2, :diversity) do
+      require_digest(policy, :variant_set_digest, :diversity)
     end
   end
 
   defp validate_policy(:unpredictability, policy) do
-    with :ok <- require_digest(policy, :strategy_digest, :unpredictability),
-         :ok <- require_digest(policy, :defender_replay_digest, :unpredictability) do
-      :ok
+    with :ok <- require_digest(policy, :strategy_digest, :unpredictability) do
+      require_digest(policy, :defender_replay_digest, :unpredictability)
     end
   end
 
   defp validate_policy(:deception, policy) do
-    with :ok <- require_digest(policy, :deception_boundary_digest, :deception),
-         :ok <- require_exact(policy, :production_authority, false, :deception) do
-      :ok
+    with :ok <- require_digest(policy, :deception_boundary_digest, :deception) do
+      require_exact(policy, :production_authority, false, :deception)
     end
   end
 
   defp validate_policy(:realignment, policy) do
     with :ok <- require_digest(policy, :before_topology_digest, :realignment),
-         :ok <- require_digest(policy, :after_topology_digest, :realignment),
-         :ok <-
-           require_distinct(
-             policy,
-             :before_topology_digest,
-             :after_topology_digest,
-             :realignment
-           ) do
-      :ok
+         :ok <- require_digest(policy, :after_topology_digest, :realignment) do
+      require_distinct(policy, :before_topology_digest, :after_topology_digest, :realignment)
     end
   end
 
   defp validate_policy(:redundancy, policy) do
     with :ok <- require_integer_at_least(policy, :replica_count, 2, :redundancy),
-         :ok <- require_integer_at_least(policy, :failure_domain_count, 2, :redundancy),
-         :ok <- require_digest(policy, :failure_domain_digest, :redundancy) do
-      :ok
+         :ok <- require_integer_at_least(policy, :failure_domain_count, 2, :redundancy) do
+      require_digest(policy, :failure_domain_digest, :redundancy)
     end
   end
 
@@ -340,9 +332,8 @@ defmodule GgenIgniter.GenerationalResilience do
     do: require_digest(policy, :segmentation_boundary_digest, :segmentation)
 
   defp validate_policy(:privilege_restriction, policy) do
-    with :ok <- require_digest(policy, :capability_set_digest, :privilege_restriction),
-         :ok <- require_exact(policy, :least_privilege, true, :privilege_restriction) do
-      :ok
+    with :ok <- require_digest(policy, :capability_set_digest, :privilege_restriction) do
+      require_exact(policy, :least_privilege, true, :privilege_restriction)
     end
   end
 
@@ -355,38 +346,29 @@ defmodule GgenIgniter.GenerationalResilience do
   defp validate_policy(:substantiated_integrity, policy) do
     with :ok <- require_digest(policy, :immutable_source_digest, :substantiated_integrity),
          :ok <- require_digest(policy, :build_provenance_digest, :substantiated_integrity),
-         :ok <- require_digest(policy, :sbom_digest, :substantiated_integrity),
-         :ok <- require_digest(policy, :security_validation_digest, :substantiated_integrity) do
-      :ok
+         :ok <- require_digest(policy, :sbom_digest, :substantiated_integrity) do
+      require_digest(policy, :security_validation_digest, :substantiated_integrity)
     end
   end
 
   defp validate_policy(:adaptive_response, policy) do
     with :ok <- require_positive(policy, :max_attempts, :adaptive_response),
          :ok <- require_nonempty(policy, :max_privilege_scope, :adaptive_response),
-         :ok <- require_nonempty(policy, :max_blast_radius, :adaptive_response),
-         :ok <- require_exact(policy, :receipt_required, true, :adaptive_response) do
-      :ok
+         :ok <- require_nonempty(policy, :max_blast_radius, :adaptive_response) do
+      require_exact(policy, :receipt_required, true, :adaptive_response)
     end
   end
 
   defp validate_policy(:coordinated_protection, policy) do
-    with :ok <- require_integer_at_least(policy, :safeguard_count, 2, :coordinated_protection),
-         :ok <-
-           require_digest(
-             policy,
-             :safeguard_independence_digest,
-             :coordinated_protection
-           ) do
-      :ok
+    with :ok <- require_integer_at_least(policy, :safeguard_count, 2, :coordinated_protection) do
+      require_digest(policy, :safeguard_independence_digest, :coordinated_protection)
     end
   end
 
   defp validate_monitoring_context(policy, technique) do
     with :ok <- require_digest(policy, :event_model_digest, technique),
-         :ok <- require_digest(policy, :monitoring_evidence_digest, technique),
-         :ok <- require_digest(policy, :context_evidence_digest, technique) do
-      :ok
+         :ok <- require_digest(policy, :monitoring_evidence_digest, technique) do
+      require_digest(policy, :context_evidence_digest, technique)
     end
   end
 

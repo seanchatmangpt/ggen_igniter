@@ -3,7 +3,12 @@ defmodule GgenIgniter.DoctrineAdmission.EvidenceGuardTest do
   alias GgenIgniter.DoctrineAdmission.EvidenceGuard
 
   test "admits bounded evidence and refuses literal standing" do
-    assert {:ok, _} = EvidenceGuard.admit(%{"standing" => "UNKNOWN", "authority_requirement" => "NONE", "evidence_ceiling" => "CONSTRUCT"})
+    assert {:ok, _} =
+             EvidenceGuard.admit(%{
+               "standing" => "UNKNOWN",
+               "authority_requirement" => "NONE",
+               "evidence_ceiling" => "CONSTRUCT"
+             })
 
     assert {:error, {:refused_doctrine, :evidence, {:literal_standing, "ALIVE"}}} =
              EvidenceGuard.admit(%{"standing" => "ALIVE"})

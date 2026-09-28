@@ -128,12 +128,13 @@ Full walkthroughs (real commands, real output, run in this repo): see
 
 ## Installation
 
-Add `ggen_igniter` to your `mix.exs` dependencies:
+Add `ggen_igniter` to your `mix.exs` dependencies. It is a build-time generator, so declare it dev/test-only
+and keep it out of production releases:
 
 ```elixir
 def deps do
   [
-    {:ggen_igniter, "~> 26.9.8"}
+    {:ggen_igniter, "~> 26.9", only: [:dev, :test], runtime: false}
   ]
 end
 ```
