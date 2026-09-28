@@ -1,0 +1,4 @@
+[pack]
+name = "receipted-extension-pack"
+version = "26.9.28"
+description = "Manufactures a Spark.Dsl.Extension whose verifier refuses an Ash resource that declares no receipt (compile-time twin of refuse-handwritten-ash.sh)."

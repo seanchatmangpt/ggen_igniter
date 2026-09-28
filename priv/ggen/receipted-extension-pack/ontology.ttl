@@ -1,0 +1,29 @@
+@prefix rx:   <https://ggen-igniter.dev/ontology/receipted-extension#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+
+# receipted-extension-pack -- the receipt law for Ash resources, as a Spark extension.
+#
+#   forall resource R using <Module>: R declares `receipted do receipt ... end`
+#
+# A consumer graph declares one rx:ReceiptedExtension individual (concatenated with this
+# file before sync). The pack ships no individual, so `--pack receipted-extension-pack`
+# alone renders nothing. The rendered extension is the ONLY place `use Spark.Dsl.Extension`
+# appears; nothing in lib/ hand-writes it.
+
+rx: a owl:Ontology ;
+    rdfs:label "Receipted Spark extension" ;
+    rdfs:comment "A generated Spark.Dsl.Extension + Spark.Dsl.Verifier refusing Ash resources with no declared receipt." .
+
+rx:ReceiptedExtension a owl:Class ;
+    rdfs:label "Receipted extension target" ;
+    rdfs:comment "One individual per generated extension module." .
+
+rx:moduleName a owl:DatatypeProperty ;
+    rdfs:domain rx:ReceiptedExtension ;
+    rdfs:comment "Fully qualified extension module, e.g. Consumer.Receipted (verifier is <Module>.Verifier)." .
+
+rx:libPath a owl:DatatypeProperty ;
+    rdfs:domain rx:ReceiptedExtension ;
+    rdfs:comment "Output directory (relative) for the rendered modules." .

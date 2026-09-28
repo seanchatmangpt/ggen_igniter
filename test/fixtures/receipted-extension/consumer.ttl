@@ -1,0 +1,7 @@
+@prefix rx: <https://ggen-igniter.dev/ontology/receipted-extension#> .
+@prefix ex: <https://ggen-igniter.dev/fixture/receipted-extension#> .
+
+# Consumer declaration: concatenated with the pack ontology before sync.
+ex:Target a rx:ReceiptedExtension ;
+    rx:moduleName "ReceiptedFixture.Receipted" ;
+    rx:libPath "lib/receipted_fixture" .
