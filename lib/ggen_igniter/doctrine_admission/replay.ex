@@ -5,17 +5,31 @@ defmodule GgenIgniter.DoctrineAdmission.Replay do
   @identity_fields ~w(identity subject_sha source_repository source_artifact_sha source_path)
 
   def verify(receipt, work) when is_map(receipt) and is_map(work) do
-    with true <- Enum.all?(@identity_fields, &(is_binary(receipt[&1]) and receipt[&1] == work[&1])),
+    with true <- same_identity?(receipt, work),
          true <- is_binary(receipt["receipt_digest"]) do
-      expected = receipt |> Map.delete("receipt_digest") |> Determinism.digest()
+      expected =
+        receipt
+        |> Map.delete("receipt_digest")
+        |> Determinism.digest()
 
-      if receipt["receipt_digest"] == expected,
-        do: :ok,
-        else: {:error, {:refused_doctrine, :replay, :digest_mismatch}}
+      if receipt["receipt_digest"] == expected do
+        :ok
+      else
+        {:error, {:refused_doctrine, :replay, :digest_mismatch}}
+      end
     else
-      _ -> {:error, {:refused_doctrine, :replay, :subject_mismatch}}
+      _value ->
+        {:error, {:refused_doctrine, :replay, :subject_mismatch}}
     end
   end
 
-  def verify(_, _), do: {:error, {:refused_doctrine, :replay, :subject_mismatch}}
+  def verify(_receipt, _work) do
+    {:error, {:refused_doctrine, :replay, :subject_mismatch}}
+  end
+
+  defp same_identity?(receipt, work) do
+    Enum.all?(@identity_fields, fn field ->
+      is_binary(receipt[field]) and receipt[field] == work[field]
+    end)
+  end
 end
