@@ -1,0 +1,176 @@
+---
+to: "lib/{{ package_name }}/receipted_action.ex"
+for_each: "spec"
+sparql:
+  spec: |
+    PREFIX aex: <http://seanchatmangpt.github.io/packs/ash-extension-core#>
+
+    SELECT DISTINCT ?package_name ?module_name ?idempotency_key_source WHERE {
+      ?s a aex:AshExtensionSpec ; aex:packageName ?package_name ; aex:moduleName ?module_name ;
+         aex:generatesReceiptedAction true .
+      OPTIONAL { ?s aex:receiptIdempotencyKeySource ?idempotency_key_source }
+    }
+    ORDER BY ?package_name
+---
+{# Receipted-action wrapper -- generalizes xaas's Xaas.Actuation.run/4
+   (lib/xaas/actuation.ex:24): idempotency-key-gated admission -> request fingerprint ->
+   pending receipt -> Ash action (inside the data layer's transaction when it has one) ->
+   sealed outcome receipt -> deterministic replay on a repeat of the same request.
+
+   Contract carried over from Actuation.run/4 (the 2026-09-27 revision; the first cut
+   replayed any repeat key and hard-coded for_create):
+     * no key                               -> {:error, :idempotency_key_required}
+     * sealed, same fingerprint             -> {:ok, result, %Receipt{status: :replayed}}
+     * sealed, different fingerprint        -> {:error, {:idempotency_conflict, key}}
+     * pending (crash/lost response window) -> {:error, {:in_flight, key}}, unless
+                                               opts[:reclaim] re-admits it
+     * failed                               -> re-admitted and re-run
+   The fingerprint binds resource, action, subject and params, so a key cannot be
+   reused for a different request.
+
+   Receipt persistence here is the ETS ledger from receipt.ex.tmpl, which is not part of
+   the resource's data-layer transaction. A committed mutation can therefore outlive a
+   crash before seal!/2; that window is exactly what the :in_flight refusal makes visible
+   instead of re-running the action. The durable, same-transaction receipt that xaas has
+   is a separate projection. #}
+defmodule {{ module_name }}.ReceiptedAction do
+  @moduledoc """
+  Wraps a `{{ package_name }}`-managed Ash action in an idempotency-key-gated
+  receipt: a repeat of the same request replays the sealed receipt instead of
+  re-running the action, and a repeat key with a different request is refused.
+  Generalizes xaas's `Xaas.Actuation.run/4` contract (lib/xaas/actuation.ex).
+  """
+
+  alias {{ module_name }}.Receipt
+
+  @ash_opts [:actor, :tenant, :authorize?, :domain, :context]
+
+  @doc """
+  Runs `resource`/`action` with `params`, sealing a receipt keyed on
+  `idempotency_key`{% if idempotency_key_source %} (source: `{{ idempotency_key_source }}`){% endif %}.
+
+  Options:
+
+    * `:record` -- the subject record, required for update and destroy actions
+    * `:reclaim` -- re-admit a key whose receipt is still `:pending`
+    * `:actor`, `:tenant`, `:authorize?`, `:domain`, `:context` -- passed to Ash
+  """
+  @spec run(module(), atom(), map(), String.t() | nil, keyword()) ::
+          {:ok, term(), Receipt.t()} | {:error, term()}
+  def run(resource, action, params, idempotency_key, opts \\ [])
+
+  def run(_resource, _action, _params, key, _opts) when key in [nil, ""],
+    do: {:error, :idempotency_key_required}
+
+  def run(resource, action, params, idempotency_key, opts)
+      when is_atom(resource) and is_atom(action) and is_map(params) and
+             is_binary(idempotency_key) do
+    with {:ok, action_type} <- action_type(resource, action) do
+      subject_id = subject_id(opts[:record])
+      fingerprint = fingerprint(resource, action, subject_id, params)
+
+      case Receipt.find_by_key(idempotency_key) do
+        {:ok, nil} ->
+          execute(resource, action, action_type, params, idempotency_key, fingerprint, subject_id, opts)
+
+        {:ok, %Receipt{status: :sealed, fingerprint: ^fingerprint} = sealed} ->
+          {:ok, sealed.result, %{sealed | status: :replayed}}
+
+        {:ok, %Receipt{status: :sealed}} ->
+          {:error, {:idempotency_conflict, idempotency_key}}
+
+        {:ok, %Receipt{status: :pending}} ->
+          if opts[:reclaim] do
+            execute(resource, action, action_type, params, idempotency_key, fingerprint, subject_id, opts)
+          else
+            {:error, {:in_flight, idempotency_key}}
+          end
+
+        {:ok, %Receipt{status: :failed}} ->
+          execute(resource, action, action_type, params, idempotency_key, fingerprint, subject_id, opts)
+      end
+    end
+  end
+
+  @doc "The request fingerprint a receipt is bound to."
+  @spec fingerprint(module(), atom(), term(), map()) :: String.t()
+  def fingerprint(resource, action, subject_id, params) do
+    :sha256
+    |> :crypto.hash(:erlang.term_to_binary({resource, action, subject_id, params}, [:deterministic]))
+    |> Base.encode16(case: :lower)
+  end
+
+  defp execute(resource, action, action_type, params, key, fingerprint, subject_id, opts) do
+    pending = Receipt.admit!(key, fingerprint, resource, action, subject_id)
+
+    case in_transaction(resource, fn -> actuate(resource, action, action_type, params, opts) end) do
+      {:ok, result} ->
+        {:ok, result, Receipt.seal!(pending, result)}
+
+      {:error, error} ->
+        Receipt.fail!(pending, error)
+        {:error, error}
+    end
+  end
+
+  defp actuate(resource, action, :create, params, opts) do
+    resource
+    |> Ash.Changeset.for_create(action, params, Keyword.take(opts, @ash_opts))
+    |> Ash.create()
+  end
+
+  defp actuate(_resource, action, :update, params, opts) do
+    with {:ok, record} <- record(opts) do
+      record
+      |> Ash.Changeset.for_update(action, params, Keyword.take(opts, @ash_opts))
+      |> Ash.update()
+    end
+  end
+
+  defp actuate(_resource, action, :destroy, params, opts) do
+    with {:ok, record} <- record(opts) do
+      record
+      |> Ash.Changeset.for_destroy(action, params, Keyword.take(opts, @ash_opts))
+      |> Ash.destroy(return_destroyed?: true)
+    end
+  end
+
+  defp in_transaction(resource, fun) do
+    if Ash.DataLayer.data_layer_can?(resource, :transact) do
+      case Ash.DataLayer.transaction(resource, fn ->
+             case fun.() do
+               {:ok, result} -> result
+               {:error, error} -> Ash.DataLayer.rollback(resource, error)
+             end
+           end) do
+        {:ok, result} -> {:ok, result}
+        {:error, error} -> {:error, error}
+      end
+    else
+      fun.()
+    end
+  end
+
+  defp action_type(resource, action) do
+    case Ash.Resource.Info.action(resource, action) do
+      %{type: type} when type in [:create, :update, :destroy] -> {:ok, type}
+      %{type: type} -> {:error, {:unsupported_action_type, type}}
+      nil -> {:error, {:unknown_action, resource, action}}
+    end
+  end
+
+  defp record(opts) do
+    case Keyword.fetch(opts, :record) do
+      {:ok, record} when is_struct(record) -> {:ok, record}
+      _ -> {:error, :record_required}
+    end
+  end
+
+  defp subject_id(nil), do: nil
+
+  defp subject_id(record) when is_struct(record) do
+    record.__struct__
+    |> Ash.Resource.Info.primary_key()
+    |> Enum.map(&Map.get(record, &1))
+  end
+end

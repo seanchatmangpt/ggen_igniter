@@ -31,7 +31,7 @@ defmodule GgenIgniter.Render.TeraWasm do
   def wasm_path, do: @wasm_path
 
   @doc """
-  True when `template_path` ends in `.tera` -- the shared predicate real call
+  True when `template_path` ends in `.tera` or `.tmpl` -- the shared predicate real call
   sites use to route a template through this WASM renderer instead of
   `GgenIgniter.Render`'s EEx path. `template_path` may be `nil` (e.g. a
   literal `:out` path template that was never read from a file), in which
@@ -47,10 +47,15 @@ defmodule GgenIgniter.Render.TeraWasm do
   tests this way before the fix). `template_string` is still accepted as a
   parameter for API stability / potential future refinement, but is
   currently unused.
+
+  `.tmpl` is the ggen / ggen-marketplace Tera convention (Rust `ggen sync run` renders
+  `templates/*.tmpl` with Tera). Before it was routed here, `--pack-dir` against a
+  marketplace pack rendered its `.tmpl` bodies through EEx and wrote `{{ module_name }}`
+  literally into generated modules. No `.tmpl` template in this repository is EEx.
   """
   @spec tera_template?(String.t() | nil, String.t()) :: boolean()
   def tera_template?(template_path, template_string) when is_binary(template_string) do
-    is_binary(template_path) and String.ends_with?(template_path, ".tera")
+    is_binary(template_path) and String.ends_with?(template_path, [".tera", ".tmpl"])
   end
 
   @doc """
