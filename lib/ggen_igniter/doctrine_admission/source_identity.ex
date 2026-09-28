@@ -24,25 +24,30 @@ defmodule GgenIgniter.DoctrineAdmission.SourceIdentity do
     }
   end
 
-  def admit(%{
-        "subject" => subject,
-        "source_repository" => @repository,
-        "source_sha" => @source_sha
-      } = value)
-      when is_binary(subject) and byte_size(subject) > 0 do
-    {:ok,
-     value
-     |> Map.put("source_artifact_sha", @artifact_sha)
-     |> Map.put("source_path", @source_path)
-     |> Map.put("boundary", "source_identity")
-     |> Map.put("authority", @authority)
-     |> Map.put("ceiling", @ceiling)}
+  def admit(value) when is_map(value) do
+    subject = value["subject"]
+    repository = value["source_repository"]
+    sha = value["source_sha"]
+
+    cond do
+      not is_binary(subject) or subject == "" ->
+        {:error, {:refused_doctrine, :source_identity, :invalid_exact_subject}}
+
+      repository != @repository or sha != @source_sha ->
+        {:error, {:refused_doctrine, :source_identity, {:source_mismatch, repository, sha}}}
+
+      true ->
+        {:ok,
+         value
+         |> Map.put("source_artifact_sha", @artifact_sha)
+         |> Map.put("source_path", @source_path)
+         |> Map.put("boundary", "source_identity")
+         |> Map.put("authority", @authority)
+         |> Map.put("ceiling", @ceiling)}
+    end
   end
 
-  def admit(%{"source_repository" => repository, "source_sha" => sha})
-      when is_binary(repository) and is_binary(sha),
-      do: {:error, {:refused_doctrine, :source_identity, {:source_mismatch, repository, sha}}}
-
-  def admit(_),
-    do: {:error, {:refused_doctrine, :source_identity, :invalid_exact_subject}}
+  def admit(_value) do
+    {:error, {:refused_doctrine, :source_identity, :invalid_exact_subject}}
+  end
 end
