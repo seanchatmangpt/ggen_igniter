@@ -2378,3 +2378,25 @@ sj:trust-root-objective-code-work-authority a sj:AuthorityTrustRoot ;
     sj:authorityIri sj:objective-code-work-authority ;
     sj:admissionDigest "sha256:310e14f1e30a9bb4d6ebd4388036e10ce3c973b13c0d45a7b550fa3dfd53c72c" ;
     sj:sourceLocator "git:seanchatmangpt/ggen_igniter@4988ac61bb6903d2cd9c6855d9c0c942ac9eb57e:priv/ggen/semantic-jira-pack/ontology.ttl" .
+
+# ADR-011 step 4: ADDITIVE public-vocabulary mappings (2026-09-28). No sj:
+# term is removed or retyped. Only rdfs:subClassOf edges FROM sj: classes TO
+# public superclasses are asserted (never the reverse), so
+# sh:targetClass sj:X (which follows rdfs:subClassOf* DOWNWARD) selects the
+# same instances as before, and no shape targets a public class (pinned by
+# test/ggen_igniter_semantic_jira_vocab_mapping_test.exs). Equivalence
+# arguments and the rejected candidates live in VOCABULARY.md
+# "ADR-011 step 4 mappings".
+@prefix oslc_cm: <http://open-services.net/ns/cm#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+
+oslc_cm:ChangeRequest a rdfs:Class .
+prov:Entity a rdfs:Class .
+
+# Every sj:WorkOrder carries exactly-one dcterms:identifier/title/description
+# (WorkOrderShape), a superset of the OSLC CM 3.0 Part 3 sec 2.1 ChangeRequest
+# shape; a work order is a unit of change work on a repository subject.
+sj:WorkOrder rdfs:subClassOf oslc_cm:ChangeRequest .
+# A receipt is a persisted, digest-identified record: a prov:Entity
+# (PROV-O sec 2.1, "physical, digital, conceptual, or other kind of thing").
+sj:Receipt rdfs:subClassOf prov:Entity .

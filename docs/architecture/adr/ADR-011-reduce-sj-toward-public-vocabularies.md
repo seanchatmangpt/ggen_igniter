@@ -1,7 +1,9 @@
 # ADR-011: Reduce `sj:` toward oslc_cm / dcterms / PROV-O / SHACL
 
-Status: PLANNED (2026-09-20). Milestone v26.9.20. Nothing in this ADR is
-implemented; the current pack still declares every term under `sj:`.
+Status: PARTIAL_ALIVE (2026-09-28). Milestone v26.9.20. Step 4 (additive
+mappings) is implemented for two terms only; steps 1-3 are argued per term in
+`priv/ggen/semantic-jira-pack/VOCABULARY.md` ("ADR-011 step 4 mappings").
+Removal of any `sj:` term remains PLANNED and is not done.
 
 ## Context
 
@@ -13,7 +15,7 @@ Dublin Core Terms (`dcterms:`) for identity/title/dates/relations, PROV-O
 (`prov:`) for evidence and derivation, and SHACL for the constraint layer (the
 pack already uses SHACL shapes under `shapes/`).
 
-## Decision (PLANNED)
+## Decision
 
 1. Map candidate `sj:` terms to public terms by subclass/subproperty, keeping
    `sj:` as the extension point:
@@ -33,8 +35,28 @@ pack already uses SHACL shapes under `shapes/`).
 
 ## Not claimed
 
-- No mapping exists in the ontology today. Term-by-term equivalence is
-  UNVERIFIED. The oslc_cm/PROV-O fit is a hypothesis to falsify.
+- Only two edges exist: `sj:WorkOrder rdfs:subClassOf oslc_cm:ChangeRequest`
+  and `sj:Receipt rdfs:subClassOf prov:Entity`. Both are subsumption, not
+  equivalence. Every other candidate is rejected with a reason in
+  VOCABULARY.md (StandingTransition/prov:Activity, EvidenceRequirement,
+  Action/ProjectionSpec vs prov:Plan, replayIdentity vs dcterms:identifier,
+  and others). No dcterms edge was added: identity/title/description are
+  already native dcterms.
+- No `sj:` term was removed; no instance is dual-typed. The oslc_cm/PROV-O fit
+  beyond these two edges is UNVERIFIED.
+- Gates are not re-run against a public-only form (nothing was removed), so
+  the removal precondition in Decision 4 is UNVERIFIED.
+
+## Verified (2026-09-28)
+
+`test/ggen_igniter_semantic_jira_vocab_mapping_test.exs`: the edge set
+reaching public namespaces is exactly the two above; rejected candidates are
+absent (falsifier); no shape targets a public class, and public-typed nodes
+with arbitrary properties are not pulled under closed `sj:` shapes
+(SJ-002 R3); SHACL verdict, violations and focus-node count are identical with
+and without the edges; no `sj:` declaration at HEAD was dropped. Digests are
+computed from the kernel map (`@definition_fields`), not graph triples, so
+none moved.
 
 ## Falsifier
 
