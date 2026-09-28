@@ -1,0 +1,8 @@
+PREFIX utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#>
+SELECT DISTINCT ?port_key ?port_prefix WHERE {
+  ?port a ?kind ;
+        utp:portKey ?port_key ;
+        utp:portModulePrefix ?port_prefix .
+  VALUES ?kind { utp:WorkPort utp:CapabilityPort }
+}
+ORDER BY ?port_key ?port_prefix

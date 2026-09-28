@@ -1,0 +1,3 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+# FALSIFIER: widen the SA2A port to all of AshA2A (re-admits provider internals).
+utp:SA2A utp:portModulePrefix "AshA2A" .

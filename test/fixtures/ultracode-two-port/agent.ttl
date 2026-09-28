@@ -1,0 +1,13 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix ex:  <https://ggen-igniter.dev/fixture/ultracode#> .
+
+# Consumer agent declaration: concatenated with the pack ontology before sync.
+ex:Constructor a utp:ConstructorAgent ;
+    utp:workPort utp:sJira ;
+    utp:capabilityPort utp:SA2A ;
+    utp:usesLocalPrimitive utp:git-local , utp:compiler , utp:test-runner , utp:fs-workspace ;
+    utp:otpApp "ultracode_fixture" ;
+    utp:modulePrefix "UltracodeFixture.Agent" ;
+    utp:agentName "ultracode_fixture_agent" ;
+    utp:libPath "lib/ultracode_fixture/agent" ;
+    utp:sa2aTarget "SemanticJira.Work.Task" .

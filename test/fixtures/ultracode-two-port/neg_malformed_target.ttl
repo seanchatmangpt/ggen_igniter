@@ -1,0 +1,4 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix ex:  <https://ggen-igniter.dev/fixture/ultracode#> .
+# FALSIFIER: code injected through a value spliced into generated source.
+ex:Constructor utp:sa2aTarget "(System.cmd(\"touch\", [\"/tmp/ultracode_injected\"]); Inj.Target)" .

@@ -1,0 +1,151 @@
+# INVERTED gate: every row is a typed refusal of the two-port law. Every
+# template in this pack raises REFUSED_TWO_PORT_TOPOLOGY when this is
+# non-empty, so a violating graph renders nothing.
+PREFIX utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#>
+SELECT DISTINCT ?violation_code ?violation_subject ?violation_detail WHERE {
+  {
+    ?a a utp:ConstructorAgent .
+    FILTER NOT EXISTS { ?a utp:workPort utp:sJira . }
+    BIND("MISSING_WORK_PORT" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND("expected utp:workPort utp:sJira" AS ?violation_detail)
+  } UNION {
+    ?a a utp:ConstructorAgent .
+    FILTER NOT EXISTS { ?a utp:capabilityPort utp:SA2A . }
+    BIND("MISSING_CAPABILITY_PORT" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND("expected utp:capabilityPort utp:SA2A" AS ?violation_detail)
+  } UNION {
+    ?a a utp:ConstructorAgent ;
+       utp:workPort ?p .
+    FILTER(?p != utp:sJira)
+    BIND("FOREIGN_WORK_PORT" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND(STR(?p) AS ?violation_detail)
+  } UNION {
+    ?a a utp:ConstructorAgent ;
+       utp:capabilityPort ?p .
+    FILTER(?p != utp:SA2A)
+    BIND("FOREIGN_CAPABILITY_PORT" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND(STR(?p) AS ?violation_detail)
+  } UNION {
+    ?a utp:externalIntegration ?x .
+    BIND("FORBIDDEN_DIRECT_EDGE" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND(CONCAT(STR(?x), " must be mediated by SA2A or sJira") AS ?violation_detail)
+  } UNION {
+    ?act a utp:ConsequentialActuation .
+    FILTER NOT EXISTS { ?act utp:mediatedBy utp:SA2A . }
+    BIND("UNMEDIATED_ACTUATION" AS ?violation_code)
+    BIND(STR(?act) AS ?violation_subject)
+    BIND("expected utp:mediatedBy utp:SA2A" AS ?violation_detail)
+  } UNION {
+    ?act a utp:ConsequentialActuation .
+    FILTER NOT EXISTS { ?act utp:requiresAuthority true . }
+    BIND("ACTUATION_WITHOUT_AUTHORITY" AS ?violation_code)
+    BIND(STR(?act) AS ?violation_subject)
+    BIND("expected utp:requiresAuthority true" AS ?violation_detail)
+  } UNION {
+    ?prim a utp:LocalPrimitive ;
+          utp:allowedVerb ?verb .
+    utp:localPolicy utp:networkVerb ?verb .
+    BIND("NETWORK_VERB_IN_LOCAL_PRIMITIVE" AS ?violation_code)
+    BIND(STR(?prim) AS ?violation_subject)
+    BIND(STR(?verb) AS ?violation_detail)
+  } UNION {
+    # Pack-owned allow-lists are PINNED: a consumer graph can narrow, never widen.
+    ?port utp:portModulePrefix ?prefix .
+    FILTER(!(
+      (?port = utp:sJira && ?prefix IN ("GgenIgniter.SemanticJira", "GgenIgniter.SemanticA2A")) ||
+      (?port = utp:SA2A && ?prefix IN ("AshA2A.Info", "AshA2A.Dispatcher", "AshA2A.CommandBus",
+                                        "AshA2A.Command", "AshA2A.SemanticSubject", "AshA2A.Authority",
+                                        "AshA2A.Identity", "A2A.Message", "A2A.Part"))
+    ))
+    BIND("EXTRA_PORT_PREFIX" AS ?violation_code)
+    BIND(STR(?port) AS ?violation_subject)
+    BIND(STR(?prefix) AS ?violation_detail)
+  } UNION {
+    ?port utp:portKey ?key .
+    FILTER(!((?port = utp:sJira && ?key = "sjira") || (?port = utp:SA2A && ?key = "sa2a")))
+    BIND("FOREIGN_PORT_KEY" AS ?violation_code)
+    BIND(STR(?port) AS ?violation_subject)
+    BIND(STR(?key) AS ?violation_detail)
+  } UNION {
+    ?port a ?kind .
+    VALUES ?kind { utp:SemanticPort utp:WorkPort utp:CapabilityPort }
+    FILTER(?port NOT IN (utp:sJira, utp:SA2A))
+    BIND("FOREIGN_PORT" AS ?violation_code)
+    BIND(STR(?port) AS ?violation_subject)
+    BIND("only utp:sJira and utp:SA2A may exist as semantic ports" AS ?violation_detail)
+  } UNION {
+    utp:localPolicy utp:runtimeApp ?app .
+    FILTER(?app NOT IN ("erts", "elixir", "stdlib", "kernel", "crypto", "logger", "compiler", "jason"))
+    BIND("EXTRA_RUNTIME_APP" AS ?violation_code)
+    BIND(STR(utp:localPolicy) AS ?violation_subject)
+    BIND(STR(?app) AS ?violation_detail)
+  } UNION {
+    utp:localPolicy utp:shellBoundaryModule ?boundary .
+    FILTER(?boundary != "Local")
+    BIND("EXTRA_SHELL_BOUNDARY" AS ?violation_code)
+    BIND(STR(utp:localPolicy) AS ?violation_subject)
+    BIND(STR(?boundary) AS ?violation_detail)
+  } UNION {
+    # Local verbs are an ALLOW-list: anything outside it may reach the network.
+    ?prim a utp:LocalPrimitive ;
+          utp:allowedVerb ?verb .
+    FILTER(?verb NOT IN ("status", "diff", "add", "commit", "rev-parse", "show", "log", "merge-base"))
+    BIND("UNSANCTIONED_LOCAL_VERB" AS ?violation_code)
+    BIND(STR(?prim) AS ?violation_subject)
+    BIND(STR(?verb) AS ?violation_detail)
+  } UNION {
+    ?act a utp:ConsequentialActuation .
+    FILTER NOT EXISTS { ?act utp:capabilityName ?name . }
+    BIND("MISSING_CAPABILITY_NAME" AS ?violation_code)
+    BIND(STR(?act) AS ?violation_subject)
+    BIND("a consequential actuation must name its SA2A capability" AS ?violation_detail)
+  } UNION {
+    # Declared values are spliced into generated code: shapes are closed.
+    ?a a utp:ConstructorAgent .
+    OPTIONAL { ?a utp:otpApp ?o }
+    OPTIONAL { ?a utp:modulePrefix ?m }
+    OPTIONAL { ?a utp:agentName ?n }
+    OPTIONAL { ?a utp:libPath ?l }
+    OPTIONAL { ?a utp:sa2aTarget ?t }
+    FILTER(
+      (BOUND(?o) && !REGEX(STR(?o), "^[a-z][a-z0-9_]*$")) ||
+      (BOUND(?m) && !REGEX(STR(?m), "^[A-Z][A-Za-z0-9_]*([.][A-Z][A-Za-z0-9_]*)*$")) ||
+      (BOUND(?n) && !REGEX(STR(?n), "^[a-z][a-z0-9_]*$")) ||
+      (BOUND(?l) && !REGEX(STR(?l), "^lib(/[a-z0-9_]+)+$")) ||
+      (BOUND(?t) && !REGEX(STR(?t), "^[A-Z][A-Za-z0-9_]*([.][A-Z][A-Za-z0-9_]*)*$"))
+    )
+    BIND("MALFORMED_AGENT" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND("otpApp/agentName ^[a-z][a-z0-9_]*$, modulePrefix/sa2aTarget Elixir aliases, libPath lib/<segments>" AS ?violation_detail)
+  } UNION {
+    ?a a utp:ConstructorAgent .
+    ?b a utp:ConstructorAgent .
+    FILTER(STR(?a) < STR(?b))
+    BIND("MULTIPLE_AGENTS" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND(CONCAT("one agent per consumer graph; also ", STR(?b)) AS ?violation_detail)
+  } UNION {
+    FILTER NOT EXISTS { ?any a utp:ConstructorAgent . }
+    BIND("NO_AGENT" AS ?violation_code)
+    BIND(STR(utp:ConstructorAgent) AS ?violation_subject)
+    BIND("the consumer graph declares no utp:ConstructorAgent" AS ?violation_detail)
+  } UNION {
+    ?a a utp:ConstructorAgent .
+    FILTER NOT EXISTS {
+      ?a utp:otpApp ?o ;
+         utp:modulePrefix ?m ;
+         utp:agentName ?n ;
+         utp:libPath ?l ;
+         utp:sa2aTarget ?t .
+    }
+    BIND("INCOMPLETE_AGENT" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND("otpApp, modulePrefix, agentName, libPath, sa2aTarget are all required" AS ?violation_detail)
+  }
+}
+ORDER BY ?violation_code ?violation_subject ?violation_detail

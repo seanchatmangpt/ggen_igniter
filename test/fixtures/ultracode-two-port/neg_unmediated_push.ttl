@@ -1,0 +1,5 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix ex:  <https://ggen-igniter.dev/fixture/ultracode#> .
+
+# FALSIFIER: a remote push declared as actuation with no SA2A mediation and no authority.
+ex:direct-push a utp:ConsequentialActuation ; utp:capabilityName "git.push.direct" .

@@ -1,0 +1,4 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+
+# FALSIFIER: `git push` smuggled into the local git primitive.
+utp:git-local utp:allowedVerb "push" .

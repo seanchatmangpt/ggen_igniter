@@ -1,0 +1,4 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix ex:  <https://ggen-igniter.dev/fixture/ultracode#> .
+# FALSIFIER: an unattached port whose key collides with sJira widens the allow-list.
+ex:Gh a utp:WorkPort ; utp:portKey "sjira" ; utp:portModulePrefix "GitHubClient" .
