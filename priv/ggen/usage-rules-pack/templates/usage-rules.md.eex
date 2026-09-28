@@ -1,0 +1,35 @@
+---
+to: "usage-rules.md"
+mode: file
+---
+<!--
+SPDX-FileCopyrightText: 2026 ggen_igniter contributors
+
+SPDX-License-Identifier: MIT
+
+GENERATED from priv/ggen/usage-rules-pack/ontology.ttl -- edit the ontology and re-run
+  mix ggen_igniter.sync --pack usage-rules-pack --engine sparql --out usage-rules.md
+-->
+
+# Rules for working with ggen_igniter
+
+## Understanding ggen_igniter
+
+<%= package |> List.first() |> Map.get("summary") %>
+
+## Tasks
+<%= for t <- Enum.sort_by(tasks, & &1["order"]) do %>
+### `mix <%= t["name"] %>`
+
+<%= t["summary"] %>
+
+```
+<%= t["example"] %>
+```
+
+<%= for f <- Enum.sort_by(Enum.filter(flags, & &1["task"] == t["name"]), & &1["name"]) do %>- `<%= f["name"] %>` (<%= f["type"] %>) -- <%= f["summary"] %>
+<% end %><% end %>
+## Invariants
+
+<%= for i <- Enum.sort_by(invariants, & &1["order"]) do %>- <%= i["summary"] %>
+<% end %>

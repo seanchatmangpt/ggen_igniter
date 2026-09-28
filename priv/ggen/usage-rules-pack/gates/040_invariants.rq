@@ -1,0 +1,4 @@
+PREFIX ur: <https://ggen-igniter.dev/ontology/usage-rules#>
+SELECT DISTINCT ?order ?summary WHERE {
+  ?i a ur:Invariant ; ur:order ?order ; ur:summary ?summary .
+}

@@ -1,0 +1,4 @@
+PREFIX ur: <https://ggen-igniter.dev/ontology/usage-rules#>
+SELECT DISTINCT ?task ?name ?type ?summary WHERE {
+  ?f a ur:Flag ; ur:task ?task ; ur:name ?name ; ur:type ?type ; ur:summary ?summary .
+}

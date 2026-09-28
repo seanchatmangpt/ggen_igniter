@@ -1,0 +1,4 @@
+PREFIX ur: <https://ggen-igniter.dev/ontology/usage-rules#>
+SELECT DISTINCT ?name ?summary WHERE {
+  ?p a ur:Package ; ur:name ?name ; ur:summary ?summary .
+}

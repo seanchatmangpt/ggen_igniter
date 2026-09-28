@@ -1,0 +1,100 @@
+@prefix ur: <https://ggen-igniter.dev/ontology/usage-rules#> .
+
+# Semantic source of truth for the package-level `usage-rules.md` (the
+# format ash/igniter/ash_ai ship for `mix usage_rules.sync` / AGENTS.md
+# consumption). Facts are copied from real files: each ur:Flag is a key of
+# the named task's `Igniter.Mix.Task.Info` `schema:` (cross-checked by
+# test/ggen_igniter_usage_rules_pack_test.exs -- a documented flag absent
+# from the task's info/2 schema fails the suite); invariants come from the
+# root CLAUDE.md "Non-negotiable invariants". Add or change a rule by editing
+# this file, then re-render:
+#
+#   mix ggen_igniter.sync --pack usage-rules-pack --engine sparql \
+#     --out usage-rules.md
+
+ur:pkg a ur:Package ;
+    ur:name "ggen_igniter" ;
+    ur:summary "Elixir bootstrap of ggen's ontology-to-code pipeline: Ontology.load! -> Engine.run -> Render.render -> Actuate.write_file!, tracked by a reconciliation manifest so upstream renames are mechanically detected." .
+
+# --- tasks ---------------------------------------------------------------
+
+ur:tSync a ur:Task ;
+    ur:order "01" ;
+    ur:name "ggen_igniter.sync" ;
+    ur:summary "Load a Turtle ontology, run named SPARQL queries, render an EEx template with the rows, and write (or inject) the output; reconciles against the manifest." ;
+    ur:example "mix ggen_igniter.sync --pack adr-index-pack --engine sparql --out docs/architecture/adr/README.md" .
+
+ur:tPlan a ur:Task ;
+    ur:order "02" ;
+    ur:name "ggen_igniter.plan" ;
+    ur:summary "Plan-only counterpart of sync: reports what would be written without touching disk." ;
+    ur:example "mix ggen_igniter.plan --pack ash-lifecycle-pack --query resource=gates/resource.rq" .
+
+ur:tDoctor a ur:Task ;
+    ur:order "03" ;
+    ur:name "ggen_igniter.doctor" ;
+    ur:summary "Run the numbered environment/project/pack checklist; run this first when diagnosing." ;
+    ur:example "mix ggen_igniter.doctor --json" .
+
+ur:tInstall a ur:Task ;
+    ur:order "04" ;
+    ur:name "ggen_igniter.install" ;
+    ur:summary "Igniter installer: imports the :ggen_igniter formatter dep; Ash wiring only with --with-ash-domain." ;
+    ur:example "mix igniter.install ggen_igniter" .
+
+ur:tRename a ur:Task ;
+    ur:order "05" ;
+    ur:name "ggen_igniter.rename" ;
+    ur:summary "Rename a function across the consumer project, optionally leaving a deprecated delegate." ;
+    ur:example "mix ggen_igniter.rename --from Old.fun --to New.fun --arity 2 --deprecate soft" .
+
+ur:tManifestDump a ur:Task ;
+    ur:order "06" ;
+    ur:name "ggen_igniter.manifest.dump" ;
+    ur:summary "Emit a stable, sorted JSON export of .ggen_igniter/manifest.json plus receipts for third-party replay (byte-identical for identical input)." ;
+    ur:example "mix ggen_igniter.manifest.dump --path . --out manifest-export.json" .
+
+# --- flags (keys of each task's info/2 schema) ----------------------------
+
+ur:fSyncOntology a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--ontology" ; ur:type "string" ; ur:summary "Path to the Turtle ontology." .
+ur:fSyncQuery a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--query" ; ur:type "string (repeatable)" ; ur:summary "NAME=path.rq; the rows bind as @NAME in the template." .
+ur:fSyncTemplate a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--template" ; ur:type "string" ; ur:summary "EEx template path." .
+ur:fSyncOut a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--out" ; ur:type "string" ; ur:summary "Output path (may contain EEx expressions)." .
+ur:fSyncEngine a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--engine" ; ur:type "string" ; ur:summary "Query engine; oxigraph is the default, sparql is pure Elixir with FILTER NOT EXISTS/UNION limits." .
+ur:fSyncPack a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--pack" ; ur:type "string" ; ur:summary "Pack name under priv/ggen; explicit --ontology/--query/--template beat it." .
+ur:fSyncPackDir a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--pack-dir" ; ur:type "string" ; ur:summary "Explicit pack directory." .
+ur:fSyncForEach a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--for-each" ; ur:type "string" ; ur:summary "Render one output per row of the named query." .
+ur:fSyncDryRun a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--dry-run" ; ur:type "boolean" ; ur:summary "Preview without writing." .
+ur:fSyncOnStale a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--on-stale" ; ur:type "string" ; ur:summary "refuse (default), prune, or preserve stale manifest outputs." .
+ur:fSyncManifestDir a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--manifest-dir" ; ur:type "string" ; ur:summary "Directory whose .ggen_igniter/manifest.json is reconciled." .
+
+ur:fPlanPack a ur:Flag ; ur:task "ggen_igniter.plan" ; ur:name "--pack" ; ur:type "string" ; ur:summary "Pack name under priv/ggen." .
+ur:fPlanQuery a ur:Flag ; ur:task "ggen_igniter.plan" ; ur:name "--query" ; ur:type "string (repeatable)" ; ur:summary "NAME=path.rq." .
+ur:fPlanJson a ur:Flag ; ur:task "ggen_igniter.plan" ; ur:name "--json" ; ur:type "boolean" ; ur:summary "Machine-readable plan." .
+
+ur:fDoctorPack a ur:Flag ; ur:task "ggen_igniter.doctor" ; ur:name "--pack" ; ur:type "string" ; ur:summary "Check a specific pack." .
+ur:fDoctorFix a ur:Flag ; ur:task "ggen_igniter.doctor" ; ur:name "--fix" ; ur:type "boolean" ; ur:summary "Auto-fix the fixable subset of checks." .
+ur:fDoctorStrict a ur:Flag ; ur:task "ggen_igniter.doctor" ; ur:name "--strict" ; ur:type "boolean" ; ur:summary "Treat warnings as failures." .
+ur:fDoctorJson a ur:Flag ; ur:task "ggen_igniter.doctor" ; ur:name "--json" ; ur:type "boolean" ; ur:summary "Machine-readable report." .
+
+ur:fInstallWithAsh a ur:Flag ; ur:task "ggen_igniter.install" ; ur:name "--with-ash-domain" ; ur:type "boolean" ; ur:summary "Opt in to adding :ash, registering the domain, and supervising it." .
+ur:fInstallDomain a ur:Flag ; ur:task "ggen_igniter.install" ; ur:name "--domain" ; ur:type "string" ; ur:summary "Domain module (default <OtpApp>.Ash.Domain)." .
+ur:fInstallOtpApp a ur:Flag ; ur:task "ggen_igniter.install" ; ur:name "--otp-app" ; ur:type "string" ; ur:summary "Consumer OTP app name." .
+ur:fInstallYes a ur:Flag ; ur:task "ggen_igniter.install" ; ur:name "--yes" ; ur:type "boolean" ; ur:summary "Apply without prompting." .
+
+ur:fRenameFrom a ur:Flag ; ur:task "ggen_igniter.rename" ; ur:name "--from" ; ur:type "string" ; ur:summary "Existing Module.function." .
+ur:fRenameTo a ur:Flag ; ur:task "ggen_igniter.rename" ; ur:name "--to" ; ur:type "string" ; ur:summary "New Module.function." .
+ur:fRenameArity a ur:Flag ; ur:task "ggen_igniter.rename" ; ur:name "--arity" ; ur:type "integer" ; ur:summary "Restrict to one arity." .
+ur:fRenameDeprecate a ur:Flag ; ur:task "ggen_igniter.rename" ; ur:name "--deprecate" ; ur:type "string" ; ur:summary "soft or hard: leave a deprecated delegate at the old name." .
+
+ur:fDumpPath a ur:Flag ; ur:task "ggen_igniter.manifest.dump" ; ur:name "--path" ; ur:type "string" ; ur:summary "Directory holding .ggen_igniter/ (default .)." .
+ur:fDumpOut a ur:Flag ; ur:task "ggen_igniter.manifest.dump" ; ur:name "--out" ; ur:type "string" ; ur:summary "Write the export to FILE instead of stdout." .
+
+# --- invariants (root CLAUDE.md "Non-negotiable invariants") --------------
+
+ur:i01 a ur:Invariant ; ur:order "01" ; ur:summary "Generate, do not hand-write: model reusable structure in a pack ontology and render it with ggen_igniter.sync; never hand-edit a generated file, edit the ontology and re-sync." .
+ur:i02 a ur:Invariant ; ur:order "02" ; ur:summary "Never hand-write Ash surfaces (use Ash.Resource / use Ash.Domain); generate them from packs or upstream generators." .
+ur:i03 a ur:Invariant ; ur:order "03" ; ur:summary "Tests are Chicago-style: real files, subprocesses, and engines with state-based assertions; no Mox, Mimic, Patch, or :meck." .
+ur:i04 a ur:Invariant ; ur:order "04" ; ur:summary "A summary is not a receipt: done means mix compile --warnings-as-errors and mix test pass with real output." .
+ur:i05 a ur:Invariant ; ur:order "05" ; ur:summary "Stale outputs are refused by default (--on-stale refuse); the manifest at <dir>/.ggen_igniter/manifest.json is the ownership memory." .
+ur:i06 a ur:Invariant ; ur:order "06" ; ur:summary "Ash is dev and test only in this package and never a runtime dependency; the shipped package stays Ash-free." .
