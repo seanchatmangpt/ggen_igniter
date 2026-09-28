@@ -110,11 +110,9 @@ defmodule Mix.Tasks.GgenIgniter.Fortune5Ready do
 
   @impl Mix.Task
   def run(argv) do
-    if "--help" in argv do
-      print_help_and_halt()
-    else
+    GgenIgniter.TaskShell.run_with_help(argv, fn -> print_help_and_halt() end, fn ->
       super(argv)
-    end
+    end)
   end
 
   @impl Igniter.Mix.Task

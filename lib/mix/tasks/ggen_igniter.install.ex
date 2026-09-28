@@ -91,6 +91,7 @@ defmodule Mix.Tasks.GgenIgniter.Install do
   def info(_argv, _composing_task) do
     %Igniter.Mix.Task.Info{
       group: :ggen_igniter,
+      example: "mix igniter.install ggen_igniter --domain MyApp.Ash.Domain --yes",
       schema: [domain: :string, otp_app: :string, yes: :boolean],
       aliases: [y: :yes]
     }
@@ -98,11 +99,9 @@ defmodule Mix.Tasks.GgenIgniter.Install do
 
   @impl Mix.Task
   def run(argv) do
-    if "--help" in argv do
-      print_help_and_halt()
-    else
+    GgenIgniter.TaskShell.run_with_help(argv, fn -> print_help_and_halt() end, fn ->
       super(argv)
-    end
+    end)
   end
 
   @impl Igniter.Mix.Task

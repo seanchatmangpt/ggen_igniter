@@ -698,11 +698,9 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   # unchanged `super/1` path) is untouched.
   @impl Mix.Task
   def run(argv) do
-    if "--help" in argv do
-      print_help_and_halt()
-    else
+    GgenIgniter.TaskShell.run_with_help(argv, fn -> print_help_and_halt() end, fn ->
       super(argv)
-    end
+    end)
   end
 
   @impl Igniter.Mix.Task

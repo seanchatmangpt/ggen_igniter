@@ -1,8 +1,8 @@
 defmodule GgenIgniterInstallRealFilesTest do
   @moduledoc """
   Chicago-style first-mile proof for the consumer-facing install edge
-  (`mix ggen_igniter.install`). `ggen_igniter_install_task_test.exs` drives the
-  task over an in-memory `Igniter.Test` project; this file drives the SAME task
+  (`mix ggen_igniter.install`). `ggen_igniter_ash_install_alignment_test.exs` drives the
+  install path over in-memory `Igniter.Test` projects; this file drives the SAME task
   through the real Igniter write path (`Igniter.do_or_dry_run/2` with `yes: true`)
   against REAL files in a unique tmp Mix project, then asserts on the bytes left
   on disk: `mix.exs`, `config/config.exs`, and the application supervisor.

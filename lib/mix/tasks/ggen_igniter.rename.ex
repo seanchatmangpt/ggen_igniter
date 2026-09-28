@@ -89,11 +89,12 @@ defmodule Mix.Tasks.GgenIgniter.Rename do
   # `Igniter.Mix.Task` to fix the same way `sync.ex`/`doctor.ex`/`plan.ex` do.
   @impl Mix.Task
   def run(argv) do
-    if "--help" in argv or "-h" in argv do
-      print_help_and_halt()
-    else
-      super(argv)
-    end
+    GgenIgniter.TaskShell.run_with_help(
+      argv,
+      fn -> print_help_and_halt() end,
+      fn -> super(argv) end,
+      ["--help", "-h"]
+    )
   end
 
   @impl Igniter.Mix.Task

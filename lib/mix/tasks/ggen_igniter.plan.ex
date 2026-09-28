@@ -152,12 +152,14 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
   # `igniter/1` via the unchanged `super/1` path.
   @impl Mix.Task
   def run(argv) do
-    if "--help" in argv do
-      print_help()
-      System.halt(0)
-    else
-      super(argv)
-    end
+    GgenIgniter.TaskShell.run_with_help(
+      argv,
+      fn ->
+        print_help()
+        System.halt(0)
+      end,
+      fn -> super(argv) end
+    )
   end
 
   @impl Igniter.Mix.Task
