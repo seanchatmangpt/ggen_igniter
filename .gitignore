@@ -55,3 +55,11 @@ erl_crash.dump
 /test/fixtures/book_library/lib/book_library/
 /test/fixtures/book_library/priv/
 tmp/
+
+# Root-level stray temp outputs (zero-byte, 2026-09-27): mktemp-style
+# `agent..ttl.XXXXXX` / `noagent..ttl.XXXXXX` files and `neg_*` negative-case
+# scratch entries dropped in the repo root by test runs. Nothing tracked or
+# referenced; root-anchored so no tracked path can match.
+/agent..ttl.*
+/noagent..ttl.*
+/neg_*
