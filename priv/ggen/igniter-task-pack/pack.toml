@@ -1,0 +1,4 @@
+[pack]
+name = "igniter-task-pack"
+version = "26.9.28"
+description = "Manufactures `use Igniter.Mix.Task` shells (info/2, TaskShell-delegating run/1, igniter/1 -> delegate MFA) from ig:Task facts."

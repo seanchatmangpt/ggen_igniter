@@ -1,0 +1,65 @@
+@prefix ig: <https://ggen-igniter.dev/ontology/igniter-task#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Vocabulary. The ontology stores FACTS about a task (name, module, option
+# schema, help, delegate MFA); the template derives all Elixir source from them.
+ig:Task a rdfs:Class ; rdfs:label "Igniter Mix task" .
+ig:Option a rdfs:Class ; rdfs:label "Task option (schema entry or help-only flag)" .
+
+ig:taskName a rdf:Property ; rdfs:range xsd:string .       # "ggen_igniter.rename"
+ig:module a rdf:Property ; rdfs:range xsd:string .         # "Mix.Tasks.GgenIgniter.Rename"
+ig:group a rdf:Property ; rdfs:range xsd:string .          # "ggen_igniter"
+ig:shortdoc a rdf:Property ; rdfs:range xsd:string .
+ig:summary a rdf:Property ; rdfs:range xsd:string .        # moduledoc lead + help lead
+ig:example a rdf:Property ; rdfs:range xsd:string .
+ig:delegateModule a rdf:Property ; rdfs:range xsd:string . # "GgenIgniter.Refactors.SafeRename"
+ig:delegateFunction a rdf:Property ; rdfs:range xsd:string .
+ig:delegateArity a rdf:Property ; rdfs:range xsd:integer . # 1: fun(igniter); 2: fun(igniter, options)
+ig:optionOf a rdf:Property .
+ig:optName a rdf:Property ; rdfs:range xsd:string .
+ig:optType a rdf:Property ; rdfs:range xsd:string .        # string | integer | boolean | float
+ig:optAlias a rdf:Property ; rdfs:range xsd:string .
+ig:optRequired a rdf:Property ; rdfs:range xsd:boolean .
+ig:optInSchema a rdf:Property ; rdfs:range xsd:boolean .   # false: help-only (Igniter-owned flag)
+ig:optMetavar a rdf:Property ; rdfs:range xsd:string .
+ig:optHelp a rdf:Property ; rdfs:range xsd:string .
+ig:optOrder a rdf:Property ; rdfs:range xsd:integer .
+
+# First target facts: reproduce lib/mix/tasks/ggen_igniter.rename.ex.
+ig:task-rename a ig:Task ;
+    ig:taskName "ggen_igniter.rename" ;
+    ig:module "Mix.Tasks.GgenIgniter.Rename" ;
+    ig:group "ggen_igniter" ;
+    ig:shortdoc "Renames a function across the project via GgenIgniter.Refactors.SafeRename" ;
+    ig:summary "renames a function via the real, tested GgenIgniter.Refactors.SafeRename.rename_function/4" ;
+    ig:example "mix ggen_igniter.rename --from OldMod.old_fun --to NewMod.new_fun" ;
+    ig:delegateModule "GgenIgniter.Refactors.SafeRename" ;
+    ig:delegateFunction "rename_function" ;
+    ig:delegateArity 4 .
+
+ig:opt-rename-from a ig:Option ; ig:optionOf ig:task-rename ; ig:optName "from" ; ig:optType "string" ;
+    ig:optRequired true ; ig:optInSchema true ; ig:optMetavar "MODULE.function[/arity]" ; ig:optOrder 1 ;
+    ig:optHelp "(required) existing module + function" .
+ig:opt-rename-to a ig:Option ; ig:optionOf ig:task-rename ; ig:optName "to" ; ig:optType "string" ;
+    ig:optRequired true ; ig:optInSchema true ; ig:optMetavar "MODULE.function[/arity]" ; ig:optOrder 2 ;
+    ig:optHelp "(required) new module + function" .
+ig:opt-rename-arity a ig:Option ; ig:optionOf ig:task-rename ; ig:optName "arity" ; ig:optType "integer" ;
+    ig:optRequired false ; ig:optInSchema true ; ig:optMetavar "N" ; ig:optOrder 3 ;
+    ig:optHelp "override the arity parsed above" .
+ig:opt-rename-deprecate a ig:Option ; ig:optionOf ig:task-rename ; ig:optName "deprecate" ; ig:optType "string" ;
+    ig:optRequired false ; ig:optInSchema true ; ig:optMetavar "soft|hard" ; ig:optOrder 4 ;
+    ig:optHelp "keep the old function, deprecated" .
+ig:opt-rename-path a ig:Option ; ig:optionOf ig:task-rename ; ig:optName "path" ; ig:optType "string" ;
+    ig:optRequired false ; ig:optInSchema true ; ig:optMetavar "DIR" ; ig:optOrder 5 ;
+    ig:optHelp "pre-warm the source index with DIR" .
+ig:opt-rename-dry-run a ig:Option ; ig:optionOf ig:task-rename ; ig:optName "dry-run" ; ig:optType "boolean" ;
+    ig:optRequired false ; ig:optInSchema false ; ig:optOrder 6 ;
+    ig:optHelp "print the diff, write nothing" .
+ig:opt-rename-yes a ig:Option ; ig:optionOf ig:task-rename ; ig:optName "yes" ; ig:optType "boolean" ;
+    ig:optRequired false ; ig:optInSchema false ; ig:optOrder 7 ;
+    ig:optHelp "apply without the confirmation prompt" .
+ig:opt-rename-help a ig:Option ; ig:optionOf ig:task-rename ; ig:optName "help" ; ig:optType "boolean" ;
+    ig:optAlias "h" ; ig:optRequired false ; ig:optInSchema true ; ig:optOrder 8 ;
+    ig:optHelp "print this help and exit 0" .

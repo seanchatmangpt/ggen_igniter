@@ -1,0 +1,14 @@
+# One row per ig:Task, delegate-free on purpose: an incomplete task still yields a row
+# so the template can refuse it by type (025_delegates.rq + 030_refusals.rq) instead of
+# silently rendering nothing. (Unbound OPTIONAL columns would be undefined template vars.)
+PREFIX ig: <https://ggen-igniter.dev/ontology/igniter-task#>
+SELECT DISTINCT ?task ?task_name ?module ?group ?shortdoc ?summary ?example WHERE {
+  ?task a ig:Task ;
+        ig:taskName ?task_name ;
+        ig:module ?module ;
+        ig:group ?group ;
+        ig:shortdoc ?shortdoc ;
+        ig:summary ?summary ;
+        ig:example ?example .
+}
+ORDER BY ?task_name

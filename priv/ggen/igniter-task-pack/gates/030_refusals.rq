@@ -1,0 +1,15 @@
+# Typed refusal gate: every ig:Task missing any delegate MFA fact. Non-empty =>
+# the template raises REFUSED(TASK_DELEGATE_MISSING) instead of rendering a shell
+# whose igniter/1 has nothing to call. MINUS (not FILTER NOT EXISTS): see
+# semantic-jira-pack/gates/050_frontier.rq for the sparql engine limitation.
+PREFIX ig: <https://ggen-igniter.dev/ontology/igniter-task#>
+SELECT DISTINCT ?task ?refused_task_name WHERE {
+  ?task a ig:Task ;
+        ig:taskName ?refused_task_name .
+  MINUS {
+    ?task ig:delegateModule ?m ;
+          ig:delegateFunction ?f ;
+          ig:delegateArity ?a .
+  }
+}
+ORDER BY ?refused_task_name

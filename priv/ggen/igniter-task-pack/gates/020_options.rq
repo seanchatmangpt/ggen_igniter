@@ -1,0 +1,14 @@
+PREFIX ig: <https://ggen-igniter.dev/ontology/igniter-task#>
+SELECT DISTINCT ?task ?option ?opt_name ?opt_type ?opt_alias ?opt_required ?opt_in_schema ?opt_metavar ?opt_help ?opt_order WHERE {
+  ?option a ig:Option ;
+          ig:optionOf ?task ;
+          ig:optName ?opt_name ;
+          ig:optType ?opt_type ;
+          ig:optRequired ?opt_required ;
+          ig:optInSchema ?opt_in_schema ;
+          ig:optHelp ?opt_help ;
+          ig:optOrder ?opt_order .
+  OPTIONAL { ?option ig:optAlias ?opt_alias }
+  OPTIONAL { ?option ig:optMetavar ?opt_metavar }
+}
+ORDER BY ?opt_order

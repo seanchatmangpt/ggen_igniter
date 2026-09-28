@@ -1,0 +1,9 @@
+# Complete delegate MFAs, one row per task that has all three facts.
+PREFIX ig: <https://ggen-igniter.dev/ontology/igniter-task#>
+SELECT DISTINCT ?task ?delegate_module ?delegate_function ?delegate_arity WHERE {
+  ?task a ig:Task ;
+        ig:delegateModule ?delegate_module ;
+        ig:delegateFunction ?delegate_function ;
+        ig:delegateArity ?delegate_arity .
+}
+ORDER BY ?task
