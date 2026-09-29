@@ -72,7 +72,12 @@ defmodule GgenIgniterIgniterIdempotenceTest do
 
   describe "install task" do
     test "thin default: formatter import_deps codemod is idempotent" do
-      mix_exs = String.replace(@mix_exs, "defp deps do\n    []", "defp deps do\n    [{:ggen_igniter, \"~> 26.9\"}]")
+      mix_exs =
+        String.replace(
+          @mix_exs,
+          "defp deps do\n    []",
+          "defp deps do\n    [{:ggen_igniter, \"~> 26.9\"}]"
+        )
 
       igniter =
         assert_idempotent("ggen_igniter.install", ["--yes"],
@@ -98,7 +103,9 @@ defmodule GgenIgniterIgniterIdempotenceTest do
       assert src(igniter, "config/config.exs") =~ "ash_domains"
       assert src(igniter, "lib/sample/application.ex") =~ "Sample.Ash.Domain"
       # exactly one registration, never duplicated by the second run
-      assert length(Regex.scan(~r/Sample\.Ash\.Domain/, src(igniter, "lib/sample/application.ex"))) ==
+      assert length(
+               Regex.scan(~r/Sample\.Ash\.Domain/, src(igniter, "lib/sample/application.ex"))
+             ) ==
                1
     end
 
@@ -117,7 +124,12 @@ defmodule GgenIgniterIgniterIdempotenceTest do
       igniter =
         [files: %{"mix.exs" => @inline_deps_mix_exs}]
         |> Igniter.Test.test_project()
-        |> Igniter.compose_task("ggen_igniter.install", ["--with-ash-domain", "--domain", "Sample.Ash.Domain", "--yes"])
+        |> Igniter.compose_task("ggen_igniter.install", [
+          "--with-ash-domain",
+          "--domain",
+          "Sample.Ash.Domain",
+          "--yes"
+        ])
         |> assert_refused("declares deps inline")
 
       refute Igniter.changed?(igniter, "mix.exs")

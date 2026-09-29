@@ -222,6 +222,7 @@ defmodule GgenIgniter.ReceiptedExtensionPackTest do
         )
 
       assert exit == 0, "wire render failed: #{output}"
+
       on_exit(fn ->
         :code.purge(@wire)
         :code.delete(@wire)
@@ -321,8 +322,19 @@ defmodule GgenIgniter.ReceiptedExtensionPackTest do
       {_o, 0} =
         System.cmd(
           "mix",
-          ["ggen_igniter.sync", "--pack", "#{@pack}:wire", "--ontology", mutated, "--out", out,
-           "--manifest-dir", Path.join(dir, "m"), "--verify-cwd", File.cwd!()],
+          [
+            "ggen_igniter.sync",
+            "--pack",
+            "#{@pack}:wire",
+            "--ontology",
+            mutated,
+            "--out",
+            out,
+            "--manifest-dir",
+            Path.join(dir, "m"),
+            "--verify-cwd",
+            File.cwd!()
+          ],
           cd: File.cwd!(),
           stderr_to_stdout: true
         )

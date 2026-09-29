@@ -112,7 +112,10 @@ defmodule GgenIgniter.IgniterTaskPackTest do
       assert source =~ "use Igniter.Mix.Task"
       assert source =~ "GgenIgniter.TaskShell.run_with_help("
       assert source =~ ~s|["--help", "-h"]|
-      assert source =~ "GgenIgniter.IgniterTaskPackTest.RenameDelegate.run(igniter, igniter.args.options)"
+
+      assert source =~
+               "GgenIgniter.IgniterTaskPackTest.RenameDelegate.run(igniter, igniter.args.options)"
+
       refute source =~ ~r/^\s*use Ash\./m
     end
 
@@ -120,11 +123,14 @@ defmodule GgenIgniter.IgniterTaskPackTest do
       {path, source} = rendered!()
       module = load(source, path)
 
-      opts = Igniter.Mix.Task.__options__!(module, ["--from", "A.b", "--to", "A.c", "--arity", "2"])
+      opts =
+        Igniter.Mix.Task.__options__!(module, ["--from", "A.b", "--to", "A.c", "--arity", "2"])
+
       assert opts[:from] == "A.b" and opts[:to] == "A.c" and opts[:arity] == 2
 
       ExUnit.CaptureIO.capture_io(:stderr, fn ->
-        assert catch_exit(Igniter.Mix.Task.__options__!(module, ["--to", "A.c"])) == {:shutdown, 1}
+        assert catch_exit(Igniter.Mix.Task.__options__!(module, ["--to", "A.c"])) ==
+                 {:shutdown, 1}
       end)
 
       assert_raise OptionParser.ParseError, fn ->
