@@ -1,18 +1,28 @@
+<!-- NOTE for maintainers: private vulnerability reporting is currently DISABLED for
+this repository. Enable Settings > Code security > Private vulnerability reporting,
+then delete the "Interim channel" paragraph below and the matching interim wording in
+CODE_OF_CONDUCT.md and .github/ISSUE_TEMPLATE/config.yml. -->
+
 # Security Policy
 
 ## Supported versions
 
-ggen_igniter uses CalVer. Only the latest published release (currently `26.9.29`) is
-supported; fixes are made on `main` and released as a new version.
+ggen_igniter uses CalVer. Only the latest published release (the latest published CalVer
+release on hex.pm) is supported; fixes are made on `main` and released as a new version.
 
 ## Reporting a vulnerability
 
-Report privately through GitHub Security Advisories for
-`seanchatmangpt/ggen_igniter`: open the repository's Security tab and choose "Report a
-vulnerability" (<https://github.com/seanchatmangpt/ggen_igniter/security/advisories/new>).
-Please do not open a public issue for a suspected vulnerability.
+**Interim channel (private advisory reporting is not enabled yet).** Open a GitHub issue
+at <https://github.com/seanchatmangpt/ggen_igniter/issues> titled "Security contact
+request" with no technical details: do not describe the vulnerability, include a
+reproduction, or name the affected component. A maintainer will move the conversation to
+a private channel.
 
-Include the affected version, a reproduction, and the impact you observed. Reports are
+Once private vulnerability reporting is enabled for the repository, GitHub Security
+Advisories will become the preferred path, and this file will be updated to say so.
+
+Once a private channel exists, include the affected version, a reproduction, and the
+impact you observed. Reports are
 handled by the maintainer on a best-effort basis; no response or fix time is promised.
 
 ## Scope notes (facts about the current code)

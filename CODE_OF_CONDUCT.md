@@ -55,9 +55,10 @@ offline event.
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the
 community leaders responsible for enforcement. No private maintainer contact address is
 published in `mix.exs` or `README.md`, so reports go through the project's GitHub issues
-at <https://github.com/seanchatmangpt/ggen_igniter/issues>; for a report that must stay
-private, use a GitHub Security Advisory draft as described in [SECURITY.md](SECURITY.md)
-and state that it is a conduct report.
+at <https://github.com/seanchatmangpt/ggen_igniter/issues>. For a report that must stay
+private, open an issue titled "Conduct contact request" with no details of the incident;
+a maintainer will move the conversation to a private channel. Private advisory reporting
+is not enabled today; see [SECURITY.md](SECURITY.md) for its status.
 
 All community leaders are obligated to respect the privacy and security of the reporter
 of any incident.

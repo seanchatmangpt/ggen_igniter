@@ -1,6 +1,8 @@
 # Building and Running Your First Pack
 
-In GgenIgniter, a **Pack** is a self-contained, shareable directory of semantic assets: an RDF ontology, SPARQL gate queries, and code templates. Packs eliminate verbose command-line options by standardizing file layouts and auto-discovering generation pipelines.
+In GgenIgniter, a **Pack** is a self-contained, shareable directory of semantic assets: an RDF
+ontology, SPARQL gate queries, and code templates. Packs eliminate verbose command-line options by
+standardizing file layouts and auto-discovering generation pipelines.
 
 ---
 
@@ -23,16 +25,19 @@ priv/ggen/audit-trail-pack/
 
 ### Discovery Rules
 
-When you run `mix ggen_igniter.sync --pack <pack-name>` or `mix ggen_igniter.doctor --pack <pack-name>`, GgenIgniter resolves assets using these rules:
+When you run `mix ggen_igniter.sync --pack <pack-name>` or `mix ggen_igniter.doctor --pack
+<pack-name>`, GgenIgniter resolves assets using these rules:
 
 1. **Ontology**: Defaults to `<pack_dir>/ontology.ttl`.
-2. **Gate Queries (`gates/*.rq`)**: Discovered via `Path.wildcard("gates/*.rq")` and sorted lexically. Any numeric prefix (e.g. `010_`, `020_`) is stripped to form the query binding name:
+2. **Gate Queries (`gates/*.rq`)**: Discovered via `Path.wildcard("gates/*.rq")` and sorted
+   lexically. Any numeric prefix (e.g. `010_`, `020_`) is stripped to form the query binding name:
    * `010_spec.rq` $\rightarrow$ bound as `"spec"` in template bindings.
    * `020_sections.rq` $\rightarrow$ bound as `"sections"`.
    * `entities.rq` $\rightarrow$ bound as `"entities"` (unchanged without numeric prefix).
 3. **Template (`templates/*.{eex,tmpl}`)**:
    * If exactly **one** template file exists, it is automatically selected.
-   * If **multiple** templates exist, GgenIgniter requires you to specify which template to render (via `--template` or stem syntax `--pack <name>:<stem>`).
+   * If **multiple** templates exist, GgenIgniter requires you to specify which template to render
+     (via `--template` or stem syntax `--pack <name>:<stem>`).
 
 ---
 
@@ -113,7 +118,8 @@ defmodule <%= module_name %> do
 
   @endpoints [
 <%= for ep <- endpoints do %>
-    %{path: "<%= ep["path"] %>", method: :<%= String.downcase(ep["method"]) %>, action: :<%= ep["action"] %>},
+    %{path: "<%= ep["path"] %>", method: :<%= String.downcase(ep["method"]) %>,
+      action: :<%= ep["action"] %>},
 <% end %>
   ]
 
@@ -126,7 +132,8 @@ end
 
 ## 3. Validating the Pack with `doctor`
 
-Before running synchronization, validate your pack structure, syntax, and queries using `mix ggen_igniter.doctor`:
+Before running synchronization, validate your pack structure, syntax, and queries using `mix
+ggen_igniter.doctor`:
 
 ```bash
 mix ggen_igniter.doctor --pack service-pack
@@ -148,7 +155,8 @@ Notices:
 * ggen_igniter.doctor: all checks passed (see output above)
 ```
 
-If a SPARQL query contains a syntax error or the Turtle file is malformed, `doctor` will fail immediately with a descriptive diagnostic message and line numbers.
+If a SPARQL query contains a syntax error or the Turtle file is malformed, `doctor` will fail
+immediately with a descriptive diagnostic message and line numbers.
 
 ---
 
@@ -193,15 +201,19 @@ end
 
 ## 5. Working with Multi-Template Packs
 
-When a pack contains more than one template in `templates/` (for example, `resource.ex.eex` and `domain.ex.eex`), running `mix ggen_igniter.sync --pack <name>` without specifying a template will raise an `ArgumentError` to prevent ambiguous writes:
+When a pack contains more than one template in `templates/` (for example, `resource.ex.eex` and
+`domain.ex.eex`), running `mix ggen_igniter.sync --pack <name>` without specifying a template will
+raise an `ArgumentError` to prevent ambiguous writes:
 
 ```text
-** (ArgumentError) multiple templates found in priv/ggen/ash-lifecycle-pack/templates/ (domain.ex.eex, resource.ex.eex) -- pass :template explicitly or use --pack NAME:STEM
+** (ArgumentError) multiple templates found in priv/ggen/ash-lifecycle-pack/templates/
+(domain.ex.eex, resource.ex.eex) -- pass :template explicitly or use --pack NAME:STEM
 ```
 
 ### Template Stem Selection Syntax (`--pack NAME:STEM`)
 
-GgenIgniter provides a convenient `:STEM` selector suffix on the `--pack` flag. The stem is the template filename up to its first period:
+GgenIgniter provides a convenient `:STEM` selector suffix on the `--pack` flag. The stem is the
+template filename up to its first period:
 
 * `resource.ex.eex` $\rightarrow$ stem is `"resource"`
 * `domain.ex.eex` $\rightarrow$ stem is `"domain"`
@@ -219,13 +231,15 @@ mix ggen_igniter.sync --pack ash-lifecycle-pack:domain --out lib/my_app/domain.e
 ```
 
 > [!NOTE]
-> Stem selection syntax (`NAME:STEM`) is supported on `--pack`. When using an arbitrary directory via `--pack-dir DIR`, supply `--template DIR/templates/resource.ex.eex` explicitly.
+> Stem selection syntax (`NAME:STEM`) is supported on `--pack`. When using an arbitrary directory
+> via `--pack-dir DIR`, supply `--template DIR/templates/resource.ex.eex` explicitly.
 
 ---
 
 ## 6. Multi-Row Fan-Out with `--for-each`
 
-If your ontology contains multiple entities (for example, 5 distinct microservices or database tables), you can render a template once per row of a driving query using `--for-each <query_name>`.
+If your ontology contains multiple entities (for example, 5 distinct microservices or database
+tables), you can render a template once per row of a driving query using `--for-each <query_name>`.
 
 ### Example: Generating a File Per Service
 
@@ -261,5 +275,7 @@ Command-line flags always take precedence over pack-discovered defaults:
 
 ## 8. Next Steps
 
-* [Understanding the Reconciliation Lifecycle](first-reconciliation.md) — Learn how GgenIgniter tracks files in `.ggen_igniter/manifest.json` and prunes stale artifacts when models evolve.
-* [The Reactor Coordination Path](reactor-path.md) — Learn about transactional multi-target execution with compile verification and automated rollback.
+* [Understanding the Reconciliation Lifecycle](first-reconciliation.md) — Learn how GgenIgniter
+  tracks files in `.ggen_igniter/manifest.json` and prunes stale artifacts when models evolve.
+* [The Reactor Coordination Path](reactor-path.md) — Learn about transactional multi-target
+  execution with compile verification and automated rollback.

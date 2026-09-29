@@ -42,8 +42,9 @@ defmodule GgenIgniter.MixProject do
         extras:
           Enum.map(
             (Path.wildcard("docs/**/*.md") --
-               (Path.wildcard("docs/reviews/**/*.md") --
-                  (Path.wildcard("docs/archive/**/*.md") -- Path.wildcard("docs/receipts/**/*.md")))) ++
+               (Path.wildcard("docs/reviews/**/*.md") ++
+                  Path.wildcard("docs/archive/**/*.md") ++
+                  Path.wildcard("docs/receipts/**/*.md"))) ++
               [
                 "README.md",
                 "CHANGELOG.md",

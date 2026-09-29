@@ -63,7 +63,8 @@ Guides for the common kinds of change:
    in a pack and generate them. The package itself stays Ash-free.
 4. **Mix tasks** are `use Igniter.Mix.Task` and handle `--help` through
    `GgenIgniter.TaskShell.run_with_help`.
-5. **Versions are CalVer** (`vYY.M.D` style, currently `26.9.29`). `mix.exs` `version:`
+5. **Versions are CalVer** (`vYY.M.D` style; the latest
+   published release is on hex.pm). `mix.exs` `version:`
    must match the topmost `CHANGELOG.md` heading; `mix ggen_igniter.doctor` checks it.
    Release bumps are made by the maintainer.
 6. **Commit messages:** write the message to a file and run `git commit -F <file>`
@@ -80,6 +81,11 @@ mix compile --warnings-as-errors
 mix format --check-formatted
 mix test
 ```
+
+Run the format step under the pinned toolchain (`.tool-versions`: elixir 1.18.4-otp-27,
+erlang 27.2.4; see [dev setup](docs/contributing/dev-setup.md#toolchain-drift)). On another
+Elixir version the formatter can disagree with the pinned one, so do not commit off-pin
+formatting diffs blindly.
 
 The PR template has the checklist. CI (`.github/workflows/ci.yml`) additionally runs
 `mix credo` and the sharded full suite.

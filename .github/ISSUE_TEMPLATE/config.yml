@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Security vulnerability
-    url: https://github.com/seanchatmangpt/ggen_igniter/security/advisories/new
-    about: Report vulnerabilities privately; do not open a public issue.
+  - name: Security contact request
+    url: https://github.com/seanchatmangpt/ggen_igniter/issues/new?title=Security+contact+request
+    about: Open an issue titled "Security contact request" with NO technical details; a maintainer will move it to a private channel.

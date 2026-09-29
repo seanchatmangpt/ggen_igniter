@@ -33,10 +33,25 @@ measured about 14 minutes cold before tests start; a warm incremental build is f
 faster. `mix ggen_igniter.doctor` check 14 confirms the NIF is compiled and check 15 runs a
 real SELECT against it.
 
+## Toolchain drift
+
+`.tool-versions` pins elixir 1.18.4-otp-27 and erlang 27.2.4. On a different Elixir (for
+example 1.19.x):
+
+- the toolchain-pin test fails
+  (`test/ggen_igniter_toolchain_pin_qualification_test.exs`, which requires the running VM
+  to be the pin);
+- `mix format --check-formatted` may flag files that were formatted under the pinned
+  version;
+- every `mix` command prints a `preferred_cli_env` deprecation warning under Elixir 1.19
+  (`mix.exs` sets it in `project/0`); it is pre-existing and harmless.
+
 ## Test lanes
 
 - **Fast (default):** `mix test` (alias `mix test.fast`). Runs everything except
-  `:integration`. Measured 83 to 104 s.
+  `:integration`. About 1.5-2 minutes on a warm build, longer cold
+  (measured 83 to 104 s in [ci-runtime-errc](../jira/v26.9.28/ci-runtime-errc.md), 116 s in
+  an independent fresh copy).
 - **Full:** `mix test.full`, or `GGEN_TEST_FULL=1 mix test`. Fast lane plus `:integration`.
 - **Shard:** `MIX_TEST_PARTITION=2 mix test.shard --partitions 8`. One partition of the
   full suite; CI shards measured 55 to 329 s each.
