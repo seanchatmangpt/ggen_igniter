@@ -65,7 +65,12 @@ defmodule GgenIgniter.SA2A.SemanticEvidenceTest do
   end
 
   defp canonical_json(value) when is_list(value),
-    do: IO.iodata_to_binary(["[", value |> Enum.map(&canonical_json/1) |> Enum.intersperse(","), "]"])
+    do:
+      IO.iodata_to_binary([
+        "[",
+        value |> Enum.map(&canonical_json/1) |> Enum.intersperse(","),
+        "]"
+      ])
 
   defp canonical_json(value), do: Jason.encode!(value)
 end

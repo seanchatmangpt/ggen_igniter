@@ -77,10 +77,18 @@ defmodule GgenIgniter.SA2A.SemanticEvidence do
   end
 
   defp constant(map, key, expected, subject) do
-    if map[key] == expected, do: :ok, else: refuse(subject, %{expected: expected, observed: map[key]})
+    if map[key] == expected,
+      do: :ok,
+      else: refuse(subject, %{expected: expected, observed: map[key]})
   end
 
-  defp source(%{"id" => id, "uri" => uri, "graph" => graph, "subjectTemplate" => template, "digest" => digest}) do
+  defp source(%{
+         "id" => id,
+         "uri" => uri,
+         "graph" => graph,
+         "subjectTemplate" => template,
+         "digest" => digest
+       }) do
     with :ok <- non_empty(id, :source_id),
          :ok <- absolute(uri, :source_uri),
          :ok <- absolute(graph, :source_graph),
@@ -128,12 +136,19 @@ defmodule GgenIgniter.SA2A.SemanticEvidence do
   end
 
   defp canonical_json(value) when is_list(value),
-    do: IO.iodata_to_binary(["[", value |> Enum.map(&canonical_json/1) |> Enum.intersperse(","), "]"])
+    do:
+      IO.iodata_to_binary([
+        "[",
+        value |> Enum.map(&canonical_json/1) |> Enum.intersperse(","),
+        "]"
+      ])
 
-  defp canonical_json(value) when is_binary(value) or is_number(value) or is_boolean(value) or is_nil(value),
-    do: Jason.encode!(value)
+  defp canonical_json(value)
+       when is_binary(value) or is_number(value) or is_boolean(value) or is_nil(value),
+       do: Jason.encode!(value)
 
-  defp canonical_json(value), do: raise(ArgumentError, "non-JSON evidence value: #{inspect(value)}")
+  defp canonical_json(value),
+    do: raise(ArgumentError, "non-JSON evidence value: #{inspect(value)}")
 
   defp sha256("sha256:" <> hex = value, subject) when byte_size(hex) == 64 do
     if Regex.match?(~r/\A[0-9a-f]{64}\z/, hex),

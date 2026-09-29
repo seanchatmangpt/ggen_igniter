@@ -33,6 +33,7 @@ defmodule GgenIgniterUpgradeTest do
 
   test "upgrade adds import_deps and a second run is unchanged" do
     igniter = test_project() |> run("26.9.24", "26.9.28") |> apply_igniter!()
+
     assert_has_patch(run(test_project(), "26.9.24", "26.9.28"), ".formatter.exs", """
     + |import_deps: [:ggen_igniter]
     """)
