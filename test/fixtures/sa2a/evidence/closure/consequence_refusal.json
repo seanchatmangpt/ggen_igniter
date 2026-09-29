@@ -1,0 +1,9 @@
+{
+  "contract": "sa2a/semantic-evidence/v1",
+  "case": "consequence_refusal",
+  "subject": "urn:sa2a:subject:igniter",
+  "authority": "NONE",
+  "consequence": "EVIDENCE_ONLY",
+  "canonicalization": "RDFC-1.0",
+  "expected": "REFUSE"
+}
