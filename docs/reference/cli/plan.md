@@ -122,7 +122,7 @@ mix ggen_igniter.plan --template test/fixtures/extension.ex.eex \
 | Code | Meaning |
 |---|---|
 | `0` | Help/version printed, or plan computed successfully — admitted cleanly, whether or not any item would actually change anything (an all-unchanged plan is still exit 0). |
-| `2` | Invalid invocation: no `--template` and no `--pack`/`--pack-dir` with a discoverable template; no queries resolvable; `--engine qlever` without `--store-id`; a bad `--pack`/`--pack-dir` name. Uses the same `ArgumentError` vocabulary `mix ggen_igniter.sync` already raises for these, caught here and turned into a clean exit instead of a raw stack trace. |
+| `2` | Invalid invocation: no `--template` and no `--pack`/`--pack-dir` with a discoverable template; no queries resolvable; `--engine qlever` without `--store-id`; a bad `--pack`/`--pack-dir` name; an unknown flag (Igniter's option-validation error is caught and halted with `2`). Uses the same `ArgumentError` vocabulary `mix ggen_igniter.sync` already raises for these, caught here and turned into a clean exit instead of a raw stack trace. |
 | `3` | Unsupported capability for the read-only plan path specifically — the resolved template/run needs `:actuate`-adjacent behavior `plan/1` cannot admit without executing it, or uses a feature outside `GgenIgniter.Reconcile.run/1`'s bounded reactor scope (frontmatter `inject: true`, `--for-each` fan-out). |
 
 `plan` exits `0` even when changes are pending — it is a preview, not a gate. To fail a CI

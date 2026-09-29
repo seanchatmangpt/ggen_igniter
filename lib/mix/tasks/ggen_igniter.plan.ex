@@ -159,8 +159,19 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
         print_help()
         System.halt(0)
       end,
-      fn -> super(argv) end
+      fn -> run_igniter(fn -> super(argv) end) end
     )
+  end
+
+  # Igniter's own option validation raises `OptionParser.ParseError` for an unknown flag (exit 1). The documented
+  # contract (docs/reference/cli/exit-codes.md) is exit 2 for bad invocation, so an option-parse
+  # failure is caught here and halted with 2. Anything else propagates unchanged.
+  defp run_igniter(continue) do
+    continue.()
+  rescue
+    e in OptionParser.ParseError ->
+      IO.puts(:stderr, "ggen_igniter.plan: " <> Exception.message(e))
+      System.halt(2)
   end
 
   @impl Igniter.Mix.Task

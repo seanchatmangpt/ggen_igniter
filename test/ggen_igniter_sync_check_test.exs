@@ -177,6 +177,209 @@ defmodule GgenIgniter.SyncCheckTest do
     assert out =~ "REFUSED:"
   end
 
+  # ---- Audit fixes (lane F2) ------------------------------------------------------------
+
+  # D3: `nil and _` raised in validate_contract_opts!, so any run with --json or --lock but
+  # WITHOUT --check died with exit 1 SYNC_FAILED. These run REAL syncs (no --check).
+  test "D3: plain `sync --json` performs a real sync, exit 0, one envelope", ctx do
+    {out, code} = sync(ctx, ["--json"])
+    assert code == 0, out
+    assert File.exists?(ctx.out), out
+    env = decode_envelope(out)
+    assert %{"ok" => true, "exit_code" => 0, "task" => "sync"} = env
+    assert env["data"]["mode"] == "sync"
+    assert length(String.split(out, "\n") |> Enum.filter(&String.starts_with?(&1, "{"))) == 1
+  end
+
+  @tag skip:
+         if(@pack_lock_available?,
+           do: false,
+           else: "GgenIgniter.PackLock (lane WA3) not present"
+         )
+  test "D3: `sync --lock` without --check: valid lock -> 0, mismatching lock -> 1", ctx do
+    pack = Path.join(ctx.root, "lockpack")
+    File.mkdir_p!(Path.join(pack, "gates"))
+    File.cp!(ctx.ontology, Path.join(pack, "ontology.ttl"))
+    lock = Path.join(ctx.root, "pack.lock")
+
+    good =
+      GgenIgniter.PackLock.put(GgenIgniter.PackLock.empty(), "lockpack", %{
+        "name" => "lockpack",
+        "sha256" => GgenIgniter.PackLock.digest(pack),
+        "source" => pack,
+        "version" => nil,
+        "locked_by" => "test"
+      })
+
+    GgenIgniter.PackLock.write(lock, good)
+    {out, code} = sync(ctx, ["--pack-dir", pack, "--lock", lock])
+    assert code == 0, out
+    assert File.exists?(ctx.out), out
+
+    File.rm!(ctx.out)
+    File.write!(lock, ~s({"pack":"lockpack","digest":"deadbeef"}))
+    {out, code} = sync(ctx, ["--pack-dir", pack, "--lock", lock])
+    assert code == 1, out
+    refute out =~ "expected a boolean"
+    refute File.exists?(ctx.out)
+  end
+
+  # D1/D2 fixture: a 3-row --for-each recipe synced for real, then a 2-row ontology so Gamma's
+  # output is stale. Own tmp dir (no mix.exs) -- the real sync verifies against this checkout.
+  defp foreach_ctx do
+    root = Path.join(System.tmp_dir!(), "ggen_sync_fe_#{System.unique_integer([:positive])}")
+    File.rm_rf!(root)
+    File.mkdir_p!(root)
+    ExUnit.Callbacks.on_exit(fn -> File.rm_rf!(root) end)
+
+    two = Path.join(root, "two_rows.ttl")
+
+    File.write!(two, """
+    @prefix mod: <http://seanchatmangpt.github.io/packs/multi-module#> .
+    mod:M1 a mod:GeneratedModule ; mod:moduleName "Multi.Alpha" ; mod:fieldName "alpha_field" .
+    mod:M2 a mod:GeneratedModule ; mod:moduleName "Multi.Beta" ; mod:fieldName "beta_field" .
+    """)
+
+    %{root: root, two: two, gamma: Path.join(root, "Multi.Gamma.ex")}
+  end
+
+  defp fe(fx, ontology, extra, verify_cwd \\ File.cwd!()) do
+    args =
+      [
+        "ggen_igniter.sync",
+        "--engine",
+        "sparql",
+        "--query",
+        "modules=test/fixtures/modules.rq",
+        "--for-each",
+        "modules",
+        "--template",
+        "test/fixtures/for_each_module.ex.eex",
+        "--out",
+        Path.join(fx.root, "<%= module_name %>.ex"),
+        "--manifest-dir",
+        fx.root,
+        "--ontology",
+        ontology
+      ] ++ if(verify_cwd, do: ["--verify-cwd", verify_cwd], else: []) ++ extra
+
+    System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
+  end
+
+  defp stale_fixture! do
+    fx = foreach_ctx()
+    {out, 0} = fe(fx, "test/fixtures/for_each_ontology.ttl", [])
+    assert File.exists?(fx.gamma), out
+    fx
+  end
+
+  defp root_hash(fx), do: tree_hash(fx.root)
+
+  test "D1: --check --on-stale prune reports the stale output as drift (exit 4, path listed)" do
+    fx = stale_fixture!()
+    before = root_hash(fx)
+    {out, code} = fe(fx, fx.two, ["--check", "--on-stale", "prune"])
+    assert code == 4, out
+    assert out =~ fx.gamma
+    assert out =~ "prune"
+    assert root_hash(fx) == before, "--check wrote to the tree"
+    assert File.exists?(fx.gamma)
+  end
+
+  test "D1: --check --on-stale refuse -> exit 1; --on-stale preserve -> exit 0 (preserved is not drift)" do
+    fx = stale_fixture!()
+    before = root_hash(fx)
+
+    {out, code} = fe(fx, fx.two, ["--check", "--on-stale", "refuse"])
+    assert code == 1, out
+    assert out =~ fx.gamma
+
+    {out, code} = fe(fx, fx.two, ["--check", "--on-stale", "preserve"])
+    assert code == 0, out
+    assert root_hash(fx) == before
+  end
+
+  # D2: a refused --check must be write-free (no receipt line, no manifest touch).
+  test "D2: refused --check (stale refusal) leaves the whole tree byte-identical" do
+    fx = stale_fixture!()
+    before = root_hash(fx)
+    {out, code} = fe(fx, fx.two, ["--check"])
+    assert code == 1, out
+    assert root_hash(fx) == before, "refused --check wrote to the tree:\n#{out}"
+  end
+
+  test "D2: refused --check (render failure) leaves the whole tree byte-identical", ctx do
+    {out, 0} = sync(ctx, [])
+    assert File.exists?(ctx.out), out
+    bad = Path.join(ctx.root, "bad.ex.eex")
+    File.write!(bad, "<%= undefined_binding_xyz %>\n")
+    before = tree_hash(ctx.root)
+
+    args =
+      args(ctx, ["--check"])
+      |> Enum.map(fn
+        "test/fixtures/extension.ex.eex" -> bad
+        a -> a
+      end)
+
+    {out, code} = System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
+    assert code == 1, out
+    assert tree_hash(ctx.root) == before, "refused --check wrote to the tree:\n#{out}"
+  end
+
+  # Verify-step: --check never runs the reactor's `mix compile` verify, so a tmp dir with no
+  # mix.exs cannot turn a clean tree into exit 1 or grow build artifacts.
+  test "--check skips :verify: no mix.exs dir -> clean 0, drift 4, no build artifacts", ctx do
+    {out, 0} = sync(ctx, [])
+    assert File.exists?(ctx.out), out
+    refute File.exists?(Path.join(ctx.root, "mix.exs"))
+
+    nov = fn extra ->
+      args = args(ctx, extra) |> drop_verify_cwd()
+      System.cmd("mix", args, cd: File.cwd!(), stderr_to_stdout: true)
+    end
+
+    {out, code} = nov.(["--check"])
+    assert code == 0, out
+    mutate_ontology!(ctx)
+    {out, code} = nov.(["--check"])
+    assert code == 4, out
+    refute File.exists?(Path.join(ctx.root, "_build"))
+  end
+
+  defp drop_verify_cwd(args) do
+    idx = Enum.find_index(args, &(&1 == "--verify-cwd"))
+    if idx, do: List.delete_at(List.delete_at(args, idx), idx), else: args
+  end
+
+  # D5: a flag-given file that does not exist is an invocation error.
+  test "D5: missing --ontology / --template file exits 2", ctx do
+    args = args(ctx, ["--check"])
+    bad_ont = Enum.map(args, fn a -> if a == ctx.ontology, do: "/nonexistent/o.ttl", else: a end)
+    {out, code} = System.cmd("mix", bad_ont, cd: File.cwd!(), stderr_to_stdout: true)
+    assert code == 2, out
+
+    bad_tpl =
+      Enum.map(args, fn a ->
+        if a == "test/fixtures/extension.ex.eex", do: "/nonexistent/t.eex", else: a
+      end)
+
+    {out, code} = System.cmd("mix", bad_tpl, cd: File.cwd!(), stderr_to_stdout: true)
+    assert code == 2, out
+  end
+
+  # D4: documented contract -- invocation errors exit 2 for verify and plan too.
+  test "D4: verify without --pack, verify --bogus, plan --bogus exit 2" do
+    for argv <- [
+          ["ggen_igniter.verify"],
+          ["ggen_igniter.verify", "--bogus"],
+          ["ggen_igniter.plan", "--bogus"]
+        ] do
+      {out, code} = System.cmd("mix", argv, cd: File.cwd!(), stderr_to_stdout: true)
+      assert code == 2, "#{inspect(argv)} exited #{code}:\n#{out}"
+    end
+  end
+
   defp decode_envelope(out) do
     json = out |> String.split("\n") |> Enum.find(&String.starts_with?(&1, "{"))
     assert json, "no JSON envelope line in output:\n#{out}"

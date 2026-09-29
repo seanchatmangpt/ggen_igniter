@@ -2,7 +2,7 @@
 
 Source: `lib/ggen_igniter/task_contract.ex` (`GgenIgniter.TaskContract`). One exit-code table and
 one JSON envelope shared by the `mix ggen_igniter.*` tasks, so a CI job can branch on the exit
-code alone. Last updated 2026-09-28 (v26.9.30 WA2).
+code alone. Last updated 2026-09-28 (v26.9.30 WA2, lane F2 fixes).
 
 ## Global table
 
@@ -22,10 +22,10 @@ never aliases a refusal (the tool refused vs. the tree is stale).
 
 | Task | 0 | 1 | 2 | 3 | 4 |
 |---|---|---|---|---|---|
-| `sync` | ran / no-op | reactor refusal, stale outputs, `--lock` mismatch | bad invocation | — | — |
-| `sync --check` | clean | refusal | bad invocation | — | drift |
-| `plan` | plan computed (changes pending or not) | — | bad invocation | unsupported capability | — |
-| `verify` | pack verifies | pack failed verification | bad invocation (`Mix.raise`) | — | — |
+| `sync` | ran / no-op | reactor refusal, stale outputs, `--lock` mismatch | bad invocation (incl. a missing `--ontology`/`--template` file) | — | — |
+| `sync --check` | clean (or only preserved stale files) | refusal (incl. stale outputs under `--on-stale refuse`) | bad invocation | — | drift (incl. stale outputs under `--on-stale prune`) |
+| `plan` | plan computed (changes pending or not) | — | bad invocation (incl. unknown flag) | unsupported capability | — |
+| `verify` | pack verifies | pack failed verification | bad invocation (no `--pack`, unknown flag, missing pack dir/ontology) | — | — |
 | `doctor` | all checks passed | a check failed | unknown flag | — | — |
 | `epoch.check` | all `ALIVE_*` | refusal / unknown provenance | invocation | — | — |
 | `epoch.explain` | always, on a judged file | — | invocation | — | — |

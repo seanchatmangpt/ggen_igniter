@@ -728,27 +728,37 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       event_sink = opts[:event_sink]
       project_dir = opts[:verify_cwd] || opts[:manifest_dir] || File.cwd!()
 
-      case System.cmd("mix", ["compile", "--warnings-as-errors"],
-             cd: project_dir,
-             stderr_to_stdout: true
-           ) do
-        {_output, 0} ->
-          OcelEmitter.emit(event_sink, "VERIFICATION_SUCCEEDED", [], %{})
-          {:ok, :verified}
-
-        {output, _status} ->
-          output = maybe_add_verify_cwd_hint(output, opts, project_dir)
-
-          OcelEmitter.emit(event_sink, "VERIFICATION_FAILED", [], %{
-            "reason_type" => "build_broken",
-            "message" => output
-          })
-
-          {:error, {:compile_failed, output}}
+      # `sync --check` is a read-only drift probe: it must not run `mix compile` (which writes
+      # build artifacts and can fail for reasons unrelated to drift, e.g. no mix.exs).
+      if opts[:check] == true do
+        {:ok, :verify_skipped_check}
+      else
+        verify_compile(opts, event_sink, project_dir)
       end
     end)
 
     max_retries(0)
+  end
+
+  defp verify_compile(opts, event_sink, project_dir) do
+    case System.cmd("mix", ["compile", "--warnings-as-errors"],
+           cd: project_dir,
+           stderr_to_stdout: true
+         ) do
+      {_output, 0} ->
+        OcelEmitter.emit(event_sink, "VERIFICATION_SUCCEEDED", [], %{})
+        {:ok, :verified}
+
+      {output, _status} ->
+        output = maybe_add_verify_cwd_hint(output, opts, project_dir)
+
+        OcelEmitter.emit(event_sink, "VERIFICATION_FAILED", [], %{
+          "reason_type" => "build_broken",
+          "message" => output
+        })
+
+        {:error, {:compile_failed, output}}
+    end
   end
 
   # A first-time-mistake case: `--manifest-dir DIR` points at a directory
@@ -956,7 +966,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
               })
           end
 
-        Receipt.append!(manifest_dir, receipt)
+        # `sync --check` is write-free on EVERY path, refusals included.
+        unless opts[:check] == true, do: Receipt.append!(manifest_dir, receipt)
         {:error, receipt}
     end
   end
@@ -3148,6 +3159,11 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     # real -- see `prune_outcome`'s own `not dry_run_run?` guard above).
     prune_lines =
       case prune_outcome do
+        # A dry run never prunes, but must SAY it would (same "planned: prune PATH" text the
+        # inline pipeline's preview uses) so `sync --check --on-stale prune` sees the drift.
+        :not_applicable when dry_run_run? and admitted.on_stale == :prune ->
+          admitted.stale_paths |> Enum.sort() |> Enum.map(&"planned: prune #{&1}")
+
         {:pruned, results} ->
           Enum.map(results, fn
             {path, :pruned} -> "pruned: #{path}"

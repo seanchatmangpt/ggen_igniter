@@ -724,6 +724,14 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     if opts[:check] || opts[:json] || opts[:lock] do
       run_contract(igniter, opts, pack_template_stem)
     else
+      try do
+        preflight_input_files!(opts)
+      rescue
+        e in ArgumentError ->
+          IO.puts(:stderr, Exception.message(e))
+          System.halt(2)
+      end
+
       run_sync(igniter, opts, pack_template_stem)
     end
   end
@@ -761,13 +769,30 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   end
 
   defp validate_contract_opts!(opts) do
-    if opts[:check] and opts[:dry_run] do
+    # `== true` (never bare `and`): an omitted boolean flag is `nil`, and `nil and _` raises.
+    if opts[:check] == true and opts[:dry_run] == true do
       raise ArgumentError,
             "--check and --dry-run are mutually exclusive (--check implies a dry run)"
     end
 
     if opts[:lock] not in [nil, ""] and opts[:pack] in [nil, ""] and opts[:pack_dir] in [nil, ""] do
       raise ArgumentError, "--lock PATH requires --pack or --pack-dir"
+    end
+
+    preflight_input_files!(opts)
+  end
+
+  # A file path handed in by an explicit flag that does not exist is an INVOCATION error
+  # (exit 2), not a reactor refusal: checked up front so it never reaches the reactor, whose
+  # wrapped `ArgumentError` text would otherwise classify as SYNC_REFUSED (exit 1). The
+  # ontology message is the same text `resolve_ontology!/1` has always produced.
+  defp preflight_input_files!(opts) do
+    if opts[:ontology] not in [nil, ""], do: resolve_ontology!(opts)
+
+    if opts[:template] not in [nil, ""] and not File.exists?(opts[:template]) do
+      raise ArgumentError,
+            "--template file not found at #{opts[:template]} " <>
+              "(resolved against the current working directory, #{File.cwd!()})"
     end
 
     :ok
@@ -800,7 +825,16 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
            {"PACK_DIGEST_MISMATCH", "pack #{pack} digest #{act} does not match lock #{exp}"}}
 
         {:error, {:lock_missing, path}} ->
-          {:error, {"LOCK_MISSING", "lockfile #{path} not found"}}
+          {:error, {"PACK_LOCK_MISSING", "lockfile #{path} not found"}}
+
+        {:error, {:lock_invalid, path}} ->
+          {:error, {"PACK_LOCK_INVALID", "lockfile #{path} is unparseable or malformed"}}
+
+        {:error, {:pack_symlink_escape, detail}} ->
+          {:error, {"PACK_SYMLINK_ESCAPE", detail}}
+
+        {:error, {:pack_file_unreadable, detail}} ->
+          {:error, {"PACK_FILE_UNREADABLE", detail}}
 
         {:error, other} ->
           {:error, {"PACK_LOCK_FAILED", inspect(other)}}

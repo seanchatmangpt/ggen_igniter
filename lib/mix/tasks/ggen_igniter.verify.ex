@@ -92,11 +92,33 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
       )
 
     cond do
-      opts[:help] -> print_help()
-      invalid != [] -> Mix.raise("unknown flag(s): #{inspect(Enum.map(invalid, &elem(&1, 0)))}")
-      is_nil(opts[:pack]) -> Mix.raise(usage("--pack is required"))
-      true -> verify(opts)
+      opts[:help] ->
+        print_help()
+
+      invalid != [] ->
+        invocation!(opts, "unknown flag(s): #{inspect(Enum.map(invalid, &elem(&1, 0)))}")
+
+      is_nil(opts[:pack]) ->
+        invocation!(opts, usage("--pack is required"))
+
+      true ->
+        verify(opts)
     end
+  end
+
+  # Invocation errors exit 2 (docs/reference/cli/exit-codes.md), never Mix.raise's 1.
+  @spec invocation!(keyword(), String.t()) :: no_return()
+  defp invocation!(opts, message) do
+    if opts[:json_envelope] do
+      env =
+        GgenIgniter.TaskContract.envelope("verify", :invocation, refusal: {"INVOCATION", message})
+
+      IO.puts(GgenIgniter.TaskContract.encode(env))
+    else
+      IO.puts(:stderr, "ggen_igniter.verify: " <> message)
+    end
+
+    System.halt(2)
   end
 
   defp verify(opts) do
@@ -106,8 +128,8 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
     cardinality_path =
       opts[:cardinality] || GgenIgniter.GateVerify.default_cardinality_path(pack_dir)
 
-    unless File.dir?(pack_dir), do: Mix.raise("no pack directory at #{pack_dir}")
-    unless File.exists?(ontology_path), do: Mix.raise("no ontology at #{ontology_path}")
+    unless File.dir?(pack_dir), do: invocation!(opts, "no pack directory at #{pack_dir}")
+    unless File.exists?(ontology_path), do: invocation!(opts, "no ontology at #{ontology_path}")
 
     {contracts, contract_note} = load_contracts(cardinality_path)
 

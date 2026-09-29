@@ -328,9 +328,20 @@ no `GgenIgniter.Lock` and never writes (a test hashes the tree before/after).
 | bad invocation | `2` | message on stderr |
 
 Under `--json` the same outcome is one envelope line; `data` carries `mode`,
-`drifted` (`[{operation, path}]`), `drifted_count`, `lines`, `notices`. Note the pipeline's
-terminal `:verify` step (a `mix compile --warnings-as-errors` in `--verify-cwd`/the
-manifest dir) still runs under a dry run, so `--check` needs a compilable Mix project there.
+`drifted` (`[{operation, path}]`), `drifted_count`, `lines`, `notices`.
+
+`--check` is write-free on every path, refusals included: it persists no receipt line and
+promotes no manifest, and it skips the pipeline's terminal `:verify` step (the
+`mix compile --warnings-as-errors`), so it needs no compilable Mix project and leaves no build
+artifacts; a tree with no `mix.exs` is `0` when clean and `4` on drift.
+
+`--check` with `--on-stale`: `refuse` (default) -> a stale output is a refusal, exit `1`;
+`prune` -> the output a real sync would delete is drift, exit `4`, listed as `prune PATH`;
+`preserve` -> a preserved stale file is not drift, exit `0`.
+
+A file named by an explicit `--ontology` or `--template` flag that does not exist is a bad
+invocation (exit `2`), with or without `--check`. `--json` and `--lock` also work on a real
+(non-`--check`) sync.
 
 ```bash
 mix ggen_igniter.sync --pack audit-trail-pack --out lib/generated.ex --check || echo "exit $?"
