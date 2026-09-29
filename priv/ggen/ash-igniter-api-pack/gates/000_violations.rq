@@ -1,0 +1,279 @@
+# INVERTED gate: every row is a typed refusal of the resource-surface facts. The template
+# raises REFUSED_ASH_API_SURFACE when this is non-empty, so a malformed graph renders nothing.
+# Declared values are spliced into generated Elixir: names/kinds are closed sets, dangling
+# references (action / relationship / attribute / rule that does not exist) are refused.
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+SELECT DISTINCT ?violation_code ?violation_subject ?violation_detail WHERE {
+  {
+    ?s ?p ?v .
+    VALUES ?p { aia:argumentName aia:aggregateName aia:aggregateRelationship aia:interfaceName
+                aia:interfaceAction aia:validationSubject aia:tenantAttribute aia:sortField
+                aia:relationshipName aia:extensionName }
+    FILTER(!REGEX(STR(?v), "^[A-Za-z][A-Za-z0-9_.]*[?!]?$"))
+    BIND("MALFORMED_NAME" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(CONCAT(STR(?p), " = ", STR(?v)) AS ?violation_detail)
+  } UNION {
+    ?s aia:validationKind "match" ;
+       aia:validationValue ?v .
+    FILTER(CONTAINS(STR(?v), "#{") || STRENDS(STR(?v), "\\") || CONTAINS(STR(?v), "\n") || CONTAINS(STR(?v), "\r"))
+    BIND("MALFORMED_MATCH_PATTERN" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?v) AS ?violation_detail)
+  } UNION {
+    ?s aia:validationOption ?v .
+    FILTER(STR(?v) != "" && !REGEX(STR(?v), "^[a-z][a-z0-9_]*$"))
+    BIND("MALFORMED_VALIDATION_OPTION" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?v) AS ?violation_detail)
+  } UNION {
+    ?s aia:destination ?v .
+    FILTER(!REGEX(STR(?v), "^[A-Z][A-Za-z0-9_]*([.][A-Z][A-Za-z0-9_]*)*$"))
+    BIND("MALFORMED_DESTINATION" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?v) AS ?violation_detail)
+  } UNION {
+    ?s aia:aggregateField ?v .
+    FILTER(STR(?v) != "" && !REGEX(STR(?v), "^[A-Za-z][A-Za-z0-9_]*[?!]?$"))
+    BIND("MALFORMED_AGGREGATE_FIELD" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?v) AS ?violation_detail)
+  } UNION {
+    ?s aia:aggregateSort ?v .
+    FILTER(STR(?v) != "" && !REGEX(STR(?v), "^[a-z][a-z0-9_]*:(asc|desc)(,[a-z][a-z0-9_]*:(asc|desc))*$"))
+    BIND("MALFORMED_AGGREGATE_SORT" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?v) AS ?violation_detail)
+  } UNION {
+    ?s aia:aggregateFilter ?v .
+    FILTER(STR(?v) != "" && (!REGEX(STR(?v), "^[A-Za-z0-9_ .<>=!&|()\"'+*/:,?-]*$") || REGEX(STR(?v), "[A-Z][A-Za-z0-9_]*[.]")))
+    BIND("MALFORMED_AGGREGATE_FILTER" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?v) AS ?violation_detail)
+  } UNION {
+    ?s aia:aggregateKind ?k .
+    FILTER(?k NOT IN ("count", "sum", "first", "list", "max", "min", "avg", "exists"))
+    BIND("UNKNOWN_AGGREGATE_KIND" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?k) AS ?violation_detail)
+  } UNION {
+    ?s aia:validationKind ?k .
+    FILTER(?k NOT IN ("present", "match", "compare"))
+    BIND("UNKNOWN_VALIDATION_KIND" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?k) AS ?violation_detail)
+  } UNION {
+    ?s aia:checkKind ?k .
+    FILTER(?k NOT IN ("authorize_if", "authorize_unless", "forbid_if", "forbid_unless"))
+    BIND("UNKNOWN_CHECK_KIND" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?k) AS ?violation_detail)
+  } UNION {
+    ?s aia:ruleKind ?k .
+    FILTER(?k NOT IN ("policy", "bypass"))
+    BIND("UNKNOWN_RULE_KIND" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?k) AS ?violation_detail)
+  } UNION {
+    ?s aia:valueType ?k .
+    FILTER(?k NOT IN ("string", "integer", "boolean", "atom"))
+    BIND("UNKNOWN_VALUE_TYPE" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?k) AS ?violation_detail)
+  } UNION {
+    ?s aia:validationValueType ?k .
+    FILTER(?k NOT IN ("string", "integer", "boolean", "atom"))
+    BIND("UNKNOWN_VALUE_TYPE" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?k) AS ?violation_detail)
+  } UNION {
+    ?s aia:tenantStrategy ?k .
+    FILTER(?k NOT IN ("attribute", "context"))
+    BIND("UNKNOWN_TENANT_STRATEGY" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?k) AS ?violation_detail)
+  } UNION {
+    ?s aia:sortDirection ?k .
+    FILTER(?k NOT IN ("asc", "desc"))
+    BIND("UNKNOWN_SORT_DIRECTION" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?k) AS ?violation_detail)
+  } UNION {
+    ?s aia:argumentType ?k .
+    FILTER(!REGEX(STR(?k), "^[a-z][a-z_]*$"))
+    BIND("MALFORMED_ARGUMENT_TYPE" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?k) AS ?violation_detail)
+  } UNION {
+    ?s aia:actionOf ?a .
+    MINUS { ?a a aia:Action }
+    BIND("DANGLING_ACTION" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?a) AS ?violation_detail)
+  } UNION {
+    ?s aia:checkOf ?r .
+    MINUS { ?r a aia:PolicyRule }
+    BIND("DANGLING_POLICY_RULE" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?r) AS ?violation_detail)
+  } UNION {
+    ?s aia:fieldPolicyOf ?r .
+    MINUS { ?r a aia:FieldPolicy }
+    BIND("DANGLING_FIELD_POLICY" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?r) AS ?violation_detail)
+  } UNION {
+    ?s a aia:Aggregate ;
+       aia:resourceOf ?r ;
+       aia:aggregateRelationship ?n .
+    MINUS { ?rel a aia:Relationship ; aia:resourceOf ?r ; aia:relationshipName ?n }
+    BIND("DANGLING_AGGREGATE_RELATIONSHIP" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?n) AS ?violation_detail)
+  } UNION {
+    ?s a aia:CodeInterface ;
+       aia:resourceOf ?r ;
+       aia:interfaceAction ?n .
+    MINUS { ?act a aia:Action ; aia:resourceOf ?r ; aia:actionName ?n }
+    BIND("DANGLING_INTERFACE_ACTION" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?n) AS ?violation_detail)
+  } UNION {
+    ?s a aia:Multitenancy ;
+       aia:resourceOf ?r ;
+       aia:tenantStrategy "attribute" ;
+       aia:tenantAttribute ?n .
+    MINUS { ?att a aia:Attribute ; aia:resourceOf ?r ; aia:attributeName ?n }
+    BIND("DANGLING_TENANT_ATTRIBUTE" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?n) AS ?violation_detail)
+  } UNION {
+    ?s a aia:ManageRelationship ;
+       aia:actionOf ?a ;
+       aia:argumentName ?n .
+    MINUS { ?arg a aia:Argument ; aia:actionOf ?a ; aia:argumentName ?n }
+    BIND("DANGLING_MANAGE_ARGUMENT" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?n) AS ?violation_detail)
+  } UNION {
+    ?s a aia:ManageRelationship ;
+       aia:actionOf ?a ;
+       aia:relationshipName ?n .
+    ?a aia:resourceOf ?r .
+    MINUS { ?rel a aia:Relationship ; aia:resourceOf ?r ; aia:relationshipName ?n }
+    BIND("DANGLING_MANAGE_RELATIONSHIP" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND(STR(?n) AS ?violation_detail)
+  } UNION {
+    ?s a aia:Argument .
+    MINUS { ?s aia:actionOf ?a ; aia:argumentName ?n ; aia:argumentType ?t ; aia:allowNil ?z ; aia:order ?o }
+    BIND("INCOMPLETE_ARGUMENT" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("actionOf, argumentName, argumentType, allowNil, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:SetAttribute .
+    MINUS { ?s aia:actionOf ?a ; aia:attributeName ?n ; aia:valueLiteral ?l ; aia:valueType ?t ; aia:order ?o }
+    BIND("INCOMPLETE_SET_ATTRIBUTE" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("actionOf, attributeName, valueLiteral, valueType, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:ManageRelationship .
+    MINUS { ?s aia:actionOf ?a ; aia:argumentName ?n ; aia:relationshipName ?r ; aia:manageType ?t ; aia:order ?o }
+    BIND("INCOMPLETE_MANAGE_RELATIONSHIP" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("actionOf, argumentName, relationshipName, manageType, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:Validation .
+    MINUS { ?s aia:actionOf ?a ; aia:validationKind ?k ; aia:validationSubject ?n ; aia:validationOption ?p ;
+               aia:validationValue ?v ; aia:validationValueType ?t ; aia:order ?o }
+    BIND("INCOMPLETE_VALIDATION" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("actionOf, validationKind, validationSubject, validationOption, validationValue, validationValueType, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:Aggregate .
+    MINUS { ?s aia:resourceOf ?r ; aia:aggregateKind ?k ; aia:aggregateName ?n ; aia:aggregateRelationship ?l ;
+               aia:aggregateField ?f ; aia:aggregateFilter ?i ; aia:aggregateSort ?t ; aia:order ?o }
+    BIND("INCOMPLETE_AGGREGATE" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("resourceOf, aggregateKind, aggregateName, aggregateRelationship, aggregateField, aggregateFilter, aggregateSort, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:CodeInterface .
+    MINUS { ?s aia:resourceOf ?r ; aia:interfaceName ?n ; aia:interfaceAction ?a ; aia:order ?o }
+    BIND("INCOMPLETE_CODE_INTERFACE" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("resourceOf, interfaceName, interfaceAction, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:PolicyRule .
+    MINUS { ?s aia:resourceOf ?r ; aia:ruleKind ?k ; aia:ruleCondition ?c ; aia:order ?o }
+    BIND("INCOMPLETE_POLICY_RULE" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("resourceOf, ruleKind, ruleCondition, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:PolicyCheck .
+    MINUS { ?s aia:checkOf ?r ; aia:checkKind ?k ; aia:checkExpr ?e ; aia:order ?o }
+    BIND("INCOMPLETE_POLICY_CHECK" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("checkOf, checkKind, checkExpr, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:FieldPolicy .
+    MINUS { ?s aia:resourceOf ?r ; aia:fieldNames ?f ; aia:order ?o }
+    BIND("INCOMPLETE_FIELD_POLICY" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("resourceOf, fieldNames, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:FieldCheck .
+    MINUS { ?s aia:fieldPolicyOf ?r ; aia:checkKind ?k ; aia:checkExpr ?e ; aia:order ?o }
+    BIND("INCOMPLETE_FIELD_CHECK" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("fieldPolicyOf, checkKind, checkExpr, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:Multitenancy .
+    MINUS { ?s aia:resourceOf ?r ; aia:tenantStrategy ?k ; aia:tenantAttribute ?n }
+    BIND("INCOMPLETE_MULTITENANCY" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("resourceOf, tenantStrategy, tenantAttribute" AS ?violation_detail)
+  } UNION {
+    ?s a aia:Pagination .
+    MINUS { ?s aia:actionOf ?a ; aia:paginationOffset ?o ; aia:paginationKeyset ?k ; aia:defaultLimit ?l ; aia:countable ?c }
+    BIND("INCOMPLETE_PAGINATION" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("actionOf, paginationOffset, paginationKeyset, defaultLimit, countable" AS ?violation_detail)
+  } UNION {
+    ?s a aia:DefaultSort .
+    MINUS { ?s aia:actionOf ?a ; aia:sortField ?f ; aia:sortDirection ?d ; aia:order ?o }
+    BIND("INCOMPLETE_DEFAULT_SORT" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("actionOf, sortField, sortDirection, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:Extension .
+    MINUS { ?s aia:resourceOf ?r ; aia:extensionName ?n ; aia:order ?o }
+    BIND("INCOMPLETE_EXTENSION" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("resourceOf, extensionName, order" AS ?violation_detail)
+  } UNION {
+    ?s a aia:PrimaryAction .
+    MINUS { ?s aia:actionOf ?a }
+    BIND("INCOMPLETE_PRIMARY_ACTION" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("actionOf" AS ?violation_detail)
+  } UNION {
+    ?s a aia:EnsurePrimary .
+    MINUS { ?s aia:resourceOf ?r ; aia:actionType ?t }
+    BIND("INCOMPLETE_ENSURE_PRIMARY" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("resourceOf, actionType" AS ?violation_detail)
+  } UNION {
+    ?s a aia:PolicyRule .
+    MINUS { ?c aia:checkOf ?s }
+    BIND("POLICY_RULE_WITHOUT_CHECKS" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("a policy/bypass needs at least one aia:PolicyCheck" AS ?violation_detail)
+  } UNION {
+    ?s a aia:FieldPolicy .
+    MINUS { ?c aia:fieldPolicyOf ?s }
+    BIND("FIELD_POLICY_WITHOUT_CHECKS" AS ?violation_code)
+    BIND(STR(?s) AS ?violation_subject)
+    BIND("a field policy needs at least one aia:FieldCheck" AS ?violation_detail)
+  }
+}
+ORDER BY ?violation_code ?violation_subject ?violation_detail

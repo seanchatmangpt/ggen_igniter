@@ -1,0 +1,16 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?resource_module ?aggregate_kind ?aggregate_name ?aggregate_relationship ?aggregate_field ?aggregate_filter ?aggregate_sort ?ord
+WHERE {
+  ?g aia:resourceOf ?res .
+  ?res aia:resourceModule ?resource_module .
+  ?g a aia:Aggregate ;
+     aia:aggregateKind ?aggregate_kind ;
+     aia:aggregateName ?aggregate_name ;
+     aia:aggregateRelationship ?aggregate_relationship ;
+     aia:aggregateField ?aggregate_field ;
+     aia:aggregateFilter ?aggregate_filter ;
+     aia:aggregateSort ?aggregate_sort ;
+     aia:order ?ord .
+}
+ORDER BY ?resource_module ?ord

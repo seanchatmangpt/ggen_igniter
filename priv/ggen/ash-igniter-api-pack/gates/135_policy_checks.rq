@@ -1,0 +1,11 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?rule ?check_kind ?check_expr ?ord
+WHERE {
+  ?c a aia:PolicyCheck ;
+     aia:checkOf ?rule ;
+     aia:checkKind ?check_kind ;
+     aia:checkExpr ?check_expr ;
+     aia:order ?ord .
+}
+ORDER BY ?rule ?ord

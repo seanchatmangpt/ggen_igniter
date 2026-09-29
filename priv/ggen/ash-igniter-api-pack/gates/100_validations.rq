@@ -1,0 +1,17 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?resource_module ?action_name ?validation_kind ?validation_subject ?validation_option ?validation_value ?validation_value_type ?ord
+WHERE {
+  ?g a aia:Validation ;
+     aia:actionOf ?act ;
+     aia:validationKind ?validation_kind ;
+     aia:validationSubject ?validation_subject ;
+     aia:validationOption ?validation_option ;
+     aia:validationValue ?validation_value ;
+     aia:validationValueType ?validation_value_type ;
+     aia:order ?ord .
+  ?act aia:resourceOf ?res ;
+       aia:actionName ?action_name .
+  ?res aia:resourceModule ?resource_module .
+}
+ORDER BY ?resource_module ?action_name ?ord

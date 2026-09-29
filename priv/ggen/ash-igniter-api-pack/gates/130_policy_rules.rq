@@ -1,0 +1,12 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?rule ?resource_module ?rule_kind ?rule_condition ?ord
+WHERE {
+  ?rule aia:resourceOf ?res .
+  ?res aia:resourceModule ?resource_module .
+  ?rule a aia:PolicyRule ;
+        aia:ruleKind ?rule_kind ;
+        aia:ruleCondition ?rule_condition ;
+        aia:order ?ord .
+}
+ORDER BY ?resource_module ?ord

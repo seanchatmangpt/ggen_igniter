@@ -1,0 +1,11 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?field_policy ?resource_module ?field_names ?ord
+WHERE {
+  ?field_policy aia:resourceOf ?res .
+  ?res aia:resourceModule ?resource_module .
+  ?field_policy a aia:FieldPolicy ;
+                aia:fieldNames ?field_names ;
+                aia:order ?ord .
+}
+ORDER BY ?resource_module ?ord

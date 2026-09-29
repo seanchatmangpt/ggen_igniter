@@ -29,6 +29,45 @@ aia:Identity a rdfs:Class .
 aia:Calculation a rdfs:Class .
 aia:Policy a rdfs:Class .
 
+# ---- Surface facts (all optional; a resource without them renders exactly as before) ----
+# Every class below hangs off an aia:Action (aia:actionOf) or an aia:Resource (aia:resourceOf);
+# gates/000_violations.rq refuses dangling / incomplete / malformed instances (typed
+# REFUSED_ASH_API_SURFACE, non-zero exit, nothing written).
+aia:Argument a rdfs:Class ;
+    rdfs:comment "actionOf, argumentName, argumentType, allowNil, order -> `argument :n, :type, allow_nil?: b`." .
+aia:SetAttribute a rdfs:Class ;
+    rdfs:comment "actionOf, attributeName, valueLiteral, valueType(string|integer|boolean|atom), order -> `change set_attribute(:a, v)`." .
+aia:ManageRelationship a rdfs:Class ;
+    rdfs:comment "actionOf, argumentName, relationshipName, manageType, order -> `change manage_relationship(:arg, :rel, type: t)`." .
+aia:Validation a rdfs:Class ;
+    rdfs:comment "actionOf, validationKind(present|match|compare), validationSubject, validationOption, validationValue, validationValueType, order." .
+aia:Aggregate a rdfs:Class ;
+    rdfs:comment "resourceOf, aggregateKind(count|sum|first|list|max|min|avg|exists), aggregateName, aggregateRelationship, aggregateField, aggregateFilter, aggregateSort, order (empty string = absent)." .
+aia:CodeInterface a rdfs:Class ;
+    rdfs:comment "resourceOf, interfaceName, interfaceAction, order -> domain `define :name, action: :a`." .
+aia:PolicyRule a rdfs:Class ;
+    rdfs:comment "resourceOf, ruleKind(policy|bypass), ruleCondition, order; its checks are aia:PolicyCheck (checkOf)." .
+aia:PolicyCheck a rdfs:Class ;
+    rdfs:comment "checkOf, checkKind(authorize_if|authorize_unless|forbid_if|forbid_unless), checkExpr, order." .
+aia:FieldPolicy a rdfs:Class ;
+    rdfs:comment "resourceOf, fieldNames (csv or *), order; its checks are aia:FieldCheck (fieldPolicyOf)." .
+aia:FieldCheck a rdfs:Class ;
+    rdfs:comment "fieldPolicyOf, checkKind, checkExpr, order." .
+aia:PrimaryAction a rdfs:Class ;
+    rdfs:comment "actionOf -> the action renders `primary? true`." .
+aia:EnsurePrimary a rdfs:Class ;
+    rdfs:comment "resourceOf, actionType -> Ash.Resource.Igniter.ensure_primary_action/3." .
+aia:Pagination a rdfs:Class ;
+    rdfs:comment "actionOf (a read), paginationOffset, paginationKeyset, defaultLimit, countable." .
+aia:DefaultSort a rdfs:Class ;
+    rdfs:comment "actionOf (a read), sortField, sortDirection, order -> `prepare build(sort: [f: :dir])`." .
+aia:Multitenancy a rdfs:Class ;
+    rdfs:comment "resourceOf, tenantStrategy(attribute|context), tenantAttribute (must be a declared attribute for :attribute)." .
+aia:Timestamps a rdfs:Class ;
+    rdfs:comment "resourceOf -> Ash.Resource.Igniter.ensure_timestamps/2." .
+aia:Extension a rdfs:Class ;
+    rdfs:comment "resourceOf, extensionName (ets|policy|Ash.Policy.Authorizer|...), order -> composed `ash.extend`." .
+
 #################################################################
 # Instance: Shop.Catalog.{Book, Author} -- Book belongs_to Author,
 # Author has_many Book (the cross relationship, declared on both sides)

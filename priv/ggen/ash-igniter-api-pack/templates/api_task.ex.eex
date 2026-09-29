@@ -3,6 +3,12 @@ to: "lib/mix/tasks/<%= task_name %>.ex"
 mode: file
 ---
 <%
+  if violations != [] do
+    raise ArgumentError,
+          "REFUSED_ASH_API_SURFACE: " <>
+            Enum.map_join(violations, "; ", &"#{&1["violation_code"]} #{&1["violation_subject"]} (#{&1["violation_detail"]})")
+  end
+
   truthy = fn
     true -> true
     "true" -> true
@@ -22,17 +28,93 @@ mode: file
     Enum.join(["attribute " <> atom.(a["attribute_name"]), ":" <> a["attribute_type"]] ++ opts, ", ")
   end
 
-  action_code = fn a ->
-    head = "#{a["action_type"]} #{atom.(a["action_name"])}"
-
-    if a["action_type"] in ["create", "update"] and a["accepts"] not in [nil, ""] do
-      head <> " do\n  accept [" <> csv_atoms.(a["accepts"]) <> "]\nend"
-    else
-      # Upstream Ash.Resource.Igniter.defines_action/3 only recognises action calls of
-      # arity 2..4, so a bare `read :name` is invisible to add_new_action/4 and would be
-      # re-added on every run. A do-block makes the call arity 2 and the add idempotent.
-      head <> " do\n  primary? false\nend"
+  lit = fn value, type ->
+    case type do
+      "string" -> inspect(value)
+      "integer" -> to_string(String.to_integer(to_string(value)))
+      "boolean" -> if(truthy.(value), do: "true", else: "false")
+      "atom" -> inspect(String.to_atom(value))
     end
+  end
+
+  for_action = fn rows, m, n ->
+    Enum.filter(rows, &(&1["resource_module"] == m and &1["action_name"] == n))
+  end
+
+  argument_line = fn a ->
+    "argument #{atom.(a["argument_name"])}, :#{a["argument_type"]}, allow_nil?: #{truthy.(a["allow_nil"])}"
+  end
+
+  set_attribute_line = fn a ->
+    "change set_attribute(#{atom.(a["attribute_name"])}, #{lit.(a["value_literal"], a["value_type"])})"
+  end
+
+  manage_line = fn a ->
+    "change manage_relationship(#{atom.(a["argument_name"])}, #{atom.(a["relationship_name"])}, type: #{atom.(a["manage_type"])})"
+  end
+
+  validation_line = fn v ->
+    subject = atom.(v["validation_subject"])
+
+    case v["validation_kind"] do
+      "present" ->
+        "validate present(#{subject})"
+
+      "match" ->
+        "validate match(#{subject}, ~r/" <> String.replace(v["validation_value"], "/", "\\/") <> "/)"
+
+      "compare" ->
+        "validate compare(#{subject}, #{v["validation_option"]}: #{lit.(v["validation_value"], v["validation_value_type"])})"
+    end
+  end
+
+  pagination_line = fn p ->
+    "pagination offset?: #{truthy.(p["pagination_offset"])}, keyset?: #{truthy.(p["pagination_keyset"])}, " <>
+      "default_limit: #{String.to_integer(to_string(p["default_limit"]))}, countable: #{truthy.(p["countable"])}"
+  end
+
+  sort_line = fn sorts ->
+    "prepare build(sort: [" <>
+      Enum.map_join(sorts, ", ", &"#{&1["sort_field"]}: :#{&1["sort_direction"]}") <> "])"
+  end
+
+  accept_literal = fn a -> "accept [" <> csv_atoms.(a["accepts"]) <> "]" end
+
+  action_code = fn a ->
+    m = a["resource_module"]
+    n = a["action_name"]
+    head = "#{a["action_type"]} #{atom.(n)}"
+
+    primary? =
+      Enum.any?(primary_actions, &(&1["resource_module"] == m and &1["action_name"] == n))
+
+    accept =
+      if a["action_type"] in ["create", "update"] and a["accepts"] not in [nil, ""],
+        do: [accept_literal.(a)],
+        else: []
+
+    sorts = for_action.(default_sorts, m, n)
+
+    lines =
+      accept ++
+        Enum.map(for_action.(arguments, m, n), argument_line) ++
+        Enum.map(for_action.(set_attributes, m, n), set_attribute_line) ++
+        Enum.map(for_action.(manage_relationships, m, n), manage_line) ++
+        Enum.map(for_action.(validations, m, n), validation_line) ++
+        Enum.map(for_action.(pagination, m, n), pagination_line) ++
+        if(sorts == [], do: [], else: [sort_line.(sorts)])
+
+    lines =
+      cond do
+        primary? -> ["primary? true" | lines]
+        # Upstream Ash.Resource.Igniter.defines_action/3 only recognises action calls of
+        # arity 2..4, so a bare `read :name` is invisible to add_new_action/4 and would be
+        # re-added on every run. A do-block makes the call arity 2 and the add idempotent.
+        lines == [] or a["action_type"] not in ["create", "update"] -> ["primary? false" | lines]
+        true -> lines
+      end
+
+    head <> " do\n" <> Enum.join(lines, "\n") <> "\nend"
   end
 
   relationship_code = fn r ->
@@ -69,6 +151,108 @@ mode: file
 
   for_resource = fn rows, m -> Enum.filter(rows, &(&1["resource_module"] == m)) end
 
+  check_body = fn checks, key ->
+    checks
+    |> Enum.filter(&(&1[key] != nil))
+    |> Enum.map_join("\n", &"#{&1["check_kind"]} #{&1["check_expr"]}")
+  end
+
+  # aia:PolicyRule: {condition, body} pairs of one kind (policy | bypass), body = its checks.
+  rule_literals = fn m, kind ->
+    rows =
+      for r <- for_resource.(policy_rules, m), r["rule_kind"] == kind do
+        {r["rule_condition"], check_body.(Enum.filter(policy_checks, &(&1["rule"] == r["rule"])), "rule")}
+      end
+
+    "[" <> Enum.map_join(rows, ",\n    ", fn {c, b} -> "{#{inspect(c)}, #{inspect(b)}}" end) <> "]"
+  end
+
+  field_policy_literals = fn m ->
+    rows =
+      for f <- for_resource.(field_policies, m) do
+        names = f["field_names"] |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+
+        head =
+          case names do
+            ["*"] -> ":*"
+            [one] -> atom.(one)
+            many -> "[" <> Enum.map_join(many, ", ", atom) <> "]"
+          end
+
+        body =
+          check_body.(Enum.filter(field_checks, &(&1["field_policy"] == f["field_policy"])), "field_policy")
+
+        {head, "field_policy #{head} do\n#{body}\nend"}
+      end
+
+    "[" <> Enum.map_join(rows, ",\n    ", fn {h, c} -> "{#{inspect(h)}, #{inspect(c)}}" end) <> "]"
+  end
+
+  aggregate_code = fn g ->
+    opts =
+      (if g["aggregate_filter"] == "", do: [], else: ["filter: expr(#{g["aggregate_filter"]})"]) ++
+        (if g["aggregate_sort"] == "",
+           do: [],
+           else: [
+             "sort: [" <>
+               (g["aggregate_sort"]
+                |> String.split(",", trim: true)
+                |> Enum.map_join(", ", fn part ->
+                  [f, d] = String.split(part, ":")
+                  "#{f}: :#{d}"
+                end)) <> "]"
+           ])
+
+    Enum.join(
+      ["#{g["aggregate_kind"]} #{atom.(g["aggregate_name"])}", atom.(g["aggregate_relationship"])] ++
+        (if g["aggregate_field"] == "", do: [], else: [atom.(g["aggregate_field"])]) ++ opts,
+      ", "
+    )
+  end
+
+  aggregate_literals = fn m ->
+    rows = for_resource.(aggregates, m)
+
+    "[" <> Enum.map_join(rows, ",\n    ", fn g ->
+      "{#{atom.(g["aggregate_name"])}, #{inspect(g["aggregate_kind"])}, #{inspect(aggregate_code.(g), limit: :infinity)}}"
+    end) <> "]"
+  end
+
+  interface_literals = fn m ->
+    rows = for_resource.(interfaces, m)
+
+    "[" <> Enum.map_join(rows, ",\n    ", fn i ->
+      "{#{atom.(i["interface_name"])}, #{inspect("define #{atom.(i["interface_name"])}, action: #{atom.(i["interface_action"])}")}}"
+    end) <> "]"
+  end
+
+  accepts_literals = fn m ->
+    rows =
+      for a <- for_resource.(actions, m),
+          a["action_type"] in ["create", "update"] and a["accepts"] not in [nil, ""],
+          do: {a["action_name"], accept_literal.(a)}
+
+    "[" <> Enum.map_join(rows, ",\n    ", fn {n, c} -> "{#{atom.(n)}, #{inspect(c)}}" end) <> "]"
+  end
+
+  extension_literal = fn m ->
+    inspect(for_resource.(extensions, m) |> Enum.map_join(",", & &1["extension_name"]))
+  end
+
+  ensure_primary_literal = fn m ->
+    "[" <> Enum.map_join(for_resource.(ensure_primary, m), ", ", &atom.(&1["action_type"])) <> "]"
+  end
+
+  multitenancy_literal = fn m ->
+    case for_resource.(multitenancy, m) do
+      [t | _] ->
+        inspect("strategy #{atom.(t["tenant_strategy"])}\nattribute #{atom.(t["tenant_attribute"])}")
+
+      [] ->
+        "nil"
+    end
+  end
+
   spec_literal = fn r ->
     m = r["resource_module"]
 
@@ -76,12 +260,22 @@ mode: file
     %{
         module: #{m},
         domain: #{r["domain_module"]},
+        extensions: #{extension_literal.(m)},
         attributes: #{pairs.(for_resource.(attributes, m), "attribute_name", attribute_code)},
+        timestamps: #{for_resource.(timestamps, m) != []},
+        ensure_primary: #{ensure_primary_literal.(m)},
         actions: #{pairs.(for_resource.(actions, m), "action_name", action_code)},
+        accepts: #{accepts_literals.(m)},
         relationships: #{pairs.(for_resource.(relationships, m), "relationship_name", relationship_code)},
         identities: #{pairs.(for_resource.(identities, m), "identity_name", identity_code)},
         calculations: #{pairs.(for_resource.(calculations, m), "calculation_name", calculation_code)},
-        policies: #{policy_literals.(for_resource.(policies, m))}
+        aggregates: #{aggregate_literals.(m)},
+        multitenancy: #{multitenancy_literal.(m)},
+        bypasses: #{rule_literals.(m, "bypass")},
+        policies: #{policy_literals.(for_resource.(policies, m))},
+        rule_policies: #{rule_literals.(m, "policy")},
+        field_policies: #{field_policy_literals.(m)},
+        interfaces: #{interface_literals.(m)}
       }\
     """
   end
@@ -129,6 +323,8 @@ defmodule <%= task_module %> do
       relationships: Keyword.keys(spec.relationships),
       identities: Keyword.keys(spec.identities),
       calculations: Keyword.keys(spec.calculations),
+      aggregates: Enum.map(spec.aggregates, &elem(&1, 0)),
+      interfaces: Keyword.keys(spec.interfaces),
       policies: Enum.map(spec.policies, &elem(&1, 0))
     }
   end
@@ -138,7 +334,7 @@ defmodule <%= task_module %> do
     %Igniter.Mix.Task.Info{
       group: :<%= otp_app %>,
       example: "mix <%= task_name %> --yes",
-      composes: ["ash.gen.domain", "ash.gen.resource"]
+      composes: ["ash.gen.domain", "ash.gen.resource", "ash.extend"]
     }
   end
 
@@ -169,18 +365,131 @@ defmodule <%= task_module %> do
 
   defp apply_spec(spec, igniter) do
     igniter
+    |> extend(spec.module, spec.extensions)
     |> apply_all(spec.module, spec.attributes, &Ash.Resource.Igniter.add_new_attribute/4)
+    |> ensure_timestamps(spec.module, spec.timestamps)
+    |> ensure_primary(spec.module, spec.ensure_primary)
     |> apply_all(spec.module, spec.actions, &Ash.Resource.Igniter.add_new_action/4)
+    |> warn_accept_drift(spec.module, spec.accepts)
     |> apply_all(spec.module, spec.relationships, &Ash.Resource.Igniter.add_new_relationship/4)
     |> apply_all(spec.module, spec.identities, &Ash.Resource.Igniter.add_new_identity/4)
     |> apply_all(spec.module, spec.calculations, &Ash.Resource.Igniter.add_new_calculation/4)
-    |> add_policies(spec.module, spec.policies)
+    |> add_aggregates(spec.module, spec.aggregates)
+    |> add_multitenancy(spec.module, spec.multitenancy)
+    |> add_bypasses(spec.module, spec.bypasses)
+    |> add_policies(spec.module, spec.policies ++ spec.rule_policies)
+    |> add_field_policies(spec.module, spec.field_policies)
     |> add_domain_reference(spec.domain, spec.module)
+    |> add_interfaces(spec.domain, spec.module, spec.interfaces)
   end
 
   defp apply_all(igniter, resource, pairs, fun) do
     Enum.reduce(pairs, igniter, fn {name, code}, igniter ->
       fun.(igniter, resource, name, code)
+    end)
+  end
+
+  # `ash.extend` for data-layer style extensions (ets, postgres, ...). The policy authorizer is
+  # added structurally with Spark.Igniter.add_extension/5 instead: `ash.extend`'s authorizer
+  # installer also fetches a SAT-solver dependency (Igniter.apply_and_fetch_dependencies/2),
+  # which is a project-setup concern and cannot run inside a pure Igniter codemod/test project.
+  @authorizer_names ["policy", "Ash.Policy.Authorizer"]
+
+  defp extend(igniter, _resource, ""), do: igniter
+
+  defp extend(igniter, resource, extensions) do
+    names = String.split(extensions, ",", trim: true)
+    {authorizers, others} = Enum.split_with(names, &(&1 in @authorizer_names))
+
+    igniter =
+      if others == [],
+        do: igniter,
+        else: Igniter.compose_task(igniter, "ash.extend", [inspect(resource), Enum.join(others, ",")])
+
+    if authorizers == [],
+      do: igniter,
+      else:
+        Spark.Igniter.add_extension(igniter, resource, Ash.Resource, :authorizers, Ash.Policy.Authorizer)
+  end
+
+  defp ensure_timestamps(igniter, _resource, false), do: igniter
+  defp ensure_timestamps(igniter, resource, true), do: Ash.Resource.Igniter.ensure_timestamps(igniter, resource)
+
+  # Ash.Resource.Igniter.ensure_primary_action/3 only appends to an EXISTING `defaults [...]`
+  # call; on a resource with none it is a silent no-op. So after it runs, a still-missing
+  # default action of that type is added as its own `defaults [type]` line (a second
+  # `defaults` call is legal in the DSL). Second run: defines_action/3 sees it, inert.
+  defp ensure_primary(igniter, resource, types) do
+    Enum.reduce(types, igniter, fn type, igniter ->
+      igniter = Ash.Resource.Igniter.ensure_primary_action(igniter, resource, type)
+      {igniter, defined?} = Ash.Resource.Igniter.defines_action(igniter, resource, type)
+
+      if defined? or source_contains?(igniter, resource, ["primary?:true", "primary?true"]) do
+        igniter
+      else
+        Ash.Resource.Igniter.add_action(igniter, resource, "defaults [#{inspect(type)}]")
+      end
+    end)
+  end
+
+  # add_new_action/4 skips an action that already exists BY NAME, so an edited `accepts` fact
+  # cannot propagate into an existing action (and hand edits inside it stay byte-identical).
+  # The divergence is surfaced as a typed warning instead of being silently swallowed.
+  defp warn_accept_drift(igniter, resource, accepts) do
+    Enum.reduce(accepts, igniter, fn {name, accept}, igniter ->
+      {igniter, defined?} = Ash.Resource.Igniter.defines_action(igniter, resource, name)
+
+      needles = [accept, String.replace(accept, ~r/^accept (.*)$/, "accept(\\1)")]
+
+      if defined? and not source_contains?(igniter, resource, needles) do
+        Igniter.add_warning(
+          igniter,
+          "ASH_API_ACCEPT_DRIFT: #{inspect(resource)}.#{name} exists and its accept list differs " <>
+            "from the ontology (#{accept}); existing actions are never rewritten"
+        )
+      else
+        igniter
+      end
+    end)
+  end
+
+  # add_block/4 has no existence check upstream; each guard looks for the call head in the
+  # (whitespace- and paren-style-insensitive) source first.
+  defp add_aggregates(igniter, resource, aggregates) do
+    Enum.reduce(aggregates, igniter, fn {name, kind, code}, igniter ->
+      if source_contains?(igniter, resource, ["#{kind}(:#{name},", "#{kind}:#{name},"]) do
+        igniter
+      else
+        Ash.Resource.Igniter.add_block(igniter, resource, :aggregates, code)
+      end
+    end)
+  end
+
+  defp add_multitenancy(igniter, _resource, nil), do: igniter
+
+  defp add_multitenancy(igniter, resource, code) do
+    if source_contains?(igniter, resource, ["multitenancydo"]) do
+      igniter
+    else
+      Ash.Resource.Igniter.add_block(igniter, resource, :multitenancy, code)
+    end
+  end
+
+  defp add_bypasses(igniter, resource, bypasses) do
+    # add_bypass/4 places each at the TOP of the policies block: reverse keeps ontology order.
+    bypasses
+    |> Enum.reverse()
+    |> Enum.reduce(igniter, fn {condition, body}, igniter ->
+      if source_contains?(igniter, resource, ["bypass(#{condition})do", "bypass#{condition}do"]) do
+        igniter
+      else
+        Ash.Resource.Igniter.add_bypass(
+          igniter,
+          resource,
+          Code.string_to_quoted!(condition),
+          Code.string_to_quoted!(body)
+        )
+      end
     end)
   end
 
@@ -196,6 +505,22 @@ defmodule <%= task_module %> do
           Code.string_to_quoted!(body)
         )
       end
+    end)
+  end
+
+  defp add_field_policies(igniter, resource, field_policies) do
+    Enum.reduce(field_policies, igniter, fn {head, code}, igniter ->
+      if source_contains?(igniter, resource, ["field_policy(#{head})do", "field_policy#{head}do"]) do
+        igniter
+      else
+        Ash.Resource.Igniter.add_block(igniter, resource, :field_policies, code)
+      end
+    end)
+  end
+
+  defp add_interfaces(igniter, domain, resource, interfaces) do
+    Enum.reduce(interfaces, igniter, fn {name, definition}, igniter ->
+      Ash.Domain.Igniter.add_new_code_interface(igniter, domain, resource, name, definition)
     end)
   end
 

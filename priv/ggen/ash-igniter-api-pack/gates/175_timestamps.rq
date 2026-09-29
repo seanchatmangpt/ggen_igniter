@@ -1,0 +1,9 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?resource_module
+WHERE {
+  ?g aia:resourceOf ?res .
+  ?res aia:resourceModule ?resource_module .
+  ?g a aia:Timestamps .
+}
+ORDER BY ?resource_module

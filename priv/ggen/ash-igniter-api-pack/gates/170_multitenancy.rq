@@ -1,0 +1,11 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?resource_module ?tenant_strategy ?tenant_attribute
+WHERE {
+  ?g aia:resourceOf ?res .
+  ?res aia:resourceModule ?resource_module .
+  ?g a aia:Multitenancy ;
+     aia:tenantStrategy ?tenant_strategy ;
+     aia:tenantAttribute ?tenant_attribute .
+}
+ORDER BY ?resource_module

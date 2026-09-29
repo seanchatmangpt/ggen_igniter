@@ -1,0 +1,15 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?resource_module ?action_name ?pagination_offset ?pagination_keyset ?default_limit ?countable
+WHERE {
+  ?g a aia:Pagination ;
+     aia:actionOf ?act ;
+     aia:paginationOffset ?pagination_offset ;
+     aia:paginationKeyset ?pagination_keyset ;
+     aia:defaultLimit ?default_limit ;
+     aia:countable ?countable .
+  ?act aia:resourceOf ?res ;
+       aia:actionName ?action_name .
+  ?res aia:resourceModule ?resource_module .
+}
+ORDER BY ?resource_module ?action_name

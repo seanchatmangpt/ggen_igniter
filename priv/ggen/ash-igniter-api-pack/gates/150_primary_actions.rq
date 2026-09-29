@@ -1,0 +1,11 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?resource_module ?action_name
+WHERE {
+  ?g a aia:PrimaryAction ;
+     aia:actionOf ?act .
+  ?act aia:resourceOf ?res ;
+       aia:actionName ?action_name .
+  ?res aia:resourceModule ?resource_module .
+}
+ORDER BY ?resource_module ?action_name

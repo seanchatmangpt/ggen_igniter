@@ -1,0 +1,11 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?resource_module ?extension_name ?ord
+WHERE {
+  ?e aia:resourceOf ?res .
+  ?res aia:resourceModule ?resource_module .
+  ?e a aia:Extension ;
+     aia:extensionName ?extension_name ;
+     aia:order ?ord .
+}
+ORDER BY ?resource_module ?ord

@@ -1,0 +1,15 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?resource_module ?action_name ?argument_name ?relationship_name ?manage_type ?ord
+WHERE {
+  ?g a aia:ManageRelationship ;
+     aia:actionOf ?act ;
+     aia:argumentName ?argument_name ;
+     aia:relationshipName ?relationship_name ;
+     aia:manageType ?manage_type ;
+     aia:order ?ord .
+  ?act aia:resourceOf ?res ;
+       aia:actionName ?action_name .
+  ?res aia:resourceModule ?resource_module .
+}
+ORDER BY ?resource_module ?action_name ?ord
