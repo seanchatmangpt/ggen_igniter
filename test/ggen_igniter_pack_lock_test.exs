@@ -136,6 +136,259 @@ defmodule GgenIgniterPackLockTest do
     end
   end
 
+  describe "digest/1 symlink handling (audit F3-1)" do
+    test "symlink to an outside file is refused PACK_SYMLINK_ESCAPE, outside swap cannot go unnoticed",
+         %{tmp_dir: tmp} do
+      a = make_pack(Path.join(tmp, "a"))
+      outside = Path.join(tmp, "outside.eex")
+      File.write!(outside, "v1")
+      lock_path = Path.join(tmp, "x.lock")
+
+      {:ok, _} =
+        PackLock.update(lock_path, fn l ->
+          {:ok, PackLock.put(l, "demo-pack", PackLock.entry(a, "x"))}
+        end)
+
+      File.mkdir_p!(Path.join(a, "templates"))
+      File.ln_s!(outside, Path.join(a, "templates/t.eex"))
+
+      assert {:error, {:pack_symlink_escape, _}} = PackLock.digest_checked(a)
+
+      File.write!(outside, "v2")
+      assert {:error, {:pack_symlink_escape, _}} = PackLock.digest_checked(a)
+
+      assert {:error, {:pack_symlink_escape, detail}} = PackLock.check(a, lock_path)
+
+      assert PackLock.refusal_text({:pack_symlink_escape, detail}) =~
+               "REFUSED:PACK_SYMLINK_ESCAPE "
+
+      assert_raise PackLock.Refusal, fn -> PackLock.digest(a) end
+    end
+
+    test "directory symlink (even to an outside dir named templates) is refused", %{tmp_dir: tmp} do
+      a = make_pack(Path.join(tmp, "a"))
+      out_dir = Path.join(tmp, "outdir")
+      File.mkdir_p!(out_dir)
+      File.write!(Path.join(out_dir, "t.eex"), "x")
+      File.ln_s!(out_dir, Path.join(a, "templates"))
+      assert {:error, {:pack_symlink_escape, _}} = PackLock.digest_checked(a)
+
+      inner = Path.join(tmp, "b")
+      b = make_pack(inner)
+      File.mkdir_p!(Path.join(b, "real"))
+      File.ln_s!(Path.join(b, "real"), Path.join(b, "linkdir"))
+      assert {:error, {:pack_symlink_escape, _}} = PackLock.digest_checked(b)
+    end
+
+    test "symlink loop is a typed refusal, not a hang", %{tmp_dir: tmp} do
+      a = make_pack(tmp)
+      File.ln_s!(Path.join(a, "l2"), Path.join(a, "l1"))
+      File.ln_s!(Path.join(a, "l1"), Path.join(a, "l2"))
+      assert {:error, {:pack_symlink_escape, _}} = PackLock.digest_checked(a)
+    end
+
+    test "in-pack symlink to a regular file hashes resolved content", %{tmp_dir: tmp} do
+      a = make_pack(tmp)
+      File.mkdir_p!(Path.join(a, "templates"))
+      File.write!(Path.join(a, "shared.eex"), "one")
+      File.ln_s!(Path.join(a, "shared.eex"), Path.join(a, "templates/t.eex"))
+      {:ok, d1} = PackLock.digest_checked(a)
+      File.write!(Path.join(a, "shared.eex"), "two")
+      {:ok, d2} = PackLock.digest_checked(a)
+      refute d1 == d2
+
+      # relative link form resolves the same way
+      File.rm!(Path.join(a, "templates/t.eex"))
+      File.ln_s!("../shared.eex", Path.join(a, "templates/t.eex"))
+      assert {:ok, _} = PackLock.digest_checked(a)
+    end
+
+    test "a symlink and a regular file holding the link text never collide", %{tmp_dir: tmp} do
+      a = make_pack(Path.join(tmp, "a"))
+      b = make_pack(Path.join(tmp, "b"))
+      File.write!(Path.join(a, "target.txt"), "same")
+      File.write!(Path.join(b, "target.txt"), "same")
+      File.ln_s!("target.txt", Path.join(a, "alias.txt"))
+      File.write!(Path.join(b, "alias.txt"), "same")
+      {:ok, da} = PackLock.digest_checked(a)
+      {:ok, db} = PackLock.digest_checked(b)
+      refute da == db
+    end
+  end
+
+  describe "digest/1 unreadable file (audit F3-4)" do
+    @tag :unix_perms
+    test "chmod 000 file -> typed PACK_FILE_UNREADABLE", %{tmp_dir: tmp} do
+      a = make_pack(tmp)
+      f = Path.join(a, "ontology.ttl")
+      File.chmod!(f, 0o000)
+      on_exit(fn -> File.chmod(f, 0o644) end)
+
+      if match?({:ok, _}, File.read(f)) do
+        :ok
+      else
+        assert {:error, {:pack_file_unreadable, detail}} = PackLock.digest_checked(a)
+        assert detail =~ "ontology.ttl"
+
+        assert PackLock.refusal_text({:pack_file_unreadable, detail}) =~
+                 "REFUSED:PACK_FILE_UNREADABLE "
+      end
+    end
+  end
+
+  describe "lockfile concurrency (audit F3-2)" do
+    test "concurrent reader never observes partial JSON during 8 writers", %{tmp_dir: tmp} do
+      l = Path.join(tmp, "race.lock")
+
+      big =
+        Enum.reduce(1..300, PackLock.empty(), fn i, acc ->
+          PackLock.put(acc, "p#{i}", %{
+            "name" => "p#{i}",
+            "sha256" => String.duplicate("a", 64),
+            "source" => "x",
+            "version" => nil,
+            "locked_by" => "t"
+          })
+        end)
+
+      PackLock.write(l, big)
+      done = :atomics.new(1, [])
+
+      reader =
+        Task.async(fn ->
+          loop = fn loop, bad, n ->
+            if :atomics.get(done, 1) == 1 and n > 200 do
+              bad
+            else
+              case PackLock.read(l) do
+                {:ok, _} -> loop.(loop, bad, n + 1)
+                _ -> loop.(loop, bad + 1, n + 1)
+              end
+            end
+          end
+
+          loop.(loop, 0, 0)
+        end)
+
+      writers =
+        for _ <- 1..8 do
+          Task.async(fn -> for _ <- 1..150, do: PackLock.write(l, big) end)
+        end
+
+      Enum.each(writers, &Task.await(&1, 120_000))
+      :atomics.put(done, 1, 1)
+      assert Task.await(reader, 120_000) == 0
+      assert File.ls!(tmp) |> Enum.filter(&String.contains?(&1, ".tmp")) == []
+    end
+
+    test "8 concurrent update/3 puts all land, none lost", %{tmp_dir: tmp} do
+      l = Path.join(tmp, "put.lock")
+
+      1..8
+      |> Enum.map(fn i ->
+        Task.async(fn ->
+          PackLock.update(l, fn lock ->
+            Process.sleep(5)
+            {:ok, PackLock.put(lock, "p#{i}", %{"name" => "p#{i}", "sha256" => "x"})}
+          end)
+        end)
+      end)
+      |> Enum.each(fn t -> assert {:ok, _} = Task.await(t, 60_000) end)
+
+      {:ok, lock} = PackLock.read(l)
+
+      assert lock["packs"] |> Map.keys() |> Enum.sort() ==
+               Enum.map(1..8, &"p#{&1}") |> Enum.sort()
+
+      refute File.exists?(l <> ".lockdir")
+    end
+  end
+
+  describe "invalid lock is not fail-open (audit F3-3)" do
+    test "check returns lock_invalid distinct from lock_missing; update refuses without force",
+         %{tmp_dir: tmp} do
+      a = make_pack(tmp)
+      l = Path.join(tmp, "bad.lock")
+      File.write!(l, "{ not json")
+
+      assert {:error, {:lock_invalid, ^l}} = PackLock.check(a, l)
+      assert PackLock.refusal_text({:lock_invalid, l}) == "REFUSED:PACK_LOCK_INVALID #{l}"
+
+      assert {:error, {:lock_invalid, ^l}} = PackLock.update(l, fn x -> {:ok, x} end)
+      assert File.read!(l) == "{ not json"
+
+      assert {:ok, lock} = PackLock.update(l, [force: true], fn x -> {:ok, x} end)
+      assert lock == PackLock.empty()
+      assert {:ok, _} = PackLock.read(l)
+    end
+  end
+
+  describe "with_staging/1 (audit F3-6)" do
+    test "staging dir removed on success and on raise", %{tmp_dir: _} do
+      seen =
+        PackLock.with_staging(fn dir ->
+          assert File.dir?(dir)
+          dir
+        end)
+
+      refute File.exists?(seen)
+
+      raised = self()
+
+      assert_raise RuntimeError, fn ->
+        PackLock.with_staging(fn dir ->
+          send(raised, {:dir, dir})
+          raise "boom"
+        end)
+      end
+
+      assert_received {:dir, dir}
+      refute File.exists?(dir)
+    end
+  end
+
+  describe "mix tasks refuse invalid locks (subprocess)" do
+    @describetag :integration
+
+    test "pack.lock write mode refuses a garbled lock, --force-regenerate overwrites",
+         %{tmp_dir: tmp} do
+      root = Path.join(tmp, "packs")
+      make_pack(root)
+      lock = Path.join(tmp, "g.lock")
+      File.write!(lock, "garbage")
+
+      {out, 1} =
+        System.cmd("mix", ["ggen_igniter.pack.lock", "--path", root, "--lock", lock],
+          cd: File.cwd!(),
+          stderr_to_stdout: true,
+          env: [{"MIX_QUIET", "1"}]
+        )
+
+      assert out =~ "REFUSED:PACK_LOCK_INVALID"
+      assert File.read!(lock) == "garbage"
+
+      {out, 1} =
+        System.cmd("mix", ["ggen_igniter.pack.lock", "--path", root, "--lock", lock, "--check"],
+          cd: File.cwd!(),
+          stderr_to_stdout: true,
+          env: [{"MIX_QUIET", "1"}]
+        )
+
+      assert out =~ "REFUSED:PACK_LOCK_INVALID"
+
+      {_, 0} =
+        System.cmd(
+          "mix",
+          ["ggen_igniter.pack.lock", "--path", root, "--lock", lock, "--force-regenerate"],
+          cd: File.cwd!(),
+          stderr_to_stdout: true,
+          env: [{"MIX_QUIET", "1"}]
+        )
+
+      assert {:ok, _} = PackLock.read(lock)
+    end
+  end
+
   describe "receipt pack_digest" do
     @schema Path.join([__DIR__, "..", "priv", "schema", "receipt.schema.json"])
 

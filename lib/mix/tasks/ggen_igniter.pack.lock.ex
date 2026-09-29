@@ -4,7 +4,7 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Lock do
   @moduledoc """
   Pins packs to the sha256 of their content, or verifies them against the pin.
 
-      mix ggen_igniter.pack.lock [--path DIR] [--pack NAME...] [--lock PATH] [--check] [--json]
+      mix ggen_igniter.pack.lock [--path DIR] [--pack NAME...] [--lock PATH] [--check] [--force-regenerate] [--json]
 
   `--path DIR` is the pack root (default `priv/ggen`): each subdirectory is a
   pack. If `DIR` itself holds `pack.toml` or `ontology.ttl` it is treated as a
@@ -13,8 +13,12 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Lock do
 
   Without `--check` the lockfile is written/updated. With `--check` nothing is
   written; exit `0` all packs match, `1` refusal
-  (`REFUSED:PACK_DIGEST_MISMATCH` / `REFUSED:PACK_LOCK_MISSING`), `2` invalid
-  invocation. See `docs/reference/cli/pack-lock.md`.
+  (`REFUSED:PACK_DIGEST_MISMATCH` / `PACK_LOCK_MISSING` / `PACK_LOCK_INVALID` /
+  `PACK_SYMLINK_ESCAPE` / `PACK_FILE_UNREADABLE`), `2` invalid invocation.
+  An existing lockfile that is not a valid lock is REFUSED
+  (`REFUSED:PACK_LOCK_INVALID`, exit 1) in both modes; write mode overwrites it
+  only with `--force-regenerate`. Writes are atomic and serialized
+  (`GgenIgniter.PackLock.update/3`). See `docs/reference/cli/pack-lock.md`.
   """
 
   use Mix.Task
@@ -30,10 +34,11 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Lock do
         mix ggen_igniter.pack.lock -- pin packs to a content sha256 (or verify with --check)
 
         USAGE
-            mix ggen_igniter.pack.lock [--path DIR] [--pack NAME...] [--lock PATH] [--check] [--json]
+            mix ggen_igniter.pack.lock [--path DIR] [--pack NAME...] [--lock PATH] [--check] [--force-regenerate] [--json]
 
         EXIT CODES
-            0 ok   1 REFUSED:PACK_DIGEST_MISMATCH | REFUSED:PACK_LOCK_MISSING   2 invalid invocation
+            0 ok   1 REFUSED:PACK_DIGEST_MISMATCH | PACK_LOCK_MISSING | PACK_LOCK_INVALID |
+              PACK_SYMLINK_ESCAPE | PACK_FILE_UNREADABLE   2 invalid invocation
         """)
 
         System.halt(0)
@@ -46,7 +51,14 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Lock do
   defp do_run(argv) do
     {opts, _pos, invalid} =
       OptionParser.parse(argv,
-        strict: [path: :string, pack: :keep, lock: :string, check: :boolean, json: :boolean]
+        strict: [
+          path: :string,
+          pack: :keep,
+          lock: :string,
+          check: :boolean,
+          json: :boolean,
+          force_regenerate: :boolean
+        ]
       )
 
     json? = Keyword.get(opts, :json, false)
@@ -61,7 +73,9 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Lock do
     dirs = discover(root, names)
     if dirs == [], do: bad(json?, "no packs found under #{root}")
 
-    if opts[:check], do: check(dirs, lock_path, json?), else: write(dirs, lock_path, json?)
+    if opts[:check],
+      do: check(dirs, lock_path, json?),
+      else: write(dirs, lock_path, json?, opts[:force_regenerate] == true)
   end
 
   defp discover(root, names) do
@@ -80,33 +94,33 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Lock do
   defp single_pack?(dir),
     do: File.exists?(Path.join(dir, "pack.toml")) or File.exists?(Path.join(dir, "ontology.ttl"))
 
-  defp write(dirs, lock_path, json?) do
-    lock =
-      case PackLock.read(lock_path) do
-        {:ok, l} -> l
-        _ -> PackLock.empty()
+  defp write(dirs, lock_path, json?, force?) do
+    entries =
+      try do
+        Enum.map(dirs, &PackLock.entry(&1, &1))
+      rescue
+        e in PackLock.Refusal -> refuse([e.reason], json?)
       end
 
-    {lock, entries} =
-      Enum.reduce(dirs, {lock, []}, fn dir, {l, acc} ->
-        e = PackLock.entry(dir, dir)
-        {PackLock.put(l, e["name"], e), [e | acc]}
+    result =
+      PackLock.update(lock_path, [force: force?], fn lock ->
+        {:ok, Enum.reduce(entries, lock, fn e, l -> PackLock.put(l, e["name"], e) end)}
       end)
 
-    PackLock.write(lock_path, lock)
+    case result do
+      {:error, reason} ->
+        refuse([reason], json?)
 
-    if json? do
-      Mix.shell().info(Jason.encode!(%{"lock" => lock_path, "packs" => Enum.reverse(entries)}))
-    else
-      Enum.each(
-        Enum.reverse(entries),
-        &Mix.shell().info("locked #{&1["name"]} sha256=#{&1["sha256"]}")
-      )
+      {:ok, _lock} ->
+        if json? do
+          Mix.shell().info(Jason.encode!(%{"lock" => lock_path, "packs" => entries}))
+        else
+          Enum.each(entries, &Mix.shell().info("locked #{&1["name"]} sha256=#{&1["sha256"]}"))
+          Mix.shell().info("wrote #{lock_path}")
+        end
 
-      Mix.shell().info("wrote #{lock_path}")
+        System.halt(0)
     end
-
-    System.halt(0)
   end
 
   defp check(dirs, lock_path, json?) do
@@ -125,11 +139,15 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Lock do
 
       System.halt(0)
     else
-      texts = Enum.map(refusals, &PackLock.refusal_text/1)
-      Enum.each(texts, fn text -> Mix.shell().error(text) end)
-      if json?, do: Mix.shell().info(Jason.encode!(%{"ok" => false, "refused" => texts}))
-      System.halt(1)
+      refuse(refusals, json?)
     end
+  end
+
+  defp refuse(reasons, json?) do
+    texts = reasons |> Enum.map(&PackLock.refusal_text/1) |> Enum.uniq()
+    Enum.each(texts, fn text -> Mix.shell().error(text) end)
+    if json?, do: Mix.shell().info(Jason.encode!(%{"ok" => false, "refused" => texts}))
+    System.halt(1)
   end
 
   defp bad(json?, message) do

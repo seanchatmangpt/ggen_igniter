@@ -11,7 +11,7 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Fetch do
   @dialyzer {:no_return, print_help_and_halt: 0}
   @dialyzer {:no_return, invalid_invocation: 2}
   @dialyzer {:no_return, do_fetch: 3}
-  @dialyzer {:no_return, do_fetch_locked: 4}
+  @dialyzer {:no_return, do_fetch_locked: 5}
   @dialyzer {:no_return, refuse: 3}
   @dialyzer {:no_return, run: 1}
 
@@ -51,6 +51,8 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Fetch do
       (`GgenIgniter.PackLock`); an existing entry with a different digest is
       refused (`REFUSED:PACK_DIGEST_MISMATCH`, exit 1) and the real cache is
       not overwritten. See `docs/reference/cli/pack-lock.md`.
+    * `--force-regenerate` -- with `--lock`, overwrite an existing lockfile that is not a valid
+      lock (default: refused, `REFUSED:PACK_LOCK_INVALID`, exit 1).
     * `--json` -- emit a single JSON object (`{"path": ..., "spec": ...}` on
       success, `{"error": ...}` on failure) instead of a human line.
 
@@ -73,6 +75,7 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Fetch do
   use Mix.Task
 
   alias GgenIgniter.Pack
+  alias GgenIgniter.PackLock
 
   @shortdoc "Fetches a marketplace pack (github:/hex:) via GgenIgniter.Pack.fetch_pack!/2"
 
@@ -97,6 +100,7 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Fetch do
         strict: [
           cache_dir: :string,
           lock: :string,
+          force_regenerate: :boolean,
           json: :boolean,
           help: :boolean,
           version: :boolean
@@ -127,7 +131,14 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Fetch do
         fetch_opts = if opts[:cache_dir], do: [cache_dir: opts[:cache_dir]], else: []
 
         if opts[:lock],
-          do: do_fetch_locked(spec, fetch_opts, opts[:lock], json?),
+          do:
+            do_fetch_locked(
+              spec,
+              fetch_opts,
+              opts[:lock],
+              json?,
+              opts[:force_regenerate] == true
+            ),
           else: do_fetch(spec, fetch_opts, json?)
     end
   end
@@ -158,75 +169,79 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Fetch do
   # destination in place), compare the content digest with any existing lock
   # entry, and only on match/new copy into the real cache and record the entry.
   # A mismatch leaves the real cache untouched (REFUSED:PACK_DIGEST_MISMATCH).
-  defp do_fetch_locked(spec, fetch_opts, lock_path, json?) do
-    alias GgenIgniter.PackLock
+  # The staging dir is always removed (`PackLock.with_staging/1`, try/after) --
+  # `System.halt/1` is only called AFTER it returns, since halt skips `after`.
+  # The lock read-modify-write runs under `PackLock.update/3` (serialized,
+  # atomic write); an invalid lock is REFUSED unless `--force-regenerate`.
+  defp do_fetch_locked(spec, fetch_opts, lock_path, json?, force?) do
+    outcome =
+      try do
+        PackLock.with_staging(fn staging ->
+          staged = Pack.fetch_pack!(spec, cache_dir: staging)
+          name = Path.basename(staged)
+          entry = PackLock.entry(staged, spec, lock_version(spec))
 
-    staging =
-      Path.join(
-        System.tmp_dir!(),
-        "ggen_igniter_pack_fetch_#{System.unique_integer([:positive])}"
-      )
-
-    File.mkdir_p!(staging)
-
-    try do
-      staged = Pack.fetch_pack!(spec, cache_dir: staging)
-      name = Path.basename(staged)
-      entry = PackLock.entry(staged, spec, lock_version(spec))
-
-      lock =
-        case PackLock.read(lock_path) do
-          {:ok, l} -> l
-          _ -> PackLock.empty()
-        end
-
-      actual_sha = entry["sha256"]
-
-      case get_in(lock, ["packs", name, "sha256"]) do
-        existing when is_binary(existing) and existing != actual_sha ->
-          reason =
-            {:pack_digest_mismatch, %{pack: name, expected: existing, actual: entry["sha256"]}}
-
-          refuse(PackLock.refusal_text(reason), spec, json?)
-
-        _ ->
           cache_root =
             Keyword.get_lazy(fetch_opts, :cache_dir, fn ->
               Path.join([System.user_home!(), ".cache", "ggen_igniter", "packs"])
             end)
 
           dest = Path.join(cache_root, name)
-          File.mkdir_p!(cache_root)
-          File.rm_rf!(dest)
-          File.cp_r!(staged, dest)
-          PackLock.write(lock_path, PackLock.put(lock, name, entry))
+          actual_sha = entry["sha256"]
 
-          if json? do
-            Mix.shell().info(
-              Jason.encode!(
-                %{
-                  "spec" => spec,
-                  "path" => dest,
-                  "sha256" => entry["sha256"],
-                  "lock" => lock_path
-                },
-                pretty: true
-              )
-            )
-          else
-            Mix.shell().info(
-              "fetched #{spec} -> #{dest} (sha256=#{entry["sha256"]}, locked in #{lock_path})"
-            )
+          result =
+            PackLock.update(lock_path, [force: force?], fn lock ->
+              case get_in(lock, ["packs", name, "sha256"]) do
+                existing when is_binary(existing) and existing != actual_sha ->
+                  {:error,
+                   {:pack_digest_mismatch, %{pack: name, expected: existing, actual: actual_sha}}}
+
+                _ ->
+                  install!(staged, cache_root, dest)
+                  {:ok, PackLock.put(lock, name, entry)}
+              end
+            end)
+
+          case result do
+            {:ok, _} -> {:ok, dest, entry}
+            {:error, reason} -> {:refused, PackLock.refusal_text(reason)}
           end
-
-          File.rm_rf!(staging)
-          halt(0)
+        end)
+      rescue
+        error -> {:refused, Exception.message(error)}
       end
-    rescue
-      error ->
-        File.rm_rf(staging)
-        refuse(Exception.message(error), spec, json?)
+
+    case outcome do
+      {:ok, dest, entry} ->
+        if json? do
+          Mix.shell().info(
+            Jason.encode!(
+              %{
+                "spec" => spec,
+                "path" => dest,
+                "sha256" => entry["sha256"],
+                "lock" => lock_path
+              },
+              pretty: true
+            )
+          )
+        else
+          Mix.shell().info(
+            "fetched #{spec} -> #{dest} (sha256=#{entry["sha256"]}, locked in #{lock_path})"
+          )
+        end
+
+        halt(0)
+
+      {:refused, message} ->
+        refuse(message, spec, json?)
     end
+  end
+
+  defp install!(staged, cache_root, dest) do
+    File.mkdir_p!(cache_root)
+    File.rm_rf!(dest)
+    File.cp_r!(staged, dest)
   end
 
   defp lock_version(spec) do
@@ -272,6 +287,7 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Fetch do
         --lock PATH         Record the fetched pack's sha256 in PATH (ggen_igniter.pack.lock);
                             an existing entry with a different digest is refused (exit 1) and
                             the cache is left untouched.
+        --force-regenerate  With --lock: overwrite an invalid lockfile (default: refused).
         --json              Emit a machine-readable JSON object instead of a human line.
         --help, -h          Print this help and exit 0.
         --version, -v       Print ggen_igniter's version and exit 0.
