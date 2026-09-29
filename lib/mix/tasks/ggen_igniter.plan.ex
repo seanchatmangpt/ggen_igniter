@@ -131,6 +131,7 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
         unless_exists: :boolean,
         skip_if: :string,
         json: :boolean,
+        json_envelope: :boolean,
         help: :boolean,
         version: :boolean,
         quiet: :boolean,
@@ -214,7 +215,7 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
         System.halt(0)
 
       {:error, {:unsupported_capability, reason}} ->
-        report_error(opts, "unsupported capability: #{reason}")
+        report_error(opts, "unsupported capability: #{reason}", :unsupported)
         System.halt(3)
 
       {:error, reason} ->
@@ -263,6 +264,21 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
   end
 
   defp report(opts, plan_opts, pending_actuations) do
+    if opts[:json_envelope] do
+      # Uniform contract (`GgenIgniter.TaskContract`): the legacy `--json` document becomes
+      # the envelope's `data`. `plan` exits 0 whether or not changes are pending.
+      env =
+        GgenIgniter.TaskContract.envelope("plan", :ok,
+          data: to_json(opts, plan_opts, pending_actuations)
+        )
+
+      Mix.shell().info(GgenIgniter.TaskContract.encode(env))
+    else
+      report_legacy(opts, plan_opts, pending_actuations)
+    end
+  end
+
+  defp report_legacy(opts, plan_opts, pending_actuations) do
     if opts[:json] do
       Mix.shell().info(Jason.encode!(to_json(opts, plan_opts, pending_actuations), pretty: true))
     else
@@ -270,7 +286,22 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
     end
   end
 
-  defp report_error(opts, message) do
+  defp report_error(opts, message, outcome \\ :invocation)
+
+  defp report_error(opts, message, outcome) when opts != nil and is_list(opts) do
+    if opts[:json_envelope] do
+      env =
+        GgenIgniter.TaskContract.envelope("plan", outcome,
+          refusal: {String.upcase(to_string(outcome)), message}
+        )
+
+      Mix.shell().info(GgenIgniter.TaskContract.encode(env))
+    else
+      report_error_legacy(opts, message)
+    end
+  end
+
+  defp report_error_legacy(opts, message) do
     if opts[:json] do
       Mix.shell().info(Jason.encode!(%{"error" => message}, pretty: true))
     else
@@ -294,6 +325,9 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
         --engine ENGINE    One of: oxigraph, sparql, qlever. Default: oxigraph.
         --store-id ID      Required with --engine qlever.
         --json             Emit the plan as JSON instead of human-readable text.
+        --json-envelope    Emit the plan inside the uniform envelope (TaskContract):
+                           {schema_version, task, ok, exit_code, standing, refusal, data}.
+                           `data` is the same document --json prints. Exit codes unchanged.
         --quiet, -q        Suppress non-essential output.
         --verbose          Print additional diagnostic detail.
         --no-color         Disable ANSI color in human-readable output.
@@ -308,7 +342,8 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
           --query spec=test/fixtures/spec.rq --json
 
     EXIT CODES
-        0  plan computed successfully
+        0  plan computed successfully (also when changes are pending -- use
+           `mix ggen_igniter.sync --check` for a drift gate, exit 4)
         2  invalid invocation
         3  unsupported capability for the read-only plan path
     """)

@@ -25,6 +25,9 @@ Pipeline: `Ontology.load!/1` → `Query`/`Engine.run/2` (once per `--query`) →
 | `--pack-dir DIR` | string | *(none)* | Same as `--pack` but uses `DIR` directly (no `priv/ggen/` prefix, no `:TEMPLATE` stem suffix). |
 | `--for-each NAME` | string | *(none — single static `--out`)* | Fan out one render per row of the named query result; see below. |
 | `--dry-run` | boolean | `false` | Preview every actuation and reconciliation decision with zero filesystem writes. |
+| `--check` | boolean | `false` | Drift gate: implies a dry run, takes no lock, writes nothing. Exit `0` clean, `4` drift (lists each drifted path), `1` refusal, `2` invocation. Mutually exclusive with `--dry-run`. See `--check` below. |
+| `--json` | boolean | `false` | Emit one deterministic JSON envelope (`schema_version`, `task`, `ok`, `exit_code`, `standing`, `refusal`, `data`) instead of text; works with and without `--check`. See [exit-codes.md](exit-codes.md). |
+| `--lock PATH` | string | *(none)* | Refuse (`REFUSED:PACK_DIGEST_MISMATCH`, exit `1`) unless the digest of the `--pack`/`--pack-dir` directory matches the lockfile at `PATH` (`GgenIgniter.PackLock.check/2`). Requires `--pack`/`--pack-dir` (else exit `2`). |
 | `--mode file\|eval` | string | `"file"` (or the template's own frontmatter `mode:`, default `"file"`) | Explicit `--mode` always overrides frontmatter. |
 | `--on-stale refuse\|prune\|preserve` | string | `"refuse"` | Reconciliation-manifest stale-path policy; see below. |
 | `--unless-exists` | boolean | `false` | Skip the write unconditionally if the target already exists (any content). |
@@ -307,6 +310,31 @@ eval)"`, `"planned: prune PATH"`, `"planned: preserve N stale path(s)..."`).
 A `refuse`-triggering stale set still raises even under `--dry-run` — a dry
 run previews a real decision, including a real refusal, it does not suppress
 one.
+
+## `--check` (drift gate for CI) and `--json`
+
+`mix ggen_igniter.sync <same flags> --check` answers one question: *would a real sync
+change any file on disk?* It runs the same dry-run pipeline as `--dry-run` (so
+`--for-each`, `inject: true` and `--on-stale` decisions are exactly what a real run would
+decide) and treats every `planned: write`, `planned: inject` and `planned: prune` decision
+as drift; `planned: skip ... (unchanged)` and `planned: evaluate` are not drift. It takes
+no `GgenIgniter.Lock` and never writes (a test hashes the tree before/after).
+
+| Outcome | Exit | Output |
+|---|---|---|
+| clean | `0` | `ggen_igniter.sync --check: clean (0 drifted files)` |
+| drift | `4` | `DRIFT -- N file(s) differ from the ontology:` then one `  write\|inject\|prune PATH` line per path |
+| refusal (typed, e.g. stale outputs, pack admission, `--lock` mismatch) | `1` | `REFUSED:<CODE> <detail>` on stderr |
+| bad invocation | `2` | message on stderr |
+
+Under `--json` the same outcome is one envelope line; `data` carries `mode`,
+`drifted` (`[{operation, path}]`), `drifted_count`, `lines`, `notices`. Note the pipeline's
+terminal `:verify` step (a `mix compile --warnings-as-errors` in `--verify-cwd`/the
+manifest dir) still runs under a dry run, so `--check` needs a compilable Mix project there.
+
+```bash
+mix ggen_igniter.sync --pack audit-trail-pack --out lib/generated.ex --check || echo "exit $?"
+```
 
 ## `--on-stale refuse|prune|preserve` and `--manifest-dir`
 

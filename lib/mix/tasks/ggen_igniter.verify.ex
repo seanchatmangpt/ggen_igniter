@@ -60,6 +60,8 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
       pack with no such file is verified WITHOUT contracts (see below) rather
       than refused.
     * `--json` -- one JSON document on stdout instead of human-readable lines.
+    * `--json-envelope` -- the same report inside the uniform `GgenIgniter.TaskContract`
+      envelope (`data` = the `--json` document minus `ok`); exit 0 clean, 1 refusal.
     * `--help`, `-h` -- this usage text.
 
   ## Contracts are additive
@@ -83,6 +85,7 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
           ontology: :string,
           cardinality: :string,
           json: :boolean,
+          json_envelope: :boolean,
           help: :boolean
         ],
         aliases: [p: :pack, o: :ontology, h: :help]
@@ -111,18 +114,52 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
     gate_result = GgenIgniter.GateVerify.run(pack_dir, ontology_path, cardinality: contracts)
     unbound_result = GgenIgniter.GateVerify.verify_unbound(pack_dir, ontology_path)
 
+    if opts[:json_envelope] do
+      report_envelope(gate_result, unbound_result, contracts, contract_note)
+    end
+
     if opts[:json] do
       report_json(gate_result, unbound_result, contracts, contract_note)
     else
-      report_human(gate_result, unbound_result, contracts, contract_note, pack_dir)
+      unless opts[:json_envelope] do
+        report_human(gate_result, unbound_result, contracts, contract_note, pack_dir)
+      end
     end
 
     if failed?(gate_result) or failed?(unbound_result) do
       # Mix.raise gives the nonzero exit a CI gate needs. Both results are
       # already printed above, so the message names the outcome rather than
-      # repeating the detail.
+      # repeating the detail. Under `--json-envelope` the envelope is the only
+      # stdout, so halt directly with the contract's refusal code (1).
+      if opts[:json_envelope], do: System.halt(1)
+
       Mix.raise("ggen_igniter.verify: pack did not verify (see findings above)")
     end
+  end
+
+  defp report_envelope(gate_result, unbound_result, contracts, contract_note) do
+    failed? = failed?(gate_result) or failed?(unbound_result)
+
+    data = %{
+      "cardinality" => %{
+        "note" => contract_note,
+        "gates_under_contract" => contracts |> Map.keys() |> Enum.sort()
+      },
+      "gates" => gate_json(gate_result),
+      "verify" => unbound_json(unbound_result)
+    }
+
+    env =
+      if failed? do
+        GgenIgniter.TaskContract.envelope("verify", :refusal,
+          data: data,
+          refusal: {"PACK_VERIFY_FAILED", "pack did not verify (see data.gates / data.verify)"}
+        )
+      else
+        GgenIgniter.TaskContract.envelope("verify", :ok, data: data)
+      end
+
+    Mix.shell().info(GgenIgniter.TaskContract.encode(env))
   end
 
   defp failed?({:error, _}), do: true
@@ -235,6 +272,7 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
         --ontology, -o PATH     ontology to verify (default: <pack>/ontology.ttl)
         --cardinality PATH      contract file (default: <pack>/verify/cardinality.json)
         --json                  one JSON document on stdout
+        --json-envelope         same report inside the uniform envelope
         --help, -h              this text
 
     Exits 0 when both checks pass, 1 otherwise.

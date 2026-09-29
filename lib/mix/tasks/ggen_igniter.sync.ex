@@ -243,6 +243,9 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         verify_cwd: :string,
         verify_base_sha: :boolean,
         allow_sh: :boolean,
+        check: :boolean,
+        json: :boolean,
+        lock: :string,
         help: :boolean,
         version: :boolean
       ],
@@ -710,7 +713,187 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     cond do
       opts[:help] -> print_help_and_halt()
       opts[:version] -> print_version_and_halt()
-      true -> run_sync(igniter, opts, pack_template_stem)
+      true -> run_entry(igniter, opts, pack_template_stem)
+    end
+  end
+
+  # `--check` / `--json` / `--lock` entry. A plain run (none of the three) takes the
+  # unchanged `run_sync/3` path. See `GgenIgniter.TaskContract` for the exit-code table
+  # and JSON envelope this path speaks.
+  defp run_entry(igniter, opts, pack_template_stem) do
+    if opts[:check] || opts[:json] || opts[:lock] do
+      run_contract(igniter, opts, pack_template_stem)
+    else
+      run_sync(igniter, opts, pack_template_stem)
+    end
+  end
+
+  @capture_key :ggen_igniter_sync_contract_capture
+
+  # Drift/JSON/lock mode. `--check` forces the SAME dry-run pipeline `--dry-run` uses (so it
+  # covers `--for-each`, `inject:`, manifest staleness exactly as a real sync would decide
+  # them) and turns its "planned: write|inject|prune" lines into the drift set; nothing is
+  # written and no lock is taken. Always ends in `System.halt/1` so Igniter's own footer can
+  # never corrupt `--json` output (lib/mix/tasks/CLAUDE.md quirk 2).
+  defp run_contract(igniter, opts, pack_template_stem) do
+    check? = opts[:check] || false
+    Process.put(@capture_key, %{lines: [], prune: [], notices: []})
+
+    result =
+      try do
+        validate_contract_opts!(opts)
+
+        case check_pack_lock(opts) do
+          :ok ->
+            run_opts = if check?, do: Keyword.put(opts, :dry_run, true), else: opts
+            run_sync(igniter, run_opts, pack_template_stem)
+            {:done, Process.get(@capture_key)}
+
+          {:error, refusal} ->
+            {:refusal, refusal}
+        end
+      rescue
+        e -> classify_failure(e)
+      end
+
+    capture = Process.delete(@capture_key)
+    finish_contract(opts, check?, result, capture)
+  end
+
+  defp validate_contract_opts!(opts) do
+    if opts[:check] and opts[:dry_run] do
+      raise ArgumentError,
+            "--check and --dry-run are mutually exclusive (--check implies a dry run)"
+    end
+
+    if opts[:lock] not in [nil, ""] and opts[:pack] in [nil, ""] and opts[:pack_dir] in [nil, ""] do
+      raise ArgumentError, "--lock PATH requires --pack or --pack-dir"
+    end
+
+    :ok
+  end
+
+  # `--lock PATH` gate: the pack directory's content digest must match the lockfile
+  # (`GgenIgniter.PackLock.check/2`, owned by the pack-lock lane). Called through
+  # `apply/3` so this task compiles whether or not that module is present yet.
+  defp check_pack_lock(opts) do
+    lock_path = opts[:lock]
+
+    if lock_path in [nil, ""] do
+      :ok
+    else
+      mod = GgenIgniter.PackLock
+
+      unless Code.ensure_loaded?(mod) and function_exported?(mod, :check, 2) do
+        raise ArgumentError,
+              "--lock requires GgenIgniter.PackLock (pack lockfile support) which is not available"
+      end
+
+      pack_dir = GgenIgniter.Pack.resolve_dir!(opts)
+
+      case apply(mod, :check, [pack_dir, lock_path]) do
+        :ok ->
+          :ok
+
+        {:error, {:pack_digest_mismatch, %{pack: pack, expected: exp, actual: act}}} ->
+          {:error,
+           {"PACK_DIGEST_MISMATCH", "pack #{pack} digest #{act} does not match lock #{exp}"}}
+
+        {:error, {:lock_missing, path}} ->
+          {:error, {"LOCK_MISSING", "lockfile #{path} not found"}}
+
+        {:error, other} ->
+          {:error, {"PACK_LOCK_FAILED", inspect(other)}}
+      end
+    end
+  end
+
+  defp classify_failure(%ArgumentError{} = e) do
+    msg = Exception.message(e)
+    if msg =~ ~r/refus/i, do: {:refusal, refusal_from_message(msg)}, else: {:invocation, msg}
+  end
+
+  defp classify_failure(e), do: {:refusal, refusal_from_message(Exception.message(e))}
+
+  defp refusal_from_message(msg) do
+    cond do
+      m = Regex.run(~r/REFUSED:([A-Z0-9_]+)/, msg) -> {Enum.at(m, 1), msg}
+      msg =~ ~r/refus/i -> {"SYNC_REFUSED", msg}
+      true -> {"SYNC_FAILED", msg}
+    end
+  end
+
+  defp finish_contract(opts, check?, result, capture) do
+    case result do
+      {:done, cap} ->
+        drift = if check?, do: drifted_entries(cap), else: []
+
+        if drift == [] do
+          emit(opts, :ok, "sync", data(cap, check?, drift), nil, clean_text(check?, cap))
+          System.halt(0)
+        else
+          emit(opts, :drift, "sync", data(cap, check?, drift), nil, drift_text(drift))
+          System.halt(4)
+        end
+
+      {:refusal, refusal} ->
+        emit(opts, :refusal, "sync", data(capture, check?, []), refusal, nil)
+        System.halt(1)
+
+      {:invocation, msg} ->
+        emit(opts, :invocation, "sync", data(capture, check?, []), {"INVOCATION", msg}, nil)
+        System.halt(2)
+    end
+  end
+
+  defp data(cap, check?, drift) do
+    cap = cap || %{lines: [], prune: [], notices: []}
+
+    %{
+      "mode" => if(check?, do: "check", else: "sync"),
+      "drifted" => Enum.map(drift, fn {op, path} -> %{"operation" => op, "path" => path} end),
+      "drifted_count" => length(drift),
+      "lines" => cap.lines ++ cap.prune,
+      "notices" => cap.notices
+    }
+  end
+
+  # Drift = any dry-run decision that would still change bytes on disk: a planned write or
+  # inject (new or differing content), or a planned prune of a stale recipe output.
+  # "planned: skip ... (unchanged)" and "planned: evaluate ..." are not drift.
+  defp drifted_entries(nil), do: []
+
+  defp drifted_entries(cap) do
+    Enum.flat_map(cap.lines ++ cap.prune, fn
+      "planned: write " <> path -> [{"write", path}]
+      "planned: inject " <> path -> [{"inject", path}]
+      "planned: prune " <> path -> [{"prune", path}]
+      _ -> []
+    end)
+  end
+
+  defp clean_text(true, _cap), do: "ggen_igniter.sync --check: clean (0 drifted files)"
+
+  defp clean_text(false, cap),
+    do: Enum.join(cap.notices ++ cap.lines ++ cap.prune, "\n")
+
+  defp drift_text(drift) do
+    header =
+      "ggen_igniter.sync --check: DRIFT -- #{length(drift)} file(s) differ from the ontology:"
+
+    Enum.join([header | Enum.map(drift, fn {op, path} -> "  #{op} #{path}" end)], "\n")
+  end
+
+  defp emit(opts, outcome, task, data, refusal, text) do
+    if opts[:json] do
+      env = GgenIgniter.TaskContract.envelope(task, outcome, data: data, refusal: refusal)
+      IO.puts(GgenIgniter.TaskContract.encode(env))
+    else
+      cond do
+        refusal -> IO.puts(:stderr, GgenIgniter.TaskContract.refusal_text(refusal))
+        text -> IO.puts(text)
+        true -> :ok
+      end
     end
   end
 
@@ -726,7 +909,8 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
                                [--pack NAME | --pack-dir DIR] [--for-each NAME]
                                [--mode file|eval] [--on-stale refuse|prune|preserve]
                                [--manifest-dir DIR] [--unless-exists] [--skip-if EXPR]
-                               [--allow-sh] [--dry-run] [--help] [--version]
+                               [--allow-sh] [--dry-run | --check] [--json]
+                               [--lock PATH] [--help] [--version]
 
     FLAGS
         --ontology PATH     Path to the RDF/Turtle ontology to load.
@@ -757,6 +941,13 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         --allow-sh          Required if any template frontmatter sets sh_before:/sh_after:
                              (default: refuse the whole run before any actuation).
         --dry-run           Preview actuation without writing/deleting anything.
+        --check             Drift check (implies a dry run, no lock, zero writes): exit 0
+                             when committed generated files match what the ontology
+                             produces, exit 4 listing each drifted path otherwise.
+        --json              Emit one JSON envelope (schema_version, task, ok, exit_code,
+                             standing, refusal, data) instead of text; see exit-codes.md.
+        --lock PATH         Refuse (REFUSED:PACK_DIGEST_MISMATCH, exit 1) unless the pack
+                             directory's digest matches the lockfile at PATH.
         --help, -h          Print this help and exit 0.
         --version, -v       Print ggen_igniter's version and exit 0.
 
@@ -789,7 +980,15 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
   defp run_sync(igniter, opts, pack_template_stem) do
     lock_key = opts[:manifest_dir] || File.cwd!()
-    {:ok, lock_ref} = GgenIgniter.Lock.acquire(lock_key, [])
+
+    # `--check` is read-only (dry run): like `plan`, it takes no lock and writes nothing.
+    lock_ref =
+      if opts[:check] do
+        nil
+      else
+        {:ok, ref} = GgenIgniter.Lock.acquire(lock_key, [])
+        ref
+      end
 
     try do
       # `run_via_reactor/3` now always returns `{:ok, result_igniter}` -- as of
@@ -823,7 +1022,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
           end)
       end
     after
-      GgenIgniter.Lock.release(lock_ref)
+      if lock_ref, do: GgenIgniter.Lock.release(lock_ref)
     end
   end
 
@@ -1122,29 +1321,44 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       {:ok, receipt} ->
         notice = receipt.metadata["notice"] || "reconciled"
 
-        # Mirrors `run_pipeline!/3`'s own `if dry_run, do:
-        # Mix.shell().info(line)` -- printed DURING the run (not just
-        # returned as an `Igniter.add_notice/2` notice, which an
-        # in-process caller invoking `igniter/1` directly -- never
-        # through the outer Mix-task/`Igniter.do_or_dry_run/2`
-        # printing machinery -- would otherwise never see at all).
-        for line <- receipt.metadata["dry_run_lines"] || [], do: Mix.shell().info(line)
+        if capture = Process.get(@capture_key) do
+          Process.put(@capture_key, %{
+            capture
+            | lines: capture.lines ++ (receipt.metadata["dry_run_lines"] || []),
+              prune: capture.prune ++ (receipt.metadata["prune_lines"] || []),
+              notices: capture.notices ++ [notice]
+          })
 
-        # v26.9.2 (workstream B): real `--on-stale prune`/`preserve` notice
-        # text, mirroring `apply_stale_policy!/2`'s own conventions -- see
-        # `ReconcileReactor.finalize_evidence/1`'s own comment for why this
-        # is returned as metadata (printed here, not inside the reactor
-        # module) rather than a silent notice-text regression for
-        # `--for-each` recipes now that they reach this pipeline too.
-        for line <- receipt.metadata["prune_lines"] || [], do: Mix.shell().info(line)
-        if warning = receipt.metadata["preserve_warning"], do: Mix.shell().error(warning)
-
-        {:ok, Igniter.add_notice(igniter, "ggen_igniter: #{notice} (via reactor)")}
+          {:ok, igniter}
+        else
+          dispatch_reactor_notice(igniter, receipt, notice)
+        end
 
       {:error, receipt} ->
         raise "ggen_igniter: reactor reconciliation failed (#{receipt.standing}): " <>
                 (receipt.reason || "no reason recorded")
     end
+  end
+
+  defp dispatch_reactor_notice(igniter, receipt, notice) do
+    # Mirrors `run_pipeline!/3`'s own `if dry_run, do:
+    # Mix.shell().info(line)` -- printed DURING the run (not just
+    # returned as an `Igniter.add_notice/2` notice, which an
+    # in-process caller invoking `igniter/1` directly -- never
+    # through the outer Mix-task/`Igniter.do_or_dry_run/2`
+    # printing machinery -- would otherwise never see at all).
+    for line <- receipt.metadata["dry_run_lines"] || [], do: Mix.shell().info(line)
+
+    # v26.9.2 (workstream B): real `--on-stale prune`/`preserve` notice
+    # text, mirroring `apply_stale_policy!/2`'s own conventions -- see
+    # `ReconcileReactor.finalize_evidence/1`'s own comment for why this
+    # is returned as metadata (printed here, not inside the reactor
+    # module) rather than a silent notice-text regression for
+    # `--for-each` recipes now that they reach this pipeline too.
+    for line <- receipt.metadata["prune_lines"] || [], do: Mix.shell().info(line)
+    if warning = receipt.metadata["preserve_warning"], do: Mix.shell().error(warning)
+
+    {:ok, Igniter.add_notice(igniter, "ggen_igniter: #{notice} (via reactor)")}
   end
 
   # -- Opt-in git ground truth for WorkOrder baseSha --------------------------

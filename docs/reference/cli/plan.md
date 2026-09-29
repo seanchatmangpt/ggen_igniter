@@ -57,6 +57,7 @@ therefore lock.
 | `--engine NAME` | string | `"oxigraph"` | One of `oxigraph`, `sparql`, `qlever` — see `engines.md`. |
 | `--store-id ID` | string | *(required only when `--engine qlever`)* | Same as `sync`'s `--store-id`. |
 | `--json` | boolean | `false` | Emit the plan as a stable, script-parseable JSON object instead of human-readable text. |
+| `--json-envelope` | boolean | `false` | Emit the plan inside the uniform envelope (`GgenIgniter.TaskContract`): `data` is exactly the `--json` document; errors become `refusal`/exit-coded envelopes. Additive — plain `--json` is unchanged. |
 | `--quiet` | boolean | `false` | Suppress non-essential human-readable output (no effect on `--json`). |
 | `--verbose` | boolean | `false` | Human-readable form only: also prints each pending actuation's `semantic_source` and `logical_id`. |
 | `--no-color` | boolean | `false` | Accepted for consistency with other `ggen_igniter.*` tasks; this task's output uses no ANSI color regardless. |
@@ -123,6 +124,10 @@ mix ggen_igniter.plan --template test/fixtures/extension.ex.eex \
 | `0` | Help/version printed, or plan computed successfully — admitted cleanly, whether or not any item would actually change anything (an all-unchanged plan is still exit 0). |
 | `2` | Invalid invocation: no `--template` and no `--pack`/`--pack-dir` with a discoverable template; no queries resolvable; `--engine qlever` without `--store-id`; a bad `--pack`/`--pack-dir` name. Uses the same `ArgumentError` vocabulary `mix ggen_igniter.sync` already raises for these, caught here and turned into a clean exit instead of a raw stack trace. |
 | `3` | Unsupported capability for the read-only plan path specifically — the resolved template/run needs `:actuate`-adjacent behavior `plan/1` cannot admit without executing it, or uses a feature outside `GgenIgniter.Reconcile.run/1`'s bounded reactor scope (frontmatter `inject: true`, `--for-each` fan-out). |
+
+`plan` exits `0` even when changes are pending — it is a preview, not a gate. To fail a CI
+job when committed generated files drift from the ontology, use `mix ggen_igniter.sync --check`
+(exit `4`). The global table lives in [exit-codes.md](exit-codes.md).
 
 ## Examples
 
