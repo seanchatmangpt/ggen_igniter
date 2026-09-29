@@ -2400,3 +2400,49 @@ sj:WorkOrder rdfs:subClassOf oslc_cm:ChangeRequest .
 # A receipt is a persisted, digest-identified record: a prov:Entity
 # (PROV-O sec 2.1, "physical, digital, conceptual, or other kind of thing").
 sj:Receipt rdfs:subClassOf prov:Entity .
+
+# SJ-003 (v26.9.28): closure of the open Semantic Jira items measured at
+# e45d2f5. Origin is the existing admitted authority; no new authority minted.
+sj:sj-003 a sj:WorkOrder ;
+    dcterms:identifier "SJ-003" ;
+    dcterms:title "v26.9.28 Semantic Jira closure: vocabulary mappings, PROV-O ledger export, promotion blocked on BRCE" ;
+    dcterms:description "Close the open Semantic Jira items at v26.9.28: ADR-011 additive public-vocabulary mappings, concurrent-writer safety and PROV-O export of the transition ledger, and an honest standing ledger. Standing promotion is not claimed: it needs an independent BRCE/CommandBus court receipt, which is external to this repository." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "e45d2f597f16fd2a3da21b78ce2c91fe4714169b" ;
+    sj:subject "semantic-jira:sj-003-v26-9-28-closure" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack", "lib/ggen_igniter/semantic_jira", "docs/architecture/adr/ADR-011-reduce-sj-toward-public-vocabularies.md" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, typed dependencies, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; predecessor standing is not inherited." ;
+    sj:replayIdentity "semantic-jira:v26.9.28:SJ-003" ;
+    sj:originAuthority sj:objective-code-work-authority ;
+    sj:requiresCourt sj:court-sj-003 ;
+    sj:requiresEvidence sj:source-evidence, sj:receipt-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-sj-003 ;
+    sj:falsifier sj:falsifier-sj-003 ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a ;
+    sj:nextAction sj:run-sj-003-court ;
+    sj:nextCheckpoint sj:sj-003-checkpoint .
+
+sj:court-sj-003 a sj:Court ;
+    rdfs:label "SJ-003 exact-subject court" ;
+    dcterms:description "Independent court for the v26.9.28 closure; binds exact head, tool, environment, and receipt identity. An external BRCE/CommandBus court is required for any standing promotion." .
+
+sj:acceptance-sj-003 a sj:AcceptanceCriterion ;
+    rdfs:label "SJ-003 acceptance" ;
+    dcterms:description "R1: exactly two ADR-011 subClassOf edges reach public namespaces and SHACL verdicts are unchanged by them. R2: the TransitionLog loses, tears or duplicates no event under parallel writers, and the PROV-O export of a ledger is byte-deterministic and passes SHACL. R3: the full suite is green on exact head, with any failure labelled pre-existing or introduced. R4: no standing above UNKNOWN is claimed without an independent BRCE receipt." .
+
+sj:falsifier-sj-003 a sj:Falsifier ;
+    rdfs:label "SJ-003 falsifier" ;
+    dcterms:description "A mapped term with divergent semantics is asserted; two parallel writers lose or duplicate a ledger event; the same ledger exports to different PROV-O bytes; or any ticket or doc claims standing above UNKNOWN without a BRCE-produced receipt." .
+
+sj:run-sj-003-court a sj:Action ;
+    rdfs:label "Run SJ-003 court" ;
+    dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
+
+sj:sj-003-checkpoint a sj:Checkpoint ;
+    rdfs:label "SJ-003 checkpoint" ;
+    dcterms:description "SJ-003 gates green on exact head; BRCE receipt for standing promotion remains BLOCKED." .

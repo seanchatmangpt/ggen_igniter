@@ -107,7 +107,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 34
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -218,7 +218,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.prd.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.prd.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.prd.md"))) == 34
+      assert length(Path.wildcard(Path.join(work_dir, "*.prd.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -306,7 +306,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.hddl"))
       assert File.exists?(Path.join(work_dir, "GALL-032.hddl"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.hddl"))) == 34
+      assert length(Path.wildcard(Path.join(work_dir, "*.hddl"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -374,7 +374,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert exit_code == 0, "HDDL sync failed:\n#{output}"
 
       paths = Path.wildcard(Path.join(work_dir, "*.hddl"))
-      assert length(paths) == 34
+      assert length(paths) == 35
 
       for path <- paths do
         id = Path.basename(path, ".hddl")
@@ -469,7 +469,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       # One WorkOrder object per canonical WorkOrder, boundary attributes bound.
       work_order_objects = Enum.filter(objects, &(&1["ocel:type"] == "WorkOrder"))
-      assert length(work_order_objects) == 34
+      assert length(work_order_objects) == 35
 
       object_ids = Enum.map(objects, & &1["ocel:id"])
       assert length(object_ids) == length(Enum.uniq(object_ids))
@@ -595,7 +595,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.ard.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.ard.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.ard.md"))) == 34
+      assert length(Path.wildcard(Path.join(work_dir, "*.ard.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -712,7 +712,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.vision.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.vision.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.vision.md"))) == 34
+      assert length(Path.wildcard(Path.join(work_dir, "*.vision.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -802,7 +802,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.wbpr.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.wbpr.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.wbpr.md"))) == 34
+      assert length(Path.wildcard(Path.join(work_dir, "*.wbpr.md"))) == 35
 
       first_bytes = File.read!(output_path)
 
@@ -1028,9 +1028,25 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       pack = GgenIgniter.Ontology.load!(@ontology_path)
       shapes = GgenIgniter.Ontology.load!(SemanticJira.Shacl.pack_shapes_path())
 
-      # Premise pinned: neither the pack ontology nor its shapes mention
-      # oslc_cm, so ChangeRequest typing is undeclared here.
-      refute File.read!(@ontology_path) =~ "open-services.net/ns/cm#"
+      # Premise pinned: no shape mentions oslc_cm, and the pack ontology
+      # mentions it only as the ADR-011 additive superclass edge
+      # `sj:WorkOrder rdfs:subClassOf oslc_cm:ChangeRequest` (the prefix line,
+      # the class declaration, and that edge). The edge points sj: -> public,
+      # so a ChangeRequest-only node is still not an sj:WorkOrder; the gate
+      # and SHACL assertions below are the actual guard and are unchanged.
+      oslc_lines =
+        @ontology_path
+        |> File.read!()
+        |> String.split("\n")
+        |> Enum.filter(&(&1 =~ "oslc_cm:" or &1 =~ "open-services.net/ns/cm#"))
+        |> Enum.reject(&String.starts_with?(&1, "#"))
+
+      assert Enum.sort(oslc_lines) ==
+               Enum.sort([
+                 "@prefix oslc_cm: <http://open-services.net/ns/cm#> .",
+                 "oslc_cm:ChangeRequest a rdfs:Class .",
+                 "sj:WorkOrder rdfs:subClassOf oslc_cm:ChangeRequest ."
+               ])
 
       refute "priv/ggen/semantic-jira-pack/shapes/*.ttl"
              |> Path.wildcard()
@@ -1560,7 +1576,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(Path.join(work_dir, "SJ-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 34
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
     end
 
     test "flag on over a forged-but-well-formed 40-hex baseSha refuses before any actuation" do
@@ -1593,7 +1609,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       {output, exit_code} = run_sync(work_dir)
 
       assert exit_code == 0, "flag-off honest sync failed:\n#{output}"
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 34
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
     end
 
     test "flag on with a non-git --verify-cwd refuses cleanly, not a crash" do
@@ -1646,7 +1662,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       assert exit_code == 0, "per-order git-ground-truth control failed:\n#{output}"
       assert File.exists?(Path.join(work_dir, "SJ-001.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 34
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
     end
   end
 
