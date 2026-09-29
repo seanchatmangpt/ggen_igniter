@@ -1,0 +1,2 @@
+PREFIX sa2a: <https://seanchatmangpt.github.io/sa2a#>
+ASK { ?x sa2a:replayDigest ?v . FILTER(!BOUND(?v)) }
