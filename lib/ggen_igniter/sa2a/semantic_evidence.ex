@@ -135,10 +135,20 @@ defmodule GgenIgniter.SA2A.SemanticEvidence do
 
   defp canonical_json(value), do: raise(ArgumentError, "non-JSON evidence value: #{inspect(value)}")
 
-  defp sha256("sha256:" <> hex, _subject) when byte_size(hex) == 64 and hex =~ ~r/\A[0-9a-f]{64}\z/, do: :ok
+  defp sha256("sha256:" <> hex = value, subject) when byte_size(hex) == 64 do
+    if Regex.match?(~r/\A[0-9a-f]{64}\z/, hex),
+      do: :ok,
+      else: refuse(subject, %{observed: value})
+  end
+
   defp sha256(value, subject), do: refuse(subject, %{observed: value})
 
-  defp absolute(value, _subject) when is_binary(value) and value =~ ~r/\A(urn:[A-Za-z0-9][A-Za-z0-9-]*:\S+|https?:\/\/[^\s\/?#]+\S*)\z/, do: :ok
+  defp absolute(value, subject) when is_binary(value) do
+    if Regex.match?(~r/\A(urn:[A-Za-z0-9][A-Za-z0-9-]*:\S+|https?:\/\/[^\s\/?#]+\S*)\z/, value),
+      do: :ok,
+      else: refuse(subject, %{observed: value})
+  end
+
   defp absolute(value, subject), do: refuse(subject, %{observed: value})
 
   defp non_empty(value, _subject) when is_binary(value) and byte_size(value) > 0, do: :ok
