@@ -1,0 +1,13 @@
+# Optional prose facts, one row per task that has ALL of them. Kept as its own gate (not
+# OPTIONAL columns in 010) because an unbound OPTIONAL column is an undefined template
+# variable; the template falls back to the summary-derived docs when a task has no row.
+PREFIX ig: <https://ggen-igniter.dev/ontology/igniter-task#>
+SELECT DISTINCT ?task ?moduledoc_body ?help_lead ?examples ?exit_codes ?run_comment WHERE {
+  ?task a ig:Task ;
+        ig:moduledocBody ?moduledoc_body ;
+        ig:helpLead ?help_lead ;
+        ig:examples ?examples ;
+        ig:exitCodes ?exit_codes ;
+        ig:runComment ?run_comment .
+}
+ORDER BY ?task

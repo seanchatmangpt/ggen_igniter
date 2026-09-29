@@ -16,6 +16,11 @@ ig:summary a rdf:Property ; rdfs:range xsd:string .        # moduledoc lead + he
 ig:example a rdf:Property ; rdfs:range xsd:string .
 ig:delegateModule a rdf:Property ; rdfs:range xsd:string . # "GgenIgniter.Refactors.SafeRename"
 ig:delegateFunction a rdf:Property ; rdfs:range xsd:string .
+ig:moduledocBody a rdf:Property ; rdfs:range xsd:string .   # full @moduledoc text, unindented
+ig:helpLead a rdf:Property ; rdfs:range xsd:string .       # text after "mix <task> -- " in --help (may span lines)
+ig:examples a rdf:Property ; rdfs:range xsd:string .       # EXAMPLES block lines of --help, unindented
+ig:exitCodes a rdf:Property ; rdfs:range xsd:string .      # EXIT CODES block lines of --help, unindented
+ig:runComment a rdf:Property ; rdfs:range xsd:string .     # comment lines above run/1, without "# "
 ig:delegateArity a rdf:Property ; rdfs:range xsd:integer . # 1: fun(igniter); 2: fun(igniter, options)
 ig:optionOf a rdf:Property .
 ig:optName a rdf:Property ; rdfs:range xsd:string .
@@ -35,9 +40,81 @@ ig:task-rename a ig:Task ;
     ig:shortdoc "Renames a function across the project via GgenIgniter.Refactors.SafeRename" ;
     ig:summary "renames a function via the real, tested GgenIgniter.Refactors.SafeRename.rename_function/4" ;
     ig:example "mix ggen_igniter.rename --from OldMod.old_fun --to NewMod.new_fun" ;
-    ig:delegateModule "GgenIgniter.Refactors.SafeRename" ;
-    ig:delegateFunction "rename_function" ;
-    ig:delegateArity 4 .
+    ig:delegateModule "GgenIgniter.Refactors.RenameOptions" ;
+    ig:delegateFunction "rename" ;
+    ig:delegateArity 2 ;
+    ig:moduledocBody '''Renames a function across the project via
+`GgenIgniter.Refactors.SafeRename.rename_function/4` -- the safe,
+defect-routed wrapper around `Igniter.Refactors.Rename.rename_function/4`.
+
+`GgenIgniter.Refactors.SafeRename` (`lib/ggen_igniter/refactors/safe_rename.ex`) is a
+real, already-tested Sourceror-based codemod primitive with the same signature and
+return type as `Igniter.Refactors.Rename.rename_function/4`, but it routes around two
+confirmed upstream defects (`deps/igniter` v0.8.3, `rename.ex:168-169`/`:325-326`)
+documented in that module's own `@moduledoc`:
+
+  1. A guarded def (`def foo(x) when x > 0 do`) is silently left un-renamed by
+     upstream while its call sites ARE renamed, producing a broken program.
+  2. A parenless zero-arity def (`def foo do ... end`) crashes upstream's
+     `rename_function/4` outright with `length(nil)`.
+
+Before this task, `SafeRename.rename_function/4` had no CLI surface -- every real
+caller had to invoke it from Elixir directly. This task is the thin, additive wiring:
+parse `--from`/`--to`, call the real `SafeRename.rename_function/4`, and let
+`Igniter.Mix.Task`'s own diff/prompt/`--dry-run`/`--yes` machinery handle the rest.
+
+## Options
+
+  * `--from MODULE.function[/arity]` (required) -- the existing module and function,
+    e.g. `--from MyApp.Sample.foo` or `--from MyApp.Sample.foo/1` to scope the rename
+    to one arity.
+  * `--to MODULE.function[/arity]` (required) -- the new module and function. If the
+    new module differs from `--from`'s module, the function (and, for the unguarded
+    case, its upstream-renamed body) moves there -- same semantics as
+    `Igniter.Refactors.Rename.rename_function/4`. An arity given here must match
+    `--from`'s arity (or be omitted).
+  * `--arity N` -- overrides any arity parsed from `--from`/`--to`; omit to rename
+    every arity (`Igniter.Refactors.Rename.rename_function/4`'s own `:any` default).
+  * `--deprecate soft|hard` -- leave the old function in place, deprecated, instead of
+    removing it (same two upstream deprecation levels; `soft` only affects docs,
+    `hard` emits a runtime warning when the old name is still called).
+  * `--path DIR` (default: none) -- pre-warms Igniter's source index with every
+    `.ex`/`.exs` file under `DIR` before searching for `--from`'s module, for a
+    project layout where the module does not live under the configured
+    `:source_folders` (default `lib`, `test/support`) or under `test/` (both of which
+    `Igniter.Project.Module.find_module/2` already searches without this flag).
+
+## Examples
+
+```bash
+mix ggen_igniter.rename --from MyApp.Sample.foo --to MyApp.Sample.bar
+mix ggen_igniter.rename --from MyApp.Old.run/2 --to MyApp.New.run --path lib/my_app
+mix ggen_igniter.rename --from MyApp.Sample.foo --to MyApp.Sample.bar --deprecate soft
+```
+
+## Exit codes
+
+  * `0` -- rename applied (or, under `--dry-run`, the diff was printed and nothing
+    written).
+  * `1` -- invalid `--from`/`--to` format, a mismatched arity between `--from` and
+    `--to`, or an invalid `--deprecate` value.''' ;
+    ig:helpLead '''renames a function via the real, tested
+GgenIgniter.Refactors.SafeRename.rename_function/4 (routes around two
+confirmed Igniter.Refactors.Rename.rename_function/4 defects: a silently
+un-renamed guarded def, and a length(nil) crash on a parenless zero-arity
+def)''' ;
+    ig:examples '''mix ggen_igniter.rename --from MyApp.Sample.foo --to MyApp.Sample.bar
+mix ggen_igniter.rename --from MyApp.Old.run/2 --to MyApp.New.run
+mix ggen_igniter.rename --from MyApp.Sample.foo --to MyApp.Sample.bar --deprecate soft''' ;
+    ig:exitCodes '''0  applied (or, under --dry-run, diff printed and nothing written)
+1  invalid --from/--to/--deprecate, or a --from/--to arity mismatch''' ;
+    ig:runComment '''`Igniter.Mix.Task`'s generated `run/1` only ever matches the literal
+string "--help" (never the `-h` alias, even though `-h` is aliased to
+`:help` in info/2's schema above) before dispatching to Mix's generic
+`mix help ggen_igniter.rename` renderer (the full raw @moduledoc) instead
+of this task's own concise help text -- the exact AR-11 quirk
+`lib/mix/tasks/CLAUDE.md` documents and requires every new
+`Igniter.Mix.Task` to fix the same way `sync.ex`/`doctor.ex`/`plan.ex` do.''' .
 
 ig:opt-rename-from a ig:Option ; ig:optionOf ig:task-rename ; ig:optName "from" ; ig:optType "string" ;
     ig:optRequired true ; ig:optInSchema true ; ig:optMetavar "MODULE.function[/arity]" ; ig:optOrder 1 ;
