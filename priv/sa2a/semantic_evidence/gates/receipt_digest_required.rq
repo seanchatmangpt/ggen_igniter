@@ -1,0 +1,2 @@
+PREFIX sa2a: <https://seanchatmangpt.github.io/sa2a#>
+ASK { ?x sa2a:receiptDigest ?v . FILTER(!BOUND(?v)) }
