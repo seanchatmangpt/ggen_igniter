@@ -108,5 +108,5 @@ defmodule GgenIgniter.SA2ADiataxis do
   end
 
   defp ttl(value),
-    do: value |> to_string() |> String.replace("\\", "\\\\") |> String.replace("\"", "\\"")
+    do: value |> to_string() |> String.replace("\\", "\\\\") |> String.replace("\"", "\\\"")
 end
