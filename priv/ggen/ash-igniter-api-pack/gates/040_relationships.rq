@@ -1,7 +1,9 @@
 PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
 
-SELECT ?relationship_kind ?relationship_name ?destination ?is_public ?is_required ?ord
+SELECT ?resource_module ?relationship_kind ?relationship_name ?destination ?is_public ?is_required ?ord
 WHERE {
+  ?r aia:resourceOf ?res .
+  ?res aia:resourceModule ?resource_module .
   ?r a aia:Relationship ;
      aia:relationshipKind ?relationship_kind ;
      aia:relationshipName ?relationship_name ;
@@ -10,4 +12,4 @@ WHERE {
      aia:isRequired ?is_required ;
      aia:order ?ord .
 }
-ORDER BY ?ord
+ORDER BY ?resource_module ?ord

@@ -1,12 +1,10 @@
 PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
 
 # Single-row: flattened into bare EEx bindings.
-SELECT ?otp_app ?task_module ?task_name ?domain_module ?resource_module
+SELECT ?otp_app ?task_module ?task_name
 WHERE {
   ?p a aia:Project ;
      aia:otpApp ?otp_app ;
      aia:taskModule ?task_module ;
-     aia:taskName ?task_name ;
-     aia:domainModule ?domain_module ;
-     aia:resourceModule ?resource_module .
+     aia:taskName ?task_name .
 }

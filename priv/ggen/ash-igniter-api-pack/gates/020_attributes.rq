@@ -1,7 +1,9 @@
 PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
 
-SELECT ?attribute_name ?attribute_type ?is_public ?is_required ?ord
+SELECT ?resource_module ?attribute_name ?attribute_type ?is_public ?is_required ?ord
 WHERE {
+  ?a aia:resourceOf ?res .
+  ?res aia:resourceModule ?resource_module .
   ?a a aia:Attribute ;
      aia:attributeName ?attribute_name ;
      aia:attributeType ?attribute_type ;
@@ -9,4 +11,4 @@ WHERE {
      aia:isRequired ?is_required ;
      aia:order ?ord .
 }
-ORDER BY ?ord
+ORDER BY ?resource_module ?ord

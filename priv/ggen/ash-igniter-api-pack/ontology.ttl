@@ -5,10 +5,11 @@
 #################################################################
 # Vocabulary
 #
-# Semantic facts about ONE Ash resource (attributes, actions, relationships,
+# Semantic facts about N Ash resources (each member links to its resource via
+# aia:resourceOf) (attributes, actions, relationships,
 # identities, calculations, policies). templates/api_task.ex.eex projects them
-# into an Igniter.Mix.Task that composes `ash.gen.resource` ONCE for the base
-# module and then applies every other fact through the idempotent structural
+# into ONE Igniter.Mix.Task composing every resource (one `ash.gen.resource` call
+# per resource, in aia:order) and then applies every other fact through the idempotent structural
 # APIs of Ash.Resource.Igniter / Ash.Domain.Igniter (add_new_* checks
 # existence by name before adding). The ontology stores no CLI strings and no
 # Ash source; only names, types and flags.
@@ -19,6 +20,8 @@
 
 aia:Project a rdfs:Class .
 aia:Resource a rdfs:Class .
+aia:resourceOf a rdf:Property ;
+    rdfs:comment "Links a member fact (attribute/action/relationship/identity/calculation/policy) to its aia:Resource." .
 aia:Attribute a rdfs:Class .
 aia:Action a rdfs:Class .
 aia:Relationship a rdfs:Class .
@@ -27,52 +30,77 @@ aia:Calculation a rdfs:Class .
 aia:Policy a rdfs:Class .
 
 #################################################################
-# Instance: Shop.Catalog.Book
+# Instance: Shop.Catalog.{Book, Author} -- Book belongs_to Author,
+# Author has_many Book (the cross relationship, declared on both sides)
 #################################################################
 
 aia:project a aia:Project ;
     aia:otpApp "shop" ;
-    aia:taskModule "Mix.Tasks.Shop.Manufacture.Book" ;
-    aia:taskName "shop.manufacture.book" ;
-    aia:domainModule "Shop.Catalog" ;
-    aia:resourceModule "Shop.Catalog.Book" .
+    aia:taskModule "Mix.Tasks.Shop.Manufacture.Catalog" ;
+    aia:taskName "shop.manufacture.catalog" .
 
-aia:attrTitle a aia:Attribute ;
+aia:resBook a aia:Resource ;
+    aia:resourceModule "Shop.Catalog.Book" ; aia:domainModule "Shop.Catalog" ; aia:order 1 .
+
+aia:resAuthor a aia:Resource ;
+    aia:resourceModule "Shop.Catalog.Author" ; aia:domainModule "Shop.Catalog" ; aia:order 2 .
+
+# ---- Book ----
+
+aia:attrTitle a aia:Attribute ; aia:resourceOf aia:resBook ;
     aia:attributeName "title" ; aia:attributeType "string" ;
     aia:isPublic true ; aia:isRequired true ; aia:order 1 .
 
-aia:attrIsbn a aia:Attribute ;
+aia:attrIsbn a aia:Attribute ; aia:resourceOf aia:resBook ;
     aia:attributeName "isbn" ; aia:attributeType "string" ;
     aia:isPublic true ; aia:isRequired false ; aia:order 2 .
 
-aia:attrPages a aia:Attribute ;
+aia:attrPages a aia:Attribute ; aia:resourceOf aia:resBook ;
     aia:attributeName "pages" ; aia:attributeType "integer" ;
     aia:isPublic true ; aia:isRequired false ; aia:order 3 .
 
-aia:actCreate a aia:Action ;
+aia:actCreate a aia:Action ; aia:resourceOf aia:resBook ;
     aia:actionName "register" ; aia:actionType "create" ;
     aia:accepts "title,isbn,pages" ; aia:order 1 .
 
-aia:actUpdate a aia:Action ;
+aia:actUpdate a aia:Action ; aia:resourceOf aia:resBook ;
     aia:actionName "revise" ; aia:actionType "update" ;
     aia:accepts "title,pages" ; aia:order 2 .
 
-aia:actRead a aia:Action ;
+aia:actRead a aia:Action ; aia:resourceOf aia:resBook ;
     aia:actionName "by_isbn" ; aia:actionType "read" ;
     aia:accepts "" ; aia:order 3 .
 
-aia:relAuthor a aia:Relationship ;
+aia:relAuthor a aia:Relationship ; aia:resourceOf aia:resBook ;
     aia:relationshipKind "belongs_to" ; aia:relationshipName "author" ;
     aia:destination "Shop.Catalog.Author" ;
     aia:isPublic true ; aia:isRequired false ; aia:order 1 .
 
-aia:idIsbn a aia:Identity ;
+aia:idIsbn a aia:Identity ; aia:resourceOf aia:resBook ;
     aia:identityName "unique_isbn" ; aia:identityKeys "isbn" ; aia:order 1 .
 
-aia:calcLen a aia:Calculation ;
+aia:calcLen a aia:Calculation ; aia:resourceOf aia:resBook ;
     aia:calculationName "title_length" ; aia:calculationType "integer" ;
     aia:calculationExpr "expr(string_length(title))" ; aia:order 1 .
 
-aia:polRead a aia:Policy ;
+aia:polRead a aia:Policy ; aia:resourceOf aia:resBook ;
     aia:policyCondition "action_type(:read)" ;
     aia:policyBody "authorize_if always()" ; aia:order 1 .
+
+# ---- Author ----
+
+aia:attrAuthorName a aia:Attribute ; aia:resourceOf aia:resAuthor ;
+    aia:attributeName "name" ; aia:attributeType "string" ;
+    aia:isPublic true ; aia:isRequired true ; aia:order 1 .
+
+aia:actAuthorEnroll a aia:Action ; aia:resourceOf aia:resAuthor ;
+    aia:actionName "enroll" ; aia:actionType "create" ;
+    aia:accepts "name" ; aia:order 1 .
+
+aia:relBooks a aia:Relationship ; aia:resourceOf aia:resAuthor ;
+    aia:relationshipKind "has_many" ; aia:relationshipName "books" ;
+    aia:destination "Shop.Catalog.Book" ;
+    aia:isPublic true ; aia:isRequired false ; aia:order 1 .
+
+aia:idAuthorName a aia:Identity ; aia:resourceOf aia:resAuthor ;
+    aia:identityName "unique_name" ; aia:identityKeys "name" ; aia:order 1 .

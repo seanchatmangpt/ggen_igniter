@@ -1,0 +1,10 @@
+PREFIX aia: <https://ggen-igniter.dev/ontology/ash-igniter-api#>
+
+SELECT ?resource_module ?domain_module ?ord
+WHERE {
+  ?r a aia:Resource ;
+     aia:resourceModule ?resource_module ;
+     aia:domainModule ?domain_module ;
+     aia:order ?ord .
+}
+ORDER BY ?ord

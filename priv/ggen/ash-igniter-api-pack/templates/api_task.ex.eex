@@ -66,14 +66,39 @@ mode: file
       "{#{inspect(p["policy_condition"])}, #{inspect(p["policy_body"])}}"
     end) <> "]"
   end
-%>defmodule <%= task_module %> do
-  @shortdoc "Applies <%= resource_module %>'s attributes, actions, relationships, identities, calculations and policies."
+
+  for_resource = fn rows, m -> Enum.filter(rows, &(&1["resource_module"] == m)) end
+
+  spec_literal = fn r ->
+    m = r["resource_module"]
+
+    """
+    %{
+        module: #{m},
+        domain: #{r["domain_module"]},
+        attributes: #{pairs.(for_resource.(attributes, m), "attribute_name", attribute_code)},
+        actions: #{pairs.(for_resource.(actions, m), "action_name", action_code)},
+        relationships: #{pairs.(for_resource.(relationships, m), "relationship_name", relationship_code)},
+        identities: #{pairs.(for_resource.(identities, m), "identity_name", identity_code)},
+        calculations: #{pairs.(for_resource.(calculations, m), "calculation_name", calculation_code)},
+        policies: #{policy_literals.(for_resource.(policies, m))}
+      }\
+    """
+  end
+
+  specs = "[" <> Enum.map_join(resources, ",\n    ", spec_literal) <> "]"
+%>
+defmodule <%= task_module %> do
+  @shortdoc "Applies <%= length(resources) %> Ash resources' attributes, actions, relationships, identities, calculations and policies."
   @moduledoc """
   MANUFACTURED by ggen_igniter from `priv/ggen/ash-igniter-api-pack` -- do not hand-edit.
 
-  Composes `ash.gen.resource` ONCE for the base module `<%= resource_module %>`
-  (domain `<%= domain_module %>`), then applies every remaining ontology fact through
-  the idempotent structural APIs `Ash.Resource.Igniter.add_new_attribute/4`,
+  ONE task composes every resource in the ontology (<%= Enum.map_join(resources, ", ", & &1["resource_module"]) %>):
+  cross-resource relationships (belongs_to / has_many pairs) must be applied against a
+  single project state where both ends exist, and one task keeps the whole API surface
+  atomic under one `--yes` / one idempotence check. For each resource it composes
+  `ash.gen.resource` ONCE, then applies every remaining ontology fact through the
+  idempotent structural APIs `Ash.Resource.Igniter.add_new_attribute/4`,
   `add_new_action/4`, `add_new_relationship/4`, `add_new_identity/4`,
   `add_new_calculation/4` and `Ash.Domain.Igniter.add_resource_reference/3`.
   Each `add_new_*` checks for an existing member by name, so a second run is inert.
@@ -85,25 +110,26 @@ mode: file
 
   use Igniter.Mix.Task
 
-  @domain <%= domain_module %>
-  @resource <%= resource_module %>
-
-  @attributes <%= pairs.(attributes, "attribute_name", attribute_code) %>
-  @actions <%= pairs.(actions, "action_name", action_code) %>
-  @relationships <%= pairs.(relationships, "relationship_name", relationship_code) %>
-  @identities <%= pairs.(identities, "identity_name", identity_code) %>
-  @calculations <%= pairs.(calculations, "calculation_name", calculation_code) %>
-  @policies <%= policy_literals.(policies) %>
+  @specs <%= specs %>
 
   @doc false
-  def facts do
+  def resources, do: Enum.map(@specs, & &1.module)
+
+  @doc false
+  # Facts of the first (primary) resource.
+  def facts, do: facts(hd(@specs).module)
+
+  @doc false
+  def facts(module) do
+    spec = Enum.find(@specs, &(&1.module == module))
+
     %{
-      attributes: Keyword.keys(@attributes),
-      actions: Keyword.keys(@actions),
-      relationships: Keyword.keys(@relationships),
-      identities: Keyword.keys(@identities),
-      calculations: Keyword.keys(@calculations),
-      policies: Enum.map(@policies, &elem(&1, 0))
+      attributes: Keyword.keys(spec.attributes),
+      actions: Keyword.keys(spec.actions),
+      relationships: Keyword.keys(spec.relationships),
+      identities: Keyword.keys(spec.identities),
+      calculations: Keyword.keys(spec.calculations),
+      policies: Enum.map(spec.policies, &elem(&1, 0))
     }
   end
 
@@ -118,39 +144,54 @@ mode: file
 
   @impl Igniter.Mix.Task
   def igniter(igniter) do
-    igniter
-    |> Igniter.compose_task("ash.gen.domain", [inspect(@domain), "--ignore-if-exists"])
-    |> Igniter.compose_task("ash.gen.resource", [
-      inspect(@resource),
-      "--uuid-primary-key",
-      "id",
-      "--domain",
-      inspect(@domain),
-      "--ignore-if-exists"
-    ])
-    |> apply_all(@attributes, &Ash.Resource.Igniter.add_new_attribute/4)
-    |> apply_all(@actions, &Ash.Resource.Igniter.add_new_action/4)
-    |> apply_all(@relationships, &Ash.Resource.Igniter.add_new_relationship/4)
-    |> apply_all(@identities, &Ash.Resource.Igniter.add_new_identity/4)
-    |> apply_all(@calculations, &Ash.Resource.Igniter.add_new_calculation/4)
-    |> add_policies()
-    |> add_domain_reference()
+    igniter =
+      @specs
+      |> Enum.map(& &1.domain)
+      |> Enum.uniq()
+      |> Enum.reduce(igniter, fn domain, igniter ->
+        Igniter.compose_task(igniter, "ash.gen.domain", [inspect(domain), "--ignore-if-exists"])
+      end)
+
+    igniter =
+      Enum.reduce(@specs, igniter, fn spec, igniter ->
+        Igniter.compose_task(igniter, "ash.gen.resource", [
+          inspect(spec.module),
+          "--uuid-primary-key",
+          "id",
+          "--domain",
+          inspect(spec.domain),
+          "--ignore-if-exists"
+        ])
+      end)
+
+    Enum.reduce(@specs, igniter, &apply_spec/2)
   end
 
-  defp apply_all(igniter, pairs, fun) do
+  defp apply_spec(spec, igniter) do
+    igniter
+    |> apply_all(spec.module, spec.attributes, &Ash.Resource.Igniter.add_new_attribute/4)
+    |> apply_all(spec.module, spec.actions, &Ash.Resource.Igniter.add_new_action/4)
+    |> apply_all(spec.module, spec.relationships, &Ash.Resource.Igniter.add_new_relationship/4)
+    |> apply_all(spec.module, spec.identities, &Ash.Resource.Igniter.add_new_identity/4)
+    |> apply_all(spec.module, spec.calculations, &Ash.Resource.Igniter.add_new_calculation/4)
+    |> add_policies(spec.module, spec.policies)
+    |> add_domain_reference(spec.domain, spec.module)
+  end
+
+  defp apply_all(igniter, resource, pairs, fun) do
     Enum.reduce(pairs, igniter, fn {name, code}, igniter ->
-      fun.(igniter, @resource, name, code)
+      fun.(igniter, resource, name, code)
     end)
   end
 
-  defp add_policies(igniter) do
-    Enum.reduce(@policies, igniter, fn {condition, body}, igniter ->
-      if source_contains?(igniter, @resource, ["policy(#{condition})do", "policy#{condition}do"]) do
+  defp add_policies(igniter, resource, policies) do
+    Enum.reduce(policies, igniter, fn {condition, body}, igniter ->
+      if source_contains?(igniter, resource, ["policy(#{condition})do", "policy#{condition}do"]) do
         igniter
       else
         Ash.Resource.Igniter.add_policy(
           igniter,
-          @resource,
+          resource,
           Code.string_to_quoted!(condition),
           Code.string_to_quoted!(body)
         )
@@ -161,14 +202,14 @@ mode: file
   # add_resource_reference/3 only finds the domain via the ash_domains env or a
   # changed-source scan; on an already-applied project it would fall through to
   # upgrading the domain a second time. Guard on the reference itself.
-  defp add_domain_reference(igniter) do
-    if source_contains?(igniter, @domain, [
-         "resource(#{inspect(@resource)})",
-         "resource#{inspect(@resource)}"
+  defp add_domain_reference(igniter, domain, resource) do
+    if source_contains?(igniter, domain, [
+         "resource(#{inspect(resource)})",
+         "resource#{inspect(resource)}"
        ]) do
       igniter
     else
-      Ash.Domain.Igniter.add_resource_reference(igniter, @domain, @resource)
+      Ash.Domain.Igniter.add_resource_reference(igniter, domain, resource)
     end
   end
 

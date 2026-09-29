@@ -8,7 +8,11 @@ defmodule GgenIgniter.AshIgniterApiPackTest do
   and `Ash.Domain.Igniter.add_resource_reference` code. Assertions are on the
   resulting resource/domain source state. No doubles.
 
-  Falsifiers: (1) running the rendered task twice must leave the applied project
+  The pack models N resources (Book, Author; Book belongs_to Author, Author
+  has_many Books) as ONE composing task: a cross-resource relationship needs both
+  ends in a single project state, and one task gives one atomic idempotence check.
+
+  Falsifiers: (0) removing one resource's facts drops only that resource; (1) running the rendered task twice must leave the applied project
   unchanged (idempotence); (2) removing an ontology fact and re-rendering must
   make the regenerated task stop adding that attribute; (3) the rendered task
   must actually call the structural APIs and compose `ash.gen.resource` once.
@@ -25,8 +29,9 @@ defmodule GgenIgniter.AshIgniterApiPackTest do
   @moduletag timeout: 1_200_000
 
   @pack "priv/ggen/ash-igniter-api-pack"
-  @task Mix.Tasks.Shop.Manufacture.Book
+  @task Mix.Tasks.Shop.Manufacture.Catalog
   @resource Shop.Catalog.Book
+  @author Shop.Catalog.Author
   @domain Shop.Catalog
 
   setup do
@@ -56,7 +61,8 @@ defmodule GgenIgniter.AshIgniterApiPackTest do
 
       assert source =~ "Ash.Domain.Igniter.add_resource_reference"
       # ash.gen.resource composed exactly once
-      assert length(Regex.scan(~r/Igniter\.compose_task\("ash\.gen\.resource"/, source)) == 1
+      # one call site, looped per resource (Book, Author)
+      assert length(Regex.scan(~r/Igniter\.compose_task\(igniter, "ash\.gen\.resource"/, source)) == 1
       refute source =~ "System.cmd"
       refute source =~ "use Ash.Resource"
     end
@@ -103,6 +109,30 @@ defmodule GgenIgniter.AshIgniterApiPackTest do
       assert content(first, domain_path) =~ "resource(Shop.Catalog.Book)"
     end
 
+    test "creates both resources with the cross relationship on both sides", %{dir: dir} do
+      compile!(render!(@pack, dir), dir)
+      assert apply(@task, :resources, []) == [@resource, @author]
+
+      first = run(test_project(app_name: :shop))
+      book = content(first, Igniter.Project.Module.proper_location(first, @resource))
+      author = content(first, Igniter.Project.Module.proper_location(first, @author))
+
+      assert author =~ "defmodule Shop.Catalog.Author do"
+      assert author =~ "attribute(:name, :string"
+      assert author =~ "create :enroll"
+      assert author =~ "has_many(:books, Shop.Catalog.Book"
+      assert author =~ "identity(:unique_name, [:name])"
+      assert book =~ "belongs_to(:author, Shop.Catalog.Author"
+      refute book =~ ":unique_name"
+      refute author =~ ":unique_isbn"
+
+      domain = content(first, Igniter.Project.Module.proper_location(first, @domain))
+      assert domain =~ "resource(Shop.Catalog.Book)"
+      assert domain =~ "resource(Shop.Catalog.Author)"
+
+      assert apply(@task, :facts, [@author]).relationships == [:books]
+    end
+
     test "second run is inert (idempotence)", %{dir: dir} do
       compile!(render!(@pack, dir), dir)
       applied = test_project(app_name: :shop) |> run() |> apply_igniter!()
@@ -145,6 +175,35 @@ defmodule GgenIgniter.AshIgniterApiPackTest do
       without_fact = test_project(app_name: :shop) |> run()
       refute content(without_fact, path) =~ ":pages"
       assert content(without_fact, path) =~ "attribute(:isbn, :string"
+    end
+
+    test "removing one resource's facts drops only that resource", %{dir: dir} do
+      variant = Path.join(dir, "variant")
+      File.mkdir_p!(variant)
+      File.cp_r!(@pack, variant)
+      ttl = Path.join(variant, "ontology.ttl")
+
+      [keep, _author_half] = ttl |> File.read!() |> String.split("# ---- Author ----")
+
+      stripped =
+        keep
+        |> String.replace(~r/aia:resAuthor a aia:Resource ;.*?aia:order 2 \.\n/s, "")
+        |> String.replace(~r/aia:relAuthor.*?aia:order 1 \.\n/s, "")
+
+      refute stripped =~ "resAuthor"
+      File.write!(ttl, stripped)
+
+      out = variant <> "_out"
+      source = render!(variant, out)
+      refute source =~ "Shop.Catalog.Author"
+      compile!(source, out)
+      assert apply(@task, :resources, []) == [@resource]
+
+      project = test_project(app_name: :shop) |> run()
+      book = content(project, Igniter.Project.Module.proper_location(project, @resource))
+      assert book =~ "attribute(:title, :string"
+      refute book =~ "belongs_to"
+      assert {:error, _} = Rewrite.source(project.rewrite, Igniter.Project.Module.proper_location(project, @author))
     end
 
     test "run adds only missing members to an existing resource", %{dir: dir} do
