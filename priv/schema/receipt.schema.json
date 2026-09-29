@@ -124,6 +124,15 @@
     "completed_at": {
       "type": ["string", "null"],
       "description": "PRD v2: ISO8601 UTC timestamp this attempt was marked complete, distinct from finished_at."
+    },
+    "pack_name": {
+      "type": ["string", "null"],
+      "description": "Optional (v26.9.30): name of the pack this attempt manufactured from."
+    },
+    "pack_digest": {
+      "type": ["string", "null"],
+      "description": "Optional (v26.9.30): sha256 hex of the pack tree, GgenIgniter.PackLock.digest/1.",
+      "pattern": "^[0-9a-f]{64}$"
     }
   }
 }

@@ -198,7 +198,9 @@ defmodule GgenIgniter.Receipt do
           result_hash: String.t() | nil,
           parent_hash: String.t() | nil,
           receipt_hash: String.t() | nil,
-          completed_at: String.t() | nil
+          completed_at: String.t() | nil,
+          pack_name: String.t() | nil,
+          pack_digest: String.t() | nil
         }
 
   require Logger
@@ -237,7 +239,12 @@ defmodule GgenIgniter.Receipt do
             result_hash: nil,
             parent_hash: nil,
             receipt_hash: nil,
-            completed_at: nil
+            completed_at: nil,
+            # WA3 (v26.9.30): optional pack identity, sha256 hex from
+            # `GgenIgniter.PackLock.digest/1`. Emitted by `to_json_map/1` only
+            # when non-nil so pre-existing receipt_hash values stay stable.
+            pack_name: nil,
+            pack_digest: nil
 
   @doc "The five real, closed-set standing atoms a receipt may carry."
   @spec standings() :: [standing(), ...]
@@ -443,7 +450,12 @@ defmodule GgenIgniter.Receipt do
       "receipt_hash" => receipt.receipt_hash,
       "completed_at" => receipt.completed_at
     }
+    |> put_optional("pack_name", receipt.pack_name)
+    |> put_optional("pack_digest", receipt.pack_digest)
   end
+
+  defp put_optional(map, _key, nil), do: map
+  defp put_optional(map, key, value), do: Map.put(map, key, value)
 
   @doc """
   A `"sha256:" <> hex` digest over `receipt`'s own content (its

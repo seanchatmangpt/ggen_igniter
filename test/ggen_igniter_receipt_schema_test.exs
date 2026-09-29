@@ -200,7 +200,13 @@ defmodule GgenIgniterReceiptSchemaTest do
       )
 
     emitted_keys = receipt |> GgenIgniter.Receipt.to_json_map() |> Map.keys() |> Enum.sort()
-    schema_keys = schema["properties"] |> Map.keys() |> Enum.sort()
+    # `pack_name`/`pack_digest` (v26.9.30) are optional: emitted only when set,
+    # so receipt_hash of pre-existing receipts stays stable.
+    schema_keys =
+      schema["properties"]
+      |> Map.keys()
+      |> Enum.reject(&(&1 in ["pack_name", "pack_digest"]))
+      |> Enum.sort()
 
     assert emitted_keys == schema_keys
   end
