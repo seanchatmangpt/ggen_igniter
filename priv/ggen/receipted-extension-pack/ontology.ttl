@@ -27,3 +27,27 @@ rx:moduleName a owl:DatatypeProperty ;
 rx:libPath a owl:DatatypeProperty ;
     rdfs:domain rx:ReceiptedExtension ;
     rdfs:comment "Output directory (relative) for the rendered modules." .
+
+rx:sectionName a owl:DatatypeProperty ;
+    rdfs:domain rx:ReceiptedExtension ;
+    rdfs:comment "Spark section name (default: receipted). Template literal for Spark.Dsl.Section name." .
+
+rx:entityName a owl:DatatypeProperty ;
+    rdfs:domain rx:ReceiptedExtension ;
+    rdfs:comment "Spark entity name inside the section (default: receipt)." .
+
+rx:entityArg a owl:DatatypeProperty ;
+    rdfs:domain rx:ReceiptedExtension ;
+    rdfs:comment "Single positional Spark entity arg / schema key (default: kind)." .
+
+rx:targetResource a owl:DatatypeProperty ;
+    rdfs:domain rx:ReceiptedExtension ;
+    rdfs:comment "Ash resource module the wire task adds the extension to by default (overridable with --resource)." .
+
+rx:wireTaskModule a owl:DatatypeProperty ;
+    rdfs:domain rx:ReceiptedExtension ;
+    rdfs:comment "Mix task module of the rendered wire task, e.g. Mix.Tasks.Consumer.Receipted.Wire." .
+
+rx:wireTaskName a owl:DatatypeProperty ;
+    rdfs:domain rx:ReceiptedExtension ;
+    rdfs:comment "Mix task name of the wire task, e.g. consumer.receipted.wire." .

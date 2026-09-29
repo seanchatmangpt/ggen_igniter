@@ -4,4 +4,10 @@
 # Consumer declaration: concatenated with the pack ontology before sync.
 ex:Target a rx:ReceiptedExtension ;
     rx:moduleName "ReceiptedFixture.Receipted" ;
-    rx:libPath "lib/receipted_fixture" .
+    rx:libPath "lib/receipted_fixture" ;
+    rx:sectionName "receipted" ;
+    rx:entityName "receipt" ;
+    rx:entityArg "kind" ;
+    rx:targetResource "ReceiptedFixture.Widget" ;
+    rx:wireTaskModule "Mix.Tasks.ReceiptedFixture.Receipted.Wire" ;
+    rx:wireTaskName "receipted_fixture.receipted.wire" .

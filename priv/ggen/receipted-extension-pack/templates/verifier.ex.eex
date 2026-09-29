@@ -7,7 +7,7 @@ for_each: extensions
 defmodule <%= module_name %>.Verifier do
   @moduledoc """
   Refuses an Ash resource that uses `<%= module_name %>` but declares no
-  `receipted do receipt ... end` -- the compile-time twin of
+  `<%= section_name %> do <%= entity_name %> ... end` -- the compile-time twin of
   `.claude/hooks/refuse-handwritten-ash.sh`.
   """
   use Spark.Dsl.Verifier
@@ -17,15 +17,15 @@ defmodule <%= module_name %>.Verifier do
 
   @impl true
   def verify(dsl_state) do
-    case Verifier.get_entities(dsl_state, [:receipted]) do
+    case Verifier.get_entities(dsl_state, [:<%= section_name %>]) do
       [] ->
         {:error,
          DslError.exception(
            module: Verifier.get_persisted(dsl_state, :module),
-           path: [:receipted],
+           path: [:<%= section_name %>],
            message:
              "REFUSED_NO_RECEIPT: resource uses <%= module_name %> but declares no receipt; " <>
-               "add `receipted do receipt :kind end`"
+               "add `<%= section_name %> do <%= entity_name %> :kind end`"
          )}
 
       _ ->

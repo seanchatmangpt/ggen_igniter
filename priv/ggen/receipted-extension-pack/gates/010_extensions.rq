@@ -1,11 +1,17 @@
 PREFIX rx: <https://ggen-igniter.dev/ontology/receipted-extension#>
-SELECT DISTINCT ?extension_iri ?module_name ?lib_path
+SELECT DISTINCT ?extension_iri ?module_name ?lib_path ?section_name ?entity_name ?entity_arg
 WHERE {
   ?e a rx:ReceiptedExtension ;
      rx:moduleName ?m ;
      rx:libPath ?l .
+  OPTIONAL { ?e rx:sectionName ?sn }
+  OPTIONAL { ?e rx:entityName ?en }
+  OPTIONAL { ?e rx:entityArg ?ea }
   BIND(STR(?e) AS ?extension_iri)
   BIND(STR(?m) AS ?module_name)
   BIND(STR(?l) AS ?lib_path)
+  BIND(STR(COALESCE(?sn, "receipted")) AS ?section_name)
+  BIND(STR(COALESCE(?en, "receipt")) AS ?entity_name)
+  BIND(STR(COALESCE(?ea, "kind")) AS ?entity_arg)
 }
 ORDER BY ?extension_iri

@@ -10,25 +10,25 @@ defmodule <%= module_name %> do
 
       use Ash.Resource, extensions: [<%= module_name %>]
 
-      receipted do
-        receipt :order_receipt
+      <%= section_name %> do
+        <%= entity_name %> :order_receipt
       end
 
   `<%= module_name %>.Verifier` refuses compilation of a resource that declares none.
   """
 
   @receipt %Spark.Dsl.Entity{
-    name: :receipt,
+    name: :<%= entity_name %>,
     describe: "Declares the receipt kind this resource's actions are sealed under.",
-    args: [:kind],
+    args: [:<%= entity_arg %>],
     target: <%= module_name %>.Receipt,
     schema: [
-      kind: [type: :atom, required: true, doc: "Receipt kind."]
+      <%= entity_arg %>: [type: :atom, required: true, doc: "Receipt kind."]
     ]
   }
 
   @receipted %Spark.Dsl.Section{
-    name: :receipted,
+    name: :<%= section_name %>,
     describe: "Receipt declaration for this resource.",
     entities: [@receipt]
   }
@@ -39,14 +39,14 @@ defmodule <%= module_name %> do
 
   defmodule Receipt do
     @moduledoc "A declared receipt entity."
-    defstruct [:kind, __spark_metadata__: nil]
+    defstruct [:<%= entity_arg %>, __spark_metadata__: nil]
   end
 
   @doc "Receipt kinds declared on `resource` (empty when none)."
   @spec receipts(module()) :: [atom()]
   def receipts(resource) do
     resource
-    |> Spark.Dsl.Extension.get_entities([:receipted])
-    |> Enum.map(& &1.kind)
+    |> Spark.Dsl.Extension.get_entities([:<%= section_name %>])
+    |> Enum.map(& &1.<%= entity_arg %>)
   end
 end
