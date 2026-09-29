@@ -1,0 +1,18 @@
+# Declared entities (schema-as-data), joined to their extension through their section.
+PREFIX rx: <https://ggen-igniter.dev/ontology/receipted-extension#>
+SELECT DISTINCT ?entity_iri ?section_iri ?extension_iri ?section_name ?entity_name ?entity_describe
+WHERE {
+  ?n a rx:Entity ;
+     rx:inSection ?s ;
+     rx:entityName ?en .
+  ?s rx:inExtension ?e ;
+     rx:sectionName ?sn .
+  OPTIONAL { ?n rx:entityDescribe ?ed }
+  BIND(STR(?n) AS ?entity_iri)
+  BIND(STR(?s) AS ?section_iri)
+  BIND(STR(?e) AS ?extension_iri)
+  BIND(STR(?sn) AS ?section_name)
+  BIND(STR(?en) AS ?entity_name)
+  BIND(STR(COALESCE(?ed, "")) AS ?entity_describe)
+}
+ORDER BY ?extension_iri ?section_name ?entity_name

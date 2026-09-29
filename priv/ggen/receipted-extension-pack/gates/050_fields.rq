@@ -1,0 +1,22 @@
+# Declared entity fields. required/default/doc/arg_position are "" when absent.
+PREFIX rx: <https://ggen-igniter.dev/ontology/receipted-extension#>
+SELECT DISTINCT ?field_iri ?entity_iri ?field_name ?field_type ?field_required ?field_default ?field_doc ?arg_position
+WHERE {
+  ?f a rx:Field ;
+     rx:ofEntity ?n ;
+     rx:fieldName ?fn ;
+     rx:fieldType ?ft .
+  OPTIONAL { ?f rx:required ?rq }
+  OPTIONAL { ?f rx:default ?df }
+  OPTIONAL { ?f rx:doc ?dc }
+  OPTIONAL { ?f rx:argPosition ?ap }
+  BIND(STR(?f) AS ?field_iri)
+  BIND(STR(?n) AS ?entity_iri)
+  BIND(STR(?fn) AS ?field_name)
+  BIND(STR(?ft) AS ?field_type)
+  BIND(STR(COALESCE(?rq, "false")) AS ?field_required)
+  BIND(STR(COALESCE(?df, "")) AS ?field_default)
+  BIND(STR(COALESCE(?dc, "")) AS ?field_doc)
+  BIND(STR(COALESCE(?ap, "")) AS ?arg_position)
+}
+ORDER BY ?entity_iri ?field_name

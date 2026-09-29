@@ -1,0 +1,14 @@
+# Declared sections (schema-as-data). Empty for a legacy flat-fact extension.
+PREFIX rx: <https://ggen-igniter.dev/ontology/receipted-extension#>
+SELECT DISTINCT ?section_iri ?extension_iri ?section_name ?section_describe
+WHERE {
+  ?s a rx:Section ;
+     rx:inExtension ?e ;
+     rx:sectionName ?sn .
+  OPTIONAL { ?s rx:sectionDescribe ?sd }
+  BIND(STR(?s) AS ?section_iri)
+  BIND(STR(?e) AS ?extension_iri)
+  BIND(STR(?sn) AS ?section_name)
+  BIND(STR(COALESCE(?sd, "")) AS ?section_describe)
+}
+ORDER BY ?extension_iri ?section_name

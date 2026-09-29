@@ -51,3 +51,106 @@ rx:wireTaskModule a owl:DatatypeProperty ;
 rx:wireTaskName a owl:DatatypeProperty ;
     rdfs:domain rx:ReceiptedExtension ;
     rdfs:comment "Mix task name of the wire task, e.g. consumer.receipted.wire." .
+
+# ---------------------------------------------------------------------------------------------
+# Schema-as-data (v26.9.31 B1c). The flat facts above still describe ONE implicit section /
+# entity / :atom arg when an extension declares no rx:Entity. Declaring rx:Section / rx:Entity /
+# rx:Field individuals switches that extension to fully data-driven schema: sections, entities,
+# and every field's type / required / default / doc / positional order come from these triples.
+# rx:sectionName on the extension still names the PRIMARY section (the one the verifier checks);
+# in data-driven mode that section must be declared as an rx:Section and rx:entityName /
+# rx:entityArg must name a declared entity / field (refused otherwise: gates/000_violations.rq
+# and the extension template).
+# ---------------------------------------------------------------------------------------------
+
+rx:Section a owl:Class ;
+    rdfs:comment "One Spark.Dsl.Section of an extension. Requires rx:inExtension and rx:sectionName." .
+
+rx:Entity a owl:Class ;
+    rdfs:comment "One Spark.Dsl.Entity in a section. Requires rx:inSection and rx:entityName." .
+
+rx:Field a owl:Class ;
+    rdfs:comment "One key of an entity's schema. Requires rx:ofEntity, rx:fieldName and rx:fieldType." .
+
+rx:Transformer a owl:Class ;
+    rdfs:comment "One Spark.Dsl.Transformer module rendered under <Module>.Transformers.<Name>." .
+
+rx:inExtension a owl:ObjectProperty ;
+    rdfs:domain rx:Section ;
+    rdfs:range rx:ReceiptedExtension .
+
+rx:inSection a owl:ObjectProperty ;
+    rdfs:domain rx:Entity ;
+    rdfs:range rx:Section .
+
+rx:ofEntity a owl:ObjectProperty ;
+    rdfs:domain rx:Field ;
+    rdfs:range rx:Entity .
+
+rx:ofExtension a owl:ObjectProperty ;
+    rdfs:domain rx:Transformer ;
+    rdfs:range rx:ReceiptedExtension .
+
+rx:sectionDescribe a owl:DatatypeProperty ;
+    rdfs:domain rx:Section ;
+    rdfs:comment "Spark section describe string (default derived from the name)." .
+
+rx:entityDescribe a owl:DatatypeProperty ;
+    rdfs:domain rx:Entity ;
+    rdfs:comment "Spark entity describe string (default derived from the name)." .
+
+rx:fieldName a owl:DatatypeProperty ; rdfs:domain rx:Field .
+
+rx:fieldType a owl:DatatypeProperty ;
+    rdfs:domain rx:Field ;
+    rdfs:comment "One of atom | string | integer | boolean | list_atom (list_atom = {:list, :atom}); anything else is refused UNKNOWN_FIELD_TYPE." .
+
+rx:required a owl:DatatypeProperty ;
+    rdfs:domain rx:Field ;
+    rdfs:comment "xsd:boolean; true renders required: true and (with rx:argPosition) a plain :name arg." .
+
+rx:default a owl:DatatypeProperty ;
+    rdfs:domain rx:Field ;
+    rdfs:comment "Default value literal; list_atom defaults are comma separated. Refused on a required field." .
+
+rx:doc a owl:DatatypeProperty ; rdfs:domain rx:Field .
+
+rx:argPosition a owl:DatatypeProperty ;
+    rdfs:domain rx:Field ;
+    rdfs:comment "xsd:integer position in the entity's args list; absent = keyword-only (schema, not arg). Positions must be unique per entity." .
+
+rx:transformerName a owl:DatatypeProperty ;
+    rdfs:domain rx:Transformer ;
+    rdfs:comment "Module suffix (snake_case) of <Module>.Transformers.<Camel>." .
+
+rx:before a owl:ObjectProperty ;
+    rdfs:domain rx:Transformer ; rdfs:range rx:Transformer ;
+    rdfs:comment "Renders before?/1: this transformer runs BEFORE the named transformer. Unknown target = REFUSED." .
+
+rx:after a owl:ObjectProperty ;
+    rdfs:domain rx:Transformer ; rdfs:range rx:Transformer ;
+    rdfs:comment "Renders after?/1: this transformer runs AFTER the named transformer. Unknown target = REFUSED." .
+
+rx:addsAttribute a owl:DatatypeProperty ;
+    rdfs:domain rx:Transformer ;
+    rdfs:comment "Name of an Ash attribute the transformer adds to the resource (Ash.Resource.Builder.add_new_attribute)." .
+
+rx:attributeType a owl:DatatypeProperty ;
+    rdfs:domain rx:Transformer ;
+    rdfs:comment "atom | string | integer | boolean | list_atom (default atom)." .
+
+rx:attributeDefault a owl:DatatypeProperty ; rdfs:domain rx:Transformer .
+
+rx:persistKey a owl:DatatypeProperty ;
+    rdfs:domain rx:Transformer ;
+    rdfs:comment "Persister: Spark.Dsl.Transformer.persist(dsl, key, rx:persistValue)." .
+
+rx:persistValue a owl:DatatypeProperty ; rdfs:domain rx:Transformer .
+
+rx:formatterPath a owl:DatatypeProperty ;
+    rdfs:domain rx:ReceiptedExtension ;
+    rdfs:comment "Where the .formatter.exs export is rendered (default .formatter.exs)." .
+
+rx:formatterPackage a owl:DatatypeProperty ;
+    rdfs:domain rx:ReceiptedExtension ;
+    rdfs:comment "OTP app / hex package name the installer import_dep's into .formatter.exs." .

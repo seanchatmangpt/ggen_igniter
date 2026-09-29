@@ -1,0 +1,116 @@
+# INVERTED gate: every row is a typed refusal. Every template in this pack raises
+# REFUSED_EXTENSION_SCHEMA when this is non-empty, so a malformed graph renders nothing.
+# MINUS (not FILTER NOT EXISTS): sparql engine limitation, see semantic-jira-pack/gates/050_frontier.rq.
+PREFIX rx: <https://ggen-igniter.dev/ontology/receipted-extension#>
+SELECT DISTINCT ?violation_code ?violation_subject ?violation_detail WHERE {
+  {
+    ?a a rx:Entity ; rx:entityName ?n ; rx:inSection ?sa .
+    ?b a rx:Entity ; rx:entityName ?n ; rx:inSection ?sb .
+    ?sa rx:inExtension ?e .
+    ?sb rx:inExtension ?e .
+    FILTER(STR(?a) < STR(?b))
+    BIND("DUPLICATE_ENTITY_NAME" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND(CONCAT("entity name ", STR(?n), " declared twice in one extension") AS ?violation_detail)
+  } UNION {
+    ?a a rx:Field ; rx:fieldName ?n ; rx:ofEntity ?ent .
+    ?b a rx:Field ; rx:fieldName ?n ; rx:ofEntity ?ent .
+    FILTER(STR(?a) < STR(?b))
+    BIND("DUPLICATE_FIELD_NAME" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND(CONCAT("field name ", STR(?n), " declared twice in one entity") AS ?violation_detail)
+  } UNION {
+    ?a a rx:Field ; rx:argPosition ?p ; rx:ofEntity ?ent .
+    ?b a rx:Field ; rx:argPosition ?p ; rx:ofEntity ?ent .
+    FILTER(STR(?a) < STR(?b))
+    BIND("DUPLICATE_ARG_POSITION" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND(CONCAT("arg position ", STR(?p), " used twice in one entity") AS ?violation_detail)
+  } UNION {
+    ?f a rx:Field ; rx:fieldType ?t .
+    FILTER(!(STR(?t) IN ("atom", "string", "integer", "boolean", "list_atom")))
+    BIND("UNKNOWN_FIELD_TYPE" AS ?violation_code)
+    BIND(STR(?f) AS ?violation_subject)
+    BIND(CONCAT("unknown field type ", STR(?t)) AS ?violation_detail)
+  } UNION {
+    ?t a rx:Transformer ; rx:attributeType ?at .
+    FILTER(!(STR(?at) IN ("atom", "string", "integer", "boolean", "list_atom")))
+    BIND("UNKNOWN_ATTRIBUTE_TYPE" AS ?violation_code)
+    BIND(STR(?t) AS ?violation_subject)
+    BIND(CONCAT("unknown attribute type ", STR(?at)) AS ?violation_detail)
+  } UNION {
+    ?f a rx:Field ; rx:required ?r ; rx:default ?d .
+    FILTER(STR(?r) = "true")
+    BIND("DEFAULT_ON_REQUIRED_FIELD" AS ?violation_code)
+    BIND(STR(?f) AS ?violation_subject)
+    BIND("a required field cannot carry rx:default (NimbleOptions refuses it)" AS ?violation_detail)
+  } UNION {
+    ?a a rx:Transformer ; rx:transformerName ?n ; rx:ofExtension ?e .
+    ?b a rx:Transformer ; rx:transformerName ?n ; rx:ofExtension ?e .
+    FILTER(STR(?a) < STR(?b))
+    BIND("DUPLICATE_TRANSFORMER_NAME" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND(CONCAT("transformer name ", STR(?n), " declared twice in one extension") AS ?violation_detail)
+  } UNION {
+    ?a a rx:Section ; rx:sectionName ?n ; rx:inExtension ?e .
+    ?b a rx:Section ; rx:sectionName ?n ; rx:inExtension ?e .
+    FILTER(STR(?a) < STR(?b))
+    BIND("DUPLICATE_SECTION_NAME" AS ?violation_code)
+    BIND(STR(?a) AS ?violation_subject)
+    BIND(CONCAT("section name ", STR(?n), " declared twice in one extension") AS ?violation_detail)
+  } UNION {
+    ?x a rx:Field ; rx:fieldName ?n .
+    FILTER(!REGEX(STR(?n), "^[a-z_][a-z0-9_]*[?!]?$"))
+    BIND("INVALID_IDENTIFIER" AS ?violation_code)
+    BIND(STR(?x) AS ?violation_subject)
+    BIND(CONCAT("field name ", STR(?n), " is not a valid Elixir identifier") AS ?violation_detail)
+  } UNION {
+    ?x a rx:Entity ; rx:entityName ?n .
+    FILTER(!REGEX(STR(?n), "^[a-z_][a-z0-9_]*[?!]?$"))
+    BIND("INVALID_IDENTIFIER" AS ?violation_code)
+    BIND(STR(?x) AS ?violation_subject)
+    BIND(CONCAT("entity name ", STR(?n), " is not a valid Elixir identifier") AS ?violation_detail)
+  } UNION {
+    ?x a rx:Section ; rx:sectionName ?n .
+    FILTER(!REGEX(STR(?n), "^[a-z_][a-z0-9_]*[?!]?$"))
+    BIND("INVALID_IDENTIFIER" AS ?violation_code)
+    BIND(STR(?x) AS ?violation_subject)
+    BIND(CONCAT("section name ", STR(?n), " is not a valid Elixir identifier") AS ?violation_detail)
+  } UNION {
+    ?x a rx:Transformer ; rx:transformerName ?n .
+    FILTER(!REGEX(STR(?n), "^[a-z_][a-z0-9_]*[?!]?$"))
+    BIND("INVALID_IDENTIFIER" AS ?violation_code)
+    BIND(STR(?x) AS ?violation_subject)
+    BIND(CONCAT("transformer name ", STR(?n), " is not a valid Elixir identifier") AS ?violation_detail)
+  } UNION {
+    ?x a rx:Transformer ; rx:addsAttribute ?n .
+    FILTER(!REGEX(STR(?n), "^[a-z_][a-z0-9_]*[?!]?$"))
+    BIND("INVALID_IDENTIFIER" AS ?violation_code)
+    BIND(STR(?x) AS ?violation_subject)
+    BIND(CONCAT("attribute name ", STR(?n), " is not a valid Elixir identifier") AS ?violation_detail)
+  } UNION {
+    ?x a rx:ReceiptedExtension ; rx:moduleName ?n .
+    FILTER(!REGEX(STR(?n), "^[A-Z][A-Za-z0-9_]*(\\.[A-Z][A-Za-z0-9_]*)*$"))
+    BIND("INVALID_MODULE_NAME" AS ?violation_code)
+    BIND(STR(?x) AS ?violation_subject)
+    BIND(CONCAT("module name ", STR(?n), " is not a valid Elixir module alias") AS ?violation_detail)
+  } UNION {
+    ?t a rx:Transformer ; rx:before ?o .
+    MINUS { ?o a rx:Transformer }
+    BIND("UNKNOWN_TRANSFORMER_BEFORE" AS ?violation_code)
+    BIND(STR(?t) AS ?violation_subject)
+    BIND(CONCAT("rx:before names unknown transformer ", STR(?o)) AS ?violation_detail)
+  } UNION {
+    ?t a rx:Transformer ; rx:after ?o .
+    MINUS { ?o a rx:Transformer }
+    BIND("UNKNOWN_TRANSFORMER_AFTER" AS ?violation_code)
+    BIND(STR(?t) AS ?violation_subject)
+    BIND(CONCAT("rx:after names unknown transformer ", STR(?o)) AS ?violation_detail)
+  } UNION {
+    ?t a rx:Transformer ; rx:before ?t .
+    BIND("TRANSFORMER_ORDER_SELF_LOOP" AS ?violation_code)
+    BIND(STR(?t) AS ?violation_subject)
+    BIND("a transformer cannot run before itself" AS ?violation_detail)
+  }
+}
+ORDER BY ?violation_code ?violation_subject

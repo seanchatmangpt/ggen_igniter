@@ -1,5 +1,5 @@
 PREFIX rx: <https://ggen-igniter.dev/ontology/receipted-extension#>
-SELECT DISTINCT ?extension_iri ?module_name ?lib_path ?target_resource ?task_module ?task_name
+SELECT DISTINCT ?extension_iri ?module_name ?lib_path ?target_resource ?task_module ?task_name ?formatter_package
 WHERE {
   ?e a rx:ReceiptedExtension ;
      rx:moduleName ?m ;
@@ -7,11 +7,13 @@ WHERE {
      rx:targetResource ?t ;
      rx:wireTaskModule ?tm ;
      rx:wireTaskName ?tn .
+  OPTIONAL { ?e rx:formatterPackage ?fpkg }
   BIND(STR(?e) AS ?extension_iri)
   BIND(STR(?m) AS ?module_name)
   BIND(STR(?l) AS ?lib_path)
   BIND(STR(?t) AS ?target_resource)
   BIND(STR(?tm) AS ?task_module)
   BIND(STR(?tn) AS ?task_name)
+  BIND(STR(COALESCE(?fpkg, "")) AS ?formatter_package)
 }
 ORDER BY ?extension_iri

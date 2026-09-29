@@ -2,6 +2,146 @@
 to: "<%= lib_path %>/receipted.ex"
 for_each: extensions
 ---
+<%
+  # ---- typed refusal: malformed schema facts render nothing (gates/000_violations.rq) ----
+  if violations != [] do
+    detail = Enum.map_join(violations, "; ", &"#{&1["violation_code"]} #{&1["violation_subject"]}: #{&1["violation_detail"]}")
+    raise "REFUSED_EXTENSION_SCHEMA: #{detail}; broken_term=admission_vacuous"
+  end
+
+  truthy = fn
+    true -> true
+    "true" -> true
+    _ -> false
+  end
+
+  to_i = fn
+    v when is_integer(v) -> v
+    v -> String.to_integer("#{v}")
+  end
+
+  camel = &Macro.camelize(&1)
+  atom_lit = fn s -> inspect(String.to_atom(s)) end
+
+  type_lit = fn
+    "atom" -> ":atom"
+    "string" -> ":string"
+    "integer" -> ":integer"
+    "boolean" -> ":boolean"
+    "list_atom" -> "{:list, :atom}"
+  end
+
+  default_lit = fn
+    "atom", d -> atom_lit.(d)
+    "string", d -> inspect(d)
+    "integer", d -> "#{String.to_integer(d)}"
+    "boolean", d -> if(d in ["true", "false"], do: d, else: raise("REFUSED_EXTENSION_SCHEMA: BAD_BOOLEAN_DEFAULT #{d}"))
+    "list_atom", d -> "[" <> (d |> String.split(",", trim: true) |> Enum.map_join(", ", &atom_lit.(String.trim(&1)))) <> "]"
+  end
+
+  # ---- model: legacy flat facts (one implicit section/entity/arg) OR data-driven ----
+  ext_entities = Enum.filter(entities, &(&1["extension_iri"] == extension_iri))
+  data_mode = ext_entities != []
+
+  model =
+    if data_mode do
+      ext_sections = Enum.filter(sections, &(&1["extension_iri"] == extension_iri))
+
+      Enum.map(ext_sections, fn s ->
+        ents =
+          ext_entities
+          |> Enum.filter(&(&1["section_iri"] == s["section_iri"]))
+          |> Enum.map(fn e ->
+            fs = Enum.filter(fields, &(&1["entity_iri"] == e["entity_iri"]))
+            %{name: e["entity_name"],
+              describe: (if e["entity_describe"] == "", do: "Entity #{e["entity_name"]}.", else: e["entity_describe"]),
+              fields: Enum.map(fs, fn f ->
+                %{name: f["field_name"], type: f["field_type"], required: truthy.(f["field_required"]),
+                  default: f["field_default"],
+                  doc: (if f["field_doc"] == "", do: "The #{f["field_name"]}.", else: f["field_doc"]),
+                  pos: (if f["arg_position"] == "", do: nil, else: to_i.(f["arg_position"]))}
+              end)}
+          end)
+
+        %{name: s["section_name"],
+          describe: (if s["section_describe"] == "", do: "Section #{s["section_name"]}.", else: s["section_describe"]),
+          entities: ents}
+      end)
+    else
+      [%{name: section_name, describe: "Receipt declaration for this resource.",
+         entities: [%{name: entity_name,
+                      describe: "Declares the receipt kind this resource's actions are sealed under.",
+                      fields: [%{name: entity_arg, type: "atom", required: true, default: "",
+                                 doc: "Receipt kind.", pos: 0}]}]}]
+    end
+
+  primary = Enum.find(model, &(&1.name == section_name))
+
+  if is_nil(primary) do
+    raise "REFUSED_EXTENSION_SCHEMA: PRIMARY_SECTION_MISSING #{section_name} is not a declared rx:Section of #{extension_iri}; broken_term=mu_on_O"
+  end
+
+  primary_entity = Enum.find(primary.entities, &(&1.name == entity_name))
+
+  if is_nil(primary_entity) or not Enum.any?(primary_entity.fields, &(&1.name == entity_arg)) do
+    raise "REFUSED_EXTENSION_SCHEMA: PRIMARY_ENTITY_MISSING #{section_name}.#{entity_name}(#{entity_arg}) is not declared; broken_term=mu_on_O"
+  end
+
+  # ---- transformers, topologically ordered by rx:before / rx:after ----
+  ext_ts = Enum.filter(transformers, &(&1["extension_iri"] == extension_iri))
+  iris = Enum.map(ext_ts, & &1["transformer_iri"])
+  t_name = fn iri -> Enum.find_value(ext_ts, &(&1["transformer_iri"] == iri && &1["transformer_name"])) end
+
+  edges =
+    for o <- orders, o["transformer_iri"] in iris, o["other_iri"] in iris do
+      if o["relation"] == "before",
+        do: {o["transformer_iri"], o["other_iri"]},
+        else: {o["other_iri"], o["transformer_iri"]}
+    end
+
+  sorter = fn sorter, remaining, acc ->
+    if remaining == [] do
+      {:ok, Enum.reverse(acc)}
+    else
+      ready =
+        remaining
+        |> Enum.filter(fn n -> not Enum.any?(edges, fn {f, t} -> t == n and f in remaining end) end)
+        |> Enum.sort_by(t_name)
+
+      case ready do
+        [] -> {:cycle, remaining}
+        [n | _] -> sorter.(sorter, List.delete(remaining, n), [n | acc])
+      end
+    end
+  end
+
+  ordered =
+    case sorter.(sorter, iris, []) do
+      {:ok, list} -> list
+      {:cycle, left} -> raise "REFUSED_EXTENSION_SCHEMA: TRANSFORMER_ORDER_CYCLE among #{inspect(Enum.map(left, t_name))}; broken_term=admission_vacuous"
+    end
+
+  transformer_mods = Enum.map(ordered, &"#{module_name}.Transformers.#{camel.(t_name.(&1))}")
+
+  # ---- rendering helpers ----
+  render_field = fn f ->
+    parts =
+      ["type: " <> type_lit.(f.type), "required: #{f.required}"] ++
+        (if f.default != "", do: ["default: " <> default_lit.(f.type, f.default)], else: []) ++
+        ["doc: " <> inspect(f.doc)]
+
+    "#{f.name}: [" <> Enum.join(parts, ", ") <> "]"
+  end
+
+  render_args = fn e ->
+    e.fields
+    |> Enum.filter(& &1.pos)
+    |> Enum.sort_by(& &1.pos)
+    |> Enum.map_join(", ", fn f -> if f.required, do: atom_lit.(f.name), else: "{:optional, #{atom_lit.(f.name)}}" end)
+  end
+
+  all_entities = for s <- model, e <- s.entities, do: {s, e}
+%>
 # GENERATED by receipted-extension-pack (ggen_igniter renderer). Do not hand-edit.
 # Source of truth: <%= extension_iri %> + priv/ggen/receipted-extension-pack/ontology.ttl.
 defmodule <%= module_name %> do
@@ -17,36 +157,41 @@ defmodule <%= module_name %> do
   `<%= module_name %>.Verifier` refuses compilation of a resource that declares none.
   """
 
-  @receipt %Spark.Dsl.Entity{
-    name: :<%= entity_name %>,
-    describe: "Declares the receipt kind this resource's actions are sealed under.",
-    args: [:<%= entity_arg %>],
-    target: <%= module_name %>.Receipt,
+<%= for {s, e} <- all_entities do %>
+  @entity_<%= s.name %>_<%= e.name %> %Spark.Dsl.Entity{
+    name: <%= atom_lit.(e.name) %>,
+    describe: <%= inspect(e.describe) %>,
+    args: [<%= render_args.(e) %>],
+    target: <%= module_name %>.<%= camel.(e.name) %>,
     schema: [
-      <%= entity_arg %>: [type: :atom, required: true, doc: "Receipt kind."]
+<%= Enum.map_join(e.fields, ",\n", &("      " <> render_field.(&1))) %>
     ]
   }
-
-  @receipted %Spark.Dsl.Section{
-    name: :<%= section_name %>,
-    describe: "Receipt declaration for this resource.",
-    entities: [@receipt]
+<% end %>
+<%= for s <- model do %>
+  @section_<%= s.name %> %Spark.Dsl.Section{
+    name: <%= atom_lit.(s.name) %>,
+    describe: <%= inspect(s.describe) %>,
+    entities: [<%= Enum.map_join(s.entities, ", ", &"@entity_#{s.name}_#{&1.name}") %>]
   }
-
+<% end %>
   use Spark.Dsl.Extension,
-    sections: [@receipted],
-    verifiers: [<%= module_name %>.Verifier]
+    sections: [<%= Enum.map_join(model, ", ", &"@section_#{&1.name}") %>],
+    verifiers: [<%= module_name %>.Verifier]<%= if transformer_mods != [] do %>,
+    transformers: [<%= Enum.join(transformer_mods, ", ") %>]<% end %>
 
-  defmodule Receipt do
-    @moduledoc "A declared receipt entity."
-    defstruct [:<%= entity_arg %>, __spark_metadata__: nil]
+<%= for {_s, e} <- all_entities do %>
+  defmodule <%= camel.(e.name) %> do
+    @moduledoc "A declared <%= e.name %> entity."
+    defstruct [<%= Enum.map_join(e.fields, ", ", &":#{&1.name}") %>, __spark_metadata__: nil]
   end
-
+<% end %>
   @doc "Receipt kinds declared on `resource` (empty when none)."
   @spec receipts(module()) :: [atom()]
   def receipts(resource) do
     resource
     |> Spark.Dsl.Extension.get_entities([:<%= section_name %>])
+    |> Enum.filter(&match?(%<%= module_name %>.<%= camel.(entity_name) %>{}, &1))
     |> Enum.map(& &1.<%= entity_arg %>)
   end
 end

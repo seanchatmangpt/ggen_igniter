@@ -1,0 +1,26 @@
+# Declared transformers, joined to their extension (module + lib path).
+PREFIX rx: <https://ggen-igniter.dev/ontology/receipted-extension#>
+SELECT DISTINCT ?transformer_iri ?extension_iri ?module_name ?lib_path ?transformer_name ?adds_attribute ?attribute_type ?attribute_default ?persist_key ?persist_value
+WHERE {
+  ?t a rx:Transformer ;
+     rx:ofExtension ?e ;
+     rx:transformerName ?tn .
+  ?e rx:moduleName ?m ;
+     rx:libPath ?l .
+  OPTIONAL { ?t rx:addsAttribute ?aa }
+  OPTIONAL { ?t rx:attributeType ?at }
+  OPTIONAL { ?t rx:attributeDefault ?ad }
+  OPTIONAL { ?t rx:persistKey ?pk }
+  OPTIONAL { ?t rx:persistValue ?pv }
+  BIND(STR(?t) AS ?transformer_iri)
+  BIND(STR(?e) AS ?extension_iri)
+  BIND(STR(?m) AS ?module_name)
+  BIND(STR(?l) AS ?lib_path)
+  BIND(STR(?tn) AS ?transformer_name)
+  BIND(STR(COALESCE(?aa, "")) AS ?adds_attribute)
+  BIND(STR(COALESCE(?at, "atom")) AS ?attribute_type)
+  BIND(STR(COALESCE(?ad, "")) AS ?attribute_default)
+  BIND(STR(COALESCE(?pk, "")) AS ?persist_key)
+  BIND(STR(COALESCE(?pv, "")) AS ?persist_value)
+}
+ORDER BY ?extension_iri ?transformer_name

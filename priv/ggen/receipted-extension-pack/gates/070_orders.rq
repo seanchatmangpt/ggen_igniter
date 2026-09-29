@@ -1,0 +1,19 @@
+# Transformer ordering edges. relation = before | after; other_name is the target's
+# rx:transformerName ("" when the target is not a declared rx:Transformer -- refused by
+# 000_violations.rq before any template renders).
+PREFIX rx: <https://ggen-igniter.dev/ontology/receipted-extension#>
+SELECT DISTINCT ?transformer_iri ?relation ?other_iri ?other_name
+WHERE {
+  {
+    ?t a rx:Transformer ; rx:before ?o .
+    BIND("before" AS ?relation)
+  } UNION {
+    ?t a rx:Transformer ; rx:after ?o .
+    BIND("after" AS ?relation)
+  }
+  OPTIONAL { ?o rx:transformerName ?on }
+  BIND(STR(?t) AS ?transformer_iri)
+  BIND(STR(?o) AS ?other_iri)
+  BIND(STR(COALESCE(?on, "")) AS ?other_name)
+}
+ORDER BY ?transformer_iri ?relation ?other_iri

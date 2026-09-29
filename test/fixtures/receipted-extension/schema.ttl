@@ -1,0 +1,85 @@
+@prefix rx: <https://ggen-igniter.dev/ontology/receipted-extension#> .
+@prefix ex: <https://ggen-igniter.dev/fixture/receipted-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Schema-as-data consumer graph: concatenated with the pack ontology before sync.
+# Two sections (receipted, audit), three entities, typed fields, three transformers.
+
+ex:Target a rx:ReceiptedExtension ;
+    rx:moduleName "SchemaFixture.Receipted" ;
+    rx:libPath "lib/schema_fixture" ;
+    rx:sectionName "receipted" ;
+    rx:entityName "receipt" ;
+    rx:entityArg "kind" ;
+    rx:formatterPath ".formatter.exs" ;
+    rx:formatterPackage "schema_fixture" ;
+    rx:targetResource "SchemaFixture.Widget" ;
+    rx:wireTaskModule "Mix.Tasks.SchemaFixture.Receipted.Wire" ;
+    rx:wireTaskName "schema_fixture.receipted.wire" .
+
+ex:SecReceipted a rx:Section ;
+    rx:inExtension ex:Target ;
+    rx:sectionName "receipted" ;
+    rx:sectionDescribe "Receipt declarations." .
+
+ex:SecAudit a rx:Section ;
+    rx:inExtension ex:Target ;
+    rx:sectionName "audit" .
+
+ex:EntReceipt a rx:Entity ;
+    rx:inSection ex:SecReceipted ;
+    rx:entityName "receipt" .
+
+ex:EntAttestation a rx:Entity ;
+    rx:inSection ex:SecReceipted ;
+    rx:entityName "attestation" .
+
+ex:EntWitness a rx:Entity ;
+    rx:inSection ex:SecAudit ;
+    rx:entityName "witness" .
+
+ex:FKind a rx:Field ; rx:ofEntity ex:EntReceipt ;
+    rx:fieldName "kind" ; rx:fieldType "atom" ; rx:required true ;
+    rx:argPosition 0 ; rx:doc "Receipt kind." .
+ex:FRetries a rx:Field ; rx:ofEntity ex:EntReceipt ;
+    rx:fieldName "retries" ; rx:fieldType "integer" ; rx:default "3" ; rx:doc "Retry budget." .
+ex:FTags a rx:Field ; rx:ofEntity ex:EntReceipt ;
+    rx:fieldName "tags" ; rx:fieldType "list_atom" ; rx:default "a,b" ; rx:doc "Tags." .
+ex:FSealed a rx:Field ; rx:ofEntity ex:EntReceipt ;
+    rx:fieldName "sealed" ; rx:fieldType "boolean" ; rx:default "false" ; rx:doc "Sealed flag." .
+
+ex:FSigner a rx:Field ; rx:ofEntity ex:EntAttestation ;
+    rx:fieldName "signer" ; rx:fieldType "string" ; rx:required true ;
+    rx:argPosition 0 ; rx:doc "Signer name." .
+ex:FLevel a rx:Field ; rx:ofEntity ex:EntAttestation ;
+    rx:fieldName "level" ; rx:fieldType "integer" ; rx:default "1" ;
+    rx:argPosition 1 ; rx:doc "Attestation level." .
+ex:FRole a rx:Field ; rx:ofEntity ex:EntAttestation ;
+    rx:fieldName "role" ; rx:fieldType "atom" ; rx:required true ; rx:doc "Signer role." .
+
+ex:FWName a rx:Field ; rx:ofEntity ex:EntWitness ;
+    rx:fieldName "name" ; rx:fieldType "atom" ; rx:required true ;
+    rx:argPosition 0 ; rx:doc "Witness name." .
+ex:FWeight a rx:Field ; rx:ofEntity ex:EntWitness ;
+    rx:fieldName "weight" ; rx:fieldType "integer" ; rx:default "1" ; rx:doc "Witness weight." .
+
+# Transformers. Declared order in this file is deliberately NOT the run order.
+ex:TSeal a rx:Transformer ;
+    rx:ofExtension ex:Target ;
+    rx:transformerName "seal" ;
+    rx:after ex:TStamp ;
+    rx:persistKey "rx_seal" ;
+    rx:persistValue "sealed" .
+
+ex:TStamp a rx:Transformer ;
+    rx:ofExtension ex:Target ;
+    rx:transformerName "stamp" ;
+    rx:after ex:TFirst ;
+    rx:addsAttribute "stamped_by" ;
+    rx:attributeType "atom" ;
+    rx:attributeDefault "rx" .
+
+ex:TFirst a rx:Transformer ;
+    rx:ofExtension ex:Target ;
+    rx:transformerName "first" ;
+    rx:before ex:TStamp .

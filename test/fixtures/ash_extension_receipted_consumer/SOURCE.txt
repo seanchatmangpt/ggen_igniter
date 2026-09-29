@@ -1,0 +1,15 @@
+Pinned copy of ggen-marketplace packs/ash-extension-pack (templates + verify fixtures).
+
+source_repo: github.com/seanchatmangpt/ggen-marketplace
+source_ref:  feat/v26.9.27-ash-receipted-action-closure
+source_sha:  5119390e101a9620e2f5fdc2012a835c6b0c4578
+files:
+  templates/receipt.ex.tmpl            <- packs/ash-extension-pack/templates/receipt.ex.tmpl
+  templates/receipted_action.ex.tmpl   <- packs/ash-extension-pack/templates/receipted_action.ex.tmpl
+  specs/receipted_spec.ttl             <- packs/ash-extension-pack/verify/fixtures/receipted_spec.ttl
+  specs/receipted_spec_opted_out.ttl   <- packs/ash-extension-pack/verify/fixtures/receipted_spec_opted_out.ttl
+
+Refresh (never hand-edit these copies):
+  git -C ~/ggen-marketplace show <sha>:packs/ash-extension-pack/<path> > <path>
+test/ggen_igniter_ash_receipted_action_test.exs asserts each copy's git blob id
+equals the blob at source_sha when ~/ggen-marketplace is present.

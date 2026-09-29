@@ -10,7 +10,10 @@ defmodule <%= task_module %> do
   @moduledoc """
   Adds `<%= module_name %>` to the `extensions:` option of a resource's
   `use Ash.Resource`. Runs `Spark.Igniter.has_extension/5` first, so a second run
-  leaves the project unchanged.
+  leaves the project unchanged.<%= if formatter_package != "" do %> Also imports the
+  `<%= formatter_package %>` dep into the root `.formatter.exs`
+  (`Igniter.Project.Formatter.import_dep/2`, idempotent) so the extension's
+  entities format without parens in the consumer.<% end %>
 
   ## Options
 
@@ -28,7 +31,8 @@ defmodule <%= task_module %> do
   @example "mix <%= task_name %> --resource <%= target_resource %>"
   @extension <%= module_name %>
   @default_resource <%= target_resource %>
-
+<%= if formatter_package != "" do %>  @formatter_dep <%= inspect(String.to_atom(formatter_package)) %>
+<% end %>
   @impl Igniter.Mix.Task
   def info(_argv, _composing_task) do
     %Igniter.Mix.Task.Info{
@@ -59,7 +63,9 @@ defmodule <%= task_module %> do
         name -> Igniter.Project.Module.parse(name)
       end
 
-    {igniter, present?} =
+<%= if formatter_package != "" do %>    igniter = Igniter.Project.Formatter.import_dep(igniter, @formatter_dep)
+
+<% end %>    {igniter, present?} =
       Spark.Igniter.has_extension(igniter, resource, Ash.Resource, :extensions, @extension)
 
     if present? do
