@@ -87,3 +87,74 @@ adr:d0012 a adr:Decision ;
     adr:filename "ADR-012-prose-never-originates-work-orders.md" ;
     adr:title "Prose never originates work orders" ;
     adr:status "Accepted" .
+
+# Added v26.9.28 (w6, docs/jira/v26.9.28/adr-index-fix.md): every remaining ADR file.
+# Title/status copied from each file's H1 and Status section. The two files
+# sharing the filename id ADR-006 get distinct index ids ADR-006a/ADR-006b;
+# no file is renamed.
+
+adr:d0009 a adr:Decision ;
+    adr:number "0009" ;
+    adr:filename "0009-runtime-shape-semantic-ir.md" ;
+    adr:title "RuntimeShape as the shared admitted semantic IR" ;
+    adr:status "Accepted" .
+
+adr:dA001 a adr:Decision ;
+    adr:number "ADR-001" ;
+    adr:filename "ADR-001-reactor-coordination-kernel.md" ;
+    adr:title "Reactor as the Coordination Kernel" ;
+    adr:status "Accepted (`IMPLEMENTED`)" .
+
+adr:dA002 a adr:Decision ;
+    adr:number "ADR-002" ;
+    adr:filename "ADR-002-igniter-structured-elixir-mutation.md" ;
+    adr:title "Igniter & Structured Elixir Mutation Boundaries" ;
+    adr:status "Accepted (`PARTIAL_ALIVE` / `PLANNED`)" .
+
+adr:dA003 a adr:Decision ;
+    adr:number "ADR-003" ;
+    adr:filename "ADR-003-ggen-semantic-compilation.md" ;
+    adr:title "ggen Semantic Compilation Integration" ;
+    adr:status "Accepted (`IMPLEMENTED`)" .
+
+adr:dA004 a adr:Decision ;
+    adr:number "ADR-004" ;
+    adr:filename "ADR-004-ash-optional-integration.md" ;
+    adr:title "Ash Framework Optional Integration Boundary" ;
+    adr:status "Accepted (`IMPLEMENTED`)" .
+
+adr:dA005 a adr:Decision ;
+    adr:number "ADR-005" ;
+    adr:filename "ADR-005-manifest-manufacturing-ownership.md" ;
+    adr:title "Manifest Manufacturing Ownership & Stale Detection" ;
+    adr:status "Accepted (`IMPLEMENTED`)" .
+
+adr:dA006a a adr:Decision ;
+    adr:number "ADR-006a" ;
+    adr:filename "ADR-006-actuation-single-boundary.md" ;
+    adr:title "Single Actuation Boundary & Deferred Execution" ;
+    adr:status "Accepted (`IMPLEMENTED`)" .
+
+adr:dA006b a adr:Decision ;
+    adr:number "ADR-006b" ;
+    adr:filename "ADR-006-generational-resilience-manufacture.md" ;
+    adr:title "Generation-Bound Cyber-Resiliency Manufacture" ;
+    adr:status "Accepted for v26.9.26 experimental implementation" .
+
+adr:dA007 a adr:Decision ;
+    adr:number "ADR-007" ;
+    adr:filename "ADR-007-compensation-restores-state-preserves-evidence.md" ;
+    adr:title "Compensation Restores State While Preserving Evidence" ;
+    adr:status "Accepted (`IMPLEMENTED`)" .
+
+adr:dA008 a adr:Decision ;
+    adr:number "ADR-008" ;
+    adr:filename "ADR-008-cli-as-adapter.md" ;
+    adr:title "CLI as a Thin Adapter over the Kernel" ;
+    adr:status "Accepted (`IMPLEMENTED`)" .
+
+adr:dA009 a adr:Decision ;
+    adr:number "ADR-009" ;
+    adr:filename "ADR-009-a2a-pack-local-vocabulary.md" ;
+    adr:title "Pack-local `a2a:` vocabulary for the Semantic Jira A2A projection" ;
+    adr:status "Accepted" .

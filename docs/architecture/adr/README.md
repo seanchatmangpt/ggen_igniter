@@ -29,6 +29,17 @@ table below directly (a future re-run would just overwrite a hand-edit).
 | [0006](0006-marker-based-injection-not-ast-patch.md) | Marker-based line splice for injection, deferring real AST-based mutation | Accepted |
 | [0007](0007-sync-always-attempts-receipts.md) | `mix ggen_igniter.sync` Always Attempts the Reactor Pipeline (Receipts on Every Run), Gated Only by Delegatability | Accepted |
 | [0008](0008-evidence-ranked-multi-engine-registry.md) | Evidence-Ranked Multi-Engine Registry for `--engine` Comparison Mode | Accepted |
+| [0009](0009-runtime-shape-semantic-ir.md) | RuntimeShape as the shared admitted semantic IR | Accepted |
+| [ADR-001](ADR-001-reactor-coordination-kernel.md) | Reactor as the Coordination Kernel | Accepted (`IMPLEMENTED`) |
+| [ADR-002](ADR-002-igniter-structured-elixir-mutation.md) | Igniter & Structured Elixir Mutation Boundaries | Accepted (`PARTIAL_ALIVE` / `PLANNED`) |
+| [ADR-003](ADR-003-ggen-semantic-compilation.md) | ggen Semantic Compilation Integration | Accepted (`IMPLEMENTED`) |
+| [ADR-004](ADR-004-ash-optional-integration.md) | Ash Framework Optional Integration Boundary | Accepted (`IMPLEMENTED`) |
+| [ADR-005](ADR-005-manifest-manufacturing-ownership.md) | Manifest Manufacturing Ownership & Stale Detection | Accepted (`IMPLEMENTED`) |
+| [ADR-006a](ADR-006-actuation-single-boundary.md) | Single Actuation Boundary & Deferred Execution | Accepted (`IMPLEMENTED`) |
+| [ADR-006b](ADR-006-generational-resilience-manufacture.md) | Generation-Bound Cyber-Resiliency Manufacture | Accepted for v26.9.26 experimental implementation |
+| [ADR-007](ADR-007-compensation-restores-state-preserves-evidence.md) | Compensation Restores State While Preserving Evidence | Accepted (`IMPLEMENTED`) |
+| [ADR-008](ADR-008-cli-as-adapter.md) | CLI as a Thin Adapter over the Kernel | Accepted (`IMPLEMENTED`) |
+| [ADR-009](ADR-009-a2a-pack-local-vocabulary.md) | Pack-local `a2a:` vocabulary for the Semantic Jira A2A projection | Accepted |
 | [ADR-010](ADR-010-event-sourced-standing.md) | Event-sourced standing (definition_digest + append-only log) | Accepted |
 | [ADR-011](ADR-011-reduce-sj-toward-public-vocabularies.md) | Reduce `sj:` toward oslc_cm/dcterms/PROV-O/SHACL | PLANNED |
 | [ADR-012](ADR-012-prose-never-originates-work-orders.md) | Prose never originates work orders | Accepted |
