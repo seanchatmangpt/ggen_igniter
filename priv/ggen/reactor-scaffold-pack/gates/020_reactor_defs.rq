@@ -1,0 +1,12 @@
+PREFIX rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#>
+# One row per legacy rx:ReactorDef (the expense-approval worked example). Drives the
+# `reactor` template's fact-driven `to:` (rx:outPath).
+SELECT DISTINCT ?module_name ?out_path
+WHERE {
+  ?r a rx:ReactorDef ;
+     rx:moduleName ?m ;
+     rx:outPath ?o .
+  BIND(STR(?m) AS ?module_name)
+  BIND(STR(?o) AS ?out_path)
+}
+ORDER BY ?module_name

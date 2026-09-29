@@ -1,0 +1,11 @@
+PREFIX rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#>
+# Data edges: ?step_iri rx:dependsOn ?dep_iri renders `argument :dep, result(:dep)` (ledger steps)
+# or `wait_for :dep` (Ash steps). The RDF edge set is the only source of step wiring.
+SELECT DISTINCT ?step_iri ?dep_iri
+WHERE {
+  ?s a rx:SagaStep ;
+     rx:dependsOn ?d .
+  BIND(STR(?s) AS ?step_iri)
+  BIND(STR(?d) AS ?dep_iri)
+}
+ORDER BY ?step_iri ?dep_iri

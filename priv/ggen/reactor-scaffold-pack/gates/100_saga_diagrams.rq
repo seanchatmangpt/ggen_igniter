@@ -1,0 +1,12 @@
+PREFIX rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#>
+# One row per rx:Reactor that declares rx:diagramPath (drives the saga_diagram template).
+SELECT DISTINCT ?reactor_iri ?module_name ?diagram_path
+WHERE {
+  ?r a rx:Reactor ;
+     rx:moduleName ?m ;
+     rx:diagramPath ?d .
+  BIND(STR(?r) AS ?reactor_iri)
+  BIND(STR(?m) AS ?module_name)
+  BIND(STR(?d) AS ?diagram_path)
+}
+ORDER BY ?reactor_iri

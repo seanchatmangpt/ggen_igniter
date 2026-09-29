@@ -1,0 +1,19 @@
+@prefix rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#> .
+@prefix ex: <https://example.test/ash-steps#> .
+
+# Test INPUT: an Ash.Reactor saga over B1dFixture.Ticket (real Ash on ETS).
+# open -> close; the create is undone (destroy) when a later step fails.
+ex:reactor a rx:Reactor ;
+    rx:moduleName "B1dFixture.TicketFlow" ;
+    rx:outPath "lib/b1d_fixture/ticket_flow.ex" ;
+    rx:inputName "title" ;
+    rx:returnStep "close" .
+
+ex:open a rx:SagaStep ; rx:inReactor ex:reactor ; rx:name "open" ; rx:kind "ash" ;
+    rx:ashOp "create" ; rx:resource "B1dFixture.Ticket" ; rx:ashAction "open" ;
+    rx:undoAction "undo" ;
+    rx:ashInput [ rx:param "title" ; rx:sourceKind "input" ; rx:source "title" ] .
+
+ex:close a rx:SagaStep ; rx:inReactor ex:reactor ; rx:name "close" ; rx:kind "ash" ;
+    rx:ashOp "update" ; rx:resource "B1dFixture.Ticket" ; rx:ashAction "close" ;
+    rx:initialFrom ex:open ; rx:dependsOn ex:open .

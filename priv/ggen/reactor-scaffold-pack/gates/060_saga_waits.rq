@@ -1,0 +1,10 @@
+PREFIX rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#>
+# Ordering-only edges: ?step_iri rx:waitsFor ?dep_iri renders `wait_for :dep` (no data argument).
+SELECT DISTINCT ?step_iri ?dep_iri
+WHERE {
+  ?s a rx:SagaStep ;
+     rx:waitsFor ?d .
+  BIND(STR(?s) AS ?step_iri)
+  BIND(STR(?d) AS ?dep_iri)
+}
+ORDER BY ?step_iri ?dep_iri

@@ -1,0 +1,15 @@
+PREFIX rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#>
+# Ash.Reactor step inputs: ?step rx:ashInput [ rx:param P ; rx:sourceKind input|value|result ; rx:source S ].
+SELECT DISTINCT ?step_iri ?param ?source_kind ?source
+WHERE {
+  ?s a rx:SagaStep ;
+     rx:ashInput ?i .
+  OPTIONAL { ?i rx:param ?p }
+  OPTIONAL { ?i rx:sourceKind ?k }
+  OPTIONAL { ?i rx:source ?v }
+  BIND(STR(?s) AS ?step_iri)
+  BIND(STR(COALESCE(?p, "")) AS ?param)
+  BIND(STR(COALESCE(?k, "")) AS ?source_kind)
+  BIND(STR(COALESCE(?v, "")) AS ?source)
+}
+ORDER BY ?step_iri ?param

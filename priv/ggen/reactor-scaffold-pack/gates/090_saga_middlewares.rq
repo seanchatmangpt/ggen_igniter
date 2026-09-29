@@ -1,0 +1,10 @@
+PREFIX rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#>
+# rx:middleware "telemetry" -> Reactor.Middleware.Telemetry ; "ocel" -> generated OCEL middleware.
+SELECT DISTINCT ?reactor_iri ?middleware
+WHERE {
+  ?r a rx:Reactor ;
+     rx:middleware ?m .
+  BIND(STR(?r) AS ?reactor_iri)
+  BIND(STR(?m) AS ?middleware)
+}
+ORDER BY ?reactor_iri ?middleware

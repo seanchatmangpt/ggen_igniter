@@ -1,0 +1,9 @@
+PREFIX rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#>
+SELECT DISTINCT ?reactor_iri ?input_name
+WHERE {
+  ?r a rx:Reactor ;
+     rx:inputName ?n .
+  BIND(STR(?r) AS ?reactor_iri)
+  BIND(STR(?n) AS ?input_name)
+}
+ORDER BY ?reactor_iri ?input_name

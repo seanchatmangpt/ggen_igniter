@@ -1,0 +1,40 @@
+PREFIX rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#>
+# One row per rx:SagaStep. Wiring is NOT read here: edges come from rx:dependsOn / rx:waitsFor
+# (050/060 gates). Absent optional facts come back as "".
+SELECT DISTINCT ?step_iri ?reactor_iri ?name ?kind ?async ?max_retries ?fail_times ?fail_always
+                ?undoes ?halt_once ?hold_ms ?resource ?ash_op ?ash_action ?undo_action ?initial_from
+WHERE {
+  ?s a rx:SagaStep .
+  OPTIONAL { ?s rx:inReactor ?r }
+  OPTIONAL { ?s rx:name ?n }
+  OPTIONAL { ?s rx:kind ?k }
+  OPTIONAL { ?s rx:async ?a }
+  OPTIONAL { ?s rx:maxRetries ?mr }
+  OPTIONAL { ?s rx:failTimes ?ft }
+  OPTIONAL { ?s rx:failAlways ?fa }
+  OPTIONAL { ?s rx:undoes ?u }
+  OPTIONAL { ?s rx:haltOnce ?h }
+  OPTIONAL { ?s rx:holdMs ?hm }
+  OPTIONAL { ?s rx:resource ?res }
+  OPTIONAL { ?s rx:ashOp ?ao }
+  OPTIONAL { ?s rx:ashAction ?aa }
+  OPTIONAL { ?s rx:undoAction ?ua }
+  OPTIONAL { ?s rx:initialFrom ?i }
+  BIND(STR(?s) AS ?step_iri)
+  BIND(STR(COALESCE(?r, "")) AS ?reactor_iri)
+  BIND(STR(COALESCE(?n, "")) AS ?name)
+  BIND(STR(COALESCE(?k, "")) AS ?kind)
+  BIND(STR(COALESCE(?a, "")) AS ?async)
+  BIND(STR(COALESCE(?mr, "")) AS ?max_retries)
+  BIND(STR(COALESCE(?ft, "")) AS ?fail_times)
+  BIND(STR(COALESCE(?fa, "")) AS ?fail_always)
+  BIND(STR(COALESCE(?u, "")) AS ?undoes)
+  BIND(STR(COALESCE(?h, "")) AS ?halt_once)
+  BIND(STR(COALESCE(?hm, "")) AS ?hold_ms)
+  BIND(STR(COALESCE(?res, "")) AS ?resource)
+  BIND(STR(COALESCE(?ao, "")) AS ?ash_op)
+  BIND(STR(COALESCE(?aa, "")) AS ?ash_action)
+  BIND(STR(COALESCE(?ua, "")) AS ?undo_action)
+  BIND(STR(COALESCE(?i, "")) AS ?initial_from)
+}
+ORDER BY ?step_iri

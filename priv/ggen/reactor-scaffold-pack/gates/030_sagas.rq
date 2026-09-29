@@ -1,0 +1,21 @@
+PREFIX rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#>
+# One row per rx:Reactor individual (edge-derived saga model). Missing moduleName/outPath
+# come back as "" and are refused by the template (REFUSED:REACTOR_MALFORMED), never dropped.
+SELECT DISTINCT ?reactor_iri ?module_name ?out_path ?return_step ?max_concurrency ?ledger ?undo_order
+WHERE {
+  ?r a rx:Reactor .
+  OPTIONAL { ?r rx:moduleName ?m }
+  OPTIONAL { ?r rx:outPath ?o }
+  OPTIONAL { ?r rx:returnStep ?rs }
+  OPTIONAL { ?r rx:maxConcurrency ?mc }
+  OPTIONAL { ?r rx:ledger ?l }
+  OPTIONAL { ?r rx:undoOrder ?uo }
+  BIND(STR(?r) AS ?reactor_iri)
+  BIND(STR(COALESCE(?m, "")) AS ?module_name)
+  BIND(STR(COALESCE(?o, "")) AS ?out_path)
+  BIND(STR(COALESCE(?rs, "")) AS ?return_step)
+  BIND(STR(COALESCE(?mc, "")) AS ?max_concurrency)
+  BIND(STR(COALESCE(?l, "")) AS ?ledger)
+  BIND(STR(COALESCE(?uo, "")) AS ?undo_order)
+}
+ORDER BY ?reactor_iri

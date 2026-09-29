@@ -1,0 +1,14 @@
+@prefix rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#> .
+@prefix ex: <https://example.test/diamond#> .
+
+# Test INPUT: a diamond saga  a -> b, a -> c, b,c -> d  expressed ONLY as rx:dependsOn edges.
+ex:reactor a rx:Reactor ;
+    rx:moduleName "B1dFixture.Diamond" ;
+    rx:outPath "lib/b1d_fixture/diamond.ex" ;
+    rx:ledger "b1d_diamond_ledger" ;
+    rx:returnStep "d" .
+
+ex:a a rx:SagaStep ; rx:inReactor ex:reactor ; rx:name "a" ; rx:kind "ledger" .
+ex:b a rx:SagaStep ; rx:inReactor ex:reactor ; rx:name "b" ; rx:kind "ledger" ; rx:dependsOn ex:a .
+ex:c a rx:SagaStep ; rx:inReactor ex:reactor ; rx:name "c" ; rx:kind "ledger" ; rx:dependsOn ex:a .
+ex:d a rx:SagaStep ; rx:inReactor ex:reactor ; rx:name "d" ; rx:kind "ledger" ; rx:dependsOn ex:b, ex:c .

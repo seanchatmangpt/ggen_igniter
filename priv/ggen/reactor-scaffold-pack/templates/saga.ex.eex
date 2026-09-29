@@ -1,0 +1,242 @@
+---
+to: "<%= out_path %>"
+for_each: sagas
+mode: file
+---
+<%
+  refuse = fn code, detail -> raise "REFUSED:" <> code <> " " <> detail end
+
+  # ---- admission: every check runs before a single byte is emitted -----------------
+  if module_name == "" or out_path == "" do
+    refuse.("REACTOR_MALFORMED", "#{reactor_iri} lacks rx:moduleName or rx:outPath")
+  end
+
+  ident = ~r/\A[a-z_][a-zA-Z0-9_]*\z/
+  digits = ~r/\A\d+\z/
+  alias_re = ~r/\A[A-Z][A-Za-z0-9_]*(\.[A-Z][A-Za-z0-9_]*)*\z/
+
+  if not Regex.match?(alias_re, module_name),
+    do: refuse.("REACTOR_MALFORMED", "rx:moduleName #{inspect(module_name)} on #{reactor_iri} is not an Elixir module alias")
+
+  if ledger != "" and not Regex.match?(ident, ledger),
+    do: refuse.("REACTOR_MALFORMED", "rx:ledger #{inspect(ledger)} on #{reactor_iri} is not an identifier")
+
+  if max_concurrency != "" and not Regex.match?(digits, max_concurrency),
+    do: refuse.("REACTOR_MALFORMED", "rx:maxConcurrency #{inspect(max_concurrency)} on #{reactor_iri} is not a non-negative integer")
+
+  for r <- saga_reactor_inputs, r["reactor_iri"] == reactor_iri, not Regex.match?(ident, r["input_name"]),
+    do: refuse.("REACTOR_MALFORMED", "reactor input #{inspect(r["input_name"])} on #{reactor_iri} is not an identifier")
+
+  reactor_iris = Enum.map(sagas, & &1["reactor_iri"])
+
+  case Enum.find(saga_steps, &(&1["reactor_iri"] not in reactor_iris)) do
+    nil -> :ok
+    orphan -> refuse.("REACTOR_MALFORMED", "step #{orphan["step_iri"]} has no rx:inReactor naming an rx:Reactor")
+  end
+
+  my_steps = Enum.filter(saga_steps, &(&1["reactor_iri"] == reactor_iri))
+  my_iris = Enum.map(my_steps, & &1["step_iri"])
+  name_of = Map.new(my_steps, &{&1["step_iri"], &1["name"]})
+
+  for s <- my_steps do
+    if s["name"] == "", do: refuse.("REACTOR_MALFORMED", "step #{s["step_iri"]} lacks rx:name")
+
+    if not Regex.match?(ident, s["name"]),
+      do: refuse.("REACTOR_MALFORMED", "step #{s["step_iri"]} has rx:name #{inspect(s["name"])} which is not an identifier")
+
+    for {fact, v} <- [maxRetries: s["max_retries"], holdMs: s["hold_ms"], failTimes: s["fail_times"]],
+        v != "" and not Regex.match?(digits, v),
+        do: refuse.("REACTOR_MALFORMED", "step #{s["name"]} has rx:#{fact} #{inspect(v)} which is not a non-negative integer")
+
+    if s["kind"] not in ["ledger", "ash"],
+      do: refuse.("REACTOR_UNKNOWN_STEP_KIND", "step #{s["name"]} has rx:kind #{inspect(s["kind"])} (expected ledger|ash)")
+
+    if s["kind"] == "ash" and
+         (s["resource"] == "" or s["ash_action"] == "" or s["ash_op"] not in ["create", "update", "destroy", "action"]),
+       do: refuse.("REACTOR_MALFORMED", "ash step #{s["name"]} needs rx:resource, rx:ashAction and rx:ashOp create|update|destroy|action")
+
+    if s["kind"] == "ledger" and ledger == "",
+      do: refuse.("REACTOR_MALFORMED", "ledger step #{s["name"]} needs rx:ledger on #{reactor_iri}")
+  end
+
+  names = Enum.map(my_steps, & &1["name"])
+
+  if length(Enum.uniq(names)) != length(names),
+    do: refuse.("REACTOR_MALFORMED", "#{module_name} declares duplicate step names")
+
+  if return_step != "" and return_step not in names,
+    do: refuse.("REACTOR_MALFORMED", "rx:returnStep #{return_step} is not a step of #{module_name}")
+
+  edges_for = fn rows, iri -> for r <- rows, r["step_iri"] == iri, do: r["dep_iri"] end
+
+  for s <- my_steps, dep <- edges_for.(saga_deps, s["step_iri"]) ++ edges_for.(saga_waits, s["step_iri"]) do
+    if dep not in my_iris,
+      do: refuse.("REACTOR_DANGLING_EDGE", "#{s["name"]} depends on #{dep}, which is not a step of #{module_name}")
+  end
+
+  all_deps = fn s -> Enum.uniq(edges_for.(saga_deps, s["step_iri"]) ++ edges_for.(saga_waits, s["step_iri"])) end
+
+  # ---- topological order (Kahn levels); leftovers are exactly the cyclic core ----------
+  {ordered, _done, cyclic} =
+    Enum.reduce_while(0..length(my_steps), {[], MapSet.new(), my_steps}, fn _, {acc, done, rem} ->
+      {ready, rest} = Enum.split_with(rem, fn s -> Enum.all?(all_deps.(s), &MapSet.member?(done, &1)) end)
+
+      cond do
+        rem == [] -> {:halt, {acc, done, []}}
+        ready == [] -> {:halt, {acc, done, rem}}
+        true ->
+          ready = Enum.sort_by(ready, & &1["name"])
+          {:cont, {acc ++ ready, MapSet.union(done, MapSet.new(ready, & &1["step_iri"])), rest}}
+      end
+    end)
+
+  if cyclic != [],
+    do: refuse.("REACTOR_CYCLE", "#{module_name} rx:dependsOn/rx:waitsFor edges form a cycle through #{Enum.map_join(Enum.sort_by(cyclic, & &1["name"]), ", ", & &1["name"])}")
+
+  if undo_order not in ["", "reverse", "native"],
+    do: refuse.("REACTOR_MALFORMED", "rx:undoOrder #{inspect(undo_order)} on #{module_name} (expected reverse|native)")
+
+  undoable = for s <- ordered, s["kind"] == "ledger", s["undoes"] == "true", do: ":" <> s["name"]
+
+  inputs = for r <- saga_reactor_inputs, r["reactor_iri"] == reactor_iri, do: r["input_name"]
+  mws = for r <- saga_middlewares, r["reactor_iri"] == reactor_iri, do: r["middleware"]
+
+  for m <- mws, m not in ["telemetry", "ocel"],
+    do: refuse.("REACTOR_MALFORMED", "unknown rx:middleware #{inspect(m)} on #{module_name} (expected telemetry|ocel)")
+
+  ash? = Enum.any?(my_steps, &(&1["kind"] == "ash"))
+  ledger_atom = ":" <> ledger
+
+  # ---- renderers (pure functions of the RDF-derived rows) -----------------------------
+  ledger_run = fn s ->
+    n = ":" <> s["name"]
+
+    gate =
+      cond do
+        s["fail_always"] == "true" ->
+          """
+              cond do
+                true ->
+                  record.({:fail, name})
+                  {:error, {:failed, name}}
+              end
+          """
+
+        true ->
+          clauses =
+            (if s["fail_times"] != "", do: ["        Enum.count(history, &(&1 == {:fail, name})) < #{s["fail_times"]} ->\n          record.({:fail, name})\n          {:error, {:failed, name}}\n"], else: []) ++
+              (if s["halt_once"] == "true", do: ["        {:halt, name} not in history ->\n          record.({:halt, name})\n          {:halt, name}\n"], else: [])
+
+          hold =
+            if s["hold_ms"] != "",
+              do: "          record.({:enter, name})\n          Process.sleep(#{s["hold_ms"]})\n          record.({:leave, name})\n",
+              else: ""
+
+          "    cond do\n" <> Enum.join(clauses) <>
+            "        true ->\n" <> hold <> "          record.({:run, name})\n          {:ok, name}\n    end\n"
+      end
+
+    "      ledger = #{ledger_atom}\n      name = #{n}\n      record = fn event -> Agent.update(ledger, &[event | &1]) end\n      history = Agent.get(ledger, & &1)\n      _ = history\n" <> gate
+  end
+
+  ash_inputs = fn s ->
+    for i <- saga_step_inputs, i["step_iri"] == s["step_iri"] do
+      value =
+        case i["source_kind"] do
+          "input" -> "input(:#{i["source"]})"
+          "result" -> "result(:#{i["source"]})"
+          "value" -> "value(#{inspect(i["source"])})"
+          other -> refuse.("REACTOR_MALFORMED", "ash input #{i["param"]} of #{s["name"]} has rx:sourceKind #{inspect(other)} (expected input|result|value)")
+        end
+
+      "#{i["param"]}: #{value}"
+    end
+  end
+%># GENERATED by ggen_igniter from the rx:Reactor <%= reactor_iri %> in
+# priv/ggen/reactor-scaffold-pack (template: saga). Do not edit.
+# Wiring below is derived from rx:dependsOn / rx:waitsFor edges; step order is their
+# topological order. Regenerate with:
+#   mix ggen_igniter.sync --pack reactor-scaffold-pack:saga --ontology <ontology.ttl>
+<%= if "ocel" in mws do %>
+defmodule <%= module_name %>.OcelMiddleware do
+  @moduledoc """
+  Generated OCEL middleware: emits one `STEP_COMPENSATE` / `STEP_UNDO` event per lifecycle edge
+  (object type `reactor_step`, id = step name) through `GgenIgniter.Telemetry.OcelEmitter.emit/4`.
+  The sink pid is read from the run context key `:ocel_sink`.
+  """
+  use Reactor.Middleware
+
+  @impl true
+  def event({:compensate_start, _reason}, step, context), do: emit("STEP_COMPENSATE", step, context)
+  def event(:undo_start, step, context), do: emit("STEP_UNDO", step, context)
+  def event(_event, _step, _context), do: :ok
+
+  defp emit(activity, step, context) do
+    GgenIgniter.Telemetry.OcelEmitter.emit(
+      Map.get(context, :ocel_sink),
+      activity,
+      [%{"type" => "reactor_step", "id" => to_string(step.name)}]
+    )
+
+    :ok
+  end
+end
+<% end %>
+defmodule <%= module_name %> do
+  @moduledoc false
+  use Reactor<%= if ash? do %>, extensions: [Ash.Reactor]<% end %>
+<%= if mws != [] do %>
+  middlewares do
+<%= if "telemetry" in mws do %>    middleware Reactor.Middleware.Telemetry
+<% end %><%= if "ocel" in mws do %>    middleware <%= module_name %>.OcelMiddleware
+<% end %>  end
+<% end %>
+<%= for i <- inputs do %>  input :<%= i %>
+<% end %>
+  @doc "Options for `Reactor.run/4`, derived from rx:maxConcurrency."
+  def run_options, do: <%= if max_concurrency == "", do: "[]", else: "[max_concurrency: #{max_concurrency}]" %>
+<%= for s <- ordered do %>
+<%
+  deps = edges_for.(saga_deps, s["step_iri"])
+  waits = edges_for.(saga_waits, s["step_iri"])
+%><%= if s["kind"] == "ledger" do %>  step :<%= s["name"] %> do
+<%= for d <- deps do %>    argument :<%= name_of[d] %>, result(:<%= name_of[d] %>)
+<% end %><%= for w <- waits do %>    wait_for :<%= name_of[w] %>
+<% end %>    async? <%= if s["async"] == "false", do: "false", else: "true" %>
+<%= if s["max_retries"] != "" do %>    max_retries <%= s["max_retries"] %>
+<% end %>
+    run fn _args, _context ->
+<%= ledger_run.(s) %>    end
+
+    compensate fn _reason, _args, _context -> <%= if s["max_retries"] != "", do: ":retry", else: ":ok" %> end
+<%= if s["undoes"] == "true" and undo_order == "reverse" do %>
+    undo fn _value, _args, _context ->
+      ledger = <%= ledger_atom %>
+      history = Agent.get(ledger, & &1)
+
+      unless {:undo, :<%= s["name"] %>} in history do
+        # Reactor 1.0.6 undoes oldest-first; rx:undoOrder "reverse" restores saga order by
+        # first undoing every later-completed undoable step, newest first.
+        {later, _earlier} = Enum.split_while(history, &(&1 != {:run, :<%= s["name"] %>}))
+        pending = for {:run, n} <- later, n in [<%= Enum.join(undoable, ", ") %>], {:undo, n} not in history, do: n
+        Enum.each(pending ++ [:<%= s["name"] %>], fn n -> Agent.update(ledger, &[{:undo, n} | &1]) end)
+      end
+
+      :ok
+    end
+<% else %><%= if s["undoes"] == "true" do %>
+    undo fn _value, _args, _context ->
+      Agent.update(<%= ledger_atom %>, &[{:undo, :<%= s["name"] %>} | &1])
+      :ok
+    end
+<% end %><% end %>  end
+<% else %>  <%= s["ash_op"] %> :<%= s["name"] %>, <%= s["resource"] %>, :<%= s["ash_action"] %> do
+<%= if ash_inputs.(s) != [] do %>    inputs %{<%= Enum.join(ash_inputs.(s), ", ") %>}
+<% end %><%= if s["initial_from"] != "" do %>    initial result(:<%= name_of[s["initial_from"]] || refuse.("REACTOR_DANGLING_EDGE", "initialFrom #{s["initial_from"]} of #{s["name"]} is not a step of #{module_name}") %>)
+<% end %><%= for d <- deps ++ waits do %>    wait_for :<%= name_of[d] %>
+<% end %><%= if s["undo_action"] != "" do %>    undo :always
+    undo_action :<%= s["undo_action"] %>
+<% end %>  end
+<% end %><% end %>
+<%= if return_step != "" do %>  return :<%= return_step %>
+<% end %>end
