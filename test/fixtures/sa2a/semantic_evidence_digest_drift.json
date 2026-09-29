@@ -1,0 +1,19 @@
+{
+  "schema": "sa2a.semantic-evidence-envelope.v1",
+  "contractVersion": "v26.9.29",
+  "canonicalization": "RDFC-1.0",
+  "authority": "NONE",
+  "consequence": "EVIDENCE_ONLY",
+  "subject": "urn:customer:changed",
+  "source": {
+    "id": "customer",
+    "uri": "urn:source:customer",
+    "graph": "urn:graph:customer",
+    "subjectTemplate": "https://example.org/customer/{id}",
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "graphDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "replayIdentity": "replay:customer:42",
+  "provenance": {"producer": "ash_r2rml"},
+  "envelopeDigest": "sha256:92985c2699a5fdaa0dcd6dbc3181e36985b511ceb00ad0a38c62c14db43b9d78"
+}

@@ -1,0 +1,1 @@
+ASK { ?e <urn:sa2a:consequence> ?c . FILTER(?c != "EVIDENCE_ONLY") }
