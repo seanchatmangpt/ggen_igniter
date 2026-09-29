@@ -1,0 +1,13 @@
+PREFIX capi: <https://ggen.dev/ontology/castle-capability-intake#>
+PREFIX eco: <https://ggen.dev/ecosystem#>
+
+SELECT ?repository ?sha ?capability ?disposition ?falsifier
+WHERE {
+  ?donor a capi:Donor ;
+         eco:sourceRepository ?repository ;
+         eco:sourceSha ?sha ;
+         eco:projectedCapability ?capability ;
+         eco:projectionDisposition ?disposition ;
+         eco:falsifier ?falsifier .
+}
+ORDER BY ?repository

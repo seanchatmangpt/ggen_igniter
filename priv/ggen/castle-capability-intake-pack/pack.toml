@@ -1,0 +1,4 @@
+[pack]
+name = "castle-capability-intake-pack"
+version = "26.9.28"
+description = "Projects CASTLE non-owner capability donors into ggen_igniter's existing manufacture boundary. Source ggen-ecosystem@50fdfa20c84205a80c6eb94e916cffbedc4b816e. Standing CANDIDATE, ceiling CONSTRUCT, never DO."

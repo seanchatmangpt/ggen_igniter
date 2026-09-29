@@ -64,7 +64,7 @@ See `docs/status.md` for the complete, sourced capability table and
 
 ## Packs
 
-`priv/ggen/*` ships the following 16 packs (the `--pack NAME` convention;
+priv/ggen/* ships the following 17 packs (the `--pack NAME` convention;
 original pack purposes sourced from `docs/v26.9.1-requirements.md` §3 — the
 disk inventory below is authoritative):
 
@@ -112,6 +112,7 @@ disk inventory below is authoritative):
   set now 14).
 - **`zcode-ocel-pack`** (pack.toml v0.1.0) — OCEL 2.0 event/object-type
   registry for the zcode agent loop (TypeScript projection).
+- **`castle-capability-intake-pack`** (pack.toml v26.9.28) — projects CASTLE's non-owner manufacture donors (`ggen` legacy compatibility and OSTAR proof-driven manufacture research) into the existing `ggen_igniter` manufacture boundary. The pack is CANDIDATE, authority ceiling CONSTRUCT, and its generated reference is non-sovereign.
 - **`doctrine-hddl-pack`** (pack.toml v26.9.26) — projects the
   strategic-doctrine (`sd:`) graph plus a world model into HDDL + FOND
   (templates `domain.hddl`, `problem.hddl`, `contingency.fond.pddl`): one
