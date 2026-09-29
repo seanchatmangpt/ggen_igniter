@@ -299,6 +299,59 @@ oxigraph query engine). See `docs/integrations/ggen/semantic-compilation.md`.
 
 The paradigm realized by `ggen_igniter`: closed-loop software generation and reconciliation where formal knowledge (RDF ontologies) compiles deterministically into verified, self-healing Elixir project state with zero unmanaged drift, fail-closed admission, automated compensation, and persistent audit standing.
 
+## REFUSED_*
+
+A typed refusal: a gate that can and does say no, carrying a code. Canonical
+text form `REFUSED:<CODE> <detail>`; the enumerated set is
+`priv/schema/refusals.schema.json`, accessed via `GgenIgniter.Refusals`
+(`docs/reference/refusals.md`). Epoch verdict atoms (`REFUSED_LEGACY_EDIT`,
+...) and plan codes (`REFUSED_EPOCH_*`) map to codes without the `REFUSED_`
+prefix. UNSUPPORTED is not REFUSED: a refusal is a decision, unsupported is a
+missing capability.
+
+## broken term (mu_on_O, admission_vacuous, mu_unlawful, R_missing_*, R_not_fed_back)
+
+The one term of `A = mu(O*)`, `R = receipt(A)` a failure violates.
+`mu_on_O`: manufacture from unadmitted input. `admission_vacuous`: a gate that
+never refuses, so O* = O. `mu_unlawful`: manufacture that destroys admitted
+capability. `R_missing_identity` / `_authority` / `_consequence` / `_replay` /
+`_standing`: a receipt lacking that one of its five fields. `R_not_fed_back`:
+a receipt that never re-enters the next observation. Each registry entry in
+`refusals.schema.json` carries its `broken_term` or null.
+
+## standing
+
+The derived status of a claim about an exact subject: `ALIVE` (observed
+execution on the exact admitted subject), `PARTIAL_ALIVE` (some parts alive),
+`BLOCKED` (a named hop cannot proceed), `UNSUPPORTED` (no capability, distinct
+from a refusal), plus `UNKNOWN`, `BUILD_BROKEN` and typed `REFUSED(...)`.
+Standing lives in receipts bound to an identity, never stored as a literal.
+
+## gate
+
+A check that admits or refuses. A gate is only informative if it has been
+witnessed refusing (anti-vacuity: mutating the input makes it fail). Examples:
+`mix ggen_igniter.epoch.check`, `mix ggen_igniter.hand_authored`, SHACL
+admission of work orders.
+
+## admission
+
+The step that turns observation O into admitted O*: a gate that can refuse
+decides which inputs manufacture may act on. Candidates never become output
+without admission.
+
+## receipt
+
+The durable record of an action: identity, authority, consequence, replay and
+standing (`GgenIgniter.Receipt`, `priv/schema/receipt.schema.json`). A summary
+is not a receipt.
+
+## court
+
+A verification lane that tries to falsify a claim on the exact landed subject
+(for example the epoch freshness court, `GgenIgniter.EpochFreshness`); courts
+kill, generators only propose.
+
 ## See also
 
 - `docs/status.md` — real IMPLEMENTED/PARTIAL_ALIVE/PLANNED status of every

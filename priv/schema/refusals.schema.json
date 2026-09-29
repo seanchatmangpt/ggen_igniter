@@ -1,0 +1,1067 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/seanchatmangpt/ggen_igniter/priv/schema/refusals.schema.json",
+  "title": "GgenIgniter refusal vocabulary",
+  "description": "Enumerated machine-readable set of every typed refusal code emitted in lib/. Canonical text form: REFUSED:<CODE> <detail>. Legacy forms REFUSED(code) subject: detail and REFUSED_<CODE> detail parse to the same code. The top-level `refusals` array is the registry; GgenIgniter.Refusals reads it at compile time.",
+  "type": "object",
+  "required": [
+    "refusals"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "refusals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "code": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$",
+      "enum": [
+        "ABSOLUTE_PATH_IN_STATE",
+        "AUTHORITY_ADMISSION",
+        "AUTHORITY_ADMISSION_REFUSED",
+        "AUTHORITY_DIGEST_INVALID",
+        "AUTHORITY_DIGEST_MISMATCH",
+        "AUTHORITY_INDEX_CONFLICT",
+        "AUTHORITY_NOT_ADMITTED",
+        "AUTHORITY_TYPE_MISMATCH",
+        "CANDIDATE",
+        "CEILING_EXCEEDED",
+        "COMPOSITION",
+        "CONTRADICTION",
+        "COPY_READD",
+        "CORRUPT_MANIFEST",
+        "CORRUPT_RECEIPT",
+        "CS2_BATCH",
+        "CS2_PROJECTION",
+        "DELETE_WRITE_COLLISION",
+        "DESCRIPTOR",
+        "DO",
+        "DOCTRINE",
+        "DUPLICATE_OUTPUT_PATH",
+        "DUPLICATE_SOURCE_PATH",
+        "DUPLICATE_WORK_ORDER",
+        "EPHEMERAL_ATTESTATION",
+        "EPHEMERAL_PROJECTION",
+        "EPOCH_CHECK",
+        "EPOCH_INVARIANT",
+        "EPOCH_LEGACY_EDIT",
+        "EPOCH_PLAN",
+        "EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT",
+        "EPOCH_UNATTRIBUTED_IMPLEMENTATION",
+        "EPOCH_WATERMARK",
+        "EPOCH_WATERMARK_UNAVAILABLE",
+        "FILE_NOT_FOUND",
+        "FORBIDDEN_INPUT",
+        "FOREIGN_REQUIREMENT",
+        "FOREIGN_SUBJECT",
+        "GATE_SCRIPT_NOT_FOUND",
+        "GENERATED_ARTIFACT_MUTATED",
+        "GENERATIONAL_RESILIENCE",
+        "GOAL_INCOMPLETE",
+        "GOAL_ROOT",
+        "INPUT_INVALID",
+        "INPUT_UNREADABLE",
+        "INVALID_EXPIRY",
+        "LEASE_REQUEST",
+        "LEDGER_REFUSED",
+        "LEGACY_EDIT",
+        "LLM_CREDENTIAL_PRESENT",
+        "MACHINE_EXPERIENCE",
+        "MARKED_FILE",
+        "MISSCOPED",
+        "MISSING_ACCEPTANCE_COMMAND",
+        "MISSING_EXPIRY",
+        "MISSING_FIELD",
+        "MISSING_MANIFEST",
+        "MISSING_SUNSET_PLAN",
+        "NO_ATTRIBUTION",
+        "NO_TYPED_AUTHORITY_NODE",
+        "ONTOLOGY_MALFORMED_SECTION",
+        "ONTOLOGY_NOT_FOUND",
+        "ONTOLOGY_UNPARSEABLE",
+        "ORDER_ABSENT",
+        "ORIGIN",
+        "ORIGIN_AUTHORITY_MISSING",
+        "OUTPUT_DRIFT",
+        "PACK_DIGEST_MISMATCH",
+        "PACK_IDENTITY_MISMATCH",
+        "PACK_LOCK_MISSING",
+        "PACK_MANIFEST",
+        "PACK_MANIFEST_INVALID",
+        "PACK_MANIFEST_MISSING",
+        "PACK_ONTOLOGY_NOT_FOUND",
+        "PATH_ESCAPES_ROOT",
+        "PRE_EPOCH_RECEIPT",
+        "PROJECT_MANUFACTURER",
+        "PROVENANCE_MISMATCH",
+        "SEMANTIC_JIRA",
+        "SEMANTIC_JIRA_BASE_SHA_UNVERIFIED",
+        "SEMANTIC_JIRA_SHACL",
+        "SHA_DRIFT",
+        "SHA_UNCOMPUTABLE",
+        "STALE_OUTPUTS",
+        "STANDING_PROJECTION",
+        "SUBJECT_EXHAUSTED",
+        "SUBJECT_PREFIX_UNDECLARED",
+        "TRANSITION",
+        "UNADMITTED",
+        "UNCOVERED_GATE",
+        "UNEXPLAINED_SIMILARITY",
+        "UNKNOWN_KIND",
+        "UNOWNED_DELETE",
+        "UPGRADE_DOWNGRADE",
+        "UPGRADE_INVALID_VERSION",
+        "USAGE",
+        "VERIFICATION_EVIDENCE",
+        "WORK_ORDER"
+      ]
+    },
+    "broken_term": {
+      "enum": [
+        "mu_on_O",
+        "admission_vacuous",
+        "mu_unlawful",
+        "R_missing_identity",
+        "R_missing_authority",
+        "R_missing_consequence",
+        "R_missing_replay",
+        "R_missing_standing",
+        "R_not_fed_back",
+        null
+      ]
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "family",
+        "retryable",
+        "owner",
+        "fix_hint",
+        "broken_term",
+        "example"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/code"
+        },
+        "family": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "fix_hint": {
+          "type": "string"
+        },
+        "broken_term": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/broken_term"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "example": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "refusals": [
+    {
+      "code": "AUTHORITY_DIGEST_INVALID",
+      "family": "authority",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Authority",
+      "fix_hint": "Recompute the authority digest.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:AUTHORITY_DIGEST_INVALID <detail>"
+    },
+    {
+      "code": "AUTHORITY_DIGEST_MISMATCH",
+      "family": "authority",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Authority",
+      "fix_hint": "Authority changed after admission; re-admit.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:AUTHORITY_DIGEST_MISMATCH <detail>"
+    },
+    {
+      "code": "AUTHORITY_INDEX_CONFLICT",
+      "family": "authority",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Authority",
+      "fix_hint": "Resolve conflicting authority index entries.",
+      "broken_term": null,
+      "example": "REFUSED:AUTHORITY_INDEX_CONFLICT <detail>"
+    },
+    {
+      "code": "AUTHORITY_NOT_ADMITTED",
+      "family": "authority",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Authority",
+      "fix_hint": "Admit the authority node first.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:AUTHORITY_NOT_ADMITTED <detail>"
+    },
+    {
+      "code": "AUTHORITY_TYPE_MISMATCH",
+      "family": "authority",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Authority",
+      "fix_hint": "Authority node has the wrong rdf:type.",
+      "broken_term": null,
+      "example": "REFUSED:AUTHORITY_TYPE_MISMATCH <detail>"
+    },
+    {
+      "code": "NO_TYPED_AUTHORITY_NODE",
+      "family": "authority",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Authority",
+      "fix_hint": "Declare an sj:CodeWorkAuthority node.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:NO_TYPED_AUTHORITY_NODE <detail>"
+    },
+    {
+      "code": "ORDER_ABSENT",
+      "family": "authority",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Authority",
+      "fix_hint": "The named order is not in the graph.",
+      "broken_term": null,
+      "example": "REFUSED:ORDER_ABSENT <detail>"
+    },
+    {
+      "code": "ORIGIN_AUTHORITY_MISSING",
+      "family": "authority",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Authority",
+      "fix_hint": "Work order lacks an origin authority.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:ORIGIN_AUTHORITY_MISSING <detail>"
+    },
+    {
+      "code": "EPOCH_LEGACY_EDIT",
+      "family": "epoch_plan",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.EpochPlan",
+      "fix_hint": "Plan fresh manufacture, not an edit of a path present in the watermark.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:EPOCH_LEGACY_EDIT order-1"
+    },
+    {
+      "code": "EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT",
+      "family": "epoch_plan",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.EpochPlan",
+      "fix_hint": "Name only post-watermark artifacts in the plan.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT order-1"
+    },
+    {
+      "code": "EPOCH_UNATTRIBUTED_IMPLEMENTATION",
+      "family": "epoch_plan",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.EpochPlan",
+      "fix_hint": "Attribute the planned implementation path to a generator or residue admission.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:EPOCH_UNATTRIBUTED_IMPLEMENTATION order-1"
+    },
+    {
+      "code": "EPOCH_WATERMARK_UNAVAILABLE",
+      "family": "epoch_plan",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.EpochPlan",
+      "fix_hint": "Run mix ggen_igniter.epoch.watermark and pass --epoch-manifest.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:EPOCH_WATERMARK_UNAVAILABLE order-1"
+    },
+    {
+      "code": "COPY_READD",
+      "family": "epoch_verdict",
+      "retryable": false,
+      "owner": "GgenIgniter.EpochFreshness",
+      "fix_hint": "Regenerate from the ontology; a pre-epoch blob re-added verbatim is not fresh manufacture.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:COPY_READD lib/foo.ex"
+    },
+    {
+      "code": "GENERATED_ARTIFACT_MUTATED",
+      "family": "epoch_verdict",
+      "retryable": false,
+      "owner": "GgenIgniter.EpochFreshness",
+      "fix_hint": "Restore the generated bytes and change the ontology/template, then re-render.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:GENERATED_ARTIFACT_MUTATED lib/foo.ex"
+    },
+    {
+      "code": "LEGACY_EDIT",
+      "family": "epoch_verdict",
+      "retryable": false,
+      "owner": "GgenIgniter.EpochFreshness",
+      "fix_hint": "Regenerate the file from its ontology instead of editing the pre-epoch implementation.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:LEGACY_EDIT lib/foo.ex"
+    },
+    {
+      "code": "NO_ATTRIBUTION",
+      "family": "epoch_verdict",
+      "retryable": false,
+      "owner": "GgenIgniter.EpochFreshness",
+      "fix_hint": "Generate the file through a receipted ggen_igniter run or add a dated HANDWRITTEN.md residue row.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:NO_ATTRIBUTION lib/foo.ex"
+    },
+    {
+      "code": "PRE_EPOCH_RECEIPT",
+      "family": "epoch_verdict",
+      "retryable": false,
+      "owner": "GgenIgniter.EpochFreshness",
+      "fix_hint": "Re-run the generator after the watermark so a post-watermark alive receipt lists the file.",
+      "broken_term": "R_missing_standing",
+      "example": "REFUSED:PRE_EPOCH_RECEIPT lib/foo.ex"
+    },
+    {
+      "code": "UNEXPLAINED_SIMILARITY",
+      "family": "epoch_verdict",
+      "retryable": false,
+      "owner": "GgenIgniter.EpochFreshness",
+      "fix_hint": "Regenerate, or admit fresh residue that differs below the similarity threshold.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:UNEXPLAINED_SIMILARITY lib/foo.ex"
+    },
+    {
+      "code": "CEILING_EXCEEDED",
+      "family": "hand_authored",
+      "retryable": false,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "The kind's admitted count is at its ceiling; retire a row first.",
+      "broken_term": null,
+      "example": "REFUSED:CEILING_EXCEEDED <detail>"
+    },
+    {
+      "code": "CONTRADICTION",
+      "family": "hand_authored",
+      "retryable": false,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "A file both marked manufactured and admitted hand-authored; remove one claim.",
+      "broken_term": "admission_vacuous",
+      "example": "REFUSED:CONTRADICTION <detail>"
+    },
+    {
+      "code": "DUPLICATE_SOURCE_PATH",
+      "family": "hand_authored",
+      "retryable": false,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "The path is already admitted; edit the existing row.",
+      "broken_term": null,
+      "example": "REFUSED:DUPLICATE_SOURCE_PATH <detail>"
+    },
+    {
+      "code": "FILE_NOT_FOUND",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "The admitted file must exist on disk; create it first.",
+      "broken_term": null,
+      "example": "REFUSED:FILE_NOT_FOUND <detail>"
+    },
+    {
+      "code": "GATE_SCRIPT_NOT_FOUND",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Restore the gate script the ontology names.",
+      "broken_term": null,
+      "example": "REFUSED:GATE_SCRIPT_NOT_FOUND <detail>"
+    },
+    {
+      "code": "INVALID_EXPIRY",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "--expires must be YYYY-MM-DD.",
+      "broken_term": null,
+      "example": "REFUSED:INVALID_EXPIRY <detail>"
+    },
+    {
+      "code": "MARKED_FILE",
+      "family": "hand_authored",
+      "retryable": false,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "A manufactured (marked) file cannot be admitted as hand-authored.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:MARKED_FILE <detail>"
+    },
+    {
+      "code": "MISSCOPED",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Path must sit under a manufactured root.",
+      "broken_term": null,
+      "example": "REFUSED:MISSCOPED <detail>"
+    },
+    {
+      "code": "MISSING_ACCEPTANCE_COMMAND",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Supply a real --acceptance-command.",
+      "broken_term": "admission_vacuous",
+      "example": "REFUSED:MISSING_ACCEPTANCE_COMMAND <detail>"
+    },
+    {
+      "code": "MISSING_EXPIRY",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Kinds that require it need --expires.",
+      "broken_term": null,
+      "example": "REFUSED:MISSING_EXPIRY <detail>"
+    },
+    {
+      "code": "MISSING_FIELD",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Supply --principal, --reason and an admitted-at date.",
+      "broken_term": null,
+      "example": "REFUSED:MISSING_FIELD <detail>"
+    },
+    {
+      "code": "MISSING_SUNSET_PLAN",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Kinds that require it need --sunset-plan.",
+      "broken_term": null,
+      "example": "REFUSED:MISSING_SUNSET_PLAN <detail>"
+    },
+    {
+      "code": "ONTOLOGY_MALFORMED_SECTION",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Repair the malformed hand-authored section of the ontology.",
+      "broken_term": null,
+      "example": "REFUSED:ONTOLOGY_MALFORMED_SECTION <detail>"
+    },
+    {
+      "code": "ONTOLOGY_NOT_FOUND",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Pass an existing --ontology path.",
+      "broken_term": null,
+      "example": "REFUSED:ONTOLOGY_NOT_FOUND <detail>"
+    },
+    {
+      "code": "ONTOLOGY_UNPARSEABLE",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Fix the Turtle syntax error in the ontology.",
+      "broken_term": null,
+      "example": "REFUSED:ONTOLOGY_UNPARSEABLE <detail>"
+    },
+    {
+      "code": "PACK_ONTOLOGY_NOT_FOUND",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Pass an existing --pack-ontology path.",
+      "broken_term": null,
+      "example": "REFUSED:PACK_ONTOLOGY_NOT_FOUND <detail>"
+    },
+    {
+      "code": "SHA_DRIFT",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Re-render, re-admit the new blob sha and rerun the gate.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:SHA_DRIFT <detail>"
+    },
+    {
+      "code": "SHA_UNCOMPUTABLE",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "The file could not be read for hashing; fix permissions/path.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:SHA_UNCOMPUTABLE <detail>"
+    },
+    {
+      "code": "SUBJECT_EXHAUSTED",
+      "family": "hand_authored",
+      "retryable": false,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "No free subject IRI after 200 attempts; pick another base.",
+      "broken_term": null,
+      "example": "REFUSED:SUBJECT_EXHAUSTED <detail>"
+    },
+    {
+      "code": "SUBJECT_PREFIX_UNDECLARED",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Declare the subject namespace prefix in the ontology.",
+      "broken_term": null,
+      "example": "REFUSED:SUBJECT_PREFIX_UNDECLARED <detail>"
+    },
+    {
+      "code": "UNADMITTED",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "Admit the file with mix ggen_igniter.hand_authored.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:UNADMITTED <detail>"
+    },
+    {
+      "code": "UNKNOWN_KIND",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.HandAuthored",
+      "fix_hint": "--kind must name an admitted HandAuthoredKind.",
+      "broken_term": null,
+      "example": "REFUSED:UNKNOWN_KIND <detail>"
+    },
+    {
+      "code": "CORRUPT_MANIFEST",
+      "family": "manifest_export",
+      "retryable": false,
+      "owner": "GgenIgniter.ManifestExport",
+      "fix_hint": "Restore or regenerate the manifest.",
+      "broken_term": null,
+      "example": "REFUSED:CORRUPT_MANIFEST <detail>"
+    },
+    {
+      "code": "CORRUPT_RECEIPT",
+      "family": "manifest_export",
+      "retryable": false,
+      "owner": "GgenIgniter.ManifestExport",
+      "fix_hint": "Remove or regenerate the unparseable receipt.",
+      "broken_term": "R_missing_consequence",
+      "example": "REFUSED:CORRUPT_RECEIPT <detail>"
+    },
+    {
+      "code": "MISSING_MANIFEST",
+      "family": "manifest_export",
+      "retryable": false,
+      "owner": "GgenIgniter.ManifestExport",
+      "fix_hint": "Run a sync so .ggen_igniter/manifest.json exists.",
+      "broken_term": null,
+      "example": "REFUSED:MISSING_MANIFEST <detail>"
+    },
+    {
+      "code": "PACK_IDENTITY_MISMATCH",
+      "family": "pack",
+      "retryable": false,
+      "owner": "GgenIgniter.Pack",
+      "fix_hint": "Make pack.toml identity agree with the pack directory/ontology.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:PACK_IDENTITY_MISMATCH <detail>"
+    },
+    {
+      "code": "PACK_MANIFEST_INVALID",
+      "family": "pack",
+      "retryable": false,
+      "owner": "GgenIgniter.Pack",
+      "fix_hint": "Fix pack.toml so it has exactly name, version, description.",
+      "broken_term": null,
+      "example": "REFUSED:PACK_MANIFEST_INVALID <detail>"
+    },
+    {
+      "code": "PACK_MANIFEST_MISSING",
+      "family": "pack",
+      "retryable": false,
+      "owner": "GgenIgniter.Pack",
+      "fix_hint": "Add pack.toml with name, version, description.",
+      "broken_term": null,
+      "example": "REFUSED:PACK_MANIFEST_MISSING <detail>"
+    },
+    {
+      "code": "PACK_DIGEST_MISMATCH",
+      "family": "pack_lock",
+      "retryable": false,
+      "owner": "GgenIgniter.PackLock",
+      "fix_hint": "Pack bytes differ from the lock; re-lock (mix ggen_igniter.pack.lock) or restore the pack.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:PACK_DIGEST_MISMATCH pack=p expected=e actual=a"
+    },
+    {
+      "code": "PACK_LOCK_MISSING",
+      "family": "pack_lock",
+      "retryable": true,
+      "owner": "GgenIgniter.PackLock",
+      "fix_hint": "Create the lockfile with mix ggen_igniter.pack.lock.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:PACK_LOCK_MISSING path"
+    },
+    {
+      "code": "SEMANTIC_JIRA",
+      "family": "semantic_jira",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Fix the work order named in the detail.",
+      "broken_term": null,
+      "example": "REFUSED:SEMANTIC_JIRA <detail>"
+    },
+    {
+      "code": "SEMANTIC_JIRA_BASE_SHA_UNVERIFIED",
+      "family": "semantic_jira",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.GitGroundTruth",
+      "fix_hint": "Fetch the commit or correct baseSha.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED <detail>"
+    },
+    {
+      "code": "SEMANTIC_JIRA_SHACL",
+      "family": "semantic_jira",
+      "retryable": false,
+      "owner": "GgenIgniter.Reactors.ReconcileReactor",
+      "fix_hint": "Resolve the SHACL violations in the work-order graph.",
+      "broken_term": null,
+      "example": "REFUSED:SEMANTIC_JIRA_SHACL <detail>"
+    },
+    {
+      "code": "ABSOLUTE_PATH_IN_STATE",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Bootstrap",
+      "fix_hint": "State must hold repo-relative paths only.",
+      "broken_term": "R_missing_replay",
+      "example": "REFUSED:ABSOLUTE_PATH_IN_STATE subject: detail"
+    },
+    {
+      "code": "AUTHORITY_ADMISSION_REFUSED",
+      "family": "semantic_jira_input",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Prose",
+      "fix_hint": "Provide an admitted typed authority node.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:AUTHORITY_ADMISSION_REFUSED subject: detail"
+    },
+    {
+      "code": "DUPLICATE_WORK_ORDER",
+      "family": "semantic_jira_input",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Bootstrap",
+      "fix_hint": "Remove the duplicate work order.",
+      "broken_term": null,
+      "example": "REFUSED:DUPLICATE_WORK_ORDER subject: detail"
+    },
+    {
+      "code": "FORBIDDEN_INPUT",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Bootstrap",
+      "fix_hint": "Remove the forbidden input (e.g. path outside allowed roles).",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:FORBIDDEN_INPUT subject: detail"
+    },
+    {
+      "code": "FOREIGN_REQUIREMENT",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Prose",
+      "fix_hint": "A checkpoint requires a proposition outside the root's gates; fix the graph.",
+      "broken_term": null,
+      "example": "REFUSED:FOREIGN_REQUIREMENT subject: detail"
+    },
+    {
+      "code": "FOREIGN_SUBJECT",
+      "family": "semantic_jira_input",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Prose",
+      "fix_hint": "Do not edit goal nodes past admission.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:FOREIGN_SUBJECT subject: detail"
+    },
+    {
+      "code": "GOAL_INCOMPLETE",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Prose",
+      "fix_hint": "Fill the missing sj: predicate on the root GoalCheckpoint.",
+      "broken_term": null,
+      "example": "REFUSED:GOAL_INCOMPLETE subject: detail"
+    },
+    {
+      "code": "GOAL_ROOT",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Prose",
+      "fix_hint": "Provide exactly one root GoalCheckpoint.",
+      "broken_term": null,
+      "example": "REFUSED:GOAL_ROOT subject: detail"
+    },
+    {
+      "code": "INPUT_INVALID",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Bootstrap",
+      "fix_hint": "Repair the malformed input document.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:INPUT_INVALID subject: detail"
+    },
+    {
+      "code": "INPUT_UNREADABLE",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Bootstrap",
+      "fix_hint": "Make the input file readable.",
+      "broken_term": null,
+      "example": "REFUSED:INPUT_UNREADABLE subject: detail"
+    },
+    {
+      "code": "LEDGER_REFUSED",
+      "family": "semantic_jira_input",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Bootstrap",
+      "fix_hint": "Repair the ledger the bootstrap refused.",
+      "broken_term": null,
+      "example": "REFUSED:LEDGER_REFUSED subject: detail"
+    },
+    {
+      "code": "LLM_CREDENTIAL_PRESENT",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Bootstrap",
+      "fix_hint": "Unset LLM credentials in the environment; bootstrap must be deterministic.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:LLM_CREDENTIAL_PRESENT subject: detail"
+    },
+    {
+      "code": "OUTPUT_DRIFT",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Prose",
+      "fix_hint": "Existing output differs from recomputed bytes; regenerate.",
+      "broken_term": "R_missing_replay",
+      "example": "REFUSED:OUTPUT_DRIFT subject: detail"
+    },
+    {
+      "code": "PROVENANCE_MISMATCH",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Prose",
+      "fix_hint": "Correct the proposition's provenance fields.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:PROVENANCE_MISMATCH subject: detail"
+    },
+    {
+      "code": "UNCOVERED_GATE",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Prose",
+      "fix_hint": "Cover every gate of the root with at least one proposition.",
+      "broken_term": null,
+      "example": "REFUSED:UNCOVERED_GATE subject: detail"
+    },
+    {
+      "code": "USAGE",
+      "family": "semantic_jira_input",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Bootstrap",
+      "fix_hint": "Fix the command-line arguments.",
+      "broken_term": null,
+      "example": "REFUSED:USAGE subject: detail"
+    },
+    {
+      "code": "AUTHORITY_ADMISSION",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Authority",
+      "fix_hint": "Inspect the {:refused_authority_admission, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:AUTHORITY_ADMISSION <inspect(reason)>"
+    },
+    {
+      "code": "CANDIDATE",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "Mix.Tasks.SemanticJira.AdmitCandidates",
+      "fix_hint": "Inspect the {:refused_candidate, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:CANDIDATE <inspect(reason)>"
+    },
+    {
+      "code": "COMPOSITION",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Inspect the {:refused_composition, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:COMPOSITION <inspect(reason)>"
+    },
+    {
+      "code": "CS2_BATCH",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.CS2Batch",
+      "fix_hint": "Inspect the {:refused_cs2_batch, reason} tuple's reason and repair the batch.",
+      "broken_term": null,
+      "example": "REFUSED:CS2_BATCH <inspect(reason)>"
+    },
+    {
+      "code": "CS2_PROJECTION",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.CS2Projection",
+      "fix_hint": "Inspect the {:refused_cs2_projection, reason} tuple's reason and repair the projection.",
+      "broken_term": null,
+      "example": "REFUSED:CS2_PROJECTION <inspect(reason)>"
+    },
+    {
+      "code": "DELETE_WRITE_COLLISION",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.Reactors.ReconcileReactor",
+      "fix_hint": "Inspect the {:refused_delete_write_collision, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:DELETE_WRITE_COLLISION <inspect(reason)>"
+    },
+    {
+      "code": "DESCRIPTOR",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Descriptor",
+      "fix_hint": "Inspect the {:refused_descriptor, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:DESCRIPTOR <inspect(reason)>"
+    },
+    {
+      "code": "DO",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Inspect the {:refused_do, reason} tuple's reason and repair its subject.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:DO <inspect(reason)>"
+    },
+    {
+      "code": "DOCTRINE",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.DoctrineAdmission.Applicability",
+      "fix_hint": "Inspect the {:refused_doctrine, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:DOCTRINE <inspect(reason)>"
+    },
+    {
+      "code": "DUPLICATE_OUTPUT_PATH",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.Reactors.ReconcileReactor",
+      "fix_hint": "Inspect the {:refused_duplicate_output_path, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:DUPLICATE_OUTPUT_PATH <inspect(reason)>"
+    },
+    {
+      "code": "EPHEMERAL_ATTESTATION",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.EphemeralManufacture",
+      "fix_hint": "Inspect the {:refused_ephemeral_attestation, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:EPHEMERAL_ATTESTATION <inspect(reason)>"
+    },
+    {
+      "code": "EPHEMERAL_PROJECTION",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.EphemeralProjection",
+      "fix_hint": "Inspect the {:refused_ephemeral_projection, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:EPHEMERAL_PROJECTION <inspect(reason)>"
+    },
+    {
+      "code": "EPOCH_CHECK",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.EpochFreshness",
+      "fix_hint": "Inspect the {:refused_epoch_check, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:EPOCH_CHECK <inspect(reason)>"
+    },
+    {
+      "code": "EPOCH_INVARIANT",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticEpoch",
+      "fix_hint": "Inspect the {:refused_epoch_invariant, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:EPOCH_INVARIANT <inspect(reason)>"
+    },
+    {
+      "code": "EPOCH_PLAN",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.EpochPlan",
+      "fix_hint": "Inspect the {:refused_epoch_plan, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:EPOCH_PLAN <inspect(reason)>"
+    },
+    {
+      "code": "EPOCH_WATERMARK",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.EpochWatermark",
+      "fix_hint": "Inspect the {:refused_epoch_watermark, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:EPOCH_WATERMARK <inspect(reason)>"
+    },
+    {
+      "code": "GENERATIONAL_RESILIENCE",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.GenerationalResilience",
+      "fix_hint": "Inspect the {:refused_generational_resilience, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:GENERATIONAL_RESILIENCE <inspect(reason)>"
+    },
+    {
+      "code": "LEASE_REQUEST",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Inspect the {:refused_lease_request, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:LEASE_REQUEST <inspect(reason)>"
+    },
+    {
+      "code": "MACHINE_EXPERIENCE",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Inspect the {:refused_machine_experience, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:MACHINE_EXPERIENCE <inspect(reason)>"
+    },
+    {
+      "code": "ORIGIN",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Inspect the {:refused_origin, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:ORIGIN <inspect(reason)>"
+    },
+    {
+      "code": "PACK_MANIFEST",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.Reactors.ReconcileReactor",
+      "fix_hint": "Inspect the {:refused_pack_manifest, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:PACK_MANIFEST <inspect(reason)>"
+    },
+    {
+      "code": "PATH_ESCAPES_ROOT",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.Reactors.ReconcileReactor",
+      "fix_hint": "Inspect the {:refused_path_escapes_root, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:PATH_ESCAPES_ROOT <inspect(reason)>"
+    },
+    {
+      "code": "PROJECT_MANUFACTURER",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.Gall.ProjectManufacturer",
+      "fix_hint": "Inspect the {:refused_project_manufacturer, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:PROJECT_MANUFACTURER <inspect(reason)>"
+    },
+    {
+      "code": "STALE_OUTPUTS",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.Reactors.ReconcileReactor",
+      "fix_hint": "Inspect the {:refused_stale_outputs, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:STALE_OUTPUTS <inspect(reason)>"
+    },
+    {
+      "code": "STANDING_PROJECTION",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Inspect the {:refused_standing_projection, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:STANDING_PROJECTION <inspect(reason)>"
+    },
+    {
+      "code": "TRANSITION",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Inspect the {:refused_transition, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:TRANSITION <inspect(reason)>"
+    },
+    {
+      "code": "UNOWNED_DELETE",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.Reactors.ReconcileReactor",
+      "fix_hint": "Inspect the {:refused_unowned_delete, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:UNOWNED_DELETE <inspect(reason)>"
+    },
+    {
+      "code": "VERIFICATION_EVIDENCE",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Inspect the {:refused_verification_evidence, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:VERIFICATION_EVIDENCE <inspect(reason)>"
+    },
+    {
+      "code": "WORK_ORDER",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Inspect the {:refused_work_order, reason} tuple's reason and repair its subject.",
+      "broken_term": null,
+      "example": "REFUSED:WORK_ORDER <inspect(reason)>"
+    },
+    {
+      "code": "UPGRADE_DOWNGRADE",
+      "family": "upgrade",
+      "retryable": false,
+      "owner": "Mix.Tasks.GgenIgniter.Upgrade",
+      "fix_hint": "Downgrades are refused; pass a higher --to version.",
+      "broken_term": null,
+      "example": "REFUSED:UPGRADE_DOWNGRADE <detail>"
+    },
+    {
+      "code": "UPGRADE_INVALID_VERSION",
+      "family": "upgrade",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.Upgrade",
+      "fix_hint": "Pass a valid version.",
+      "broken_term": null,
+      "example": "REFUSED:UPGRADE_INVALID_VERSION <detail>"
+    }
+  ]
+}
