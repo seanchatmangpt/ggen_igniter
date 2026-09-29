@@ -410,13 +410,13 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
   end
 
   describe "Shacl.validate_file/2 (pre-Friday orders are unaffected)" do
-    test "the canonical pack ontology (34 orders: 33 legacy + SJ-002, no sj:checkpointOf) still conforms" do
+    test "the canonical pack ontology (35 orders: 33 legacy + SJ-002 + SJ-003, no sj:checkpointOf) still conforms" do
       report = Shacl.validate_file(@ontology_path, @shapes_path)
 
       assert report.conforms, "violations:\n#{inspect(report.violations, pretty: true)}"
 
       graph = GgenIgniter.Ontology.load!(@ontology_path)
-      assert length(KernelDifferential.order_iris(graph)) == 34
+      assert length(KernelDifferential.order_iris(graph)) == 35
 
       refute Enum.any?(RDF.Graph.triples(graph), fn {_s, p, _o} ->
                p == RDF.iri(@sj <> "checkpointOf")
@@ -618,7 +618,7 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
 
   describe "mix ggen_igniter.sync (real subprocess over the merged goal graph)" do
     @tag timeout: :timer.minutes(5)
-    test "manufactures the Friday ticket beside all 34 orders (33 legacy + SJ-002) with a graph-bound receipt" do
+    test "manufactures the Friday ticket beside all 35 orders (33 legacy + SJ-002 + SJ-003) with a graph-bound receipt" do
       work_dir = scratch_dir!("sync")
       ontology = write_merged!(goal_source())
 
@@ -645,7 +645,7 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
         )
 
       assert exit_code == 0, "sync failed:\n#{output}"
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 36
 
       friday = File.read!(Path.join(work_dir, "GC-FIXTURE-WO-1.md"))
       assert friday =~ "# GC-FIXTURE-WO-1 — Repair mix format drift"

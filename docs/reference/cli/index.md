@@ -107,6 +107,10 @@ live in each module's `schema:`/moduledoc)
   not a failure), `2` invalid invocation or unreadable candidates file,
   `1` when the authority index is unavailable (fail closed: nothing is
   admitted);
+
+  unreadable file is exit 2 and an unparseable one exit 1;
+  `...prov --ledger [--out]` (PROV-O Turtle export of the standing ledger,
+  SHACL-checked; `--out` is the Turtle file; exit 1 on a tampered ledger),
   `...xaas_receipt --bridge --xaas-receipt [--out]`, `...bootstrap --fleet
   --goal [--graphs|--receipts-dir|--ledger|--registry|--checkout|--out|--pack-dir]`,
   `...observe_prose --source --candidates --goal

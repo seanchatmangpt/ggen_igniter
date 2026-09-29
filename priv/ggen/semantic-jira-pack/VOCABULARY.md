@@ -176,6 +176,58 @@ wave may carry an edge where the vocabulary or a persisted value arrives.
 | `sj:originObservation` | The optional observation an order was manufactured from. `prov:wasDerivedFrom` is too strong: it asserts the order is a transformation of the observation, whereas the observation is motivation evidence the order cites, not a thing the order is derived from by transformation. Failed edge: prov:wasDerivedFrom. |
 | `sj:admissionDigest` (widened 2026-09-24, SJ-002) | Now witnesses admitted authorities as well as admitted propositions (for propositions, still present exactly when `sj:candidateStanding` is absent). The hash-slot analysis is unchanged from the digest row above: sha256 digests have no OSLC/PROV slot (`prov:quotation` takes an Entity, `prov:value` needs reification). Failed edges: prov:quotation, prov:value (unchanged). |
 
+## ADR-011 step 4 mappings
+
+Added 2026-09-28. Step 4 of ADR-011 is ADDITIVE: `rdfs:subClassOf` /
+`rdfs:subPropertyOf` from `sj:` terms to public terms in `ontology.ttl`; no
+`sj:` term is removed or retyped, no instance is dual-typed (the dual-typing
+law above stays deferred content). Only edges FROM `sj:` TO public terms
+exist, so `sh:targetClass sj:X` (which follows `rdfs:subClassOf*` downward)
+selects the same instances as before and no shape targets a public class
+(SJ-002 R3; pinned by `test/ggen_igniter_semantic_jira_vocab_mapping_test.exs`).
+
+### Asserted
+
+| edge | equivalence argument (subsumption, not synonymy) |
+|---|---|
+| `sj:WorkOrder rdfs:subClassOf oslc_cm:ChangeRequest` | OSLC CM 3.0 Part 3 sec 2.1 constrains a ChangeRequest to `dcterms:identifier` and `dcterms:title` exactly-one and `dcterms:description` zero-or-one; `sj:WorkOrderShape` requires all three exactly-one on every work order, so every admitted work order satisfies the ChangeRequest shape. A work order is a unit of change work on a repository subject, which is what a change request requests. Subsumption only: the converse (every ChangeRequest is a work order) is false and is not asserted; `oslc_cm:` carries no origin authority, ceilings or receipts, which stay `sj:` residue. |
+| `sj:Receipt rdfs:subClassOf prov:Entity` | PROV-O sec 2.1 defines Entity as a physical, digital, conceptual or other kind of thing; a receipt is a persisted, digest-identified record (`sj:workOrderDigest`, `sj:receiptClass`), a digital thing. Subsumption only: PROV gives no receipt-class or exact-head discipline, so those properties stay `sj:`. |
+
+Both classes are declared `a rdfs:Class` locally so the graph is
+self-contained; that declaration asserts nothing about the public vocabulary
+beyond its existence.
+
+### dcterms
+
+No new dcterms edge. Work-order identity, title and description already use
+native `dcterms:identifier` / `dcterms:title` / `dcterms:description`
+(no `sj:` twin exists to map). The remaining `sj:` identity-like properties
+are not sub-properties of a dcterms term (see rejected list).
+
+### Rejected candidates (not asserted, each pinned by the falsifier test)
+
+| candidate edge | reason it is not asserted |
+|---|---|
+| `sj:StandingTransition` sub-class of `prov:Activity` | The class is a transition INTENT ("Standing transition intent"); a PROV Activity is something that occurred. Subsumption would assert that an unappended intent already happened, which the append-only log law forbids. Revisit only for the log-entry class, not the intent class. |
+| `sj:ProseObservation` sub-class of `prov:Entity` | Would type the observation discipline as a thing; already recorded as failed edge in the residue table (`prov:Entity` types the observed artifact, not the discipline). |
+| `sj:EvidenceRequirement` sub-class of `prov:Entity` | A requirement is a demand for evidence, not evidence; the receipt is the evidence. Typing requirements as Entities would let a requirement satisfy `sh:class prov:Entity` where a receipt is meant. |
+| `sj:Action` sub-class of `prov:Plan`; `sj:ProjectionSpec` sub-class of `prov:Plan` | A Plan is an Entity consulted by an activity; an `sj:Action` is a required next action and a ProjectionSpec a deterministic manufacture spec. Adjacent, not subsumed. |
+| `sj:CodeWorkAuthority` sub-class of `prov:Agent` | Authority in law (admission + witness digest) is not agency in fact; a `prov:Agent` need not be admitted. Subsumption would make every Agent a candidate authority in the wrong direction of inference. |
+| `sj:PreparedAuthorityReceipt` / `sj:Checkpoint` sub-class of `prov:Entity` | `sj:PreparedAuthorityReceipt` is not declared a sub-class of `sj:Receipt` in the pack, so the receipt argument does not transfer; a checkpoint is a goal marker, not a recorded artifact. No argument written, so no edge. |
+| `sj:replayIdentity` sub-property of `dcterms:identifier` | Would entail a work order has two identifiers where `WorkOrderShape` (mirroring CM Part 3) allows exactly one `dcterms:identifier`; replay identity names a replay stream, not the resource. |
+| `sj:subject` sub-property of `dcterms:subject` | `dcterms:subject` is topical; `sj:subject` binds the exact execution subject. |
+| `sj:dependsOn` sub-property of `oslc_cm:relatedChangeRequest` | Untyped and symmetric in the CM vocabulary; pack edges are typed and directional. |
+| `sj:receipt` sub-property of `prov:wasInfluencedBy` | Any-to-any influence; the pack requires exactly one typed receipt. |
+| `sj:originObservation` sub-property of `prov:wasDerivedFrom`; `sj:originAuthority` sub-property of `prov:wasAttributedTo` | Derivation is too strong for motivation evidence; attribution is fact of involvement, not admission-gated authority (see residue table). |
+| `sj:transitionEvidence` sub-property of `prov:used` | The `sj:transitionEvidence` property is not declared in this tree's ontology (deferred content); nothing to map. |
+
+### Digest and gate effect (measured)
+
+Definition and work-order digests are computed by `GgenIgniter.SemanticJira`
+from the kernel map (`@definition_fields` closed take), never from raw graph
+triples, so TBox additions cannot move them. The SHACL verdict is identical
+with and without the two edges (test "shape verdict is identical ...").
+
 ## prov: nodes minted by this pack (public additions)
 
 | node | type | role |

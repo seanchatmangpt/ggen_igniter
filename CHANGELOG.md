@@ -37,6 +37,13 @@
 - **Tests**: removed the 10 test files (39 tests) and `test/support/ex4pm_fixture.ex`
   that read a real external `~/ex4pm` checkout, plus the CI step that cloned it --
   a collaborator outside this repository is not a valid test dependency.
+- **SJ-003 (Semantic Jira closure)**: canonical WorkOrder `sj:sj-003`
+  (origin: existing `sj:objective-code-work-authority`; ticket `docs/jira/SJ-003.md`,
+  generated). ADR-011 additive mappings (two `rdfs:subClassOf` edges, PLANNED ->
+  PARTIAL_ALIVE); `SemanticJira.ProvEvents` + `mix semantic_jira.prov` (PROV-O
+  export of the transition ledger); concurrent-writer tests on `TransitionLog`.
+  Standing promotion is NOT claimed: it needs a BRCE/CommandBus receipt, which
+  is external to this repository (BLOCKED). Pack now carries 35 WorkOrders.
 - Publish order: `ggen_igniter` is the root package and must be observable on
   Hex before `ash_a2a`, `beam4pm`, `xaas` and `ash_kudzu` rebind against it.
 

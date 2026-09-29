@@ -25,6 +25,7 @@ defmodule GgenIgniter.SemanticJira.Cli do
     CourtMap,
     Descriptor,
     Observation,
+    ProvEvents,
     Reconciler,
     TransitionLog
   }
@@ -93,6 +94,47 @@ defmodule GgenIgniter.SemanticJira.Cli do
       end
     else
       {:invalid, reason} -> {2, %{"status" => "invalid_invocation", "reason" => reason}}
+    end
+  end
+
+  @doc """
+  PROV-O export of the standing ledger (`--ledger PATH [--out PATH]`). The
+  Turtle is judged by the SHACL court before it is released: a non-conforming
+  serialization is a typed refusal. With `--out` the Turtle is written there
+  (never the JSON); otherwise it is returned in the `"turtle"` field.
+  """
+  @spec prov(keyword()) :: {0 | 1 | 2, map()}
+  def prov(opts) do
+    with {:ok, ledger} <- required(opts, :ledger),
+         {:ok, out} <- optional(opts, :out) do
+      export_prov(ledger, out)
+    else
+      {:invalid, reason} -> invalid(reason)
+    end
+  end
+
+  defp export_prov(ledger, out) do
+    with {:ok, events} <- TransitionLog.fetch(ledger),
+         {:ok, ttl} <- ProvEvents.to_turtle(events),
+         {:ok, ttl} <- conforming(ttl) do
+      base = %{"status" => "ok", "events" => length(events), "conforms" => true}
+      write_prov(base, ttl, out)
+    else
+      {:error, reason} -> refused(reason)
+    end
+  end
+
+  defp write_prov(base, ttl, nil), do: {0, Map.put(base, "turtle", ttl)}
+
+  defp write_prov(base, ttl, out) do
+    File.write!(out, ttl)
+    {0, Map.put(base, "out", out)}
+  end
+
+  defp conforming(ttl) do
+    case ProvEvents.validate(ttl) do
+      %{conforms: true} -> {:ok, ttl}
+      %{violations: violations} -> {:error, {:prov_shacl_violations, inspect(violations)}}
     end
   end
 
