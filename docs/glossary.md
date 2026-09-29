@@ -306,8 +306,9 @@ text form `REFUSED:<CODE> <detail>`; the enumerated set is
 `priv/schema/refusals.schema.json`, accessed via `GgenIgniter.Refusals`
 (`docs/reference/refusals.md`). Epoch verdict atoms (`REFUSED_LEGACY_EDIT`,
 ...) and plan codes (`REFUSED_EPOCH_*`) map to codes without the `REFUSED_`
-prefix. UNSUPPORTED is not REFUSED: a refusal is a decision, unsupported is a
-missing capability.
+prefix. Internal sub-reasons emitted as bare `{:error, :reason}` atoms are
+declared as `wrapped_reasons` under their parent code. UNSUPPORTED is not
+REFUSED: a refusal is a decision, unsupported is a missing capability.
 
 ## broken term (mu_on_O, admission_vacuous, mu_unlawful, R_missing_*, R_not_fed_back)
 
@@ -317,7 +318,8 @@ never refuses, so O* = O. `mu_unlawful`: manufacture that destroys admitted
 capability. `R_missing_identity` / `_authority` / `_consequence` / `_replay` /
 `_standing`: a receipt lacking that one of its five fields. `R_not_fed_back`:
 a receipt that never re-enters the next observation. Each registry entry in
-`refusals.schema.json` carries its `broken_term` or null.
+`refusals.schema.json` carries a non-null `broken_term`: one of these terms,
+or `not_applicable` with a `not_applicable_reason` when no term is broken.
 
 ## standing
 
