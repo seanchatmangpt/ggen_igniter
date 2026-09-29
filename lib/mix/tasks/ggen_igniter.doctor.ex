@@ -197,7 +197,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
 
   # `use Igniter.Mix.Task`'s generated `run/1` (see `deps/igniter/lib/mix/
   # task.ex`) validates argv against `info/2`'s schema via
-  # `Igniter.Util.Info.validate!/3`, which raises a `Mix.Error` on an
+  # `Igniter.Util.Info.validate!/3`, which raises an `OptionParser.ParseError` (igniter 0.8.3, verified in upstream-igniter-issues.md) on an
   # unrecognized flag -- Mix's own top-level error handler then reports
   # "Could not invoke task" and exits with **1**, indistinguishable from a
   # real diagnostic failure (per the moduledoc's exit-code contract, an

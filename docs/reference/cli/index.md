@@ -22,7 +22,7 @@ live in each module's `schema:`/moduledoc)
   plus per-gate cardinality contracts.
 - `mix ggen_igniter.hand_authored` — hand-authored-ledger accounting
   (documented in CHANGELOG v26.9.18).
-- `mix ggen_igniter.rename --from --to [--arity] [--deprecate soft|hard]`.
+- `mix ggen_igniter.rename --from --to [--arity] [--deprecate soft|hard]` — see `docs/reference/cli/rename.md`.
 - `mix ggen_igniter.replay` — replays a receipt and reports real drift.
 - `mix ggen_igniter.pack.fetch` — marketplace pack fetch
   (`github:`/`hex:` specs).
@@ -30,10 +30,36 @@ live in each module's `schema:`/moduledoc)
   run's observed outcome (post-seal it builds an EDS Claim and runs 3 real
   falsifiers over the re-read log).
 - `mix ggen_igniter.fortune5_ready`, `mix ggen_igniter.frontier_release_plan`
-  (read-only preview), `mix ggen_igniter.install`.
+  (read-only preview), `mix ggen_igniter.install [--with-ash-domain]` (see `docs/reference/cli/install.md`), `mix ggen_igniter.upgrade FROM TO` (`upgrade.md`), `mix ggen_igniter.manifest.dump [--path DIR] [--out FILE]` (`manifest.md`).
+- `mix ggen_igniter.epoch.watermark --epoch LABEL [--base-dir DIR]
+  [--glob GLOB] [--restamp REASON]` — stamps the pre-epoch implementation
+  identity (path + exact git blob SHA per file) into
+  `.ggen_igniter/epoch/<epoch>/watermark.json` at the CalVer epoch boundary;
+  re-stamping the same epoch over an UNCHANGED tree is idempotent, over a
+  CHANGED tree it is refused unless `--restamp REASON` (exit 0
+  stamped/idempotent, 1 refused with typed JSON on stderr, 2 bad
+  invocation).
+- `mix ggen_igniter.epoch.check --epoch LABEL [--base-dir DIR]
+  [--threshold F] [--report PATH]` — the epoch freshness court (the
+  WITNESS): judges every implementation-plane file in the tree against the
+  watermark and refuses anything carried over from the pre-epoch
+  implementation. Detector law: receipts admit; similarity falsifies; blame
+  informs. Two-layer law: admission (`semantic_jira.admit_candidates
+  --epoch-manifest`) refuses known-illegal plans before they run; this
+  check proves the resulting BYTES afterwards — promotion requires both.
+  Exit 0 every file ALIVE, 1 any refusal-or-unknown (report JSON printed),
+  2 bad invocation. See `docs/reference/cli/epoch.md`.
+- `mix ggen_igniter.epoch.explain --epoch LABEL --file PATH [--base-dir
+  DIR]` — read-only microscope: one file's full provenance chain
+  (attribution evidence, closest pre-epoch match with similarity, informing
+  git authorship) and the specific condition that would make it ALIVE;
+  always exit 0 on a judged file, even when the verdict inside is a
+  REFUSED_* atom (`epoch.check` is the gate whose exit code decides).
 - **Semantic Jira suite** — `mix semantic_jira.observe --finding
   --base-work-order --origin-authority IRI [--origin-observation IRI]
-  [--repair|--identity|--out]` — `--origin-authority` is REQUIRED (INVARIANT
+  [--ontology PATH] [--repair|--identity|--out]` — `--ontology` is the
+  canonical graph SHACL runs over (default: the pack ontology; added
+  `33c8e86`); `--origin-authority` is REQUIRED (INVARIANT
   A): a missing flag is the typed refusal `{:missing_origin_authority, _}`
   and an unadmitted origin is `{:origin_not_admitted, _}` — both exit 1, not
   invalid invocation; `...court_map --ontology
@@ -54,6 +80,33 @@ live in each module's `schema:`/moduledoc)
   `authority_requirement: "NONE"` bypass removed, and any unpinned pair refused
   `{:authority_not_pinned, iri}` fail-closed (an unreadable trust root pins
   nothing);
+  `...admit_candidates --candidates PATH [--authority-graph PATH]
+  [--epoch-manifest PATH]` (added `be2750d`, epoch gate extended `7c4fcc0`)
+  — judges a JSONL candidates file, one verdict per non-blank line in input
+  order; a candidate is admitted only when the kernel
+  `admit_work_order/1` passes AND its `origin_authority` resolves to an
+  admitted authority in the pinned authority index (prose never admits);
+  before either gate, `candidate_bounds/1` refuses a line claiming what only
+  receipts confer — `{:refused_candidate, {:literal_standing, s}}` and
+  `{:refused_candidate, {:ceiling_exceeds_construct, field, value}}` (a
+  ceiling naming an actuation in any token — `DO`, `EXECUTE`, or
+  `ACTUAT`/`MERGE`/`PUBLISH`/`DEPLOY`/`PUSH`/`RELEASE`-prefixed; the
+  evidence ladder and CONSTRUCT name evidence, not actuation, and pass);
+  gate 3, opt-in exactly like git ground truth, judges a candidate carrying
+  a nonempty `"epoch"` value via `EpochPlan.check/2` against the stamped
+  watermark passed as `--epoch-manifest` —
+  `REFUSED_EPOCH_LEGACY_EDIT`,
+  `REFUSED_EPOCH_UNATTRIBUTED_IMPLEMENTATION`,
+  `REFUSED_EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT`,
+  `REFUSED_EPOCH_WATERMARK_UNAVAILABLE` (fail closed) — while a line
+  without `"epoch"` behaves byte-identically to a run without the flag; a
+  later line repeating an earlier ADMITTED line's `identity`,
+  `replay_identity`, or admitted `work_order_digest` is refused
+  `{:refused_candidate, {:duplicate, field, first_line}}` — one candidate,
+  one admission; exit 0 when every line was judged (a refusal is a verdict,
+  not a failure), `2` invalid invocation or unreadable candidates file,
+  `1` when the authority index is unavailable (fail closed: nothing is
+  admitted);
   `...xaas_receipt --bridge --xaas-receipt [--out]`, `...bootstrap --fleet
   --goal [--graphs|--receipts-dir|--ledger|--registry|--checkout|--out|--pack-dir]`,
   `...observe_prose --source --candidates --goal
@@ -80,7 +133,11 @@ gained check 19 `semantic_jira_pack` (documented in `doctor.md`). The
 Semantic Jira suite entry was re-verified against
 `lib/mix/tasks/semantic_jira.observe_prose.ex` on 2026-09-24 (repo version
 `26.9.24`), when `compile_prose` became the observation-only `observe_prose`
-(ADR-012).
+(ADR-012); it was re-verified again against the live moduledocs on
+2026-09-27 (HEAD `7c4fcc0`), when `observe` gained `--ontology` (`33c8e86`)
+and `semantic_jira.admit_candidates` plus the `ggen_igniter.epoch.*` trio
+shipped — the suite entry, the task list above, and
+`docs/reference/cli/epoch.md` reflect those signatures.
 
 ## Related references
 
@@ -94,6 +151,8 @@ Semantic Jira suite entry was re-verified against
 - `docs/reference/cli/packs.md` — the `priv/ggen/<pack-name>/` directory
   convention: `--pack NAME`, `--pack-dir DIR`, and `--pack NAME:TEMPLATE` template
   disambiguation.
+- `docs/reference/cli/epoch.md` — the `ggen_igniter.epoch.*` epoch-boundary
+  suite (watermark / check / explain) and the two-layer epoch law.
 - `docs/reference/cli/engines.md` — the three `--engine` values (`oxigraph`,
   `sparql`, `qlever`), the real current default, and the disclosed trade-offs of
   each.
