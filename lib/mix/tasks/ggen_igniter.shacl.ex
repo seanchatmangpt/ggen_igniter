@@ -5,16 +5,20 @@ defmodule Mix.Tasks.GgenIgniter.Shacl do
   @moduledoc """
   Standalone SHACL entry point over `GgenIgniter.SemanticJira.Shacl.validate_file/2`.
 
-      mix ggen_igniter.shacl --data FILE --shapes FILE [--json] [--fail-on-unsupported]
+      mix ggen_igniter.shacl --data FILE --shapes FILE [--json] [--allow-unsupported]
 
   Supports only the SHACL subset documented in `GgenIgniter.SemanticJira.Shacl`;
-  unsupported constructs are ALWAYS reported (never silently ignored). Exit `0`
-  conforms, `1` violations (or unsupported constructs with `--fail-on-unsupported`),
-  `2` invocation. See `docs/reference/cli/shacl.md`.
+  unsupported constructs are ALWAYS reported and FAIL CLOSED (exit `1`) unless
+  `--allow-unsupported`. Exit `0` conforms, `1` violations or unsupported, `2`
+  invocation (missing file, unsupported extension, no shapes in the shapes file).
+  Accepted extensions: `.ttl`, `.nt`, `.nq` (datasets are merged into one graph).
+  See `docs/reference/cli/shacl.md`.
   """
   use Igniter.Mix.Task
 
   alias GgenIgniter.SemanticJira.Shacl
+
+  @extensions [".ttl", ".nt", ".nq"]
 
   @impl Igniter.Mix.Task
   def info(_argv, _composing_task) do
@@ -26,6 +30,7 @@ defmodule Mix.Tasks.GgenIgniter.Shacl do
         data: :string,
         shapes: :string,
         json: :boolean,
+        allow_unsupported: :boolean,
         fail_on_unsupported: :boolean,
         help: :boolean
       ],
@@ -55,39 +60,91 @@ defmodule Mix.Tasks.GgenIgniter.Shacl do
       System.halt(0)
     end
 
+    json? = opts[:json] == true
+
     for key <- [:data, :shapes] do
       unless is_binary(opts[key]) and File.regular?(opts[key]) do
-        Mix.shell().error("ggen_igniter.shacl: --#{key} FILE is required and must exist")
-        System.halt(2)
+        refuse("--#{key} FILE is required and must exist", json?)
+      end
+
+      ext = opts[key] |> Path.extname() |> String.downcase()
+
+      unless ext in @extensions do
+        refuse(
+          "--#{key} #{opts[key]}: unsupported extension #{inspect(ext)}; " <>
+            "supported: #{Enum.join(@extensions, ", ")}",
+          json?
+        )
       end
     end
 
-    report =
-      try do
-        Shacl.validate_file(opts[:data], opts[:shapes])
-      rescue
-        e ->
-          Mix.shell().error("ggen_igniter.shacl: cannot load input: #{Exception.message(e)}")
-          System.halt(2)
-      end
+    if opts[:fail_on_unsupported] do
+      Mix.shell().error(
+        "ggen_igniter.shacl: --fail-on-unsupported is deprecated (now the default); " <>
+          "use --allow-unsupported to opt out"
+      )
+    end
+
+    data = load_graph(opts[:data], json?)
+    shapes = load_graph(opts[:shapes], json?)
+    report = Shacl.validate(data, shapes)
+
+    if report.shapes_checked == [] do
+      refuse("no SHACL shapes found in #{opts[:shapes]}", json?)
+    end
 
     {unsupported, violations} =
       Enum.split_with(report.violations, &(&1.constraint == :unsupported_constraint))
 
+    allow? = opts[:allow_unsupported] == true
+
     code =
       cond do
         violations != [] -> 1
-        unsupported != [] and opts[:fail_on_unsupported] -> 1
+        unsupported != [] and not allow? -> 1
         true -> 0
       end
 
-    if opts[:json] do
+    if json? do
       Mix.shell().info(json(report, violations, unsupported, code))
     else
       human(report, violations, unsupported)
     end
 
+    if unsupported != [] and code == 1 and violations == [],
+      do:
+        Mix.shell().error(
+          "ggen_igniter.shacl: UNSUPPORTED constructs present; failing closed (pass --allow-unsupported to override)"
+        )
+
+    if report.focus_node_count == 0,
+      do: Mix.shell().error("ggen_igniter.shacl: warning: 0 focus nodes validated")
+
     System.halt(code)
+  end
+
+  defp load_graph(path, json?) do
+    case GgenIgniter.Ontology.load!(path) do
+      %RDF.Dataset{} = ds ->
+        Enum.reduce(RDF.Dataset.graphs(ds), RDF.Graph.new(), &RDF.Graph.add(&2, &1))
+
+      graph ->
+        graph
+    end
+  rescue
+    e -> refuse("cannot load #{path}: #{Exception.message(e)}", json?)
+  end
+
+  defp refuse(msg, json?) do
+    Mix.shell().error("ggen_igniter.shacl: #{msg}")
+
+    if json?,
+      do:
+        Mix.shell().info(
+          Jason.encode!(%{schema_version: 1, error: msg, exit_code: 2, conforms: false})
+        )
+
+    System.halt(2)
   end
 
   defp json(report, violations, unsupported, code) do
@@ -132,9 +189,10 @@ defmodule Mix.Tasks.GgenIgniter.Shacl do
 
   defp print_help do
     Mix.shell().info("""
-    usage: mix ggen_igniter.shacl --data FILE --shapes FILE [--json] [--fail-on-unsupported]
+    usage: mix ggen_igniter.shacl --data FILE --shapes FILE [--json] [--allow-unsupported]
 
-    Exit 0 conforms, 1 violations (or unsupported with --fail-on-unsupported), 2 invocation.
+    Exit 0 conforms, 1 violations or unsupported constructs (fail closed; --allow-unsupported
+    to opt out), 2 invocation (bad/missing file, unsupported extension, no shapes).
     Supports only the SHACL subset documented in GgenIgniter.SemanticJira.Shacl.
     """)
   end

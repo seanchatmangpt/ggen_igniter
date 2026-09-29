@@ -15,7 +15,7 @@ defmodule GgenIgniter.PacksTaskTest do
     Jason.decode!(out |> String.split("\n", trim: true) |> List.last())
   end
 
-  test "--json is structurally valid and lists every priv/ggen dir with an ontology.ttl" do
+  test "--json is structurally valid and lists every priv/ggen dir that has an ontology.ttl (others may also be listed)" do
     doc = packs_json([])
     assert doc["schema_version"] == 1
 
@@ -80,5 +80,39 @@ defmodule GgenIgniter.PacksTaskTest do
   test "human table exits 0 and names packs" do
     {out, 0} = System.cmd("mix", ["ggen_igniter.packs"], stderr_to_stdout: false)
     assert out =~ "semantic-jira-pack"
+  end
+
+  test "P1: malformed template frontmatter surfaces frontmatter_error" do
+    root = Path.join(System.tmp_dir!(), "packs_fm_#{System.unique_integer([:positive])}")
+    File.mkdir_p!(Path.join(root, "bad/templates"))
+    File.write!(Path.join(root, "bad/ontology.ttl"), "")
+    t = Path.join(root, "bad/templates")
+    File.write!(Path.join(t, "yaml.eex"), "---\nto: [unclosed\n  : : :\n---\nbody")
+    File.write!(Path.join(t, "nofence.eex"), "---\nto: out/x.txt\nbody without close")
+    File.write!(Path.join(t, "utf8.eex"), <<"---\nto: out/", 255, 254, ".txt\n---\nb">>)
+    File.write!(Path.join(t, "ok.eex"), "---\nto: out/ok.txt\n---\nhi")
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    bad = Enum.find(packs_json(["--pack-dir", root])["packs"], &(&1["name"] == "bad"))
+    by = Map.new(bad["templates"], &{&1["stem"], &1})
+    assert is_binary(by["yaml"]["frontmatter_error"])
+    assert is_binary(by["nofence"]["frontmatter_error"])
+    assert is_binary(by["utf8"]["frontmatter_error"])
+    assert by["ok"]["frontmatter_error"] == nil
+    assert by["ok"]["to"] == "out/ok.txt"
+  end
+
+  test "P2: stray positional args exit 2" do
+    {out, code} = System.cmd("mix", ["ggen_igniter.packs", "foo", "bar"], stderr_to_stdout: true)
+    assert code == 2
+    assert out =~ "unexpected positional"
+  end
+
+  test "P3: schema_version is the first JSON key and output is byte-identical across runs" do
+    {a, 0} = System.cmd("mix", ["ggen_igniter.packs", "--json"], stderr_to_stdout: false)
+    {b, 0} = System.cmd("mix", ["ggen_igniter.packs", "--json"], stderr_to_stdout: false)
+    line = a |> String.split("\n", trim: true) |> List.last()
+    assert String.starts_with?(line, ~s({"schema_version":1,"packs":))
+    assert a == b
   end
 end

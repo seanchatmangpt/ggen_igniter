@@ -14,8 +14,9 @@ defmodule GgenIgniter.PackCatalog do
       but refused by `parse_manifest/1`; the diagnostic is in `:manifest_error`)
     * `:dir`, `:ontology` (path or `nil` when `ontology.ttl` is absent)
     * `:gates` -- `[%{name, path}]` from `gates/*.rq`
-    * `:templates` -- `[%{stem, path, to, for_each}]`; `to`/`for_each` come
-      from the template frontmatter (`nil` when there is none or it cannot be parsed)
+    * `:templates` -- `[%{stem, path, to, for_each, frontmatter_error}]`; `to`/`for_each` come
+      from the template frontmatter (`nil` when there is none or it cannot be parsed;
+      `frontmatter_error` is then a string, else `nil`)
     * `:required_flags` -- flags a caller must pass to render the pack
       (`--pack NAME:STEM` when several templates exist; `--for-each NAME`
       when a template fans out over a driver query)
@@ -104,18 +105,23 @@ defmodule GgenIgniter.PackCatalog do
     do: not String.contains?(Path.join(priv_root, basename), "ash")
 
   defp template(path) do
-    {to, for_each} =
+    {to, for_each, error} =
       try do
-        case path |> File.read!() |> GgenIgniter.Frontmatter.split_template() do
-          {nil, _mode, _body} -> {nil, nil}
-          {fm, _mode, _body} -> {fm.to, fm.for_each}
+        content = File.read!(path)
+
+        unless String.valid?(content),
+          do: raise(ArgumentError, "template is not valid UTF-8")
+
+        case GgenIgniter.Frontmatter.split_template(content) do
+          {nil, _mode, _body} -> {nil, nil, nil}
+          {fm, _mode, _body} -> {fm.to, fm.for_each, nil}
         end
       rescue
-        _ -> {nil, nil}
+        e -> {nil, nil, Exception.message(e)}
       end
 
     stem = path |> Path.basename() |> String.split(".", parts: 2) |> List.first()
-    %{stem: stem, path: path, to: to, for_each: for_each}
+    %{stem: stem, path: path, to: to, for_each: for_each, frontmatter_error: error}
   end
 
   defp required_flags(name, templates) do

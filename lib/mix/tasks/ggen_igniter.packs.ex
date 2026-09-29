@@ -48,7 +48,7 @@ defmodule Mix.Tasks.GgenIgniter.Packs do
       System.halt(0)
     end
 
-    if igniter.args.positional != %{} and map_size(igniter.args.positional) > 0 do
+    if extra_positionals?(igniter) do
       bad("unexpected positional arguments")
     end
 
@@ -67,12 +67,29 @@ defmodule Mix.Tasks.GgenIgniter.Packs do
       end
 
     if opts[:json] do
-      Mix.shell().info(Jason.encode!(%{schema_version: 1, packs: Enum.map(packs, &jsonable/1)}))
+      Mix.shell().info(
+        Jason.encode!(
+          Jason.OrderedObject.new([
+            {"schema_version", 1},
+            {"packs", Enum.map(packs, &jsonable/1)}
+          ])
+        )
+      )
     else
       Enum.each(packs, &print_pack/1)
     end
 
     System.halt(0)
+  end
+
+  defp extra_positionals?(igniter) do
+    {_opts, rest, _invalid} =
+      OptionParser.parse(igniter.args.argv,
+        strict: [json: :boolean, pack_dir: :string, name: :string, help: :boolean],
+        aliases: [h: :help]
+      )
+
+    rest != []
   end
 
   defp bad(msg) do
