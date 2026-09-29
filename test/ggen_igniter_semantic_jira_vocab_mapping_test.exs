@@ -30,7 +30,10 @@ defmodule GgenIgniter.SemanticJiraVocabMappingTest do
   @public_ns [@oslc_cm, @prov, @dcterms]
 
   # The complete asserted set: sj: term => public term.
-  @mapped [{@sj <> "WorkOrder", @oslc_cm <> "ChangeRequest"}, {@sj <> "Receipt", @prov <> "Entity"}]
+  @mapped [
+    {@sj <> "WorkOrder", @oslc_cm <> "ChangeRequest"},
+    {@sj <> "Receipt", @prov <> "Entity"}
+  ]
 
   # Candidates rejected with a recorded reason (VOCABULARY.md): each must be absent.
   @rejected [
@@ -72,10 +75,12 @@ defmodule GgenIgniter.SemanticJiraVocabMappingTest do
     ts = triples(graph())
 
     for {sj, public} <- @rejected,
-        do: refute({sj, @sub_class, public} in ts, "divergent mapping asserted: #{sj} -> #{public}")
+        do:
+          refute({sj, @sub_class, public} in ts, "divergent mapping asserted: #{sj} -> #{public}")
 
     for {sj, public} <- @rejected_props,
-        do: refute({sj, @sub_prop, public} in ts, "divergent mapping asserted: #{sj} -> #{public}")
+        do:
+          refute({sj, @sub_prop, public} in ts, "divergent mapping asserted: #{sj} -> #{public}")
   end
 
   test "exactly the argued mapping set reaches public namespaces (no unargued edge)" do
@@ -102,7 +107,10 @@ defmodule GgenIgniter.SemanticJiraVocabMappingTest do
 
   test "additive: every sj: class/property declared at git HEAD is still declared" do
     {head, 0} = System.cmd("git", ["show", "HEAD:#{@pack}/ontology.ttl"])
-    tmp = Path.join(System.tmp_dir!(), "vocab_mapping_head_#{System.unique_integer([:positive])}.ttl")
+
+    tmp =
+      Path.join(System.tmp_dir!(), "vocab_mapping_head_#{System.unique_integer([:positive])}.ttl")
+
     File.write!(tmp, head)
     on_exit(fn -> File.rm(tmp) end)
 
