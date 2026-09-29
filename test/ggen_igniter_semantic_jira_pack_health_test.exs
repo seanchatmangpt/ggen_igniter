@@ -15,7 +15,7 @@ defmodule GgenIgniter.SemanticJira.PackHealthTest do
   genuine breakage, not mocks.
   """
 
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   @pack_dir "priv/ggen/semantic-jira-pack"
 

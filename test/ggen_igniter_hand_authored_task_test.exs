@@ -17,6 +17,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthoredTaskTest do
   run` + restore procedure is proven on the real beam4pm consumer, see the
   task's moduledoc and WAVE-RECEIPT).
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

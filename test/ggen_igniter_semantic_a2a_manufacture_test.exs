@@ -19,6 +19,7 @@ defmodule GgenIgniter.SemanticA2AManufactureTest do
   (see the template) and the F9 test proves the guard, not upstream tolerance.
   """
 
+  # async: false -- mutates global Application/System env; real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   import Igniter.Test

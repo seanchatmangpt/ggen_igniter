@@ -28,6 +28,7 @@ defmodule GgenIgniterLockContentionTest do
   short-lived task process.
   """
 
+  # async: false -- UNCLASSIFIED (no global-state marker found; not yet proven safe to run concurrently -- flip candidate).
   use ExUnit.Case, async: false
 
   @tag :tmp_dir

@@ -38,6 +38,7 @@ defmodule GgenIgniter.DoctorFixE2eTest do
   `mix ggen_igniter.doctor --fix` (a real subsequent invocation) can run for
   real and add the missing config for real.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

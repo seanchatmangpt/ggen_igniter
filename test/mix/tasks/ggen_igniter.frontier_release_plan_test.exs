@@ -1,6 +1,7 @@
 defmodule Mix.Tasks.GgenIgniter.FrontierReleasePlanTest do
   @moduledoc "Chicago-style: runs the real Mix task end to end and asserts on its real stdout, with no mocks/stubs."
 
+  # async: false -- uses the global Mix.shell/captured IO/Mix tasks.
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureIO

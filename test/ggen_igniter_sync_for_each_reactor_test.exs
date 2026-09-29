@@ -29,6 +29,7 @@ defmodule GgenIgniter.SyncForEachReactorTest do
   content assertions after each run -- never an assertion on "was
   ReconcileReactor.run called".
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

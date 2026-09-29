@@ -7,9 +7,12 @@ defmodule GgenIgniter.SemanticJiraPackTest do
   real nested mix compile verification, and durable GgenIgniter receipts.
   """
 
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration
+  # 59% of the serial suite's test time (1566 of 2668 s, ERRC 2026-09-28): CI runs this file as its own job.
+  @moduletag :heavy
 
   # Every test that drives `run_sync/1,2,3,4` spawns a real `mix
   # ggen_igniter.sync` SUBPROCESS (fresh BEAM boot + compile check + graph
@@ -948,11 +951,13 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         |> Path.wildcard()
         |> Enum.sort()
 
-      # 13 since gates/047_provider_neutral_admission.rq (ALOOP-ZCODE-DOGFOOD-001
-      # provider-neutrality contract, additive at pack version 26.9.19): the
-      # count tracks the shipped gate set; the assertion itself is unchanged --
-      # every gate must still execute cleanly against the canonical graph.
-      assert length(gates) == 13
+      # 14 since gates/epoch_boundary.rq (v26.9.27 epoch-pre, sj:EpochBoundary
+      # gate; previously 13 since gates/047_provider_neutral_admission.rq,
+      # ALOOP-ZCODE-DOGFOOD-001 provider-neutrality contract, additive at pack
+      # version 26.9.19): the count tracks the shipped gate set; the assertion
+      # itself is unchanged -- every gate must still execute cleanly against
+      # the canonical graph.
+      assert length(gates) == 14
 
       Enum.each(gates, fn gate ->
         assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),

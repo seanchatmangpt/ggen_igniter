@@ -1,4 +1,5 @@
 defmodule GgenIgniterInstallInstallerTest do
+  # async: false -- File.cd! changes the process-global cwd.
   use ExUnit.Case, async: false
 
   @moduledoc """

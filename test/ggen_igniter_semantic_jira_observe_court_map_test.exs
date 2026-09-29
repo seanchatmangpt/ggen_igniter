@@ -19,7 +19,9 @@ defmodule GgenIgniter.SemanticJiraObserveCourtMapTest do
 
   Every assertion is on returned/printed JSON or on disk.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
+  @moduletag :integration
 
   alias GgenIgniter.SemanticJira.{CourtMap, Descriptor, Observation}
 

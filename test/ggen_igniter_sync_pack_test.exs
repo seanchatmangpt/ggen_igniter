@@ -5,6 +5,7 @@ defmodule GgenIgniter.SyncPackTaskTest do
   convention and runs end-to-end as a real subprocess, mirroring
   `ggen_igniter_sync_task_test.exs`'s existing conventions.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

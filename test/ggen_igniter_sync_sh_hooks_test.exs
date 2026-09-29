@@ -48,6 +48,7 @@ defmodule GgenIgniter.SyncShHooksTest do
   real resulting file/`GgenIgniter.Receipt` state read back off disk --
   never an assertion on "was ShellHook.run called".
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

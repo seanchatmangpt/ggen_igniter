@@ -33,6 +33,7 @@ defmodule Mix.Tasks.GgenIgniter.VerifyTaskTest do
   `verify/030_resources.unbound.rq` gains exactly the row naming the missing
   predicate). The checked-in fixture is never written to.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

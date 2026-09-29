@@ -10,7 +10,7 @@ defmodule GgenIgniterLockPathCanonicalizationTest do
   checks.
   """
 
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   @tag :tmp_dir
   test "lock_path/1 produces the same path for differently-spelled equivalent directories", %{

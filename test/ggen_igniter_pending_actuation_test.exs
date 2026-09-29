@@ -32,6 +32,7 @@ defmodule GgenIgniter.PendingActuationTest do
   production function.
   """
 
+  # async: false -- runs the real ReconcileReactor, whose CompensationTelemetryMiddleware bumps one global ETS counter table (:ggen_igniter_compensation_counters); flipping to async raised ArgumentError "table identifier does not refer to an existing ETS table" (ERRC 2026-09-28).
   use ExUnit.Case, async: false
 
   alias GgenIgniter.{Engine, Manifest, Ontology, PendingActuation, Reconcile, Render}

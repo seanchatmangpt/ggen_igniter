@@ -57,6 +57,7 @@ defmodule GgenIgniter.AshGenCoreAlignmentTest do
   length of the Faker-generated names and is not a property of the derivation.
   """
 
+  # async: false -- mutates global Application/System env.
   use ExUnit.Case, async: false
 
   import Igniter.Test

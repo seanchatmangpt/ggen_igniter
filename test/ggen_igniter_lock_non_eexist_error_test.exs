@@ -10,7 +10,7 @@ defmodule GgenIgniter.LockNonEexistErrorTest do
   fabricated return value.
   """
 
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   defp scratch_dir!(tag) do
     dir =

@@ -12,7 +12,7 @@ defmodule GgenIgniter.SemanticJiraShaclTest do
   projections claiming authority, and ALIVE without an exact-head receipt.
   """
 
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   @moduletag :integration
 

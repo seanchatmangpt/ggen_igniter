@@ -8,6 +8,7 @@ defmodule GgenIgniter.ProcessDiscoveryPackTest do
   parse as Elixir — plus real signature substrings). No mocks.
   """
   use ExUnit.Case, async: true
+  @moduletag :integration
 
   alias GgenIgniter.{Frontmatter, Ontology, Query, Render}
 

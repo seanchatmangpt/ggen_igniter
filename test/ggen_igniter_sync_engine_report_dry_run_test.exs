@@ -13,6 +13,7 @@ defmodule GgenIgniter.SyncEngineReportDryRunTest do
   path must NOT exist after a `--dry-run` invocation, and MUST exist (with
   real, parseable content) after a non-dry-run invocation.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

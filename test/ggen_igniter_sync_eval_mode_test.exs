@@ -6,6 +6,7 @@ defmodule GgenIgniter.SyncEvalModeTest do
   the user's own framing: "if the template is igniter code it is dynamically
   generated with the RDF but is then executed, not written to disk."
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

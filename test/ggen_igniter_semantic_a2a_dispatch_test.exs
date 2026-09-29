@@ -22,6 +22,7 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
   and `completed` for a work-order task only with a court receipt.
   """
 
+  # async: false -- mutates global Application/System env; real `mix`/`ggen` subprocesses share this checkout's _build/dev; global telemetry/registered-process state.
   use ExUnit.Case, async: false
 
   alias AshA2A.Authority

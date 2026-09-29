@@ -21,6 +21,7 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
   # async: false -- the subprocess tests run `mix` in this checkout, which
   # shares the _build directory with the test VM.
   use ExUnit.Case, async: false
+  @moduletag :integration
 
   alias GgenIgniter.Digest
   alias GgenIgniter.SemanticJira.Bootstrap

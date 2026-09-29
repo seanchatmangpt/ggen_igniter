@@ -111,6 +111,7 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
   `--engine` dispatch itself (not incidental quoting) is what varies.
   """
 
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
   use ExUnitProperties
 

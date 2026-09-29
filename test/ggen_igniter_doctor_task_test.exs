@@ -6,6 +6,7 @@ defmodule GgenIgniter.DoctorTaskTest do
   `test/fixtures/broken-pack/` (deliberately broken: no ontology.ttl, no
   templates/, an unparseable gate query -- exercises the real :error branches).
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

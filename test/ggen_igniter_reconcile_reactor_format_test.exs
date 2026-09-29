@@ -10,6 +10,7 @@ defmodule GgenIgniter.ReconcileReactorFormatTest do
   scratch Mix project. No `Code`/`File`/`Mix` mocking anywhere in this file.
   """
 
+  # async: false -- the broken-content test runs a real `mix compile --warnings-as-errors` verify subprocess; flaked once in 9 concurrent trials under load (ERRC 2026-09-28), so it stays serial.
   use ExUnit.Case, async: false
 
   alias GgenIgniter.Reactors.ReconcileReactor

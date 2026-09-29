@@ -9,6 +9,7 @@ defmodule GgenIgniter.SyncInjectTest do
   subprocess against a real, pre-existing target file on disk, and asserts
   on the real resulting file content -- never on "was inject_content! called".
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

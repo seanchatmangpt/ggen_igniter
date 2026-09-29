@@ -38,6 +38,7 @@ defmodule Mix.Tasks.GgenIgniter.RenameTaskTest do
   it without `--yes` -- confirmed by reading `deps/igniter/lib/igniter/util/io.ex`,
   not assumed.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

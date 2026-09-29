@@ -40,6 +40,7 @@ defmodule GgenIgniter.ArtifactIdentityTest do
   --warnings-as-errors` in `:verify` is a real subprocess.
   """
 
+  # async: false -- UNCLASSIFIED (no global-state marker found; not yet proven safe to run concurrently -- flip candidate).
   use ExUnit.Case, async: false
 
   alias GgenIgniter.ArtifactIdentity, as: AI

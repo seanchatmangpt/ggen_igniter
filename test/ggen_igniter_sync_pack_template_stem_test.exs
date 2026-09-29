@@ -16,6 +16,7 @@ defmodule GgenIgniter.SyncPackTemplateStemTest do
   `priv/ggen/ash-lifecycle-pack-stem-test/` before each test and removed via
   `on_exit` after, rather than inventing a synthetic pack.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

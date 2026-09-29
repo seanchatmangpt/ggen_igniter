@@ -36,6 +36,7 @@ defmodule GgenIgniter.E2eAllEnginesTest do
   asserts. The end-to-end LOOP (ontology -> query -> render -> write, plus
   the idempotent-no-op re-run) is real and asserted for both engines.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

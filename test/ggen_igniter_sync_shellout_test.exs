@@ -18,6 +18,7 @@ defmodule GgenIgniterSyncShelloutTest do
   real SPARQL execution (`GgenIgniter.Ontology.load!/1` +
   `GgenIgniter.Query.run/2`) for the gate-verification assertions.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @pack_dir Path.join(__DIR__, "fixtures/sync_verify/pack")

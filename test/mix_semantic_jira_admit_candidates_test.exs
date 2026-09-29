@@ -7,6 +7,7 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidatesTest do
   recomputed with the real kernel, never hard-coded. No doubles.
   """
 
+  # async: false -- uses the global Mix.shell/captured IO/Mix tasks.
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureIO

@@ -44,6 +44,7 @@ defmodule GgenIgniterFortune5ReadyTaskTest do
   `~/.zcode/rules/testing-chicago-style.md`'s worked example).
   """
 
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
   import Igniter.Test
 

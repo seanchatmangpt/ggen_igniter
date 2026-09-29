@@ -31,6 +31,7 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
   `GgenIgniter.DoctorInProcessTest` wraps `Mix.Tasks.GgenIgniter.Doctor`'s
   own `IO.puts`-based check output.
   """
+  # async: false -- mutates global Application/System env; uses the global Mix.shell/captured IO/Mix tasks; real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureIO

@@ -12,21 +12,22 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  # Stage 1 (ERRC 2026-09-28, docs/jira/v26.9.28/ci-runtime-errc.md): compile
+  # ONCE (deps + release-mode ggen_graph_nif = the ~14 min cold cost) and run
+  # the cheap gates; hand the compiled tree to the test shards through an
+  # exact-SHA actions/cache entry so no shard pays the cold compile again.
+  build:
     runs-on: ubuntu-latest
-    # Budget from measured runs, not a guess: a cold run (no cache for the
-    # ref -- actions/cache saves only on job success, so a timed-out run
-    # never seeds one) spends ~14 min before `mix test` (deps + release-mode
-    # ggen_graph_nif build; run 35895256423), and the last green full suite
-    # took 28 min on a suite ~18% smaller than today's (run 35682930334).
-    # 30 min cancelled five consecutive runs on 2026-09-23 mid-suite.
-    # Complete cold jobs then took 54.6 min (run 35925710605) and 56.5 min
-    # (run 35933570910); budget >= ceil(1.5 x 56.5) = 85, rounded to 90.
-    timeout-minutes: 90
+    # Budget (ERRC 2026-09-28): the documented cold pre-test cost is ~14 min
+    # (deps + release-mode ggen_graph_nif; run 35895256423), plus format +
+    # credo + verify + the extra MIX_ENV=test compile (~7 min, an estimate,
+    # not yet measured on a hosted runner). ceil(1.5 x 21) = 32, rounded to 35.
+    # The 90-minute single-job budget this replaces is retired: no job here
+    # runs the whole suite any more.
+    timeout-minutes: 35
     permissions:
       contents: read
-
-    name: Elixir tests (mix credo + mix test)
+    name: Build + format + credo + verify
 
     steps:
       - name: Checkout
@@ -40,32 +41,6 @@ jobs:
           # own history is therefore a required test collaborator, just like
           # any other real collaborator.
           fetch-depth: 0
-
-      # Real ggen binary on PATH: several real, non-mocked ExUnit tests
-      # (test/ggen_igniter_fortune5_ready_task_test.exs,
-      # test/ggen_igniter_sync_shellout_test.exs) shell out to the real
-      # `ggen` CLI and are gated behind `if System.find_executable("ggen")`
-      # -- a named, visible skip when absent, per this repo's Chicago-style
-      # testing discipline (real collaborator over a mock). Installing the
-      # same pinned release this repo's own docs cite
-      # (docs/jira/v26.9.1/PARITY-VALIDATION.md: "ggen --version -> ggen
-      # 26.8.28") makes those tests actually run in CI instead of skip.
-      # Checksum independently reverified against this exact release asset
-      # during CI-07 authoring, not copied blind from beam4pm's workflow.
-      - name: Install ggen (pinned release, checksum-verified)
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.local/bin"
-          archive="$RUNNER_TEMP/ggen-x86_64-unknown-linux-gnu.tar.gz"
-          curl --fail --location --silent --show-error --retry 3 \
-            --proto '=https' --tlsv1.2 \
-            -o "$archive" \
-            https://github.com/seanchatmangpt/ggen/releases/download/v26.8.28/ggen-x86_64-unknown-linux-gnu.tar.gz
-          echo 'ccb9fe78ef0c84d8b240b45beb6e73f47e2c930d5db3efcf9a0e58dfe071d313  '"$archive" | sha256sum --check --strict
-          tar -xzf "$archive" -C "$HOME/.local/bin" ggen
-          chmod +x "$HOME/.local/bin/ggen"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Set up Erlang/OTP + Elixir + rebar3
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
@@ -181,37 +156,16 @@ jobs:
         run: |
           mix credo
 
-      # The one non-negotiable, must-actually-run job: the real, full
-      # ExUnit suite, including the real subprocess-based `ggen sync run`
-      # E2E tests (test/ggen_igniter_fortune5_ready_task_test.exs,
-      # test/ggen_igniter_sync_shellout_test.exs) and the real
-      # ggen.toml-round-trip idempotency regression tests
-      # (test/ggen_igniter_bundle_test.exs "Test 2: idempotency", and
-      # test/ggen_igniter_fortune5_ready_task_test.exs "...re-running is
-      # idempotent", which runs `mix ggen_igniter.fortune5_ready` twice
-      # against a real scratch fixture project and asserts the second run's
-      # ggen.toml is byte-identical to the first).
-      # Pre-compile the dev env before `mix test`. 78 tests across
-      # test/*.exs spawn `System.cmd("mix", [task, ...])` without exporting
-      # MIX_ENV, so those children run in MIX_ENV=dev. On a fresh checkout
-      # (cache miss) the FIRST such child pays the full dev compile --
-      # "Compiling 50 files (.ex)", the rustler `ggen_graph_nif` crate,
-      # "Generated ggen_igniter app" -- and Mix prints that chatter on the
-      # child's STDOUT, ahead of the task's own output. Which test eats it
-      # is decided by the ExUnit seed, so it surfaces as a seed-dependent
-      # flake: main run 33933744857 (seed 846163) failed
-      # test/ggen_igniter_cli_tasks_quirks_test.exs:115 with
-      # `Jason.DecodeError position: 0` because the JSON document was
-      # preceded by compile output. Compiling dev once here, outside any
-      # test, means no test subprocess ever sees compiler output -- fixing
-      # the whole 78-site class without weakening the single-JSON-document
-      # assertion (which is the real contract under test). Locally the same
-      # flake reproduces with `rm -rf _build/dev && mix test <that file>`
-      # and disappears with `mix compile` run first.
-      - name: mix compile (dev env, so test subprocesses never pay the first compile)
+      # Compile BOTH envs here, once. `dev` because ~78 tests spawn
+      # `System.cmd("mix", ...)` children in MIX_ENV=dev (a child paying the
+      # first dev compile prints compiler chatter ahead of its JSON stdout;
+      # main run 33933744857 flaked on it), `test` so every shard restores a
+      # complete tree including priv/native/ggen_graph_nif.so.
+      - name: mix compile (dev + test envs, so no shard or test subprocess pays a compile)
         shell: bash
         run: |
           mix compile
+          MIX_ENV=test mix compile
 
       # gi-verify-task closure: `mix ggen_igniter.verify` (lib/mix/tasks/
       # ggen_igniter.verify.ex) had zero callers anywhere in this repo before
@@ -232,20 +186,230 @@ jobs:
         run: |
           mix ggen_igniter.verify --pack test/fixtures/ash_manufacture_pack --json
 
-      - name: mix test
+      # Seed the shards: exact-SHA key, saved only when this job succeeds.
+      - name: Save compiled tree for the test shards
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: ${{ runner.os }}-ci-build-${{ github.sha }}
+          path: |
+            _build
+            deps
+            ~/.hex
+            ~/.mix
+            native/ggen_graph_nif/target
+
+  # Stage 2: the FULL suite (GGEN_TEST_FULL=1 = fast lane + every
+  # :integration test; test/test_helper.exs excludes :integration by default,
+  # and an `--include integration` would override `--exclude heavy`)
+  # split across 6 ExUnit partitions, each on its own runner (each
+  # partition's `mix` children share that runner's _build, never another's).
+  # Union of shards == the old single `mix test` (conservation proof in the
+  # ERRC doc). fail-fast: false so one red shard never hides another's result.
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    # Budget: the slowest of the 6 partitions took 329 s on a 16-core dev
+    # machine (others 55-231 s; local measurement, not a hosted runner). A
+    # 2-vCPU runner is assumed <= 2x slower => ~11 min + ~3 min cache restore
+    # and setup = 14; ceil(1.5 x 14) = 21, rounded to 25. Extrapolation, to
+    # be replaced by the first hosted run's numbers.
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    name: mix test (partition ${{ matrix.partition }}/6)
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: [1, 2, 3, 4, 5, 6]
+    env:
+      MIX_TEST_PARTITION: ${{ matrix.partition }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          # Semantic Jira's git-ground-truth court proves that the canonical
+          # baseSha is an actual ancestor of this exact head. A depth-1
+          # checkout makes every older honest SHA observationally absent and
+          # turns the positive control into a false refusal. This repository's
+          # own history is therefore a required test collaborator, just like
+          # any other real collaborator.
+          fetch-depth: 0
+
+      # Real ggen binary on PATH: several real, non-mocked ExUnit tests
+      # (test/ggen_igniter_fortune5_ready_task_test.exs,
+      # test/ggen_igniter_sync_shellout_test.exs) shell out to the real
+      # `ggen` CLI and are gated behind `if System.find_executable("ggen")`
+      # -- a named, visible skip when absent, per this repo's Chicago-style
+      # testing discipline (real collaborator over a mock). Installing the
+      # same pinned release this repo's own docs cite
+      # (docs/jira/v26.9.1/PARITY-VALIDATION.md: "ggen --version -> ggen
+      # 26.8.28") makes those tests actually run in CI instead of skip.
+      # Checksum independently reverified against this exact release asset
+      # during CI-07 authoring, not copied blind from beam4pm's workflow.
+      - name: Install ggen (pinned release, checksum-verified)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          archive="$RUNNER_TEMP/ggen-x86_64-unknown-linux-gnu.tar.gz"
+          curl --fail --location --silent --show-error --retry 3 \
+            --proto '=https' --tlsv1.2 \
+            -o "$archive" \
+            https://github.com/seanchatmangpt/ggen/releases/download/v26.8.28/ggen-x86_64-unknown-linux-gnu.tar.gz
+          echo 'ccb9fe78ef0c84d8b240b45beb6e73f47e2c930d5db3efcf9a0e58dfe071d313  '"$archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$HOME/.local/bin" ggen
+          chmod +x "$HOME/.local/bin/ggen"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Set up Erlang/OTP + Elixir + rebar3
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          # Pinned to this repo's own .tool-versions (elixir 1.18.4-otp-27,
+          # erlang 27.2.4) -- NOT beam4pm's pins, which are a different repo.
+          elixir-version: '1.18.4'
+          otp-version: '27.2.4'
+          rebar3-version: '3.24.0'
+
+      - name: Restore compiled tree from the build job
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: ${{ runner.os }}-ci-build-${{ github.sha }}
+          fail-on-cache-miss: true
+          path: |
+            _build
+            deps
+            ~/.hex
+            ~/.mix
+            native/ggen_graph_nif/target
+
+      - name: mix test (partition ${{ matrix.partition }} of 6, full suite minus :heavy)
         shell: bash
         run: |
           # Cache-restore hardening (2026-09-15): a restored _build/test can
-          # carry current beams WITHOUT the rustler ggen_graph_nif.so (mix
-          # considers the app compiled and never rebuilds the artifact),
-          # which surfaces as NIF load_failed in every oxigraph/divergence
-          # test. Proven environmental, not diff-related: the base branch's
-          # own previously-green run (35004492197) fails identically on
-          # rerun after the exact-key mix.lock cache was evicted and the
-          # broad `restore-keys` prefix fallback restored a pre-NIF _build.
-          # Force a full test-env recompile only when the artifact is
-          # missing, so the NIF is always built before tests run.
+          # carry current beams WITHOUT the rustler ggen_graph_nif.so. The
+          # build job compiles both envs, but keep the guard: force a full
+          # test-env recompile only when the artifact is missing.
           if [ ! -f _build/test/lib/ggen_igniter/priv/native/ggen_graph_nif.so ]; then
             MIX_ENV=test mix compile --force
           fi
-          mix test
+          GGEN_TEST_FULL=1 mix test --exclude heavy --partitions 6
+
+
+  # Stage 2b: the single file that is ~59% of the serial suite's test time
+  # (test/ggen_igniter_semantic_jira_pack_test.exs, tagged :heavy; 8 of its 67
+  # tests take 85-250 s each). Tests inside one module run serially, so no
+  # partition count can split it -- but ExUnit's `describe` tag can. Five
+  # groups run on five runners concurrently with the shards (which run
+  # `--exclude heavy`). Group 5 is the COMPLEMENT (`--exclude` of every
+  # describe named in groups 1-4), so a renamed or newly added describe
+  # falls into group 5 and still runs: the union of the five groups is the
+  # whole file whatever the describe names become.
+  test-heavy:
+    needs: build
+    runs-on: ubuntu-latest
+    # Budget: slowest describe group 185 s (dev machine;
+    # groups 72-185 s, complement group 3 s). Same <= 2x runner factor
+    # + ~3 min setup => ~9 min; ceil(1.5 x 9) = 14, rounded to 20 because the
+    # per-test times inside this file swung 2-3x with machine load (a serial
+    # run under load took 1566 s vs 967 s idle). Extrapolation.
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    name: mix test (heavy group ${{ matrix.group }}/5 - semantic_jira_pack_test)
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          # Semantic Jira's git-ground-truth court proves that the canonical
+          # baseSha is an actual ancestor of this exact head. A depth-1
+          # checkout makes every older honest SHA observationally absent and
+          # turns the positive control into a false refusal. This repository's
+          # own history is therefore a required test collaborator, just like
+          # any other real collaborator.
+          fetch-depth: 0
+
+      # Real ggen binary on PATH: several real, non-mocked ExUnit tests
+      # (test/ggen_igniter_fortune5_ready_task_test.exs,
+      # test/ggen_igniter_sync_shellout_test.exs) shell out to the real
+      # `ggen` CLI and are gated behind `if System.find_executable("ggen")`
+      # -- a named, visible skip when absent, per this repo's Chicago-style
+      # testing discipline (real collaborator over a mock). Installing the
+      # same pinned release this repo's own docs cite
+      # (docs/jira/v26.9.1/PARITY-VALIDATION.md: "ggen --version -> ggen
+      # 26.8.28") makes those tests actually run in CI instead of skip.
+      # Checksum independently reverified against this exact release asset
+      # during CI-07 authoring, not copied blind from beam4pm's workflow.
+      - name: Install ggen (pinned release, checksum-verified)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          archive="$RUNNER_TEMP/ggen-x86_64-unknown-linux-gnu.tar.gz"
+          curl --fail --location --silent --show-error --retry 3 \
+            --proto '=https' --tlsv1.2 \
+            -o "$archive" \
+            https://github.com/seanchatmangpt/ggen/releases/download/v26.8.28/ggen-x86_64-unknown-linux-gnu.tar.gz
+          echo 'ccb9fe78ef0c84d8b240b45beb6e73f47e2c930d5db3efcf9a0e58dfe071d313  '"$archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$HOME/.local/bin" ggen
+          chmod +x "$HOME/.local/bin/ggen"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Set up Erlang/OTP + Elixir + rebar3
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          # Pinned to this repo's own .tool-versions (elixir 1.18.4-otp-27,
+          # erlang 27.2.4) -- NOT beam4pm's pins, which are a different repo.
+          elixir-version: '1.18.4'
+          otp-version: '27.2.4'
+          rebar3-version: '3.24.0'
+
+      - name: Restore compiled tree from the build job
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: ${{ runner.os }}-ci-build-${{ github.sha }}
+          fail-on-cache-miss: true
+          path: |
+            _build
+            deps
+            ~/.hex
+            ~/.mix
+            native/ggen_graph_nif/target
+
+      - name: mix test (heavy file, describe group ${{ matrix.group }})
+        shell: bash
+        env:
+          GROUP: ${{ matrix.group }}
+        run: |
+          set -euo pipefail
+          if [ ! -f _build/test/lib/ggen_igniter/priv/native/ggen_graph_nif.so ]; then
+            MIX_ENV=test mix compile --force
+          fi
+          D_ADM='describe:admission boundary falsifier matrix'
+          D_PRD='describe:PRD projection template'
+          D_OCEL='describe:OCEL event-log projection'
+          D_SHACL='describe:SHACL court wiring on the pack admission path'
+          D_GB='describe:graph-binding tripwires'
+          D_WBPR='describe:WBPR projection template'
+          D_ARD='describe:ARD projection template'
+          D_GIT='describe:opt-in git ground truth for baseSha (residual_base_sha_wrong_commit closure)'
+          D_WO='describe:canonical WorkOrder graph -> deterministic Markdown projection -> graph-bound receipt'
+          D_HDDL='describe:HDDL planning projection template'
+          D_VIS='describe:Vision projection template (V23-T6R: the adopted WO-03 template, executed)'
+          case "$GROUP" in
+            1) args=(--only "$D_ADM" --only "$D_OCEL" --only "$D_SHACL" --only "$D_GB") ;;
+            2) args=(--only "$D_WBPR" --only "$D_ARD" --only "$D_PRD") ;;
+            3) args=(--only "$D_GIT" --only "$D_WO") ;;
+            4) args=(--only "$D_HDDL" --only "$D_VIS") ;;
+            5) args=(--exclude "$D_ADM" --exclude "$D_PRD" --exclude "$D_OCEL" --exclude "$D_SHACL" --exclude "$D_GB" \
+                     --exclude "$D_WBPR" --exclude "$D_ARD" --exclude "$D_GIT" --exclude "$D_WO" \
+                     --exclude "$D_HDDL" --exclude "$D_VIS") ;;
+          esac
+          GGEN_TEST_FULL=1 mix test test/ggen_igniter_semantic_jira_pack_test.exs "${args[@]}"

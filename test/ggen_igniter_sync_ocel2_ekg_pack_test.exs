@@ -8,6 +8,7 @@ defmodule GgenIgniter.SyncOcel2EkgPackTaskTest do
   `Code.string_to_quoted!/1`, contains the expected module/function names) --
   never on mocked interactions.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

@@ -49,7 +49,9 @@ defmodule GgenIgniter.DoctorInProcessTest do
   config.exs`/git status -- never `--fix`, so strictly read-only, never
   mutating this real checkout.
   """
+  # async: false -- uses the global Mix.shell/captured IO/Mix tasks; real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
+  @moduletag :integration
 
   import ExUnit.CaptureIO
 

@@ -12,6 +12,7 @@ defmodule GgenIgniter.OlapPackTest do
   `Code.string_to_quoted!/1` parsing of the generated output -- no mocked
   query engine, no fabricated bindings.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

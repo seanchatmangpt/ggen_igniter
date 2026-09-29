@@ -9,6 +9,7 @@ defmodule GgenIgniter.SyncFrontmatterTest do
   was a fully-typed but completely unused shape module -- this is the real,
   behavioral fix, not just a parser existing in isolation.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

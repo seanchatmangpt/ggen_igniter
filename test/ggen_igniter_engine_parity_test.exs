@@ -48,7 +48,7 @@ defmodule GgenIgniter.EngineParityTest do
   literals or a non-ASCII literal value across both engines) and PASS
   identically on both engines, confirming no new divergence in that surface.
   """
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   alias GgenIgniter.Query
   alias GgenIgniter.Query.Oxigraph, as: OxigraphQuery

@@ -16,6 +16,7 @@ defmodule GgenIgniter.SemanticJiraAuthorityTest do
   green suite on an unverified witness would manufacture a standing.
   """
 
+  # async: false -- UNCLASSIFIED (no global-state marker found; not yet proven safe to run concurrently -- flip candidate).
   use ExUnit.Case, async: false
 
   @moduletag :integration

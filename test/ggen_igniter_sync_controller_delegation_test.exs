@@ -41,6 +41,7 @@ defmodule GgenIgniter.SyncControllerDelegationTest do
   controller GenServer in THIS test process is actually reachable by the code
   under test.
   """
+  # async: false -- uses the global Mix.shell/captured IO/Mix tasks; real `mix`/`ggen` subprocesses share this checkout's _build/dev; global telemetry/registered-process state.
   use ExUnit.Case, async: false
 
   alias GgenIgniter.Controller

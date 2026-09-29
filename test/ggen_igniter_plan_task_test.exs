@@ -15,6 +15,7 @@ defmodule GgenIgniter.PlanTaskTest do
   `test/ggen_igniter_plan_schema_test.exs`, which is a pure local JSON-schema
   fixture validator with no real task invocation.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

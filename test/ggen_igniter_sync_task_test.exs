@@ -1,4 +1,5 @@
 defmodule GgenIgniter.SyncTaskTest do
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

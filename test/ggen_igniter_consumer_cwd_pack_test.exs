@@ -28,6 +28,7 @@ defmodule GgenIgniter.ConsumerCwdPackTest do
   engine (this repo's default `--engine` since v26.8.27), and real file I/O
   -- no `Mock`/`mock(`/`patch(`/`monkeypatch` anywhere in this file.
   """
+  # async: false -- File.cd! changes the process-global cwd.
   use ExUnit.Case, async: false
 
   @moduletag :integration

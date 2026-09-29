@@ -11,6 +11,7 @@ defmodule GgenIgniter.EpochFreshnessTest do
   court is decoration.
   """
 
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   alias GgenIgniter.{EpochFreshness, EpochWatermark}

@@ -124,8 +124,28 @@ excludes =
     [:requires_ash_r2rml | excludes]
   end
 
+# Fast lane (ERRC 2026-09-28, docs/jira/v26.9.28/ci-runtime-errc.md): tests tagged
+# `:integration` (real `mix`/`ggen` subprocesses, real git repos; they dominate
+# wall-clock) are excluded from a plain `mix test` and run with
+# `mix test --include integration` (the full suite). `GGEN_TEST_FULL=1` stops the
+# default exclusion instead of overriding it: CI uses it so that `--exclude heavy`
+# still works (an `--include integration` beats ANY exclude on a test that also
+# carries :integration, measured 2026-09-28). The union of the fast lane and
+# `--only integration` is exactly the old full suite.
+excludes =
+  if System.get_env("GGEN_TEST_FULL") in [nil, "", "0", "false"] do
+    [:integration | excludes]
+  else
+    excludes
+  end
+
+# MERGE with what `mix test` already put in :exclude (e.g. `--only`'s `:test`
+# exclusion, `--exclude foo`); a plain `ExUnit.configure(exclude: ...)` would
+# overwrite it (see the GI-13 note above) and make `--only` run everything.
 unless excludes == [] do
-  ExUnit.configure(exclude: excludes)
+  ExUnit.configure(
+    exclude: Enum.uniq(excludes ++ List.wrap(Application.get_env(:ex_unit, :exclude, [])))
+  )
 end
 
 # Many tests spawn real `mix` subprocesses (compile, sync, verify). Under a

@@ -26,6 +26,7 @@ defmodule GgenIgniter.ReceiptReconstructStandingTest do
   No `Mix`/`Reactor`/`File` mocking anywhere in this file.
   """
 
+  # async: false -- global telemetry/registered-process state.
   use ExUnit.Case, async: false
 
   alias GgenIgniter.Manifest

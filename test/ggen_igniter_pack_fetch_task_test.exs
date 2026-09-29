@@ -11,6 +11,7 @@ defmodule Mix.Tasks.GgenIgniter.PackFetchTaskTest do
   tagged `:requires_network`, same convention as that file.
   """
   use ExUnit.Case, async: true
+  @moduletag :integration
 
   @cache_dir_base Path.join(System.tmp_dir!(), "ggen_igniter_pack_fetch_task_test")
 

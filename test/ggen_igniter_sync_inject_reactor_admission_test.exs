@@ -37,6 +37,7 @@ defmodule GgenIgniter.SyncInjectReactorAdmissionTest do
   `test/fixtures/spec.rq`), and real tmp-directory file I/O. No `Mix`/
   `File`/`Reactor` mocking anywhere in this file.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

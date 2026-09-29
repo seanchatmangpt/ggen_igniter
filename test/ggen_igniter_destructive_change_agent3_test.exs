@@ -30,6 +30,7 @@ defmodule GgenIgniter.DestructiveChangeAgent3Test do
   documented reasoning: oxigraph's raw N-Triples-shaped term strings are not
   what this pack's templates/assertions were authored against).
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

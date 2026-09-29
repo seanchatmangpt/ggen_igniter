@@ -33,6 +33,7 @@ defmodule GgenIgniter.SyncInProcessReconcileTest do
   `GgenIgniter.Manifest.path/1`/`File.read!/1`/`Jason.decode!/1` reads of the
   real manifest this run actually wrote. No mocking anywhere.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   alias GgenIgniter.Manifest

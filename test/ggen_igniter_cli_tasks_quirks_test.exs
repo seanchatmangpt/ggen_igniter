@@ -18,6 +18,7 @@ defmodule GgenIgniterCliTasksQuirksTest do
   supports `--json`, one entry to `@json_capable_tasks`) -- no new test logic.
   """
   use ExUnit.Case, async: true
+  @moduletag :integration
 
   # Every real `mix ggen_igniter.*` task, with the minimal extra argv each one
   # needs alongside `--help`/`-h` to reach its own help-and-halt branch without

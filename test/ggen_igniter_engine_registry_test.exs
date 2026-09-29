@@ -25,6 +25,7 @@ defmodule GgenIgniter.EngineRegistryTest do
   collapsed into one ambiguous boolean.
   """
 
+  # async: false -- uses the global Mix.shell/captured IO/Mix tasks.
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog

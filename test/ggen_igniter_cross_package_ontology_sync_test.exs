@@ -27,6 +27,7 @@ defmodule GgenIgniter.CrossPackageOntologySyncTest do
   - `test/fixtures/cross_package_ontology/consumer/admitted_capabilities.rq`,
     `capability_delegate.ex.eex` -- the consumer's own query/template.
   """
+  # async: false -- File.cd! changes the process-global cwd; real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

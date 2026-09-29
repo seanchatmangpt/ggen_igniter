@@ -17,7 +17,9 @@ defmodule GgenIgniter.UltracodeTwoPortTest do
   below with deliberately injected violations.
   """
 
+  # async: false -- mutates global Application/System env; real `mix`/`ggen` subprocesses share this checkout's _build/dev; global telemetry/registered-process state.
   use ExUnit.Case, async: false
+  @moduletag :integration
 
   alias AshA2A.Authority
   alias AshA2A.Identity

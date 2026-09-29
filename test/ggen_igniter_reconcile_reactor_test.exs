@@ -34,6 +34,7 @@ defmodule GgenIgniter.ReconcileReactorTest do
   the original assertion was, and remains, correct.
   """
 
+  # async: false -- mutates global Application/System env.
   use ExUnit.Case, async: false
 
   alias GgenIgniter.Controller

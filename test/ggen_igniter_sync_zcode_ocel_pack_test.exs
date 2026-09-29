@@ -4,6 +4,7 @@ defmodule GgenIgniter.SyncZcodeOcelPackTaskTest do
   manufactures the zcode OCEL TypeScript registry (real subprocess, real oxigraph/sparql
   engine, real file on disk). Assertions are on the generated file's content.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

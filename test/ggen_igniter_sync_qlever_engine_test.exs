@@ -11,6 +11,7 @@ defmodule GgenIgniter.SyncQleverEngineTest do
   at http://localhost:7020). Named, visible skip via `:requires_qlever_server` if
   unreachable -- never a silent mock substitution.
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @tag :requires_qlever_server

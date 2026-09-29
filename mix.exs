@@ -16,7 +16,10 @@ defmodule GgenIgniter.MixProject do
       preferred_cli_env: [
         coveralls: :test,
         "coveralls.detail": :test,
-        "coveralls.html": :test
+        "coveralls.html": :test,
+        "test.fast": :test,
+        "test.full": :test,
+        "test.shard": :test
       ],
       docs: [
         main: "readme",
@@ -85,7 +88,16 @@ defmodule GgenIgniter.MixProject do
   end
 
   defp aliases do
-    [e2e: ["run test/e2e/run_e2e.exs"]]
+    [
+      e2e: ["run test/e2e/run_e2e.exs"],
+      # `mix test` already excludes :integration (test/test_helper.exs).
+      "test.fast": ["test"],
+      "test.full": ["test --include integration"],
+      # Local shard runner: `MIX_TEST_PARTITION=2 mix test.shard --partitions 8`.
+      # Do NOT run partitions concurrently in one checkout (shared _build/dev);
+      # CI gives each shard its own runner.
+      "test.shard": ["test --include integration"]
+    ]
   end
 
   def application do
@@ -105,7 +117,7 @@ defmodule GgenIgniter.MixProject do
       files: ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/Cargo.lock
            native/ggen_graph_nif/src priv/bundles priv/schema
            wasm-artifacts/tera_wasm_renderer.wasm
-           mix.exs README.md LICENSE CHANGELOG.md .formatter.exs) ++ shipped_packs()
+           mix.exs README.md LICENSE CHANGELOG.md usage-rules.md .formatter.exs) ++ shipped_packs()
     ]
   end
 

@@ -10,6 +10,7 @@ defmodule GgenIgniter.SyncBeam4pmBenchPackTest do
   load-bearing (rendering without it fails fast; rendering with it produces
   source referencing exactly the supplied adapter module).
   """
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @moduletag :integration

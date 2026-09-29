@@ -7,6 +7,8 @@ defmodule GgenIgniterTaskShellTest do
   """
   use ExUnit.Case, async: true
 
+  # The subprocess `describe` (real `mix` children) costs ~139s; pure cases stay fast.
+
   alias GgenIgniter.TaskShell
 
   describe "help_requested?/2" do
@@ -40,6 +42,7 @@ defmodule GgenIgniterTaskShellTest do
   end
 
   describe "real tasks delegate to it (subprocess)" do
+    @describetag :integration
     for {task, flag} <- [
           {"ggen_igniter.rename", "--help"},
           {"ggen_igniter.rename", "-h"},

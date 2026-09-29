@@ -6,6 +6,7 @@ defmodule GgenIgniter.Telemetry.OcelEmitterTest do
   sink anywhere in this file.
   """
 
+  # async: false -- global telemetry/registered-process state.
   use ExUnit.Case, async: false
 
   alias GgenIgniter.Telemetry.OcelEmitter

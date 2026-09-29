@@ -23,6 +23,7 @@ defmodule GgenIgniter.LockOsPidLivenessTest do
   same holder across OS processes and BEAM VMs on one machine.
   """
 
+  # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
   use ExUnit.Case, async: false
 
   @lock_subpath ".ggen_igniter/.sync.lock"
