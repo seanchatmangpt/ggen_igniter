@@ -1,0 +1,47 @@
+@prefix sm:   <https://ggen-igniter.dev/ontology/state-machine#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# state-machine-pack -- an RDF lifecycle rendered as an AshStateMachine resource.
+#
+# A consumer graph (concatenated with this file before sync) declares one sm:StateMachine
+# per resource. The pack ships no individual, so `--pack state-machine-pack` alone renders
+# nothing. `use Ash.Resource, extensions: [AshStateMachine]` appears only in the template.
+#
+# Conservation law (enforced by gates/05x_refuse_*.rq + the template):
+#   every declared state is reachable from an initial state;
+#   every non-terminal state has an outgoing transition;
+#   every transition names only states declared by its machine;
+#   every machine has at least one initial state.
+
+sm: a owl:Ontology ;
+    rdfs:label "RDF state machine -> AshStateMachine" .
+
+sm:StateMachine a owl:Class ; rdfs:comment "One individual per generated state-machine resource." .
+sm:State a owl:Class ; rdfs:comment "A lifecycle state, owned by machines through sm:hasState." .
+sm:Transition a owl:Class ; rdfs:comment "An action moving a record from any sm:from state to any sm:to state." .
+
+sm:resourceModule a owl:DatatypeProperty ; rdfs:domain sm:StateMachine ;
+    rdfs:comment "Fully qualified resource module." .
+sm:domainModule a owl:DatatypeProperty ; rdfs:domain sm:StateMachine ;
+    rdfs:comment "Fully qualified Ash domain module listing the resource." .
+sm:libPath a owl:DatatypeProperty ; rdfs:domain sm:StateMachine ;
+    rdfs:comment "Output directory (relative) for the rendered resource." .
+sm:stateAttribute a owl:DatatypeProperty ; rdfs:domain sm:StateMachine ;
+    rdfs:comment "State attribute name (default: state)." .
+sm:hasState a owl:ObjectProperty ; rdfs:domain sm:StateMachine ; rdfs:range sm:State .
+sm:initialState a owl:ObjectProperty ; rdfs:domain sm:StateMachine ; rdfs:range sm:State .
+sm:defaultInitialState a owl:ObjectProperty ; rdfs:domain sm:StateMachine ; rdfs:range sm:State .
+sm:hasTransition a owl:ObjectProperty ; rdfs:domain sm:StateMachine ; rdfs:range sm:Transition .
+sm:stateName a owl:DatatypeProperty ; rdfs:domain sm:State ;
+    rdfs:comment "Atom name of the state." .
+sm:terminal a owl:DatatypeProperty ; rdfs:domain sm:State ; rdfs:range xsd:boolean ;
+    rdfs:comment "true: the state may have no outgoing transition." .
+sm:action a owl:DatatypeProperty ; rdfs:domain sm:Transition ;
+    rdfs:comment "Update action name performing the transition." .
+sm:from a owl:ObjectProperty ; rdfs:domain sm:Transition ; rdfs:range sm:State ;
+    rdfs:comment "Repeatable: the list form of AshStateMachine `from:`." .
+sm:to a owl:ObjectProperty ; rdfs:domain sm:Transition ; rdfs:range sm:State ;
+    rdfs:comment "Repeatable: the list form of AshStateMachine `to:`." .

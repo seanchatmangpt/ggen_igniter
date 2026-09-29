@@ -1,0 +1,12 @@
+# REFUSED:STATE_DEAD_END -- a declared, non-terminal state with no outgoing transition.
+PREFIX sm: <https://ggen-igniter.dev/ontology/state-machine#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT DISTINCT ?machine ?detail WHERE {
+  ?m sm:hasState ?s .
+  ?s sm:stateName ?n .
+  MINUS { ?m sm:hasTransition ?t . ?t sm:from ?s }
+  MINUS { ?s sm:terminal true }
+  BIND(STR(?m) AS ?machine)
+  BIND(STR(?n) AS ?detail)
+}
+ORDER BY ?machine ?detail

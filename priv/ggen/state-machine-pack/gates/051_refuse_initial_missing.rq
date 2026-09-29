@@ -1,0 +1,9 @@
+# REFUSED:INITIAL_STATE_MISSING -- a machine that declares no sm:initialState.
+PREFIX sm: <https://ggen-igniter.dev/ontology/state-machine#>
+SELECT DISTINCT ?machine ?detail WHERE {
+  ?m a sm:StateMachine ; sm:resourceModule ?rm .
+  MINUS { ?m sm:initialState ?any }
+  BIND(STR(?m) AS ?machine)
+  BIND(STR(?rm) AS ?detail)
+}
+ORDER BY ?machine

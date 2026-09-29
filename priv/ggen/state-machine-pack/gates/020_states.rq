@@ -1,0 +1,11 @@
+PREFIX sm: <https://ggen-igniter.dev/ontology/state-machine#>
+SELECT DISTINCT ?machine ?state_name ?terminal
+WHERE {
+  ?m sm:hasState ?s .
+  ?s sm:stateName ?n .
+  OPTIONAL { ?s sm:terminal ?t }
+  BIND(STR(?m) AS ?machine)
+  BIND(STR(?n) AS ?state_name)
+  BIND(STR(COALESCE(?t, "false")) AS ?terminal)
+}
+ORDER BY ?machine ?state_name

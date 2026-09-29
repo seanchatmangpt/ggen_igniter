@@ -1,0 +1,15 @@
+PREFIX sm: <https://ggen-igniter.dev/ontology/state-machine#>
+SELECT DISTINCT ?machine ?action ?from_state ?to_state
+WHERE {
+  ?m sm:hasTransition ?t .
+  ?t sm:action ?a ;
+     sm:from ?f ;
+     sm:to ?d .
+  OPTIONAL { ?f sm:stateName ?fn }
+  OPTIONAL { ?d sm:stateName ?dn }
+  BIND(STR(?m) AS ?machine)
+  BIND(STR(?a) AS ?action)
+  BIND(STR(COALESCE(?fn, STR(?f))) AS ?from_state)
+  BIND(STR(COALESCE(?dn, STR(?d))) AS ?to_state)
+}
+ORDER BY ?machine ?action ?from_state ?to_state

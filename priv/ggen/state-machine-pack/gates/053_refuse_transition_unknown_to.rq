@@ -1,0 +1,10 @@
+# REFUSED:TRANSITION_UNKNOWN_STATE -- a transition `to` state its machine never declared.
+PREFIX sm: <https://ggen-igniter.dev/ontology/state-machine#>
+SELECT DISTINCT ?machine ?detail WHERE {
+  ?m sm:hasTransition ?t .
+  ?t sm:action ?a ; sm:to ?s .
+  MINUS { ?m sm:hasState ?s }
+  BIND(STR(?m) AS ?machine)
+  BIND(CONCAT(STR(?a), " to ", STR(?s)) AS ?detail)
+}
+ORDER BY ?machine ?detail

@@ -1,0 +1,13 @@
+# Consumer-declared shared domains (sm:domainModule). Machines without one get an inline
+# `<Resource>.Domain` from the resource template.
+PREFIX sm: <https://ggen-igniter.dev/ontology/state-machine#>
+SELECT DISTINCT ?domain_module ?lib_path ?file_stem
+WHERE {
+  ?m a sm:StateMachine ;
+     sm:domainModule ?dm ;
+     sm:libPath ?lp .
+  BIND(STR(?dm) AS ?domain_module)
+  BIND(STR(?lp) AS ?lib_path)
+  BIND(REPLACE(LCASE(STR(?dm)), "[^a-z0-9]+", "_") AS ?file_stem)
+}
+ORDER BY ?domain_module

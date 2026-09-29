@@ -1,0 +1,9 @@
+# REFUSED:TRANSITION_UNKNOWN_STATE -- an initial / default-initial state its machine never declared.
+PREFIX sm: <https://ggen-igniter.dev/ontology/state-machine#>
+SELECT DISTINCT ?machine ?detail WHERE {
+  ?m sm:initialState ?s .
+  MINUS { ?m sm:hasState ?s }
+  BIND(STR(?m) AS ?machine)
+  BIND(CONCAT("initial ", STR(?s)) AS ?detail)
+}
+ORDER BY ?machine ?detail

@@ -1,0 +1,17 @@
+@prefix sm: <https://ggen-igniter.dev/ontology/state-machine#> .
+@prefix ex: <https://example.test/sm#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Second independent machine for the multi-target test (own module, own states).
+ex:tap a sm:StateMachine ;
+    sm:resourceModule "SmFixture.Tap" ;
+    sm:libPath "lib/sm_fixture" ;
+    sm:stateAttribute "phase" ;
+    sm:initialState ex:tap-off ;
+    sm:defaultInitialState ex:tap-off ;
+    sm:hasState ex:tap-off , ex:tap-on ;
+    sm:hasTransition ex:tap-t1 , ex:tap-t2 .
+ex:tap-off a sm:State ; sm:stateName "off" .
+ex:tap-on a sm:State ; sm:stateName "on" .
+ex:tap-t1 a sm:Transition ; sm:action "open" ; sm:from ex:tap-off ; sm:to ex:tap-on .
+ex:tap-t2 a sm:Transition ; sm:action "close" ; sm:from ex:tap-on ; sm:to ex:tap-off .

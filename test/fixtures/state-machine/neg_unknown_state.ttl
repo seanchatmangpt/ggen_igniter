@@ -1,0 +1,16 @@
+@prefix sm: <https://ggen-igniter.dev/ontology/state-machine#> .
+@prefix ex: <https://example.test/sm#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# NEG: transition `warp` targets ex:m-ghost, which the machine never declares.
+ex:m a sm:StateMachine ;
+    sm:resourceModule "SmFixture.NegUnknown" ; sm:libPath "lib/sm_fixture" ;
+    sm:initialState ex:m-a ; sm:defaultInitialState ex:m-a ;
+    sm:hasState ex:m-a , ex:m-b ;
+    sm:hasTransition ex:m-t1 , ex:m-t2 , ex:m-t3 .
+ex:m-a a sm:State ; sm:stateName "a" .
+ex:m-b a sm:State ; sm:stateName "b" .
+ex:m-ghost a sm:State ; sm:stateName "ghost" .
+ex:m-t1 a sm:Transition ; sm:action "go" ; sm:from ex:m-a ; sm:to ex:m-b .
+ex:m-t2 a sm:Transition ; sm:action "back" ; sm:from ex:m-b ; sm:to ex:m-a .
+ex:m-t3 a sm:Transition ; sm:action "warp" ; sm:from ex:m-b ; sm:to ex:m-ghost .

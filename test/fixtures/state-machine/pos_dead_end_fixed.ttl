@@ -1,0 +1,17 @@
+@prefix sm: <https://ggen-igniter.dev/ontology/state-machine#> .
+@prefix ex: <https://example.test/sm#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# POS (fix of neg_dead_end): edge c -> d added, d terminal.
+ex:m a sm:StateMachine ;
+    sm:resourceModule "SmFixture.NegDeadEnd" ; sm:libPath "lib/sm_fixture" ;
+    sm:initialState ex:m-a ; sm:defaultInitialState ex:m-a ;
+    sm:hasState ex:m-a , ex:m-b , ex:m-c , ex:m-d ;
+    sm:hasTransition ex:m-t1 , ex:m-t2 , ex:m-t3 .
+ex:m-a a sm:State ; sm:stateName "a" .
+ex:m-b a sm:State ; sm:stateName "b" .
+ex:m-c a sm:State ; sm:stateName "c" .
+ex:m-d a sm:State ; sm:stateName "d" ; sm:terminal true .
+ex:m-t1 a sm:Transition ; sm:action "go" ; sm:from ex:m-a ; sm:to ex:m-b .
+ex:m-t2 a sm:Transition ; sm:action "next" ; sm:from ex:m-b ; sm:to ex:m-c .
+ex:m-t3 a sm:Transition ; sm:action "last" ; sm:from ex:m-c ; sm:to ex:m-d .

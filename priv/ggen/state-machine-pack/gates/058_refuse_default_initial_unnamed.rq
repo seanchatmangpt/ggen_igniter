@@ -1,0 +1,10 @@
+# REFUSED:TRANSITION_UNKNOWN_STATE -- a sm:defaultInitialState with no sm:stateName (010 would
+# silently drop it and change the create action's shape).
+PREFIX sm: <https://ggen-igniter.dev/ontology/state-machine#>
+SELECT DISTINCT ?machine ?detail WHERE {
+  ?m sm:defaultInitialState ?s .
+  MINUS { ?s sm:stateName ?n }
+  BIND(STR(?m) AS ?machine)
+  BIND(CONCAT("default-initial without stateName ", STR(?s)) AS ?detail)
+}
+ORDER BY ?machine ?detail

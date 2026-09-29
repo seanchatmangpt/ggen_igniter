@@ -1,0 +1,25 @@
+@prefix sm: <https://ggen-igniter.dev/ontology/state-machine#> .
+@prefix ex: <https://example.test/sm#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# 5 states / 7 transitions: a `from` list (reject, archive), a self-transition (touch).
+ex:doc a sm:StateMachine ;
+    sm:resourceModule "SmFixture.Doc" ;
+    sm:libPath "lib/sm_fixture" ;
+    sm:initialState ex:doc-draft ;
+    sm:defaultInitialState ex:doc-draft ;
+    sm:hasState ex:doc-draft , ex:doc-review , ex:doc-approved , ex:doc-published , ex:doc-archived ;
+    sm:hasTransition ex:doc-t1 , ex:doc-t2 , ex:doc-t3 , ex:doc-t4 , ex:doc-t5 , ex:doc-t6 .
+ex:doc-draft a sm:State ; sm:stateName "draft" .
+ex:doc-review a sm:State ; sm:stateName "review" .
+ex:doc-approved a sm:State ; sm:stateName "approved" .
+ex:doc-published a sm:State ; sm:stateName "published" .
+ex:doc-archived a sm:State ; sm:stateName "archived" .
+ex:doc-t1 a sm:Transition ; sm:action "submit" ; sm:from ex:doc-draft ; sm:to ex:doc-review .
+ex:doc-t2 a sm:Transition ; sm:action "approve" ; sm:from ex:doc-review ; sm:to ex:doc-approved .
+ex:doc-t3 a sm:Transition ; sm:action "publish" ; sm:from ex:doc-approved ; sm:to ex:doc-published .
+ex:doc-t4 a sm:Transition ; sm:action "reject" ; sm:from ex:doc-review , ex:doc-approved ; sm:to ex:doc-draft .
+ex:doc-t5 a sm:Transition ; sm:action "touch" ; sm:from ex:doc-review ; sm:to ex:doc-review .
+ex:doc-t6 a sm:Transition ; sm:action "archive" ; sm:from ex:doc-draft , ex:doc-published ; sm:to ex:doc-archived .
+ex:doc-t7 a sm:Transition ; sm:action "revive" ; sm:from ex:doc-archived ; sm:to ex:doc-draft .
+ex:doc sm:hasTransition ex:doc-t7 .

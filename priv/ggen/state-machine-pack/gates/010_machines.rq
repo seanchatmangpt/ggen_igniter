@@ -1,0 +1,18 @@
+PREFIX sm: <https://ggen-igniter.dev/ontology/state-machine#>
+SELECT DISTINCT ?machine ?resource_module ?domain_module ?lib_path ?file_stem ?state_attribute ?default_initial
+WHERE {
+  ?m a sm:StateMachine ;
+     sm:resourceModule ?rm ;
+     sm:libPath ?lp .
+  OPTIONAL { ?m sm:domainModule ?dm }
+  OPTIONAL { ?m sm:stateAttribute ?sa }
+  OPTIONAL { ?m sm:defaultInitialState ?di . ?di sm:stateName ?dn }
+  BIND(STR(?m) AS ?machine)
+  BIND(STR(?rm) AS ?resource_module)
+  BIND(STR(COALESCE(?dm, "")) AS ?domain_module)
+  BIND(STR(?lp) AS ?lib_path)
+  BIND(REPLACE(LCASE(STR(?rm)), "[^a-z0-9]+", "_") AS ?file_stem)
+  BIND(STR(COALESCE(?sa, "state")) AS ?state_attribute)
+  BIND(STR(COALESCE(?dn, "")) AS ?default_initial)
+}
+ORDER BY ?machine

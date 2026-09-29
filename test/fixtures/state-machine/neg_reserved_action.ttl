@@ -1,0 +1,20 @@
+@prefix sm: <https://ggen-igniter.dev/ontology/state-machine#> .
+@prefix ex: <https://example.test/sm#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Lifecycle A -> B -> C (test input only). skip: a->c keeps C reachable when `finish` is deleted;
+# reopen: b->a keeps B non-dead-end when `finish` is deleted.
+ex:abc a sm:StateMachine ;
+    sm:resourceModule "SmFixture.Abc" ;
+    sm:libPath "lib/sm_fixture" ;
+    sm:initialState ex:abc-a ;
+    sm:defaultInitialState ex:abc-a ;
+    sm:hasState ex:abc-a , ex:abc-b , ex:abc-c ;
+    sm:hasTransition ex:abc-t-advance , ex:abc-t-finish , ex:abc-t-skip , ex:abc-t-reopen .
+ex:abc-a a sm:State ; sm:stateName "a" .
+ex:abc-b a sm:State ; sm:stateName "b" .
+ex:abc-c a sm:State ; sm:stateName "c" ; sm:terminal true .
+ex:abc-t-advance a sm:Transition ; sm:action "create" ; sm:from ex:abc-a ; sm:to ex:abc-b .
+ex:abc-t-finish a sm:Transition ; sm:action "finish" ; sm:from ex:abc-b ; sm:to ex:abc-c .
+ex:abc-t-skip a sm:Transition ; sm:action "skip" ; sm:from ex:abc-a ; sm:to ex:abc-c .
+ex:abc-t-reopen a sm:Transition ; sm:action "reopen" ; sm:from ex:abc-b ; sm:to ex:abc-a .

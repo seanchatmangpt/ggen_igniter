@@ -1,0 +1,12 @@
+# REFUSED:ACTION_AMBIGUOUS_TARGET -- one action name transitioning to two different states
+# (an Ash update action carries exactly one static transition_state target).
+PREFIX sm: <https://ggen-igniter.dev/ontology/state-machine#>
+SELECT DISTINCT ?machine ?detail WHERE {
+  ?m sm:hasTransition ?t1 , ?t2 .
+  ?t1 sm:action ?a ; sm:to ?x .
+  ?t2 sm:action ?a ; sm:to ?y .
+  FILTER(?x != ?y)
+  BIND(STR(?m) AS ?machine)
+  BIND(STR(?a) AS ?detail)
+}
+ORDER BY ?machine ?detail

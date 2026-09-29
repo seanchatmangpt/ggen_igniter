@@ -1,0 +1,22 @@
+@prefix sm: <https://ggen-igniter.dev/ontology/state-machine#> .
+@prefix ex: <https://example.test/sm#> .
+
+# Two machines listed by ONE consumer-named domain (rendered by templates/domain.ex.eex).
+ex:sa a sm:StateMachine ;
+    sm:resourceModule "SmFixture.SharedA" ; sm:domainModule "SmFixture.Shared" ;
+    sm:libPath "lib/sm_fixture" ;
+    sm:initialState ex:sa-x ; sm:defaultInitialState ex:sa-x ;
+    sm:hasState ex:sa-x , ex:sa-y ; sm:hasTransition ex:sa-t1 , ex:sa-t2 .
+ex:sa-x a sm:State ; sm:stateName "x" .
+ex:sa-y a sm:State ; sm:stateName "y" .
+ex:sa-t1 a sm:Transition ; sm:action "go" ; sm:from ex:sa-x ; sm:to ex:sa-y .
+ex:sa-t2 a sm:Transition ; sm:action "back" ; sm:from ex:sa-y ; sm:to ex:sa-x .
+ex:sb a sm:StateMachine ;
+    sm:resourceModule "SmFixture.SharedB" ; sm:domainModule "SmFixture.Shared" ;
+    sm:libPath "lib/sm_fixture" ;
+    sm:initialState ex:sb-p ; sm:defaultInitialState ex:sb-p ;
+    sm:hasState ex:sb-p , ex:sb-q ; sm:hasTransition ex:sb-t1 , ex:sb-t2 .
+ex:sb-p a sm:State ; sm:stateName "p" .
+ex:sb-q a sm:State ; sm:stateName "q" .
+ex:sb-t1 a sm:Transition ; sm:action "advance" ; sm:from ex:sb-p ; sm:to ex:sb-q .
+ex:sb-t2 a sm:Transition ; sm:action "rewind" ; sm:from ex:sb-q ; sm:to ex:sb-p .
