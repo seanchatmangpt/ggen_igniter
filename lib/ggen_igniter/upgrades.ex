@@ -11,7 +11,7 @@ defmodule GgenIgniter.Upgrades do
   """
 
   @registry %{
-    "26.9.28" => GgenIgniter.Upgrades.V26_9_28
+    "26.9.28" => GgenIgniter.Upgrades.V260928
   }
 
   @doc "Registered `version => module` map."

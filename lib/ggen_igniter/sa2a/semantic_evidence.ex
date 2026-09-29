@@ -92,9 +92,8 @@ defmodule GgenIgniter.SA2A.SemanticEvidence do
     with :ok <- non_empty(id, :source_id),
          :ok <- absolute(uri, :source_uri),
          :ok <- absolute(graph, :source_graph),
-         :ok <- non_empty(template, :subject_template),
-         :ok <- sha256(digest, :source_digest) do
-      :ok
+         :ok <- non_empty(template, :subject_template) do
+      sha256(digest, :source_digest)
     end
   end
 

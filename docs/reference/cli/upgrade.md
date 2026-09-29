@@ -16,7 +16,7 @@ An upgrader registered for version `V` runs when `FROM < V <= TO`, ascending. Re
 
 | version | module | effect |
 |---|---|---|
-| 26.9.28 | `GgenIgniter.Upgrades.V26_9_28` | adds `import_deps: [:ggen_igniter]` to `.formatter.exs` (idempotent) |
+| 26.9.28 | `GgenIgniter.Upgrades.V260928` | adds `import_deps: [:ggen_igniter]` to `.formatter.exs` (idempotent) |
 
 ## Refusals
 
