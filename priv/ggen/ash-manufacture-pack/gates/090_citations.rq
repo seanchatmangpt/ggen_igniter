@@ -1,0 +1,32 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+# Every mechanically checkable anchor into pinned dependency source.
+#
+# Column names are all `citation_*` / `cited_*` / `pinned_*` prefixed so this
+# gate's row maps cannot collide with a binding the template already consumes
+# (`mix_task`, `standing`, `evidence`, ... from 080/085). Adding a gate adds a
+# template binding, so a new gate's column vocabulary is a real interface, not
+# an internal detail.
+#
+# `citesEndLine` is genuinely OPTIONAL: 20 of these anchors are single-line.
+# A conjunctive triple pattern would silently DROP those rows -- the fail-open
+# shape this pack has already been criticised for. COALESCE collapses the
+# absent case to the start line, so every citation reaches the consumer and no
+# variable arrives unbound.
+SELECT ?citation_file ?citation_line ?citation_end_line ?citation_symbol
+       ?citation_mix_task ?cited_property ?pinned_dep ?pinned_version
+WHERE {
+  ?cite a amp:Citation ;
+        amp:citesFile ?citation_file ;
+        amp:citesLine ?citation_line ;
+        amp:citesSymbol ?citation_symbol ;
+        amp:citedProperty ?cited_property ;
+        amp:supports ?cap ;
+        amp:citesPin ?pin .
+  ?cap amp:mixTask ?citation_mix_task .
+  ?pin amp:pinnedDep ?pinned_dep ;
+       amp:pinnedVersion ?pinned_version .
+  OPTIONAL { ?cite amp:citesEndLine ?declared_end }
+  BIND(COALESCE(?declared_end, ?citation_line) AS ?citation_end_line)
+}
+ORDER BY ?citation_file ?citation_line ?citation_symbol

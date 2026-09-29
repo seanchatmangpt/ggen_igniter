@@ -1,0 +1,100 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+# INVERTED COMPANION to gates/080_capabilities.rq. ZERO ROWS IS THE PASS
+# CONDITION.
+#
+# Why this file exists: gates/080_capabilities.rq is a conjunctive SELECT over
+# SIX predicates, and amp:evidence is one of them. Deleting a single
+# amp:evidence triple -- a documentation citation, the least
+# operational-looking fact in the row -- drops that whole capability from the
+# envelope. Because templates/manufacture.ex.eex gates each composed upstream
+# morphism on its capability's amp:admitted fact, a capability that vanishes
+# from the query result is not refused, it is SKIPPED: the Ash installation
+# silently does not happen, and the gate still scores :pass because 20 other
+# capability rows remain.
+#
+# THE REFUSAL BRANCH (last) is a second, distinct fail-open, one hop away from
+# gates/085_refusals.rq: that gate emits the typed UNSUPPORTED/UNKNOWN receipts
+# for `amp:admitted false` capabilities, and it too requires amp:refusalReason
+# conjunctively. An inadmissible capability that loses its refusalReason
+# therefore disappears from the refusal list while remaining inadmissible --
+# converting a VISIBLE, receipted refusal into a SILENT skip, which is the exact
+# outcome the pack's standing vocabulary exists to prevent. Measured on the real
+# ontology: zero admitted capabilities carry an amp:refusalReason, so
+# "carries a refusalReason" and "is inadmissible" are the same set today.
+#
+# DIALECT: OPTIONAL + BIND + UNION + FILTER + BOUND only. The `sparql` hex
+# engine (GgenIgniter.Query.run/2, which GgenIgniter.GateVerify itself uses) has
+# no EXISTS algebra -- there is no exists.ex under
+# deps/sparql/lib/sparql/algebra/expression/ -- and VALUES is a bare grammar
+# token with no algebra behind it. Verified row-identical on the oxigraph NIF.
+#
+# No ORDER BY: cosmetic on the `sparql` engine (a disclosed defect, see
+# GgenIgniter.Query's moduledoc) and irrelevant to a zero-rows-is-pass check.
+#
+# ANCHOR LIMIT: branches anchor on `?subject a amp:GeneratorCapability`, so a
+# capability that loses its rdf:type outright is invisible here.
+# verify/cardinality.json's "capabilities" contract covers it -- ROWS anchored
+# on amp:mixTask, NOT on the class, so the two anchors differ and the blind
+# spots do not overlap.
+#
+# The reciprocal limit is this file's reason to exist: the "refusals" contract
+# is blind to the total loss of amp:refusalReason (measured: gate 8 vs contract
+# 8, both dropping together). Only the refusal branch below catches that one.
+
+SELECT ?subject ?missing_property
+WHERE {
+  {
+    ?subject a amp:GeneratorCapability .
+    OPTIONAL { ?subject amp:mixTask ?p_mix_task }
+    FILTER (!BOUND(?p_mix_task))
+    BIND("amp:mixTask" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:GeneratorCapability .
+    OPTIONAL { ?subject amp:standing ?p_standing }
+    FILTER (!BOUND(?p_standing))
+    BIND("amp:standing" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:GeneratorCapability .
+    OPTIONAL { ?subject amp:admitted ?p_admitted }
+    FILTER (!BOUND(?p_admitted))
+    BIND("amp:admitted" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:GeneratorCapability .
+    OPTIONAL { ?subject amp:phase ?p_phase }
+    FILTER (!BOUND(?p_phase))
+    BIND("amp:phase" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:GeneratorCapability .
+    OPTIONAL { ?subject amp:idempotencyMechanism ?p_idempotency }
+    FILTER (!BOUND(?p_idempotency))
+    BIND("amp:idempotencyMechanism" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a amp:GeneratorCapability .
+    OPTIONAL { ?subject amp:evidence ?p_evidence }
+    FILTER (!BOUND(?p_evidence))
+    BIND("amp:evidence" AS ?missing_property)
+  }
+  UNION
+  {
+    # A capability with no amp:admitted triple at all produces nothing here;
+    # that case is the amp:admitted branch above. `false` is a plain SPARQL 1.1
+    # xsd:boolean literal, matching gates/085_refusals.rq's own `amp:admitted
+    # false` term -- an UPSTREAM CONTRACT with that gate, not a chosen constant.
+    ?subject a amp:GeneratorCapability ;
+             amp:admitted false .
+    OPTIONAL { ?subject amp:refusalReason ?p_refusal_reason }
+    FILTER (!BOUND(?p_refusal_reason))
+    BIND("amp:refusalReason" AS ?missing_property)
+  }
+}

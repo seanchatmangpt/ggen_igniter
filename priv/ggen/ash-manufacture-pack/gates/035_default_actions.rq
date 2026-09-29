@@ -1,0 +1,9 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+SELECT ?resource_module ?action
+WHERE {
+  ?r a amp:Resource ;
+     amp:resourceModule ?resource_module ;
+     amp:defaultAction ?action .
+}
+ORDER BY ?resource_module ?action

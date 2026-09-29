@@ -51,7 +51,7 @@ ontology fact  ->  ggen_igniter  ->  upstream Ash/Igniter generators  ->  genera
 
 1. **Ontology fact.** The semantic element (resource, attribute, relationship, action) is
    a triple in the pack's `ontology.ttl` — see
-   `test/fixtures/ash_manufacture_pack/ontology.ttl`. The ontology also carries a
+   `priv/ggen/ash-manufacture-pack/ontology.ttl`. The ontology also carries a
    `GeneratorCapability` envelope per generator (standing / admitted / phase / evidence).
 2. **ggen_igniter.** SPARQL gates read those facts and render exactly one composed
    `Igniter.Mix.Task` at `lib/mix/tasks/<app>.manufacture.ex`. No ggen_igniter template
@@ -201,7 +201,7 @@ amp:BookIsbnAttribute a amp:Attribute ;
 2. Re-render the composed manufacture task from the fact:
 
 ```bash
-mix ggen_igniter.sync --pack-dir test/fixtures/ash_manufacture_pack
+mix ggen_igniter.sync --pack ash-manufacture-pack
 ```
 
 3. Run the real upstream generators through it, both phases:

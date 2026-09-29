@@ -1,0 +1,108 @@
+{
+  "note": [
+    "Per-gate cardinality contract consumed by GgenIgniter.GateVerify.run/3 (:cardinality opt)",
+    "and by `mix ggen_igniter.verify`. Keyed by GATE STEM -- the name",
+    "GgenIgniter.Pack.discover_queries/1 derives by stripping the NNN_ prefix from",
+    "gates/NNN_stem.rq -- NOT by filename.",
+    "",
+    "WHY THIS EXISTS, alongside the inverted verify/*.unbound.rq queries: those queries name a",
+    "missing PREDICATE on an individual, but a contract catches a DROP the queries cannot model.",
+    "The two are complementary only when their blind spots differ, which is what the anchor",
+    "choice below is for.",
+    "",
+    "MODE is load-bearing, not decoration. A simpler design -- compare a gate's DISTINCT first",
+    "column against a count of individuals -- produces a FALSE POSITIVE on `attributes`, because",
+    "gates/040_attributes.rq projects ?resource_module first, not an attribute identity: its",
+    "first column has 2 distinct values while 9 attribute individuals exist. None of the gates",
+    "selects a subject IRI at all, so no fully automatic derivation is available and the mode",
+    "has to be declared.",
+    "",
+    "  ROWS   -- the gate emits exactly one row per anchored subject.",
+    "  VALUES -- the gate emits exactly one row per (subject, value) pair; for a repeatable",
+    "            property such as amp:defaultAction or amp:refusalReason.",
+    "",
+    "ANCHOR: exactly one of `predicate` (preferred) or `class`. A contract compares a gate row",
+    "count against a count derived from the SAME graph, so it is structurally blind to any",
+    "deletion that moves both numbers together -- the loss of its own anchor. That makes the",
+    "anchor a real choice, and it was made from measurement, not taste. Deleting a Resource's",
+    "rdf:type from this ontology drops gates/030_resources.rq from 2 rows to 1; a CLASS-anchored",
+    "contract also drops 2 -> 1 and sees nothing, and verify/030_resources.unbound.rq is blind",
+    "too because it anchors on `?subject a amp:Resource` as well -- one shared blind spot, one",
+    "uncovered defect. A PREDICATE-anchored contract reports gate 1 vs contract 2 and CATCHES",
+    "it, and its own blind spot (loss of the anchor predicate itself) is exactly what the",
+    "inverted companion names. Disjoint blind spots, so every contract below is",
+    "predicate-anchored. The class anchor stays supported for a gate whose anchor predicate is",
+    "shared across classes; it is a weaker default, not a wrong one.",
+    "",
+    "MEASURED, not assumed. Every contract below was run against",
+    "test/fixtures/ash_manufacture_pack/ontology.ttl through GgenIgniter.Query.run/2 (the",
+    "`sparql` hex engine GateVerify itself uses) and matched its gate exactly: project 1==1,",
+    "domains 2==2, resources 2==2, default_actions 8==8, attributes 9==9, relationships 1==1,",
+    "extensions 2==2, support_modules 5==5, enum_values 3==3, capabilities 21==21,",
+    "refusals 9==9.",
+    "",
+    "The counts themselves are deliberately NOT written down here. A contract is a relation",
+    "between the graph and the gate, so it stays correct as the ontology grows; a hardcoded",
+    "number would go stale on the next resource added and become a second source of truth.",
+    "",
+    "`refusals` is a filtered gate (gates/085_refusals.rq matches `amp:admitted false`), so any",
+    "class-wide count would be wrong -- 21 capabilities, 9 rows. Anchoring on amp:refusalReason",
+    "is exact instead, for a MEASURED reason rather than an assumed one: zero admitted",
+    "capabilities carry an amp:refusalReason in this ontology (`SELECT ?s WHERE { ?s a",
+    "amp:GeneratorCapability ; amp:admitted true ; amp:refusalReason ?r }` returns 0 rows), so",
+    "'carries a refusalReason' and 'is inadmissible' are the same set. If a future edit gives an",
+    "admitted capability a refusal reason this contract fires, which is correct -- that",
+    "combination is itself a modelling defect.",
+    "",
+    "ADDITIVE BY CONSTRUCTION: a gate stem absent from `gates` below keeps GateVerify's",
+    "documented default (a gate passes on >= 1 row). Other packs in this repo were authored",
+    "against that rule and ship no cardinality.json at all. `citations` and `dependency_pins`",
+    "are intentionally absent here and run under that default."
+  ],
+  "gates": {
+    "project": {
+      "mode": "ROWS",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#otpApp"
+    },
+    "domains": {
+      "mode": "ROWS",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#domainModule"
+    },
+    "resources": {
+      "mode": "ROWS",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#resourceModule"
+    },
+    "default_actions": {
+      "mode": "VALUES",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#defaultAction"
+    },
+    "attributes": {
+      "mode": "ROWS",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#attributeName"
+    },
+    "relationships": {
+      "mode": "ROWS",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#relationshipName"
+    },
+    "extensions": {
+      "mode": "ROWS",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#extensionName"
+    },
+    "support_modules": {
+      "mode": "ROWS",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#supportModuleName"
+    },
+    "enum_values": {
+      "mode": "VALUES",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#enumValue"
+    },
+    "capabilities": {
+      "mode": "ROWS",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#mixTask"
+    },
+    "refusals": {
+      "mode": "VALUES",
+      "predicate": "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#refusalReason"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+SELECT ?resource_module ?domain_module ?resource_rank ?pk_kind ?pk_name ?has_timestamps ?uses_base
+WHERE {
+  ?r a amp:Resource ;
+     amp:resourceModule ?resource_module ;
+     amp:resourceDomain ?dom ;
+     amp:resourceRank ?resource_rank ;
+     amp:primaryKeyKind ?pk_kind ;
+     amp:primaryKeyName ?pk_name ;
+     amp:hasTimestamps ?has_timestamps ;
+     amp:usesBaseResource ?uses_base .
+  ?dom amp:domainModule ?domain_module .
+}
+ORDER BY ?resource_rank

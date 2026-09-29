@@ -1,0 +1,10 @@
+PREFIX amp: <http://seanchatmangpt.github.io/packs/ash-manufacture-pack#>
+
+SELECT ?resource_module ?extension_name
+WHERE {
+  ?e a amp:Extension ;
+     amp:extensionOf ?r ;
+     amp:extensionName ?extension_name .
+  ?r amp:resourceModule ?resource_module .
+}
+ORDER BY ?resource_module ?extension_name
