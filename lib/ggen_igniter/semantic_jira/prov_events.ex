@@ -63,7 +63,7 @@ defmodule GgenIgniter.SemanticJira.ProvEvents do
           {block, {Map.put(last_post, event["identity"], post_iri(event)), event}}
         end)
 
-      body = blocks |> Enum.map(&Enum.join/1) |> Enum.join("\n")
+      body = Enum.map_join(blocks, "\n", &Enum.join/1)
       {:ok, @prefixes <> "\n" <> agent_block() <> "\n" <> body}
     end
   end
