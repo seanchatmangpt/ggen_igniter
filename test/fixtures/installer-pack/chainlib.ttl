@@ -1,0 +1,19 @@
+@prefix ii: <https://ggen-igniter.dev/ontology/igniter-installer#> .
+@prefix ex: <https://example.test/chainlib#> .
+
+ex:installer a ii:Installer ;
+    ii:taskName "chainlib.install" ; ii:module "Mix.Tasks.Chainlib.Install" ; ii:group "chainlib" ;
+    ii:library "chainlib" ; ii:libraryModule "Chainlib" ;
+    ii:shortdoc "Installs chainlib" ; ii:example "mix igniter.install chainlib" .
+
+# V1 (0.2.0): rename old_key -> new_key.  V2 (0.3.0): rename new_key -> final_key, add jason.
+# The two renames are order-dependent by construction: only V1-then-V2 ends at final_key.
+ex:v1 a ii:Upgrader ; ii:upgraderOf ex:installer ; ii:version "0.2.0" ; ii:upgraderModule "Chainlib.Upgrades.V0_2_0" .
+ex:v1-s1 a ii:Step ; ii:stepOf ex:v1 ; ii:stepKind "rename_config_key" ; ii:stepOrder 1 ;
+    ii:stepFile "config.exs" ; ii:stepApp "chainlib" ; ii:stepFrom "old_key" ; ii:stepTo "new_key" .
+
+ex:v2 a ii:Upgrader ; ii:upgraderOf ex:installer ; ii:version "0.3.0" ; ii:upgraderModule "Chainlib.Upgrades.V0_3_0" .
+ex:v2-s1 a ii:Step ; ii:stepOf ex:v2 ; ii:stepKind "rename_config_key" ; ii:stepOrder 1 ;
+    ii:stepFile "config.exs" ; ii:stepApp "chainlib" ; ii:stepFrom "new_key" ; ii:stepTo "final_key" .
+ex:v2-s2 a ii:Step ; ii:stepOf ex:v2 ; ii:stepKind "add_dep" ; ii:stepOrder 2 ;
+    ii:stepDep "jason" ; ii:stepRequirement "~> 1.4" .

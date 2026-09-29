@@ -1,0 +1,6 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer ?dep ?dep_name ?dep_req ?dep_mode ?dep_order WHERE {
+  ?dep a ii:Dep ; ii:depOf ?installer ; ii:depName ?dep_name ; ii:depRequirement ?dep_req ;
+       ii:depMode ?dep_mode ; ii:depOrder ?dep_order .
+}
+ORDER BY ?dep_order

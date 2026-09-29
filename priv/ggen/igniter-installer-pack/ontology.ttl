@@ -1,0 +1,39 @@
+@prefix ii: <https://ggen-igniter.dev/ontology/igniter-installer#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Vocabulary (A4: Igniter library author). Facts describe an installer surface; the
+# templates derive every line of Elixir from them. Same conventions as igniter-task-pack
+# (ig:Option shape, one node per repeated fact, ii:*Order for deterministic ordering).
+ii:Installer a rdfs:Class ; rdfs:label "Igniter installer task for a library" .
+ii:Dep a rdfs:Class ; rdfs:label "Dependency: adds_deps (added + listed in Info) or installs (listed in Info.installs)" .
+ii:Formatter a rdfs:Class ; rdfs:label ".formatter.exs import_deps entry" .
+ii:Config a rdfs:Class ; rdfs:label "Config key (config.exs or runtime.exs)" .
+ii:SupervisionChild a rdfs:Class ; rdfs:label "Child added to the consumer supervision tree" .
+ii:Notice a rdfs:Class ; rdfs:label "Notice printed after the run" .
+ii:Composes a rdfs:Class ; rdfs:label "Task composed by the installer (Info.composes)" .
+ii:Only a rdfs:Class ; rdfs:label "Environment in Info.only" .
+ii:Option a rdfs:Class ; rdfs:label "Installer option (schema entry)" .
+ii:Upgrader a rdfs:Class ; rdfs:label "Version-keyed consumer upgrader" .
+ii:Step a rdfs:Class ; rdfs:label "Upgrader step (rename_config_key | add_dep | import_dep | config_value)" .
+
+ii:taskName a rdf:Property . ii:module a rdf:Property . ii:group a rdf:Property .
+ii:library a rdf:Property . ii:shortdoc a rdf:Property . ii:example a rdf:Property .
+ii:libraryModule a rdf:Property .   # "Fixlib" -> Fixlib.Upgrades, Mix.Tasks.Fixlib.Upgrade
+ii:depOf a rdf:Property . ii:depName a rdf:Property . ii:depRequirement a rdf:Property .
+ii:depMode a rdf:Property . ii:depOrder a rdf:Property .
+ii:formatterOf a rdf:Property . ii:importDep a rdf:Property .
+ii:configOf a rdf:Property . ii:cfgFile a rdf:Property . ii:cfgApp a rdf:Property .
+ii:cfgPath a rdf:Property . ii:cfgValue a rdf:Property . ii:cfgOrder a rdf:Property .
+ii:childOf a rdf:Property . ii:childModule a rdf:Property . ii:childOpts a rdf:Property .
+ii:noticeOf a rdf:Property . ii:noticeText a rdf:Property . ii:noticeOrder a rdf:Property .
+ii:composesOf a rdf:Property . ii:composesTask a rdf:Property . ii:composesOrder a rdf:Property .
+ii:onlyOf a rdf:Property . ii:onlyEnv a rdf:Property .
+ii:optionOf a rdf:Property . ii:optName a rdf:Property . ii:optType a rdf:Property .
+ii:optAlias a rdf:Property . ii:optOrder a rdf:Property .
+ii:upgraderOf a rdf:Property . ii:version a rdf:Property . ii:upgraderModule a rdf:Property .
+ii:stepOf a rdf:Property . ii:stepKind a rdf:Property . ii:stepOrder a rdf:Property .
+ii:stepFile a rdf:Property . ii:stepApp a rdf:Property . ii:stepFrom a rdf:Property .
+ii:stepTo a rdf:Property . ii:stepDep a rdf:Property . ii:stepRequirement a rdf:Property .
+ii:stepPath a rdf:Property . ii:stepValue a rdf:Property .

@@ -1,0 +1,6 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?upgrader ?upgrader_id WHERE {
+  ?upgrader a ii:Upgrader .
+  BIND(STRAFTER(STR(?upgrader), "#") AS ?upgrader_id)
+}
+ORDER BY ?upgrader_id

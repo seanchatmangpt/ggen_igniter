@@ -1,0 +1,6 @@
+# REFUSED(INSTALLER_DEP_MODE_INVALID): an ii:Dep whose depMode is not adds_deps or installs (the template would silently drop it).
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?dep WHERE {
+  ?dep a ii:Dep ; ii:depMode ?m .
+  FILTER(str(?m) != "adds_deps" && str(?m) != "installs")
+}

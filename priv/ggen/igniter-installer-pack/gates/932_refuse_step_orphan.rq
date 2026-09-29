@@ -1,0 +1,6 @@
+# REFUSED(UPGRADER_STEP_INVALID): an ii:Step whose stepOf is not an ii:Upgrader (it would never render).
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?step WHERE {
+  ?step a ii:Step ; ii:stepOf ?u .
+  MINUS { ?u a ii:Upgrader }
+}

@@ -1,0 +1,5 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer ?notice_text ?notice_order WHERE {
+  ?n a ii:Notice ; ii:noticeOf ?installer ; ii:noticeText ?notice_text ; ii:noticeOrder ?notice_order .
+}
+ORDER BY ?notice_order

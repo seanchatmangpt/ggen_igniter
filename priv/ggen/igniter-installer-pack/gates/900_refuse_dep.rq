@@ -1,0 +1,6 @@
+# REFUSED(INSTALLER_DEP_INCOMPLETE): an ii:Dep lacking name, requirement, mode or order.
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?dep WHERE {
+  ?dep a ii:Dep .
+  MINUS { ?dep ii:depOf ?i ; ii:depName ?n ; ii:depRequirement ?r ; ii:depMode ?m ; ii:depOrder ?o }
+}

@@ -1,0 +1,6 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer ?opt_name ?opt_type ?opt_alias ?opt_order WHERE {
+  ?o a ii:Option ; ii:optionOf ?installer ; ii:optName ?opt_name ; ii:optType ?opt_type ; ii:optOrder ?opt_order .
+  OPTIONAL { ?o ii:optAlias ?opt_alias }
+}
+ORDER BY ?opt_order

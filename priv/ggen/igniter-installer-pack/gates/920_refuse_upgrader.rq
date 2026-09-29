@@ -1,0 +1,6 @@
+# REFUSED(UPGRADER_INCOMPLETE): an ii:Upgrader lacking installer, version or module.
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?upgrader WHERE {
+  ?upgrader a ii:Upgrader .
+  MINUS { ?upgrader ii:upgraderOf ?i ; ii:version ?v ; ii:upgraderModule ?m }
+}

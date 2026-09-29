@@ -1,0 +1,4 @@
+[pack]
+name = "igniter-installer-pack"
+version = "26.9.31"
+description = "Manufactures a whole Igniter installer surface (Igniter.Mix.Task installer, <Lib>.Upgrade task, <Lib>.Upgrades registry, versioned upgraders, Igniter.Test suite) from ii:Installer facts."

@@ -1,0 +1,7 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer ?task_name ?module ?group ?library ?shortdoc ?example ?library_module WHERE {
+  ?installer a ii:Installer ;
+    ii:taskName ?task_name ; ii:module ?module ; ii:group ?group ;
+    ii:library ?library ; ii:shortdoc ?shortdoc ; ii:example ?example ; ii:libraryModule ?library_module .
+}
+ORDER BY ?task_name

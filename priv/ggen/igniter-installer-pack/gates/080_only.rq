@@ -1,0 +1,5 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer ?only_env WHERE {
+  ?o a ii:Only ; ii:onlyOf ?installer ; ii:onlyEnv ?only_env .
+}
+ORDER BY ?only_env

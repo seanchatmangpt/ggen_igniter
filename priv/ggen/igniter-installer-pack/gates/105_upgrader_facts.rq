@@ -1,0 +1,6 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?upgrader ?installer ?up_version ?up_module ?library_module WHERE {
+  ?upgrader a ii:Upgrader ; ii:upgraderOf ?installer ; ii:version ?up_version ; ii:upgraderModule ?up_module .
+  ?installer ii:libraryModule ?library_module .
+}
+ORDER BY ?up_version

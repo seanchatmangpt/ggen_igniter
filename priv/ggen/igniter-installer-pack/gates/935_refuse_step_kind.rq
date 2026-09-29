@@ -1,0 +1,5 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?step WHERE {
+  ?step a ii:Step ; ii:stepKind ?k .
+  FILTER(?k != "rename_config_key" && ?k != "add_dep" && ?k != "import_dep" && ?k != "config_value")
+}

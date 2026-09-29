@@ -1,0 +1,6 @@
+# REFUSED(INSTALLER_INCOMPLETE): an ii:Installer lacking a fact the template needs.
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer WHERE {
+  ?installer a ii:Installer .
+  MINUS { ?installer ii:taskName ?t ; ii:module ?m ; ii:group ?g ; ii:library ?l ; ii:shortdoc ?s ; ii:example ?e ; ii:libraryModule ?lm }
+}

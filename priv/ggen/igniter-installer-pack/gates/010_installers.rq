@@ -1,0 +1,8 @@
+# Fact-free on purpose: an incomplete installer still yields a row so the template can
+# refuse it by type (940_refuse_installer.rq) instead of silently rendering nothing.
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer ?installer_id WHERE {
+  ?installer a ii:Installer .
+  BIND(STRAFTER(STR(?installer), "#") AS ?installer_id)
+}
+ORDER BY ?installer_id

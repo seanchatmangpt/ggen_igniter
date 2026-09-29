@@ -1,0 +1,6 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer ?cfg_file ?cfg_app ?cfg_path ?cfg_value ?cfg_order WHERE {
+  ?c a ii:Config ; ii:configOf ?installer ; ii:cfgFile ?cfg_file ; ii:cfgApp ?cfg_app ;
+     ii:cfgPath ?cfg_path ; ii:cfgValue ?cfg_value ; ii:cfgOrder ?cfg_order .
+}
+ORDER BY ?cfg_order

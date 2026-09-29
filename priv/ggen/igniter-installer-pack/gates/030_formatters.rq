@@ -1,0 +1,5 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer ?import_dep WHERE {
+  ?f a ii:Formatter ; ii:formatterOf ?installer ; ii:importDep ?import_dep .
+}
+ORDER BY ?import_dep

@@ -1,0 +1,7 @@
+# REFUSED(UPGRADER_VERSION_DUPLICATE): two ii:Upgrader resources of one installer sharing a version (registry key collision).
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?upgrader WHERE {
+  ?upgrader a ii:Upgrader ; ii:upgraderOf ?i ; ii:version ?v .
+  ?other a ii:Upgrader ; ii:upgraderOf ?i ; ii:version ?v .
+  FILTER(?upgrader != ?other)
+}

@@ -1,0 +1,5 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?cfg WHERE {
+  ?cfg a ii:Config ; ii:cfgFile ?f .
+  FILTER(?f != "config.exs" && ?f != "runtime.exs")
+}

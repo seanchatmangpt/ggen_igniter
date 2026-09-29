@@ -1,0 +1,6 @@
+# REFUSED(INSTALLER_CONFIG_INVALID): incomplete ii:Config, or a file other than config.exs/runtime.exs.
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?cfg WHERE {
+  { ?cfg a ii:Config .
+    MINUS { ?cfg ii:configOf ?i ; ii:cfgFile ?f ; ii:cfgApp ?a ; ii:cfgPath ?p ; ii:cfgValue ?v ; ii:cfgOrder ?o } }
+}

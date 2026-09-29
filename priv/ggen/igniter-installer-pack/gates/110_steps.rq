@@ -1,0 +1,13 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?upgrader ?step ?step_kind ?step_order ?step_file ?step_app ?step_from ?step_to ?step_dep ?step_req ?step_path ?step_value WHERE {
+  ?step a ii:Step ; ii:stepOf ?upgrader ; ii:stepKind ?step_kind ; ii:stepOrder ?step_order .
+  OPTIONAL { ?step ii:stepFile ?step_file }
+  OPTIONAL { ?step ii:stepApp ?step_app }
+  OPTIONAL { ?step ii:stepFrom ?step_from }
+  OPTIONAL { ?step ii:stepTo ?step_to }
+  OPTIONAL { ?step ii:stepDep ?step_dep }
+  OPTIONAL { ?step ii:stepRequirement ?step_req }
+  OPTIONAL { ?step ii:stepPath ?step_path }
+  OPTIONAL { ?step ii:stepValue ?step_value }
+}
+ORDER BY ?step_order

@@ -1,0 +1,30 @@
+@prefix ii: <https://ggen-igniter.dev/ontology/igniter-installer#> .
+@prefix ex: <https://example.test/fixlib#> .
+
+ex:installer a ii:Installer ;
+    ii:taskName "fixlib.install" ; ii:module "Mix.Tasks.Fixlib.Install" ; ii:group "fixlib" ;
+    ii:library "fixlib" ; ii:libraryModule "Fixlib" ;
+    ii:shortdoc "Installs fixlib" ; ii:example "mix igniter.install fixlib --pool 5" .
+
+ex:dep-jason a ii:Dep ; ii:depOf ex:installer ; ii:depName "jason" ; ii:depRequirement "~> 1.4" ;
+    ii:depMode "adds_deps" ; ii:depOrder 1 .
+ex:dep-sourceror a ii:Dep ; ii:depOf ex:installer ; ii:depName "sourceror" ; ii:depRequirement "~> 1.0" ;
+    ii:depMode "installs" ; ii:depOrder 2 .
+ex:fmt a ii:Formatter ; ii:formatterOf ex:installer ; ii:importDep "fixlib" .
+ex:cfg-pool a ii:Config ; ii:configOf ex:installer ; ii:cfgFile "config.exs" ; ii:cfgApp "fixlib" ;
+    ii:cfgPath "pool.size" ; ii:cfgValue "10" ; ii:cfgOrder 1 .
+ex:cfg-rt a ii:Config ; ii:configOf ex:installer ; ii:cfgFile "runtime.exs" ; ii:cfgApp "fixlib" ;
+    ii:cfgPath "mode" ; ii:cfgValue ":fast" ; ii:cfgOrder 2 .
+ex:child a ii:SupervisionChild ; ii:childOf ex:installer ; ii:childModule "Fixlib.Worker" ; ii:childOpts "[]" .
+ex:notice a ii:Notice ; ii:noticeOf ex:installer ; ii:noticeText "fixlib installed: see the docs" ; ii:noticeOrder 1 .
+ex:only-dev a ii:Only ; ii:onlyOf ex:installer ; ii:onlyEnv "dev" .
+ex:opt-pool a ii:Option ; ii:optionOf ex:installer ; ii:optName "pool" ; ii:optType "integer" ; ii:optOrder 1 .
+ex:opt-yes a ii:Option ; ii:optionOf ex:installer ; ii:optName "yes" ; ii:optType "boolean" ; ii:optAlias "y" ; ii:optOrder 2 .
+
+# A second installer that composes the first (Info.composes).
+ex:extras a ii:Installer ;
+    ii:taskName "fixlib.extras" ; ii:module "Mix.Tasks.Fixlib.Extras" ; ii:group "fixlib" ;
+    ii:library "fixlib" ; ii:libraryModule "Fixlib" ;
+    ii:shortdoc "Installs fixlib plus extras" ; ii:example "mix fixlib.extras" .
+ex:extras-composes a ii:Composes ; ii:composesOf ex:extras ; ii:composesTask "fixlib.install" ; ii:composesOrder 1 .
+ex:extras-notice a ii:Notice ; ii:noticeOf ex:extras ; ii:noticeText "extras done" ; ii:noticeOrder 1 .

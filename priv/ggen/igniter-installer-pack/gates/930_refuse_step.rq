@@ -1,0 +1,6 @@
+# REFUSED(UPGRADER_STEP_INVALID): step of unknown kind, or missing the facts its kind needs.
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?step WHERE {
+  ?step a ii:Step .
+  MINUS { ?step ii:stepOf ?u ; ii:stepKind ?k ; ii:stepOrder ?o }
+}

@@ -1,0 +1,14 @@
+@prefix ii: <https://ggen-igniter.dev/ontology/igniter-installer#> .
+@prefix ex: <https://example.test/badlib#> .
+
+# Conforming baseline installer (all writes go through Igniter). The dry-run/--yes contract
+# test renders this and, for the falsifier, mutates the rendered igniter/1 into a raw
+# File.write! to prove the contract assertion catches a non-conforming installer.
+ex:installer a ii:Installer ;
+    ii:taskName "badlib.install" ; ii:module "Mix.Tasks.Badlib.Install" ; ii:group "badlib" ;
+    ii:library "badlib" ; ii:libraryModule "Badlib" ;
+    ii:shortdoc "Installs badlib" ; ii:example "mix igniter.install badlib" .
+ex:dep a ii:Dep ; ii:depOf ex:installer ; ii:depName "jason" ; ii:depRequirement "~> 1.4" ;
+    ii:depMode "adds_deps" ; ii:depOrder 1 .
+ex:opt-yes a ii:Option ; ii:optionOf ex:installer ; ii:optName "yes" ; ii:optType "boolean" ; ii:optAlias "y" ; ii:optOrder 1 .
+ex:opt-dry a ii:Option ; ii:optionOf ex:installer ; ii:optName "dry-run" ; ii:optType "boolean" ; ii:optOrder 2 .

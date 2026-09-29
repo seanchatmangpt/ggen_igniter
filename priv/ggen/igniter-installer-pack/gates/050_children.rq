@@ -1,0 +1,5 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer ?child_module ?child_opts WHERE {
+  ?c a ii:SupervisionChild ; ii:childOf ?installer ; ii:childModule ?child_module ; ii:childOpts ?child_opts .
+}
+ORDER BY ?child_module

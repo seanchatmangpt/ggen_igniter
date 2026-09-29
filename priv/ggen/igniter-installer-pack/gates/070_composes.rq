@@ -1,0 +1,5 @@
+PREFIX ii: <https://ggen-igniter.dev/ontology/igniter-installer#>
+SELECT DISTINCT ?installer ?composed_task ?composes_order WHERE {
+  ?c a ii:Composes ; ii:composesOf ?installer ; ii:composesTask ?composed_task ; ii:composesOrder ?composes_order .
+}
+ORDER BY ?composes_order
