@@ -30,7 +30,7 @@ live in each module's `schema:`/moduledoc)
   run's observed outcome (post-seal it builds an EDS Claim and runs 3 real
   falsifiers over the re-read log).
 - `mix ggen_igniter.fortune5_ready`, `mix ggen_igniter.frontier_release_plan`
-  (read-only preview), `mix ggen_igniter.install [--with-ash-domain]` (see `docs/reference/cli/install.md`), `mix ggen_igniter.upgrade FROM TO` (`upgrade.md`), `mix ggen_igniter.manifest.dump [--path DIR] [--out FILE]` (`manifest.md`).
+  (read-only preview), `mix ggen_igniter.install [--with-ash-domain]` (see `docs/reference/cli/install.md`), `mix ggen_igniter.upgrade FROM TO` (`upgrade.md`), `mix ggen_igniter.manifest.dump [--path DIR] [--out FILE]` (`manifest.md`), `mix ggen_igniter.packs [--json]` (`packs-list.md`), `mix ggen_igniter.shacl --data --shapes` (`shacl.md`), `mix ggen_igniter.pack.lock` (`pack-lock.md`); global exit codes in `exit-codes.md`; `sync --check` (exit 4 = drift).
 - `mix ggen_igniter.epoch.watermark --epoch LABEL [--base-dir DIR]
   [--glob GLOB] [--restamp REASON]` — stamps the pre-epoch implementation
   identity (path + exact git blob SHA per file) into

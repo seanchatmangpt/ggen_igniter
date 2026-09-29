@@ -6,7 +6,7 @@ defmodule GgenIgniter.MixProject do
   def project do
     [
       app: :ggen_igniter,
-      version: "26.9.29",
+      version: "26.9.30",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -41,8 +41,16 @@ defmodule GgenIgniter.MixProject do
         # relying on ExDoc's basename-collision fallback.
         extras:
           Enum.map(
-            (Path.wildcard("docs/**/*.md") -- Path.wildcard("docs/reviews/**/*.md")) ++
-              ["README.md", "CHANGELOG.md"],
+            (Path.wildcard("docs/**/*.md") --
+               (Path.wildcard("docs/reviews/**/*.md") --
+                  (Path.wildcard("docs/archive/**/*.md") -- Path.wildcard("docs/receipts/**/*.md")))) ++
+              [
+                "README.md",
+                "CHANGELOG.md",
+                "CONTRIBUTING.md",
+                "SECURITY.md",
+                "CODE_OF_CONDUCT.md"
+              ],
             fn path ->
               filename =
                 case path do
@@ -54,6 +62,15 @@ defmodule GgenIgniter.MixProject do
               {path, filename: filename}
             end
           ),
+        groups_for_extras: [
+          Contributing: [
+            "CONTRIBUTING.md",
+            "SECURITY.md",
+            "CODE_OF_CONDUCT.md",
+            ~r{docs/contributing/}
+          ],
+          "CLI reference": ~r{docs/reference/cli/}
+        ],
         source_url: @source_url,
         # This repo's git tags follow "vMAJOR.MINOR.PATCH" (e.g. the real
         # existing tag `v26.8.27` -- confirmed via `git tag -l`). Kept as a
@@ -65,7 +82,7 @@ defmodule GgenIgniter.MixProject do
         # mix.exs/CHANGELOG.md state" test greps `mix.exs`'s raw source with
         # `~r/version:\s*"([^"]+)"/` and breaks if `version:` isn't followed
         # directly by a literal string.
-        source_ref: "v26.9.29"
+        source_ref: "v26.9.30"
       ],
       dialyzer: [
         # `:mix` is excluded from the PLT by default (it's a build-time-only

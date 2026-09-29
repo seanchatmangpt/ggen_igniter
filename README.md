@@ -562,6 +562,12 @@ real success receipt and a real compensated-failure receipt, and
    0) or directly from `lifecycle_test.ex` line 102, before the first real
    `mix compile`.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) (fresh clone to green fast lane to PR),
+[docs/contributing/dev-setup.md](docs/contributing/dev-setup.md),
+[SECURITY.md](SECURITY.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

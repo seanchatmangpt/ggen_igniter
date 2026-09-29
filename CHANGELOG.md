@@ -1,5 +1,22 @@
 # Changelog
 
+## v26.9.30
+
+DfLSS gap-register Wave A (8 avatar agents; plan: 6 items, 5 lanes).
+
+- **Added** `mix ggen_igniter.sync --check`: exit 4 = drift (drifted paths listed, zero writes),
+  `--json` envelope (`GgenIgniter.TaskContract`), `--lock PATH`, `--json-envelope` on plan/verify,
+  global exit-code table (`docs/reference/cli/exit-codes.md`).
+- **Added** machine-readable refusal vocabulary (`priv/schema/refusals.schema.json`, 97 codes,
+  `GgenIgniter.Refusals`) with an exhaustiveness test; glossary entries.
+- **Added** pack lockfile (`ggen_igniter.pack.lock`, `mix ggen_igniter.pack.lock`,
+  `pack.fetch --lock`) and optional receipt `pack_name`/`pack_digest` fields. Receipts do not yet
+  populate them (wiring in `reconcile_reactor.ex` pending).
+- **Added** `mix ggen_igniter.packs [--json]` (pack discovery) and `mix ggen_igniter.shacl`
+  (standalone SHACL validation; unsupported constructs always reported).
+- **Added** contributor kit: CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, issue/PR templates,
+  dev-setup guide; hexdocs extras grouped, archive/receipts docs dropped from extras.
+
 ## v26.9.29
 
 - **Semantic Jira closure (PR #49)**: ADR-011 step 4 additive public-vocabulary mappings
