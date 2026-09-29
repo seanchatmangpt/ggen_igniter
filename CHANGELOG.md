@@ -1,5 +1,14 @@
 # Changelog
 
+## v26.9.29
+
+- **Semantic Jira closure (PR #49)**: ADR-011 step 4 additive public-vocabulary mappings
+  (`sj:WorkOrder` -> `oslc_cm:ChangeRequest`, `sj:Receipt` -> `prov:Entity`); PROV-O ledger
+  export (`SemanticJira.ProvEvents`, `mix semantic_jira.prov`); ledger concurrency tests;
+  SJ-003 closure work order. Kernel-differential receipt regenerated against the merged ontology.
+- Republish of the v26.9.28 Igniter ERRC wave plus PR #49 (26.9.28 was published before PR #49
+  merged).
+
 ## v26.9.28
 
 - **BREAKING**: `mix ggen_igniter.install` no longer adds `:ash`/domain/supervision child by
