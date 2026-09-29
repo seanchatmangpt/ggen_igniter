@@ -249,6 +249,15 @@ defmodule GgenIgniter.MixProject do
       # the fixture qualification run.
       {:ash, "~> 3.0", only: [:dev, :test]},
       {:ash_postgres, "~> 2.0", only: [:dev, :test]},
+      # Chicago-test foundations (DfLSS register #2, Wave B0): the real upstream
+      # extensions the community packs generate against. All were already locked
+      # transitively (via ash_a2a / ash_postgres); declaring them makes the test
+      # dependency explicit and keeps them out of the hex package (only: [:dev, :test]).
+      {:ash_json_api, "~> 1.0", only: [:dev, :test]},
+      {:ash_ai, "~> 1.0", only: [:dev, :test]},
+      {:ash_state_machine, "~> 0.2", only: [:dev, :test]},
+      {:ash_oban, "~> 0.8", only: [:dev, :test]},
+      {:oban, "~> 2.19", only: [:dev, :test]},
       # A2A (agent-to-agent) surface for Semantic Jira: ash_a2a is manufactured
       # into a consumer Ash resource by `ash_a2a.install`; like Ash it is a
       # dev/test-only dependency of this repo, never a runtime one (no lib/

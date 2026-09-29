@@ -223,6 +223,24 @@ jobs:
         partition: [1, 2, 3, 4, 5, 6]
     env:
       MIX_TEST_PARTITION: ${{ matrix.partition }}
+      # Real Postgres for `:postgres` Chicago tests (GgenIgniter.Test.PostgresCase.available?/0
+      # reads these; when unreachable test_helper.exs excludes the tag instead of failing).
+      QUALIFY_PGHOST: localhost
+      QUALIFY_PGPORT: "5432"
+      QUALIFY_PGUSER: postgres
+      QUALIFY_PGPASSWORD: postgres
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout

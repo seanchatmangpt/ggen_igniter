@@ -124,6 +124,21 @@ excludes =
     [:requires_ash_r2rml | excludes]
   end
 
+# Real-Postgres Chicago tests (DfLSS register #2, Wave B0): tests tagged `:postgres`
+# need a reachable Postgres (`GgenIgniter.Test.PostgresCase.available?/0` probes one with
+# a real connection using the QUALIFY_PG* env / local-socket defaults). Decided HERE, before
+# `ExUnit.start/1`, for the same reason as the other tags (no per-test runtime skip exists).
+# A missing PostgresCase module or an unreachable server excludes the tag, never fails it.
+postgres_reachable? =
+  try do
+    Code.ensure_loaded?(GgenIgniter.Test.PostgresCase) and
+      GgenIgniter.Test.PostgresCase.available?()
+  rescue
+    _ -> false
+  end
+
+excludes = if postgres_reachable?, do: excludes, else: [:postgres | excludes]
+
 # Fast lane (ERRC 2026-09-28, docs/jira/v26.9.28/ci-runtime-errc.md): tests tagged
 # `:integration` (real `mix`/`ggen` subprocesses, real git repos; they dominate
 # wall-clock) are excluded from a plain `mix test` and run with
