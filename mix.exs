@@ -114,10 +114,12 @@ defmodule GgenIgniter.MixProject do
       licenses: ["MIT"],
       description: description(),
       links: %{"GitHub" => @source_url},
-      files: ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/Cargo.lock
+      files:
+        ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/Cargo.lock
            native/ggen_graph_nif/src priv/bundles priv/schema
            wasm-artifacts/tera_wasm_renderer.wasm
-           mix.exs README.md LICENSE CHANGELOG.md usage-rules.md .formatter.exs) ++ shipped_packs()
+           mix.exs README.md LICENSE CHANGELOG.md usage-rules.md .formatter.exs) ++
+          shipped_packs()
     ]
   end
 
