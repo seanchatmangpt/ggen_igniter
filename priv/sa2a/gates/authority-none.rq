@@ -1,0 +1,1 @@
+ASK { ?e <urn:sa2a:authority> ?a . FILTER(?a != "NONE") }
