@@ -261,5 +261,5 @@ Command-line flags always take precedence over pack-discovered defaults:
 
 ## 8. Next Steps
 
-* [Understanding the Reconciliation Lifecycle](file:///Users/sac/ggen_igniter/docs/tutorials/first-reconciliation.md) — Learn how GgenIgniter tracks files in `.ggen_igniter/manifest.json` and prunes stale artifacts when models evolve.
-* [The Reactor Coordination Path](file:///Users/sac/ggen_igniter/docs/tutorials/reactor-path.md) — Learn about transactional multi-target execution with compile verification and automated rollback.
+* [Understanding the Reconciliation Lifecycle](first-reconciliation.md) — Learn how GgenIgniter tracks files in `.ggen_igniter/manifest.json` and prunes stale artifacts when models evolve.
+* [The Reactor Coordination Path](reactor-path.md) — Learn about transactional multi-target execution with compile verification and automated rollback.
