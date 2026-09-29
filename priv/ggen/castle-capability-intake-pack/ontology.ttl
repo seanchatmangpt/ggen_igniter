@@ -1,0 +1,28 @@
+@prefix capi: <https://ggen.dev/ontology/castle-capability-intake#> .
+@prefix eco: <https://ggen.dev/ecosystem#> .
+
+capi:intake
+    a capi:CapabilityIntake ;
+    eco:projectionSource "seanchatmangpt/ggen-ecosystem@50fdfa20c84205a80c6eb94e916cffbedc4b816e" ;
+    eco:ownerRepository "seanchatmangpt/ggen_igniter" ;
+    eco:ownerCapability "SEMANTIC_MANUFACTURE" ;
+    eco:projectionStanding "CANDIDATE" ;
+    eco:authorityCeiling "CONSTRUCT" .
+
+capi:ggen
+    a capi:Donor ;
+    eco:sourceRepository "seanchatmangpt/ggen" ;
+    eco:sourceSha "ff96f04e8c7b851e5cca53f3faf5ce1d5f43ce6e" ;
+    eco:projectedCapability "LEGACY_MANUFACTURE_COMPATIBILITY" ;
+    eco:projectionDisposition "REPLACE" ;
+    eco:projectionTarget capi:intake ;
+    eco:falsifier "Legacy ggen becomes a runtime authority or permanent sovereign manufacture path." .
+
+capi:ostar
+    a capi:Donor ;
+    eco:sourceRepository "seanchatmangpt/ostar" ;
+    eco:sourceSha "a392e009400c83d5e175b508c4e3008e189945d3" ;
+    eco:projectedCapability "PROOF_DRIVEN_MANUFACTURE_RESEARCH" ;
+    eco:projectionDisposition "CANDIDATE_ABSORB" ;
+    eco:projectionTarget capi:intake ;
+    eco:falsifier "OSTAR becomes a parallel manufacture crown rather than donating receipted manufacture operators." .
