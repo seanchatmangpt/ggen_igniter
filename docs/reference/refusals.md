@@ -31,7 +31,7 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 110 codes (`$defs.code.enum` length; derived from the
+The registry holds 128 codes (`$defs.code.enum` length; derived from the
 schema by `GgenIgniter.Refusals.count/0`, never hand-maintained) plus 24
 wrapped reasons. Regenerate both tables below with:
 
@@ -46,6 +46,9 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | code | family | retryable | broken_term | owner | fix_hint |
 |---|---|---|---|---|---|
 | `ABSOLUTE_PATH_IN_STATE` | semantic_jira_input | true | R_missing_replay | `GgenIgniter.SemanticJira.Bootstrap` | State must hold repo-relative paths only. |
+| `ACTION_AMBIGUOUS_TARGET` | state_machine | false | mu_on_O | `GgenIgniter.Packs.StateMachine` | Rename one action so each action name transitions to a single target state. |
+| `ASH_API_ACCEPT_DRIFT` | ash_api_surface | false | mu_unlawful | `GgenIgniter.Packs.AshApi` | Reconcile the existing action's accept list with the ontology, or regenerate the resource surface. |
+| `ASH_API_SURFACE` | ash_api_surface | false | mu_on_O | `GgenIgniter.Packs.AshApi` | Repair the graph facts listed by gates/000_violations.rq; a malformed surface renders nothing. |
 | `AUTHORITY_ADMISSION` | typed_tuple | false | R_missing_authority | `GgenIgniter.SemanticJira.Authority` | Declare and admit exactly one typed sj:CodeWorkAuthority node (no_typed_authority_node) before authority-bearing prose or work orders are admitted. |
 | `AUTHORITY_ADMISSION_REFUSED` | semantic_jira_input | false | R_missing_authority | `GgenIgniter.SemanticJira.Prose` | Provide an admitted typed authority node. |
 | `AUTHORITY_DIGEST_INVALID` | authority | false | R_missing_identity | `GgenIgniter.SemanticJira.Authority` | Recompute the authority digest. |
@@ -80,6 +83,7 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `EPOCH_UNATTRIBUTED_IMPLEMENTATION` | epoch_plan | false | R_missing_authority | `GgenIgniter.SemanticJira.EpochPlan` | Attribute the planned implementation path to a generator or residue admission. |
 | `EPOCH_WATERMARK` | typed_tuple | false | mu_on_O | `GgenIgniter.EpochWatermark` | Run in a git work tree over a non-empty implementation set; restamp_required means a watermark already exists for the epoch and must be re-stamped deliberately. |
 | `EPOCH_WATERMARK_UNAVAILABLE` | epoch_plan | true | R_missing_identity | `GgenIgniter.SemanticJira.EpochPlan` | Run mix ggen_igniter.epoch.watermark and pass --epoch-manifest. |
+| `EXTENSION_SCHEMA` | extension_schema | false | admission_vacuous | `GgenIgniter.Packs.ReceiptedExtension` | Repair the rx:Extension graph reported by gates/000_violations.rq (sections, entities, transformer order, defaults). |
 | `FILE_NOT_FOUND` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | The admitted file must exist on disk; create it first. |
 | `FORBIDDEN_INPUT` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Bootstrap` | Remove the forbidden input (e.g. path outside allowed roles). |
 | `FOREIGN_REQUIREMENT` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Prose` | A checkpoint requires a proposition outside the root's gates; fix the graph. |
@@ -90,8 +94,12 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `GENERATIONAL_RESILIENCE` | typed_tuple | false | mu_on_O | `GgenIgniter.GenerationalResilience` | Fix the resilience profile: map-shaped, two distinct generations with valid ids and digests, all required fields, and known techniques with map policies. |
 | `GOAL_INCOMPLETE` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Prose` | Fill the missing sj: predicate on the root GoalCheckpoint. |
 | `GOAL_ROOT` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Prose` | Provide exactly one root GoalCheckpoint. |
+| `INITIAL_STATE_MISSING` | state_machine | false | mu_on_O | `GgenIgniter.Packs.StateMachine` | Declare exactly one sm:initialState naming a declared state of the machine. |
 | `INPUT_INVALID` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Bootstrap` | Repair the malformed input document. |
 | `INPUT_UNREADABLE` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Bootstrap` | Make the input file readable. |
+| `INSTALLER_CONFIG_INVALID` | igniter_installer | false | mu_on_O | `GgenIgniter.Packs.IgniterInstaller` | Complete the ii:Config (key, value) and target only config.exs or runtime.exs. |
+| `INSTALLER_DEP_INCOMPLETE` | igniter_installer | false | mu_on_O | `GgenIgniter.Packs.IgniterInstaller` | Give the ii:Dep a name, requirement, mode and order. |
+| `INSTALLER_INCOMPLETE` | igniter_installer | false | mu_on_O | `GgenIgniter.Packs.IgniterInstaller` | Supply every fact the ii:Installer template needs (module, task name, deps). |
 | `INVALID_EXPIRY` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | --expires must be YYYY-MM-DD. |
 | `INVALID_PACKAGE` | semantic_work_order | false | mu_on_O | `GgenIgniter.SemanticWorkOrder` | The execution package is missing schema, work_order, path, source_digest, artifacts or package_digest; regenerate it with execution_package/3. |
 | `LEASE_REQUEST` | typed_tuple | false | R_missing_authority | `GgenIgniter.SemanticJira` | Supply every lease field with a non-empty allowed_operations list and a scope that is a non-empty subset of the work order's path_scope (scope_expansion, invalid_scope). |
@@ -107,6 +115,7 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `MISSING_MANIFEST` | manifest_export | false | R_missing_consequence | `GgenIgniter.ManifestExport` | Run a sync so .ggen_igniter/manifest.json exists. |
 | `MISSING_SUNSET_PLAN` | hand_authored | true | R_missing_standing | `Mix.Tasks.GgenIgniter.HandAuthored` | Kinds that require it need --sunset-plan. |
 | `NO_ATTRIBUTION` | epoch_verdict | false | R_missing_authority | `GgenIgniter.EpochFreshness` | Generate the file through a receipted ggen_igniter run or add a dated HANDWRITTEN.md residue row. |
+| `NO_RECEIPT` | extension_schema | false | R_missing_consequence | `GgenIgniter.Packs.ReceiptedExtension` | Declare a receipt on the resource that uses the receipted extension, so the verifier can admit it. |
 | `NO_TYPED_AUTHORITY_NODE` | authority | false | R_missing_authority | `GgenIgniter.SemanticJira.Authority` | Declare an sj:CodeWorkAuthority node. |
 | `ONTOLOGY_MALFORMED_SECTION` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Repair the malformed hand-authored section of the ontology. |
 | `ONTOLOGY_NOT_FOUND` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Pass an existing --ontology path. |
@@ -132,6 +141,10 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `PRE_EPOCH_RECEIPT` | epoch_verdict | false | R_missing_standing | `GgenIgniter.EpochFreshness` | Re-run the generator after the watermark so a post-watermark alive receipt lists the file. |
 | `PROJECT_MANUFACTURER` | typed_tuple | false | R_missing_identity | `GgenIgniter.Gall.ProjectManufacturer` | Build the manufacturer only from an alive receipt whose post_run_hash matches the re-hashed files; standing, post_run_hash_missing and projection_drift name the failed check. |
 | `PROVENANCE_MISMATCH` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Prose` | Correct the proposition's provenance fields. |
+| `REACTOR_CYCLE` | reactor_scaffold | false | mu_on_O | `GgenIgniter.Packs.ReactorScaffold` | Break the rx:dependsOn/rx:waitsFor cycle so the step graph is acyclic. |
+| `REACTOR_DANGLING_EDGE` | reactor_scaffold | false | mu_on_O | `GgenIgniter.Packs.ReactorScaffold` | Point the rx:dependsOn/rx:waitsFor edge at a step declared in the same reactor. |
+| `REACTOR_MALFORMED` | reactor_scaffold | false | mu_on_O | `GgenIgniter.Packs.ReactorScaffold` | Supply the facts the saga/step template requires; unbound optionals are refused, never dropped. |
+| `REACTOR_UNKNOWN_STEP_KIND` | reactor_scaffold | false | mu_on_O | `GgenIgniter.Packs.ReactorScaffold` | Use a step kind the reactor-scaffold-pack ontology declares (see its rx:StepKind individuals). |
 | `REPLAY_REFUSED` | typed_tuple | false | R_missing_replay | `GgenIgniter.SemanticJira` | Replay evidence is all-or-nothing: supply standing_transitions on both manifests or neither, and reconcile any identity_mismatch fields. |
 | `SEMANTIC_JIRA` | semantic_jira | false | mu_on_O | `GgenIgniter.SemanticJira` | Fix the work order named in the detail. |
 | `SEMANTIC_JIRA_BASE_SHA_UNVERIFIED` | semantic_jira | true | R_missing_identity | `GgenIgniter.SemanticJira.GitGroundTruth` | Fetch the commit or correct baseSha. |
@@ -140,14 +153,19 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `SHA_UNCOMPUTABLE` | hand_authored | true | R_missing_identity | `Mix.Tasks.GgenIgniter.HandAuthored` | The file could not be read for hashing; fix permissions/path. |
 | `STALE_OUTPUTS` | typed_tuple | false | mu_unlawful | `GgenIgniter.Reactors.ReconcileReactor` | Previously generated outputs are no longer produced; rerun with --on-stale prune or preserve, or restore the template that produced them. |
 | `STANDING_PROJECTION` | typed_tuple | false | R_missing_standing | `GgenIgniter.SemanticJira` | project_standing takes a list of admitted transition events; repair the event named in the reason so standing re-derives. |
+| `STATE_DEAD_END` | state_machine | false | mu_on_O | `GgenIgniter.Packs.StateMachine` | Give the non-terminal state an outgoing sm:Transition, or mark it sm:terminal true. |
+| `STATE_UNREACHABLE` | state_machine | false | mu_on_O | `GgenIgniter.Packs.StateMachine` | Add a transition into the named state from a reachable state, or remove the unreachable sm:State. |
 | `SUBJECT_EXHAUSTED` | hand_authored | false | not_applicable | `Mix.Tasks.GgenIgniter.HandAuthored` | No free subject IRI after 200 attempts; pick another base. |
 | `SUBJECT_PREFIX_UNDECLARED` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Declare the subject namespace prefix in the ontology. |
 | `TRANSITION` | typed_tuple | false | R_missing_standing | `GgenIgniter.SemanticJira` | Present a genuine intent: its transition_digest must re-derive (intent_digest_mismatch), its from must equal the current standing (stale_intent) and bind the work-order digest (intent_not_bound_to_work_order). |
+| `TRANSITION_UNKNOWN_STATE` | state_machine | false | mu_on_O | `GgenIgniter.Packs.StateMachine` | Declare the from/to/initial state as an sm:State of the same machine, or correct the transition's state name. |
 | `UNADMITTED` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Admit the file with mix ggen_igniter.hand_authored. |
 | `UNCOVERED_GATE` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Prose` | Cover every gate of the root with at least one proposition. |
 | `UNEXPLAINED_SIMILARITY` | epoch_verdict | false | mu_unlawful | `GgenIgniter.EpochFreshness` | Regenerate, or admit fresh residue that differs below the similarity threshold. |
 | `UNKNOWN_KIND` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | --kind must name an admitted HandAuthoredKind. |
 | `UNOWNED_DELETE` | typed_tuple | false | mu_unlawful | `GgenIgniter.Reactors.ReconcileReactor` | The plan deletes a path not recorded in the manifest; only delete outputs the manifest owns. |
+| `UPGRADER_INCOMPLETE` | igniter_installer | false | mu_on_O | `GgenIgniter.Packs.IgniterInstaller` | Give the ii:Upgrader an installer, a version and a module. |
+| `UPGRADER_STEP_INVALID` | igniter_installer | false | mu_on_O | `GgenIgniter.Packs.IgniterInstaller` | Use a known ii:Step kind and supply the facts that kind needs. |
 | `UPGRADE_DOWNGRADE` | upgrade | false | mu_unlawful | `Mix.Tasks.GgenIgniter.Upgrade` | Downgrades are refused; pass a higher --to version. |
 | `UPGRADE_INVALID_VERSION` | upgrade | true | mu_on_O | `Mix.Tasks.GgenIgniter.Upgrade` | Pass a valid version. |
 | `USAGE` | semantic_jira_input | true | not_applicable | `GgenIgniter.SemanticJira.Bootstrap` | Fix the command-line arguments. |

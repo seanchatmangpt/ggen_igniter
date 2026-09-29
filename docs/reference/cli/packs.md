@@ -23,7 +23,8 @@ when absent) and every graph's `gp:name` must equal `[pack].name`
 (`REFUSED:PACK_IDENTITY_MISMATCH`). Pack admission (`:admit_pack` step in
 `GgenIgniter.Reactors.ReconcileReactor`, used by both `run/1` and `plan/1`)
 runs these checks before any query/render/actuation. The shipped
-`semantic-jira-pack` and `zcode-ocel-pack` both carry `pack.toml`.
+`semantic-jira-pack`, `zcode-ocel-pack`, and `doctrine-hddl-pack` all carry
+`pack.toml`.
 
 `GgenIgniter.Pack` is a pure helper with no `Igniter` dependency, so both
 Mix tasks and the test suite call it directly.

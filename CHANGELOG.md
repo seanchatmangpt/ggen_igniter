@@ -1,5 +1,30 @@
 # Changelog
 
+## v26.9.31 (unreleased)
+
+Wave B (community-pack qualification). `mix.exs` `version:` stays 26.9.30 until release.
+
+- **Added** `state-machine-pack`: RDF state machines rendered to modules; typed refusals
+  `STATE_UNREACHABLE`, `STATE_DEAD_END`, `TRANSITION_UNKNOWN_STATE`, `INITIAL_STATE_MISSING`,
+  `ACTION_AMBIGUOUS_TARGET`.
+- **Added** `receipted-extension-pack` extension schema, transformer and formatter projections
+  (`REFUSED:EXTENSION_SCHEMA`, `REFUSED:NO_RECEIPT`).
+- **Added** `ash-igniter-api-pack` API surface gates (arguments, validations, aggregates,
+  interfaces, policies, pagination, multitenancy; `ASH_API_SURFACE`, `ASH_API_ACCEPT_DRIFT`).
+  The pack stays out of the hex package (Ash-free shipped packs).
+- **Added** `reactor-scaffold-pack` sagas (`rx:dependsOn`/`rx:waitsFor` ordering, compensation;
+  `REACTOR_CYCLE`, `REACTOR_DANGLING_EDGE`, `REACTOR_UNKNOWN_STEP_KIND`, `REACTOR_MALFORMED`);
+  `expense_approval_reactor.ex` regenerated.
+- **Added** `igniter-installer-pack` (installer/upgrader projections + generated-test canaries;
+  `INSTALLER_CONFIG_INVALID`, `INSTALLER_DEP_INCOMPLETE`, `INSTALLER_INCOMPLETE`,
+  `UPGRADER_INCOMPLETE`, `UPGRADER_STEP_INVALID`).
+- **Added** test harness `GgenIgniter.Test.PackCompile` (real sync subprocess + real compile) and
+  `GgenIgniter.Test.PostgresCase` (real Postgres, `:postgres` tag excluded when unreachable);
+  CI Postgres service and `docker-compose.e2e.yml` `db` profile.
+- **Added** test-only deps (`only: [:dev, :test]`, not in the package): `ash_json_api`,
+  `ash_ai`, `ash_state_machine`, `ash_oban`, `oban`.
+- **Refusals:** 128 codes (18 added for the packs above) + 24 wrapped reasons.
+
 ## v26.9.30
 
 DfLSS gap-register Wave A (8 avatar agents; plan: 6 items, 5 lanes).
