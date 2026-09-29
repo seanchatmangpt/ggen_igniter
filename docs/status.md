@@ -152,9 +152,9 @@ for this page):
 | `usage-rules-pack` + root `usage-rules.md`, `mix ggen_igniter.manifest.dump` | PARTIAL_ALIVE (v26.9.28) | rendered once; flags cross-checked against task `info/2`; no revert mutation on the export |
 | Upstream Igniter defect issue drafts | PLANNED (not posted) | `docs/jira/v26.9.28/upstream-igniter-issues.md` |
 | `sync --check` (exit 4), `--json` envelope, `--lock`, global exit-code table | IMPLEMENTED (v26.9.30) | `test/ggen_igniter_sync_check_test.exs`, `test/ggen_igniter_task_contract_test.exs`, `docs/reference/cli/exit-codes.md`; verify step under dry-run still needs a compilable project at `--verify-cwd` |
-| Refusal vocabulary (97 codes) + exhaustiveness test | PARTIAL_ALIVE (v26.9.30) | `priv/schema/refusals.schema.json`, `test/ggen_igniter_refusals_test.exs`; ~64 emit sites still non-canonical text, broken_term/fix_hint unreviewed |
-| Pack lockfile + digest; receipt `pack_digest` field | PARTIAL_ALIVE (v26.9.30) | `test/ggen_igniter_pack_lock_test.exs`; `pack.fetch --lock` not run against a real fetch; receipts do not yet populate `pack_digest` |
-| `mix ggen_igniter.packs`, `mix ggen_igniter.shacl` | IMPLEMENTED (v26.9.30) | `test/ggen_igniter_packs_task_test.exs`, `test/ggen_igniter_shacl_task_test.exs`; SHACL subset only, `required_flags` derived |
+| Refusal vocabulary (110 codes + 24 wrapped reasons) + exhaustiveness test | PARTIAL_ALIVE (v26.9.30) | `priv/schema/refusals.schema.json`, `test/ggen_igniter_refusals_test.exs` (20 tests + property); scanner covers five emitter modules, not all of lib/; ~64 emit sites still non-canonical text; broken_term/hints derived from emitters, unreviewed by a maintainer |
+| Pack lockfile + digest; receipt `pack_digest` field | PARTIAL_ALIVE (v26.9.30) | `test/ggen_igniter_pack_lock_test.exs` (adversarially audited: symlink escape refused, atomic write, invalid lock fails closed); `pack.fetch --lock` not run against a real fetch; receipts do not yet populate `pack_digest`; `sync --lock` covers only the resolved pack dir |
+| `mix ggen_igniter.packs`, `mix ggen_igniter.shacl` | IMPLEMENTED (v26.9.30) | `test/ggen_igniter_packs_task_test.exs`, `test/ggen_igniter_shacl_task_test.exs`; SHACL subset only (unsupported constructs fail closed by default, `--allow-unsupported`), `required_flags` derived |
 | Contributor kit (CONTRIBUTING/SECURITY/CoC/templates/dev-setup) | IMPLEMENTED (docs only) | `CONTRIBUTING.md`, `SECURITY.md`; GitHub Security Advisories must be enabled on the repo |
 
 ## Ash / Phoenix (optional, consumer-side)

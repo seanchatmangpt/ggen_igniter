@@ -16,6 +16,19 @@ DfLSS gap-register Wave A (8 avatar agents; plan: 6 items, 5 lanes).
   (standalone SHACL validation; unsupported constructs always reported).
 - **Added** contributor kit: CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, issue/PR templates,
   dev-setup guide; hexdocs extras grouped, archive/receipts docs dropped from extras.
+- **Audit fixes (5 adversarial courts, 5 fix lanes)**:
+  - **Behaviour changes:** `mix ggen_igniter.shacl` now exits 1 by default on unsupported SHACL
+    constructs (`--allow-unsupported` opts out; `--fail-on-unsupported` is a deprecated alias) and
+    exits 2 on an empty shapes file, unknown extension, or swapped inputs. Pack digests now carry
+    an `F`/`L` record tag, so lockfiles written by the first 26.9.30 build must be re-locked;
+    `pack.lock`/`pack.fetch --lock` refuse an invalid lockfile unless `--force-regenerate`.
+    `verify` and `plan` invocation errors exit 2.
+  - **Fixed:** `sync --json` / `sync --lock` without `--check` crashed; `--check --on-stale prune`
+    reported clean; a refused `--check` wrote a receipt; pack digest ignored symlink targets
+    (`REFUSED:PACK_SYMLINK_ESCAPE`); non-atomic lockfile write; `--check` ran `mix compile`.
+  - **Refusals:** 110 codes + 24 wrapped reasons, no null `broken_term`, lossless `parse/1`.
+  - **Docs:** SECURITY/CODE_OF_CONDUCT no longer promise private advisory reporting (not enabled);
+    hexdocs extras exclude `docs/archive`, `docs/reviews`, `docs/receipts`.
 
 ## v26.9.29
 
