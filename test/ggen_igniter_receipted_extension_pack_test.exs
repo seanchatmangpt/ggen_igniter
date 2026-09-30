@@ -110,12 +110,12 @@ defmodule GgenIgniter.ReceiptedExtensionPackTest do
     dir = Path.join(System.tmp_dir!(), "receipted_res_#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
     path = Path.join(dir, "resource.ex")
+    ebin = Path.join(dir, "ebin")
+    File.mkdir_p!(ebin)
     File.write!(path, source)
 
     try do
-      case Kernel.ParallelCompiler.compile_to_path([path], Path.join(dir, "ebin"),
-             return_diagnostics: true
-           ) do
+      case Kernel.ParallelCompiler.compile_to_path([path], ebin, return_diagnostics: true) do
         {:ok, modules, %{compile_warnings: cw, runtime_warnings: rw}} ->
           {:ok, modules,
            (cw ++ rw)
