@@ -227,7 +227,18 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         invalid_invocation_and_halt(first_unknown_flag(argv), [])
 
       true ->
-        super(argv)
+        # Igniter.Mix.Task emits wrapper progress on stdout unless quiet mode is
+        # enabled. JSON mode is a machine protocol: stdout must contain exactly
+        # one JSON document, so inject --quiet at the wrapper boundary while
+        # leaving the doctor's own JSON payload unchanged.
+        forwarded_argv =
+          if "--json" in argv and not Enum.any?(argv, &(&1 in ["--quiet", "-q"])) do
+            ["--quiet" | argv]
+          else
+            argv
+          end
+
+        super(forwarded_argv)
     end
   end
 
