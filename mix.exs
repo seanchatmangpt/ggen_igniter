@@ -13,14 +13,6 @@ defmodule GgenIgniter.MixProject do
       package: package(),
       aliases: aliases(),
       test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: [
-        coveralls: :test,
-        "coveralls.detail": :test,
-        "coveralls.html": :test,
-        "test.fast": :test,
-        "test.full": :test,
-        "test.shard": :test
-      ],
       docs: [
         main: "readme",
         # v26.9.12 fix: a bare `Path.wildcard("docs/**/*.md")` list produces
@@ -102,6 +94,19 @@ defmodule GgenIgniter.MixProject do
         ignore_warnings: ".dialyzer_ignore.exs"
       ],
       elixirc_paths: elixirc_paths(Mix.env())
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.html": :test,
+        "test.fast": :test,
+        "test.full": :test,
+        "test.shard": :test
+      ]
     ]
   end
 
