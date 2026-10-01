@@ -109,6 +109,8 @@ defmodule GgenIgniter.ReceiptedExtensionPackTest do
 
     dir = Path.join(System.tmp_dir!(), "receipted_res_#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
+    # Elixir 1.18 (.tool-versions pin) does not create the output dir for compile_to_path/3.
+    File.mkdir_p!(Path.join(dir, "ebin"))
     path = Path.join(dir, "resource.ex")
     File.write!(path, source)
 
