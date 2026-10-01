@@ -41,6 +41,16 @@ defmodule GgenIgniterTaskShellTest do
   describe "real tasks delegate to it (subprocess)" do
     @describetag :integration
 
+    test "install help spellings are byte-identical" do
+      env = [{"MIX_BUILD_ROOT", System.get_env("MIX_BUILD_ROOT") || "_build"}]
+      {long, long_status} = System.cmd("mix", ["ggen_igniter.install", "--help"], stderr_to_stdout: true, env: env)
+      {short, short_status} = System.cmd("mix", ["ggen_igniter.install", "-h"], stderr_to_stdout: true, env: env)
+
+      assert long_status == 0
+      assert short_status == 0
+      assert short == long
+    end
+
     for {task, flag} <- [
           {"ggen_igniter.rename", "--help"},
           {"ggen_igniter.rename", "-h"},
