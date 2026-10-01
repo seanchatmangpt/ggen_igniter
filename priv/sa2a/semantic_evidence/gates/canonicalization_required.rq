@@ -1,0 +1,2 @@
+PREFIX sa2a: <https://seanchatmangpt.github.io/sa2a#>
+ASK { ?x a sa2a:Evidence . FILTER NOT EXISTS { ?x sa2a:canonicalization "RDFC-1.0" } }

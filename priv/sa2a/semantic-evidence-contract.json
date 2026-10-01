@@ -1,0 +1,10 @@
+{
+  "schema": "sa2a.semantic-evidence-envelope.v1",
+  "contractVersion": "v26.9.29",
+  "canonicalization": "RDFC-1.0",
+  "authority": "NONE",
+  "consequence": "EVIDENCE_ONLY",
+  "marketplacePack": "packs/sa2a-semantic-evidence-pack",
+  "marketplacePackVersion": "26.9.29",
+  "graphlawContractCommit": "4e4873ca377d50af5268e8736be4afe6badeb862"
+}

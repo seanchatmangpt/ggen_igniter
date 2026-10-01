@@ -55,6 +55,7 @@ defmodule GgenIgniter.AshIgniterApiPackTest do
       source = render!(@pack, dir)
 
       assert source =~ "use Igniter.Mix.Task"
+
       for fun <- ~w(add_new_attribute add_new_action add_new_relationship
                     add_new_identity add_new_calculation),
           do: assert(source =~ "Ash.Resource.Igniter.#{fun}/4")
@@ -62,7 +63,9 @@ defmodule GgenIgniter.AshIgniterApiPackTest do
       assert source =~ "Ash.Domain.Igniter.add_resource_reference"
       # ash.gen.resource composed exactly once
       # one call site, looped per resource (Book, Author)
-      assert length(Regex.scan(~r/Igniter\.compose_task\(igniter, "ash\.gen\.resource"/, source)) == 1
+      assert length(Regex.scan(~r/Igniter\.compose_task\(igniter, "ash\.gen\.resource"/, source)) ==
+               1
+
       refute source =~ "System.cmd"
       refute source =~ "use Ash.Resource"
     end
@@ -203,7 +206,12 @@ defmodule GgenIgniter.AshIgniterApiPackTest do
       book = content(project, Igniter.Project.Module.proper_location(project, @resource))
       assert book =~ "attribute(:title, :string"
       refute book =~ "belongs_to"
-      assert {:error, _} = Rewrite.source(project.rewrite, Igniter.Project.Module.proper_location(project, @author))
+
+      assert {:error, _} =
+               Rewrite.source(
+                 project.rewrite,
+                 Igniter.Project.Module.proper_location(project, @author)
+               )
     end
 
     test "run adds only missing members to an existing resource", %{dir: dir} do
