@@ -31,7 +31,7 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 128 codes (`$defs.code.enum` length; derived from the
+The registry holds 129 codes (`$defs.code.enum` length; derived from the
 schema by `GgenIgniter.Refusals.count/0`, never hand-maintained) plus 24
 wrapped reasons. Regenerate both tables below with:
 
@@ -146,6 +146,7 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `REACTOR_MALFORMED` | reactor_scaffold | false | mu_on_O | `GgenIgniter.Packs.ReactorScaffold` | Supply the facts the saga/step template requires; unbound optionals are refused, never dropped. |
 | `REACTOR_UNKNOWN_STEP_KIND` | reactor_scaffold | false | mu_on_O | `GgenIgniter.Packs.ReactorScaffold` | Use a step kind the reactor-scaffold-pack ontology declares (see its rx:StepKind individuals). |
 | `REPLAY_REFUSED` | typed_tuple | false | R_missing_replay | `GgenIgniter.SemanticJira` | Replay evidence is all-or-nothing: supply standing_transitions on both manifests or neither, and reconcile any identity_mismatch fields. |
+| `SA2A_SEMANTIC_EVIDENCE` | typed_tuple | false | R_missing_identity | `GgenIgniter.SA2A.SemanticEvidence` | Supply a portable sa2a.semantic-evidence-envelope.v1 with an absolute exact-subject URN or https IRI, non-empty canonical fields and no authority-bearing claims; the envelope is evidence only and never grants standing. |
 | `SEMANTIC_JIRA` | semantic_jira | false | mu_on_O | `GgenIgniter.SemanticJira` | Fix the work order named in the detail. |
 | `SEMANTIC_JIRA_BASE_SHA_UNVERIFIED` | semantic_jira | true | R_missing_identity | `GgenIgniter.SemanticJira.GitGroundTruth` | Fetch the commit or correct baseSha. |
 | `SEMANTIC_JIRA_SHACL` | semantic_jira | false | mu_on_O | `GgenIgniter.Reactors.ReconcileReactor` | Resolve the SHACL violations in the work-order graph. |

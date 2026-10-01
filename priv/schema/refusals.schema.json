@@ -146,6 +146,7 @@
         "REACTOR_MALFORMED",
         "REACTOR_UNKNOWN_STEP_KIND",
         "REPLAY_REFUSED",
+        "SA2A_SEMANTIC_EVIDENCE",
         "SEMANTIC_JIRA",
         "SEMANTIC_JIRA_BASE_SHA_UNVERIFIED",
         "SEMANTIC_JIRA_SHACL",
@@ -1144,6 +1145,15 @@
       "fix_hint": "Replay evidence is all-or-nothing: supply standing_transitions on both manifests or neither, and reconcile any identity_mismatch fields.",
       "broken_term": "R_missing_replay",
       "example": "REFUSED:REPLAY_REFUSED transition_log_half_supplied"
+    },
+    {
+      "code": "SA2A_SEMANTIC_EVIDENCE",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SA2A.SemanticEvidence",
+      "fix_hint": "Supply a portable sa2a.semantic-evidence-envelope.v1 with an absolute exact-subject URN or https IRI, non-empty canonical fields and no authority-bearing claims; the envelope is evidence only and never grants standing.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:SA2A_SEMANTIC_EVIDENCE <subject> <inspect(evidence)>"
     },
     {
       "code": "SEMANTIC_JIRA",
