@@ -31,7 +31,7 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 129 codes (`$defs.code.enum` length; derived from the
+The registry holds 130 codes (`$defs.code.enum` length; derived from the
 schema by `GgenIgniter.Refusals.count/0`, never hand-maintained) plus 24
 wrapped reasons. Regenerate both tables below with:
 
@@ -83,6 +83,7 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `EPOCH_UNATTRIBUTED_IMPLEMENTATION` | epoch_plan | false | R_missing_authority | `GgenIgniter.SemanticJira.EpochPlan` | Attribute the planned implementation path to a generator or residue admission. |
 | `EPOCH_WATERMARK` | typed_tuple | false | mu_on_O | `GgenIgniter.EpochWatermark` | Run in a git work tree over a non-empty implementation set; restamp_required means a watermark already exists for the epoch and must be re-stamped deliberately. |
 | `EPOCH_WATERMARK_UNAVAILABLE` | epoch_plan | true | R_missing_identity | `GgenIgniter.SemanticJira.EpochPlan` | Run mix ggen_igniter.epoch.watermark and pass --epoch-manifest. |
+| `ENGINE_COMPARISON_DIVERGENT` | engine_comparison | false | mu_unlawful | `Mix.Tasks.GgenIgniter.Sync` | Engines disagreed on row-set for a named --query. Inspect the --engine-report output, fix the query or the disagreeing engine artifact, then rerun. |
 | `EXTENSION_SCHEMA` | extension_schema | false | admission_vacuous | `GgenIgniter.Packs.ReceiptedExtension` | Repair the rx:Extension graph reported by gates/000_violations.rq (sections, entities, transformer order, defaults). |
 | `FILE_NOT_FOUND` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | The admitted file must exist on disk; create it first. |
 | `FORBIDDEN_INPUT` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Bootstrap` | Remove the forbidden input (e.g. path outside allowed roles). |

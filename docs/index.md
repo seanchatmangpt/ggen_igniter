@@ -45,7 +45,7 @@ output pasted in.
 - [`mix ggen_igniter.sync`](reference/cli/sync.md) — every flag
 - [`mix ggen_igniter.doctor`](reference/cli/doctor.md) — all 17 checks
 - [Packs](reference/cli/packs.md) — `--pack`/`--pack-dir`/`--pack NAME:TEMPLATE`
-- [Engines](reference/cli/engines.md) — `oxigraph`/`sparql`/`qlever`
+- [Engines](reference/cli/engines.md) — `oxigraph`/`sparql`/`qlever`/`graphlaw`
 
 **Reactor** (opt-in coordination pipeline)
 

@@ -24,7 +24,8 @@ defmodule GgenIgniter.Engine do
   @registry %{
     "sparql" => GgenIgniter.Engine.Sparql,
     "qlever" => GgenIgniter.Engine.Qlever,
-    "oxigraph" => GgenIgniter.Engine.Oxigraph
+    "oxigraph" => GgenIgniter.Engine.Oxigraph,
+    "graphlaw" => GgenIgniter.Engine.Graphlaw
   }
 
   @doc """
@@ -37,7 +38,8 @@ defmodule GgenIgniter.Engine do
       %{
         "sparql" => GgenIgniter.Engine.Sparql,
         "qlever" => GgenIgniter.Engine.Qlever,
-        "oxigraph" => GgenIgniter.Engine.Oxigraph
+        "oxigraph" => GgenIgniter.Engine.Oxigraph,
+        "graphlaw" => GgenIgniter.Engine.Graphlaw
       }
 
   """
@@ -50,11 +52,11 @@ defmodule GgenIgniter.Engine do
   ## Examples
 
       iex> GgenIgniter.Engine.valid_names()
-      ["oxigraph", "qlever", "sparql"]
+      ["graphlaw", "oxigraph", "qlever", "sparql"]
 
   """
   @spec valid_names() :: [String.t()]
-  def valid_names, do: Map.keys(@registry)
+  def valid_names, do: Enum.sort(Map.keys(@registry))
 
   @doc """
   Looks up the engine module for `name`, raising `ArgumentError` on an unknown
@@ -66,7 +68,7 @@ defmodule GgenIgniter.Engine do
       GgenIgniter.Engine.Sparql
 
       iex> GgenIgniter.Engine.fetch!("nope")
-      ** (ArgumentError) invalid --engine "nope", must be one of: oxigraph, qlever, sparql
+      ** (ArgumentError) invalid --engine "nope", must be one of: graphlaw, oxigraph, qlever, sparql
 
   """
   @spec fetch!(String.t()) :: module()

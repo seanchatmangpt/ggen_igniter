@@ -86,7 +86,7 @@ defmodule GgenIgniter.EngineRegistryTest do
     test "with no --store-id, \"all\" resolves to oxigraph+sparql only, and logs a warning (not a crash)" do
       log =
         capture_log(fn ->
-          assert EngineRegistry.resolve("all", []) == {:ok, [:oxigraph, :sparql]}
+          assert EngineRegistry.resolve("all", []) == {:ok, [:graphlaw, :oxigraph, :sparql]}
         end)
 
       assert log =~ "excludes qlever"
@@ -99,7 +99,7 @@ defmodule GgenIgniter.EngineRegistryTest do
           assert EngineRegistry.resolve("all",
                    store_id: "http://example.com/does-not-exist",
                    ontology: "test/fixtures/audit_trail_ontology.ttl"
-                 ) == {:ok, [:oxigraph, :sparql]}
+                 ) == {:ok, [:graphlaw, :oxigraph, :sparql]}
         end)
 
       assert log =~ "excludes qlever"
@@ -107,7 +107,7 @@ defmodule GgenIgniter.EngineRegistryTest do
 
     test "with no ontology resolvable at all, \"all\" still excludes qlever gracefully (soft precondition, never a hard failure)" do
       assert EngineRegistry.resolve("all", store_id: "http://example.com/whatever") ==
-               {:ok, [:oxigraph, :sparql]}
+               {:ok, [:graphlaw, :oxigraph, :sparql]}
     end
 
     @tag :requires_qlever_server

@@ -72,6 +72,7 @@
         "DUPLICATE_OUTPUT_PATH",
         "DUPLICATE_SOURCE_PATH",
         "DUPLICATE_WORK_ORDER",
+        "ENGINE_COMPARISON_DIVERGENT",
         "ENTERPRISE_ARCHITECTURE",
         "EPHEMERAL_ATTESTATION",
         "EPHEMERAL_PROJECTION",
@@ -578,6 +579,15 @@
       "fix_hint": "Run mix ggen_igniter.epoch.watermark and pass --epoch-manifest.",
       "broken_term": "R_missing_identity",
       "example": "REFUSED:EPOCH_WATERMARK_UNAVAILABLE order-1"
+    },
+    {
+      "code": "ENGINE_COMPARISON_DIVERGENT",
+      "family": "engine_comparison",
+      "retryable": false,
+      "owner": "Mix.Tasks.GgenIgniter.Sync",
+      "fix_hint": "Engines disagreed on row-set for a named --query. Inspect the --engine-report output, fix the query or the disagreeing engine artifact, then rerun.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:ENGINE_COMPARISON_DIVERGENT engines oxigraph vs graphlaw disagree on row-set -- refusing to render from divergent evidence"
     },
     {
       "code": "EXTENSION_SCHEMA",

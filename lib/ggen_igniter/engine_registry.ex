@@ -85,7 +85,7 @@ defmodule GgenIgniter.EngineRegistry do
       {:ok, [:oxigraph, :sparql]}
 
       iex> GgenIgniter.EngineRegistry.resolve("nope")
-      {:error, "invalid --engine name(s): nope, must be one of: oxigraph, qlever, sparql"}
+      {:error, "invalid --engine name(s): nope, must be one of: graphlaw, oxigraph, qlever, sparql"}
 
   """
   @spec resolve(String.t(), keyword()) :: {:ok, [atom()]} | {:error, term()}

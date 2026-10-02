@@ -37,7 +37,7 @@ OTP/Controller/Manifest/Receipt) and `docs/glossary.md` for term definitions.
 ## What's implemented vs. planned (headline items — full detail in `docs/status.md`)
 
 - **Implemented, default today**: `mix ggen_igniter.sync`/`.doctor`, all
-  three query engines, `--pack`/`--for-each`/`--dry-run`, template
+  four query engines (oxigraph/sparql/qlever/graphlaw), `--pack`/`--for-each`/`--dry-run`, template
   frontmatter (including `inject: true` — see the correction below), the
   reconciliation manifest and `--on-stale refuse|prune|preserve`.
 - **Implemented, certified in v26.9.8**: Generative Ash Manufacturing pipeline
@@ -175,7 +175,7 @@ top-level bindings, atom-keyed, so a single-row query like `spec` can be
 referenced as bare `module_name`/`package_name` instead of
 `hd(spec)["module_name"]`.
 
-#### Engines: `--engine oxigraph` / `--engine sparql` / `--engine qlever`
+#### Engines: `--engine oxigraph` / `--engine sparql` / `--engine qlever` / `--engine graphlaw`
 
 `--engine oxigraph` (**the real default since v26.8.27** — confirmed by
 `lib/mix/tasks/ggen_igniter.sync.ex`'s own `opts[:engine] || "oxigraph"` and
@@ -234,6 +234,30 @@ mix ggen_igniter.sync \
   --query spec=priv/ggen/some-pack/gates/010.rq \
   --template priv/ggen/some-pack/templates/out.ex.eex \
   --out lib/generated.ex
+```
+
+`--engine graphlaw` runs every query through the graphlaw WebAssembly module
+(PurRDF, hosted in-process by the already-required `wasmex` dep over a WASI
+store) via `lib/ggen_igniter/engine/graphlaw.ex` — a real, independent SPARQL
+engine identity with no shared code with oxigraph or the `sparql` hex
+package, which is exactly what makes it useful as a differential-court
+witness. The wasm artifact path comes from
+`Application.get_env(:ggen_igniter, :graphlaw_wasm_path)` (explicit override)
+or the built-in default `~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm`;
+a missing artifact fails fast in `prepare!/2` with a typed error naming the
+exact path and build command. Rows use the same plain (unwrapped)
+normalization as `--engine oxigraph`, so a template sees identical values
+across both engines. Comparison mode is the intended usage — when the two
+engines disagree on row-set the run REFUSES (nonzero exit) rather than
+rendering from either side:
+
+```
+mix ggen_igniter.sync \
+  --engine oxigraph,graphlaw \
+  --ontology test/fixtures/audit_trail_ontology.ttl \
+  --query spec=test/fixtures/spec.rq \
+  --template test/fixtures/extension.ex.eex \
+  --out tmp_out/probe.ex
 ```
 
 #### Multi-row fan-out (`--for-each NAME`)

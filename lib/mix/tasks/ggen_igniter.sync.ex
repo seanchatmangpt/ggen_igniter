@@ -117,6 +117,21 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   itself never touches this graph's data, it runs on the remote QLever store.
   `--store-id` is required when `--engine qlever` is given.
 
+  `--engine graphlaw` runs every query through the graphlaw WebAssembly module
+  (PurRDF, hosted in-process by `wasmex` over a WASI store) via
+  `GgenIgniter.Engine.Graphlaw` -- a real, independent SPARQL engine identity
+  alongside `sparql`, `qlever`, and the native oxigraph NIF. Rows use the
+  same plain (unwrapped) normalization as `--engine oxigraph`, so a template
+  that renders a column directly sees identical values across both engines.
+  The wasm artifact path comes from `Application.get_env(:ggen_igniter,
+  :graphlaw_wasm_path)` (explicit override) or the built-in default
+  `~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm`; a missing
+  artifact fails fast in `prepare!/2` with a typed error naming the exact
+  path and build command. Comparison mode (`--engine oxigraph,graphlaw`) is
+  the intended usage: when the two engines disagree on row-set, the run
+  REFUSES (nonzero exit) rather than rendering from either side -- see the
+  comparison-mode section below.
+
   ## Comparison mode (`--engine oxigraph,sparql` / `--engine all`)
 
   Per ADR-0008 (`docs/architecture/adr/0008-evidence-ranked-multi-engine-registry.md`):
@@ -938,7 +953,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     USAGE
         mix ggen_igniter.sync --ontology path.ttl --query name=path.rq (repeatable)
                                --template path.eex --out path.ex
-                               [--engine oxigraph|sparql|qlever|comma-list|all]
+                               [--engine oxigraph|graphlaw|sparql|qlever|comma-list|all]
                                [--engine-report PATH] [--store-id ID]
                                [--pack NAME | --pack-dir DIR] [--for-each NAME]
                                [--mode file|eval] [--on-stale refuse|prune|preserve]
@@ -951,10 +966,15 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         --query NAME=PATH   Named SPARQL query (repeatable).
         --template PATH     EEx template to render (or resolved via --pack/--pack-dir).
         --out PATH          Output path (or an EEx path template with --for-each).
-        --engine ENGINE     One of: oxigraph, sparql, qlever. Default: oxigraph.
+        --engine ENGINE     One of: oxigraph, graphlaw, sparql, qlever.
+                             Default: oxigraph.
                              Also accepts a comma-separated list or "all" --
                              triggers diagnostic comparison mode (ADR-0008);
                              actuation still uses only the first-named engine.
+                             graphlaw needs the wasm artifact from
+                             Application env :ggen_igniter, :graphlaw_wasm_path
+                             (default ~/graphlaw/target/wasm32-wasip1/wasm/
+                             graphlaw_wasm.wasm).
         --engine-report PATH  Write the comparison-mode report to PATH (.json
                              or Markdown by extension). Without this, a
                              summary prints to stdout. No effect with a
@@ -1509,7 +1529,69 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       _ ->
         print_engine_comparison_summary(reports)
     end
+
+    # ADR-0008 evidence gate: after reporting (file or stdout), a real
+    # row-set disagreement between any two successfully-run engines REFUSES
+    # the run (typed refusal, exit 1) rather than letting rendering/actuation
+    # proceed on divergent evidence. Two disclosed normalizations keep this
+    # from firing on the known, documented engine-shape axes rather than real
+    # answer divergence:
+    #
+    #   1. Values are compared after term normalization (scalars stringified
+    #      via to_string/1, non-scalars via inspect/1): the `sparql` hex
+    #      package returns typed values (e.g. integer `1` via
+    #      `RDF.Literal.value/1`) where oxigraph/graphlaw return the lexical
+    #      string form ("1") -- a shape difference, not an answer difference.
+    #   2. Row-ORDER divergence stays non-fatal (the known `sparql`-hex
+    #      ORDER BY axis, tracked separately as `order_equal?`), because
+    #      comparison mode's rendering still uses only the primary engine's
+    #      rows.
+    divergent =
+      reports
+      |> Enum.flat_map(fn {_name, report} -> divergent_pairs(report) end)
+      |> Enum.uniq()
+
+    case divergent do
+      [] ->
+        :ok
+
+      pairs ->
+        Mix.raise(
+          "REFUSED:ENGINE_COMPARISON_DIVERGENT: engines #{Enum.map_join(pairs, ", ", fn {a, b} -> "#{a} vs #{b}" end)} " <>
+            "disagree on row-set -- refusing to render from divergent evidence"
+        )
+    end
   end
+
+  # Real row-set disagreement between two :ok candidates, judged after the
+  # term normalization documented above. `:error`/`:timeout` candidates are
+  # excluded (no rows to compare -- an engine FAILING is surfaced by the
+  # report itself, never silently swallowed by this gate).
+  defp divergent_pairs(report) do
+    normalized =
+      Map.new(report.candidates, fn c -> {c.engine, normalize_rows(c.rows)} end)
+
+    for {a, i} <- Enum.with_index(report.candidates),
+        {b, j} <- Enum.with_index(report.candidates),
+        i < j,
+        a.status == :ok,
+        b.status == :ok,
+        MapSet.new(normalized[a.engine]) != MapSet.new(normalized[b.engine]) do
+      {a.engine, b.engine}
+    end
+  end
+
+  defp normalize_rows(nil), do: []
+
+  defp normalize_rows(rows) do
+    Enum.map(rows, fn row ->
+      Map.new(row, fn {k, v} -> {k, normalize_term(v)} end)
+    end)
+  end
+
+  defp normalize_term(v) when is_binary(v), do: v
+  defp normalize_term(v) when is_atom(v) or is_integer(v) or is_float(v), do: to_string(v)
+  defp normalize_term(v), do: inspect(v)
 
   defp encode_engine_report([{_name, report}], path) do
     case Path.extname(path) do

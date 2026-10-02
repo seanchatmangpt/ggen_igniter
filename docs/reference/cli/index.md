@@ -119,6 +119,11 @@ live in each module's `schema:`/moduledoc)
   `sj:authorityClaim` "NONE") and writes zero WorkOrders; the former
   compile_prose delta manufacture (and its `--receipts-dir`) is removed by
   the origin-authority law (ADR-012).
+- `mix ggen_igniter.sa2a.evidence PATH` — admits an authority-free SA2A
+  semantic-evidence envelope (`sa2a.semantic-evidence-envelope.v1`): reads the
+  envelope at PATH, prints the typed reference JSON, and raises a typed refusal
+  otherwise (see `docs/reference/refusals.md` `SA2A_SEMANTIC_EVIDENCE`; added
+  `353cccf`).
 
 Both core tasks are real `Igniter.Mix.Task` modules (`use Igniter.Mix.Task`), so they
 compose with other Igniter tasks and honor Igniter's own `--dry-run`-adjacent
@@ -150,7 +155,7 @@ shipped — the suite entry, the task list above, and
   `--dry-run`, `--mode`, `--on-stale`, `--unless-exists`/`--skip-if`,
   `--manifest-dir`, `inject: true`.
 - `docs/reference/cli/doctor.md` — every `mix ggen_igniter.doctor` flag and its
-  17-item checklist, including which checks require `--pack`/`--pack-dir` or
+  19-item checklist, including which checks require `--pack`/`--pack-dir` or
   `--engine qlever`, and what `--fix` actually changes.
 - `docs/reference/cli/packs.md` — the `priv/ggen/<pack-name>/` directory
   convention: `--pack NAME`, `--pack-dir DIR`, and `--pack NAME:TEMPLATE` template

@@ -2948,6 +2948,23 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     pre_run_hash = Receipt.hash_entries(prior_entries(tracked))
     post_run_hash = Receipt.hash_files(Map.keys(tracked))
 
+    # Whitespace-normalized twin of post_run_hash (lane V4): the receipt's
+    # post_run_hash covers the raw bytes sync wrote, but a manufacture script's
+    # trailing `mix format` may legitimately change whitespace AFTER the hash
+    # finalizes (format runs outside the sync). Recording the normalized twin
+    # here lets a replay court distinguish format-only drift (normalized match)
+    # from a real hand edit (normalized mismatch) without guessing.
+    post_run_ws_hash =
+      tracked
+      |> Map.keys()
+      |> Enum.map(fn path ->
+        case File.read(path) do
+          {:ok, content} -> {path, String.replace(content, ~r{\s+}, "")}
+          {:error, _reason} -> {path, nil}
+        end
+      end)
+      |> Receipt.hash_entries()
+
     OcelEmitter.emit(event_sink, "ADMITTED", file_objects_for_paths(Map.keys(outputs)), %{
       "paths" => Map.keys(outputs)
     })
@@ -3031,6 +3048,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         commands: commands,
         metadata: %{
           "graph_hash" => graph_hash,
+          "post_run_ws_hash" => post_run_ws_hash,
           "target_count" => length(results),
           # Best-effort single-target compatibility fields (populated
           # whenever this run had exactly one target, i.e. the

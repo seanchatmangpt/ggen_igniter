@@ -1,8 +1,10 @@
-# Engine selection: `--engine oxigraph|sparql|qlever`
+# Engine selection: `--engine oxigraph|sparql|qlever|graphlaw`
 
 Source: `lib/ggen_igniter/engine.ex` (`GgenIgniter.Engine` behaviour +
-`GgenIgniter.Engine.{Sparql,Qlever,Oxigraph}` adapters), dispatched from
-`Mix.Tasks.GgenIgniter.Sync`. Status: **IMPLEMENTED** for all three engines.
+`GgenIgniter.Engine.{Sparql,Qlever,Oxigraph}` adapters) and
+`lib/ggen_igniter/engine/graphlaw.ex` (`GgenIgniter.Engine.Graphlaw`),
+dispatched from `Mix.Tasks.GgenIgniter.Sync`. Status: **IMPLEMENTED** for
+all four engines.
 
 `GgenIgniter.Engine.registry/0` is the single source of truth for valid
 `--engine` values:
@@ -11,12 +13,13 @@ Source: `lib/ggen_igniter/engine.ex` (`GgenIgniter.Engine` behaviour +
 %{
   "sparql"   => GgenIgniter.Engine.Sparql,
   "qlever"   => GgenIgniter.Engine.Qlever,
-  "oxigraph" => GgenIgniter.Engine.Oxigraph
+  "oxigraph" => GgenIgniter.Engine.Oxigraph,
+  "graphlaw" => GgenIgniter.Engine.Graphlaw
 }
 ```
 
 An unrecognized `--engine` value raises immediately via `Engine.fetch!/1`:
-`"invalid --engine \"nope\", must be one of: oxigraph, qlever, sparql"`.
+`"invalid --engine \"nope\", must be one of: graphlaw, oxigraph, qlever, sparql"`.
 
 Every engine module implements two callbacks: `prepare!/2` (graph + raw CLI
 opts → whatever context `run/2` needs; runs once per `sync` invocation) and
@@ -100,6 +103,26 @@ application tree on their own.
 real reachability via a real `ASK { ?s ?p ?o }` query — requires a pack
 ontology to resolve `--store-id` against (`--pack`/`--pack-dir`).
 
+## `--engine graphlaw` — wasm-hosted independent engine (differential-court witness)
+
+Runs every query through the graphlaw WebAssembly module (PurRDF, hosted
+in-process by the already-required `wasmex` dep over a WASI store) via
+`lib/ggen_igniter/engine/graphlaw.ex`. An independent SPARQL engine
+implementation with no shared code with oxigraph or the `sparql` hex
+package — exactly what makes it the witness engine for differential courts:
+a disagreement with oxigraph over the same gate query is real signal, not a
+shared-implementation artifact.
+
+The wasm artifact path comes from `Application.get_env(:ggen_igniter,
+:graphlaw_wasm_path)` (explicit override) or the built-in default
+`~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm`; a missing
+artifact fails fast in `prepare!/2` with a typed error naming the exact path
+and build command. Rows use the same plain (unwrapped) normalization as
+`--engine oxigraph`, so a template sees identical values across both
+engines. Comparison mode is the intended usage — when the two engines
+disagree on row-set the run REFUSES (nonzero exit) rather than rendering
+from either side.
+
 ## Choosing an engine
 
 | Need | Engine |
@@ -108,6 +131,7 @@ ontology to resolve `--store-id` against (`--pack`/`--pack-dir`).
 | A query shape specifically depends on `sparql` hex's own (non-`ORDER BY`-correct) evaluation, or you want to A/B against oxigraph | `sparql` |
 | Gate queries use `FILTER NOT EXISTS` + `BIND` inside `UNION` (triggers the `sparql` 0.3.12 bug) | `qlever` |
 | Data already lives in a real, running QLever store rather than a local `.ttl` file | `qlever` |
+| Independent second engine for a differential court (`--engine oxigraph,graphlaw`); disagreement REFUSES the run | `graphlaw` |
 | No Rust toolchain available to compile `native/ggen_graph_nif` at all | Not solvable by switching `--engine` — see the compile-time note above; the NIF module compiles regardless of which engine is used at runtime. |
 
 ## Examples
@@ -139,4 +163,15 @@ mix ggen_igniter.sync \
   --query spec=priv/ggen/some-pack/gates/010.rq \
   --template priv/ggen/some-pack/templates/out.ex.eex \
   --out lib/generated.ex
+
+# graphlaw (comparison mode; oxigraph stays primary/actuating)
+mix ggen_igniter.sync \
+  --engine oxigraph,graphlaw \
+  --ontology test/fixtures/audit_trail_ontology.ttl \
+  --query spec=test/fixtures/spec.rq \
+  --query sections=test/fixtures/sections.rq \
+  --query entities=test/fixtures/entities.rq \
+  --query fields=test/fixtures/fields.rq \
+  --template test/fixtures/extension.ex.eex \
+  --out tmp_out/probe.ex
 ```
