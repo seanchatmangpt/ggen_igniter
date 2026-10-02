@@ -3,6 +3,7 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 # SHACL admission shapes for the semantic-jira-pack work-order graph.
@@ -619,3 +620,39 @@ sj:AuthorityTrustRootShape a sh:NodeShape ;
         }
       """
     ] .
+
+# ── Standing-transition event shapes (Ra4; ported from the former inline
+# shapes_turtle/0 in GgenIgniter.SemanticJira.ProvEvents, which now validates
+# against this pack file via GgenIgniter.SemanticJira.Shacl.pack_shapes_path/0
+# instead of its own embedded shapes) ────────────────────────────────────────
+# The event vocabulary these shapes name is declared in the pack ontology
+# (sj:StandingTransitionEvent, sj:StandingState, sj:GeneratedStandingState,
+# sj:seq, sj:eventDigest, sj:receiptDigest, sj:identity, sj:from, sj:to).
+# Receipt entities carry only sj:receiptDigest here by design: the full
+# sj:Receipt law (workOrderDigest/repository/baseSha/subjectSha/replayIdentity/
+# receiptClass, sj:ReceiptShape) binds durable receipts, not the projection's
+# PROV-O stand-in, so the projection types them prov:Entity only.
+
+sj:StandingTransitionEventProvShape a sh:NodeShape ;
+    sh:targetClass sj:StandingTransitionEvent ;
+    sh:property [ sh:path sj:seq ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ] ;
+    sh:property [ sh:path sj:eventDigest ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
+    sh:property [ sh:path sj:identity ; sh:minCount 1 ; sh:maxCount 1 ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:from ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path sj:to ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path prov:used ; sh:minCount 2 ; sh:maxCount 2 ; sh:class prov:Entity ] ;
+    sh:property [ sh:path prov:generated ; sh:minCount 1 ; sh:maxCount 1 ; sh:class prov:Entity ] ;
+    sh:property [ sh:path prov:wasAssociatedWith ; sh:minCount 1 ; sh:class prov:SoftwareAgent ] .
+
+sj:StandingEntityProvShape a sh:NodeShape ;
+    sh:targetClass sj:StandingState ;
+    sh:property [ sh:path sj:standing ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    sh:property [ sh:path sj:identity ; sh:minCount 1 ; sh:maxCount 1 ] .
+
+sj:GeneratedStandingProvShape a sh:NodeShape ;
+    sh:targetClass sj:GeneratedStandingState ;
+    sh:property [ sh:path prov:wasGeneratedBy ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:class sj:StandingTransitionEvent ] ;
+    sh:property [ sh:path prov:wasDerivedFrom ; sh:minCount 2 ; sh:maxCount 2 ;
+                  sh:class prov:Entity ] .

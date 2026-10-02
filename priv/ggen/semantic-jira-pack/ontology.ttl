@@ -172,6 +172,41 @@ sj:normativeMutation a rdf:Property ; rdfs:range xsd:boolean .
 sj:fromStanding a rdf:Property ; rdfs:range xsd:string .
 sj:toStanding a rdf:Property ; rdfs:range xsd:string .
 
+# ── Standing-transition event vocabulary (Ra4; closes the v23:GC-26.9.24
+# deferral named in gates/050_frontier.rq's header and V23-T6R refutation 2) ─
+# The PROV-O serialization (GgenIgniter.SemanticJira.ProvEvents) emits exactly
+# these classes and properties; until this section they existed only as inline
+# SHACL shapes inside that module and no gate could name them. Declared here so
+# gates/055_standing_projection.rq can express the chain-tip law and so the
+# "every sj: term a pack gate references is declared" tripwire holds. The
+# SHACL shapes for these terms live in shapes/work-order.shacl.ttl
+# (sj:StandingTransitionEventProvShape, sj:StandingEntityProvShape,
+# sj:GeneratedStandingProvShape), not here: this file declares semantics, the
+# shape file carries constraints.
+
+sj:StandingTransitionEvent a rdfs:Class ;
+    rdfs:label "Standing-transition event" ;
+    rdfs:comment "One append-only standing transition of a work-order identity, serialized by GgenIgniter.SemanticJira.ProvEvents as a prov:Activity. Order-level law: for one identity the events form a chain ordered by sj:seq with exactly one maximal event (the chain tip); more than one tip is a forked ledger projection (gates/055_standing_projection.rq)." .
+
+sj:StandingState a rdfs:Class ;
+    rdfs:label "Standing state entity" ;
+    rdfs:comment "A PROV-O entity snapshotting one identity's standing at an event boundary (sj:standing carries the value); the pre-transition entity of an identity's first event is a genesis entity, afterwards the previous event's post entity, so prov:wasDerivedFrom chains the identity's standing history." .
+
+sj:GeneratedStandingState a rdfs:Class ;
+    rdfs:label "Generated standing state entity" ;
+    rdfs:comment "The post-transition sj:StandingState an event generated: prov:wasGeneratedBy exactly its event, prov:wasDerivedFrom exactly the pre-transition standing state and the receipt entity." .
+
+sj:seq a rdf:Property ; rdfs:range xsd:integer ;
+    rdfs:comment "Monotonic per ledger (GgenIgniter.SemanticJira.TransitionLog appends seq == 1..N under the file lock); the chain-tip ordering key for sj:StandingTransitionEvent." .
+sj:eventDigest a rdf:Property ; rdfs:range xsd:string ;
+    rdfs:comment "sha256:<64 hex> digest that recomputes per GgenIgniter.SemanticJira.TransitionLog.event_digest/1; the event IRI is derived from it." .
+sj:receiptDigest a rdf:Property ; rdfs:range xsd:string ;
+    rdfs:comment "sha256:<64 hex> naming the durable receipt the transition records; carried by the receipt entity the event prov:used." .
+sj:identity a rdf:Property ; rdfs:range xsd:string ;
+    rdfs:comment "The work-order identity a standing-transition event or standing state belongs to; joins an event to its WorkOrder via dcterms:identifier (the gate-055 anchor; no sj:transitionWorkOrder exists -- V23-T6R refutation 2)." .
+sj:from a rdf:Property ; rdfs:range xsd:string .
+sj:to a rdf:Property ; rdfs:range xsd:string .
+
 sj:source-evidence a sj:EvidenceRequirement ;
     rdfs:label "Source evidence" ;
     dcterms:description "Exact canonical-source identity evidence." .

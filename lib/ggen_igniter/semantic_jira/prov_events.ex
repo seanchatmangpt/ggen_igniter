@@ -4,8 +4,8 @@ defmodule GgenIgniter.SemanticJira.ProvEvents do
 
   Each event becomes a `prov:Activity` (also `sj:StandingTransitionEvent`):
 
-    * `prov:used` the receipt entity (`prov:Entity`, `sj:Receipt`) and the
-      pre-transition standing entity;
+    * `prov:used` the receipt entity (`prov:Entity`) and the pre-transition
+      standing entity;
     * `prov:generated` the post-transition standing entity, which carries
       `prov:wasGeneratedBy` the event and `prov:wasDerivedFrom` both the
       pre-transition standing and the receipt;
@@ -22,8 +22,16 @@ defmodule GgenIgniter.SemanticJira.ProvEvents do
   yields the same bytes regardless of ledger form (file or directory).
 
   `to_turtle/1` refuses (typed) an event missing a required field rather than
-  emitting a partial record. `shapes_turtle/0` + `validate/1` run the result
-  through the real `GgenIgniter.SemanticJira.Shacl` court. Authority stays NONE.
+  emitting a partial record. `validate/1` runs the result through the real
+  `GgenIgniter.SemanticJira.Shacl` court against the pack shape file
+  (`Shacl.pack_shapes_path/0`: sj:StandingTransitionEventProvShape,
+  sj:StandingEntityProvShape, sj:GeneratedStandingProvShape) -- the same
+  shapes file the work-order court executes; there is no second, module-local
+  shape set to drift from it. The receipt entity is typed `prov:Entity` only,
+  not `sj:Receipt`: the full `sj:Receipt` law (`sj:ReceiptShape`:
+  workOrderDigest/repository/baseSha/subjectSha/replayIdentity/receiptClass)
+  binds durable receipts, and the projection carries only the
+  `sj:receiptDigest` the event records. Authority stays NONE.
   """
 
   alias GgenIgniter.SemanticJira
@@ -74,45 +82,9 @@ defmodule GgenIgniter.SemanticJira.ProvEvents do
     with {:ok, ttl} <- to_turtle(events), do: RDF.Turtle.read_string(ttl)
   end
 
-  @doc "SHACL shapes (Turtle) the serialized events must satisfy."
-  @spec shapes_turtle() :: String.t()
-  def shapes_turtle do
-    """
-    @prefix sh: <http://www.w3.org/ns/shacl#> .
-    @prefix prov: <http://www.w3.org/ns/prov#> .
-    @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
-    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-    sj:StandingTransitionEventProvShape a sh:NodeShape ;
-      sh:targetClass sj:StandingTransitionEvent ;
-      sh:property [ sh:path sj:seq ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ] ;
-      sh:property [ sh:path sj:eventDigest ; sh:minCount 1 ; sh:maxCount 1 ;
-                    sh:datatype xsd:string ; sh:pattern "^sha256:[0-9a-f]{64}$" ] ;
-      sh:property [ sh:path sj:identity ; sh:minCount 1 ; sh:maxCount 1 ; sh:minLength 1 ] ;
-      sh:property [ sh:path sj:from ; sh:minCount 1 ; sh:maxCount 1 ] ;
-      sh:property [ sh:path sj:to ; sh:minCount 1 ; sh:maxCount 1 ] ;
-      sh:property [ sh:path prov:used ; sh:minCount 2 ; sh:maxCount 2 ; sh:class prov:Entity ] ;
-      sh:property [ sh:path prov:generated ; sh:minCount 1 ; sh:maxCount 1 ; sh:class prov:Entity ] ;
-      sh:property [ sh:path prov:wasAssociatedWith ; sh:minCount 1 ; sh:class prov:SoftwareAgent ] .
-
-    sj:StandingEntityProvShape a sh:NodeShape ;
-      sh:targetClass sj:StandingState ;
-      sh:property [ sh:path sj:standing ; sh:minCount 1 ; sh:maxCount 1 ] ;
-      sh:property [ sh:path sj:identity ; sh:minCount 1 ; sh:maxCount 1 ] .
-
-    sj:GeneratedStandingProvShape a sh:NodeShape ;
-      sh:targetClass sj:GeneratedStandingState ;
-      sh:property [ sh:path prov:wasGeneratedBy ; sh:minCount 1 ; sh:maxCount 1 ;
-                    sh:class sj:StandingTransitionEvent ] ;
-      sh:property [ sh:path prov:wasDerivedFrom ; sh:minCount 2 ; sh:maxCount 2 ;
-                    sh:class prov:Entity ] .
-    """
-  end
-
   @doc "Validates a serialized-events graph or Turtle string with the real SHACL court."
   @spec validate(RDF.Graph.t() | String.t()) :: Shacl.t()
-  def validate(%RDF.Graph{} = data),
-    do: Shacl.validate(data, RDF.Turtle.read_string!(shapes_turtle()))
+  def validate(%RDF.Graph{} = data), do: Shacl.validate_file(data)
 
   def validate(turtle) when is_binary(turtle), do: validate(RDF.Turtle.read_string!(turtle))
 
@@ -171,7 +143,7 @@ defmodule GgenIgniter.SemanticJira.ProvEvents do
         "  prov:generated <#{post_iri(event)}> .\n\n"
       ],
       [
-        "<#{receipt_iri(event)}> a prov:Entity, sj:Receipt ;\n",
+        "<#{receipt_iri(event)}> a prov:Entity ;\n",
         "  sj:receiptDigest #{lit(event["receipt_digest"])} .\n\n"
       ],
       if(genesis?,
