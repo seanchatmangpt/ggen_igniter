@@ -14,13 +14,25 @@ defmodule GgenIgniter.Engine.Graphlaw do
 
   ## Wasm artifact
 
-  `prepare!/2` reads the artifact from
-  `Application.get_env(:ggen_igniter, :graphlaw_wasm_path)` (an explicit
-  override) or the built-in default
-  `~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm`. A missing (or
-  non-compilable) artifact fails fast in `prepare!/2` with a clear, typed
-  `RuntimeError` naming the exact path and the exact build command, so a
-  sync run never half-fails mid-query.
+  The module is MIT-licensed upstream (a fork of the RoXi reasoning engine,
+  Ghent University - imec; see the graphlaw repository's LICENSE) and the
+  artifact ships inside this hex package at `priv/graphlaw_wasm.wasm`
+  (sha256 `8bfff66cccd1e1a4834d61a893888bb479f046c1da1152a29098be7de0fe71a8`),
+  so hex consumers get a working graphlaw engine with no extra download.
+
+  `prepare!/2` resolves the artifact in this order:
+
+  1. `Application.get_env(:ggen_igniter, :graphlaw_wasm_path)` (explicit
+     override);
+  2. the packaged `priv/graphlaw_wasm.wasm` inside this application;
+  3. the built-in dev default
+     `~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm`.
+
+  A missing (or non-compilable) artifact fails fast in `prepare!/2` with a
+  clear, typed `RuntimeError` naming the exact paths tried and the exact
+  build/download commands (a matching checksummed `graphlaw.wasm` is also
+  attached to each graphlaw GitHub release), so a sync run never half-fails
+  mid-query.
 
   ## ABI details (from ~/graphlaw/wasm/src/lib.rs and ~/graphlaw/src/abi.rs)
 
@@ -41,6 +53,8 @@ defmodule GgenIgniter.Engine.Graphlaw do
   import Bitwise, only: [bsr: 2, band: 2]
 
   @default_wasm_path "~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm"
+  @packaged_wasm_path "priv/graphlaw_wasm.wasm"
+  @wasm_sha256 "8bfff66cccd1e1a4834d61a893888bb479f046c1da1152a29098be7de0fe71a8"
 
   @doc """
   Instantiates the graphlaw wasm module and loads `graph` into the context as
@@ -217,9 +231,11 @@ defmodule GgenIgniter.Engine.Graphlaw do
   defp term_value(%{"type" => "triple", "value" => v}), do: v
   defp term_value(other), do: to_string(other)
 
+  # Resolution: explicit Application env override, then the artifact shipped
+  # inside this package, then the built-in dev checkout default.
   defp wasm_path do
     case Application.get_env(:ggen_igniter, :graphlaw_wasm_path) do
-      nil -> Path.expand(@default_wasm_path)
+      nil -> packaged_path() || Path.expand(@default_wasm_path)
       path when is_binary(path) -> Path.expand(path)
 
       other ->
@@ -230,13 +246,24 @@ defmodule GgenIgniter.Engine.Graphlaw do
     end
   end
 
+  defp packaged_path do
+    case :code.priv_dir(:ggen_igniter) do
+      {:error, _} -> nil
+      dir -> dir |> to_string() |> Path.join(@packaged_wasm_path) |> existing()
+    end
+  end
+
+  defp existing(path), do: if(File.exists?(path), do: path, else: nil)
+
   defp read_wasm!(path) do
     unless File.exists?(path) do
       raise RuntimeError,
         message:
-          "ggen_igniter: graphlaw wasm artifact not found at #{path} -- build it with " <>
-            "`cd ~/graphlaw && cargo build --target wasm32-wasip1 -p graphlaw-wasm --release` " <>
-            "(or point Application env :ggen_igniter, :graphlaw_wasm_path at an existing artifact)"
+          "ggen_igniter: graphlaw wasm artifact not found at #{path} -- " <>
+            "point Application env :ggen_igniter, :graphlaw_wasm_path at an existing " <>
+            "artifact, download the checksummed graphlaw.wasm from a graphlaw GitHub " <>
+            "release (expected sha256 #{@wasm_sha256}), or build it with " <>
+            "`cd ~/graphlaw && cargo build --target wasm32-wasip1 -p graphlaw-wasm --release`"
     end
 
     File.read!(path)

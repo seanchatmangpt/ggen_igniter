@@ -6,7 +6,7 @@ defmodule GgenIgniter.MixProject do
   def project do
     [
       app: :ggen_igniter,
-      version: "26.9.30",
+      version: "26.9.31",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -75,7 +75,7 @@ defmodule GgenIgniter.MixProject do
         # mix.exs/CHANGELOG.md state" test greps `mix.exs`'s raw source with
         # `~r/version:\s*"([^"]+)"/` and breaks if `version:` isn't followed
         # directly by a literal string.
-        source_ref: "v26.9.30"
+        source_ref: "v26.9.31"
       ],
       dialyzer: [
         # `:mix` is excluded from the PLT by default (it's a build-time-only
@@ -140,6 +140,7 @@ defmodule GgenIgniter.MixProject do
       files:
         ~w(lib native/ggen_graph_nif/Cargo.toml native/ggen_graph_nif/Cargo.lock
            native/ggen_graph_nif/src priv/bundles priv/schema
+           priv/graphlaw_wasm.wasm
            wasm-artifacts/tera_wasm_renderer.wasm
            mix.exs README.md LICENSE CHANGELOG.md usage-rules.md .formatter.exs) ++
           shipped_packs()

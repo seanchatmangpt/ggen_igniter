@@ -123,11 +123,14 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   alongside `sparql`, `qlever`, and the native oxigraph NIF. Rows use the
   same plain (unwrapped) normalization as `--engine oxigraph`, so a template
   that renders a column directly sees identical values across both engines.
-  The wasm artifact path comes from `Application.get_env(:ggen_igniter,
-  :graphlaw_wasm_path)` (explicit override) or the built-in default
+  The wasm artifact (MIT-licensed upstream) ships in this package at
+  `priv/graphlaw_wasm.wasm`; the path comes from `Application.get_env(
+  :ggen_igniter, :graphlaw_wasm_path)` (explicit override), else the packaged
+  artifact, else the built-in dev default
   `~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm`; a missing
   artifact fails fast in `prepare!/2` with a typed error naming the exact
-  path and build command. Comparison mode (`--engine oxigraph,graphlaw`) is
+  paths tried and the build/download commands. Comparison mode
+  (`--engine oxigraph,graphlaw`) is
   the intended usage: when the two engines disagree on row-set, the run
   REFUSES (nonzero exit) rather than rendering from either side -- see the
   comparison-mode section below.
@@ -971,9 +974,10 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
                              Also accepts a comma-separated list or "all" --
                              triggers diagnostic comparison mode (ADR-0008);
                              actuation still uses only the first-named engine.
-                             graphlaw needs the wasm artifact from
-                             Application env :ggen_igniter, :graphlaw_wasm_path
-                             (default ~/graphlaw/target/wasm32-wasip1/wasm/
+                             graphlaw uses the wasm artifact shipped at
+                             priv/graphlaw_wasm.wasm (override via
+                             Application env :ggen_igniter, :graphlaw_wasm_path;
+                             dev fallback ~/graphlaw/target/wasm32-wasip1/wasm/
                              graphlaw_wasm.wasm).
         --engine-report PATH  Write the comparison-mode report to PATH (.json
                              or Markdown by extension). Without this, a

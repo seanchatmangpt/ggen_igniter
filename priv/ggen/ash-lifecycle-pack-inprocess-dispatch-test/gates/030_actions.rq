@@ -1,0 +1,6 @@
+PREFIX alp: <http://seanchatmangpt.github.io/packs/ash-lifecycle-pack#>
+SELECT ?resource_name ?action_order ?action_name ?action_type WHERE {
+  ?action a alp:Action ; alp:actionOf ?resource ; alp:actionOrder ?action_order ;
+          alp:actionName ?action_name ; alp:actionType ?action_type .
+  ?resource alp:resourceName ?resource_name .
+} ORDER BY ?resource_name ?action_order

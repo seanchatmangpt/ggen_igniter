@@ -241,11 +241,16 @@ mix ggen_igniter.sync \
 store) via `lib/ggen_igniter/engine/graphlaw.ex` — a real, independent SPARQL
 engine identity with no shared code with oxigraph or the `sparql` hex
 package, which is exactly what makes it useful as a differential-court
-witness. The wasm artifact path comes from
-`Application.get_env(:ggen_igniter, :graphlaw_wasm_path)` (explicit override)
-or the built-in default `~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm`;
-a missing artifact fails fast in `prepare!/2` with a typed error naming the
-exact path and build command. Rows use the same plain (unwrapped)
+witness. The wasm artifact (MIT-licensed upstream — a RoXi fork) ships inside
+this package at `priv/graphlaw_wasm.wasm` (sha256
+`8bfff66cccd1e1a4834d61a893888bb479f046c1da1152a29098be7de0fe71a8`), so hex
+consumers need no extra download. The path comes from
+`Application.get_env(:ggen_igniter, :graphlaw_wasm_path)` (explicit override),
+else the packaged artifact, else the built-in dev default
+`~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm`; a checksummed
+`graphlaw.wasm` is also attached to each graphlaw GitHub release. A missing
+artifact fails fast in `prepare!/2` with a typed error naming the exact paths
+tried and the build/download commands. Rows use the same plain (unwrapped)
 normalization as `--engine oxigraph`, so a template sees identical values
 across both engines. Comparison mode is the intended usage — when the two
 engines disagree on row-set the run REFUSES (nonzero exit) rather than

@@ -1,8 +1,13 @@
 # Changelog
 
-## v26.9.31 (unreleased)
+## v26.9.31 (2026-10-01)
 
-Wave B (community-pack qualification). `mix.exs` `version:` stays 26.9.30 until release.
+Wave B (community-pack qualification) plus the graphlaw wasm engine.
+
+- **Added** the graphlaw wasm artifact ships inside the hex package
+  (`priv/graphlaw_wasm.wasm`, MIT-licensed upstream RoXi fork, sha256
+  `8bfff66c…e71a8`), so hex consumers get a working `--engine graphlaw` with
+  no local graphlaw checkout; release-download fallback documented.
 
 - **Added** `state-machine-pack`: RDF state machines rendered to modules; typed refusals
   `STATE_UNREACHABLE`, `STATE_DEAD_END`, `TRANSITION_UNKNOWN_STATE`, `INITIAL_STATE_MISSING`,
@@ -23,7 +28,17 @@ Wave B (community-pack qualification). `mix.exs` `version:` stays 26.9.30 until 
   CI Postgres service and `docker-compose.e2e.yml` `db` profile.
 - **Added** test-only deps (`only: [:dev, :test]`, not in the package): `ash_json_api`,
   `ash_ai`, `ash_state_machine`, `ash_oban`, `oban`.
-- **Refusals:** 128 codes (18 added for the packs above) + 24 wrapped reasons.
+- **Added** `GgenIgniter.Engine.Graphlaw`: wasmex-hosted `graphlaw_wasm.wasm` (WASI store,
+  `gl_alloc`/`gl_call`/`gl_free` JSON ABI), registered as `"graphlaw"` in the engine registry;
+  the MIT-licensed artifact ships inside the package at `priv/graphlaw_wasm.wasm`, so hex
+  consumers need no extra download (resolution: Application env override -> packaged
+  artifact -> dev checkout default);
+  `--engine graphlaw` and comparison mode `--engine oxigraph,graphlaw` parse and run. Comparison
+  gate raises `ENGINE_COMPARISON_DIVERGENT` on real row-set divergence between two `:ok`
+  candidates. Differential validation on the real corpus: 31/31 gates agree with oxigraph,
+  zero divergences (negative control witnessed).
+- **Refusals:** 130 codes (18 added for the packs above, 1 for `ENGINE_COMPARISON_DIVERGENT`,
+  with the schema total reconciled) + 24 wrapped reasons.
 
 ## v26.9.30
 
