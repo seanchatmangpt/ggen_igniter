@@ -97,61 +97,62 @@ SELECT DISTINCT ?subject WHERE {
     pack_dir
   end
 
-  defp work_orders_file!(dir, head) do
+  defp work_orders_file!(dir, head, target_pack \\ nil) do
     path = Path.join(dir, "work_orders.json")
 
-    File.write!(
-      path,
-      Jason.encode!(%{
-        "work_orders" => [
-          %{
-            "identity" => @identity,
-            "title" => "Execute one order through the local loop",
-            "description" => "Known-class pack manufacture at the target HEAD.",
-            "subject" => "execute-test:subject",
-            "repository" => "o/r",
-            "base_sha" => head,
-            "standing" => "UNKNOWN",
-            "evidence_ceiling" => "repository-local",
-            "promotion_rule" => "all_courts",
-            "replay_identity" => "execute:v1:EXEC-1",
-            "required_courts" => [@suite],
-            "required_evidence" => ["verification"],
-            "acceptance" => ["urn:semantic-jira:acceptance:EXEC-1:a1"],
-            "falsifiers" => ["urn:semantic-jira:falsifier:EXEC-1:f1"],
-            "projections" => ["jira"],
-            "origin_authority" => @origin_authority,
-            "dependencies" => []
-          }
-        ]
-      })
-    )
+    order = %{
+      "identity" => @identity,
+      "title" => "Execute one order through the local loop",
+      "description" => "Known-class pack manufacture at the target HEAD.",
+      "subject" => "execute-test:subject",
+      "repository" => "o/r",
+      "base_sha" => head,
+      "standing" => "UNKNOWN",
+      "evidence_ceiling" => "repository-local",
+      "promotion_rule" => "all_courts",
+      "replay_identity" => "execute:v1:EXEC-1",
+      "required_courts" => [@suite],
+      "required_evidence" => ["verification"],
+      "acceptance" => ["urn:semantic-jira:acceptance:EXEC-1:a1"],
+      "falsifiers" => ["urn:semantic-jira:falsifier:EXEC-1:f1"],
+      "projections" => ["jira"],
+      "origin_authority" => @origin_authority,
+      "dependencies" => []
+    }
+
+    order = if target_pack, do: Map.put(order, "target_pack", target_pack), else: order
+
+    File.write!(path, Jason.encode!(%{"work_orders" => [order]}))
 
     path
   end
 
   defp local_opts(ctx, extra \\ []) do
-    [
-      work_orders: ctx.work_orders,
-      ledger: ctx.ledger,
-      identity: @identity,
-      verifier_suite: @suite,
-      alias: "o/r=target",
-      pack_dir: ctx.pack,
-      target_dir: ctx.target.dir,
-      receipt_out: ctx.receipt_out
-    ] ++ extra
+    # `extra` FIRST: `Keyword.get/3` reads the first occurrence, so an
+    # explicit `work_orders:` override must precede the base list.
+    extra ++
+      [
+        work_orders: ctx.work_orders,
+        ledger: ctx.ledger,
+        identity: @identity,
+        verifier_suite: @suite,
+        alias: "o/r=target",
+        pack_dir: ctx.pack,
+        target_dir: ctx.target.dir,
+        receipt_out: ctx.receipt_out
+      ]
   end
 
   defp external_opts(ctx, receipt_path, extra \\ []) do
-    [
-      work_orders: ctx.work_orders,
-      ledger: ctx.ledger,
-      identity: @identity,
-      verifier_suite: @suite,
-      alias: "o/r=target",
-      receipt: receipt_path
-    ] ++ extra
+    extra ++
+      [
+        work_orders: ctx.work_orders,
+        ledger: ctx.ledger,
+        identity: @identity,
+        verifier_suite: @suite,
+        alias: "o/r=target",
+        receipt: receipt_path
+      ]
   end
 
   defp ledger_bytes(ctx) do
@@ -300,6 +301,99 @@ SELECT DISTINCT ?subject WHERE {
       # Ambiguous execution input is invalid invocation, not a refusal.
       assert {2, %{"status" => "invalid_invocation"}} =
                Execute.run(external_opts(ctx, receipt_path, pack_dir: ctx.pack))
+    end
+  end
+
+  describe "run/1 sj:targetPack enforcement (local backend)" do
+    # The tmp pack fixture has no pack.toml, so the lawful name source is
+    # the basename fallback: the pack RESOLVES to "pack" here. A matching
+    # target_pack executes exactly as the no-constraint cases above.
+    test "an order naming the pack the --pack-dir resolves to executes as before", ctx do
+      work_orders = work_orders_file!(ctx.dir, ctx.target.head, "pack")
+      opts = local_opts(ctx, work_orders: work_orders)
+
+      assert {0, result} = Execute.run(opts)
+      assert result["status"] == "executed"
+      assert result["target"] == "PARTIAL_ALIVE"
+      assert [%{"identity" => @identity, "to" => "PARTIAL_ALIVE"}] =
+               TransitionLog.read(ctx.ledger)
+    end
+
+    test "an order naming a different pack refuses target_pack_mismatch before ANYTHING runs",
+         ctx do
+      work_orders = work_orders_file!(ctx.dir, ctx.target.head, "other-pack")
+      out_dir = Path.join(ctx.dir, "out")
+
+      before = ledger_bytes(ctx)
+      marker = Path.join(ctx.target.dir, "ggen-manufactured")
+
+      assert {1, refusal} =
+               Execute.run(
+                 local_opts(ctx, work_orders: work_orders, out_dir: out_dir)
+               )
+
+      assert refusal["standing"] == "REFUSED(target_pack_mismatch)"
+      assert refusal["reason"] == "target_pack_mismatch"
+      assert refusal["broken_term"] == "mu_unlawful"
+      assert refusal["hop"] == "execute"
+      assert refusal["detail"] == %{"expected" => "other-pack", "resolved" => "pack"}
+
+      # The refusal is also on disk where --out-dir asked for it.
+      assert File.read!(Path.join(out_dir, "refused.json")) |> Jason.decode!() == refusal
+
+      # NOTHING executed: the target tree holds no actuated file, no
+      # receipt was synthesized, the ledger is byte-unchanged.
+      refute File.exists?(marker)
+      assert File.ls!(ctx.target.dir) |> Enum.sort() == [".git", "README"]
+      refute File.exists?(ctx.receipt_out)
+      assert ledger_bytes(ctx) == before
+    end
+
+    test "a pack.toml [pack].name wins over the basename when both differ", ctx do
+      File.write!(
+        Path.join(ctx.pack, "pack.toml"),
+        ~s([pack]\nname = "manifest-name"\nversion = "0.1.0"\ndescription = "execute test pack"\n)
+      )
+
+      # Mismatch run FIRST (fresh ledger): the old basename no longer
+      # resolves, because the manifest, not the directory name, is the
+      # lawful identity.
+      work_orders = work_orders_file!(ctx.dir, ctx.target.head, "pack")
+
+      assert {1, refusal} = Execute.run(local_opts(ctx, work_orders: work_orders))
+      assert refusal["standing"] == "REFUSED(target_pack_mismatch)"
+      assert refusal["detail"] == %{"expected" => "pack", "resolved" => "manifest-name"}
+      refute File.exists?(ctx.receipt_out)
+
+      # And the manifest name executes exactly as before.
+      work_orders = work_orders_file!(ctx.dir, ctx.target.head, "manifest-name")
+
+      assert {0, result} = Execute.run(local_opts(ctx, work_orders: work_orders))
+      assert result["status"] == "executed"
+    end
+
+    # Control: the external backend is fabric-owned execution -- the same
+    # mismatching order executes there with NO pack involvement. The sealed
+    # export is minted from the SAME target_pack-carrying orders the
+    # execute run consumes (the bridge echoes the order, so the export must
+    # be sealed against this shape, not the no-target_pack shape).
+    test "the external backend does not check sj:targetPack at all", ctx do
+      work_orders = work_orders_file!(ctx.dir, ctx.target.head, "other-pack")
+
+      assert {:ok, descriptor} =
+               Descriptor.build_xaas_contract(work_order_list(ctx), [], @identity,
+                 verifier_suite: @suite,
+                 aliases: %{"o/r" => "target"}
+               )
+
+      export = sealed_partial_alive(descriptor["bridge"])
+      receipt_path = Path.join(ctx.dir, "external-export.json")
+      File.write!(receipt_path, Jason.encode!(export))
+
+      assert {0, result} = Execute.run(external_opts(ctx, receipt_path, work_orders: work_orders))
+      assert result["status"] == "executed"
+      assert [%{"identity" => @identity, "to" => "PARTIAL_ALIVE"}] =
+               TransitionLog.read(ctx.ledger)
     end
   end
 

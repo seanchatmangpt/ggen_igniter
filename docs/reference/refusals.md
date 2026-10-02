@@ -31,7 +31,7 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 131 codes (`$defs.code.enum` length; derived from the
+The registry holds 132 codes (`$defs.code.enum` length; derived from the
 schema by `GgenIgniter.Refusals.count/0`, never hand-maintained) plus 24
 wrapped reasons. Regenerate both tables below with:
 
@@ -161,6 +161,7 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `SUBJECT_PREFIX_UNDECLARED` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Declare the subject namespace prefix in the ontology. |
 | `TRANSITION` | typed_tuple | false | R_missing_standing | `GgenIgniter.SemanticJira` | Present a genuine intent: its transition_digest must re-derive (intent_digest_mismatch), its from must equal the current standing (stale_intent) and bind the work-order digest (intent_not_bound_to_work_order). |
 | `TRANSITION_UNKNOWN_STATE` | state_machine | false | mu_on_O | `GgenIgniter.Packs.StateMachine` | Declare the from/to/initial state as an sm:State of the same machine, or correct the transition's state name. |
+| `TARGET_PACK_MISMATCH` | semantic_work_order | false | mu_unlawful | `GgenIgniter.SemanticJira.Execute` | Execute against the pack the order names: pass the --pack-dir whose pack.toml [pack].name (or, absent a manifest, its directory basename) equals the order's sj:targetPack. |
 | `TARGET_PACK_UNKNOWN` | semantic_work_order | true | R_missing_identity | `GgenIgniter.SemanticJira.TargetPack` | Create the pack at priv/ggen/<name> (cwd-relative) or pass --pack-dir with a real pack directory. |
 | `UNADMITTED` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Admit the file with mix ggen_igniter.hand_authored. |
 | `UNCOVERED_GATE` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Prose` | Cover every gate of the root with at least one proposition. |
@@ -176,13 +177,6 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `WORK_ORDER` | typed_tuple | false | mu_on_O | `GgenIgniter.SemanticJira` | admit_work_order takes a map with every required work-order field valid; fix the field named in the reason (expected_map means a non-map was passed). |
 | `WORK_ORDER_ABSENT` | semantic_work_order | true | mu_on_O | `GgenIgniter.SemanticWorkOrder` | The execution package names a work order file that is missing on disk; restore it or rebuild the package. |
 | `WORK_ORDER_DRIFT` | semantic_work_order | false | R_missing_identity | `GgenIgniter.SemanticWorkOrder` | The work order on disk no longer matches the digest recorded in the package; rebuild the execution package from the current work order. |
-## Wrapped reasons
-
-Reason atoms emitted as bare `{:error, :reason}` / `{:refused, :reason}` that
-always surface under a registered parent code. They are declared in the
-schema's top-level `wrapped_reasons` so the exhaustiveness test can account
-for them.
-
 | reason | surfaces under | note |
 |---|---|---|
 | `INTENT_DIGEST_MISMATCH` | `TRANSITION` | apply_transition wraps every intent check as {:refused_transition, reason} |
@@ -209,8 +203,3 @@ for them.
 | `DUPLICATE_WORK_IDENTITY` | `CS2_BATCH` | CS2Batch.admit wraps every reason as {:refused_cs2_batch, reason} |
 | `MISSING_WORK_IDENTITY` | `CS2_BATCH` | CS2Batch.admit wraps every reason as {:refused_cs2_batch, reason} |
 | `INVALID_BATCH_SHAPE` | `CS2_BATCH` | CS2Batch.admit wraps every reason as {:refused_cs2_batch, reason} |
-
-## See Also
-
-- `docs/glossary.md` — REFUSED_*, broken terms, standing, gate, admission
-- `priv/schema/receipt.schema.json` — the receipt these refusals appear in

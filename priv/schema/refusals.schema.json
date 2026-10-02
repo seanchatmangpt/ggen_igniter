@@ -159,6 +159,7 @@
         "STATE_UNREACHABLE",
         "SUBJECT_EXHAUSTED",
         "SUBJECT_PREFIX_UNDECLARED",
+        "TARGET_PACK_MISMATCH",
         "TARGET_PACK_UNKNOWN",
         "TRANSITION",
         "TRANSITION_UNKNOWN_STATE",
@@ -1283,6 +1284,15 @@
       "fix_hint": "Declare the from/to/initial state as an sm:State of the same machine, or correct the transition's state name.",
       "broken_term": "mu_on_O",
       "example": "REFUSED:TRANSITION_UNKNOWN_STATE <detail>"
+    },
+    {
+      "code": "TARGET_PACK_MISMATCH",
+      "family": "semantic_work_order",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Execute",
+      "fix_hint": "Execute against the pack the order names: pass the --pack-dir whose pack.toml [pack].name (or, absent a manifest, its directory basename) equals the order's sj:targetPack.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:TARGET_PACK_MISMATCH expected=sync-pack resolved=demo-pack"
     },
     {
       "code": "TARGET_PACK_UNKNOWN",

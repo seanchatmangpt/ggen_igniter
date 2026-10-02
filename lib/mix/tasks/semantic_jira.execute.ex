@@ -18,7 +18,19 @@ defmodule Mix.Tasks.SemanticJira.Execute do
 
   ## Backends (exactly one; anything else is exit 2)
 
-    * **local** — `--pack-dir` + `--target-dir` + `--receipt-out`: checks
+    * **local** — `--pack-dir` + `--target-dir` + `--receipt-out`: first
+      enforces the order's `sj:targetPack` against the real pack — when
+      the executed order names a target pack (FORMAT-verified at
+      admission; `nil` = no constraint), the `--pack-dir` must resolve to
+      the same pack name (`pack.toml` `[pack].name` via
+      `GgenIgniter.Pack.parse_manifest/1` when present, else the
+      directory's basename). A mismatch refuses
+      `REFUSED(target_pack_mismatch)` / `mu_unlawful` at the `execute`
+      hop BEFORE anything runs — no rev-parse, no pipeline, no receipt,
+      ledger byte-unchanged (sync's `GgenIgniter.SemanticJira.TargetPack.
+      enforce!/2` enforcement no longer evaporates between sync and
+      execute; the pack-lock digest comparison against the sync stamp is
+      the disclosed follow-on, not yet this task's law). Then checks
       `git -C <target> rev-parse HEAD` against the order's `base_sha`
       (`base_drift` on drift), runs the real `GgenIgniter.Reconcile.run/1`
       pipeline over the pack (`sync_failed` if it raises), then the real
@@ -35,6 +47,10 @@ defmodule Mix.Tasks.SemanticJira.Execute do
     * **external** — `--receipt PATH`: the sealed XaaS export arrives as
       data (produced by the xaas fabric elsewhere); only the mapping
       through `Descriptor.receipt_from_xaas/2` and the ledger append run.
+      No pack involvement — the fabric owned the execution, so
+      `sj:targetPack` is not checked on this backend (and `--receipt` is
+      already mutually exclusive with `--pack-dir`/`--target-dir` at exit
+      2).
 
   ## Flags
 

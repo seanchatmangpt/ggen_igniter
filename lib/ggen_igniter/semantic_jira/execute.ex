@@ -19,17 +19,37 @@ defmodule GgenIgniter.SemanticJira.Execute do
       passes through verbatim.
     * **execute** -- exactly one backend, chosen at the invocation boundary:
       local (`--pack-dir` + `--target-dir`) or external (`--receipt PATH`,
-      a sealed XaaS export consumed as data). Local: `git -C target
-      rev-parse HEAD` must equal the descriptor's `base_sha` (else
-      `base_drift`); then `GgenIgniter.Reconcile.run/1` over the pack at
-      `--pack-dir` with a static out path inside `--target-dir`
+      a sealed XaaS export consumed as data). The EXTERNAL backend has no
+      pack involvement at all: the fabric owned the execution, so no
+      `sj:targetPack` check runs there (pack enforcement is a property of
+      the LOCAL pipeline, which is the one that opens the pack). Local:
+      first the order's `sj:targetPack` (FORMAT-verified at admission by
+      `GgenIgniter.SemanticJira.admit_work_order/1`'s `@pack_name` regex;
+      `nil` = no constraint, behavior unchanged) must match the resolved
+      `--pack-dir`: the lawful name source is `pack.toml`'s `[pack].name`
+      via `GgenIgniter.Pack.parse_manifest/1` when a valid manifest is
+      present, else the directory's basename -- the same precedence sync's
+      `GgenIgniter.SemanticJira.TargetPack.enforce!/2` implies by resolving
+      `[pack: name]`. A mismatch refuses `target_pack_mismatch`
+      (`REFUSED(target_pack_mismatch)`, `mu_unlawful`) BEFORE
+      `git rev-parse`, `GgenIgniter.Reconcile.run/1`, or any gate runs --
+      sync's pack enforcement no longer evaporates between sync and
+      execute. Then `git -C target rev-parse HEAD` must equal the
+      descriptor's `base_sha` (else `base_drift`); then
+      `GgenIgniter.Reconcile.run/1` over the pack at `--pack-dir` with a
+      static out path inside `--target-dir`
       (`ggen-manufactured/report.md`); then `GgenIgniter.GateVerify.run/2` +
       `verify_unbound/2` -- the same pair `mix ggen_igniter.verify` calls.
       Any gate or unbound-fact failure refuses `verification_failed`; a
-      pipeline raise refuses `sync_failed`. Both leave the LEDGER
+      pipeline raise refuses `sync_failed`. All three leave the LEDGER
       BYTE-UNCHANGED with no receipt written (the target tree may already
-      hold the actuated file: work happened, standing did not advance --
-      the fail-closed honesty this module exists to keep).
+      hold the actuated file in the latter two cases: work happened,
+      standing did not advance -- the fail-closed honesty this module
+      exists to keep). Disclosed follow-on (NOT this module's law yet):
+      the name check pins the NAME only; re-digesting `--pack-dir` via
+      `GgenIgniter.PackLock.digest_checked/1` and comparing it against the
+      sync-time stamp `TargetPack.enforce!/2` recorded requires reading
+      the sync receipt, which is a separate lane.
     * **receipt** -- `Descriptor.receipt_from_xaas/2` with the descriptor
       bridge: the single receipt consumer seam (v26.10.1 RESOLUTIONS R1),
       its `receipt_refused` family passing through verbatim. The export
@@ -69,6 +89,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
     | frontier  | `{:ledger_refused, _}`      | `R_missing_replay`     |
     | descriptor| `{:descriptor_refused, _}`  | `R_missing_authority`  |
     | execute   | `{:base_drift, _}`          | `mu_on_O`              |
+    | execute   | `target_pack_mismatch`      | `mu_unlawful`          |
     | execute   | `:sync_failed`              | `mu_unlawful`          |
     | execute   | `{:verification_failed, _}` | `admission_vacuous`    |
     | receipt   | `{:receipt_refused, _}`     | `R_missing_consequence`|
@@ -82,7 +103,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
   task, never the reverse.
   """
 
-  alias GgenIgniter.{GateVerify, Receipt, Reconcile}
+  alias GgenIgniter.{GateVerify, Pack, Receipt, Reconcile}
   alias GgenIgniter.SemanticJira.{Descriptor, Reconciler, TransitionLog}
 
   @outcome "partial_alive"
@@ -122,7 +143,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
                contract_opts ++ authority_opts
              )
            ),
-         {:ok, executed} <- execute_backend(backend, descriptor, opts),
+         {:ok, executed} <- execute_backend(backend, descriptor, opts, target_pack(work_orders, identity)),
          {:ok, receipted} <- receipt_from(executed, descriptor) do
       append_transition(opts, work_orders, ledger, identity, executed, receipted, authority_opts)
     else
@@ -186,9 +207,22 @@ defmodule GgenIgniter.SemanticJira.Execute do
     end
   end
 
-  # Local backend: base-drift gate, real pipeline, real fail-closed gates.
-  defp execute_backend({:local, pack_dir, target_dir}, descriptor, opts) do
-    with {:ok, head} <- base_head(target_dir, descriptor["base_sha"]),
+  # The executed order's `sj:targetPack` (nil when the order names none --
+  # no constraint). FORMAT was verified at admission; the WORLD check
+  # against the real --pack-dir happens in the local backend below.
+  defp target_pack(work_orders, identity) do
+    case Enum.find(work_orders, &(&1["identity"] == identity)) do
+      nil -> nil
+      order -> order["target_pack"]
+    end
+  end
+
+  # Local backend: target-pack name gate, base-drift gate, real pipeline,
+  # real fail-closed gates. The name gate runs FIRST so a mismatch writes
+  # nothing anywhere -- no rev-parse, no actuation, no receipt.
+  defp execute_backend({:local, pack_dir, target_dir}, descriptor, opts, target_pack) do
+    with :ok <- check_target_pack(target_pack, pack_dir),
+         {:ok, head} <- base_head(target_dir, descriptor["base_sha"]),
          {:ok, result} <- reconcile_pack(pack_dir, target_dir),
          {:ok, gates} <- gates(pack_dir) do
       paths = [result.out_path]
@@ -202,8 +236,38 @@ defmodule GgenIgniter.SemanticJira.Execute do
 
   # External backend: the sealed export arrived as data at the invocation
   # boundary; nothing executes here, only the mapping and the append remain.
-  defp execute_backend({:external, export}, _descriptor, _opts) do
+  # The fabric owned the execution, so no pack -- and no sj:targetPack
+  # check -- is involved.
+  defp execute_backend({:external, export}, _descriptor, _opts, _target_pack) do
     {:ok, %{export: export}}
+  end
+
+  # The sj:targetPack WORLD check (the sync-side law of
+  # `GgenIgniter.SemanticJira.TargetPack.enforce!/2`, carried through to
+  # execution): nil imposes no constraint; otherwise the resolved
+  # --pack-dir must RESOLVE to the same pack name the order names. The
+  # lawful name source is `pack.toml`'s `[pack].name`
+  # (`GgenIgniter.Pack.parse_manifest/1`) when a valid manifest is present;
+  # the directory's basename is the fallback (a legacy pack without a
+  # manifest is still a pack, and `Pack.resolve_dir!/1`'s `--pack NAME`
+  # convention already names packs by directory basename).
+  defp check_target_pack(nil, _pack_dir), do: :ok
+
+  defp check_target_pack(expected, pack_dir) do
+    resolved = resolve_pack_name(pack_dir)
+
+    if resolved == expected do
+      :ok
+    else
+      {:error, {"execute", {:target_pack_mismatch, expected, resolved}}}
+    end
+  end
+
+  defp resolve_pack_name(pack_dir) do
+    case Pack.parse_manifest(pack_dir) do
+      {:ok, %Pack.Manifest{name: name}} -> name
+      _ -> pack_dir |> Path.expand() |> Path.basename()
+    end
   end
 
   # `git -C <target> rev-parse HEAD` must equal the descriptor's `base_sha`:
@@ -351,16 +415,31 @@ defmodule GgenIgniter.SemanticJira.Execute do
 
   # One refusal shape, one write: `{1, typed}` and, with `--out-dir`, the same
   # map at `<out-dir>/refused.json`. Emitted for every exit-1 refusal; exit-2
-  # invalid invocation is not a refusal and writes nothing.
+  # invalid invocation is not a refusal and writes nothing. The
+  # target-pack mismatch carries the kernel's `REFUSED(reason)` standing
+  # form (`semantic_jira.ex`'s `standing/1` vocabulary) with a structured
+  # `expected`/`resolved` detail instead of a prose string.
+  defp refuse(opts, hop, {:target_pack_mismatch, expected, resolved} = reason) do
+    emit_refusal(opts, %{
+      "standing" => "REFUSED(target_pack_mismatch)",
+      "reason" => "target_pack_mismatch",
+      "broken_term" => broken_term(reason),
+      "hop" => hop,
+      "detail" => %{"expected" => expected, "resolved" => resolved}
+    })
+  end
+
   defp refuse(opts, hop, reason) do
-    typed = %{
+    emit_refusal(opts, %{
       "standing" => "REFUSED",
       "reason" => jsonable(reason),
       "broken_term" => broken_term(reason),
       "hop" => hop,
       "detail" => detail(hop, reason)
-    }
+    })
+  end
 
+  defp emit_refusal(opts, typed) do
     if out_dir = opts[:out_dir] do
       File.mkdir_p!(out_dir)
       File.write!(Path.join(out_dir, "refused.json"), Jason.encode!(typed, pretty: true) <> "\n")
@@ -374,6 +453,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
   defp broken_term({:ledger_refused, _}), do: "R_missing_replay"
   defp broken_term({:descriptor_refused, _}), do: "R_missing_authority"
   defp broken_term({:base_drift, _}), do: "mu_on_O"
+  defp broken_term({:target_pack_mismatch, _, _}), do: "mu_unlawful"
   defp broken_term(:sync_failed), do: "mu_unlawful"
   defp broken_term({:verification_failed, _}), do: "admission_vacuous"
   defp broken_term({:receipt_refused, _}), do: "R_missing_consequence"
