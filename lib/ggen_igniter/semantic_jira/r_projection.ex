@@ -55,6 +55,27 @@ defmodule GgenIgniter.SemanticJira.RProjection do
       guard — but `project/2` is fail-closed, not trusting it) ->
       `"UNKNOWN"`.
 
+  ## Digest boundary law (which fields carry a prefix, from the schema)
+
+  The fleet boundary rule "every digest riding an R receipt must be
+  `sha256:`-prefixed" is NOT uniform across the R v2 schema — each field's
+  own `pattern` decides, and `GgenIgniter.Digest.hex/1` vs `Digest.sha256/1`
+  is chosen per field from the schema, not from the rule's prose:
+
+    * `replay/commands/N/output_sha256` — schema pattern `^[0-9a-f]{64}$`:
+      BARE hex, deliberately unprefixed (see `put_output_sha/2`, the only
+      `Digest.hex/1` emission site on the R boundary). Prefixing it would
+      refuse the receipt. This is the same bare-hex shape `check/1`'s
+      `@hex64` re-states.
+    * `subject_before`/`subject_after` and `identity.graph_hash` — schema
+      pattern `^sha256:[0-9a-f]{64}$`: PREFIXED (`Digest.sha256/1` shape,
+      carried through from `GgenIgniter.Receipt.hash_entries/1`).
+    * `identity.subject_digest.value` — schema pattern `^[0-9a-f]{64,}$`:
+      BARE hex by schema. The bare-hex exception for this field: when a
+      non-commit subject rides `subject_digest`, its `value` is unprefixed
+      (`algorithm` names the hash). This module does not project
+      `subject_digest` today (its subjects are commit-anchored).
+
   ## Field law
 
     * `pre_run_hash`/`post_run_hash` (`"sha256:hex"` over the exact touched

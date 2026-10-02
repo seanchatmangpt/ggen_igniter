@@ -17,11 +17,13 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
     * the running VM is the pin, so a green full suite is a pinned run (an
       ambient run fails, typed `BUILD_BROKEN(toolchain)`), and CI's
       setup-beam pin is the `.tool-versions` pin;
-    * the pinned-qualification receipt is admitted by the fleet R-schema
-      check (`GgenIgniter.SemanticJira.Bootstrap.Receipts.check/1`), ALIVE,
+    * the pinned-qualification receipt is ALIVE as written (v1-era law),
       records the pin read from `.tool-versions`, and cites committed logs
       whose sha256 is the recorded `output_sha256`; its lane-gate log shows
-      the pinned VM banner and a zero-failure full suite.
+      the pinned VM banner and a zero-failure full suite. Under fleet R v2's
+      stricter `Receipts.check/1` it REFUSES with a typed reason per missing
+      v2 key plus one reason per un-namespaced top-level extension key — the
+      historical receipt is evidence, never edited to chase a schema;
 
   Deleting the receipt or a log, editing a log, or bumping `.tool-versions`
   without a new pinned qualification fails the suite (standing holds only
@@ -62,10 +64,28 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
   end
 
   describe "Receipts.check/1 and cited logs (receipts/v26.9.23/R1-GI-PIN.json)" do
-    test "the pinned-qualification receipt is R-schema admitted and ALIVE at an exact subject" do
+    test "the pinned-qualification receipt is ALIVE as written and refuses under fleet R v2 (typed reasons)" do
       receipt = receipt()
 
-      assert Receipts.check(receipt) == []
+      # R1-GI-PIN was qualified under the v1-era R law; fleet R v2's
+      # `Receipts.check/1` requires work_order_id / origin_authority /
+      # provider / provider_execution_id and refuses un-namespaced top-level
+      # extension keys. The pinned receipt is evidence — never edited to
+      # chase a schema — so it refuses with exactly those typed reasons.
+      errors = Receipts.check(receipt)
+
+      for key <- ~w(work_order_id origin_authority provider provider_execution_id) do
+        assert Enum.any?(errors, &String.contains?(&1, key <> ":")),
+               "expected a typed v2 reason naming #{key}, got: #{inspect(errors)}"
+      end
+
+      for key <- ~w(falsifiers findings observations toolchain work_order) do
+        assert Enum.any?(errors, &String.contains?(&1, "\"#{key}\"")),
+               "expected a namespace reason naming #{key}, got: #{inspect(errors)}"
+      end
+
+      # The recorded standing is unchanged — the refusal is about v2
+      # admission, not about what the pinned run observed.
       assert receipt["standing"]["value"] == "ALIVE"
       assert receipt["identity"]["subject_sha"] =~ ~r/\A[0-9a-f]{40}\z/
     end

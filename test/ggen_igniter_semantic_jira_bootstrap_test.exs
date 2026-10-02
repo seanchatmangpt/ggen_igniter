@@ -121,7 +121,13 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
         "remote_effects" => []
       },
       "replay" => %{"commands" => [%{"cmd" => "mix test", "cwd" => ".", "exit" => 0}]},
-      "standing" => %{"value" => standing, "derived_from" => "fixture run at #{subject_sha}"}
+      "standing" => %{"value" => standing, "derived_from" => "fixture run at #{subject_sha}"},
+      # Fleet R v2 required keys: `Bootstrap.Receipts.check/1` refuses a
+      # v1-only receipt with a typed reason per missing key.
+      "work_order_id" => "WO-" <> id,
+      "origin_authority" => %{"grant" => "NONE", "actor" => "fixture"},
+      "provider" => %{"name" => "fixture"},
+      "provider_execution_id" => "fixture-run-1"
     }
   end
 

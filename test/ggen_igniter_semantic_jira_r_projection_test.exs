@@ -320,6 +320,26 @@ defmodule GgenIgniter.SemanticJira.RProjectionTest do
       assert replayed["exit"] == 0
     end
 
+    test "output_sha256 is BARE 64-hex on the R boundary (schema pattern ^[0-9a-f]{64}$)", %{
+      repo: repo
+    } do
+      # Rd3 digest-boundary determination, from the schema not the prose rule:
+      # `replay/commands/N/output_sha256`'s schema pattern is `^[0-9a-f]{64}$`,
+      # so `Digest.hex/1` (unprefixed) is the ONLY lawful emission shape here —
+      # prefixing it would refuse the receipt. The prefixed fields are
+      # subject_before/subject_after and identity.graph_hash.
+      r = project_ok!(receipt!(:alive), repo: repo)
+      [replayed] = r["replay"]["commands"]
+
+      assert replayed["output_sha256"] == GgenIgniter.Digest.hex("compiled ok")
+      assert Regex.match?(~r/\A[0-9a-f]{64}\z/, replayed["output_sha256"])
+      refute String.starts_with?(replayed["output_sha256"], "sha256:")
+
+      # The prefixed fields really are prefixed (the boundary is per-field).
+      assert String.starts_with?(r["subject_before"], "sha256:")
+      assert String.starts_with?(r["subject_after"], "sha256:")
+    end
+
     test "authority defaults; origin_authority mirrors authority", %{repo: repo} do
       r = project_ok!(receipt!(:alive), repo: repo)
 

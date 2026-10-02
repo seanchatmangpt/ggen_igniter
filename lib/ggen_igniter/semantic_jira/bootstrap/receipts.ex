@@ -6,13 +6,21 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Receipts do
   and applies the exact-subject law (PR-006, ARD section 26 F5/F6).
 
   Admission (`check/1`) is the structural content of the fleet R schema --
-  required fields, 40-hex subject/base SHAs, `authority.ceiling` in
-  OBSERVE/SELECT/CONSTRUCT/DO, a non-empty replay command list with integer
-  exits, the standing pattern, `broken_term` required for
-  BLOCKED/BUILD_BROKEN/REFUSED -- plus the validator's semantic rule that an
-  ALIVE receipt has no non-zero replay exit (`admission_vacuous`). The
-  schema file itself lives under `~/.zcode/dfcm`, which the bootstrap may not
-  read (ARD section 16), so its law is restated here.
+  the v1 required fields (`identity`, `authority`, `consequence`, `replay`,
+  `standing`; 40-hex subject/base SHAs; `authority.ceiling` in
+  OBSERVE/SELECT/CONSTRUCT/DO; a non-empty replay command list with integer
+  exits; the standing pattern; `broken_term` required for
+  BLOCKED/BUILD_BROKEN/REFUSED), PLUS the fleet R v2 required keys
+  (`work_order_id`, `origin_authority{grant,actor}` with an optional
+  OBSERVE/SELECT/CONSTRUCT/DO ceiling, `provider{name}`,
+  `provider_execution_id`), the extension-namespace rule (every top-level key
+  outside the known set must match `^provider_ext\\.[a-z0-9][a-z0-9_.-]*$`
+  and be an object), and the validator's semantic rule that an ALIVE receipt
+  has no non-zero replay exit (`admission_vacuous`). A v1-only receipt (one
+  carrying only the five v1 fields) refuses with the typed v2 reasons above --
+  a string per missing key, never a crash. The fleet schema's promoted home
+  is fleet-side (see docs/jira/v26.10.2 for its promoted home), which the
+  bootstrap may not read (ARD section 16), so its law is restated here.
 
   Linking mirrors `mix xaas.stop_court`: a receipt is linked to work order
   `O` when `identity.subject` is `O`'s identity (or `identity.work_order`
@@ -121,6 +129,18 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Receipts do
     end
   end
 
+  # Top-level keys the fleet R v2 schema declares (schema `properties`) plus
+  # the v1-era `identity.work_order`/`identity.tuple_digest` fields the
+  # bootstrap's own linking law consumes (`names_order?/3`,
+  # `classify/5`'s tuple binding). Every OTHER top-level key must be a
+  # namespaced `provider_ext.<provider>` extension object.
+  @known_top_level_keys ~w(
+    identity authority consequence replay standing
+    work_order_id origin_authority provider provider_execution_id
+    subject_before subject_after replay_binding
+  )
+  @ext_key ~r/\Aprovider_ext\.[a-z0-9][a-z0-9_.-]*\z/
+
   @doc "Structural R-schema errors of a decoded receipt (`[]` = admitted)."
   @spec check(map()) :: [String.t()]
   def check(receipt) do
@@ -130,10 +150,71 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Receipts do
       consequence_errors(receipt["consequence"]),
       replay_errors(receipt["replay"]),
       standing_errors(receipt["standing"]),
+      v2_errors(receipt),
+      extension_errors(receipt),
       vacuity_errors(receipt)
     ]
     |> List.flatten()
   end
+
+  ## -- fleet R v2 required keys ----------------------------------------------
+
+  # The schema's v2 additions (`required` list): `work_order_id`,
+  # `origin_authority{grant,actor}` (+ optional ceiling enum),
+  # `provider{name}`, `provider_execution_id`. One typed string per missing
+  # key, so a v1-only receipt refuses with reasons, never a crash.
+  defp v2_errors(receipt) do
+    [
+      require_string(receipt, "receipt", "work_order_id"),
+      origin_authority_errors(receipt["origin_authority"]),
+      provider_errors(receipt["provider"]),
+      require_string(receipt, "receipt", "provider_execution_id")
+    ]
+    |> List.flatten()
+  end
+
+  defp origin_authority_errors(%{} = origin_authority) do
+    [
+      require_string(origin_authority, "origin_authority", "grant"),
+      require_string(origin_authority, "origin_authority", "actor"),
+      if(is_nil(origin_authority["ceiling"]) or origin_authority["ceiling"] in @ceilings,
+        do: [],
+        else: ["origin_authority/ceiling: not in #{inspect(@ceilings)}"]
+      )
+    ]
+  end
+
+  defp origin_authority_errors(_), do: ["origin_authority: required object"]
+
+  defp provider_errors(%{} = provider) do
+    [require_string(provider, "provider", "name")]
+  end
+
+  defp provider_errors(_), do: ["provider: required object"]
+
+  ## -- extension-namespace rule -----------------------------------------------
+
+  # The schema's top level stays OPEN, but the fleet validator (whose rule
+  # this restates) refuses un-namespaced extension keys: every top-level key
+  # outside `@known_top_level_keys` must match
+  # `^provider_ext\.[a-z0-9][a-z0-9_.-]*$` and carry an object.
+  defp extension_errors(receipt) when is_map(receipt) do
+    for {key, value} <- receipt,
+        key not in @known_top_level_keys,
+        not Regex.match?(@ext_key, key) or not is_map(value),
+        do: ext_error(key, value)
+  end
+
+  defp extension_errors(_), do: []
+
+  defp ext_error(key, value) when is_map(value),
+    do: [
+      "#{inspect(key)}: extension keys must be namespaced " <>
+        "(#{Regex.source(@ext_key)}), not bare at top level"
+    ]
+
+  defp ext_error(key, _value),
+    do: ["#{inspect(key)}: namespaced extension object required (#{Regex.source(@ext_key)})"]
 
   defp identity_errors(%{} = identity) do
     [
