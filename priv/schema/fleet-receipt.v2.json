@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatmangpt.com/schema/receipt/v2",
+  "title": "R = receipt(A): identity, authority, consequence, replay, standing + ALOOP execution provenance",
+  "description": "v2: adds work_order_id, origin_authority, provider, provider_execution_id (required), optional subject_before/subject_after digests, identity.subject_digest for non-commit (sha256/blake3 pack) subjects riding on a commit anchor, and the namespaced provider extension map (provider_ext.<provider>). The top level stays OPEN; the validator (not this schema) refuses un-namespaced extension keys and enforces that identity.subject_sha is a real git commit (or the receipt routes a non-commit subject through identity.subject_digest).",
+  "type": "object",
+  "required": [
+    "identity",
+    "authority",
+    "consequence",
+    "replay",
+    "standing",
+    "work_order_id",
+    "origin_authority",
+    "provider",
+    "provider_execution_id"
+  ],
+  "properties": {
+    "work_order_id": {"type": "string", "minLength": 1, "description": "id of the work order this execution discharged (ALOOP ExecutionRequest.work_order)"},
+    "origin_authority": {
+      "type": "object",
+      "required": ["grant", "actor"],
+      "properties": {
+        "ceiling": {"enum": ["OBSERVE", "SELECT", "CONSTRUCT", "DO"]},
+        "grant": {"type": "string", "minLength": 1, "description": "lease id, user decision reference, or NONE"},
+        "actor": {"type": "string", "minLength": 1}
+      },
+      "description": "the authority under which the ExecutionRequest originated; events on the chain must match it (authority-mismatch falsifier)"
+    },
+    "provider": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "description": "execution provider identity (ALOOP ExecutionProvider); rewrites of this name against one provider_execution_id are an identity falsifier"},
+        "transport": {"type": "string"},
+        "authority_ceiling": {"enum": ["OBSERVE", "SELECT", "CONSTRUCT", "DO"]},
+        "receipt_protocol": {"type": "string"},
+        "concurrency": {"type": "string"}
+      }
+    },
+    "provider_execution_id": {"type": "string", "minLength": 1, "description": "provider-side execution identifier; joins receipts to the OCEL event chain"},
+    "identity": {
+      "type": "object",
+      "required": ["subject", "repo", "subject_sha", "base_sha"],
+      "properties": {
+        "subject": {"type": "string", "minLength": 1, "description": "work order id or artifact name"},
+        "repo": {"type": "string", "minLength": 1},
+        "subject_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$", "description": "git commit anchor; MUST resolve as a commit in identity.repo when the validator can see it locally. Non-commit digests (sha256/blake3 pack digests) NEVER go here — put them in subject_digest."},
+        "base_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "graph_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "subject_digest": {
+          "type": "object",
+          "required": ["algorithm", "value"],
+          "properties": {
+            "algorithm": {"enum": ["sha256", "blake3"]},
+            "value": {"type": "string", "pattern": "^[0-9a-f]{64,}$"}
+          },
+          "description": "explicit alternate identity for NON-COMMIT subjects (pack digests); the commit anchor in subject_sha stays the verifiable anchor, the digest rides here"
+        }
+      }
+    },
+    "subject_before": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "optional digest of subject state before execution"},
+    "subject_after": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "optional digest of subject state after execution"},
+    "replay_binding": {
+      "type": "object",
+      "properties": {
+        "event_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "OCEL event ids this receipt claims; every actuation event must be claimed by >=1 receipt or it is an unreceipted actuation"},
+        "chain_head_hash": {"type": "string", "minLength": 1, "description": "BLAKE3/hash-chain head this receipt binds to"},
+        "predecessor_work_order_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "description": "prior receipts this one replays from or extends; DAG edges"}
+      },
+      "description": "how this receipt binds to the event chain and predecessor receipts (causal DAG edges)"
+    },
+    "authority": {
+      "type": "object",
+      "required": ["ceiling", "grant", "actor"],
+      "properties": {
+        "ceiling": {"enum": ["OBSERVE", "SELECT", "CONSTRUCT", "DO"]},
+        "grant": {"type": "string", "minLength": 1, "description": "lease id, user decision reference, or NONE"},
+        "actor": {"type": "string", "minLength": 1}
+      }
+    },
+    "consequence": {
+      "type": "object",
+      "required": ["commits", "files_changed", "remote_effects"],
+      "properties": {
+        "commits": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"}},
+        "files_changed": {"type": "array", "items": {"type": "string"}},
+        "remote_effects": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "replay": {
+      "type": "object",
+      "required": ["commands"],
+      "properties": {
+        "commands": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["cmd", "exit", "cwd"],
+            "properties": {
+              "cmd": {"type": "string", "minLength": 1},
+              "cwd": {"type": "string", "minLength": 1},
+              "exit": {"type": "integer"},
+              "summary": {"type": "string"},
+              "output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          }
+        },
+        "durable_location": {"type": "string", "description": "path tracked in git or CI artifact, never gitignored tmp"}
+      }
+    },
+    "standing": {
+      "type": "object",
+      "required": ["value", "derived_from"],
+      "properties": {
+        "value": {"type": "string", "pattern": "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED(:.+)?|BUILD_BROKEN|UNSUPPORTED(\\(.+\\))?|REFUSED\\(.+\\))$"},
+        "derived_from": {"type": "string", "minLength": 1, "description": "which replay command(s) at which subject_sha justify the value"},
+        "broken_term": {"enum": ["mu_on_O", "admission_vacuous", "mu_unlawful", "R_missing_identity", "R_missing_authority", "R_missing_consequence", "R_missing_replay", "R_missing_standing", "R_not_fed_back"]}
+      },
+      "allOf": [
+        {"if": {"properties": {"value": {"pattern": "^(BLOCKED|BUILD_BROKEN|REFUSED)"}}}, "then": {"required": ["broken_term"]}}
+      ]
+    }
+  }
+}
