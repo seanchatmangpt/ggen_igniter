@@ -91,6 +91,8 @@ utp:agentName a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent .
 utp:libPath a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent .
 utp:sa2aTarget a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent ;
     rdfs:comment "The SA2A resource-or-domain whose released capability index the agent resolves against." .
+utp:hilt a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent ;
+    rdfs:comment "Opt-in CHI-HILT work-order binding: render the DO commands bound through AshA2A.Hilt.WorkOrder.for_command!/3 + bind_command/2 and admitted by CommandBus.run's work_order opt. Requires an ash_a2a pin that carries AshA2A.Hilt (hex 26.9.x does not)." .
 
 # ── The two ports ─────────────────────────────────────────────────────────
 
@@ -104,7 +106,7 @@ utp:SA2A a utp:CapabilityPort ;
     utp:portKey "sa2a" ;
     utp:portModulePrefix "AshA2A.Info" , "AshA2A.Dispatcher" , "AshA2A.CommandBus" ,
         "AshA2A.Command" , "AshA2A.SemanticSubject" , "AshA2A.Authority" ,
-        "AshA2A.Identity" , "A2A.Message" , "A2A.Part" .
+        "AshA2A.Identity" , "AshA2A.Hilt" , "A2A.Message" , "A2A.Part" .
 
 # ── Local construction runtime ────────────────────────────────────────────
 

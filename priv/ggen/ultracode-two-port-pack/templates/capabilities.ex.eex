@@ -34,7 +34,18 @@ defmodule <%= module_prefix %>.Capabilities do
     :unauthorized,
     :provider_unavailable,
     :invalid_requirement,
-    :invocation_refused
+    :invocation_refused<%= if hilt == "true" do %>,
+    # CHI-HILT work-order binding refusals: the bus's typed admission codes
+    # (AshA2A.Hilt.WorkOrder @refusal_codes plus :consequence_unclassified)
+    # surface as the failure they name, never collapsed into a catch-all.
+    :stale_task_identity,
+    :stale_candidate_identity,
+    :stale_subject_identity,
+    :stale_work_order_identity,
+    :stale_graph_identity,
+    :stale_capability_identity,
+    :authority_ceiling_exceeded,
+    :consequence_unclassified<% end %>
   ]
 
   @doc "The closed set of typed capability failures."
@@ -215,27 +226,74 @@ defmodule <%= module_prefix %>.Capabilities do
           principal_id: AshA2A.Identity.principal(identity),
           authority: AshA2A.Authority.Grant.authorize(identity, skill.id),
           semantic_subject: subject,
-          input: input
+          input: input<%= if hilt == "true" do %>,
+          # CHI-HILT carry: the identities the bus will admit this command
+          # under. Candidate = this resolution; task = the exact work order id
+          # the bound subject names.
+          task_id: AshA2A.Identity.new(:task, resolution["subject"]["work_order_id"]),
+          metadata: %{candidate_digest: digest(resolution)}<% end %>
         )
 
-      case AshA2A.CommandBus.run(command, message, target, auth_identity: identity) do
-        {:ok, receipt} ->
-          case receipt.reply do
-            {:reply, parts} -> {:reply, parts, sa2a_receipt(receipt)}
-            {:error, reason} -> {:error, reason}
-            _ -> {:error, :invocation_refused}
-          end
-
-        {:error, %{code: code}} ->
-          {:error, code}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+      <%= if hilt == "true" do %><%= "with {:ok, command, work_order} <- hilt_order(command, skill, resolution, message, subject) do
+        bus_receipt(AshA2A.CommandBus.run(command, message, target,
+          auth_identity: identity,
+          work_order: work_order
+        ))
+      end" %><% else %><%= "bus_receipt(AshA2A.CommandBus.run(command, message, target,
+        auth_identity: identity
+      ))" %><% end %>
     end
   rescue
     _ -> {:error, :provider_unavailable}
   end
+
+  # The bus's single receipt shape, shared by both routes.
+  defp bus_receipt({:ok, receipt}) do
+    case receipt.reply do
+      {:reply, parts} -> {:reply, parts, sa2a_receipt(receipt)}
+      {:error, reason} -> {:error, reason}
+      _ -> {:error, :invocation_refused}
+    end
+  end
+
+  defp bus_receipt({:error, %{code: code}}), do: {:error, code}
+  defp bus_receipt({:error, reason}), do: {:error, reason}
+<%= if hilt == "true" do %>
+  # CHI-HILT: a DO command never runs unbound. `for_command!/3` freezes the
+  # exact identities this resolution already carries (task, candidate, exact
+  # semantic subject, capability); `bind_command/2` stamps the
+  # content-addressed `work_order_digest` into the command's fingerprint; the
+  # bus admits the pair (`admit_command/2`) before claim, receipt or DO. The
+  # subject's `graph_digest` is carried as checkpoint evidence by default, so
+  # a re-pointed graph is refused `:stale_graph_identity` at the bus and the
+  # stale_* family flows back as the typed failure it names -- into the
+  # Constructor's refused/OCEL channel, never a crash and never a bypass.
+  # Observation/action/evidence/falsifier bounds are synthesized from the
+  # resolution in hand (the same identity fields `bind_command/2` stamps), so
+  # the order adds no new surface.
+  defp hilt_order(command, skill, resolution, message, subject) do
+    work = resolution["subject"]
+
+    order =
+      AshA2A.Hilt.WorkOrder.for_command!(command, skill.consequence,
+        work_order_id: work["work_order_id"],
+        observation_bounds: Map.take(work, ["repository", "base_sha"]),
+        action_bounds: %{
+          "capability" => skill.id,
+          "constraints" => resolution["constraints"],
+          "resolution_digest" => resolution["resolution_digest"]
+        },
+        authority_ceiling: :do,
+        process_evidence: %{"capability" => skill.id, "message_id" => message.message_id},
+        falsifier: %{"capability" => skill.id, "graph_digest" => subject.graph_digest}
+      )
+
+    {:ok, AshA2A.Hilt.WorkOrder.bind_command(order, command), order}
+  rescue
+    ArgumentError -> {:error, :invalid_requirement}
+    FunctionClauseError -> {:error, :invalid_requirement}
+  end
+<% end %>
 
   # The exact work subject, carried INTO the SA2A command so its receipt is
   # bound to it: graph = work-order snapshot, projection = this resolution,
@@ -270,6 +328,18 @@ defmodule <%= module_prefix %>.Capabilities do
        when reason in [:forbidden, :authority_required, :authority_mismatch, :model_authority_refused],
        do: :unauthorized
 
+  # The HILT admission family keeps its name all the way to the Constructor's
+  # refused/OCEL channel; :invalid_requirement is already a member of
+  # failures/0. Both stay inside the closed set -- they are pass-throughs, not
+  # new failure shapes.
+  defp classify(:invalid_requirement), do: :invalid_requirement
+<%= if hilt == "true" do %>
+  defp classify(code)
+       when code in [:stale_task_identity, :stale_candidate_identity, :stale_subject_identity,
+                     :stale_work_order_identity, :stale_graph_identity, :stale_capability_identity,
+                     :authority_ceiling_exceeded, :consequence_unclassified],
+       do: code
+<% end %>
   defp classify(:capability_not_found), do: :no_capability
 
   defp classify(_reason), do: :invocation_refused

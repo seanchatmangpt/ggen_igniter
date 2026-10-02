@@ -1,0 +1,20 @@
+@prefix utp: <https://ggen-igniter.dev/ontology/ultracode-two-port#> .
+@prefix ex:  <https://ggen-igniter.dev/fixture/ultracode#> .
+
+# The same consumer agent with the CHI-HILT work-order binding opted in
+# (`utp:hilt true`): the rendered Capabilities module freezes, stamps and
+# passes `work_order:` on every DO command. The DEFAULT fixture does not opt
+# in -- the pinned hex ash_a2a (26.9.x) does not yet carry AshA2A.Hilt, so the
+# default render must compile against a bus without the `work_order` opt. A
+# consumer that opts in must pin an ash_a2a carrying AshA2A.Hilt.
+
+ex:Constructor a utp:ConstructorAgent ;
+    utp:workPort utp:sJira ;
+    utp:capabilityPort utp:SA2A ;
+    utp:hilt true ;
+    utp:usesLocalPrimitive utp:git-local , utp:compiler , utp:test-runner , utp:fs-workspace ;
+    utp:otpApp "ultracode_fixture" ;
+    utp:modulePrefix "UltracodeFixture.Agent" ;
+    utp:agentName "ultracode_fixture_agent" ;
+    utp:libPath "lib/ultracode_fixture/agent" ;
+    utp:sa2aTarget "SemanticJira.Work.Task" .

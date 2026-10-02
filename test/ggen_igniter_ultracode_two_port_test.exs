@@ -197,6 +197,45 @@ defmodule GgenIgniter.UltracodeTwoPortTest do
       assert mod(World).construction() == @local
     end
 
+    test "HILT opt-in renders DO commands bound via AshA2A.Hilt.WorkOrder; the default does not", %{
+      m: m
+    } do
+      # Default fixture: the pinned hex ash_a2a (26.9.x) has no AshA2A.Hilt,
+      # so the default render is unbound and compiles against it.
+      capabilities =
+        m.sources |> Enum.find(&String.ends_with?(&1, "capabilities.ex")) |> File.read!()
+
+      refute capabilities =~ "AshA2A.Hilt"
+      assert capabilities =~ "auth_identity: identity)"
+
+      # Opt-in fixture: a real `mix ggen_igniter.sync` renders the bound
+      # constructor -- freeze (for_command!) -> stamp (bind_command) ->
+      # `work_order:` at the bus call. The gates must admit the Hilt edge
+      # (exit 0 proves the widened SA2A pin). The rendered module is NOT
+      # compiled here: it references AshA2A.Hilt, which this checkout's
+      # pinned dep does not carry.
+      %{dir: dir, results: results} = M.render!(["agent_hilt.ttl"], nil, agent: false)
+
+      assert Enum.all?(results, &(&1.exit == 0)), inspect(Enum.reject(results, &(&1.exit == 0)))
+
+      bound = File.read!(Path.join(dir, "lib/ultracode_fixture/agent/capabilities.ex"))
+
+      assert bound =~ "AshA2A.Hilt.WorkOrder.for_command!"
+      assert bound =~ "AshA2A.Hilt.WorkOrder.bind_command"
+      assert bound =~ ~s(work_order: work_order)
+
+      # Falsifier: the old unbound bus-call shape is gone from the opt-in.
+      refute bound =~ "auth_identity: identity)"
+
+      # The firewall's pinned SA2A port surface names the Hilt edge.
+      firewall = File.read!(Path.join(dir, "lib/ultracode_fixture/agent/firewall.ex"))
+      assert firewall =~ "AshA2A.Hilt"
+
+      # And the graph records the opt-in as declared, not ambient.
+      manifest = dir |> Path.join(".ggen_igniter/manifest.json") |> File.read!() |> Jason.decode!()
+      assert manifest != %{}
+    end
+
     test "no generated source hand-writes Ash or names a concrete provider in agent logic", %{
       m: m
     } do

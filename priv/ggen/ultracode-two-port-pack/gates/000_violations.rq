@@ -60,7 +60,7 @@ SELECT DISTINCT ?violation_code ?violation_subject ?violation_detail WHERE {
       (?port = utp:sJira && ?prefix IN ("GgenIgniter.SemanticJira", "GgenIgniter.SemanticA2A")) ||
       (?port = utp:SA2A && ?prefix IN ("AshA2A.Info", "AshA2A.Dispatcher", "AshA2A.CommandBus",
                                         "AshA2A.Command", "AshA2A.SemanticSubject", "AshA2A.Authority",
-                                        "AshA2A.Identity", "A2A.Message", "A2A.Part"))
+                                        "AshA2A.Identity", "AshA2A.Hilt", "A2A.Message", "A2A.Part"))
     ))
     BIND("EXTRA_PORT_PREFIX" AS ?violation_code)
     BIND(STR(?port) AS ?violation_subject)

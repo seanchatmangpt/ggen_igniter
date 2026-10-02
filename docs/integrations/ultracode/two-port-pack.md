@@ -15,8 +15,8 @@ DO           = separately authorized; capability resolution never grants authori
 ```
 
 Status: **PARTIAL_ALIVE**. The pack, the gates and the generated consumer are exercised by
-`test/ggen_igniter_ultracode_two_port_test.exs`: 58 tests, 0 failures, in a local run on
-2026-09-27. The 58 tests include:
+`test/ggen_igniter_ultracode_two_port_test.exs`: 59 tests, 0 failures, in a local run on
+2026-10-02. The 59 tests include:
 - 8 firewall falsifiers;
 - a 15-module bypass corpus;
 - 15 graph falsifiers.
@@ -64,6 +64,16 @@ The pack enforces the law three times over, and each check is a real refusal.
      `AshA2A.Authority.Grant`, and it runs through `AshA2A.CommandBus`, which is the BRCE route.
      The command carries an `AshA2A.SemanticSubject` whose `graph_digest` is the work order's
      `work_order_digest`.
+   - HILT work-order binding (CHI-HILT), opt-in via `utp:hilt true` on the agent: the rendered
+     `Capabilities` module binds every DO command before the bus sees it
+     (`AshA2A.Hilt.WorkOrder.for_command!/3` -> `bind_command/2`, then
+     `CommandBus.run(..., work_order: order)`). The order freezes the exact task/candidate/subject
+     identities the resolution carries and carries the subject's `graph_digest` as checkpoint
+     evidence, so a re-pointed graph is refused `:stale_graph_identity` at the bus and the
+     `stale_*` refusal family surfaces as the typed failure it names. The pinned SA2A port
+     prefix list admits `AshA2A.Hilt` for exactly this edge. The opt-in is a graph declaration,
+     not ambient: a consumer that sets it must pin an ash_a2a carrying `AshA2A.Hilt` (the hex
+     26.9.x line does not), so the default render stays compilable against the pinned dep.
    - Consequential actuations (`git.push`, `pr.create`, `merge.remote`, `tracker.mutate`) are
      refused with `:unauthorized` before resolution unless authority is supplied.
    - `Local.git/3` runs only the allowlisted local verbs, and refuses workspace or remote override
@@ -123,7 +133,11 @@ Each step emits one OCEL 2.0 event.
 ## Typed capability failures
 
 A failure from the capability port is one of `:no_capability`, `:ambiguous_capability`,
-`:unauthorized`, `:provider_unavailable`, `:invalid_requirement` or `:invocation_refused`. A failure
+`:unauthorized`, `:provider_unavailable`, `:invalid_requirement`, `:invocation_refused`, or a HILT
+work-order binding refusal (`:stale_task_identity`, `:stale_candidate_identity`,
+`:stale_subject_identity`, `:stale_work_order_identity`, `:stale_graph_identity`,
+`:stale_capability_identity`, `:authority_ceiling_exceeded`, `:consequence_unclassified`; the HILT
+family only in the `utp:hilt` opt-in render). A failure
 is never permission to bypass SA2A. A missing capability is a missing SA2A capability to add, not
 a reason for a direct adapter.
 
