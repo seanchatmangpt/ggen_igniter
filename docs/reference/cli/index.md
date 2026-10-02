@@ -118,7 +118,17 @@ live in each module's `schema:`/moduledoc)
   admits prose propositions (`sj:candidateStanding` "UNKNOWN",
   `sj:authorityClaim` "NONE") and writes zero WorkOrders; the former
   compile_prose delta manufacture (and its `--receipts-dir`) is removed by
-  the origin-authority law (ADR-012).
+  the origin-authority law (ADR-012),
+  `...execute --work-orders --ledger --identity --verifier-suite --alias
+  (--pack-dir --target-dir [--receipt-out] | --receipt)
+  [--provider|--court-map|--authority-graph|--out-dir|--out]` — one
+  frontier-eligible order end to end, in-process (zero mix shell-outs); the
+  local backend runs the real pipeline + fail-closed gates and synthesizes
+  the sealed export at the honest ceiling (outcome `partial_alive`,
+  `head_verified` FALSE, `final_head` = 40-hex content identity — never
+  ALIVE; ALIVE stays xaas-fabric-only); refusals carry
+  `{"standing","reason","broken_term","hop","detail"}` and write
+  `refused.json` under `--out-dir`; exits 0/1/2.
 - `mix ggen_igniter.sa2a.evidence PATH` — admits an authority-free SA2A
   semantic-evidence envelope (`sa2a.semantic-evidence-envelope.v1`): reads the
   envelope at PATH, prints the typed reference JSON, and raises a typed refusal
