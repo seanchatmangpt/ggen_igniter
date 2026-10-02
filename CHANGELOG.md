@@ -1,5 +1,43 @@
 # Changelog
 
+## v26.10.2
+
+Released 2026-10-02.
+
+ERRC v26.10.2 phase-2 wave (lanes F8-F10) plus the pack symlink-boundary law.
+
+- **Added** the pack symlink-boundary law in `GgenIgniter.PackLock`: a canonical
+  symlink whose target stays inside the enclosing git toplevel is a lawful pack
+  member, content-hashed with tag "L" (swap the target and the digest moves;
+  a locked pack refuses `PACK_DIGEST_MISMATCH`); a target that leaves the
+  toplevel refuses `PACK_SYMLINK_ESCAPE`; symlink loops are a typed refusal,
+  never a hang. Unblocks ash_pplan's ontology-symlink law ("referenced, never
+  copied into the pack").
+
+- **Added** `semantic-jira-pack` standing-transition event vocabulary: the terms
+  ProvEvents emits are declared in the pack ontology (`StandingTransitionEvent`,
+  `StandingState`, `GeneratedStandingState`, `seq`/`eventDigest`/`receiptDigest`,
+  `identity`/`from`/`to`); inline prov shapes ported into `work-order.shacl.ttl`;
+  gate `055_standing_projection` refuses a forked chain-tip projection; ProvEvents
+  validates against the pack shapes (81df828).
+
+- **Added** `priv/schema/fleet-receipt.v2.json`: byte-identical vendor of the
+  fleet-R v2 receipt schema, sha256-pinned (`fleet-receipt.v2.sha256`), with a
+  machine-independent conformance court (drift guard against the operator copy,
+  golden receipt through a real `RProjection` over a real tmp git repo, four
+  typed-refusal mutants) and `Receipts.check/1` as the in-repo executable form
+  of the vendored law (134b35c).
+
+- **Added** `VerifyMutation`: a mutation catalog over the fail-closed verify
+  surface - five mutants (dropped unbound-filter, relaxed cardinality anchor,
+  neutralized refutation branch, emptied census projection, corrupted contract
+  JSON), each killed by a named `GateVerify` refusal, control-refused on a
+  broken pack, with `:weakened_for_test` materializing the pre-GGEN-1806
+  fail-open world to prove every kill comes from the real checks (513c6e7).
+
+- **Added** the v26.10.2 milestone record: lanes, receipt, and ERRC cycle
+  report (67fcffa).
+
 ## v26.10.1
 
 Released 2026-10-01.

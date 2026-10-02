@@ -14,6 +14,12 @@ defmodule MixSemanticJiraExecuteTaskTest do
   The sealed XaaS export for the external backend is written as data per the
   documented contract of `Descriptor.receipt_from_xaas/2` (the fabric lives in
   the xaas repository); every step that consumes it is the real code.
+
+  The local-backend cases add the same fixtures the in-process twin
+  (`ggen_igniter_semantic_jira_execute_test.exs`) builds — a real temporary
+  git repository, a real minimal pack on disk, and a real work-orders file —
+  so `sj:targetPack` enforcement is witnessed through the real CLI process
+  boundary too.
   """
 
   use ExUnit.Case, async: true
@@ -187,6 +193,215 @@ defmodule MixSemanticJiraExecuteTaskTest do
 
       assert File.read!(Path.join(out_dir, "refused.json")) |> Jason.decode!() == refusal
       assert File.read!(ledger) == forged
+    end
+  end
+
+  describe "mix semantic_jira.execute local backend (sj:targetPack at the OS boundary)" do
+    @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
+    @local_identity "EXEC-OS-1"
+    @local_suite "ci"
+
+    defp git!(repo, args) do
+      {out, 0} = System.cmd("git", ["-C", repo | args], stderr_to_stdout: true)
+      String.trim(out)
+    end
+
+    defp git_repo!(dir) do
+      File.mkdir_p!(dir)
+      git!(dir, ["init", "-q"])
+      git!(dir, ["config", "user.email", "execute-os-test@example.invalid"])
+      git!(dir, ["config", "user.name", "Execute OS Test"])
+      git!(dir, ["config", "commit.gpgsign", "false"])
+      File.write!(Path.join(dir, "README"), "execute os test base\n")
+      git!(dir, ["add", "README"])
+      git!(dir, ["commit", "-q", "-m", "base"])
+      %{dir: dir, head: git!(dir, ["rev-parse", "HEAD"])}
+    end
+
+    # Same minimal pack as the in-process twin: one gate (`gates/010_ci.rq`,
+    # stem "ci" -- the work order's required court), one EEx template, one
+    # ontology triple. No pack.toml, so the pack resolves by basename: "pack".
+    defp pack!(pack_dir) do
+      File.mkdir_p!(Path.join(pack_dir, "gates"))
+      File.mkdir_p!(Path.join(pack_dir, "templates"))
+
+      File.write!(
+        Path.join(pack_dir, "ontology.ttl"),
+        ~s(@prefix ex: <http://example.com/execute-pack#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:Report a rdfs:Class .
+ex:exec-report a ex:Report ; ex:title "execute pack report" .
+)
+      )
+
+      File.write!(
+        Path.join([pack_dir, "gates", "010_ci.rq"]),
+        ~s(PREFIX ex: <http://example.com/execute-pack#>
+SELECT DISTINCT ?subject WHERE {
+  ?s a ex:Report ; ex:title ?subject .
+}
+)
+      )
+
+      File.write!(
+        Path.join([pack_dir, "templates", "report.md.eex"]),
+        ~s(# ggen-manufactured report
+<%= for row <- ci do %>gate row: <%= row["subject"] %>
+<% end %>)
+      )
+
+      pack_dir
+    end
+
+    # Mirrors the in-process twin's `work_orders_file!/3` (which already
+    # carries the `target_pack` parameter) — `defp` helpers cannot cross
+    # files, so the OS-level suite holds its own copy here.
+    defp work_orders_file!(dir, head, target_pack) do
+      path = Path.join(dir, "work_orders.json")
+
+      order = %{
+        "identity" => @local_identity,
+        "title" => "Execute one order through the local loop (OS boundary)",
+        "description" => "Known-class pack manufacture at the target HEAD.",
+        "subject" => "execute-test:subject",
+        "repository" => "o/r",
+        "base_sha" => head,
+        "standing" => "UNKNOWN",
+        "evidence_ceiling" => "repository-local",
+        "promotion_rule" => "all_courts",
+        "replay_identity" => "execute:v1:#{@local_identity}",
+        "required_courts" => [@local_suite],
+        "required_evidence" => ["verification"],
+        "acceptance" => ["urn:semantic-jira:acceptance:#{@local_identity}:a1"],
+        "falsifiers" => ["urn:semantic-jira:falsifier:#{@local_identity}:f1"],
+        "projections" => ["jira"],
+        "origin_authority" => @origin_authority,
+        "dependencies" => []
+      }
+
+      order = Map.put(order, "target_pack", target_pack)
+
+      File.write!(path, Jason.encode!(%{"work_orders" => [order]}))
+
+      path
+    end
+
+    defp local_execute_args(ledger, work_orders, extra) do
+      [
+        "semantic_jira.execute",
+        "--work-orders",
+        work_orders,
+        "--ledger",
+        ledger,
+        "--identity",
+        @local_identity,
+        "--verifier-suite",
+        @local_suite,
+        "--alias",
+        "o/r=target"
+      ] ++ extra
+    end
+
+    # The raw last-JSON stderr line (not just its decoded map), so the
+    # refused.json byte contract can be asserted against real stderr bytes.
+    defp last_json_line_raw(text) do
+      text
+      |> String.split("\n", trim: true)
+      |> Enum.reverse()
+      |> Enum.find_value(fn line ->
+        case Jason.decode(line) do
+          {:ok, %{} = map} -> {line, map}
+          _ -> nil
+        end
+      end)
+    end
+
+    test "an order naming a different pack refuses target_pack_mismatch on stderr and writes nothing",
+         %{dir: dir, ledger: ledger} do
+      target = git_repo!(Path.join(dir, "target"))
+      pack = pack!(Path.join(dir, "pack"))
+      work_orders = work_orders_file!(dir, target.head, "some-other-pack")
+      out_dir = Path.join(dir, "refusals")
+      receipt_out = Path.join(dir, "receipt-export.json")
+
+      {code, out, err} =
+        mix(
+          dir,
+          local_execute_args(ledger, work_orders, [
+            "--pack-dir",
+            pack,
+            "--target-dir",
+            target.dir,
+            "--receipt-out",
+            receipt_out,
+            "--out-dir",
+            out_dir
+          ])
+        )
+
+      assert code == 1, "#{out}\n#{err}"
+
+      # The refusal is the LAST line of stderr — in fact the whole stderr
+      # stream is exactly that one line.
+      {raw_line, refusal} = last_json_line_raw(err)
+      assert err == raw_line <> "\n"
+
+      assert %{
+               "standing" => "REFUSED(target_pack_mismatch)",
+               "reason" => "target_pack_mismatch",
+               "broken_term" => "mu_unlawful",
+               "hop" => "execute",
+               "detail" => %{"expected" => "some-other-pack", "resolved" => "pack"}
+             } = refusal
+
+      # refused.json byte-equals that refusal: pretty-printed, one trailing
+      # newline, decoding to the SAME map the stderr line carries.
+      refused_path = Path.join(out_dir, "refused.json")
+
+      assert File.read!(refused_path) == Jason.encode!(refusal, pretty: true) <> "\n"
+      assert Jason.decode!(File.read!(refused_path)) == refusal
+
+      # NOTHING executed: the target work tree holds only what git_repo!
+      # made, no receipt was synthesized, the ledger was never created.
+      assert File.ls!(target.dir) |> Enum.sort() == [".git", "README"]
+      refute File.exists?(Path.join(target.dir, "ggen-manufactured"))
+      refute File.exists?(receipt_out)
+      refute File.exists?(ledger)
+    end
+
+    test "an order naming the pack --pack-dir resolves to executes to PARTIAL_ALIVE",
+         %{dir: dir, ledger: ledger} do
+      target = git_repo!(Path.join(dir, "target"))
+      pack = pack!(Path.join(dir, "pack"))
+      work_orders = work_orders_file!(dir, target.head, "pack")
+      receipt_out = Path.join(dir, "receipt-export.json")
+
+      {code, out, err} =
+        mix(
+          dir,
+          local_execute_args(ledger, work_orders, [
+            "--pack-dir",
+            pack,
+            "--target-dir",
+            target.dir,
+            "--receipt-out",
+            receipt_out
+          ])
+        )
+
+      assert code == 0, "#{out}\n#{err}"
+
+      # One JSON object on stdout; the pack's report landed in the target
+      # tree; the sealed export is on disk; the transition is in the ledger.
+      assert %{"status" => "executed", "target" => "PARTIAL_ALIVE"} = Jason.decode!(String.trim(out))
+
+      report = Path.join(target.dir, "ggen-manufactured/report.md")
+      assert File.exists?(report)
+      assert File.read!(report) =~ "gate row: execute pack report"
+      assert File.exists?(receipt_out)
+      assert [%{"identity" => @local_identity, "to" => "PARTIAL_ALIVE", "seq" => 1}] =
+               TransitionLog.read(ledger)
     end
   end
 

@@ -81,13 +81,23 @@ defmodule GgenIgniter.PackLock do
     end
   end
 
-  @doc "Like `digest/1` but returns `{:error, {:pack_symlink_escape | :pack_file_unreadable, detail}}`."
+  @doc """
+  Like `digest/1` but returns `{:error, {:pack_symlink_escape | :pack_file_unreadable, detail}}`.
+
+  Symlink law: a symlink may resolve outside the pack root when — and only when —
+  it stays inside the pack's enclosing git toplevel (the in-repo canonical form,
+  e.g. ash_pplan's `priv/ggen/<pack>/ontology.ttl -> ../../ontology.ttl`, where
+  the ontology law is "never copied into the pack"). A symlink whose target
+  leaves the toplevel is an escape and refuses. Outside a git repo the pack root
+  itself is the boundary (the pre-26.10.2 law, unchanged for tmp fixtures).
+  """
   @spec digest_checked(String.t()) ::
           {:ok, String.t()}
           | {:error, {:pack_symlink_escape | :pack_file_unreadable, String.t()}}
   def digest_checked(pack_dir) do
     with {:ok, root} <- realpath(pack_dir),
-         {:ok, records} <- walk(root, root, "") do
+         boundary = symlink_boundary(root),
+         {:ok, records} <- walk(root, root, "", boundary) do
       Enum.reduce_while(Enum.sort(records), {:ok, :crypto.hash_init(:sha256)}, fn
         {rel, tag, path}, {:ok, acc} ->
           case File.read(path) do
@@ -115,7 +125,7 @@ defmodule GgenIgniter.PackLock do
   end
 
   # Returns {:ok, [{rel, tag, abs_path_to_read}]} | {:error, reason}.
-  defp walk(root, dir, rel) do
+  defp walk(root, dir, rel, boundary) do
     case File.ls(dir) do
       {:error, reason} ->
         {:error, {:pack_file_unreadable, "#{display(rel)}: #{:file.format_error(reason)}"}}
@@ -128,12 +138,12 @@ defmodule GgenIgniter.PackLock do
           child = if rel == "", do: name, else: rel <> "/" <> name
           abs = Path.join(dir, name)
 
-          case classify(root, abs, child) do
+          case classify(root, boundary, abs, child) do
             {:file, tag, path} ->
               {:cont, {:ok, [{child, tag, path} | acc]}}
 
             :dir ->
-              case walk(root, abs, child) do
+              case walk(root, abs, child, boundary) do
                 {:ok, more} -> {:cont, {:ok, more ++ acc}}
                 {:error, _} = err -> {:halt, err}
               end
@@ -148,13 +158,13 @@ defmodule GgenIgniter.PackLock do
   defp display(""), do: "."
   defp display(rel), do: rel
 
-  defp classify(root, abs, rel) do
+  defp classify(root, boundary, abs, rel) do
     case File.lstat(abs) do
       {:ok, %File.Stat{type: :directory}} ->
         :dir
 
       {:ok, %File.Stat{type: :symlink}} ->
-        classify_symlink(root, abs, rel)
+        classify_symlink(root, boundary, abs, rel)
 
       {:ok, _} ->
         {:file, "F", abs}
@@ -164,14 +174,37 @@ defmodule GgenIgniter.PackLock do
     end
   end
 
-  defp classify_symlink(root, abs, rel) do
+  # The enclosing git toplevel when the pack lives in one (realpath'd so it is
+  # comparable with resolved targets); the pack root itself otherwise.
+  defp symlink_boundary(root) do
+    # Clear GIT_DIR/GIT_WORK_TREE so an ambient value cannot redirect the
+    # toplevel query; everything else (PATH included) is inherited.
+    env = System.get_env() |> Map.drop(["GIT_DIR", "GIT_WORK_TREE"]) |> Map.to_list()
+
+    case System.cmd("git", ["-C", root, "rev-parse", "--show-toplevel"],
+           stderr_to_stdout: true,
+           env: env
+         ) do
+      {top, 0} ->
+        top = String.trim(top)
+        case realpath(top) do
+          {:ok, real} -> real
+          :error -> root
+        end
+
+      _ ->
+        root
+    end
+  end
+
+  defp classify_symlink(root, boundary, abs, rel) do
     case realpath(abs) do
       {:error, {:pack_symlink_escape, d}} ->
         {:error, {:pack_symlink_escape, "#{rel}: #{d}"}}
 
       {:ok, resolved} ->
         cond do
-          not inside?(root, resolved) ->
+          not inside?(root, resolved) and not inside?(boundary, resolved) ->
             {:error, {:pack_symlink_escape, "#{rel} -> #{resolved} (outside pack root)"}}
 
           true ->
