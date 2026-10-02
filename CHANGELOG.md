@@ -1,6 +1,8 @@
 # Changelog
 
-## v26.9.31 (2026-10-01)
+## v26.9.31
+
+Released 2026-10-01.
 
 Wave B (community-pack qualification) plus the graphlaw wasm engine.
 
