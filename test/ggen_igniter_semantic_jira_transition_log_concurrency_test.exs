@@ -165,7 +165,7 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
       current = TransitionLog.event_digest(event)
 
       refute legacy == current,
-             "legacy rule must NOT elide the derived digest fields the current rule elides"
+             "the two rules must diverge on derived-digest fields (exact vs elided)"
 
       # The divergence is exactly the elision: an event without any derived
       # digest field digests identically under both rules.
@@ -234,13 +234,23 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
                TransitionLog.legacy_event_digest(stored)
              ]
 
-      # Tamper one receipt_digest byte: the stamped digest now recomputes
-      # under NEITHER rule — this is what makes the bridge refuse log_untrusted.
-      tampered = Map.update!(stored, "receipt_digest", &flip_first_char/1)
+      # Tamper snapshot_digest (a derived field NOT in the elided set — both
+      # rules see it): the stamped digest now recomputes under NEITHER rule —
+      # this is what makes the bridge refuse log_untrusted.
+      tampered = Map.update!(stored, "snapshot_digest", &flip_first_char/1)
       refute stored["event_digest"] in [
                TransitionLog.event_digest(tampered),
                TransitionLog.legacy_event_digest(tampered)
              ]
+
+      # The elision law, pinned honestly: receipt_digest is elided by the
+      # legacy rule, so a receipt-only swap is invisible at that layer. The
+      # receipt is bound instead by the bridge's fabric-seal check
+      # (export_not_sealed_by_fabric against the sealed Postgres row) — that
+      # is the composite law, and this assertion documents its boundary.
+      receipt_swapped = Map.update!(stored, "receipt_digest", &flip_first_char/1)
+      assert receipt_swapped["event_digest"] == TransitionLog.legacy_event_digest(receipt_swapped)
+      refute receipt_swapped["event_digest"] == TransitionLog.event_digest(receipt_swapped)
     end
 
     test "append/2 stamps a recomputing digest, overwriting any caller-supplied event_digest", %{dir: dir} do
