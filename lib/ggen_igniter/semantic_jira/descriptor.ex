@@ -541,11 +541,13 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
       "subject" => work_order["subject"],
       "evidence_ceiling" => work_order["evidence_ceiling"],
       "replay_identity" => work_order["replay_identity"],
+      # Exactly the snapshot's three lists (Xaas.Ultracode.SemanticWork.
+      # AdmissionBinding.bridge_requires_checks/2 law); required_evidence is
+      # carried on the work order itself, not in the bridge.
       "requires" => %{
         "courts" => work_order["required_courts"],
         "acceptance" => work_order["acceptance"],
-        "falsifiers" => work_order["falsifiers"],
-        "evidence" => work_order["required_evidence"]
+        "falsifiers" => work_order["falsifiers"]
       }
     }
   end
@@ -561,7 +563,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
         receipt_refuse({:bridge_invalid, missing})
 
       not (is_map(requires) and
-               Enum.all?(~w(courts acceptance falsifiers evidence), &is_list(requires[&1]))) ->
+               Enum.all?(~w(courts acceptance falsifiers), &is_list(requires[&1]))) ->
         receipt_refuse({:bridge_invalid, ["requires"]})
 
       true ->
