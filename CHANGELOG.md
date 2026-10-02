@@ -1,5 +1,51 @@
 # Changelog
 
+## v26.10.1
+
+Released 2026-10-01.
+
+Calver-correction re-release of v26.9.31 with identical content: the v26.9.31 tag was
+cut on 2026-10-01 after the fleet's calver flip to 26.10.x and was never published to
+hex; v26.10.1 supersedes it (the v26.9.31 tag remains in place, historical).
+
+Wave B (community-pack qualification) plus the graphlaw wasm engine.
+
+- **Added** the graphlaw wasm artifact ships inside the hex package
+  (`priv/graphlaw_wasm.wasm`, MIT-licensed upstream RoXi fork, sha256
+  `8bfff66c…e71a8`), so hex consumers get a working `--engine graphlaw` with
+  no local graphlaw checkout; release-download fallback documented.
+
+- **Added** `state-machine-pack`: RDF state machines rendered to modules; typed refusals
+  `STATE_UNREACHABLE`, `STATE_DEAD_END`, `TRANSITION_UNKNOWN_STATE`, `INITIAL_STATE_MISSING`,
+  `ACTION_AMBIGUOUS_TARGET`.
+- **Added** `receipted-extension-pack` extension schema, transformer and formatter projections
+  (`REFUSED:EXTENSION_SCHEMA`, `REFUSED:NO_RECEIPT`).
+- **Added** `ash-igniter-api-pack` API surface gates (arguments, validations, aggregates,
+  interfaces, policies, pagination, multitenancy; `ASH_API_SURFACE`, `ASH_API_ACCEPT_DRIFT`).
+  The pack stays out of the hex package (Ash-free shipped packs).
+- **Added** `reactor-scaffold-pack` sagas (`rx:dependsOn`/`rx:waitsFor` ordering, compensation;
+  `REACTOR_CYCLE`, `REACTOR_DANGLING_EDGE`, `REACTOR_UNKNOWN_STEP_KIND`, `REACTOR_MALFORMED`);
+  `expense_approval_reactor.ex` regenerated.
+- **Added** `igniter-installer-pack` (installer/upgrader projections + generated-test canaries;
+  `INSTALLER_CONFIG_INVALID`, `INSTALLER_DEP_INCOMPLETE`, `INSTALLER_INCOMPLETE`,
+  `UPGRADER_INCOMPLETE`, `UPGRADER_STEP_INVALID`).
+- **Added** test harness `GgenIgniter.Test.PackCompile` (real sync subprocess + real compile) and
+  `GgenIgniter.Test.PostgresCase` (real Postgres, `:postgres` tag excluded when unreachable);
+  CI Postgres service and `docker-compose.e2e.yml` `db` profile.
+- **Added** test-only deps (`only: [:dev, :test]`, not in the package): `ash_json_api`,
+  `ash_ai`, `ash_state_machine`, `ash_oban`, `oban`.
+- **Added** `GgenIgniter.Engine.Graphlaw`: wasmex-hosted `graphlaw_wasm.wasm` (WASI store,
+  `gl_alloc`/`gl_call`/`gl_free` JSON ABI), registered as `"graphlaw"` in the engine registry;
+  the MIT-licensed artifact ships inside the package at `priv/graphlaw_wasm.wasm`, so hex
+  consumers need no extra download (resolution: Application env override -> packaged
+  artifact -> dev checkout default);
+  `--engine graphlaw` and comparison mode `--engine oxigraph,graphlaw` parse and run. Comparison
+  gate raises `ENGINE_COMPARISON_DIVERGENT` on real row-set divergence between two `:ok`
+  candidates. Differential validation on the real corpus: 31/31 gates agree with oxigraph,
+  zero divergences (negative control witnessed).
+- **Refusals:** 130 codes (18 added for the packs above, 1 for `ENGINE_COMPARISON_DIVERGENT`,
+  with the schema total reconciled) + 24 wrapped reasons.
+
 ## v26.9.31
 
 Released 2026-10-01.
