@@ -246,7 +246,11 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   is projected, so the bridge's `definition_digest` / `source_snapshot_digest`
   are the kernel's digests (the reconciler's `definition_mismatch` check binds
   to exactly these) and the admission defaults (`dependencies`, `path_scope`)
-  are present. `graph_digest` is over every row's admitted definition digest.
+  are present. `graph_digest` is the admitted order's `work_order_digest` and
+  the contract carries `admitted_work_order` + `digest_form` ("sjira-digest/2"),
+  so XaaS's forced fail-closed `:snapshot` admission binding holds: the
+  descriptor's graph digest, the bridge's `source_snapshot_digest`, and the
+  embedded snapshot's recomputed digest all name the same admitted subject.
   """
   @spec build_xaas_contract([map()], [map()], String.t(), keyword()) ::
           {:ok, map()} | {:error, {:descriptor_refused, term()}}
@@ -266,7 +270,9 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
       descriptor = %{
         "work_order_iri" => prefix <> identity,
         "checkpoint_iri" => @checkpoint_prefix <> tail,
-        "graph_digest" => graph_digest(projected),
+        "graph_digest" => work_order["work_order_digest"],
+        "digest_form" => "sjira-digest/2",
+        "admitted_work_order" => work_order,
         "repository_identity" => work_order["repository"],
         "execution_repo_alias" => exec_alias,
         "base_sha" => work_order["base_sha"],
@@ -505,22 +511,6 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
            "receipt_iri" => @receipt_prefix <> alive["receipt_digest"],
            "receipt_digest" => alive["receipt_digest"]
          }}
-    end
-  end
-
-  # Every row contributes its ADMITTED definition digest; a row the kernel
-  # refuses contributes the exact digest of its raw content, so no row -- not
-  # even an unadmittable one -- can change without moving the graph digest.
-  defp graph_digest(projected) do
-    SemanticJira.digest_exact(%{
-      "definition_digests" => projected |> Enum.map(&row_definition_digest/1) |> Enum.sort()
-    })
-  end
-
-  defp row_definition_digest(row) do
-    case SemanticJira.definition_digest(row) do
-      {:ok, digest} -> digest
-      {:error, _} -> SemanticJira.digest_exact(row)
     end
   end
 

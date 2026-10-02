@@ -286,7 +286,7 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
                )
     end
 
-    test "graph_digest is over admitted definitions: it moves when any definition moves" do
+    test "graph_digest is the admitted order's work_order_digest: snapshot-bound, moves only when the admitted definition moves" do
       graph = [wo("ROOT"), wo("B", ["ROOT"])]
       moved = [wo("ROOT"), wo("B", ["ROOT"], %{"title" => "B, retitled"})]
 
@@ -294,7 +294,19 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
       assert {:ok, d2} = Descriptor.build_xaas_contract(moved, [], "ROOT", @contract_opts)
 
       assert d1["graph_digest"] =~ @digest
-      refute d1["graph_digest"] == d2["graph_digest"]
+      # Snapshot binding: graph_digest == the bridge anchor == the embedded
+      # snapshot's declared digest (the snapshot re-digests to it under the
+      # declared form).
+      assert d1["graph_digest"] == d1["bridge"]["source_snapshot_digest"]
+      assert d1["graph_digest"] == d1["admitted_work_order"]["work_order_digest"]
+
+      # Moving a NON-admitted row leaves the digest alone; moving the ADMITTED
+      # row's definition moves it.
+      assert d1["graph_digest"] == d2["graph_digest"]
+
+      root_moved = [wo("ROOT", [], %{"title" => "ROOT, retitled"}), wo("B", ["ROOT"])]
+      assert {:ok, d3} = Descriptor.build_xaas_contract(root_moved, [], "ROOT", @contract_opts)
+      refute d1["graph_digest"] == d3["graph_digest"]
     end
   end
 end
