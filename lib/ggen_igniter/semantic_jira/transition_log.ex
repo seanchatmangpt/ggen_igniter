@@ -32,6 +32,17 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
   `{:error, {:ledger_refused, reason}}`, never silently projected and never a
   crash. `append/2` refuses the same way before writing.
 
+  Two digest rules are public for ledger consumers: `event_digest/1`, the
+  current rule (`SemanticJira.digest/1` over the event minus `seq` and
+  `event_digest`, so the nine derived `*_digest` fields are elided), and
+  `legacy_event_digest/1`, the pre-v26.10.1 rule (`SemanticJira.digest_exact/1`
+  over the same map, eliding nothing) that events written before the
+  derived-digest elision carry. `append/2` stamps and `fetch/1` verifies with
+  `event_digest/1` only; a consumer that must admit both epochs (xaas's
+  `Xaas.Ultracode.SemanticJiraBridge`) recomputes both and accepts a stored
+  event when `event["event_digest"] in [event_digest(stored),
+  legacy_event_digest(stored)]`.
+
   The WorkOrder definition is never touched; current standing is the
   projection `GgenIgniter.SemanticJira.project/2` of this log over the graph.
   """
@@ -114,7 +125,24 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
     end
   end
 
-  defp event_digest(event), do: SemanticJira.digest(Map.drop(event, ["seq", "event_digest"]))
+  @doc """
+  The digest `append/2` stamps and `fetch/1` verifies: `SemanticJira.digest/1`
+  over the event minus `seq`/`event_digest` — so, unlike
+  `legacy_event_digest/1`, the nine derived `*_digest` fields are elided and
+  the digest is independent of map insertion order.
+  """
+  @spec event_digest(map()) :: String.t()
+  def event_digest(event), do: SemanticJira.digest(Map.drop(event, ["seq", "event_digest"]))
+
+  @doc """
+  The pre-v26.10.1 digest rule events written before the derived-digest
+  elision carry: `SemanticJira.digest_exact/1` over the event minus
+  `seq`/`event_digest` — nothing is elided, so it diverges from
+  `event_digest/1` on any event holding a derived `*_digest` field.
+  """
+  @spec legacy_event_digest(map()) :: String.t()
+  def legacy_event_digest(event),
+    do: SemanticJira.digest_exact(Map.drop(event, ["seq", "event_digest"]))
 
   defp intact?(event) when is_map(event), do: event["event_digest"] == event_digest(event)
   defp intact?(_), do: false

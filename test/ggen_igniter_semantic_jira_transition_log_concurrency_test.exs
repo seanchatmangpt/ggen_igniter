@@ -5,7 +5,10 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
   processes (`mix run` subprocesses) appending to ONE real ledger on disk, for
   both the ndjson-file and the directory form. Assertions are on final disk
   state: no lost, torn or duplicated event, `seq` is exactly 1..N, every
-  `event_digest` recomputes (`fetch/1` accepts the ledger).
+  `event_digest` recomputes (`fetch/1` accepts the ledger). The
+  `event_digest/1` + `legacy_event_digest/1` describe below pins the public
+  digest pair against the cross-repo vector xaas's
+  `semantic_jira_bridge_integrity_test.exs:289-307` relies on.
   """
   use ExUnit.Case, async: true
 
@@ -117,5 +120,145 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
     for {out, code} <- results, do: assert(code == 0, out)
     assert_intact(ledger, identities(os_writers, per))
     refute File.exists?(ledger <> ".lock")
+  end
+
+  # ── the public digest pair ─────────────────────────────────────────────────
+  #
+  # xaas's SemanticJiraBridge admits a stored ledger event when its
+  # `event_digest` recomputes under EITHER rule
+  # (test/xaas/ultracode/semantic_jira_bridge_integrity_test.exs:289-307), so
+  # both rules must be public and behave exactly as pinned here.
+  describe "event_digest/1 + legacy_event_digest/1 (public digest pair)" do
+    # The xaas-pinned event shape: a standing transition carrying the derived
+    # digests the bridge keys on.
+    defp xaas_event do
+      %{
+        "kind" => "standing_transition_event",
+        "identity" => "VERIFY-CLEAN",
+        "from" => "UNKNOWN",
+        "to" => "PARTIAL_ALIVE",
+        "authority" => "NONE",
+        "receipt_digest" => String.duplicate("a", 64),
+        "definition_digest" => String.duplicate("b", 64),
+        "snapshot_digest" => String.duplicate("c", 64),
+        "transition_digest" => String.duplicate("d", 64)
+      }
+    end
+
+    # 30 extra keys push the map past Elixir's 32-key small-map boundary, so
+    # enumeration order is genuinely unordered and the digest's key sorting is
+    # exercised rather than trivially satisfied.
+    defp wide(event) do
+      Map.merge(event, Map.new(0..29, &{"ext-#{Integer.to_string(&1) |> String.pad_leading(2, "0")}", &1}))
+    end
+
+    defp flip_first_char(digest) do
+      rest = String.slice(digest, 1..-1//1)
+
+      if String.starts_with?(digest, "0"), do: "1" <> rest, else: "0" <> rest
+    end
+
+    test "legacy_event_digest/1 diverges from event_digest/1 on derived digest fields" do
+      event = xaas_event()
+
+      legacy = TransitionLog.legacy_event_digest(event)
+      current = TransitionLog.event_digest(event)
+
+      refute legacy == current,
+             "legacy rule must NOT elide the derived digest fields the current rule elides"
+
+      # The divergence is exactly the elision: an event without any derived
+      # digest field digests identically under both rules.
+      bare = Map.drop(event, ~w(receipt_digest definition_digest transition_digest))
+      assert TransitionLog.legacy_event_digest(bare) == TransitionLog.event_digest(bare)
+    end
+
+    test "legacy_event_digest/1 ignores seq and event_digest values (drop semantics)" do
+      event = xaas_event()
+
+      plain = TransitionLog.legacy_event_digest(event)
+
+      one =
+        Map.merge(event, %{
+          "seq" => 1,
+          "event_digest" => "sha256:" <> String.duplicate("0", 64)
+        })
+
+      ninety_nine =
+        Map.merge(event, %{
+          "seq" => 99,
+          "event_digest" => "sha256:" <> String.duplicate("f", 64)
+        })
+
+      assert TransitionLog.legacy_event_digest(one) == plain
+      assert TransitionLog.legacy_event_digest(ninety_nine) == plain
+
+      # The current rule carries the same drop semantics.
+      assert TransitionLog.event_digest(one) == TransitionLog.event_digest(ninety_nine)
+    end
+
+    test "both digests are independent of map insertion order" do
+      event = wide(xaas_event())
+      reversed = event |> Enum.reverse() |> Map.new()
+
+      assert TransitionLog.event_digest(event) == TransitionLog.event_digest(reversed)
+      assert TransitionLog.legacy_event_digest(event) ==
+               TransitionLog.legacy_event_digest(reversed)
+    end
+
+    test "cross-repo vector: legacy-stamped event satisfies the bridge's either-rule check; a tampered event satisfies neither", %{dir: dir} do
+      ledger = Path.join(dir, "legacy.jsonl")
+
+      # Rebuild xaas's pinned case exactly: strip seq/event_digest, stamp the
+      # legacy rule, re-add seq=1, and write it to disk by hand (append/2
+      # would restamp under the current rule).
+      legacy =
+        xaas_event()
+        |> Map.drop(["seq", "event_digest"])
+        |> then(&Map.put(&1, "event_digest", TransitionLog.legacy_event_digest(&1)))
+        |> Map.put("seq", 1)
+
+      File.write!(ledger, Jason.encode!(legacy) <> "\n")
+
+      # Round-trip through the real file on disk — the bytes a consumer reads.
+      [stored] =
+        ledger |> File.read!() |> String.split("\n", trim: true) |> Enum.map(&Jason.decode!/1)
+      assert stored["seq"] == 1
+      refute stored["event_digest"] == TransitionLog.event_digest(stored)
+      assert stored["event_digest"] == TransitionLog.legacy_event_digest(stored)
+
+      # The acceptance rule xaas's bridge pins: recomputed over the FULL
+      # stored event, the stamped digest must satisfy the either-rule check.
+      assert stored["event_digest"] in [
+               TransitionLog.event_digest(stored),
+               TransitionLog.legacy_event_digest(stored)
+             ]
+
+      # Tamper one receipt_digest byte: the stamped digest now recomputes
+      # under NEITHER rule — this is what makes the bridge refuse log_untrusted.
+      tampered = Map.update!(stored, "receipt_digest", &flip_first_char/1)
+      refute stored["event_digest"] in [
+               TransitionLog.event_digest(tampered),
+               TransitionLog.legacy_event_digest(tampered)
+             ]
+    end
+
+    test "append/2 stamps a recomputing digest, overwriting any caller-supplied event_digest", %{dir: dir} do
+      ledger = Path.join(dir, "stamp.ndjson")
+      forged = "sha256:" <> String.duplicate("9", 64)
+
+      event =
+        xaas_event()
+        |> Map.put("event_digest", forged)
+        |> Map.put("seq", 7)
+
+      assert {:ok, stamped, :appended} = TransitionLog.append(ledger, event)
+      refute stamped["event_digest"] == forged
+      assert stamped["event_digest"] == TransitionLog.event_digest(stamped)
+      assert stamped["seq"] == 1
+
+      assert {:ok, [stored]} = TransitionLog.fetch(ledger)
+      assert stored["event_digest"] == stamped["event_digest"]
+    end
   end
 end
