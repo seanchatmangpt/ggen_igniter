@@ -43,6 +43,11 @@ defmodule GgenIgniter.SemanticJira do
   @sha ~r/\A[0-9a-f]{40}\z/
   @digest ~r/\Asha256:[0-9a-f]{64}\z/
   @repo ~r/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/
+  # Pack-name FORMAT law (sj:targetPack): lowercase-leading name with
+  # digits, hyphens, underscores. FORMAT only -- real pack existence and
+  # content identity are sync-time WORLD facts
+  # (GgenIgniter.SemanticJira.TargetPack.enforce!/2), never admitted here.
+  @pack_name ~r/\A[a-z0-9][a-z0-9_-]*\z/
   # Absolute-IRI check: RFC 3986 scheme prefix plus a non-empty,
   # whitespace-free rest — an origin authority is an IRI string, never a
   # bare local name.
@@ -110,11 +115,13 @@ defmodule GgenIgniter.SemanticJira do
          :ok <- receipt_classes(Map.get(work_order, "required_receipt_classes", [])),
          :ok <- path_scope(Map.get(work_order, "path_scope", [])),
          :ok <- origin_authority(work_order["origin_authority"]),
-         :ok <- optional_origin_observation(work_order["origin_observation"]) do
+         :ok <- optional_origin_observation(work_order["origin_observation"]),
+         :ok <- optional_target_pack(work_order["target_pack"]) do
       normalized =
         work_order
         |> Map.put_new("candidate_sha", nil)
         |> Map.put_new("origin_observation", nil)
+        |> Map.put_new("target_pack", nil)
         |> Map.put_new("dependencies", [])
         |> Map.put_new("required_receipt_classes", [])
         |> Map.put_new("path_scope", [])
@@ -1386,6 +1393,22 @@ defmodule GgenIgniter.SemanticJira do
   end
 
   defp optional_origin_observation(value), do: {:error, {:invalid_origin_observation, value}}
+
+  # FORMAT only (the sj:baseSha precedent): admission never resolves the
+  # pack; `GgenIgniter.SemanticJira.TargetPack.enforce!/2` does that at
+  # sync time against the real filesystem. Deliberately NOT in
+  # `@definition_fields` -- the definition digest must be identical with
+  # and without a target pack (the pack is a sync-time target, not part of
+  # the order's definition identity).
+  defp optional_target_pack(nil), do: :ok
+
+  defp optional_target_pack(value) when is_binary(value) do
+    if Regex.match?(@pack_name, value),
+      do: :ok,
+      else: {:error, {:invalid_target_pack, value}}
+  end
+
+  defp optional_target_pack(value), do: {:error, {:invalid_target_pack, value}}
 
   defp standing(value) when value in @standings, do: :ok
 

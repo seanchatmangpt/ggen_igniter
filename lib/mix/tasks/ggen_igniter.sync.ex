@@ -1346,6 +1346,12 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     # Reactor dispatch (a refusal writes zero files).
     maybe_verify_base_shas!(opts, named_results)
 
+    # Opt-in per-order target packs (sj:targetPack): same pre-dispatch
+    # materialization argument -- resolve each named pack against the real
+    # filesystem and stamp its PackLock digest, BEFORE the Reactor dispatch
+    # (a refusal writes zero files).
+    maybe_enforce_target_packs!(opts, named_results)
+
     resolved_out = opts[:out] || frontmatter_field(frontmatter, :to)
 
     if mode == :file and resolved_out == nil do
@@ -1453,6 +1459,23 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     named_results = run_queries(engine_module, graph, opts, named_queries)
 
     maybe_verify_base_shas!(opts, named_results)
+    maybe_enforce_target_packs!(opts, named_results)
+  end
+
+  # Sync-time WORLD enforcement for WorkOrder target packs (FORMAT was
+  # already verified by the admission kernel): resolve each distinct
+  # `target_pack` named in the materialized rows against the real
+  # filesystem and stamp its `GgenIgniter.PackLock` digest
+  # (`GgenIgniter.SemanticJira.TargetPack.enforce!/2`). A run where no row
+  # carries a target pack is a no-op. Raises the typed refusal
+  # `REFUSED:TARGET_PACK_UNKNOWN` BEFORE any dispatch -- zero files written,
+  # zero receipts appended -- exactly like `maybe_verify_base_shas!/2`.
+  defp maybe_enforce_target_packs!(opts, named_results) do
+    GgenIgniter.SemanticJira.TargetPack.enforce!(named_results,
+      verify_cwd: opts[:verify_cwd] || File.cwd!()
+    )
+
+    :ok
   end
 
   # -- ADR-0008: evidence-ranked multi-engine registry (comparison mode) -----

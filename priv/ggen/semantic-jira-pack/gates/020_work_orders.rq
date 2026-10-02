@@ -2,7 +2,7 @@ PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 SELECT ?work_order ?id ?title ?description ?repository ?base_sha ?subject
        ?standing ?evidence_ceiling ?authority_ceiling ?promotion_rule ?replay_identity
-       ?requires_git_ground_truth
+       ?requires_git_ground_truth ?target_pack
 WHERE {
   ?work_order a sj:WorkOrder .
   OPTIONAL { ?work_order dcterms:identifier ?id . }
@@ -22,4 +22,10 @@ WHERE {
   # task's --verify-base-sha flag. Absent triple = no default behavior
   # change, so the canonical fabric set still manufactures unverified.
   OPTIONAL { ?work_order sj:requiresGitGroundTruth ?requires_git_ground_truth . }
+  # Opt-in per-order target pack (sj:targetPack): a WorkOrder carrying this
+  # triple names the ggen pack (priv/ggen/<name>) it targets. Sync-time
+  # WORLD enforcement (pack resolution + PackLock digest) lives in
+  # GgenIgniter.SemanticJira.TargetPack.enforce!/2; absent triple = no
+  # default behavior change.
+  OPTIONAL { ?work_order sj:targetPack ?target_pack . }
 }

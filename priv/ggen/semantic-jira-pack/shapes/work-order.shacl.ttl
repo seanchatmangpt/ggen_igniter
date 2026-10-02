@@ -28,6 +28,13 @@ sj:WorkOrderShape a sh:NodeShape ;
     # Opt-in per-order git ground truth (no sh:minCount: absence is the
     # default and changes nothing; presence must be a single boolean).
     sh:property [ sh:path sj:requiresGitGroundTruth ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;
+    # Opt-in per-order target pack (FORMAT/WORLD law split, the
+    # sj:requiresGitGroundTruth precedent: no sh:minCount -- absence is the
+    # default and changes nothing; presence must be a single pack name).
+    # Admission verifies the NAME format only; sync-time WORLD enforcement
+    # (pack resolution + PackLock digest) lives in
+    # GgenIgniter.SemanticJira.TargetPack.enforce!/2, never in the court.
+    sh:property [ sh:path sj:targetPack ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-z0-9][a-z0-9_-]*$" ] ;
     sh:property [ sh:path sj:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
     sh:property [ sh:path sj:standing ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$" ] ;
     sh:property [ sh:path sj:evidenceCeiling ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;

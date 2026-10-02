@@ -2282,6 +2282,16 @@ sj:originObservation a rdf:Property ;
     rdfs:range sj:ProseObservation ;
     rdfs:comment "Optional, at most one; provenance never authority." .
 
+# Two-layer discipline (the sj:baseSha precedent): admission verifies the
+# pack name as FORMAT only (`@pack_name` regex in the kernel); real pack
+# existence and content identity are established at sync time by
+# GgenIgniter.SemanticJira.TargetPack.enforce!/2 (sync=WORLD), never
+# admitted on prose.
+sj:targetPack a rdf:Property ;
+    rdfs:domain sj:WorkOrder ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Optional, at most one; names the ggen pack (priv/ggen/<name>) this WorkOrder targets. Admission verifies FORMAT only, mirroring the sj:baseSha precedent; sync-time enforcement (GgenIgniter.SemanticJira.TargetPack) resolves the real pack directory and stamps its digest." .
+
 sj:objective-semantic-jira-mvp a sj:StrategicObjective ;
     rdfs:label "Semantic Jira MVP strategy" ;
     dcterms:description "Canonical RDF work-order graph, SHACL admission court, typed receipts; origin of SJ-001; projects work from admitted graph state, never from generated Markdown." ;

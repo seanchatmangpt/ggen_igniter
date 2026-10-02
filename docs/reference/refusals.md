@@ -31,7 +31,7 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 130 codes (`$defs.code.enum` length; derived from the
+The registry holds 131 codes (`$defs.code.enum` length; derived from the
 schema by `GgenIgniter.Refusals.count/0`, never hand-maintained) plus 24
 wrapped reasons. Regenerate both tables below with:
 
@@ -161,6 +161,7 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `SUBJECT_PREFIX_UNDECLARED` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Declare the subject namespace prefix in the ontology. |
 | `TRANSITION` | typed_tuple | false | R_missing_standing | `GgenIgniter.SemanticJira` | Present a genuine intent: its transition_digest must re-derive (intent_digest_mismatch), its from must equal the current standing (stale_intent) and bind the work-order digest (intent_not_bound_to_work_order). |
 | `TRANSITION_UNKNOWN_STATE` | state_machine | false | mu_on_O | `GgenIgniter.Packs.StateMachine` | Declare the from/to/initial state as an sm:State of the same machine, or correct the transition's state name. |
+| `TARGET_PACK_UNKNOWN` | semantic_work_order | true | R_missing_identity | `GgenIgniter.SemanticJira.TargetPack` | Create the pack at priv/ggen/<name> (cwd-relative) or pass --pack-dir with a real pack directory. |
 | `UNADMITTED` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Admit the file with mix ggen_igniter.hand_authored. |
 | `UNCOVERED_GATE` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Prose` | Cover every gate of the root with at least one proposition. |
 | `UNEXPLAINED_SIMILARITY` | epoch_verdict | false | mu_unlawful | `GgenIgniter.EpochFreshness` | Regenerate, or admit fresh residue that differs below the similarity threshold. |
@@ -175,7 +176,6 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `WORK_ORDER` | typed_tuple | false | mu_on_O | `GgenIgniter.SemanticJira` | admit_work_order takes a map with every required work-order field valid; fix the field named in the reason (expected_map means a non-map was passed). |
 | `WORK_ORDER_ABSENT` | semantic_work_order | true | mu_on_O | `GgenIgniter.SemanticWorkOrder` | The execution package names a work order file that is missing on disk; restore it or rebuild the package. |
 | `WORK_ORDER_DRIFT` | semantic_work_order | false | R_missing_identity | `GgenIgniter.SemanticWorkOrder` | The work order on disk no longer matches the digest recorded in the package; rebuild the execution package from the current work order. |
-
 ## Wrapped reasons
 
 Reason atoms emitted as bare `{:error, :reason}` / `{:refused, :reason}` that

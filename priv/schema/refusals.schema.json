@@ -159,6 +159,7 @@
         "STATE_UNREACHABLE",
         "SUBJECT_EXHAUSTED",
         "SUBJECT_PREFIX_UNDECLARED",
+        "TARGET_PACK_UNKNOWN",
         "TRANSITION",
         "TRANSITION_UNKNOWN_STATE",
         "UNADMITTED",
@@ -1282,6 +1283,15 @@
       "fix_hint": "Declare the from/to/initial state as an sm:State of the same machine, or correct the transition's state name.",
       "broken_term": "mu_on_O",
       "example": "REFUSED:TRANSITION_UNKNOWN_STATE <detail>"
+    },
+    {
+      "code": "TARGET_PACK_UNKNOWN",
+      "family": "semantic_work_order",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.TargetPack",
+      "fix_hint": "Create the pack at priv/ggen/<name> (cwd-relative) or pass --pack-dir with a real pack directory.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:TARGET_PACK_UNKNOWN pack=demo-pack work_order=SJ-001"
     },
     {
       "code": "UNADMITTED",

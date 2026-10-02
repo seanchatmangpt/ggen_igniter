@@ -414,6 +414,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     Manifest,
     Ontology,
     Pack,
+    PackLock,
     PendingActuation,
     Receipt,
     Reconcile,
@@ -2866,20 +2867,52 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   # -- :finalize_evidence (correction B) --------------------------------------
 
-  defp finalize_evidence(%{
-         admitted: admitted,
-         actuated: %{
-           results: results,
-           tracked: tracked,
-           commands: commands,
-           igniter_diverged: igniter_diverged,
-           igniter_paths: igniter_paths
+  # `{name, digest}` identity of the resolved pack dir, or `{nil, nil}` for
+  # a packless run. A digest failure is returned, never raised, so the
+  # step can fail closed with the typed `{:pack_digest_failed, reason}`.
+  defp pack_identity_stamp(nil), do: {:ok, {nil, nil}}
+
+  defp pack_identity_stamp(pack_dir) do
+    case PackLock.digest_checked(pack_dir) do
+      {:ok, digest} -> {:ok, {Path.basename(pack_dir), digest}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # Receipt pack stamp (v26.10.1 lane G2): a run resolving a real pack
+  # stamps `pack_name` (the resolved pack directory's basename) and
+  # `pack_digest` (`GgenIgniter.PackLock.digest_checked/1` over the pack's
+  # real on-disk content) onto the success-path receipt. Fail closed: a
+  # digest failure (`REFUSED:PACK_SYMLINK_ESCAPE` /
+  # `REFUSED:PACK_FILE_UNREADABLE`) fails the `:finalize_evidence` step --
+  # Reactor's own undo then rolls back `:actuate`'s writes -- rather than
+  # writing an unstampable receipt. A packless run stamps `{nil, nil}`,
+  # and `GgenIgniter.Receipt`'s `put_optional` omits both keys from the
+  # persisted JSON -- byte-compatible with every pre-stamp receipt.
+  defp finalize_evidence(%{pack: %{pack_dir: pack_dir}} = args) do
+    case pack_identity_stamp(pack_dir) do
+      {:ok, stamp} -> finalize_evidence(args, stamp)
+      {:error, reason} -> {:error, {:pack_digest_failed, reason}}
+    end
+  end
+
+  defp finalize_evidence(
+         %{
+           admitted: admitted,
+           actuated: %{
+             results: results,
+             tracked: tracked,
+             commands: commands,
+             igniter_diverged: igniter_diverged,
+             igniter_paths: igniter_paths
+           },
+           observed: observed,
+           pack: %{pack_dir: pack_dir},
+           ontology: %{ontology_path: ontology_path},
+           reconcile_opts: opts
          },
-         observed: observed,
-         pack: %{pack_dir: pack_dir},
-         ontology: %{ontology_path: ontology_path},
-         reconcile_opts: opts
-       }) do
+         {pack_name, pack_digest}
+       ) do
     event_sink = opts[:event_sink]
     manifest_dir = observed.manifest_dir
 
@@ -3037,6 +3070,8 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
       Receipt.new(%{
         standing: :alive,
         recipe_key: single_recipe && single_recipe.recipe_key,
+        pack_name: pack_name,
+        pack_digest: pack_digest,
         pre_run_hash: pre_run_hash,
         post_run_hash: post_run_hash,
         files: Map.keys(outputs),
