@@ -302,7 +302,6 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
       )
     end)
 
-    on_exit(fn -> File.rm_rf!(@stem_pack_root) end)
     :ok
   end
 

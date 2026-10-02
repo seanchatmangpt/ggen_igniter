@@ -19,8 +19,11 @@ Run this before claiming any implementation, fix, or refactor is complete.
    don't continue.
 5. Classify every failing test/warning as PRE-EXISTING (was already broken before this
    session's changes — cite the baseline) or INTRODUCED-BY-ME.
-6. Chicago-style check: `grep -rn "Mock\|mock(\|patch(\|monkeypatch" test lib native`
-   — expect zero matches. Any hit must be justified per
+6. Chicago-style check (the regex pinned in `test/CLAUDE.md` — do NOT use the older
+   `grep -rn "Mock\|mock(\|patch(\|monkeypatch"` form, which cannot tell a real mock
+   from `assert_has_patch/3` or from moduledoc disclosures quoting banned tokens):
+   `grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps -E '(use|import) +(Mox|Mimic|Patch)\b|(Mox|Mimic|Patch)\.|:meck\.|mockall|MagicMock|Mock\(' test lib native`
+   — expect exit 1 with zero output. Any hit must be justified per
    `~/.claude/rules/testing-chicago-style.md`'s one legitimate exception, or removed.
 7. Output a receipts block: `command -> exit code -> key output lines`. Do not use the
    words "done"/"fixed"/"working" without this block immediately preceding it.
