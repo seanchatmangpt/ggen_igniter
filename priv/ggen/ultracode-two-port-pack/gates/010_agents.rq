@@ -8,7 +8,7 @@ SELECT ?agent_iri
        (COALESCE(SAMPLE(?n), "refused_agent") AS ?agent_name)
        (COALESCE(SAMPLE(?l), "lib/refused_agent") AS ?lib_path)
        (COALESCE(SAMPLE(?t), "Refused.Target") AS ?sa2a_target)
-       (COALESCE(SAMPLE(?h), "false") AS ?hilt)
+       (COALESCE(SAMPLE(?h), "true") AS ?hilt)
 WHERE {
   ?a a utp:ConstructorAgent .
   OPTIONAL { ?a utp:otpApp ?o0 . BIND(STR(?o0) AS ?o) }

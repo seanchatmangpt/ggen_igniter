@@ -197,22 +197,27 @@ defmodule GgenIgniter.UltracodeTwoPortTest do
       assert mod(World).construction() == @local
     end
 
-    test "HILT opt-in renders, compiles and enforces DO commands bound via AshA2A.Hilt.WorkOrder; the default does not",
+    test "HILT is default-on: the default render is the bound constructor; `utp:hilt false` is the compat opt-out",
          %{m: m} do
-      # Default fixture: the render is unbound -- no AshA2A.Hilt reference, no
-      # `work_order:` bus opt -- and must compile against the published
-      # ash_a2a 26.9.31 as-is (the manufactured default agent in setup_all
-      # IS that compile, and the firewall census below proves the beams).
+      # Default fixture (no `utp:hilt` triple => bound): the render IS the
+      # bound constructor -- freeze (for_command!) -> stamp (bind_command) ->
+      # `work_order:` at the bus call. The gates must admit the Hilt edge
+      # (exit 0 of the default manufacture in setup_all proves the widened
+      # SA2A pin), and the firewall's pinned SA2A port surface names it.
       capabilities =
         m.sources |> Enum.find(&String.ends_with?(&1, "capabilities.ex")) |> File.read!()
 
-      refute capabilities =~ "AshA2A.Hilt"
-      assert capabilities =~ "auth_identity: identity)"
+      assert capabilities =~ "AshA2A.Hilt.WorkOrder.for_command!"
+      assert capabilities =~ "AshA2A.Hilt.WorkOrder.bind_command"
+      assert capabilities =~ ~s(work_order: work_order)
 
-      # Opt-in fixture: a real `mix ggen_igniter.sync` renders the bound
-      # constructor -- freeze (for_command!) -> stamp (bind_command) ->
-      # `work_order:` at the bus call. The gates must admit the Hilt edge
-      # (exit 0 proves the widened SA2A pin).
+      # Falsifier: the old unbound bus-call run shape is gone from the default.
+      refute capabilities =~ "auth_identity: identity))"
+
+      firewall = File.read!(Path.join(m.dir, "lib/ultracode_fixture/agent/firewall.ex"))
+      assert firewall =~ "AshA2A.Hilt"
+
+      # Explicit `utp:hilt true` renders the same bound constructor.
       %{dir: dir, results: results} = M.render!(["agent_hilt.ttl"], nil, agent: false)
 
       assert Enum.all?(results, &(&1.exit == 0)), inspect(Enum.reject(results, &(&1.exit == 0)))
@@ -220,44 +225,58 @@ defmodule GgenIgniter.UltracodeTwoPortTest do
       bound = File.read!(Path.join(dir, "lib/ultracode_fixture/agent/capabilities.ex"))
 
       assert bound =~ "AshA2A.Hilt.WorkOrder.for_command!"
-      assert bound =~ "AshA2A.Hilt.WorkOrder.bind_command"
       assert bound =~ ~s(work_order: work_order)
+      refute bound =~ "auth_identity: identity))"
 
-      # Falsifier: the old unbound bus-call shape is gone from the opt-in.
-      refute bound =~ "auth_identity: identity)"
+      # The opt-out compat escape: a real `mix ggen_igniter.sync` renders the
+      # pre-HILT constructor for `utp:hilt false` -- no AshA2A.Hilt reference,
+      # the unbound bus call -- the shape a consumer compiles against an
+      # ash_a2a pin predating AshA2A.Hilt.
+      %{dir: no_dir, results: no_results} = M.render!(["agent_no_hilt.ttl"], nil, agent: false)
 
-      # The firewall's pinned SA2A port surface names the Hilt edge.
-      firewall = File.read!(Path.join(dir, "lib/ultracode_fixture/agent/firewall.ex"))
-      assert firewall =~ "AshA2A.Hilt"
+      assert Enum.all?(no_results, &(&1.exit == 0)),
+             inspect(Enum.reject(no_results, &(&1.exit == 0)))
 
-      # And the graph records the opt-in as declared, not ambient.
-      manifest =
-        dir |> Path.join(".ggen_igniter/manifest.json") |> File.read!() |> Jason.decode!()
+      unbound = File.read!(Path.join(no_dir, "lib/ultracode_fixture/agent/capabilities.ex"))
 
-      assert manifest != %{}
+      refute unbound =~ "AshA2A.Hilt"
+      assert unbound =~ "auth_identity: identity))"
+      refute unbound =~ ~s(work_order: work_order)
+
+      # And the graph records each render, as declared, not ambient.
+      for d <- [dir, no_dir] do
+        manifest =
+          d |> Path.join(".ggen_igniter/manifest.json") |> File.read!() |> Jason.decode!()
+
+        assert manifest != %{}
+      end
 
       # ── behavioral half, against the published dep ─────────────────────────
       # ash_a2a 26.9.31 carries AshA2A.Hilt, so the rendered binding path is
-      # provable beyond source level: the generated Capabilities module
-      # compiles for real against the published dep, and the exact call it
-      # makes -- freeze (for_command!) -> stamp (bind_command) -> bus
-      # admission (admit_command/2) -- refuses a re-pointed graph end-to-end.
+      # provable beyond source level: the default fixture's Capabilities IS
+      # that compile (setup_all), and the exact call it makes -- freeze
+      # (for_command!) -> stamp (bind_command) -> bus admission
+      # (admit_command/2) -- refuses a re-pointed graph end-to-end.
       assert Code.ensure_loaded?(AshA2A.Hilt.WorkOrder)
 
-      # The generated source compiles against the real published AshA2A. The
-      # module name collides with the default fixture's already-loaded
-      # Capabilities, so the compiled beam is loaded explicitly (the parallel
-      # compiler's implicit load of an already-loaded module is not
-      # deterministic across suite orders) and the original default beam is
-      # restored in `after` before any later test observes it.
-      assert [{@capabilities, bound_beam}] =
-               M.compile!([Path.join(dir, "lib/ultracode_fixture/agent/capabilities.ex")])
+      # The generated module really exposes the HILT refusal family.
+      assert :stale_graph_identity in mod(Capabilities).failures()
 
-      {:module, @capabilities} = :code.load_binary(@capabilities, ~c"", bound_beam)
+      # The opt-out renders AND compiles: the pre-HILT Capabilities shape is
+      # real against the published dep too. The module name collides with the
+      # default fixture's already-loaded Capabilities, so the compiled beam is
+      # loaded explicitly (the parallel compiler's implicit load of an
+      # already-loaded module is not deterministic across suite orders) and
+      # the original default beam is restored in `after`.
+      assert [{@capabilities, unbound_beam}] =
+               M.compile!([Path.join(no_dir, "lib/ultracode_fixture/agent/capabilities.ex")])
+
+      {:module, @capabilities} = :code.load_binary(@capabilities, ~c"", unbound_beam)
 
       try do
-        # The generated module really exposes the HILT refusal family.
-        assert :stale_graph_identity in mod(Capabilities).failures()
+        # The pre-HILT family: no stale_graph_identity, the closed set intact.
+        refute :stale_graph_identity in mod(Capabilities).failures()
+        assert :no_capability in mod(Capabilities).failures()
 
         graph_a = "sha256:" <> String.duplicate("a", 64)
         graph_b = "sha256:" <> String.duplicate("b", 64)
@@ -299,7 +318,7 @@ defmodule GgenIgniter.UltracodeTwoPortTest do
         assert :ok = AshA2A.Hilt.WorkOrder.admit_command(carried, bound)
 
         # One field changed -- the checkpoint graph_digest -- and the exact
-        # call the generated code makes refuses with the typed code,
+        # call the default render makes refuses with the typed code,
         # end-to-end against the published dep.
         stale =
           AshA2A.Hilt.WorkOrder.for_command!(

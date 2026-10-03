@@ -92,7 +92,7 @@ utp:libPath a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent .
 utp:sa2aTarget a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent ;
     rdfs:comment "The SA2A resource-or-domain whose released capability index the agent resolves against." .
 utp:hilt a owl:DatatypeProperty ; rdfs:domain utp:ConstructorAgent ;
-    rdfs:comment "Opt-in CHI-HILT work-order binding: render the DO commands bound through AshA2A.Hilt.WorkOrder.for_command!/3 + bind_command/2 and admitted by CommandBus.run's work_order opt. Requires an ash_a2a pin that carries AshA2A.Hilt (hex 26.9.x does not)." .
+    rdfs:comment "Opt-OUT CHI-HILT work-order binding (DEFAULT ON): the DO commands are rendered bound through AshA2A.Hilt.WorkOrder.for_command!/3 + bind_command/2 and admitted by CommandBus.run's work_order opt unless the graph sets `utp:hilt false` -- the compat escape for an ash_a2a pin that predates AshA2A.Hilt (hex < 26.9.31)." .
 
 # ── The two ports ─────────────────────────────────────────────────────────
 
