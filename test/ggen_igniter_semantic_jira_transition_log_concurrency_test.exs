@@ -152,7 +152,10 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
     # enumeration order is genuinely unordered and the digest's key sorting is
     # exercised rather than trivially satisfied.
     defp wide(event) do
-      Map.merge(event, Map.new(0..29, &{"ext-#{Integer.to_string(&1) |> String.pad_leading(2, "0")}", &1}))
+      Map.merge(
+        event,
+        Map.new(0..29, &{"ext-#{Integer.to_string(&1) |> String.pad_leading(2, "0")}", &1})
+      )
     end
 
     defp flip_first_char(digest) do
@@ -205,11 +208,13 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
       reversed = event |> Enum.reverse() |> Map.new()
 
       assert TransitionLog.event_digest(event) == TransitionLog.event_digest(reversed)
+
       assert TransitionLog.legacy_event_digest(event) ==
                TransitionLog.legacy_event_digest(reversed)
     end
 
-    test "cross-repo vector: a legacy-stamped event recomputes only under the (deprecated, window-shrunk) legacy rule; a tampered event under neither", %{dir: dir} do
+    test "cross-repo vector: a legacy-stamped event recomputes only under the (deprecated, window-shrunk) legacy rule; a tampered event under neither",
+         %{dir: dir} do
       ledger = Path.join(dir, "legacy.jsonl")
 
       # Rebuild xaas's pinned case exactly: strip seq/event_digest, stamp the
@@ -226,6 +231,7 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
       # Round-trip through the real file on disk — the bytes a consumer reads.
       [stored] =
         ledger |> File.read!() |> String.split("\n", trim: true) |> Enum.map(&Jason.decode!/1)
+
       assert stored["seq"] == 1
       refute stored["event_digest"] == TransitionLog.event_digest(stored)
       assert stored["event_digest"] == TransitionLog.legacy_event_digest(stored)
@@ -242,6 +248,7 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
       # rules see it): the stamped digest now recomputes under NEITHER rule —
       # this is what makes the bridge refuse log_untrusted.
       tampered = Map.update!(stored, "snapshot_digest", &flip_first_char/1)
+
       refute stored["event_digest"] in [
                TransitionLog.event_digest(tampered),
                TransitionLog.legacy_event_digest(tampered)
@@ -257,7 +264,9 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
       refute receipt_swapped["event_digest"] == TransitionLog.event_digest(receipt_swapped)
     end
 
-    test "append/2 stamps a recomputing digest, overwriting any caller-supplied event_digest", %{dir: dir} do
+    test "append/2 stamps a recomputing digest, overwriting any caller-supplied event_digest", %{
+      dir: dir
+    } do
       ledger = Path.join(dir, "stamp.ndjson")
       forged = "sha256:" <> String.duplicate("9", 64)
 
@@ -273,6 +282,225 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
 
       assert {:ok, [stored]} = TransitionLog.fetch(ledger)
       assert stored["event_digest"] == stamped["event_digest"]
+    end
+  end
+
+  # ── epoch: the ledger-generation counter (L3, loops-of-loops spec §1) ──────
+  describe "append/3 epoch (ledger-generation counter)" do
+    defp plain(w) do
+      %{
+        "kind" => "standing_transition_event",
+        "identity" => "EP-#{w}",
+        "from" => "UNKNOWN",
+        "to" => "ALIVE",
+        "authority" => "NONE"
+      }
+    end
+
+    test "every write is stamped; the epoch stays within a receipt-window; seq orders within it",
+         %{dir: dir} do
+      for {name, marker} <- [{"e.ndjson", "e.ndjson.epoch"}, {"e-dir", "e-dir/epoch"}] do
+        ledger = Path.join(dir, name)
+        marker_path = Path.join(dir, marker)
+
+        assert {:ok, e1, :appended} = TransitionLog.append(ledger, plain(1))
+        assert {:ok, e2, :appended} = TransitionLog.append(ledger, plain(2))
+
+        assert e1["epoch"] == 0 and e2["epoch"] == 0
+        assert e1["seq"] == 1 and e2["seq"] == 2
+
+        # A fresh ledger declares no generation above 0, so no marker file
+        # exists yet in either form.
+        assert {:ok, [^e1, ^e2]} = TransitionLog.fetch(ledger)
+        refute File.exists?(marker_path)
+      end
+    end
+
+    test "epoch_bump declares a new generation and persists it in the marker", %{dir: dir} do
+      for {name, marker} <- [{"b.ndjson", "b.ndjson.epoch"}, {"b-dir", "b-dir/epoch"}] do
+        ledger = Path.join(dir, name)
+        marker_path = Path.join(dir, marker)
+
+        assert {:ok, e0, :appended} = TransitionLog.append(ledger, plain(1))
+        assert e0["epoch"] == 0
+
+        assert {:ok, e1, :appended} = TransitionLog.append(ledger, plain(2), epoch_bump: 3)
+        assert e1["epoch"] == 3
+        assert File.read!(marker_path) == "3"
+
+        # The generation stays for subsequent receipt-window events.
+        assert {:ok, e2, :appended} = TransitionLog.append(ledger, plain(3))
+        assert e2["epoch"] == 3
+
+        assert {:ok, [_, stored1, stored2]} = TransitionLog.fetch(ledger)
+        assert stored1["epoch"] == 3 and stored2["epoch"] == 3
+      end
+    end
+
+    test "an explicit epoch below the ledger's last epoch is a typed refusal before any write",
+         %{dir: dir} do
+      ledger = Path.join(dir, "r.ndjson")
+
+      assert {:ok, e0, :appended} = TransitionLog.append(ledger, plain(1), epoch_bump: 2)
+      assert e0["epoch"] == 2
+      before = File.read!(ledger)
+
+      assert {:error, {:ledger_refused, :epoch_regression}} =
+               TransitionLog.append(ledger, plain(2), epoch: 1)
+
+      assert {:error, {:ledger_refused, :epoch_regression}} =
+               TransitionLog.append(ledger, plain(2), epoch: 0)
+
+      assert File.read!(ledger) == before
+
+      # Equal to last is NOT a regression (same receipt-window); above last is
+      # an explicit generation declaration that later plain appends inherit.
+      assert {:ok, e1, :appended} = TransitionLog.append(ledger, plain(2), epoch: 2)
+      assert e1["epoch"] == 2
+
+      assert {:ok, e2, :appended} = TransitionLog.append(ledger, plain(3), epoch: 9)
+      assert e2["epoch"] == 9
+
+      assert {:ok, e3, :appended} = TransitionLog.append(ledger, plain(4))
+      assert e3["epoch"] == 9
+    end
+
+    test "pre-L3 events (no epoch/vc) still append, verify, and continue at epoch 0", %{
+      dir: dir
+    } do
+      ledger = Path.join(dir, "old.ndjson")
+
+      old = %{
+        "kind" => "standing_transition_event",
+        "identity" => "EP-OLD",
+        "from" => "UNKNOWN",
+        "to" => "ALIVE",
+        "authority" => "NONE"
+      }
+
+      # Written by hand: append/3 stamps the epoch, and the point is that an
+      # event written BEFORE L3 — digest over exactly the fields it has —
+      # still verifies.
+      File.write!(
+        ledger,
+        Jason.encode!(Map.put(old, "event_digest", TransitionLog.event_digest(old))) <> "\n"
+      )
+
+      assert {:ok, [stored]} = TransitionLog.fetch(ledger)
+      refute Map.has_key?(stored, "epoch")
+      refute Map.has_key?(stored, "vc")
+
+      # The next write continues the generation at 0 (pre-L3 events
+      # contribute 0).
+      assert {:ok, next, :appended} = TransitionLog.append(ledger, plain(1))
+      assert next["epoch"] == 0
+      assert {:ok, [^stored, ^next]} = TransitionLog.fetch(ledger)
+    end
+
+    test "the epoch is inside the digest: a tampered stamp refuses fetch", %{dir: dir} do
+      ledger = Path.join(dir, "tamper.ndjson")
+
+      assert {:ok, e, :appended} = TransitionLog.append(ledger, plain(1), epoch_bump: 4)
+      assert e["epoch"] == 4
+
+      # Flip the epoch in the raw bytes: the digest no longer recomputes.
+      File.write!(ledger, String.replace(File.read!(ledger), "\"epoch\":4", "\"epoch\":5"))
+      assert {:error, {:ledger_refused, {:event_digest_mismatch, 1}}} = TransitionLog.fetch(ledger)
+    end
+
+    test "forked-epoch court: two writers, one regresses -> refused, the ledger intact", %{
+      dir: dir
+    } do
+      ledger = Path.join(dir, "fork-dir")
+
+      parent = Task.async(fn -> TransitionLog.append(ledger, plain(1), epoch_bump: 5) end)
+      assert {:ok, bumped, :appended} = Task.await(parent, 30_000)
+      assert bumped["epoch"] == 5
+
+      # The regressing replicas lose, typed, no matter how they arrive.
+      regressions =
+        1..4
+        |> Enum.map(fn w ->
+          Task.async(fn -> TransitionLog.append(ledger, plain(w), epoch: w) end)
+        end)
+        |> Task.await_many(30_000)
+
+      assert Enum.all?(regressions, &match?({:error, {:ledger_refused, :epoch_regression}}, &1)),
+             inspect(regressions)
+
+      # A compliant writer (explicit epoch == last) appends alongside.
+      assert {:ok, ok, :appended} = TransitionLog.append(ledger, plain(9), epoch: 5)
+      assert ok["epoch"] == 5
+
+      assert {:ok, events} = TransitionLog.fetch(ledger)
+      assert Enum.map(events, & &1["epoch"]) == [5, 5]
+      assert Enum.map(events, & &1["seq"]) == [1, 2]
+    end
+  end
+
+  # ── vector clocks: the conflict law (L3, loops-of-loops spec §1) ───────────
+  describe "append/3 vc + vc_dominates?/vc_concurrent? (the conflict law)" do
+    defp clock(m), do: Map.new(m, fn {k, v} -> {Atom.to_string(k), v} end)
+
+    setup %{dir: dir} do
+      %{ledger: Path.join(dir, "vc.ndjson")}
+    end
+
+    test "vc is stamped only when the caller carries one, and lives inside the digest", %{
+      ledger: ledger
+    } do
+      base = %{"kind" => "e", "identity" => "V", "from" => "UNKNOWN", "to" => "ALIVE"}
+
+      assert {:ok, bare, :appended} = TransitionLog.append(ledger, base)
+      refute Map.has_key?(bare, "vc")
+
+      assert {:ok, stamped, :appended} = TransitionLog.append(ledger, base, vc: clock(r1: 3))
+      assert stamped["vc"] == %{"r1" => 3}
+      assert {:ok, [^bare, ^stamped]} = TransitionLog.fetch(ledger)
+
+      # The vc field is part of the digested map: same content without it
+      # digests differently.
+      bare_digest =
+        TransitionLog.event_digest(%{
+          "kind" => "e",
+          "identity" => "V",
+          "from" => "UNKNOWN",
+          "to" => "ALIVE",
+          "epoch" => 0
+        })
+
+      vc_digest =
+        TransitionLog.event_digest(%{
+          "kind" => "e",
+          "identity" => "V",
+          "from" => "UNKNOWN",
+          "to" => "ALIVE",
+          "epoch" => 0,
+          "vc" => %{"r1" => 3}
+        })
+
+      refute bare_digest == vc_digest
+    end
+
+    test "a malformed vc raises instead of stamping garbage", %{ledger: ledger} do
+      assert_raise ArgumentError, ~r/opts\[:vc\]/, fn ->
+        TransitionLog.append(ledger, %{"identity" => "V"}, vc: %{"r1" => -1})
+      end
+    end
+
+    test "vc_dominates?/2 and vc_concurrent?/2 truth table (missing replica counts 0)" do
+      assert TransitionLog.vc_dominates?(clock(r1: 2), clock(r1: 1))
+      assert TransitionLog.vc_dominates?(clock(r1: 1, r2: 1), clock(r1: 1))
+      assert TransitionLog.vc_dominates?(clock(r1: 1), %{})
+      refute TransitionLog.vc_dominates?(%{}, %{})
+      refute TransitionLog.vc_dominates?(clock(r1: 1), clock(r1: 1))
+      refute TransitionLog.vc_dominates?(clock(r1: 1, r2: 0), clock(r1: 1))
+
+      refute TransitionLog.vc_concurrent?(clock(r1: 2), clock(r1: 1))
+      refute TransitionLog.vc_concurrent?(clock(r1: 1), clock(r1: 1))
+      refute TransitionLog.vc_concurrent?(%{}, %{})
+      assert TransitionLog.vc_concurrent?(clock(r1: 1), clock(r2: 1))
+      assert TransitionLog.vc_concurrent?(clock(r1: 1, r2: 1), clock(r1: 1, r3: 1))
     end
   end
 end

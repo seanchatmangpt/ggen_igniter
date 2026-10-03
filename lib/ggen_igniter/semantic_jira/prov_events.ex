@@ -21,6 +21,18 @@ defmodule GgenIgniter.SemanticJira.ProvEvents do
   (no map/graph iteration order, no timestamps), so the same ledger always
   yields the same bytes regardless of ledger form (file or directory).
 
+  Epoch + vector clocks (loops-of-loops spec §1 Loop 2): when an event
+  carries `epoch` it is projected as `sj:epoch` (a plain integer literal);
+  when it carries `vc` it is projected as a single `sj:vectorClock` literal
+  holding the clock's JSON form with keys sorted, so projection stays
+  deterministic. Both are CONDITIONALLY required: `@required` is unchanged,
+  because pre-L3 events (which `TransitionLog.append/3` has stamped with
+  `epoch` only since L3) cannot satisfy them and must keep projecting.
+  `stamped?/1` is the post-L3 detector — an event carrying `epoch` must carry
+  a well-formed u64 epoch, and an event carrying `vc` must carry a
+  well-formed clock; a violation is the same typed
+  `{:invalid_event, seq, missing}` refusal as a missing `@required` field.
+
   `to_turtle/1` refuses (typed) an event missing a required field rather than
   emitting a partial record. `validate/1` runs the result through the real
   `GgenIgniter.SemanticJira.Shacl` court against the pack shape file
@@ -93,10 +105,34 @@ defmodule GgenIgniter.SemanticJira.ProvEvents do
   defp validate_events(events) do
     Enum.find_value(events, :ok, fn event ->
       missing =
-        if is_map(event), do: Enum.reject(@required, &valid_field?(event, &1)), else: @required
+        if is_map(event),
+          do: Enum.reject(@required, &valid_field?(event, &1)) ++ conditional_missing(event),
+          else: @required
 
       if missing == [], do: nil, else: {:error, {:invalid_event, seq_of(event), missing}}
     end)
+  end
+
+  # The post-L3 detector: `TransitionLog.append/3` has stamped `"epoch"` on
+  # every event it writes since L3 (loops-of-loops spec §1 Loop 2), so an
+  # event carrying one is a post-L3 write and MUST carry a well-formed epoch;
+  # an event without it is a pre-L3 write and is NOT required to (honest
+  # scoping — old ledgers keep projecting). A present-but-malformed field is
+  # a refusal, never a silently partial projection.
+  defp stamped?(event) when is_map(event), do: Map.has_key?(event, "epoch")
+  defp stamped?(_), do: false
+
+  defp valid_epoch?(e), do: is_integer(e) and e >= 0 and e < 18_446_744_073_709_551_616
+
+  defp valid_vc?(vc),
+    do: is_map(vc) and Enum.all?(vc, fn {r, n} -> is_binary(r) and is_integer(n) and n >= 0 end)
+
+  defp conditional_missing(event) do
+    cond do
+      stamped?(event) and not valid_epoch?(event["epoch"]) -> ["epoch"]
+      Map.has_key?(event, "vc") and not valid_vc?(event["vc"]) -> ["vc"]
+      true -> []
+    end
   end
 
   defp seq_of(%{"seq" => seq}), do: seq
@@ -126,10 +162,19 @@ defmodule GgenIgniter.SemanticJira.ProvEvents do
     informed =
       if prev, do: ["  prov:wasInformedBy <#{event_iri(prev)}> ;\n"], else: []
 
+    # L3 stamps, projected only when the event carries them (pre-L3 events
+    # project byte-identically to their old shape).
+    stamp_lines =
+      (if Map.has_key?(event, "epoch"), do: ["  sj:epoch #{event["epoch"]} ;\n"], else: []) ++
+        (if vc = vc_literal(event["vc"]), do: ["  sj:vectorClock #{vc} ;\n"], else: [])
+
     [
       [
         "<#{event_iri(event)}> a prov:Activity, sj:StandingTransitionEvent ;\n",
-        "  sj:seq #{event["seq"]} ;\n",
+        "  sj:seq #{event["seq"]} ;\n"
+      ],
+      stamp_lines,
+      [
         "  sj:eventDigest #{lit(event["event_digest"])} ;\n",
         "  sj:identity #{lit(event["identity"])} ;\n",
         "  sj:from #{lit(event["from"])} ;\n",
@@ -176,4 +221,15 @@ defmodule GgenIgniter.SemanticJira.ProvEvents do
 
     ~s("#{escaped}")
   end
+
+  # The clock as a single JSON-ish literal, keys sorted, so the projection
+  # stays deterministic regardless of map iteration order (the bytes law).
+  defp vc_literal(nil), do: nil
+
+  defp vc_literal(%{} = vc) do
+    body = Enum.map_join(Enum.sort(vc), ",", fn {r, n} -> ~s("#{r}":#{n}) end)
+    lit("{#{body}}")
+  end
+
+  defp vc_literal(_), do: nil
 end

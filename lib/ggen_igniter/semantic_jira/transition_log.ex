@@ -49,6 +49,33 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
   v26.11.1 milestone; from now on a consumer should probe the legacy export's
   availability instead of calling it unconditionally.
 
+  ## Epoch + vector clocks (loops-of-loops spec §1 Loop 2)
+
+  Every event this module writes carries `"epoch"` — the LEDGER-GENERATION
+  counter — and, when the caller passes `opts[:vc]`, a `"vc"` vector clock
+  `%{"<replica>" => counter}`. The two fields are ordinary event fields, so
+  `event_digest/1` commits to them automatically; pre-L3 events without them
+  still verify because the digest is computed over whatever fields exist (no
+  legacy arm is needed for READS — only `legacy_event_digest/1`'s pre-existing,
+  shrinking window above predates this). New writes always stamp `epoch`
+  (`vc` stays optional).
+
+  The bump law: an epoch is advanced only when the replica/ledger declares a
+  new generation — `opts[:epoch_bump]` is that explicit advance (stamped
+  epoch = last + bump), `opts[:epoch]` is an explicit stamp, and otherwise the
+  epoch STAYS: events written in the same receipt-window share the ledger's
+  current generation. `seq` orders events WITHIN a generation; the epoch
+  orders generations. A ledger's last epoch is the max over its events'
+  epochs and the `<dir>/epoch` / `<path>.epoch` marker file (default 0 when
+  neither exists — the pre-L3 shape). An append whose explicit `opts[:epoch]`
+  is below the ledger's last epoch is refused before any byte is written:
+  `{:error, {:ledger_refused, :epoch_regression}}`. Honest residue: within
+  one ledger form's own append critical section (the ndjson lock, the
+  directory digest claim) the stamped epoch is exact; a plain append racing a
+  concurrent `epoch_bump` from another replica may stamp the pre-bump epoch —
+  epoch advances declare a generation, and concurrent bumps serialize on the
+  marker (max-guarded), so the observed epoch sequence never decreases.
+
   The WorkOrder definition is never touched; current standing is the
   projection `GgenIgniter.SemanticJira.project/2` of this log over the graph.
   """
@@ -118,16 +145,124 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
     end
   end
 
-  @spec append(Path.t(), map()) ::
+  @doc """
+  Appends `event` to the ledger at `path`, stamping `seq`, `event_digest`,
+  `epoch`, and — only when `opts[:vc]` is given — `vc` (see the "Epoch +
+  vector clocks" section of the moduledoc for the bump law and the
+  `{:error, {:ledger_refused, :epoch_regression}}` refusal).
+
+  Options:
+
+    * `:vc` — the writer's vector clock, `%{"<replica>" => counter}` (string
+      keys, non-negative integer counters). Absent → the event carries none.
+    * `:epoch` — explicit stamp; must be `>=` the ledger's last epoch.
+    * `:epoch_bump` — explicit advance (stamped epoch = last + bump); the
+      marker is persisted so the declared generation survives even if no
+      event follows.
+  """
+  @spec append(Path.t(), map(), keyword()) ::
           {:ok, map(), :appended | :already_recorded}
           | {:error, {:ledger_locked, Path.t()}}
           | {:error, {:ledger_refused, term()}}
-  def append(path, event) do
-    event = Map.put(event, "event_digest", event_digest(event))
-
+  def append(path, event, opts \\ []) do
     case kind(path) do
-      :dir -> append_dir(path, event)
-      :file -> append_file(path, event)
+      :dir -> append_dir(path, event, opts)
+      :file -> append_file(path, event, opts)
+    end
+  end
+
+  # The L3 stamp: `vc` (when the caller carries one), then `epoch`, then the
+  # digest — in that order, so `event_digest/1` commits to both new fields.
+  # Any caller-supplied `vc`/`epoch`/`event_digest` is overwritten.
+  defp stamp(ledger, events, event, opts) do
+    with {:ok, epoch} <- next_epoch(ledger, events, opts) do
+      event =
+        event
+        |> Map.drop(["vc", "epoch", "event_digest"])
+        |> maybe_vc(opts[:vc])
+        |> Map.put("epoch", epoch)
+        |> then(&Map.put(&1, "event_digest", event_digest(&1)))
+
+      if epoch > marker_epoch(ledger), do: write_epoch_marker(ledger, epoch)
+      {:ok, event}
+    end
+  end
+
+  defp maybe_vc(event, nil), do: event
+
+  defp maybe_vc(event, vc) do
+    unless is_map(vc) and Enum.all?(vc, fn {r, n} -> is_binary(r) and is_integer(n) and n >= 0 end),
+      do: raise(ArgumentError, "append/3 opts[:vc] must map string replica ids to non-negative integers")
+
+    Map.put(event, "vc", vc)
+  end
+
+  # The stamp decision, taken against the ledger's own critical section (the
+  # events just decoded): explicit `:epoch` must not regress; `:epoch_bump`
+  # advances; otherwise the epoch stays.
+  defp next_epoch(ledger, events, opts) do
+    last = last_epoch(ledger, events)
+
+    cond do
+      (e = opts[:epoch]) != nil ->
+        unless is_integer(e) and e >= 0,
+          do: raise(ArgumentError, "append/3 opts[:epoch] must be a non-negative integer")
+
+        if e < last,
+          do: {:error, {:ledger_refused, :epoch_regression}},
+          else: {:ok, e}
+
+      (b = opts[:epoch_bump]) != nil ->
+        unless is_integer(b) and b >= 1,
+          do: raise(ArgumentError, "append/3 opts[:epoch_bump] must be a positive integer")
+
+        {:ok, last + b}
+
+      true ->
+        {:ok, last}
+    end
+  end
+
+  # Last epoch = max over the ledger's events' epochs and the marker file;
+  # pre-L3 events carry no epoch and contribute 0.
+  defp last_epoch(ledger, events),
+    do:
+      events
+      |> Enum.map(&(&1["epoch"] || 0))
+      |> Enum.max(fn -> 0 end)
+      |> max(marker_epoch(ledger))
+
+  defp epoch_marker(ledger),
+    do: if(kind(ledger) == :dir, do: Path.join(ledger, "epoch"), else: ledger <> ".epoch")
+
+  defp marker_epoch(ledger) do
+    case File.read(epoch_marker(ledger)) do
+      {:ok, body} ->
+        case Integer.parse(String.trim(body)) do
+          {n, ""} when n >= 0 -> n
+          _ -> 0
+        end
+
+      _ ->
+        0
+    end
+  end
+
+  # The marker follows the .claim spirit: a durable record of the declared
+  # generation, max-guarded so it never moves backwards. In directory form
+  # bumps serialize on `<dir>/epoch.lock` (same exclusive-create pattern as
+  # the ndjson lock); in file form the append lock is already held.
+  defp write_epoch_marker(ledger, epoch) do
+    marker = epoch_marker(ledger)
+
+    case kind(ledger) do
+      :dir ->
+        with_lock(Path.join(ledger, "epoch.lock"), @lock_attempts, fn ->
+          if epoch > marker_epoch(ledger), do: File.write!(marker, Integer.to_string(epoch))
+        end)
+
+      :file ->
+        if epoch > marker_epoch(ledger), do: File.write!(marker, Integer.to_string(epoch))
     end
   end
 
@@ -157,6 +292,46 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
 
   defp intact?(event) when is_map(event), do: event["event_digest"] == event_digest(event)
   defp intact?(_), do: false
+
+  @doc """
+  `true` when vector clock `a` dominates `b`: for every replica `r`,
+  `a[r] >= b[r]` AND for at least one replica `a[r] > b[r]` — a missing
+  replica counts as 0. Two equal clocks do not dominate each other, and the
+  empty clock dominates nothing.
+
+  This is the conflict law `Reconciler` applies before promotion (see
+  `vc_concurrent?/2`): knowledge of the same WorkOrder's history only
+  extends, it never disagrees.
+  """
+  @spec vc_dominates?(map(), map()) :: boolean()
+  def vc_dominates?(a, b) when is_map(a) and is_map(b) do
+    replicas = MapSet.union(MapSet.new(Map.keys(a)), MapSet.new(Map.keys(b)))
+
+    ge = Enum.all?(replicas, &(Map.get(a, &1, 0) >= Map.get(b, &1, 0)))
+    gt = Enum.any?(replicas, &(Map.get(a, &1, 0) > Map.get(b, &1, 0)))
+    ge and gt
+  end
+
+  @doc """
+  `true` when the clocks are UNORDERED: neither `a[r] <= b[r]` for all `r`
+  nor `b[r] <= a[r]` for all `r` (missing replica counts as 0). Two EQUAL
+  clocks are the same history, never a conflict — a replay carries the same
+  clock as the event it replays and must not refuse.
+
+  This is the conflict law `Reconciler.reconcile/4` applies before promotion:
+  an incoming receipt whose `vc` is concurrent with the last event's `vc`
+  for the same identity refuses as
+  `{:error, {:refused, {:vc_concurrent, incoming, last}}}` — the
+  deterministic-replay defense (loops-of-loops spec §1 Loop 2).
+  """
+  @spec vc_concurrent?(map(), map()) :: boolean()
+  def vc_concurrent?(a, b) when is_map(a) and is_map(b) do
+    not vc_le?(a, b) and not vc_le?(b, a)
+  end
+
+  # a <= b componentwise (missing replica counts 0); enumerating `a` is
+  # sufficient — a replica only in `b` has a[r] = 0 <= b[r] trivially.
+  defp vc_le?(a, b), do: Enum.all?(a, fn {r, n} -> n <= Map.get(b, r, 0) end)
 
   # ── directory ledger ──────────────────────────────────────────────────────
 
@@ -211,12 +386,13 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
     end
   end
 
-  defp append_dir(dir, event) do
+  defp append_dir(dir, event, opts) do
     File.mkdir_p!(dir)
 
-    with {:ok, events} <- ledger(decode_dir(dir)) do
-      case find(events, event["event_digest"]) do
-        nil -> claim_digest(dir, event)
+    with {:ok, events} <- ledger(decode_dir(dir)),
+         {:ok, stamped} <- stamp(dir, events, event, opts) do
+      case find(events, stamped["event_digest"]) do
+        nil -> claim_digest(dir, stamped)
         existing -> {:ok, existing, :already_recorded}
       end
     end
@@ -304,20 +480,21 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
   defp sorted_by_seq({:ok, events}), do: {:ok, Enum.sort_by(events, &(&1["seq"] || 0))}
   defp sorted_by_seq(error), do: error
 
-  defp append_file(path, event) do
+  defp append_file(path, event, opts) do
     File.mkdir_p!(Path.dirname(path))
     lock = path <> ".lock"
 
     with_lock(lock, @lock_attempts, fn ->
-      with {:ok, events} <- ledger(decode_file(path)) do
-        append_new_line(path, event, events)
+      with {:ok, events} <- ledger(decode_file(path)),
+           {:ok, stamped} <- stamp(path, events, event, opts) do
+        append_new_line(path, stamped, events)
       end
     end)
   end
 
-  defp append_new_line(path, event, events) do
-    case find(events, event["event_digest"]) do
-      nil -> append_line(path, event, events)
+  defp append_new_line(path, stamped, events) do
+    case find(events, stamped["event_digest"]) do
+      nil -> append_line(path, stamped, events)
       existing -> {:ok, existing, :already_recorded}
     end
   end

@@ -23,6 +23,13 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
      evidence comes from the log projection, never from the receipt.
   6. On admit an event is appended to the `TransitionLog`; replaying the same
      receipt is idempotent (`:already_recorded`).
+  7. Vector-clock conflict law (loops-of-loops spec §1 Loop 2): an incoming
+     receipt carrying a `vc` is refused when it is CONCURRENT (neither
+     dominates, `TransitionLog.vc_concurrent?/2`) with the last event's `vc`
+     for the same identity — refused as
+     `{:error, {:refused, {:vc_concurrent, incoming, last}}}` before any byte
+     is written; when ordered, the receipt's `vc` is stamped onto the
+     appended event. Events and receipts without a `vc` never trip the law.
 
   The ledger is read through `TransitionLog.fetch/1`, so a tampered or
   undecodable ledger is `{:error, {:refused, {:ledger_refused, reason}}}`
@@ -47,6 +54,7 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
          nil <- recorded(events, receipt),
          {:ok, admitted} <- refuse(SemanticJira.admit_work_order(work_order)),
          :ok <- origin_admitted(admitted, opts),
+         :ok <- vc_ordered(events, admitted, receipt),
          :ok <-
            check(
              is_nil(admitted["candidate_sha"]) or
@@ -77,7 +85,9 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
         "authority" => "NONE"
       }
 
-      refuse(TransitionLog.append(dir, event))
+      # The receipt's vector clock rides in opts[:vc]: the log stamps it (and
+      # commits it to the event digest) or omits it when the receipt has none.
+      refuse(TransitionLog.append(dir, event, vc: receipt["vc"]))
     else
       {:already, event} -> {:ok, event, :already_recorded}
       other -> other
@@ -105,6 +115,26 @@ defmodule GgenIgniter.SemanticJira.Reconciler do
     case Enum.find(events, &(&1["receipt_digest"] == digest)) do
       nil -> nil
       event -> {:already, event}
+    end
+  end
+
+  # The vc conflict law, applied in the promote path before any append: an
+  # incoming receipt's vector clock must not be concurrent with the last
+  # recorded event's clock for the same identity (see the moduledoc, point 7).
+  defp vc_ordered(events, admitted, receipt) do
+    incoming = receipt["vc"]
+
+    last = events |> Enum.reverse() |> Enum.find(&(&1["identity"] == admitted["identity"]))
+
+    cond do
+      not is_map(incoming) or is_nil(last) or not is_map(last["vc"]) ->
+        :ok
+
+      TransitionLog.vc_concurrent?(incoming, last["vc"]) ->
+        {:error, {:refused, {:vc_concurrent, incoming, last["vc"]}}}
+
+      true ->
+        :ok
     end
   end
 

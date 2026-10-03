@@ -203,6 +203,77 @@ defmodule GgenIgniter.SemanticJiraProvEventsTest do
     assert "event_digest" in missing and "receipt_digest" in missing
   end
 
+  # ── L3 stamps: conditional projection + conditional requirement ────────────
+  describe "epoch + vectorClock projection (L3, loops-of-loops spec §1)" do
+    defp stamped_event(dir) do
+      {:ok, e, _} =
+        TransitionLog.append(Path.join(dir, "l3.ndjson"), %{
+          "identity" => "L3",
+          "from" => "UNKNOWN",
+          "to" => "ALIVE",
+          "receipt_digest" => "sha256:" <> String.duplicate("4", 64),
+          "authority" => "NONE"
+        })
+
+      e
+    end
+
+    test "post-L3 events project sj:epoch and a sorted sj:vectorClock literal", %{dir: dir} do
+      e = stamped_event(dir)
+      assert e["epoch"] == 0
+
+      {:ok, graph} = ProvEvents.to_graph([e])
+      assert objs(graph, ev_iri(e), @sj <> "epoch") == ["0"]
+      assert objs(graph, ev_iri(e), @sj <> "vectorClock") == []
+
+      # A clock projects as ONE deterministic literal, keys sorted regardless
+      # of map order.
+      vc_event = Map.put(e, "vc", %{"r2" => 7, "r1" => 9})
+
+      assert {:ok, graph} = ProvEvents.to_graph([vc_event])
+
+      assert objs(graph, ev_iri(vc_event), @sj <> "vectorClock") == [
+               ~s({"r1":9,"r2":7})
+             ]
+
+      assert ProvEvents.validate(graph).conforms
+    end
+
+    test "pre-L3 events (no epoch/vc) still project and conform, byte-identically old-shaped", %{
+      dir: dir
+    } do
+      old = %{
+        "seq" => 1,
+        "identity" => "OLD",
+        "from" => "UNKNOWN",
+        "to" => "ALIVE",
+        "receipt_digest" => "sha256:" <> String.duplicate("5", 64),
+        "event_digest" => "sha256:" <> String.duplicate("6", 64)
+      }
+
+      {:ok, ttl} = ProvEvents.to_turtle([old])
+      assert ttl =~ ~s(sj:identity "OLD")
+      refute ttl =~ "sj:epoch"
+      refute ttl =~ "sj:vectorClock"
+      assert ProvEvents.validate(ttl).conforms
+    end
+
+    test "a stamped event with a malformed epoch refuses; a present-but-malformed vc refuses", %{
+      dir: dir
+    } do
+      e = stamped_event(dir)
+
+      bad_epoch = Map.put(e, "epoch", "four")
+
+      assert {:error, {:invalid_event, seq, ["epoch"]}} = ProvEvents.to_turtle([bad_epoch])
+      assert seq == e["seq"]
+
+      bad_vc = Map.put(e, "vc", %{"r1" => "many"})
+
+      assert {:error, {:invalid_event, _seq, ["vc"]}} = ProvEvents.to_turtle([bad_vc])
+    end
+  end
+
   test "hostile string content is escaped and survives the round trip", %{dir: dir} do
     ledger = Path.join(dir, "h.ndjson")
     hostile = "X\"\\ \n <a> ; ."

@@ -158,4 +158,59 @@ defmodule GgenIgniter.SemanticJiraReconcilerTest do
     assert {:error, {:refused, {:promotion_refused, [:courts]}}} =
              Reconciler.reconcile(root, r, dir)
   end
+
+  # ── the L3 vector-clock conflict law (loops-of-loops spec §1 Loop 2) ───────
+  describe "reconcile/4 vc conflict law" do
+    defp with_vc(receipt, vc), do: Map.put(receipt, "vc", vc)
+
+    # A second, distinguishable receipt for the same work order: a different
+    # snapshot digest passes the digest?-only check while changing the
+    # receipt's digest, so the replay-idempotency path is not taken.
+    defp next_receipt(w, vc) do
+      receipt(w)
+      |> Map.put("snapshot_digest", "sha256:" <> String.duplicate("2", 64))
+      |> Map.put("vc", vc)
+    end
+
+    test "a receipt whose vc is CONCURRENT with the last event's vc refuses and appends nothing",
+         %{dir: dir} do
+      root = wo("ROOT")
+
+      assert {:ok, _, :appended} =
+               Reconciler.reconcile(root, with_vc(receipt(root), %{"r1" => 1}), dir)
+
+      assert {:error, {:refused, {:vc_concurrent, incoming, last}}} =
+               Reconciler.reconcile(root, next_receipt(root, %{"r2" => 5}), dir)
+
+      assert incoming == %{"r2" => 5}
+      assert last == %{"r1" => 1}
+      assert length(TransitionLog.read(dir)) == 1
+    end
+
+    test "a receipt whose vc DOMINATES the last event's vc is admitted and stamps the event",
+         %{dir: dir} do
+      root = wo("ROOT")
+
+      assert {:ok, _, :appended} =
+               Reconciler.reconcile(root, with_vc(receipt(root), %{"r1" => 1}), dir)
+
+      assert {:ok, event, :appended} =
+               Reconciler.reconcile(root, next_receipt(root, %{"r1" => 2, "r2" => 0}), dir)
+
+      assert event["vc"] == %{"r1" => 2, "r2" => 0}
+      assert {:ok, [e1, e2]} = TransitionLog.fetch(dir)
+      assert e1["vc"] == %{"r1" => 1}
+      assert e2["vc"] == %{"r1" => 2, "r2" => 0}
+    end
+
+    test "receipts and events without a vc never trip the law (old ledgers reconcile unchanged)",
+         %{dir: dir} do
+      root = wo("ROOT")
+      assert {:ok, event, :appended} = Reconciler.reconcile(root, receipt(root), dir)
+      refute Map.has_key?(event, "vc")
+
+      assert {:ok, second, :appended} = Reconciler.reconcile(root, next_receipt(root, nil), dir)
+      refute Map.has_key?(second, "vc")
+    end
+  end
 end
