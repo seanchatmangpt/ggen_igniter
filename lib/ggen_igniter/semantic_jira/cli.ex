@@ -179,7 +179,19 @@ defmodule GgenIgniter.SemanticJira.Cli do
       bridge =
         if is_map(bridge_doc), do: Map.get(bridge_doc, "bridge", bridge_doc), else: bridge_doc
 
-      case Descriptor.receipt_from_xaas(receipt, bridge) do
+      # required_evidence lives on the WORK ORDER (the bridge carries exactly
+      # the snapshot's three lists). When the caller supplies the descriptor
+      # contract (--work-orders), take it from the contract's admitted
+      # work order; the reconcile promote law needs it to witness evidence.
+      required_evidence =
+        with {:ok, orders} <- json_file(opts, :work_orders),
+             admitted when is_map(admitted) <- admitted_order(orders, bridge) do
+          admitted["required_evidence"]
+        else
+          _ -> nil
+        end
+
+      case Descriptor.receipt_from_xaas(receipt, bridge, required_evidence) do
         {:ok, reconciler_receipt} -> {0, reconciler_receipt}
         {:error, reason} -> refused(reason)
       end
@@ -187,6 +199,19 @@ defmodule GgenIgniter.SemanticJira.Cli do
       {:invalid, reason} -> invalid(reason)
     end
   end
+
+  defp admitted_order(orders, bridge) when is_list(orders) do
+    Enum.find(orders, fn o -> is_map(o) and o["identity"] == bridge["identity"] end)
+  end
+
+  defp admitted_order(orders, bridge) when is_map(orders) do
+    case orders["admitted_work_order"] do
+      %{} = admitted -> admitted
+      _ -> Enum.find(orders["work_orders"] || [], fn o -> o["identity"] == bridge["identity"] end)
+    end
+  end
+
+  defp admitted_order(_, _), do: nil
 
   @doc "Turns an observed process finding into an admitted candidate WorkOrder."
   @spec observe(keyword()) :: {0 | 1 | 2, map()}

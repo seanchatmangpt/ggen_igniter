@@ -309,4 +309,58 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
       refute d1["graph_digest"] == d3["graph_digest"]
     end
   end
+
+  describe "receipt_from_xaas/3 (required_evidence threading, F6 regression)" do
+    test "a witnessed ALIVE receipt elevates the work order's required_evidence into evidence_types" do
+      # Regression (F6): the three-lists bridge law removed requires["evidence"],
+      # so evidence_types/5 witnessed [] and every ALIVE promotion of an order
+      # with non-empty required_evidence refused [:evidence]. The caller now
+      # threads required_evidence from the contract's admitted work order.
+      graph = [wo("ROOT")]
+      assert {:ok, d} = Descriptor.build_xaas_contract(graph, [], "ROOT", @contract_opts)
+      order = d["admitted_work_order"]
+      assert is_list(order["required_evidence"]) and order["required_evidence"] != []
+
+      court = %{
+        "evidence_types" => [],
+        "acceptance_results" => Map.new(order["acceptance"], &{&1, true}),
+        "falsifier_results" => Map.new(order["falsifiers"], &{&1, "survived"})
+      }
+
+      receipt = %{
+        "epoch_id" => "epoch-f6",
+        "run_id" => "run-f6",
+        "receipt_id" => "receipt-f6",
+        "bridge" => d["bridge"],
+        "final_head" => String.duplicate("a", 40),
+        "outcome" => "alive",
+        "head_verified" => true,
+        "fabric_verifier" => %{
+          "status" => "pass",
+          # one passing step per required court: court_results/2 witnesses each
+          # required court from these steps before evidence_types elevates the
+          # work order's required_evidence into witnessed types
+          "steps" => Enum.map(order["required_courts"], &%{"id" => &1, "status" => "pass"}),
+          "court_receipt" => court
+        }
+      }
+
+      receipt = Map.put(receipt, "receipt_digest", Descriptor.receipt_digest(receipt))
+
+      assert {:ok, reconciler} =
+               Descriptor.receipt_from_xaas(receipt, d["bridge"], order["required_evidence"])
+
+      witnessed = reconciler["evidence_types"]
+
+      assert Enum.all?(order["required_evidence"], &(&1 in witnessed)),
+             "required evidence must be witnessed, got: " <> inspect(witnessed)
+
+      # The 2-arity fallback (no contract supplied) cannot witness the order's
+      # evidence - documenting why the caller must thread it.
+      assert {:ok, fallback} = Descriptor.receipt_from_xaas(receipt, d["bridge"])
+
+      refute Enum.all?(order["required_evidence"], &(&1 in fallback["evidence_types"])),
+             "the fallback must not witness order evidence it was never given"
+    end
+  end
 end

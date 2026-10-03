@@ -24,7 +24,9 @@ defmodule Mix.Tasks.SemanticJira.XaasReceipt do
   @impl Mix.Task
   def run(args) do
     {opts, _rest, _invalid} =
-      OptionParser.parse(args, strict: [bridge: :string, xaas_receipt: :string, out: :string])
+      OptionParser.parse(args,
+        strict: [bridge: :string, xaas_receipt: :string, out: :string, work_orders: :string]
+      )
 
     opts |> Cli.xaas_receipt() |> Cli.emit(opts)
   end

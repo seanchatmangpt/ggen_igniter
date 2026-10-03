@@ -300,8 +300,15 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   `{:unsupported_outcome, outcome}`, `:head_verified_not_boolean`,
   `:alive_without_head_verification`, `:alive_without_verifier_pass`.
   """
-  @spec receipt_from_xaas(map(), map()) :: {:ok, map()} | {:error, {:receipt_refused, term()}}
-  def receipt_from_xaas(xaas_receipt, bridge) when is_map(xaas_receipt) and is_map(bridge) do
+  @spec receipt_from_xaas(map(), map(), list() | nil) ::
+          {:ok, map()} | {:error, {:receipt_refused, term()}}
+  def receipt_from_xaas(xaas_receipt, bridge, required_evidence \\ nil)
+
+  def receipt_from_xaas(xaas_receipt, bridge, nil),
+    do: receipt_from_xaas(xaas_receipt, bridge, [])
+
+  def receipt_from_xaas(xaas_receipt, bridge, required_evidence)
+      when is_map(xaas_receipt) and is_map(bridge) and is_list(required_evidence) do
     receipt = stringify(xaas_receipt)
     bridge = stringify(bridge)
 
@@ -312,11 +319,11 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
          {:ok, target} <- target(receipt["outcome"]),
          :ok <- head_verified_boolean(receipt),
          :ok <- alive_guards(receipt, target) do
-      {:ok, reconciler_receipt(receipt, bridge, target)}
+      {:ok, reconciler_receipt(receipt, bridge, target, required_evidence)}
     end
   end
 
-  def receipt_from_xaas(_, _), do: receipt_refuse(:not_a_map)
+  def receipt_from_xaas(_, _, _), do: receipt_refuse(:not_a_map)
 
   @doc "Digest a XaaS exporter must place in `\"receipt_digest\"`."
   @spec receipt_digest(map()) :: String.t()
@@ -603,7 +610,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
 
   defp alive_guards(_, _), do: :ok
 
-  defp reconciler_receipt(receipt, bridge, target) do
+  defp reconciler_receipt(receipt, bridge, target, required_evidence) do
     passed = verifier_status(receipt) == "pass"
     observed = passed and receipt["head_verified"] == true and receipt["outcome"] == "alive"
     court = court_receipt(receipt)
@@ -621,7 +628,12 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
       "target" => target,
       "receipt_digest" => receipt["receipt_digest"],
       "court_results" => courts,
-      "evidence_types" => evidence_types(receipt, court, passed, requires["evidence"], courts),
+      # required_evidence lives on the WORK ORDER (the bridge carries exactly
+      # the snapshot's three lists - AdmissionBinding law). The caller passes
+      # it from the contract's admitted_work_order; the requires["evidence"]
+      # fallback keeps pre-three-lists committed contracts replayable.
+      "evidence_types" =>
+        evidence_types(receipt, court, passed, required_evidence || requires["evidence"], courts),
       "acceptance_results" => acceptance_results(court, requires["acceptance"], passed),
       "falsifier_results" => falsifier_results(court, requires["falsifiers"], passed),
       "receipt_classes" => receipt_classes(court, passed),
