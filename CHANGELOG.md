@@ -1,5 +1,14 @@
 # Changelog
 
+## v26.10.5
+
+Released 2026-10-03.
+
+- **Fixed** formatter cleanliness in the epoch/vector-clock wave's remaining
+  files (`test/ggen_igniter_semantic_jira_transition_log_concurrency_test.exs`,
+  `lib/ggen_igniter/semantic_jira/prov_events.ex`); `mix format
+  --check-formatted` (the CI build gate) is clean at HEAD.
+
 ## v26.10.4
 
 Released 2026-10-03.

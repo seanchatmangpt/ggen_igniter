@@ -165,8 +165,8 @@ defmodule GgenIgniter.SemanticJira.ProvEvents do
     # L3 stamps, projected only when the event carries them (pre-L3 events
     # project byte-identically to their old shape).
     stamp_lines =
-      (if Map.has_key?(event, "epoch"), do: ["  sj:epoch #{event["epoch"]} ;\n"], else: []) ++
-        (if vc = vc_literal(event["vc"]), do: ["  sj:vectorClock #{vc} ;\n"], else: [])
+      if(Map.has_key?(event, "epoch"), do: ["  sj:epoch #{event["epoch"]} ;\n"], else: []) ++
+        if vc = vc_literal(event["vc"]), do: ["  sj:vectorClock #{vc} ;\n"], else: []
 
     [
       [

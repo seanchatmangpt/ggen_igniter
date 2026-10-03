@@ -405,7 +405,9 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
 
       # Flip the epoch in the raw bytes: the digest no longer recomputes.
       File.write!(ledger, String.replace(File.read!(ledger), "\"epoch\":4", "\"epoch\":5"))
-      assert {:error, {:ledger_refused, {:event_digest_mismatch, 1}}} = TransitionLog.fetch(ledger)
+
+      assert {:error, {:ledger_refused, {:event_digest_mismatch, 1}}} =
+               TransitionLog.fetch(ledger)
     end
 
     test "forked-epoch court: two writers, one regresses -> refused, the ledger intact", %{
