@@ -197,11 +197,12 @@ defmodule GgenIgniter.UltracodeTwoPortTest do
       assert mod(World).construction() == @local
     end
 
-    test "HILT opt-in renders DO commands bound via AshA2A.Hilt.WorkOrder; the default does not", %{
-      m: m
-    } do
-      # Default fixture: the pinned hex ash_a2a (26.9.x) has no AshA2A.Hilt,
-      # so the default render is unbound and compiles against it.
+    test "HILT opt-in renders, compiles and enforces DO commands bound via AshA2A.Hilt.WorkOrder; the default does not",
+         %{m: m} do
+      # Default fixture: the render is unbound -- no AshA2A.Hilt reference, no
+      # `work_order:` bus opt -- and must compile against the published
+      # ash_a2a 26.9.31 as-is (the manufactured default agent in setup_all
+      # IS that compile, and the firewall census below proves the beams).
       capabilities =
         m.sources |> Enum.find(&String.ends_with?(&1, "capabilities.ex")) |> File.read!()
 
@@ -211,9 +212,7 @@ defmodule GgenIgniter.UltracodeTwoPortTest do
       # Opt-in fixture: a real `mix ggen_igniter.sync` renders the bound
       # constructor -- freeze (for_command!) -> stamp (bind_command) ->
       # `work_order:` at the bus call. The gates must admit the Hilt edge
-      # (exit 0 proves the widened SA2A pin). The rendered module is NOT
-      # compiled here: it references AshA2A.Hilt, which this checkout's
-      # pinned dep does not carry.
+      # (exit 0 proves the widened SA2A pin).
       %{dir: dir, results: results} = M.render!(["agent_hilt.ttl"], nil, agent: false)
 
       assert Enum.all?(results, &(&1.exit == 0)), inspect(Enum.reject(results, &(&1.exit == 0)))
@@ -232,8 +231,93 @@ defmodule GgenIgniter.UltracodeTwoPortTest do
       assert firewall =~ "AshA2A.Hilt"
 
       # And the graph records the opt-in as declared, not ambient.
-      manifest = dir |> Path.join(".ggen_igniter/manifest.json") |> File.read!() |> Jason.decode!()
+      manifest =
+        dir |> Path.join(".ggen_igniter/manifest.json") |> File.read!() |> Jason.decode!()
+
       assert manifest != %{}
+
+      # ── behavioral half, against the published dep ─────────────────────────
+      # ash_a2a 26.9.31 carries AshA2A.Hilt, so the rendered binding path is
+      # provable beyond source level: the generated Capabilities module
+      # compiles for real against the published dep, and the exact call it
+      # makes -- freeze (for_command!) -> stamp (bind_command) -> bus
+      # admission (admit_command/2) -- refuses a re-pointed graph end-to-end.
+      assert Code.ensure_loaded?(AshA2A.Hilt.WorkOrder)
+
+      # The generated source compiles against the real published AshA2A. The
+      # module name collides with the default fixture's already-loaded
+      # Capabilities, so the compiled beam is loaded explicitly (the parallel
+      # compiler's implicit load of an already-loaded module is not
+      # deterministic across suite orders) and the original default beam is
+      # restored in `after` before any later test observes it.
+      assert [{@capabilities, bound_beam}] =
+               M.compile!([Path.join(dir, "lib/ultracode_fixture/agent/capabilities.ex")])
+
+      {:module, @capabilities} = :code.load_binary(@capabilities, ~c"", bound_beam)
+
+      try do
+        # The generated module really exposes the HILT refusal family.
+        assert :stale_graph_identity in mod(Capabilities).failures()
+
+        graph_a = "sha256:" <> String.duplicate("a", 64)
+        graph_b = "sha256:" <> String.duplicate("b", 64)
+
+        {:ok, subject} =
+          AshA2A.SemanticSubject.new(
+            graph_digest: graph_a,
+            projection_digest: "sha256:" <> String.duplicate("c", 64),
+            manufacturer_digest: "sha256:" <> String.duplicate("d", 64)
+          )
+
+        command =
+          AshA2A.Command.new("capability:task.create",
+            command_id: "two-port-graph-probe",
+            agent_id: "ultracode_fixture_agent",
+            principal_id: "probe-clerk",
+            task_id: AshA2A.Identity.new(:task, "UC-TWOPORT-001"),
+            input: %{},
+            semantic_subject: subject,
+            metadata: %{candidate_digest: "sha256:" <> String.duplicate("e", 64)}
+          )
+
+        order_opts = [
+          work_order_id: "UC-TWOPORT-001",
+          observation_bounds: %{"repository" => "seanchatmangpt/ultracode-fixture"},
+          action_bounds: %{"capability" => "capability:task.create"},
+          authority_ceiling: :observe,
+          process_evidence: %{"capability" => "capability:task.create"},
+          falsifier: %{"capability" => "capability:task.create", "graph_digest" => graph_a}
+        ]
+
+        # Carry-by-default: the order takes the command subject's graph_digest
+        # as checkpoint evidence; frozen, stamped and admitted, it is :ok.
+        carried = AshA2A.Hilt.WorkOrder.for_command!(command, :observe, order_opts)
+        assert carried.graph_digest == graph_a
+
+        bound = AshA2A.Hilt.WorkOrder.bind_command(carried, command)
+
+        assert :ok = AshA2A.Hilt.WorkOrder.admit_command(carried, bound)
+
+        # One field changed -- the checkpoint graph_digest -- and the exact
+        # call the generated code makes refuses with the typed code,
+        # end-to-end against the published dep.
+        stale =
+          AshA2A.Hilt.WorkOrder.for_command!(
+            command,
+            :observe,
+            Keyword.put(order_opts, :graph_digest, graph_b)
+          )
+
+        assert stale.graph_digest == graph_b
+
+        assert {:error, :stale_graph_identity} =
+                 AshA2A.Hilt.WorkOrder.admit_command(stale, command)
+      after
+        # Restore the default fixture's Capabilities for the rest of the suite.
+        {_, original_beam} = List.keyfind(m.beams, @capabilities, 0)
+        :code.purge(@capabilities)
+        {:module, @capabilities} = :code.load_binary(@capabilities, ~c"", original_beam)
+      end
     end
 
     test "no generated source hand-writes Ash or names a concrete provider in agent logic", %{
