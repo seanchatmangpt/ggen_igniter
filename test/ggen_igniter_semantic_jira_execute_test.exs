@@ -295,6 +295,7 @@ SELECT DISTINCT ?subject WHERE {
       assert {0, result} = Execute.run(external_opts(ctx, receipt_path))
       assert result["status"] == "executed"
       assert result["target"] == "PARTIAL_ALIVE"
+
       assert [%{"identity" => @identity, "to" => "PARTIAL_ALIVE"}] =
                TransitionLog.read(ctx.ledger)
 
@@ -315,6 +316,7 @@ SELECT DISTINCT ?subject WHERE {
       assert {0, result} = Execute.run(opts)
       assert result["status"] == "executed"
       assert result["target"] == "PARTIAL_ALIVE"
+
       assert [%{"identity" => @identity, "to" => "PARTIAL_ALIVE"}] =
                TransitionLog.read(ctx.ledger)
     end
@@ -328,9 +330,7 @@ SELECT DISTINCT ?subject WHERE {
       marker = Path.join(ctx.target.dir, "ggen-manufactured")
 
       assert {1, refusal} =
-               Execute.run(
-                 local_opts(ctx, work_orders: work_orders, out_dir: out_dir)
-               )
+               Execute.run(local_opts(ctx, work_orders: work_orders, out_dir: out_dir))
 
       assert refusal["standing"] == "REFUSED(target_pack_mismatch)"
       assert refusal["reason"] == "target_pack_mismatch"
@@ -392,6 +392,7 @@ SELECT DISTINCT ?subject WHERE {
 
       assert {0, result} = Execute.run(external_opts(ctx, receipt_path, work_orders: work_orders))
       assert result["status"] == "executed"
+
       assert [%{"identity" => @identity, "to" => "PARTIAL_ALIVE"}] =
                TransitionLog.read(ctx.ledger)
     end

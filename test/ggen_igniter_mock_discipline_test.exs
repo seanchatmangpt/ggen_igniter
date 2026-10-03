@@ -13,8 +13,8 @@ defmodule GgenIgniter.MockDisciplineTest do
   use ExUnit.Case, async: true
 
   @banned_pattern ~S{(use|import) +(Mox|Mimic|Patch)\b|(Mox|Mimic|Patch)\.|:meck\.|mo} <>
-                   ~S{ckall|Ma} <>
-                   ~S{gicMock|Mock\(}
+                    ~S{ckall|Ma} <>
+                    ~S{gicMock|Mock\(}
 
   @dirs ["lib", "test", "native"]
 

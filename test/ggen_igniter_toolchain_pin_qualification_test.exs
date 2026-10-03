@@ -3,34 +3,39 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
   GC23-11 exact-head qualification under this repository's own
   `.tool-versions` pin (PRD section 12 GC23-11 and PR-013; ARD section 20
   `BUILD_BROKEN(toolchain)`, section 25 verification ladder, section 27
-  toolchain identity). Release defect lane R1-GI-PIN, repair round 1.
+  toolchain identity). Release defect lane R1-GI-PIN, repair round 1;
+  re-qualified at v26.10.2 as lane D8 (`R2-GI-PIN`) after the pin moved.
 
-  The v26.9.23 release qualification of this repo passed only under the
-  ambient Elixir 1.19.5 / OTP 28.3.1, while `.tool-versions` and CI pin
-  elixir 1.18.4-otp-27 / erlang 27.2.4; the pinned formatter refused the
-  frozen subject the ambient run admitted (F3/F4, repaired by R1-GI-FMT).
-  The pinned qualification (`receipts/v26.9.23/R1-GI-PIN.json`) was evidence
-  no gate read, so reverting it left every gate green (court verdict
-  REVERT-MUTATION refuted, `admission_vacuous`). These tests make the suite
-  consume it:
+  The pin moved 1.18.4-otp-27 -> 1.19.5-otp-27 in the v26.10.2 epoch
+  (ash_a2a 26.9.31 requires elixir "~> 1.19"; 1.18.4 can no longer compile
+  the dep tree). The v26.9.23 qualification
+  (`receipts/v26.9.23/R1-GI-PIN.json`) was observed under the OLD pin and
+  refuses under fleet R v2 with typed reasons -- committed evidence, never
+  edited to chase a schema. The v26.10.2 re-qualification
+  (`receipts/v26.10.2/R2-GI-PIN.json`) was observed under the NEW pin and
+  ADMITS clean under `Bootstrap.Receipts.check/1` (it carries the v2 keys
+  and namespaced extensions). These tests make the suite consume both:
 
     * the running VM is the pin, so a green full suite is a pinned run (an
       ambient run fails, typed `BUILD_BROKEN(toolchain)`), and CI's
       setup-beam pin is the `.tool-versions` pin;
-    * the pinned-qualification receipt is ALIVE as written (v1-era law),
-      records the pin read from `.tool-versions`, and cites committed logs
-      whose sha256 is the recorded `output_sha256`; its lane-gate log shows
-      the pinned VM banner and a zero-failure full suite. Under fleet R v2's
-      stricter `Receipts.check/1` it REFUSES with a typed reason per missing
-      v2 key plus one reason per un-namespaced top-level extension key — the
-      historical receipt is evidence, never edited to chase a schema;
+    * the v26.10.2 pinned-qualification receipt is structurally admitted
+      (`check/1 == []`), records the pin read from `.tool-versions`, and
+      cites committed logs whose sha256 is the recorded `output_sha256`; its
+      lane-gate log shows the pinned VM banner and a zero-failure full suite
+      (with the disclosed zero-test-stub exclusion of this self-referential
+      court, logged in the gate log's header);
+    * the predecessor v26.9.23 receipt remains as historical evidence: under
+      v2 it refuses with exactly the typed reasons (one string per missing
+      v2 key plus one reason per un-namespaced top-level extension key).
 
-  Deleting the receipt or a log, editing a log, or bumping `.tool-versions`
-  without a new pinned qualification fails the suite (standing holds only
-  within its validity scope: the pin it was observed under).
+  Deleting the receipt or a cited log, editing a log, or bumping
+  `.tool-versions` without a new pinned qualification fails the suite
+  (standing holds only within its validity scope: the pin it was observed
+  under).
 
   Chicago-style: the real checkout files (`.tool-versions`,
-  `.github/workflows/ci.yml`, the committed receipt and its logs), real
+  `.github/workflows/ci.yml`, the committed receipts and their logs), real
   sha256 over their real bytes, the real `Bootstrap.Receipts.check/1` and the
   real running VM; no test doubles.
   """
@@ -39,7 +44,9 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
   alias GgenIgniter.SemanticJira.Bootstrap.Receipts
 
   @root Path.expand("..", __DIR__)
-  @receipt "receipts/v26.9.23/R1-GI-PIN.json"
+  @receipt "receipts/v26.10.2/R2-GI-PIN.json"
+  @predecessor_receipt "receipts/v26.9.23/R1-GI-PIN.json"
+  @ext "provider_ext.r2gi"
   @lane_gate_role "lane gate on committed head"
 
   describe "running VM and CI vs .tool-versions (toolchain pin)" do
@@ -63,15 +70,29 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
     end
   end
 
-  describe "Receipts.check/1 and cited logs (receipts/v26.9.23/R1-GI-PIN.json)" do
-    test "the pinned-qualification receipt is ALIVE as written and refuses under fleet R v2 (typed reasons)" do
+  describe "Receipts.check/1 and cited logs (receipts/v26.10.2/R2-GI-PIN.json)" do
+    test "the pinned-qualification receipt admits clean under fleet R v2 (Receipts.check/1 == [])" do
       receipt = receipt()
 
-      # R1-GI-PIN was qualified under the v1-era R law; fleet R v2's
-      # `Receipts.check/1` requires work_order_id / origin_authority /
-      # provider / provider_execution_id and refuses un-namespaced top-level
-      # extension keys. The pinned receipt is evidence — never edited to
-      # chase a schema — so it refuses with exactly those typed reasons.
+      # R2-GI-PIN was qualified under the fleet R v2 law: it carries the v2
+      # keys (work_order_id / origin_authority / provider /
+      # provider_execution_id) and namespaces every extension (toolchain,
+      # exclusions, observations, findings) under "provider_ext.r2gi", so the
+      # real check/1 admits it with zero errors.
+      assert Receipts.check(receipt) == []
+
+      # The recorded standing is unchanged in kind -- the pin moved, the
+      # admission law did not.
+      assert receipt["standing"]["value"] == "ALIVE"
+      assert receipt["identity"]["subject_sha"] =~ ~r/\A[0-9a-f]{40}\z/
+    end
+
+    test "the predecessor receipt (receipts/v26.9.23/R1-GI-PIN.json) still refuses under fleet R v2 (typed reasons)" do
+      receipt = predecessor_receipt()
+
+      # The predecessor is evidence qualified under the v1-era law; v2's
+      # check/1 refuses it with exactly those typed reasons. It is never
+      # edited to chase a schema.
       errors = Receipts.check(receipt)
 
       for key <- ~w(work_order_id origin_authority provider provider_execution_id) do
@@ -84,7 +105,7 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
                "expected a namespace reason naming #{key}, got: #{inspect(errors)}"
       end
 
-      # The recorded standing is unchanged — the refusal is about v2
+      # The recorded standing is unchanged -- the refusal is about v2
       # admission, not about what the pinned run observed.
       assert receipt["standing"]["value"] == "ALIVE"
       assert receipt["identity"]["subject_sha"] =~ ~r/\A[0-9a-f]{40}\z/
@@ -92,7 +113,7 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
 
     test "the receipt's toolchain identity is the .tool-versions pin" do
       pin = pin()
-      toolchain = receipt()["toolchain"]
+      toolchain = receipt()[@ext]["toolchain"]
 
       assert toolchain["tool_versions_pin_used"] == true
       assert toolchain["elixir"] == banner(pin)
@@ -105,7 +126,7 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
 
     test "every log the receipt cites is committed and hashes to its recorded sha256" do
       receipt = receipt()
-      toolchain = receipt["toolchain"]
+      toolchain = receipt[@ext]["toolchain"]
 
       cited =
         [{toolchain["build_identity_log"], toolchain["build_identity_sha256"]}] ++
@@ -146,7 +167,7 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
     end
   end
 
-  # `.tool-versions` -> %{elixir_tool: "1.18.4-otp-27", elixir: "1.18.4",
+  # `.tool-versions` -> %{elixir_tool: "1.19.5-otp-27", elixir: "1.19.5",
   # elixir_otp: "27", erlang: "27.2.4", erlang_major: "27"}.
   defp pin do
     tools =
@@ -187,6 +208,10 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
 
   defp receipt do
     @root |> Path.join(@receipt) |> File.read!() |> Jason.decode!()
+  end
+
+  defp predecessor_receipt do
+    @root |> Path.join(@predecessor_receipt) |> File.read!() |> Jason.decode!()
   end
 
   defp sha256(bytes), do: :sha256 |> :crypto.hash(bytes) |> Base.encode16(case: :lower)

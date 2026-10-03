@@ -47,7 +47,7 @@ jobs:
         with:
           # Pinned to this repo's own .tool-versions (elixir 1.18.4-otp-27,
           # erlang 27.2.4) -- NOT beam4pm's pins, which are a different repo.
-          elixir-version: '1.18.4'
+          elixir-version: '1.19.5'
           otp-version: '27.2.4'
           rebar3-version: '3.24.0'
 
@@ -286,7 +286,7 @@ jobs:
         with:
           # Pinned to this repo's own .tool-versions (elixir 1.18.4-otp-27,
           # erlang 27.2.4) -- NOT beam4pm's pins, which are a different repo.
-          elixir-version: '1.18.4'
+          elixir-version: '1.19.5'
           otp-version: '27.2.4'
           rebar3-version: '3.24.0'
 
@@ -385,7 +385,7 @@ jobs:
         with:
           # Pinned to this repo's own .tool-versions (elixir 1.18.4-otp-27,
           # erlang 27.2.4) -- NOT beam4pm's pins, which are a different repo.
-          elixir-version: '1.18.4'
+          elixir-version: '1.19.5'
           otp-version: '27.2.4'
           rebar3-version: '3.24.0'
 

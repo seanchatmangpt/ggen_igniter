@@ -177,7 +177,9 @@ defmodule MixSemanticJiraExecuteTaskTest do
         "authority" => "NONE"
       })
 
-      forged = ledger |> File.read!() |> String.replace("\"to\":\"PARTIAL_ALIVE\"", "\"to\":\"ALIVE\"")
+      forged =
+        ledger |> File.read!() |> String.replace("\"to\":\"PARTIAL_ALIVE\"", "\"to\":\"ALIVE\"")
+
       File.write!(ledger, forged)
 
       out_dir = Path.join(dir, "refusals")
@@ -394,19 +396,24 @@ SELECT DISTINCT ?subject WHERE {
 
       # One JSON object on stdout; the pack's report landed in the target
       # tree; the sealed export is on disk; the transition is in the ledger.
-      assert %{"status" => "executed", "target" => "PARTIAL_ALIVE"} = Jason.decode!(String.trim(out))
+      assert %{"status" => "executed", "target" => "PARTIAL_ALIVE"} =
+               Jason.decode!(String.trim(out))
 
       report = Path.join(target.dir, "ggen-manufactured/report.md")
       assert File.exists?(report)
       assert File.read!(report) =~ "gate row: execute pack report"
       assert File.exists?(receipt_out)
+
       assert [%{"identity" => @local_identity, "to" => "PARTIAL_ALIVE", "seq" => 1}] =
                TransitionLog.read(ledger)
     end
   end
 
   describe "mix semantic_jira.execute (exit 2: missing or ambiguous execution input)" do
-    test "a lone --pack-dir without --target-dir is invalid invocation", %{dir: dir, ledger: ledger} do
+    test "a lone --pack-dir without --target-dir is invalid invocation", %{
+      dir: dir,
+      ledger: ledger
+    } do
       {code, out, err} = mix(dir, execute_args(ledger, ["--pack-dir", Path.join(dir, "pack")]))
 
       assert code == 2, "#{out}\n#{err}"

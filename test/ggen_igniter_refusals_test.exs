@@ -260,7 +260,9 @@ defmodule GgenIgniter.RefusalsTest do
     test "legacy bare REFUSED_CODE emitter form no longer parses (D2 removal law)" do
       assert {:error, :not_a_refusal} = Refusals.parse("REFUSED_GENERATED_ARTIFACT_MUTATED")
       assert {:error, :not_a_refusal} = Refusals.parse("REFUSED_EPOCH_LEGACY_EDIT order-1")
-      assert {:error, :not_a_refusal} = Refusals.parse("REFUSED_SUBJECT_EXHAUSTED: no free subject")
+
+      assert {:error, :not_a_refusal} =
+               Refusals.parse("REFUSED_SUBJECT_EXHAUSTED: no free subject")
 
       # the canonical colon form is the ONE parseable form
       assert {:ok, {:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED, "baseSha abc"}} =

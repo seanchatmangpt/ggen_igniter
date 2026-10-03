@@ -121,7 +121,8 @@ defmodule GgenIgniter.FleetReceiptConformanceTest do
     {repo, path, decoded}
   end
 
-  defp sha256_file!(path), do: Base.encode16(:crypto.hash(:sha256, File.read!(path)), case: :lower)
+  defp sha256_file!(path),
+    do: Base.encode16(:crypto.hash(:sha256, File.read!(path)), case: :lower)
 
   ## -- the drift guard -----------------------------------------------------------
   #
@@ -173,6 +174,7 @@ defmodule GgenIgniter.FleetReceiptConformanceTest do
 
       assert [hex, name] = String.split(String.trim_trailing(recorded), "  ")
       assert name == "fleet-receipt.v2.json"
+
       assert hex == sha256_file!(@vendored_schema),
              "digest file is stale: recorded #{hex}, actual #{sha256_file!(@vendored_schema)}"
 
@@ -219,7 +221,9 @@ defmodule GgenIgniter.FleetReceiptConformanceTest do
       assert decoded["origin_authority"]["grant"]
       assert decoded["origin_authority"]["actor"]
       assert decoded["provider"]["name"]
-      assert is_binary(decoded["provider_execution_id"]) and decoded["provider_execution_id"] != ""
+
+      assert is_binary(decoded["provider_execution_id"]) and
+               decoded["provider_execution_id"] != ""
 
       # check/1 == [] IS the vendored schema's executable form in-repo.
       assert Receipts.check(decoded) == []
@@ -246,7 +250,9 @@ defmodule GgenIgniter.FleetReceiptConformanceTest do
           %{"cmd" => "mix compile", "cwd" => repo, "exit" => 1}
         ])
 
-      assert "standing: ALIVE with a non-zero replay exit (admission_vacuous)" in Receipts.check(vacuous)
+      assert "standing: ALIVE with a non-zero replay exit (admission_vacuous)" in Receipts.check(
+               vacuous
+             )
     end
 
     test "mutant 2: missing work_order_id -> typed required-key refusal" do
@@ -254,6 +260,7 @@ defmodule GgenIgniter.FleetReceiptConformanceTest do
       mutant = Map.delete(r, "work_order_id")
 
       errors = Receipts.check(mutant)
+
       assert Enum.any?(errors, &String.starts_with?(&1, "receipt/work_order_id:")),
              "expected a work_order_id reason, got: #{inspect(errors)}"
     end

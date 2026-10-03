@@ -1,0 +1,12 @@
+# cwd=/Users/sac/ggen_igniter head=a40469710bf29b049b26a6a96a8bdf6a2b411493 started=2026-10-03T04:26:52Z
+# cmd=env MIX_BUILD_ROOT=_build-d8 mix credo
+# note=lane D8: credo at a404697
+Checking 485 source files (this might take a while) ...
+
+Please report incorrect results: https://github.com/rrrene/credo/issues
+
+Analysis took 2.1 seconds (0.2s to load, 1.9s running 57 checks on 485 files)
+4326 mods/funs, found no issues.
+
+Showing priority issues: ↑ ↗ →  (use `mix credo explain` to explain issues, `mix credo --help` for options).
+# ended=2026-10-03T04:26:55Z exit=0

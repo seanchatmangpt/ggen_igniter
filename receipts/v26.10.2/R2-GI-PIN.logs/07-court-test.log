@@ -1,0 +1,28 @@
+# cwd=/Users/sac/ggen_igniter head=9df5ae33ab2acf19e83b904e1c4ce45618de9338 started=2026-10-03T04:55:29Z
+# cmd=env MIX_BUILD_ROOT=_build-d8 MIX_ENV=test mix test test/ggen_igniter_toolchain_pin_qualification_test.exs
+# note=lane D8 witness baseline: the real court (rewritten, @receipt=R2-GI-PIN) against the new pinned qualification
+
+21:55:30.378 [warning] AshA2A legacy_compat profile: outbox_key_missing: receipt outbox is unkeyed; set :receipt_outbox_key or :receipt_binding_key
+
+21:55:30.381 [warning] AshA2A legacy_compat profile: outbox_dir_not_durable: :receipt_outbox_dir nil is unset or under a tmp directory
+
+21:55:30.381 [warning] AshA2A legacy_compat profile: receipt_store_in_memory: :receipt_store is AshA2A.ReceiptStore.Memory
+
+21:55:30.381 [warning] AshA2A legacy_compat profile: capability_release_mode_legacy: :capability_release_mode must be :strict (capabilities unbound under :legacy)
+
+21:55:30.381 [warning] AshA2A legacy_compat profile: kill_switch_class_missing: :kill_switch_class is nil; no class can be halted
+
+21:55:30.381 [warning] AshA2A legacy_compat profile: claim_store_missing: no :claim_store configured; nothing durable backs claims
+
+21:55:30.371 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+21:55:30.388 [warning] AshA2A: receipts are not durable in this runtime (receipt_store=AshA2A.ReceiptStore.Memory, durable=false, data_dir_tmp=false, receipt_outbox_dir_tmp=true). Configure AshA2A.ReceiptStore.Ekv with a persistent :data_dir and a persistent :receipt_outbox_dir, or set config :ash_a2a, :env to a non-:prod value for development.
+Running ExUnit with seed: 755278, max_cases: 32
+Excluding tags: [:integration, :requires_qlever_server]
+
+.......
+Finished in 0.08 seconds (0.08s async, 0.00s sync)
+7 tests, 0 failures
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+# ended=2026-10-03T04:55:31Z exit=0

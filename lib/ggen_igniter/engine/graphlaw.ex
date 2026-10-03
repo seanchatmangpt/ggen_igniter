@@ -70,21 +70,25 @@ defmodule GgenIgniter.Engine.Graphlaw do
     wasm_path = wasm_path()
     wasm_bytes = read_wasm!(wasm_path)
 
-    store = step!(:graphlaw_wasi_store, wasm_path, fn ->
-      Wasmex.Store.new_wasi(%Wasmex.Wasi.WasiOptions{})
-    end)
+    store =
+      step!(:graphlaw_wasi_store, wasm_path, fn ->
+        Wasmex.Store.new_wasi(%Wasmex.Wasi.WasiOptions{})
+      end)
 
-    module = step!(:graphlaw_compile, wasm_path, fn ->
-      Wasmex.Module.compile(store, wasm_bytes)
-    end)
+    module =
+      step!(:graphlaw_compile, wasm_path, fn ->
+        Wasmex.Module.compile(store, wasm_bytes)
+      end)
 
-    instance = step!(:graphlaw_instantiate, wasm_path, fn ->
-      Wasmex.Instance.new(store, module, %{})
-    end)
+    instance =
+      step!(:graphlaw_instantiate, wasm_path, fn ->
+        Wasmex.Instance.new(store, module, %{})
+      end)
 
-    memory = step!(:graphlaw_memory, wasm_path, fn ->
-      Wasmex.Instance.memory(store, instance)
-    end)
+    memory =
+      step!(:graphlaw_memory, wasm_path, fn ->
+        Wasmex.Instance.memory(store, instance)
+      end)
 
     %{
       store: store,
@@ -197,7 +201,9 @@ defmodule GgenIgniter.Engine.Graphlaw do
     :ok = Wasmex.Instance.call_exported_function(store, instance, name, params, {self(), ref})
 
     receive do
-      {^ref, {:ok, results}} when is_list(results) -> results
+      {^ref, {:ok, results}} when is_list(results) ->
+        results
+
       {^ref, {:error, reason}} ->
         raise RuntimeError, message: "graphlaw engine: #{name} failed: #{reason}"
     after
@@ -235,8 +241,11 @@ defmodule GgenIgniter.Engine.Graphlaw do
   # inside this package, then the built-in dev checkout default.
   defp wasm_path do
     case Application.get_env(:ggen_igniter, :graphlaw_wasm_path) do
-      nil -> packaged_path() || Path.expand(@default_wasm_path)
-      path when is_binary(path) -> Path.expand(path)
+      nil ->
+        packaged_path() || Path.expand(@default_wasm_path)
+
+      path when is_binary(path) ->
+        Path.expand(path)
 
       other ->
         raise RuntimeError,
@@ -271,11 +280,12 @@ defmodule GgenIgniter.Engine.Graphlaw do
 
   defp step!(step, wasm_path, fun) do
     case fun.() do
-      {:ok, value} -> value
+      {:ok, value} ->
+        value
+
       {:error, reason} ->
         raise RuntimeError,
-          message:
-            "ggen_igniter: graphlaw engine #{step} failed for #{wasm_path}: #{reason}"
+          message: "ggen_igniter: graphlaw engine #{step} failed for #{wasm_path}: #{reason}"
     end
   end
 end

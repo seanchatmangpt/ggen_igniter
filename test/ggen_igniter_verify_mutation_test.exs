@@ -81,7 +81,9 @@ defmodule GgenIgniterVerifyMutationTest do
   # A minimal real pack whose gate returns zero rows against its own ontology:
   # the control-refused path, exercised through real files, not a stub.
   defp scratch_pack_with_failing_gate do
-    dir = Path.join(System.tmp_dir!(), "verify_mutation_broken-#{System.unique_integer([:positive])}")
+    dir =
+      Path.join(System.tmp_dir!(), "verify_mutation_broken-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(Path.join(dir, "gates"))
 
     File.write!(Path.join(dir, "ontology.ttl"), """

@@ -1,0 +1,686 @@
+# cwd=/Users/sac/ggen_igniter head=9df5ae33ab2acf19e83b904e1c4ce45618de9338 started=2026-10-03T05:03:13Z
+# cmd=env MIX_BUILD_ROOT=_build-d8-amb MIX_ENV=test sh -c elixir --version && mix test test/ggen_igniter_toolchain_pin_qualification_test.exs
+Erlang/OTP 28 [erts-16.2] [source] [64-bit] [smp:16:16] [ds:16:16:10] [async-threads:1] [jit]
+
+Elixir 1.19.5 (compiled with Erlang/OTP 28)
+==> file_system
+Compiling 7 files (.ex)
+Generated file_system app
+==> stream_data
+Compiling 3 files (.ex)
+Generated stream_data app
+==> ymlr
+Compiling 3 files (.ex)
+Generated ymlr app
+==> mime
+Compiling 1 file (.ex)
+Generated mime app
+==> toml
+Compiling 10 files (.ex)
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 264 │   defp handle_token(lexer, original, doc, type, skip, _data, lines) when type in '-_' do
+     │                                                                                  ~
+     │
+     └─ lib/decoder.ex:264:82
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 371 │       {:ok, {type, _skip, _data, _lines}} when type in '-+' ->
+     │                                                        ~
+     │
+     └─ lib/decoder.ex:371:56
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 419 │           {:ok, {:alpha, _, <<c::utf8>>, _}} when c in 'eE' ->
+     │                                                        ~
+     │
+     └─ lib/decoder.ex:419:56
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 474 │       {:ok, {:alpha, _, <<c::utf8>>, _}} when c in 'eE' ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:474:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 514 │       {:ok, {sign, _, _, _}} when sign in '-+' and last == ?e ->
+     │                                           ~
+     │
+     └─ lib/decoder.ex:514:43
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 518 │       {:ok, {:alpha, _, <<c::utf8>>, _}} when c in 'eE' and signal == ?. ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:518:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 522 │       {:ok, {?_, skip, _, lines}} when last not in '_e.' ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:522:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 538 │       {:ok, {type, skip, data, lines}} when last in 'e.' ->
+     │                                                     ~
+     │
+     └─ lib/decoder.ex:538:53
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 542 │       {:ok, {_type, skip, _data, lines} = token} when last not in '_e.' ->
+     │                                                                   ~
+     │
+     └─ lib/decoder.ex:542:67
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 682 │         {:ok, {sign, _, _, _}} when sign in '-+' ->
+     │                                             ~
+     │
+     └─ lib/decoder.ex:682:45
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 796 │       {:ok, {sign, _, _, _}} when sign in '-+' ->
+     │                                           ~
+     │
+     └─ lib/decoder.ex:796:43
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 916 │         {:ok, {type, skip, _, lines}} when type in '-_' ->
+     │                                                    ~
+     │
+     └─ lib/decoder.ex:916:52
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 954 │               {:ok, {type, _, _, _}} when type in '-_' ->
+     │                                                   ~
+     │
+     └─ lib/decoder.ex:954:51
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 969 │       {:ok, {type, _, _, _}} when type in '-_' ->
+     │                                           ~
+     │
+     └─ lib/decoder.ex:969:43
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 983 │           {:ok, {type, _, _, _}} when type in '-_' ->
+     │                                               ~
+     │
+     └─ lib/decoder.ex:983:47
+
+Generated toml app
+==> nimble_options
+Compiling 3 files (.ex)
+Generated nimble_options app
+==> bunt
+Compiling 2 files (.ex)
+Generated bunt app
+==> multigraph
+Compiling 16 files (.ex)
+Generated multigraph app
+==> plug_crypto
+Compiling 5 files (.ex)
+Generated plug_crypto app
+==> hpax
+Compiling 4 files (.ex)
+Generated hpax app
+==> mint
+Compiling 1 file (.erl)
+Compiling 21 files (.ex)
+Generated mint app
+==> ggen_igniter
+===> Analyzing applications...
+===> Compiling yamerl
+==> nimble_csv
+Compiling 1 file (.ex)
+Generated nimble_csv app
+==> content_type
+Compiling 1 file (.ex)
+Generated content_type app
+==> ets
+Compiling 7 files (.ex)
+Generated ets app
+==> group
+Compiling 9 files (.ex)
+Generated group app
+==> erlex
+Compiling 2 files (.erl)
+Compiling 2 files (.ex)
+Generated erlex app
+==> iterex
+Compiling 48 files (.ex)
+Generated iterex app
+==> server_sent_events
+Compiling 2 files (.ex)
+Generated server_sent_events app
+==> owl
+Compiling 19 files (.ex)
+Generated owl app
+==> elixir_make
+Compiling 8 files (.ex)
+Generated elixir_make app
+==> conv_case
+Compiling 1 file (.ex)
+Generated conv_case app
+==> saxy
+Compiling 19 files (.ex)
+Generated saxy app
+==> sourceror
+Compiling 20 files (.ex)
+Generated sourceror app
+==> text_diff
+Compiling 1 file (.ex)
+Generated text_diff app
+==> decimal
+Compiling 4 files (.ex)
+Generated decimal app
+==> jason
+Compiling 10 files (.ex)
+Generated jason app
+==> rustler
+Compiling 7 files (.ex)
+Generated rustler app
+==> flame
+Compiling 16 files (.ex)
+Generated flame app
+==> jcs
+Compiling 1 file (.ex)
+Generated jcs app
+==> ex_ast
+Compiling 36 files (.ex)
+Generated ex_ast app
+==> xema
+Compiling 19 files (.ex)
+Generated xema app
+==> yaml_elixir
+Compiling 6 files (.ex)
+Generated yaml_elixir app
+==> spitfire
+Compiling 2 files (.erl)
+Compiling 5 files (.ex)
+Generated spitfire app
+==> ggen_igniter
+===> Analyzing applications...
+===> Compiling idna
+==> excoveralls
+Compiling 29 files (.ex)
+     warning: CAStore.file_path/0 is undefined (module CAStore is not available or is yet to be defined). Make sure the module name is correct and has been specified in full (or that an alias has been defined)
+     │
+ 111 │         [cacertfile: String.to_charlist(CAStore.file_path())]
+     │                                                 ~
+     │
+     └─ lib/excoveralls/poster.ex:111:49: ExCoveralls.Poster.cacert_option/0
+
+Generated excoveralls app
+==> nimble_parsec
+Compiling 4 files (.ex)
+Generated nimble_parsec app
+==> yuri_template
+Compiling 15 files (.ex)
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+  9 │   def operator_level_2(prev \\ empty()), do: prev |> choice(Enum.map('+#', &ascii_char([&1])))
+    │                                                                      ~
+    │
+    └─ lib/yuri_template/parsec.ex:9:70
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 12 │     do: prev |> choice(Enum.map('./;?&', &ascii_char([&1])))
+    │                                 ~
+    │
+    └─ lib/yuri_template/parsec.ex:12:33
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 15 │     do: prev |> choice(Enum.map('=,!@|', &ascii_char([&1])))
+    │                                 ~
+    │
+    └─ lib/yuri_template/parsec.ex:15:33
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 15 │   defguardp is_op(op) when op in '+#?./;?&'
+    │                                  ~
+    │
+    └─ lib/yuri_template/rfc6570.ex:15:34
+
+Generated yuri_template app
+==> phoenix_template
+Compiling 4 files (.ex)
+Generated phoenix_template app
+==> ggen_igniter
+===> Analyzing applications...
+===> Compiling telemetry
+==> thousand_island
+Compiling 18 files (.ex)
+Generated thousand_island app
+==> websockex
+Compiling 6 files (.ex)
+Generated websockex app
+==> db_connection
+Compiling 18 files (.ex)
+Generated db_connection app
+==> ecto
+Compiling 56 files (.ex)
+Generated ecto app
+==> uniq
+Compiling 5 files (.ex)
+Generated uniq app
+==> zoi
+Compiling 84 files (.ex)
+Generated zoi app
+==> phoenix_pubsub
+Compiling 12 files (.ex)
+Generated phoenix_pubsub app
+==> abnf_parsec
+Compiling 4 files (.ex)
+Generated abnf_parsec app
+==> texture
+Compiling 7 files (.ex)
+Generated texture app
+==> protocol_ex
+Compiling 2 files (.ex)
+Generated protocol_ex app
+==> rdf
+Compiling 6 files (.erl)
+Compiling 140 files (.ex)
+Generated rdf app
+==> rdf_xml
+Compiling 17 files (.ex)
+Generated rdf_xml app
+==> grax
+Compiling 35 files (.ex)
+Generated grax app
+==> dcatr
+Compiling 32 files (.ex)
+Generated dcatr app
+==> prov
+Compiling 52 files (.ex)
+Generated prov app
+==> foaf
+Compiling 15 files (.ex)
+Generated foaf app
+==> skos
+Compiling 5 files (.ex)
+Generated skos app
+==> rustler_precompiled
+Compiling 4 files (.ex)
+Generated rustler_precompiled app
+==> dcat
+Compiling 23 files (.ex)
+Generated dcat app
+==> json_xema
+Compiling 4 files (.ex)
+Generated json_xema app
+==> dialyxir
+Compiling 67 files (.ex)
+Generated dialyxir app
+==> splode
+Compiling 5 files (.ex)
+Generated splode app
+==> jsv
+Compiling 75 files (.ex)
+Generated jsv app
+==> glob_ex
+Compiling 4 files (.ex)
+Generated glob_ex app
+==> rewrite
+Compiling 13 files (.ex)
+Generated rewrite app
+==> credo
+Compiling 257 files (.ex)
+Generated credo app
+==> plug
+Compiling 1 file (.erl)
+Compiling 42 files (.ex)
+Generated plug app
+==> open_api_spex
+Compiling 80 files (.ex)
+Generated open_api_spex app
+==> postgrex
+Compiling 70 files (.ex)
+Generated postgrex app
+==> ecto_sql
+Compiling 25 files (.ex)
+Generated ecto_sql app
+==> dotenvy
+Compiling 3 files (.ex)
+Generated dotenvy app
+==> faker
+Compiling 111 files (.ex)
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+ 50 │   @alphabet 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    │             ~
+    │
+    └─ lib/faker.ex:50:13
+
+    warning: using single-quoted strings to represent charlists is deprecated.
+    Use ~c"" if you indeed want a charlist or use "" instead.
+    You may run "mix format --migrate" to change all single-quoted
+    strings to use the ~c sigil and fix this warning.
+    │
+  6 │   @geobase32 '0123456789bcdefghjkmnpqrstuvwxyz'
+    │              ~
+    │
+    └─ lib/faker/address.ex:6:14
+
+     warning: using single-quoted strings to represent charlists is deprecated.
+     Use ~c"" if you indeed want a charlist or use "" instead.
+     You may run "mix format --migrate" to change all single-quoted
+     strings to use the ~c sigil and fix this warning.
+     │
+ 501 │     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+     │                ~
+     │
+     └─ lib/faker/lorem.ex:501:16
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:299: Faker.Lorem.characters/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:333: Faker.Lorem.paragraph/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:363: Faker.Lorem.paragraphs/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:397: Faker.Lorem.sentence/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:454: Faker.Lorem.sentences/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/lorem.ex:488: Faker.Lorem.words/1
+
+     warning: invalid bidirectional formatting character:  . If you want to use such character, use it in its escaped \u2028 form instead
+     │
+ 143 │     "\t\u000b\f             ​    　",
+     │                               ~
+     │
+     └─ lib/faker/string.ex:143:31
+
+     warning: invalid bidirectional formatting character:  . If you want to use such character, use it in its escaped \u2029 form instead
+     │
+ 143 │     "\t\u000b\f             ​    　",
+     │                                ~
+     │
+     └─ lib/faker/string.ex:143:32
+
+     warning: invalid bidirectional formatting character:  . If you want to use such character, use it in its escaped \u2029 form instead
+     │
+ 217 │     " test ",
+     │      ~
+     │
+     └─ lib/faker/string.ex:217:6
+
+     warning: invalid bidirectional formatting character:  . If you want to use such character, use it in its escaped \u2029 form instead
+     │
+ 217 │     " test ",
+     │           ~
+     │
+     └─ lib/faker/string.ex:217:11
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/pizza.ex:50: Faker.Pizza.pizzas/1
+
+warning: first..last inside match is deprecated, you must always match on the step: first..last//var or first..last//_ if you want to ignore it
+  lib/faker/pizza.ex:105: Faker.Pizza.toppings/1
+
+Generated faker app
+==> wasmex
+Compiling 27 files (.ex)
+
+22:04:49.083 [debug] Copying NIF from cache and extracting to /Users/sac/ggen_igniter/_build-d8-amb/test/lib/wasmex/priv/native/libwasmex-v0.15.1-nif-2.15-aarch64-apple-darwin.so
+Generated wasmex app
+==> crux
+Compiling 20 files (.ex)
+Generated crux app
+==> nimble_pool
+Compiling 2 files (.ex)
+Generated nimble_pool app
+==> finch
+Compiling 23 files (.ex)
+Generated finch app
+==> tesla
+Compiling 57 files (.ex)
+Generated tesla app
+==> json_ld
+Compiling 17 files (.ex)
+Generated json_ld app
+==> req
+Compiling 24 files (.ex)
+Generated req app
+==> igniter
+Compiling 62 files (.ex)
+Generated igniter app
+==> oban
+Compiling 70 files (.ex)
+Generated oban app
+==> spark
+Compiling 46 files (.ex)
+Generated spark app
+==> reactor
+Compiling 113 files (.ex)
+Generated reactor app
+==> ash
+Compiling 619 files (.ex)
+Compiling lib/ash/reactor/reactor.ex (it's taking more than 10s)
+Generated ash app
+==> ash_state_machine
+Compiling 17 files (.ex)
+Generated ash_state_machine app
+==> ash_oban
+Compiling 22 files (.ex)
+Generated ash_oban app
+==> ash_sql
+Compiling 14 files (.ex)
+Generated ash_sql app
+==> ash_postgres
+Compiling 65 files (.ex)
+Generated ash_postgres app
+==> llm_db
+Compiling 65 files (.ex)
+Generated llm_db app
+==> req_s3
+Compiling 2 files (.ex)
+Generated req_s3 app
+==> req_llm
+Compiling 220 files (.ex)
+Generated req_llm app
+==> cc_precompiler
+Compiling 3 files (.ex)
+Generated cc_precompiler app
+==> ekv
+Compiling 26 files (.ex)
+Generated ekv app
+==> websock
+Compiling 1 file (.ex)
+Generated websock app
+==> bandit
+Compiling 54 files (.ex)
+Generated bandit app
+==> a2a
+Compiling 39 files (.ex)
+Generated a2a app
+==> websock_adapter
+Compiling 4 files (.ex)
+Generated websock_adapter app
+==> phoenix
+Compiling 75 files (.ex)
+Generated phoenix app
+==> ash_json_api
+Compiling 76 files (.ex)
+Generated ash_json_api app
+==> ash_ai
+Compiling 49 files (.ex)
+Generated ash_ai app
+==> sweet_xml
+Compiling 2 files (.ex)
+     warning: a struct for SweetXpath is expected on struct update:
+
+         %SweetXpath{xpath | namespaces: [{to_charlist(prefix), to_charlist(uri)} | xpath.namespaces]}
+
+     but got type:
+
+         dynamic()
+
+     where "xpath" was given the type:
+
+         # type: dynamic()
+         # from: lib/sweet_xml.ex:245:21
+         xpath
+
+     when defining the variable "xpath", you must also pattern match on "%SweetXpath{}".
+
+     hint: given pattern matching is enough to catch typing errors, you may optionally convert the struct update into a map update. For example, instead of:
+
+         user = some_function()
+         %User{user | name: "John Doe"}
+
+     it is enough to write:
+
+         %User{} = user = some_function()
+         %{user | name: "John Doe"}
+
+     typing violation found at:
+     │
+ 246 │     %SweetXpath{xpath | namespaces: [{to_charlist(prefix), to_charlist(uri)}
+     │     ~
+     │
+     └─ lib/sweet_xml.ex:246:5: SweetXml.add_namespace/3
+
+Generated sweet_xml app
+==> sparql
+Compiling 2 files (.erl)
+Compiling 43 files (.ex)
+Generated sparql app
+==> sparql_client
+Compiling 9 files (.ex)
+Generated sparql_client app
+==> gno
+Compiling 36 files (.ex)
+Generated gno app
+==> ash_r2rml
+Compiling 135 files (.ex)
+Generated ash_r2rml app
+==> durable_server
+Compiling 18 files (.ex)
+Generated durable_server app
+==> ash_a2a
+Compiling 670 files (.ex)
+Generated ash_a2a app
+==> ggen_igniter
+Compiling 176 files (.ex)
+Compiling crate ggen_graph_nif in release mode (native/ggen_graph_nif)
+Copying /Users/sac/ggen_igniter/native/ggen_graph_nif/target/release/libggen_graph_nif.dylib to priv/native/ggen_graph_nif.so
+Generated ggen_igniter app
+
+22:06:39.474 [notice]     :alarm_handler: {:set, {{:disk_almost_full, ~c"/System/Volumes/Data"}, []}}
+
+22:06:39.500 [warning] AshA2A legacy_compat profile: outbox_key_missing: receipt outbox is unkeyed; set :receipt_outbox_key or :receipt_binding_key
+
+22:06:39.500 [warning] AshA2A legacy_compat profile: outbox_dir_not_durable: :receipt_outbox_dir nil is unset or under a tmp directory
+
+22:06:39.500 [warning] AshA2A legacy_compat profile: receipt_store_in_memory: :receipt_store is AshA2A.ReceiptStore.Memory
+
+22:06:39.500 [warning] AshA2A legacy_compat profile: capability_release_mode_legacy: :capability_release_mode must be :strict (capabilities unbound under :legacy)
+
+22:06:39.500 [warning] AshA2A legacy_compat profile: kill_switch_class_missing: :kill_switch_class is nil; no class can be halted
+
+22:06:39.500 [warning] AshA2A legacy_compat profile: claim_store_missing: no :claim_store configured; nothing durable backs claims
+
+22:06:39.519 [warning] AshA2A: receipts are not durable in this runtime (receipt_store=AshA2A.ReceiptStore.Memory, durable=false, data_dir_tmp=false, receipt_outbox_dir_tmp=true). Configure AshA2A.ReceiptStore.Ekv with a persistent :data_dir and a persistent :receipt_outbox_dir, or set config :ash_a2a, :env to a non-:prod value for development.
+Running ExUnit with seed: 269915, max_cases: 32
+Excluding tags: [:integration, :requires_qlever_server]
+
+..
+
+  1) test running VM and CI vs .tool-versions (toolchain pin) the running VM is the .tool-versions pin (else BUILD_BROKEN(toolchain)) (GgenIgniter.ToolchainPinQualificationTest)
+     test/ggen_igniter_toolchain_pin_qualification_test.exs:53
+     BUILD_BROKEN(toolchain): running Elixir 1.19.5 (compiled with OTP 28) on Erlang/OTP 28.3.1; .tool-versions pins elixir 1.19.5-otp-27, erlang 27.2.4 -- run under the pin (as CI does)
+     code: assert Map.take(vm, [:elixir, :elixir_otp, :erlang]) ==
+     stacktrace:
+       test/ggen_igniter_toolchain_pin_qualification_test.exs:57: (test)
+
+....
+Finished in 0.07 seconds (0.07s async, 0.00s sync)
+7 tests, 1 failure
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+# ended=2026-10-03T05:06:42Z exit=2

@@ -1,0 +1,237 @@
+{
+ "work_order_id": "R2-GI-PIN",
+ "origin_authority": {
+  "ceiling": "CONSTRUCT",
+  "grant": "lane contract D8 (toolchain pin re-qualification, court-mandated migration): receipts/v26.10.2/ (new) + test/ggen_igniter_toolchain_pin_qualification_test.exs (bounded edits: @receipt pin, receipt-shape constants, the admit-clean/predecessor-refuses describe, moduledoc); no git writes",
+  "actor": "claude (sonnet-5) implementation lane D8, coordinator-directed"
+ },
+ "provider": {
+  "name": "claude-code",
+  "model": "sonnet-5"
+ },
+ "provider_execution_id": "ggen_igniter-d8-r2gi-pin",
+ "identity": {
+  "subject": "R2-GI-PIN",
+  "repo": "/Users/sac/ggen_igniter (origin seanchatmangpt/ggen_igniter)",
+  "branch": "main",
+  "subject_sha": "a40469710bf29b049b26a6a96a8bdf6a2b411493",
+  "base_sha": "a40469710bf29b049b26a6a96a8bdf6a2b411493",
+  "base_sha_note": "the judged subject is the uncommitted working tree on a404697 (the lane contract forbids git writes); the exact dirty-tree bytes are pinned by provider_ext.r2gi.subject_manifest (receipts/v26.10.2/R2-GI-PIN.logs/06-working-tree-manifest.log, sha256 9c8d56d57f4c8a288b0c8c2b254abac29eb6232cc7cb0014288351aad7118673); docs-only commits d0c7e47 and 9df5ae3 landed after the lane gate (receipts-citation fix + release notes), receipt/logs only",
+  "lane_head_gate": "a40469710bf29b049b26a6a96a8bdf6a2b411493",
+  "subject_tree_clean": "no -- dirty by design (this lane's pin files and concurrent lanes' in-flight edits); every dirty tracked file's WT-vs-HEAD sha256 is pinned in the manifest log cited above"
+ },
+ "authority": {
+  "ceiling": "CONSTRUCT",
+  "grant": "NONE beyond the lane contract (receipts/v26.10.2/ + the court test's bounded edits); no push, no PR, no git writes",
+  "actor": "claude (sonnet-5) implementation lane D8, coordinator-directed"
+ },
+ "consequence": {
+  "commits": [],
+  "commits_note": "no git writes (lane contract); the coordinator commits this receipt, the pin files (.tool-versions elixir 1.19.5-otp-27 / erlang 27.2.4, ci.yml otp-version 27.2.4 / elixir-version 1.19.5) and the court rewrite",
+  "files_changed": [
+   "receipts/v26.10.2/R2-GI-PIN.json",
+   "receipts/v26.10.2/R2-GI-PIN.logs/00-deps-compile-dev.log",
+   "receipts/v26.10.2/R2-GI-PIN.logs/01-format.log",
+   "receipts/v26.10.2/R2-GI-PIN.logs/02-compile.log",
+   "receipts/v26.10.2/R2-GI-PIN.logs/03-credo.log",
+   "receipts/v26.10.2/R2-GI-PIN.logs/04a-deps-compile-test.log",
+   "receipts/v26.10.2/R2-GI-PIN.logs/04b-compile-test.log",
+   "receipts/v26.10.2/R2-GI-PIN.logs/05-build-identity.log",
+   "receipts/v26.10.2/R2-GI-PIN.logs/06-working-tree-manifest.log",
+   "receipts/v26.10.2/R2-GI-PIN.logs/07-court-test.log",
+   "receipts/v26.10.2/R2-GI-PIN.logs/10-lane-gate.log",
+   "receipts/v26.10.2/R2-GI-PIN.logs/step.sh",
+   "receipts/v26.10.2/R2-GI-PIN.logs/steplog.py",
+   "receipts/v26.10.2/R2-GI-PIN.logs/build_identity.exs",
+   "test/ggen_igniter_toolchain_pin_qualification_test.exs"
+  ],
+  "remote_effects": [],
+  "local_effects": [
+   "/Users/sac/ggen_igniter/_build-d8: fresh OTP-27 build root (dev + test envs) compiled under the pin (otp_release=27 erts=15.2.2 compiler_app=8.5.5; 05-build-identity.log); a lane build root (lease), deletable at integration per the cleanup law",
+   "/Users/sac/ggen_igniter/_build-d8-amb: falsifier-only ambient build root (homebrew elixir 1.19.5-otp-28 / OTP 28.3.1) used by the 30-falsifier-ambient witness; deletable at integration"
+  ]
+ },
+ "replay": {
+  "durable_location": "receipts/v26.10.2/R2-GI-PIN.logs (untracked at qualification time; the coordinator commits them with this receipt)",
+  "step_runner": "receipts/v26.10.2/R2-GI-PIN.logs/step.sh (copy of receipts/v26.9.23/R1-GI-PIN.logs/step.sh with the pin PATH moved to 1.19.5-otp-27/27.2.4 and an optional disclosed # note= header line)",
+  "builder": "receipts/v26.9.23/R1-GI-PIN.logs/build_receipt.py NOT reused: it is hardwired to the v23 worktree/witness structure; every exit, timestamp, head and summary in this receipt was parsed from the step logs by steplog.py (reused byte-identical, sha256 e95c288f3ae8985f93a01f4583ff76e8ee6d76eef799e19e6747bbf6ef6c8288), then assembled by hand -- disclosed deviation",
+  "build_identity": "receipts/v26.10.2/R2-GI-PIN.logs/build_identity.exs (copy of the v26.9.23 script with the build root read from MIX_BUILD_ROOT)",
+  "commands": [
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.19.5-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_BUILD_ROOT=_build-d8 sh -c 'elixir --version && mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test'",
+    "cwd": "/Users/sac/ggen_igniter",
+    "exit": 0,
+    "summary": "LANE GATE (literal) on the uncommitted working tree at head a40469710bf29b049b26a6a96a8bdf6a2b411493 under the NEW pin (elixir 1.19.5-otp-27 / erlang 27.2.4): Elixir 1.19.5 (compiled with Erlang/OTP 27); format, forced compile, credo (4326 mods/funs, found no issues.), Finished in 128.9 seconds (39.0s async, 89.8s sync); 25 doctests, 42 properties, 1500 tests, 0 failures, 5 skipped (720 excluded). EXCLUSION DISCLOSED in the log header: the court file test/ggen_igniter_toolchain_pin_qualification_test.exs was REPLACED BY A ZERO-TEST STUB for this captured gate (the court pins this receipt, which cites this log -- self-referential); the real court run is 07-court-test.log [head a40469710bf29b049b26a6a96a8bdf6a2b411493; 2026-10-03T04:27:19Z -> 2026-10-03T04:29:42Z]",
+    "output_sha256": "a25d03d0e58941b6ca22208a453ab91b12a6db5e12f360298527450f1c331713",
+    "log": "receipts/v26.10.2/R2-GI-PIN.logs/10-lane-gate.log",
+    "role": "lane gate on committed head"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.19.5-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_BUILD_ROOT=_build-d8 mix deps.compile",
+    "cwd": "/Users/sac/ggen_igniter",
+    "exit": 0,
+    "summary": "fresh _build-d8/dev (no prior build root existed): all deps compiled under the NEW pin [head c49c53f4ea6c97b45347b0e43a6d4b5897a74abc; 2026-10-03T03:35:55Z -> 2026-10-03T03:38:44Z]",
+    "output_sha256": "b50a98923735f5b90b0083c90ff146b908169914404d84820ad0816ae34da2e2",
+    "log": "receipts/v26.10.2/R2-GI-PIN.logs/00-deps-compile-dev.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.19.5-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_BUILD_ROOT=_build-d8 mix format --check-formatted",
+    "cwd": "/Users/sac/ggen_igniter",
+    "exit": 0,
+    "summary": "step 1/4 of the lane gate: format check exit 0 (re-captured at a404697 after the coordinator's repo-wide mix format under the pin; the pre-pass capture failed exit 1 on 15 files with 1.18-era formatting -- the F3/F4 class repeating at 1.18->1.19 -- escalated and fixed by the coordinator before this lane could gate) [head a40469710bf29b049b26a6a96a8bdf6a2b411493; 2026-10-03T04:26:37Z -> 2026-10-03T04:26:38Z]",
+    "output_sha256": "1a0e72f24af2bad08443497b7626fd5622e09a2784e1833e00ed5bcd62e3d951",
+    "log": "receipts/v26.10.2/R2-GI-PIN.logs/01-format.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.19.5-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_BUILD_ROOT=_build-d8 mix compile --warnings-as-errors --force",
+    "cwd": "/Users/sac/ggen_igniter",
+    "exit": 0,
+    "summary": "step 2/4: forced recompile, no warnings (NIF rebuilt by Rustler under the pin) [head a40469710bf29b049b26a6a96a8bdf6a2b411493; 2026-10-03T04:26:38Z -> 2026-10-03T04:26:45Z]",
+    "output_sha256": "81e054aecdd3aca0337485b20a8dc8c85fba8edbb8828fc73c3f5ecba8ac24ae",
+    "log": "receipts/v26.10.2/R2-GI-PIN.logs/02-compile.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.19.5-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_BUILD_ROOT=_build-d8 mix credo",
+    "cwd": "/Users/sac/ggen_igniter",
+    "exit": 0,
+    "summary": "step 3/4: 4326 mods/funs, found no issues. [head a40469710bf29b049b26a6a96a8bdf6a2b411493; 2026-10-03T04:26:52Z -> 2026-10-03T04:26:55Z]",
+    "output_sha256": "a51fb4e31d959b9738bedc47a8fa254b8ac78d6fb794777701e67e4bcc174e43",
+    "log": "receipts/v26.10.2/R2-GI-PIN.logs/03-credo.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.19.5-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_BUILD_ROOT=_build-d8 MIX_ENV=test mix deps.compile",
+    "cwd": "/Users/sac/ggen_igniter",
+    "exit": 0,
+    "summary": "fresh _build-d8/test deps compiled under the NEW pin (separate command to keep each run bounded) [head c49c53f4ea6c97b45347b0e43a6d4b5897a74abc; 2026-10-03T03:40:19Z -> 2026-10-03T03:42:48Z]",
+    "output_sha256": "b059e824da5313e1cd54563f94e1dff8dcd76ded648a47e01bad7a12ea9367be",
+    "log": "receipts/v26.10.2/R2-GI-PIN.logs/04a-deps-compile-test.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.19.5-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_BUILD_ROOT=_build-d8 MIX_ENV=test mix compile --warnings-as-errors",
+    "cwd": "/Users/sac/ggen_igniter",
+    "exit": 0,
+    "summary": "test-env project compile under the NEW pin [head a40469710bf29b049b26a6a96a8bdf6a2b411493; 2026-10-03T04:26:55Z -> 2026-10-03T04:26:56Z]",
+    "output_sha256": "d36a6301bd80f0673726904452f9427e59c6db46b0b88646152f2ac574393606",
+    "log": "receipts/v26.10.2/R2-GI-PIN.logs/04b-compile-test.log"
+   },
+   {
+    "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.19.5-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_BUILD_ROOT=_build-d8 MIX_ENV=test mix test test/ggen_igniter_toolchain_pin_qualification_test.exs",
+    "cwd": "/Users/sac/ggen_igniter",
+    "exit": 0,
+    "summary": "WITNESS baseline (TWO-PASS APPEND, disclosed: a log cannot record its own sha256 before existing, so this entry was appended after the run it records -- the run read the receipt WITHOUT this entry, and the post-append full-suite gate re-validates every citation): the real court, rewritten (@receipt=R2-GI-PIN, admit-clean + predecessor-refuses describe), passes on this receipt under the pin: 7 tests, 0 failures [head 9df5ae33ab2acf19e83b904e1c4ce45618de9338; 2026-10-03T04:55:29Z -> 2026-10-03T04:55:31Z]",
+    "output_sha256": "c1c4a91d5f19df44bea017a8d637b325c01296aed89f4850b6a751ccf5cfbf9b",
+    "log": "receipts/v26.10.2/R2-GI-PIN.logs/07-court-test.log",
+    "role": "witness: baseline (the real court on this receipt)"
+   }
+  ]
+ },
+ "standing": {
+  "value": "ALIVE",
+  "derived_from": "literal lane gate on the uncommitted working tree at head a40469710bf29b049b26a6a96a8bdf6a2b411493 under the .tool-versions pin (elixir 1.19.5-otp-27 / erlang 27.2.4, fresh OTP-27 _build-d8, NIF rebuilt): exit 0 (25 doctests, 42 properties, 1500 tests, 0 failures, 5 skipped (720 excluded), with the disclosed zero-test-stub exclusion of the self-referential court; the real court passes on this receipt per replay.commands[7] witness 07-court-test.log); all pinned steps green: deps dev+test, format, forced compile, credo, test compile; the ambient falsifier (30-falsifier-ambient.log) kills under Elixir 1.19.5-otp-28 with typed BUILD_BROKEN(toolchain)"
+ },
+ "provider_ext.r2gi": {
+  "work_order": {
+   "id": "R2-GI-PIN",
+   "wave": "v26.10.2 post-release D-lane wave, lane D8 (coordinator dispatch; no _LANES.md row)",
+   "goal_ttl_order": "none (court-mandated migration repair lane; no goal.ttl WorkOrder)",
+   "defect": "the .tool-versions pin moved elixir 1.18.4-otp-27 -> 1.19.5-otp-27 in the v26.10.2 epoch (ash_a2a 26.9.31 requires elixir ~> 1.19; 1.18.4 can no longer compile the dep tree -- verified) without a new pinned qualification; the court's law (bumping .tool-versions without a new pinned qualification fails the suite) makes the suite red until this receipt exists",
+   "defect_evidence": ".tool-versions (uncommitted, elixir 1.19.5-otp-27 / erlang 27.2.4) vs receipts/v26.9.23/R1-GI-PIN.json toolchain (elixir 1.18.4-otp-27); court assertions 'the receipt's toolchain identity is the .tool-versions pin' and 'the lane-gate log is a zero-failure full suite on the pinned VM' fail against the predecessor receipt under the new pin",
+   "failure_classification": "no product failure under the new pin (format drift and a mid-edit compile break from concurrent lanes were fixed by the coordinator before gating); the lane is evidence work: a new pinned qualification observed under the new pin, admitted by the fleet-R v2 law",
+   "contract_refs": [
+    "PRD section 12 GC23-11 (Bounded Fleet: exact-subject standing)",
+    "PRD PR-013 (Replay)",
+    "ARD section 20 (Failure Semantics: BUILD_BROKEN(toolchain))",
+    "ARD section 27 (Release Receipt: toolchain identity)",
+    "test/ggen_igniter_toolchain_pin_qualification_test.exs court law (v26.9.23 R1-GI-PIN round 1)"
+   ],
+   "acceptance": "lane gate: PATH=/Users/sac/.asdf/installs/elixir/1.19.5-otp-27/bin:/Users/sac/.asdf/installs/erlang/27.2.4/bin:$PATH MIX_BUILD_ROOT=_build-d8 sh -c 'elixir --version && mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test'"
+  },
+  "predecessor": {
+   "receipt": "receipts/v26.9.23/R1-GI-PIN.json",
+   "status": "committed evidence, never edited to chase a schema",
+   "note": "qualified under the OLD pin (elixir 1.18.4-otp-27); under fleet R v2 it REFUSES with typed reasons (one string per missing v2 key -- work_order_id, origin_authority, provider, provider_execution_id -- plus one reason per un-namespaced top-level extension key); the court test keeps a historical-evidence assertion naming those typed reasons"
+  },
+  "toolchain": {
+   "pin_source": ".tool-versions: elixir 1.19.5-otp-27, erlang 27.2.4",
+   "elixir": "Elixir 1.19.5 (compiled with Erlang/OTP 27)",
+   "elixir_bin": "/Users/sac/.asdf/installs/elixir/1.19.5-otp-27/bin/elixir",
+   "erl_bin": "/Users/sac/.asdf/installs/erlang/27.2.4/bin/erl",
+   "otp_release": "27",
+   "otp_version": "27.2.4",
+   "erts": "15.2.2",
+   "compiler_app": "8.5.5",
+   "build_identity_log": "receipts/v26.10.2/R2-GI-PIN.logs/05-build-identity.log",
+   "build_identity_sha256": "e525aa47e3db44d8edfc798f89e8605245ad6731ea8f6e92bdb31bbdccc0394f",
+   "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+   "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+   "nif_note": "ggen_graph_nif: rustler 0.38.0 selects the NIF API by cargo feature (rustler build.rs CARGO_FEATURE_NIF_VERSION_*), not by the running ERTS; rebuilt under the pin anyway. wasmex 0.15.1 precompiled NIF nif-2.15 from the rustler_precompiled cache (OTP-independent)",
+   "tool_versions_pin_used": true,
+   "mix_lock_sha256": "d09043419744a2a84b96abeda778682139255c28615326dc4472be8ad4dcfff9"
+  },
+  "subject_manifest": {
+   "log": "receipts/v26.10.2/R2-GI-PIN.logs/06-working-tree-manifest.log",
+   "sha256": "9c8d56d57f4c8a288b0c8c2b254abac29eb6232cc7cb0014288351aad7118673",
+   "note": "subject identity for an uncommitted working tree: head a404697 + sha256 per dirty tracked file (WT vs HEAD); captured 2026-10-03T04:26Z at the same head the lane gate ran on"
+  },
+  "falsifiers": [
+   {
+    "cmd": "env MIX_BUILD_ROOT=_build-d8-amb MIX_ENV=test sh -c 'elixir --version && mix test test/ggen_igniter_toolchain_pin_qualification_test.exs' (AMBIENT toolchain, no pin PATH; deps compiled fresh under the ambient homebrew toolchain into _build-d8-amb)",
+    "cwd": "/Users/sac/ggen_igniter",
+    "exit": 2,
+    "summary": "FALSIFIER: the ambient toolchain that produced the earlier (pre-pass) release qualifications (Elixir 1.19.5 (compiled with Erlang/OTP 28), Erlang/OTP 28.3.1): 7 tests, 1 failure -- BUILD_BROKEN(toolchain): running Elixir 1.19.5 (compiled with OTP 28) on Erlang/OTP 28.3.1; .tool-versions pins elixir 1.19.5-otp-27, erlang 27.2.4 -- run under the pin (as CI does) [head 9df5ae33ab2acf19e83b904e1c4ce45618de9338; 2026-10-03T05:03:13Z -> 2026-10-03T05:06:42Z]",
+    "output_sha256": "4fa1d2729f5330c6e7e46fc20fe066f1b699bb9f4c903523805e8ec37d461c65",
+    "log": "receipts/v26.10.2/R2-GI-PIN.logs/30-falsifier-ambient.log",
+    "role": "falsifier: ambient toolchain killed",
+    "verdict": "killed"
+   }
+  ],
+  "exclusions": [
+   {
+    "kind": "court stub exclusion",
+    "what": "test/ggen_igniter_toolchain_pin_qualification_test.exs replaced by a zero-test stub (same path, disclosed content) for the captured lane gate",
+    "why": "the court pins receipts/v26.10.2/R2-GI-PIN.json, which cites the lane-gate log the gate produces -- the court cannot be part of the suite it qualifies; the file must stay present because the topology guard (test/ggen_igniter_topology_guard_test.exs) scans git ls-files and File.read!s every tracked test file, so a plain mv breaks the guard with a false ENOENT (observed: gate run 1 failed exactly there)",
+    "disclosed_in": "10-lane-gate.log header # note= line",
+    "restored_after": "yes (immediately after the gate; the committed court at HEAD is the real file, and replay.commands[7] witnesses the real court passing on this receipt)"
+   }
+  ],
+  "observations": [
+   {
+    "kind": "concurrent_lane_churn",
+    "classification": "environment",
+    "finding": "the qualification ran on a live fan-out checkout: HEAD moved c49c53f -> a404697 -> 9df5ae3 during the lane (D-lane, format-pass and credo-zero commits; docs-only after the gate), and concurrent lanes ran their own mix processes (full suite under ambient OTP 28.3.1, a 1.20.2-otp-28 compile); the subject is the working tree pinned by subject_manifest, and every cited log carries its own # cwd/head/started header",
+    "standing_effect": "none"
+   },
+   {
+    "kind": "test_count_reconciliation",
+    "finding": "v26.9.23 round 1 pinned run: '20 doctests, 42 properties, 1355 tests, 0 failures, 9 excluded, 1 skipped'; v26.10.2 pinned run: '25 doctests, 42 properties, 1500 tests, 0 failures, 5 skipped (720 excluded)' -- +145 tests/+5 doctests landed in the epoch, and the exclusion class grew (demonstration_court tagging, 720 excluded); wall time fell from 1412s to 128.9s (fast-lane CI work)",
+    "standing_effect": "none"
+   },
+   {
+    "kind": "host_contention",
+    "classification": "environment",
+    "finding": "two failed intermediate captures were discarded and re-captured: 05-build-identity once (raced this lane's own gate --force recompile: hd([]) on a mid-rebuild ebin) and 04b-compile-test once (a concurrent lane's mid-edit lib/ggen_igniter/epoch_freshness.ex did not compile); the committed logs are the green re-captures",
+    "standing_effect": "none"
+   },
+   {
+    "kind": "test_stderr_noise",
+    "classification": "pre-existing",
+    "finding": "expected [debug]/[warning] lines from failure-injection tests and os_mon supervisor close lines at VM shutdown; no test failed",
+    "standing_effect": "none"
+   }
+  ],
+  "findings": [
+   {
+    "id": "R2-GI-PIN-1",
+    "statement": "ggen_igniter main (working tree on a404697) passes the full lane gate under its NEW .tool-versions pin (elixir 1.19.5-otp-27 / erlang 27.2.4) with a fresh OTP-27 _build-d8",
+    "classification": "none needed (no product failure)",
+    "consequence_for_GC23-11": "ggen_igniter exact-subject standing under the CI toolchain is observed, not inferred from the ambient toolchain"
+   },
+   {
+    "id": "R2-GI-PIN-2",
+    "statement": "the suite consumes the NEW pinned qualification and keeps the OLD one as historical evidence: test/ggen_igniter_toolchain_pin_qualification_test.exs asserts Receipts.check/1 == [] on R2-GI-PIN (fleet-R v2 admitted), the toolchain identity == the new pin, cited logs hash to their recorded sha256, the lane-gate log is a zero-failure pinned run, and the predecessor R1-GI-PIN still refuses under v2 with typed reasons",
+    "classification": "evidence work (court-mandated migration completed)",
+    "consequence_for_GC23-11": "a green full suite of ggen_igniter is a run under the 1.19.5-otp-27/27.2.4 pin; the v1-era receipt remains evidence refusing under v2, never edited"
+   }
+  ]
+ }
+}

@@ -1,0 +1,4 @@
+# cwd=/Users/sac/ggen_igniter head=a40469710bf29b049b26a6a96a8bdf6a2b411493 started=2026-10-03T04:26:37Z
+# cmd=env MIX_BUILD_ROOT=_build-d8 mix format --check-formatted
+# note=lane D8 re-qualification at head a404697 (post credo-zero commit)
+# ended=2026-10-03T04:26:38Z exit=0

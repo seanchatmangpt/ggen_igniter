@@ -167,7 +167,9 @@ defmodule GgenIgniterPackLockTest do
       File.write!(outside, "v1")
 
       # A target that leaves the git toplevel entirely is still an escape.
-      repo_out = Path.join(System.tmp_dir!(), "pack_lock_out_#{System.unique_integer([:positive])}")
+      repo_out =
+        Path.join(System.tmp_dir!(), "pack_lock_out_#{System.unique_integer([:positive])}")
+
       File.mkdir_p!(repo_out)
       File.write!(Path.join(repo_out, "e.eex"), "v1")
       File.rm_rf!(Path.join(a, "templates/t.eex"))
@@ -472,54 +474,71 @@ defmodule GgenIgniterPackLockTest do
       refute a.receipt_hash == b.receipt_hash
     end
   end
-describe "digest_checked/1 (in-repo canonical symlink law, 26.10.2)" do
-  @sha ~r/\A[0-9a-f]{64}\z/
 
-  test "an in-repo canonical symlink (pack ontology -> repo-root ontology) digests; outside-the-repo still refuses" do
-    base = Path.join(System.tmp_dir!(), "pack_lock_symlink_#{System.unique_integer([:positive])}")
-    File.rm_rf!(base)
-    File.mkdir_p!(Path.join(base, "priv/ggen/p"))
-    File.mkdir_p!(Path.join(base, "priv/ggen/q"))
+  describe "digest_checked/1 (in-repo canonical symlink law, 26.10.2)" do
+    @sha ~r/\A[0-9a-f]{64}\z/
 
-    git! = fn args, cwd ->
-      {out, 0} = System.cmd("git", args, cd: cwd, env: [{"GIT_AUTHOR_NAME", "t"}, {"GIT_AUTHOR_EMAIL", "t@t"}, {"GIT_COMMITTER_NAME", "t"}, {"GIT_COMMITTER_EMAIL", "t@t"}])
-      String.trim(out)
-    end
+    test "an in-repo canonical symlink (pack ontology -> repo-root ontology) digests; outside-the-repo still refuses" do
+      base =
+        Path.join(System.tmp_dir!(), "pack_lock_symlink_#{System.unique_integer([:positive])}")
 
-    git!.(["init", "-q"], base)
-    git!.(["config", "user.email", "t@t"], base)
-    git!.(["config", "user.name", "t"], base)
-    File.write!(Path.join(base, "ontology.ttl"), "<urn:r> a <urn:Root> .\n")
-    # p: in-repo canonical symlink to the repo-root ontology (lawful per ash_pplan's law)
-    File.write!(Path.join(base, "priv/ggen/p/other.ttl"), "<urn:p> a <urn:P> .\n")
-    # q: symlink leaving the repo entirely
-    outside = Path.join(System.tmp_dir!(), "pack_lock_outside_#{System.unique_integer([:positive])}")
-    File.mkdir_p!(outside)
-    File.write!(Path.join(outside, "evil.ttl"), "<urn:e> a <urn:E> .\n")
-
-    on_exit(fn ->
       File.rm_rf!(base)
-      File.rm_rf!(outside)
-    end)
+      File.mkdir_p!(Path.join(base, "priv/ggen/p"))
+      File.mkdir_p!(Path.join(base, "priv/ggen/q"))
 
-    {top, 0} = System.cmd("git", ["-C", Path.join(base, "priv/ggen/p"), "rev-parse", "--show-toplevel"])
-    assert String.trim(top) == Path.expand(base)
+      git! = fn args, cwd ->
+        {out, 0} =
+          System.cmd("git", args,
+            cd: cwd,
+            env: [
+              {"GIT_AUTHOR_NAME", "t"},
+              {"GIT_AUTHOR_EMAIL", "t@t"},
+              {"GIT_COMMITTER_NAME", "t"},
+              {"GIT_COMMITTER_EMAIL", "t@t"}
+            ]
+          )
 
-    File.ln_s!(Path.join(base, "ontology.ttl"), Path.join(base, "priv/ggen/p/ontology.ttl"))
-    File.ln_s!(outside <> "/evil.ttl", Path.join(base, "priv/ggen/q/ontology.ttl"))
+        String.trim(out)
+      end
 
-    assert {:ok, d1} = GgenIgniter.PackLock.digest_checked(Path.join(base, "priv/ggen/p"))
-    assert d1 =~ @sha
+      git!.(["init", "-q"], base)
+      git!.(["config", "user.email", "t@t"], base)
+      git!.(["config", "user.name", "t"], base)
+      File.write!(Path.join(base, "ontology.ttl"), "<urn:r> a <urn:Root> .\n")
+      # p: in-repo canonical symlink to the repo-root ontology (lawful per ash_pplan's law)
+      File.write!(Path.join(base, "priv/ggen/p/other.ttl"), "<urn:p> a <urn:P> .\n")
+      # q: symlink leaving the repo entirely
+      outside =
+        Path.join(System.tmp_dir!(), "pack_lock_outside_#{System.unique_integer([:positive])}")
 
-    # digest is a function of the TARGET content: mutate the root ontology -> digest moves
-    File.write!(Path.join(base, "ontology.ttl"), "<urn:r> a <urn:Root2> .\n")
-    assert {:ok, d2} = GgenIgniter.PackLock.digest_checked(Path.join(base, "priv/ggen/p"))
-    refute d1 == d2
+      File.mkdir_p!(outside)
+      File.write!(Path.join(outside, "evil.ttl"), "<urn:e> a <urn:E> .\n")
 
-    assert {:error, {:pack_symlink_escape, detail}} =
-             GgenIgniter.PackLock.digest_checked(Path.join(base, "priv/ggen/q"))
+      on_exit(fn ->
+        File.rm_rf!(base)
+        File.rm_rf!(outside)
+      end)
 
-    assert detail =~ "outside pack root"
+      {top, 0} =
+        System.cmd("git", ["-C", Path.join(base, "priv/ggen/p"), "rev-parse", "--show-toplevel"])
+
+      assert String.trim(top) == Path.expand(base)
+
+      File.ln_s!(Path.join(base, "ontology.ttl"), Path.join(base, "priv/ggen/p/ontology.ttl"))
+      File.ln_s!(outside <> "/evil.ttl", Path.join(base, "priv/ggen/q/ontology.ttl"))
+
+      assert {:ok, d1} = GgenIgniter.PackLock.digest_checked(Path.join(base, "priv/ggen/p"))
+      assert d1 =~ @sha
+
+      # digest is a function of the TARGET content: mutate the root ontology -> digest moves
+      File.write!(Path.join(base, "ontology.ttl"), "<urn:r> a <urn:Root2> .\n")
+      assert {:ok, d2} = GgenIgniter.PackLock.digest_checked(Path.join(base, "priv/ggen/p"))
+      refute d1 == d2
+
+      assert {:error, {:pack_symlink_escape, detail}} =
+               GgenIgniter.PackLock.digest_checked(Path.join(base, "priv/ggen/q"))
+
+      assert detail =~ "outside pack root"
+    end
   end
-end
 end

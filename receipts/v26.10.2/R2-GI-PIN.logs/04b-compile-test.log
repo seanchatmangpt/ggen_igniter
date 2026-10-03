@@ -1,0 +1,4 @@
+# cwd=/Users/sac/ggen_igniter head=a40469710bf29b049b26a6a96a8bdf6a2b411493 started=2026-10-03T04:26:55Z
+# cmd=env MIX_BUILD_ROOT=_build-d8 MIX_ENV=test mix compile --warnings-as-errors
+# note=lane D8: test-env project compile under 1.19.5-otp-27 at a404697
+# ended=2026-10-03T04:26:56Z exit=0

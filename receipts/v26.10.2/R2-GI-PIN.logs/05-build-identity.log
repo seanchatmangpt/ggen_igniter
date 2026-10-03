@@ -1,0 +1,11 @@
+# cwd=/Users/sac/ggen_igniter head=9df5ae33ab2acf19e83b904e1c4ce45618de9338 started=2026-10-03T04:50:52Z
+# cmd=env MIX_BUILD_ROOT=_build-d8 elixir receipts/v26.10.2/R2-GI-PIN.logs/build_identity.exs
+# note=lane D8: compiler identity of the pin-built beams (_build-d8 dev+test); re-run after the lane gate, no concurrent compile
+dev ggen_igniter Elixir.GgenIgniter.Actuate.beam compiler=8.5.5
+dev jason Elixir.Enumerable.Jason.OrderedObject.beam compiler=8.5.5
+dev ash_a2a Elixir.AshA2A.A2ATransport.ExtendedCard.beam compiler=8.5.5
+test ggen_igniter Elixir.AshEx4pm.Info.Activity.beam compiler=8.5.5
+test jason Elixir.Enumerable.Jason.OrderedObject.beam compiler=8.5.5
+test ash_a2a Elixir.AshA2A.A2ATransport.ExtendedCard.beam compiler=8.5.5
+otp_release=27 erts=15.2.2 compiler_app=8.5.5
+# ended=2026-10-03T04:50:53Z exit=0
