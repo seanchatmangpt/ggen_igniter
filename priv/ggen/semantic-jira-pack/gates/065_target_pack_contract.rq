@@ -1,0 +1,11 @@
+# The kernel-contract facts the target_pack template renders from
+# (GgenIgniter.SemanticJira.TargetPack: rendered module name + typed refusal
+# prefix). One row per sj:KernelContract; the single row flattens into the
+# template's atom-keyed `module`/`refusal_prefix` bindings.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT DISTINCT ?module ?refusal_prefix WHERE {
+  ?contract a sj:KernelContract ;
+            sj:contractModule ?module ;
+            sj:refusalPrefix ?refusal_prefix .
+}
+ORDER BY ?module

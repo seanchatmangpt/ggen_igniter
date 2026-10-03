@@ -951,13 +951,18 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         |> Path.wildcard()
         |> Enum.sort()
 
-      # 14 since gates/epoch_boundary.rq (v26.9.27 epoch-pre, sj:EpochBoundary
-      # gate; previously 13 since gates/047_provider_neutral_admission.rq,
-      # ALOOP-ZCODE-DOGFOOD-001 provider-neutrality contract, additive at pack
-      # version 26.9.19): the count tracks the shipped gate set; the assertion
-      # itself is unchanged -- every gate must still execute cleanly against
-      # the canonical graph.
-      assert length(gates) == 14
+      # 15 since gates/055_standing_projection.rq (Ra4, the v23:GC-26.9.24
+      # deferral closure: the standing-transition event vocabulary is declared
+      # in the pack ontology, its shapes live in the pack shape file, and the
+      # chain-tip gate is shipped; previously 14 since gates/epoch_boundary.rq,
+      # v26.9.27 epoch-pre sj:EpochBoundary gate): the count tracks the shipped
+      # gate set; the assertion itself is unchanged -- every gate must still
+      # execute cleanly against the canonical graph.
+      # 16 since gates/065_target_pack_contract.rq (D4, the targetPack
+      # kernel-contract row feeding the rendered TargetPack module; previously
+      # 15 since gates/055_standing_projection.rq): the count tracks the
+      # shipped gate set; the assertion itself is unchanged.
+      assert length(gates) == 16
 
       Enum.each(gates, fn gate ->
         assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),
@@ -975,6 +980,52 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       assert "SJ-001" in frontier_ids
       refute frontier_ids == []
+
+      # gates/055 is a violation-row gate: the canonical graph declares no
+      # standing-transition events, so zero rows is the pass state (Ra4).
+      standing_rows =
+        graph
+        |> GgenIgniter.Query.run(
+          File.read!("priv/ggen/semantic-jira-pack/gates/055_standing_projection.rq")
+        )
+
+      assert standing_rows == []
+    end
+
+    # Ra4: the chain-tip gate fires exactly on a forked ledger projection --
+    # two events maximal in sj:seq for one identity -- and stays silent on a
+    # well-formed chain, under the same engine and query text the pack ships.
+    test "gate 055 flags a forked standing projection and passes a well-formed chain" do
+      graph =
+        RDF.Turtle.read_string!("""
+        @prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+        @prefix dcterms: <http://purl.org/dc/terms/> .
+        <urn:wo-chain> a sj:WorkOrder ; dcterms:identifier "CHAIN" .
+        <urn:ev-chain-1> a sj:StandingTransitionEvent ; sj:identity "CHAIN" ; sj:seq 1 .
+        <urn:ev-chain-2> a sj:StandingTransitionEvent ; sj:identity "CHAIN" ; sj:seq 2 .
+        <urn:wo-fork> a sj:WorkOrder ; dcterms:identifier "FORK" .
+        <urn:ev-fork-1> a sj:StandingTransitionEvent ; sj:identity "FORK" ; sj:seq 2 .
+        <urn:ev-fork-2> a sj:StandingTransitionEvent ; sj:identity "FORK" ; sj:seq 2 .
+        """)
+
+      rows =
+        graph
+        |> GgenIgniter.Query.run(
+          File.read!("priv/ggen/semantic-jira-pack/gates/055_standing_projection.rq")
+        )
+
+      # One forked identity -> one unordered tip pair, reported as both ordered
+      # rows (the gate's ?tip_a/?tip_b join is symmetric; SELECT DISTINCT keeps
+      # both, and the well-formed CHAIN identity contributes none).
+      assert length(rows) == 2
+
+      pairs =
+        Enum.map(rows, fn row ->
+          assert row["identity"] == "FORK"
+          Enum.sort([row["tip_a"], row["tip_b"]])
+        end)
+
+      assert Enum.uniq(pairs) == [["urn:ev-fork-1", "urn:ev-fork-2"]]
     end
 
     # V23-T6R refutation 2 generalized: a gate clause over an sj: term the pack

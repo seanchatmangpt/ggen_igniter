@@ -2327,6 +2327,32 @@ sj:targetPack a rdf:Property ;
     rdfs:range xsd:string ;
     rdfs:comment "Optional, at most one; names the ggen pack (priv/ggen/<name>) this WorkOrder targets. Admission verifies FORMAT only, mirroring the sj:baseSha precedent; sync-time enforcement (GgenIgniter.SemanticJira.TargetPack) resolves the real pack directory and stamps its digest." .
 
+# ---- Kernel-contract facts (HANDWRITTEN ledger paydown, 2026-10-02) --------
+# The variable parts of the kernel enforcement modules the pack renders:
+# `templates/target_pack.ex.eex` renders GgenIgniter.SemanticJira.TargetPack
+# (previously HANDWRITTEN.md row 48) from these facts. The enforce!/2 walk
+# itself is template structure; the ontology owns the typed literals the
+# rendered module must carry.
+sj:KernelContract a rdfs:Class ;
+    rdfs:label "Kernel contract" ;
+    rdfs:comment "The variable-literal contract of one kernel enforcement module the pack manufactures: the rendered module's name and the typed refusal prefix its refusals carry. Rendered by templates/target_pack.ex.eex into lib/ggen_igniter/semantic_jira/target_pack.ex." .
+
+sj:contractModule a rdf:Property ;
+    rdfs:domain sj:KernelContract ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Full Elixir module name the target_pack template renders (defmodule line)." .
+
+sj:refusalPrefix a rdf:Property ;
+    rdfs:domain sj:KernelContract ;
+    rdfs:range xsd:string ;
+    rdfs:comment "The typed refusal prefix every unknown-pack refusal from the rendered module carries (the module's @refusal attribute and moduledoc text)." .
+
+sj:target-pack-kernel-contract a sj:KernelContract ;
+    rdfs:label "TargetPack sync-time WORLD enforcement contract" ;
+    dcterms:description "GgenIgniter.SemanticJira.TargetPack walks the sync task's named query rows, resolves every declared sj:targetPack against the real filesystem via GgenIgniter.Pack.resolve_dir!/1, and stamps GgenIgniter.PackLock.digest_checked/1 -- refusing an unknown pack before any Reactor dispatch so a refusal writes zero files." ;
+    sj:contractModule "GgenIgniter.SemanticJira.TargetPack" ;
+    sj:refusalPrefix "REFUSED:TARGET_PACK_UNKNOWN" .
+
 sj:objective-semantic-jira-mvp a sj:StrategicObjective ;
     rdfs:label "Semantic Jira MVP strategy" ;
     dcterms:description "Canonical RDF work-order graph, SHACL admission court, typed receipts; origin of SJ-001; projects work from admitted graph state, never from generated Markdown." ;
