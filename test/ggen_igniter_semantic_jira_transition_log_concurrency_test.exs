@@ -8,7 +8,10 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
   `event_digest` recomputes (`fetch/1` accepts the ledger). The
   `event_digest/1` + `legacy_event_digest/1` describe below pins the public
   digest pair against the cross-repo vector xaas's
-  `semantic_jira_bridge_integrity_test.exs:289-307` relies on.
+  `semantic_jira_bridge_integrity_test.exs:289-307` relies on. Since the D1
+  shrink (2026-10-02) the legacy rule is a deprecated, shrinking window
+  (removal milestone v26.11.1): xaas's bridge probes the export's availability
+  at run time instead of calling it unconditionally.
   """
   use ExUnit.Case, async: true
 
@@ -206,7 +209,7 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
                TransitionLog.legacy_event_digest(reversed)
     end
 
-    test "cross-repo vector: legacy-stamped event satisfies the bridge's either-rule check; a tampered event satisfies neither", %{dir: dir} do
+    test "cross-repo vector: a legacy-stamped event recomputes only under the (deprecated, window-shrunk) legacy rule; a tampered event under neither", %{dir: dir} do
       ledger = Path.join(dir, "legacy.jsonl")
 
       # Rebuild xaas's pinned case exactly: strip seq/event_digest, stamp the
@@ -227,8 +230,9 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
       refute stored["event_digest"] == TransitionLog.event_digest(stored)
       assert stored["event_digest"] == TransitionLog.legacy_event_digest(stored)
 
-      # The acceptance rule xaas's bridge pins: recomputed over the FULL
-      # stored event, the stamped digest must satisfy the either-rule check.
+      # The acceptance rule xaas's bridge pins while the deprecated export
+      # still ships (probed by derives?/1): recomputed over the FULL stored
+      # event, the stamped digest must satisfy the either-rule membership.
       assert stored["event_digest"] in [
                TransitionLog.event_digest(stored),
                TransitionLog.legacy_event_digest(stored)

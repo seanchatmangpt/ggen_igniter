@@ -38,11 +38,16 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
   records), and `legacy_event_digest/1`, the pre-v26.10.1 rule
   (`SemanticJira.digest/1` over the same map, so the nine derived `*_digest`
   fields are elided) that events written before receipt-committing carry.
-  `append/2` stamps and `fetch/1` verifies with `event_digest/1` only; a
-  consumer that must admit both epochs (xaas's
-  `Xaas.Ultracode.SemanticJiraBridge`) recomputes both and accepts a stored
-  event when `event["event_digest"] in [event_digest(stored),
-  legacy_event_digest(stored)]`.
+  `append/2` stamps and `fetch/1` verifies with `event_digest/1` only — the
+  legacy rule has never been a verification rule of this module, only a
+  deprecated, shrinking compatibility window: it exists solely so xaas's
+  `Xaas.Ultracode.SemanticJiraBridge.derives?/1` can still admit the three
+  committed pre-v26.10.1 episode ledgers that verify ONLY under it (xaas
+  `docs/sjira/v26.9.23/episodes/{fmt-1,me-1,me-2}/ledger.ndjson` — the D1
+  census of 2026-10-02, which found every other committed ledger current-rule
+  or dead under both rules). The window is scheduled for removal at the
+  v26.11.1 milestone; from now on a consumer should probe the legacy export's
+  availability instead of calling it unconditionally.
 
   The WorkOrder definition is never touched; current standing is the
   projection `GgenIgniter.SemanticJira.project/2` of this log over the graph.
@@ -142,8 +147,10 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
   `SemanticJira.digest/1` over the event minus `seq`/`event_digest` — the nine
   derived `*_digest` fields (including `receipt_digest`) are elided, so it
   diverges from `event_digest/1` on any event holding one. The bridge's
-  `derives?/1` accepts it for logs written before the receipt-committing rule.
+  `derives?/1` accepts it for logs written before the receipt-committing rule,
+  while that export still ships.
   """
+  @deprecated "Shrinking compatibility window (D1, 2026-10-02): consumers must probe availability via function_exported?/3 and fall back to event_digest/1; scheduled for removal at the v26.11.1 milestone"
   @spec legacy_event_digest(map()) :: String.t()
   def legacy_event_digest(event),
     do: SemanticJira.digest(Map.drop(event, ["seq", "event_digest"]))
