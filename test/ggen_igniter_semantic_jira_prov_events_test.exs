@@ -149,8 +149,14 @@ defmodule GgenIgniter.SemanticJiraProvEventsTest do
     events = ledger_with_two(Path.join(dir, "l.ndjson"))
     {:ok, ttl} = ProvEvents.to_turtle(events)
     report = ProvEvents.validate(ttl)
-    assert %Shacl{conforms: true, focus_node_count: n} = report
+    assert %Shacl{conforms: true, focus_node_count: n, shapes_checked: checked} = report
     assert n >= 4
+
+    # The court ran the PACK shape file, not module-local shapes: the report
+    # names the ported shapes (Ra4 -- shapes_turtle/0 is gone).
+    assert "standing_transition_event_prov_shape" in checked
+    assert "standing_entity_prov_shape" in checked
+    assert "generated_standing_prov_shape" in checked
 
     broken =
       ttl
