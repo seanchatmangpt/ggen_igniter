@@ -264,8 +264,22 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
       assert [%{task_id: "t2", standing: "UNKNOWN"}] = records()
     end
 
-    test "an observe skill needs no grant" do
+    test "an observe skill needs authentication but not a grant", %{m: _m} do
+      # ash_a2a 26.9.31 law (SEC-05, `require_authenticated_caller` defaulting to
+      # true): an unauthenticated caller is refused `:unauthenticated` BEFORE any
+      # `:observe` dispatch, where 26.9.17 ran observe unauthenticated. The
+      # refusal is the task failing closed, not a crash.
       assert {:ok, task} = apply(@agent, :call, [@agent, data_message(%{}, "read")])
+      assert task.status.state == :failed
+
+      # Authentication is not authority: an AUTHENTICATED principal needs NO
+      # grant for an observe skill -- observe bypasses the CommandBus entirely
+      # (agent.ex:791-799), so no Authority.Grant is required, only identity.
+      authenticated_no_grant = [metadata: %{"a2a.auth" => %{identity: %{id: "intruder"}}}]
+
+      assert {:ok, task} =
+               apply(@agent, :call, [@agent, data_message(%{}, "read"), authenticated_no_grant])
+
       assert task.status.state == :completed
     end
   end

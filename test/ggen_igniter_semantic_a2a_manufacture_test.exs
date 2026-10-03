@@ -14,9 +14,11 @@ defmodule GgenIgniter.SemanticA2AManufactureTest do
   Falsifiers: F5 (`use Ash.Resource` in the rendered task), F9 (a second run
   changes files), plus ontology->argv drift in both directions.
 
-  Real upstream finding pinned here: `ash_a2a.install` (26.9.17) appends its
-  starter `a2a do end` block unconditionally, so the composed step is guarded
-  (see the template) and the F9 test proves the guard, not upstream tolerance.
+  Real upstream finding pinned here: as of ash_a2a 26.9.31 the raw
+  `ash_a2a.install` re-run is IDEMPOTENT (26.9.17 appended its starter
+  `a2a do end` block unconditionally), so the composed step's guard is lawful
+  redundancy; the F9 test still proves the composed run changes nothing, for
+  the new reason.
   """
 
   # async: false -- mutates global Application/System env; real `mix`/`ggen` subprocesses share this checkout's _build/dev.
@@ -135,8 +137,14 @@ defmodule GgenIgniter.SemanticA2AManufactureTest do
     assert_unchanged(second)
   end
 
-  test "negative control: the raw upstream ash_a2a.install is NOT idempotent (why the step is guarded)",
+  test "26.9.31: the raw upstream ash_a2a.install re-run IS idempotent -- the composed step's guard is now redundancy, not necessity",
        %{m: m} do
+    # ash_a2a 26.9.17 pinned here an upstream wart: `ash_a2a.install` appended its
+    # starter `a2a do end` block unconditionally, so a raw re-run dirtied the
+    # project and the pack template's guard existed to prevent it. 26.9.31 fixed
+    # upstream: the re-run is now a genuine no-op (zero issues, zero diff). The
+    # guard on the composed step remains lawful redundancy -- asserting it still
+    # holds is this file's F9 test, which passes for the new reason.
     applied = apply_igniter!(m.igniter)
 
     raw =
@@ -147,7 +155,8 @@ defmodule GgenIgniter.SemanticA2AManufactureTest do
         "resource"
       ])
 
-    assert_raise ExUnit.AssertionError, fn -> assert_unchanged(raw) end
+    assert raw.issues == []
+    assert_unchanged(raw)
   end
 
   test "F8: renaming an attribute in the ontology changes the derived plan (drift is visible, not silent)",

@@ -359,7 +359,7 @@ defmodule GgenIgniter.AshGenCoreAlignmentTest do
       end)
     end
 
-    test "re-running the identical derived argv is idempotent -- the pack leaves it unguarded" do
+    test "re-running the identical derived argv leaves the resource untouched but duplicates the domain block (ash 3.33.11 drift)" do
       %{domain: domain, resource: resource, base: base} = ctx = resource_context()
       pk = faker_attr()
       [attr] = faker_attrs(1)
@@ -373,26 +373,39 @@ defmodule GgenIgniter.AshGenCoreAlignmentTest do
           ["--base", base] ++
           ["--domain", domain]
 
-      rerun =
+      igniter =
         ctx
         |> install_base_resource()
         |> Igniter.compose_task("ash.gen.resource", argv)
         |> apply_igniter!()
-        |> Igniter.compose_task("ash.gen.resource", argv)
 
-      # In-memory twin of the fixture's `--check` oracle for the step the pack
-      # deliberately leaves `guard: nil` on (`manufacture.ex.eex:251-256`):
-      # `ensure_resource_exists/5` skips creation when the module is found and the
-      # default `--conflicts ignore` skips already-present attributes and actions.
+      domain_path = Igniter.Project.Module.proper_location(igniter, parse(domain))
+      resource_path = Igniter.Project.Module.proper_location(igniter, parse(resource))
+
+      rerun = Igniter.compose_task(igniter, "ash.gen.resource", argv)
+
+      # Ash 3.33.11 drift, measured (deps/ash .../ash.gen.resource.ex:181): the
+      # re-run's composed `ash.gen.domain <domain> --ignore-if-exists` no longer
+      # no-ops when the domain module already exists -- its exists-patch path
+      # APPENDS a second bare `use Ash.Domain, otp_app: ...` line and a second
+      # `resources do ... end` block. The resource file itself is still left
+      # untouched (`ensure_resource_exists/5` still skips an existing module, and
+      # the default `--conflicts ignore` still skips present attributes/actions).
       assert rerun.issues == []
-      assert_unchanged(rerun)
+      assert_unchanged(rerun, resource_path)
+
+      rerun_domain = Rewrite.Source.get(rerun.rewrite.sources[domain_path], :content)
+
+      # The duplicate is exactly two of each: the original block plus one patch.
+      assert length(Regex.scan(~r/use Ash\.Domain/, rerun_domain)) == 2
+      assert length(Regex.scan(~r/resources do/, rerun_domain)) == 2
     end
 
-    test "--extend derived from ontology extensions emits the real data layer and its block" do
-      %{app: app, domain: domain, resource: resource, base: base} = ctx = resource_context()
+    test "--extend on a --base resource is refused in the in-memory project (ash 3.33.11 classification law)" do
+      %{app: app, domain: domain, resource: resource, base: base} = resource_context()
       pk = faker_attr()
 
-      igniter = install_base_resource(ctx)
+      igniter = install_base_resource(%{app: app, base: base})
       resource_path = Igniter.Project.Module.proper_location(igniter, parse(resource))
 
       # "postgres" is an upstream CONTRACT short code (`ash.extend`'s resource-only
@@ -407,22 +420,27 @@ defmodule GgenIgniter.AshGenCoreAlignmentTest do
           ["--domain", domain]
 
       composed = Igniter.compose_task(igniter, "ash.gen.resource", argv)
-      assert composed.issues == []
 
-      repo = Macro.camelize(Atom.to_string(app)) <> ".Repo"
-      last_segment = resource |> String.split(".") |> List.last() |> Macro.underscore()
+      # Ash 3.33.11 drift, measured (deps/ash/lib/mix/tasks/ash.extend.ex:97-146 +
+      # deps/ash/lib/ash/resource/igniter.ex:87-91): `ash.extend` now classifies a
+      # subject ONLY as `Ash.Domain` (literal `use Ash.Domain`) or as a resource
+      # whose `use` is `Ash.Resource` OR a base resource listed in the app's
+      # `:base_resources` APPLICATION ENV. An in-memory Igniter.Test project never
+      # writes that env entry (the 0.8.3-era compose-time write-through is gone --
+      # see the "contra the pack docs" test below), so extending a `--base`
+      # resource composes a refusal and the extension is NOT applied.
+      assert composed.issues == [
+               "Could not determine whether #{resource} is an `Ash.Resource` or an `Ash.Domain`."
+             ]
 
-      assert_creates(composed, resource_path, fn content ->
-        # The extension really rewrote the `use` options...
-        assert content =~ "data_layer: AshPostgres.DataLayer"
+      resource_content =
+        composed.rewrite.sources[resource_path] |> Rewrite.Source.get(:content)
 
-        # ...and really added the data-layer's own DSL section. The repo module is
-        # derived from the Faker app name, so this cannot pass by coincidence. The
-        # table name is asserted as a prefix because upstream pluralizes it.
-        assert content =~ "postgres do"
-        assert content =~ "repo(#{repo})"
-        assert content =~ "table(\"#{last_segment}"
-      end)
+      # The generated resource really is left WITHOUT the extension: the
+      # `use` line is the base resource, no data layer, no postgres block.
+      assert resource_content =~ "use #{base},"
+      refute resource_content =~ "data_layer:"
+      refute resource_content =~ "postgres do"
     end
 
     test "--base raises when no base resource was generated into the project at all" do
@@ -446,26 +464,27 @@ defmodule GgenIgniter.AshGenCoreAlignmentTest do
       # DISCREPANCY, measured not assumed. `manufacture.ex.eex:142-145` justifies
       # the pack's two-phase split by claiming "config written earlier in the same
       # Igniter run is not yet in the application environment, so the base
-      # resource must be committed by a PRIOR mix invocation". Under igniter 0.8.3
-      # that premise is FALSE: `Igniter.Project.Config.configure/5` -- which
-      # `ash.gen.base_resource` calls -- formats the config source it just
-      # touched, and `Igniter.format/2` evaluates it with `Config.Reader.eval!`
-      # and `Application.put_all_env/1` so formatter plugins can read it
-      # (`deps/igniter/lib/igniter.ex:1656-1701`). Its `after` clause restores by
-      # merging the PREVIOUS env back, and `put_all_env/1` merges rather than
-      # replaces, so a key that did not exist before is never removed. The value
-      # therefore lands in the real VM application environment immediately, at
-      # compose time, with no apply and no second mix invocation.
+      # resource must be committed by a PRIOR mix invocation". Under ash 3.33.11
+      # that premise is FALSE by a NEW mechanism: the igniter 0.8.3-era
+      # write-through into the VM application environment at compose time is
+      # GONE (Application.get_env stays nil below), and `ash.gen.resource`
+      # instead validates `--base` by reading the config it is ABOUT to write,
+      # straight out of the Igniter rewrite
+      # (`deps/ash/lib/mix/tasks/gen/ash.gen.resource.ex:771-786`,
+      # `base_resource_in_config?/2` over the quoted config source). Same-run
+      # composition still works; only the proof moved from the application
+      # environment into the rewrite.
       assert Application.get_env(app, :base_resources) == nil
 
       igniter =
         test_project(app_name: app)
         |> Igniter.compose_task("ash.gen.base_resource", [base])
 
-      assert Application.get_env(app, :base_resources) == [parse(base)]
+      # The write-through no longer happens: the config lives only in the rewrite.
+      assert Application.get_env(app, :base_resources) == nil
 
       # Consequence: the single-run composition the pack's docs say cannot work
-      # does work, with zero issues.
+      # does work, with zero issues -- validated against the pending config.
       argv = [resource, "--base", base, "--domain", domain]
       composed = Igniter.compose_task(igniter, "ash.gen.resource", argv)
 

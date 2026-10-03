@@ -156,7 +156,11 @@ defmodule GgenIgniter.AshTaskCoverageTest do
   # Exact set equality, so a NEW skew fails loudly and a repaired one forces
   # this list to shrink. The real versions are read at runtime and printed by
   # the failure message; no version is written down in this file.
-  @known_version_skew MapSet.new([:igniter])
+  # Skew history: the ash_a2a 26.9.17 -> 26.9.31 bump moved the repo to
+  # ash 3.33.11 / spark 2.7.3 while the fixture lock stays at ash 3.33.1 /
+  # spark 2.7.2; igniter re-aligned at 0.8.4 on both sides (it was the sole
+  # skew before that bump).
+  @known_version_skew MapSet.new([:ash, :spark])
 
   setup_all do
     %{
