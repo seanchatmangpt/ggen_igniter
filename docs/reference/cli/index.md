@@ -123,7 +123,12 @@ live in each module's `schema:`/moduledoc)
   (--pack-dir --target-dir [--receipt-out] | --receipt)
   [--provider|--court-map|--authority-graph|--out-dir|--out]` — one
   frontier-eligible order end to end, in-process (zero mix shell-outs); the
-  local backend runs the real pipeline + fail-closed gates and synthesizes
+  local backend first enforces the order's `sj:targetPack` against the
+  resolved `--pack-dir` (`REFUSED(target_pack_mismatch)` / `mu_unlawful`
+  before any rev-parse, pipeline, or ledger byte; `nil` targetPack = no
+  constraint; the external `--receipt` backend checks no targetPack — the
+  fabric owned the execution), then runs the real pipeline + fail-closed
+  gates and synthesizes
   the sealed export at the honest ceiling (outcome `partial_alive`,
   `head_verified` FALSE, `final_head` = 40-hex content identity — never
   ALIVE; ALIVE stays xaas-fabric-only); refusals carry

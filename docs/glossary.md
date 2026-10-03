@@ -276,6 +276,37 @@ removal upstream in the ontology. Computed as
 `Manifest.stale_paths(old_entry, new_paths)`. See
 `docs/reference/reconciliation/stale-artifacts.md`.
 
+## symlink boundary
+
+The pack-lock law (v26.10.2, `ee10e7b`) governing which symlinks a pack
+digest may lawfully contain (`GgenIgniter.PackLock`): a canonical symlink
+whose resolved target stays inside the pack's enclosing git toplevel (the
+in-repo canonical form, e.g. ash_pplan's
+`priv/ggen/<pack>/ontology.ttl -> ../../ontology.ttl`, the "referenced,
+never copied into the pack" ontology law) is a lawful pack member,
+content-hashed with tag `"L"` — swapping the target moves the digest, so a
+locked pack refuses `PACK_DIGEST_MISMATCH` on the swap. A target that
+leaves the toplevel, any directory symlink, and any symlink loop or
+dangling link refuse `PACK_SYMLINK_ESCAPE` (never a hang). Outside a git
+repo the pack root itself is the boundary (the pre-26.10.2 law, unchanged
+for tmp fixtures). See `lib/ggen_igniter/pack_lock.ex`'s "Symlink law"
+moduledoc section, `docs/status.md`'s pack-lockfile row.
+
+## targetPack
+
+The `sj:targetPack` vocabulary term on an admitted work order
+(`priv/ggen/semantic-jira-pack/ontology.ttl`,
+`priv/ggen/semantic-jira-pack/shapes/work-order.shacl.ttl`): binds the
+order to one pack, enforced by `GgenIgniter.SemanticJira.TargetPack.enforce!/2`
+at BOTH actuation hops — `mix ggen_igniter.sync` (and `ReconcileReactor`)
+and the local backend of `mix semantic_jira.execute` — so a mismatch
+refuses `REFUSED(target_pack_mismatch)` / `mu_unlawful` before anything
+runs (no rev-parse, no pipeline, no receipt, ledger byte-unchanged); a
+`nil` targetPack names no constraint. The external `--receipt` execute
+backend checks no targetPack: the xaas fabric owned the execution. See
+`docs/status.md`'s `sj:targetPack` row, `docs/reference/cli/index.md`'s
+Semantic Jira suite entry.
+
 ## semantic delta
 
 Not this codebase's own literal phrase — its real equivalent is the stale
