@@ -191,8 +191,13 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
   defp maybe_vc(event, nil), do: event
 
   defp maybe_vc(event, vc) do
-    unless is_map(vc) and Enum.all?(vc, fn {r, n} -> is_binary(r) and is_integer(n) and n >= 0 end),
-      do: raise(ArgumentError, "append/3 opts[:vc] must map string replica ids to non-negative integers")
+    unless is_map(vc) and
+             Enum.all?(vc, fn {r, n} -> is_binary(r) and is_integer(n) and n >= 0 end),
+           do:
+             raise(
+               ArgumentError,
+               "append/3 opts[:vc] must map string replica ids to non-negative integers"
+             )
 
     Map.put(event, "vc", vc)
   end

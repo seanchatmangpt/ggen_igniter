@@ -112,7 +112,9 @@ defmodule GgenIgniter.SemanticJira.ReceiptsCheckTest do
     test "an optional v2 ceiling must still be a real ceiling when present" do
       r = put_in(golden_v2_map!(), ["origin_authority", "ceiling"], "WRITE")
 
-      assert "origin_authority/ceiling: not in [\"OBSERVE\", \"SELECT\", \"CONSTRUCT\", \"DO\"]" in Receipts.check(r)
+      assert "origin_authority/ceiling: not in [\"OBSERVE\", \"SELECT\", \"CONSTRUCT\", \"DO\"]" in Receipts.check(
+               r
+             )
     end
   end
 
@@ -141,7 +143,8 @@ defmodule GgenIgniter.SemanticJira.ReceiptsCheckTest do
       # The golden map differs from the v1 map ONLY by the v2 keys: removing
       # them from the golden map reproduces the v1 refusal set exactly (the
       # receipt, not the test, carries the law).
-      stripped = Map.drop(golden, ~w(work_order_id origin_authority provider provider_execution_id))
+      stripped =
+        Map.drop(golden, ~w(work_order_id origin_authority provider provider_execution_id))
 
       for key <- ~w(work_order_id provider_execution_id) do
         assert Enum.any?(Receipts.check(stripped), &String.starts_with?(&1, "receipt/#{key}:"))
@@ -166,7 +169,9 @@ defmodule GgenIgniter.SemanticJira.ReceiptsCheckTest do
       end
     end
 
-    test "provider missing name refuses; a non-map provider refuses as an object", %{golden: golden} do
+    test "provider missing name refuses; a non-map provider refuses as an object", %{
+      golden: golden
+    } do
       assert Enum.any?(
                Receipts.check(put_in(golden, ["provider", "name"], "")),
                &String.starts_with?(&1, "provider/name:")
@@ -207,9 +212,10 @@ defmodule GgenIgniter.SemanticJira.ReceiptsCheckTest do
       assert Receipts.check(r) == []
     end
 
-    test "the known top-level set (schema properties + bootstrap linking fields) never refuses", %{
-      golden: golden
-    } do
+    test "the known top-level set (schema properties + bootstrap linking fields) never refuses",
+         %{
+           golden: golden
+         } do
       # identity.work_order / identity.tuple_digest are the bootstrap's own
       # linking fields and live INSIDE identity, not at top level; every
       # schema property plus subject_before/after/replay_binding admits.

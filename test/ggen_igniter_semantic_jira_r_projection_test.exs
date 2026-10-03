@@ -89,7 +89,12 @@ defmodule GgenIgniter.SemanticJira.RProjectionTest do
           post_run_hash: "sha256:" <> @hex64_b,
           files: ["lib/generated/x.ex"],
           reason: nil,
-          metadata: %{"work_order" => %{"path" => "docs/jira/v26.10.1/WO-1.md", "source_digest" => "sha256:" <> @hex64}},
+          metadata: %{
+            "work_order" => %{
+              "path" => "docs/jira/v26.10.1/WO-1.md",
+              "source_digest" => "sha256:" <> @hex64
+            }
+          },
           commands: [command()]
         ],
         extra
@@ -130,7 +135,8 @@ defmodule GgenIgniter.SemanticJira.RProjectionTest do
     end
 
     test "alive with a nil (timeout) replay exit -> REFUSED(admission_vacuous)", %{repo: repo} do
-      receipt = receipt!(:alive, commands: [command(%{"exit_code" => nil, "status" => "timeout"})])
+      receipt =
+        receipt!(:alive, commands: [command(%{"exit_code" => nil, "status" => "timeout"})])
 
       r = project_ok!(receipt, repo: repo)
 
@@ -263,9 +269,10 @@ defmodule GgenIgniter.SemanticJira.RProjectionTest do
       assert Regex.match?(~r/\A[0-9a-f]{40}\z/, r["identity"]["subject_sha"])
     end
 
-    test "explicit subject_sha/base_sha opts are honored; work_order_id opt overrides metadata", %{
-      repo: repo
-    } do
+    test "explicit subject_sha/base_sha opts are honored; work_order_id opt overrides metadata",
+         %{
+           repo: repo
+         } do
       base = head_sha!(repo)
 
       r =
@@ -297,9 +304,10 @@ defmodule GgenIgniter.SemanticJira.RProjectionTest do
       assert r["identity"]["subject_sha"] != r["subject_after"]
     end
 
-    test "consequence is honest: commits [], files_changed == receipt.files, remote_effects []", %{
-      repo: repo
-    } do
+    test "consequence is honest: commits [], files_changed == receipt.files, remote_effects []",
+         %{
+           repo: repo
+         } do
       receipt = receipt!(:alive, files: ["lib/generated/x.ex", "lib/generated/y.ex"])
 
       r = project_ok!(receipt, repo: repo)
@@ -343,17 +351,28 @@ defmodule GgenIgniter.SemanticJira.RProjectionTest do
     test "authority defaults; origin_authority mirrors authority", %{repo: repo} do
       r = project_ok!(receipt!(:alive), repo: repo)
 
-      assert r["authority"] == %{"ceiling" => "CONSTRUCT", "grant" => "NONE", "actor" => "ggen-igniter"}
+      assert r["authority"] == %{
+               "ceiling" => "CONSTRUCT",
+               "grant" => "NONE",
+               "actor" => "ggen-igniter"
+             }
+
       assert r["origin_authority"] == r["authority"]
 
-      custom = project_ok!(receipt!(:alive),
-        repo: repo,
-        ceiling: "DO",
-        grant: "lease-42",
-        actor: "operator"
-      )
+      custom =
+        project_ok!(receipt!(:alive),
+          repo: repo,
+          ceiling: "DO",
+          grant: "lease-42",
+          actor: "operator"
+        )
 
-      assert custom["authority"] == %{"ceiling" => "DO", "grant" => "lease-42", "actor" => "operator"}
+      assert custom["authority"] == %{
+               "ceiling" => "DO",
+               "grant" => "lease-42",
+               "actor" => "operator"
+             }
+
       assert custom["origin_authority"] == custom["authority"]
     end
 
@@ -367,7 +386,10 @@ defmodule GgenIgniter.SemanticJira.RProjectionTest do
       # receipt_hash rides ONLY in provider_ext.ggen_igniter (an object), never
       # bare at top level; schema_version is never projected.
       assert r["provider_ext.ggen_igniter"]["receipt_hash"] == receipt.receipt_hash
-      assert r["provider_ext.ggen_igniter"]["receipt_hash"] == Receipt.compute_receipt_hash(receipt)
+
+      assert r["provider_ext.ggen_igniter"]["receipt_hash"] ==
+               Receipt.compute_receipt_hash(receipt)
+
       assert r["provider_ext.ggen_igniter"]["recipe_key"] == receipt.recipe_key
       refute Map.has_key?(r, "receipt_hash")
       refute Map.has_key?(r, "schema_version")
@@ -409,9 +431,10 @@ defmodule GgenIgniter.SemanticJira.RProjectionTest do
       assert File.exists?(Path.join(dir, "already.r.json"))
     end
 
-    test "round-trip: written file is pretty JSON with a trailing newline that decodes and admits", %{
-      repo: repo
-    } do
+    test "round-trip: written file is pretty JSON with a trailing newline that decodes and admits",
+         %{
+           repo: repo
+         } do
       path = Path.join(scratch_dir!(), "receipt.r.json")
 
       assert :ok =
@@ -437,7 +460,9 @@ defmodule GgenIgniter.SemanticJira.RProjectionTest do
       {:ok, r} = RProjection.project(receipt, repo: repo)
 
       assert :ok = RProjection.write(r, output_path: Path.join(dir, "from_map"))
-      assert :ok = RProjection.write(receipt, repo: repo, output_path: Path.join(dir, "from_receipt"))
+
+      assert :ok =
+               RProjection.write(receipt, repo: repo, output_path: Path.join(dir, "from_receipt"))
 
       assert File.read!(Path.join(dir, "from_map.r.json")) ==
                File.read!(Path.join(dir, "from_receipt.r.json"))

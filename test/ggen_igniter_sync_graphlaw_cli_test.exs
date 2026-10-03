@@ -38,7 +38,8 @@ defmodule GgenIgniter.SyncGraphlawCliTest do
     assert {:ok, engines} = EngineRegistry.resolve("all")
     assert :graphlaw in engines
     # `all` sorts non-qlever names ascending, qlever (if any) last.
-    assert engines == Enum.sort(engines -- [:qlever]) ++ if(:qlever in engines, do: [:qlever], else: [])
+    assert engines ==
+             Enum.sort(engines -- [:qlever]) ++ if(:qlever in engines, do: [:qlever], else: [])
   end
 
   test "an invalid engine name still refuses" do
