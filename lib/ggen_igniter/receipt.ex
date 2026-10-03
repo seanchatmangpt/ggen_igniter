@@ -221,9 +221,8 @@ defmodule GgenIgniter.Receipt do
             # Everything below is additive: existing callers of `new/1` that
             # never mention these keys get the same defaults they always
             # implicitly had (nil / []), and every pre-existing field/function
-            # above is unchanged. See the doc comments on `new/2`,
-            # `compute_receipt_hash/1`, and `to_prd_status/1` for what each is
-            # for.
+            # above is unchanged. See the doc comments on `new/2` and
+            # `compute_receipt_hash/1` for what each is for.
             schema_version: "1",
             tool_version: nil,
             operation: nil,
@@ -482,50 +481,6 @@ defmodule GgenIgniter.Receipt do
     |> Jason.encode!()
     |> then(&("sha256:" <> hex_sha256(&1)))
   end
-
-  @doc """
-  Maps a receipt's real `standing` (`t:standing/0`) onto the PRD's status
-  vocabulary (this repo's own `no-overclaiming` floor:
-  ALIVE/PARTIAL_ALIVE/BLOCKED/BUILD_BROKEN/UNSUPPORTED/UNKNOWN), so a
-  PRD-facing report can cite one receipt's `standing` without re-deriving
-  the mapping ad hoc at every call site.
-
-    * `:alive` -> `"ALIVE"` -- the attempt fully succeeded.
-    * `:refused` -> `"BLOCKED"` -- nothing was actuated; a real precondition
-      or guard is what's blocking, not a code defect.
-    * `:compensated` -> `"PARTIAL_ALIVE"` -- files were written, then
-      restored after a (non-build) verification failure; the recipe
-      partially executed before self-healing.
-    * `:build_broken` -> `"BUILD_BROKEN"` -- generated content itself did
-      not compile/parse.
-    * `:compensation_failed` -> `"PARTIAL_ALIVE"` -- like `:compensated`,
-      real actuation partially occurred before failing; PRD status
-      vocabulary has no distinct "compensation itself also failed"
-      category, so this maps to the same PARTIAL_ALIVE bucket as
-      `:compensated` (both are "some real, incomplete progress occurred"),
-      while `receipt.metadata`/`receipt.reason` retain the actual
-      catastrophic detail this collapsed status label does not carry.
-    * Any other value (should be impossible given `new/1`'s closed-set
-      guard, but `to_prd_status/1` accepts a bare atom, not just a `t()`, so
-      a hand-built/decoded atom outside `standings/0` is possible) ->
-      `"UNKNOWN"` -- the honest fallback, never a raised error and never a
-      silently wrong guess.
-
-  `"UNSUPPORTED"` is a real PRD status value with no `t:standing/0`
-  equivalent in this module today (no receipt is ever produced for an
-  operation this pipeline doesn't support at all -- that's refused earlier,
-  before any receipt-worthy attempt exists) and is therefore never returned
-  by this mapping; it is listed above only because the PRD names it as part
-  of the shared vocabulary this function's return values are drawn from.
-  """
-  @spec to_prd_status(t() | standing()) :: String.t()
-  def to_prd_status(%__MODULE__{standing: standing}), do: to_prd_status(standing)
-  def to_prd_status(:alive), do: "ALIVE"
-  def to_prd_status(:refused), do: "BLOCKED"
-  def to_prd_status(:compensated), do: "PARTIAL_ALIVE"
-  def to_prd_status(:build_broken), do: "BUILD_BROKEN"
-  def to_prd_status(:compensation_failed), do: "PARTIAL_ALIVE"
-  def to_prd_status(_other), do: "UNKNOWN"
 
   @doc """
   REAL append-only persistence: encodes `receipt` as one JSON line and

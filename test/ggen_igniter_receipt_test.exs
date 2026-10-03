@@ -8,6 +8,7 @@ defmodule GgenIgniter.ReceiptTest do
   use ExUnit.Case, async: true
 
   alias GgenIgniter.Receipt
+  alias GgenIgniter.SemanticJira.RProjection
 
   defp scratch_dir! do
     dir =
@@ -394,22 +395,118 @@ defmodule GgenIgniter.ReceiptTest do
     end
   end
 
-  describe "to_prd_status/1" do
-    test "maps every real standing (struct and bare atom) to its PRD status" do
-      assert Receipt.to_prd_status(:alive) == "ALIVE"
-      assert Receipt.to_prd_status(:refused) == "BLOCKED"
-      assert Receipt.to_prd_status(:compensated) == "PARTIAL_ALIVE"
-      assert Receipt.to_prd_status(:build_broken) == "BUILD_BROKEN"
-      assert Receipt.to_prd_status(:compensation_failed) == "PARTIAL_ALIVE"
+  describe "standing map via RProjection.project/2 (fleet-R v2)" do
+    # `Receipt.to_prd_status/1` — the lossy one-way standing -> PRD-vocabulary
+    # map — was removed (zero production callers): the standing mapping is now
+    # owned by `GgenIgniter.SemanticJira.RProjection.project/2` (fleet-R v2,
+    # lossless, `Bootstrap.Receipts.check/1`-ADMITTED; its moduledoc's
+    # "Standing map" section carries the full table). The old mapping coverage
+    # is pointed at project/2's `standing.value` outputs instead.
 
-      for standing <- Receipt.standings() do
-        receipt = Receipt.new(%{standing: standing})
-        assert Receipt.to_prd_status(receipt) == Receipt.to_prd_status(standing)
+    # A REAL git repository: real `git init` + a real commit, so
+    # `git rev-parse HEAD` / `git cat-file -e <sha>^{commit}` run for real.
+    defp rproj_git_repo! do
+      repo =
+        Path.join(
+          Path.join(
+            System.tmp_dir!(),
+            "ggen_igniter_receipt_test_rproj_#{System.unique_integer([:positive])}"
+          ),
+          "repo"
+        )
+
+      File.rm_rf!(Path.dirname(repo))
+      File.mkdir_p!(repo)
+      on_exit(fn -> File.rm_rf!(Path.dirname(repo)) end)
+
+      rproj_git!(repo, ["init"])
+      rproj_git!(repo, ["config", "user.email", "test@example.com"])
+      rproj_git!(repo, ["config", "user.name", "Receipt Test"])
+      File.write!(Path.join(repo, "seed.txt"), "seed\n")
+      rproj_git!(repo, ["add", "."])
+      rproj_git!(repo, ["commit", "-m", "seed commit"])
+
+      repo
+    end
+
+    defp rproj_git!(repo, args) do
+      {out, 0} = System.cmd("git", ["-C", repo | args], stderr_to_stdout: true)
+      out
+    end
+
+    defp rproj_command(extra \\ []) do
+      %{
+        "kind" => "sh_after",
+        "cmd" => "mix compile",
+        "template_path" => "priv/ggen/pack/templates/x.ex.eex",
+        "target" => "lib/generated/x.ex",
+        "exit_code" => 0,
+        "output" => "compiled ok",
+        "duration_ms" => 12,
+        "status" => "ok"
+      }
+      |> Map.merge(Map.new(extra))
+    end
+
+    defp rproj_receipt!(standing, extra \\ []) do
+      Receipt.new(
+        Keyword.merge(
+          [
+            standing: standing,
+            recipe_key: "templates/x.ex.eex=>lib/generated/x.ex",
+            started_at: "2026-10-01T00:00:00.000000Z",
+            finished_at: "2026-10-01T00:00:00.050000Z",
+            files: ["lib/generated/x.ex"],
+            reason: nil,
+            metadata: %{
+              "work_order" => %{
+                "path" => "docs/jira/v26.10.1/WO-1.md",
+                "source_digest" => "sha256:" <> String.duplicate("a", 64)
+              }
+            },
+            commands: [rproj_command()]
+          ],
+          extra
+        )
+      )
+    end
+
+    defp rproj_project_ok!(receipt, repo) do
+      assert {:ok, r} = RProjection.project(receipt, repo: repo)
+      r
+    end
+
+    for standing <- Receipt.standings() do
+      test "standing #{inspect(standing)} projects to its fleet-R standing value" do
+        repo = rproj_git_repo!()
+        r = rproj_project_ok!(rproj_receipt!(unquote(standing)), repo)
+        assert is_binary(r["standing"]["value"])
+        assert r["standing"]["value"] != ""
       end
     end
 
-    test "an unrecognized standing atom maps to the honest UNKNOWN fallback" do
-      assert Receipt.to_prd_status(:something_invented) == "UNKNOWN"
+    test ":compensated and :compensation_failed share the PARTIAL_ALIVE bucket" do
+      repo = rproj_git_repo!()
+
+      assert rproj_project_ok!(rproj_receipt!(:compensated), repo)["standing"]["value"] ==
+               "PARTIAL_ALIVE"
+
+      assert rproj_project_ok!(rproj_receipt!(:compensation_failed), repo)["standing"]["value"] ==
+               "PARTIAL_ALIVE"
+    end
+
+    test ":alive with a non-zero replay exit is NEVER ALIVE (admission_vacuous)" do
+      repo = rproj_git_repo!()
+
+      receipt =
+        rproj_receipt!(:alive,
+          commands: [rproj_command(), rproj_command(%{"exit_code" => 1, "status" => "failed"})]
+        )
+
+      r = rproj_project_ok!(receipt, repo)
+
+      assert r["standing"]["value"] == "REFUSED(admission_vacuous)"
+      assert r["standing"]["broken_term"] == "admission_vacuous"
     end
   end
 end
