@@ -127,6 +127,15 @@ defmodule GgenIgniter.SemanticJira.RProjection do
   alias GgenIgniter.SemanticJira.Bootstrap.Guard
   alias GgenIgniter.SemanticJira.Bootstrap.Receipts
 
+  # SOVEREIGN is deliberately NOT a ceiling here: `~/.claude/dfcm/receipt.schema.json`'s
+  # `properties.authority.ceiling` enum is the closed fleet set
+  # OBSERVE|SELECT|CONSTRUCT|DO, and this projection refuses any other
+  # ceiling. A work order's `authority_requirement: "SOVEREIGN"` (the 0x04
+  # kind) projects at ceiling DO — the actuation-plane equivalent — while the
+  # requirement itself stays on the work-order plane, carried separately as
+  # `sj:authorityRequirement` (see observation.ex's graph rendering and
+  # bootstrap.ex's kernel "requirement" field). SovereignLease.admit/3, not
+  # this ceiling, is the SOVEREIGN authority law.
   @ceilings ~w(OBSERVE SELECT CONSTRUCT DO)
   @sha ~r/\A[0-9a-f]{40}\z/
   @provider_ext_key "provider_ext.ggen_igniter"

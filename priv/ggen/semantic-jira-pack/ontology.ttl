@@ -152,6 +152,34 @@ sj:authorityRequirement a rdf:Property ; rdfs:range xsd:string .
 sj:authority a rdf:Property .
 sj:lease a rdf:Property .
 sj:worker a rdf:Property .
+
+# ── Sovereign ceiling lease (authority kind 0x04) ──────────────────────────
+# Strictly monotonic ontology evolution is leased, not self-declared: a
+# work order whose sj:authorityRequirement is "SOVEREIGN" (the shape-evolution
+# class) must carry an sj:SovereignLease whose sj:leaseOntologyDigest differs
+# from the current pack ontology digest (a lease over an unchanged ontology is
+# a no-op) and that links >= 2 sj:LeaseSignature records from >= 2 distinct
+# signers, EdDSA-verified by SovereignLease.admit/3. The multi-party law is
+# enforced at the graph level by gates/066_monotonic_evolution.rq; the
+# cryptographic law lives in
+# lib/ggen_igniter/semantic_jira/sovereign_lease.ex. Ceilings are never
+# widened: SOVEREIGN is a requirement literal, never an authority ceiling.
+sj:SovereignLease a rdfs:Class ;
+    rdfs:label "Sovereign ceiling lease" ;
+    rdfs:comment "Multi-party EdDSA-signed grant licensing strictly monotonic ontology evolution for a SOVEREIGN-requirement work order." .
+
+sj:LeaseSignature a rdfs:Class ;
+    rdfs:label "Lease signature record" ;
+    rdfs:comment "One EdDSA signature record (signer, alg, sig) over the canonical lease bytes." .
+
+sj:leaseFor a rdf:Property ; rdfs:range sj:WorkOrder .
+sj:signature a rdf:Property ; rdfs:range sj:LeaseSignature .
+sj:leaseId a rdf:Property ; rdfs:range xsd:string .
+sj:leaseOntologyDigest a rdf:Property ; rdfs:range xsd:string .
+sj:grantedAt a rdf:Property ; rdfs:range xsd:string .
+sj:signer a rdf:Property ; rdfs:range xsd:string .
+sj:signatureAlg a rdf:Property ; rdfs:range xsd:string .
+sj:signatureValue a rdf:Property ; rdfs:range xsd:string .
 sj:dependencyType a rdf:Property ; rdfs:range xsd:string .
 sj:upstreamWorkOrder a rdf:Property .
 sj:requiredStanding a rdf:Property ; rdfs:range xsd:string .

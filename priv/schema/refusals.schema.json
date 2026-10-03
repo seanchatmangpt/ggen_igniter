@@ -153,6 +153,9 @@
         "SEMANTIC_JIRA_SHACL",
         "SHA_DRIFT",
         "SHA_UNCOMPUTABLE",
+        "SOVEREIGN",
+        "SOVEREIGN_LEASE_INVALID",
+        "SOVEREIGN_LEASE_REQUIRED",
         "STALE_OUTPUTS",
         "STANDING_PROJECTION",
         "STATE_DEAD_END",
@@ -1429,6 +1432,33 @@
       "fix_hint": "The work order on disk no longer matches the digest recorded in the package; rebuild the execution package from the current work order.",
       "broken_term": "R_missing_identity",
       "example": "REFUSED:WORK_ORDER_DRIFT <detail>"
+    },
+    {
+      "code": "SOVEREIGN_LEASE_REQUIRED",
+      "family": "sovereign_lease",
+      "retryable": true,
+      "owner": "Mix.Tasks.SemanticJira.AdmitCandidates",
+      "fix_hint": "Mint a SovereignLease carrying >= 2 EdDSA signatures from >= 2 distinct signers and present it in the candidate's sovereign_lease field.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:SOVEREIGN_LEASE_REQUIRED candidate carries no sovereign_lease"
+    },
+    {
+      "code": "SOVEREIGN_LEASE_INVALID",
+      "family": "sovereign_lease",
+      "retryable": false,
+      "owner": "Mix.Tasks.SemanticJira.AdmitCandidates",
+      "fix_hint": "Re-sign the canonical lease bytes with the configured --sovereign-keys signers and grant over a real ontology digest delta, never an unchanged digest.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:SOVEREIGN_LEASE_INVALID signature_invalid"
+    },
+    {
+      "code": "SOVEREIGN",
+      "family": "sovereign_lease",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.SovereignLease",
+      "fix_hint": "Fix the lease the wrapped reason names: at least 2 distinct EdDSA signers, all signatures verifying, and a real ontology digest delta from the current pack digest.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:SOVEREIGN insufficient_signatures"
     }
   ],
   "wrapped_reasons": [

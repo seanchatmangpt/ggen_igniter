@@ -36,6 +36,13 @@ defmodule GgenIgniter.SemanticJira.Bootstrap.Receipts do
   @digest ~r/\Asha256:[0-9a-f]{64}\z/
   @hex64 ~r/\A[0-9a-f]{64}\z/
   @standing ~r/\A(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED(:.+)?|BUILD_BROKEN|UNSUPPORTED(\(.+\))?|REFUSED\(.+\))\z/s
+  # SOVEREIGN is deliberately NOT a ceiling here: the fleet R schema's
+  # `authority.ceiling` enum is the closed set OBSERVE|SELECT|CONSTRUCT|DO and
+  # this module validates receipts against that closed set. A work order's
+  # `authority_requirement: "SOVEREIGN"` (the 0x04 kind) projects at ceiling
+  # DO with the requirement carried separately (`bootstrap.ex`'s kernel
+  # "requirement" field); the SOVEREIGN authority law is SovereignLease.admit/3,
+  # never a widened ceiling. See the same note in `r_projection.ex`.
   @ceilings ~w(OBSERVE SELECT CONSTRUCT DO)
   @broken_terms ~w(mu_on_O admission_vacuous mu_unlawful R_missing_identity R_missing_authority
     R_missing_consequence R_missing_replay R_missing_standing R_not_fed_back)

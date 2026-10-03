@@ -694,10 +694,28 @@ defmodule GgenIgniter.SemanticJira do
 
   # No NONE bypass: an authority check passes only over a resolved origin
   # admission digest; a non-NONE requirement also needs a prepared receipt.
+  # SOVEREIGN (the kind-0x04 shape-evolution requirement) is the exception
+  # shape: it is satisfied iff the evidence carries the ADMITTED sovereign
+  # lease record — `GgenIgniter.SemanticJira.SovereignLease.admit/3`'s return,
+  # re-presented verbatim by the presenting system. The lease, not a prepared
+  # receipt, is the authority carrier for shape-evolution class work.
   defp authority_satisfied?(admitted, evidence, origin_digest) do
     valid_digest?(origin_digest) and
-      (admitted["authority_requirement"] == "NONE" or
-         get_in(evidence, ["authority_receipt", "status"]) == "prepared")
+      case admitted["authority_requirement"] do
+        "NONE" -> true
+        "SOVEREIGN" -> sovereign_lease_admitted?(evidence)
+        _other -> get_in(evidence, ["authority_receipt", "status"]) == "prepared"
+      end
+  end
+
+  defp sovereign_lease_admitted?(evidence) do
+    case Map.get(evidence, "sovereign_lease") do
+      %{"admitted" => true, "lease_id" => lease_id} when is_binary(lease_id) and lease_id != "" ->
+        true
+
+      _other ->
+        false
+    end
   end
 
   defp replay_satisfied?(admitted, evidence) do

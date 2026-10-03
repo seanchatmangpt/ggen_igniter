@@ -1,0 +1,21 @@
+# Strictly monotonic ontology evolution (the tightening-only law as a gate):
+# rows when a work order whose sj:authorityRequirement is "SOVEREIGN" (the
+# kind-0x04 shape-evolution class) does NOT carry a sovereign lease evidence
+# node linking >= 2 distinct sj:LeaseSignature records — the multi-party law
+# at the graph level. The cryptographic law (EdDSA verification over the
+# canonical lease bytes, digest-delta law) lives in
+# GgenIgniter.SemanticJira.SovereignLease.admit/3; this gate carries only its
+# graph-shaped residue. Zero rows is the pass condition.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT DISTINCT ?order WHERE {
+  ?order a sj:WorkOrder ;
+         sj:authorityRequirement "SOVEREIGN" .
+  OPTIONAL {
+    ?lease a sj:SovereignLease ;
+           sj:leaseFor ?order ;
+           sj:signature ?sig1 .
+    ?lease sj:signature ?sig2 .
+    FILTER(?sig1 != ?sig2)
+  }
+  FILTER(!BOUND(?lease))
+}

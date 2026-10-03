@@ -27,9 +27,12 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 132 codes (`$defs.code.enum` length; derived from the
-schema by `GgenIgniter.Refusals.count/0`, never hand-maintained) plus 24
-wrapped reasons. Regenerate both tables below with:
+The registry holds 135 codes (`$defs.code.enum` count cascade: 132 -> 135 —
+132 pre-existing, `SOVEREIGN_LEASE_REQUIRED` + `SOVEREIGN_LEASE_INVALID` from
+the Sovereign Ceiling Lease law, and `SOVEREIGN` itself as the code the
+exhaustiveness detector forces for the `{:refused_sovereign, reason}` wrapper
+atom) derived from the schema by `GgenIgniter.Refusals.count/0`, never
+hand-maintained, plus 24 wrapped reasons (unchanged). Regenerate both tables below with:
 
 ```bash
 mix run -e 'IO.puts(GgenIgniter.Refusals.markdown()); IO.puts(GgenIgniter.Refusals.wrapped_markdown())' 2>/dev/null | grep '^|'
@@ -173,6 +176,9 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `WORK_ORDER` | typed_tuple | false | mu_on_O | `GgenIgniter.SemanticJira` | admit_work_order takes a map with every required work-order field valid; fix the field named in the reason (expected_map means a non-map was passed). |
 | `WORK_ORDER_ABSENT` | semantic_work_order | true | mu_on_O | `GgenIgniter.SemanticWorkOrder` | The execution package names a work order file that is missing on disk; restore it or rebuild the package. |
 | `WORK_ORDER_DRIFT` | semantic_work_order | false | R_missing_identity | `GgenIgniter.SemanticWorkOrder` | The work order on disk no longer matches the digest recorded in the package; rebuild the execution package from the current work order. |
+| `SOVEREIGN_LEASE_REQUIRED` | sovereign_lease | true | R_missing_authority | `Mix.Tasks.SemanticJira.AdmitCandidates` | Mint a SovereignLease carrying >= 2 EdDSA signatures from >= 2 distinct signers and present it in the candidate's sovereign_lease field. |
+| `SOVEREIGN_LEASE_INVALID` | sovereign_lease | false | R_missing_authority | `Mix.Tasks.SemanticJira.AdmitCandidates` | Re-sign the canonical lease bytes with the configured --sovereign-keys signers and grant over a real ontology digest delta, never an unchanged digest. |
+| `SOVEREIGN` | sovereign_lease | false | R_missing_authority | `GgenIgniter.SemanticJira.SovereignLease` | Fix the lease the wrapped reason names: at least 2 distinct EdDSA signers, all signatures verifying, and a real ontology digest delta from the current pack digest. |
 | reason | surfaces under | note |
 |---|---|---|
 | `INTENT_DIGEST_MISMATCH` | `TRANSITION` | apply_transition wraps every intent check as {:refused_transition, reason} |
