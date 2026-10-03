@@ -1,5 +1,17 @@
 # Changelog
 
+## v26.10.4
+
+Released 2026-10-03.
+
+- **Fixed** ex_doc hidden-reference warnings in `Mix.Tasks.GgenIgniter.Sync`'s
+  moduledoc: the Rust toolchain note referenced `Rustler.__using__/1` /
+  `Rustler.Compiler.compile_crate/3` in exact `Mod.fun/arity` form, which
+  ex_doc resolves (and warns on, since those docs are hidden in the rustler
+  package). Reworded to plain-text references; `mix docs` is now clean of the
+  `sync.ex:93` warnings (26.10.3 shipped with the warning — docs-only,
+  non-fatal, hence a patch bump rather than a re-publish).
+
 ## v26.10.3
 
 Released 2026-10-03.

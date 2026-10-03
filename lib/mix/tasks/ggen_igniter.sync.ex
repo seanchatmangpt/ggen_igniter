@@ -90,8 +90,8 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       all**, regardless of which `--engine` a consumer ever actually invokes
       at runtime -- `lib/ggen_igniter/native/graph_nif.ex`'s `use Rustler`
       compiles `native/ggen_graph_nif` via a real `cargo` subprocess as part
-      of that module's own compilation (confirmed by reading
-      `Rustler.__using__/1`/`Rustler.Compiler.compile_crate/3` in the
+      of that module's own compilation (confirmed by reading the
+      `Rustler.__using__` macro's `Rustler.Compiler.compile_crate` call in the
       `rustler` 0.38 hex package -- there is no separate `mix compilers:`
       entry gating this; it runs whenever `graph_nif.ex` itself is
       compiled). This requirement already existed before this default
