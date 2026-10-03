@@ -177,40 +177,54 @@ defmodule Mix.Tasks.GgenIgniter.Pack.Fetch do
     outcome =
       try do
         PackLock.with_staging(fn staging ->
-          staged = Pack.fetch_pack!(spec, cache_dir: staging)
-          name = Path.basename(staged)
-          entry = PackLock.entry(staged, spec, lock_version(spec))
-
-          cache_root =
-            Keyword.get_lazy(fetch_opts, :cache_dir, fn ->
-              Path.join([System.user_home!(), ".cache", "ggen_igniter", "packs"])
-            end)
-
-          dest = Path.join(cache_root, name)
-          actual_sha = entry["sha256"]
-
-          result =
-            PackLock.update(lock_path, [force: force?], fn lock ->
-              case get_in(lock, ["packs", name, "sha256"]) do
-                existing when is_binary(existing) and existing != actual_sha ->
-                  {:error,
-                   {:pack_digest_mismatch, %{pack: name, expected: existing, actual: actual_sha}}}
-
-                _ ->
-                  install!(staged, cache_root, dest)
-                  {:ok, PackLock.put(lock, name, entry)}
-              end
-            end)
-
-          case result do
-            {:ok, _} -> {:ok, dest, entry}
-            {:error, reason} -> {:refused, PackLock.refusal_text(reason)}
-          end
+          fetch_locked_in_staging(staging, spec, fetch_opts, lock_path, force?)
         end)
       rescue
         error -> {:refused, Exception.message(error)}
       end
 
+    report_fetch(outcome, spec, lock_path, json?)
+  end
+
+  defp fetch_locked_in_staging(staging, spec, fetch_opts, lock_path, force?) do
+    staged = Pack.fetch_pack!(spec, cache_dir: staging)
+    name = Path.basename(staged)
+    entry = PackLock.entry(staged, spec, lock_version(spec))
+
+    cache_root =
+      Keyword.get_lazy(fetch_opts, :cache_dir, fn ->
+        Path.join([System.user_home!(), ".cache", "ggen_igniter", "packs"])
+      end)
+
+    dest = Path.join(cache_root, name)
+
+    result =
+      PackLock.update(lock_path, [force: force?], fn lock ->
+        install_when_digest_matches(lock, name, entry, staged, cache_root, dest)
+      end)
+
+    case result do
+      {:ok, _} -> {:ok, dest, entry}
+      {:error, reason} -> {:refused, PackLock.refusal_text(reason)}
+    end
+  end
+
+  # The lock's read-modify-write step: an existing lock entry with a different
+  # sha256 refuses (REFUSED:PACK_DIGEST_MISMATCH) and nothing is installed.
+  defp install_when_digest_matches(lock, name, entry, staged, cache_root, dest) do
+    actual_sha = entry["sha256"]
+
+    case get_in(lock, ["packs", name, "sha256"]) do
+      existing when is_binary(existing) and existing != actual_sha ->
+        {:error, {:pack_digest_mismatch, %{pack: name, expected: existing, actual: actual_sha}}}
+
+      _ ->
+        install!(staged, cache_root, dest)
+        {:ok, PackLock.put(lock, name, entry)}
+    end
+  end
+
+  defp report_fetch(outcome, spec, lock_path, json?) do
     case outcome do
       {:ok, dest, entry} ->
         if json? do

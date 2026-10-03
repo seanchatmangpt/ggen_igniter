@@ -100,27 +100,33 @@ defmodule GgenIgniter.PackLock do
          {:ok, records} <- walk(root, root, "", boundary) do
       Enum.reduce_while(Enum.sort(records), {:ok, :crypto.hash_init(:sha256)}, fn
         {rel, tag, path}, {:ok, acc} ->
-          case File.read(path) do
-            {:ok, content} ->
-              {:cont,
-               {:ok,
-                :crypto.hash_update(acc, [
-                  tag,
-                  rel,
-                  0,
-                  Integer.to_string(byte_size(content)),
-                  0,
-                  content
-                ])}}
-
-            {:error, reason} ->
-              {:halt, {:error, {:pack_file_unreadable, "#{rel}: #{:file.format_error(reason)}"}}}
-          end
+          fold_record(acc, rel, tag, path)
       end)
       |> case do
         {:ok, ctx} -> {:ok, ctx |> :crypto.hash_final() |> Base.encode16(case: :lower)}
         {:error, _} = err -> err
       end
+    end
+  end
+
+  # One record's bytes folded into the running digest; an unreadable file
+  # halts the whole walk with the typed refusal.
+  defp fold_record(acc, rel, tag, path) do
+    case File.read(path) do
+      {:ok, content} ->
+        {:cont,
+         {:ok,
+          :crypto.hash_update(acc, [
+            tag,
+            rel,
+            0,
+            Integer.to_string(byte_size(content)),
+            0,
+            content
+          ])}}
+
+      {:error, reason} ->
+        {:halt, {:error, {:pack_file_unreadable, "#{rel}: #{:file.format_error(reason)}"}}}
     end
   end
 
@@ -135,23 +141,27 @@ defmodule GgenIgniter.PackLock do
         |> Enum.reject(&(&1 in @ignored))
         |> Enum.sort()
         |> Enum.reduce_while({:ok, []}, fn name, {:ok, acc} ->
-          child = if rel == "", do: name, else: rel <> "/" <> name
-          abs = Path.join(dir, name)
-
-          case classify(root, boundary, abs, child) do
-            {:file, tag, path} ->
-              {:cont, {:ok, [{child, tag, path} | acc]}}
-
-            :dir ->
-              case walk(root, abs, child, boundary) do
-                {:ok, more} -> {:cont, {:ok, more ++ acc}}
-                {:error, _} = err -> {:halt, err}
-              end
-
-            {:error, _} = err ->
-              {:halt, err}
-          end
+          walk_child(root, dir, rel, name, boundary, acc)
         end)
+    end
+  end
+
+  defp walk_child(root, dir, rel, name, boundary, acc) do
+    child = if rel == "", do: name, else: rel <> "/" <> name
+    abs = Path.join(dir, name)
+
+    case classify(root, boundary, abs, child) do
+      {:file, tag, path} ->
+        {:cont, {:ok, [{child, tag, path} | acc]}}
+
+      :dir ->
+        case walk(root, abs, child, boundary) do
+          {:ok, more} -> {:cont, {:ok, more ++ acc}}
+          {:error, _} = err -> {:halt, err}
+        end
+
+      {:error, _} = err ->
+        {:halt, err}
     end
   end
 
@@ -187,6 +197,7 @@ defmodule GgenIgniter.PackLock do
          ) do
       {top, 0} ->
         top = String.trim(top)
+
         case realpath(top) do
           {:ok, real} -> real
           :error -> root
@@ -203,22 +214,24 @@ defmodule GgenIgniter.PackLock do
         {:error, {:pack_symlink_escape, "#{rel}: #{d}"}}
 
       {:ok, resolved} ->
-        cond do
-          not inside?(root, resolved) and not inside?(boundary, resolved) ->
-            {:error, {:pack_symlink_escape, "#{rel} -> #{resolved} (outside pack root)"}}
-
-          true ->
-            case File.stat(resolved) do
-              {:ok, %File.Stat{type: :directory}} ->
-                {:error, {:pack_symlink_escape, "#{rel} -> #{resolved} (directory symlink)"}}
-
-              {:ok, _} ->
-                {:file, "L", resolved}
-
-              {:error, reason} ->
-                {:error, {:pack_file_unreadable, "#{rel}: #{:file.format_error(reason)}"}}
-            end
+        if not inside?(root, resolved) and not inside?(boundary, resolved) do
+          {:error, {:pack_symlink_escape, "#{rel} -> #{resolved} (outside pack root)"}}
+        else
+          classify_symlink_target(resolved, rel)
         end
+    end
+  end
+
+  defp classify_symlink_target(resolved, rel) do
+    case File.stat(resolved) do
+      {:ok, %File.Stat{type: :directory}} ->
+        {:error, {:pack_symlink_escape, "#{rel} -> #{resolved} (directory symlink)"}}
+
+      {:ok, _} ->
+        {:file, "L", resolved}
+
+      {:error, reason} ->
+        {:error, {:pack_file_unreadable, "#{rel}: #{:file.format_error(reason)}"}}
     end
   end
 

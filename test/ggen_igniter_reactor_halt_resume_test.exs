@@ -46,7 +46,7 @@ defmodule GgenIgniter.ReactorHaltResumeTest do
       assert Enum.count(events, &(&1 == {:run, :pre})) == 1
       # a halted step's `{:halt, value}` is its result: it is never re-run on resume
       assert Enum.count(events, &(&1 == {:halt, :gate})) == 1
-      assert Enum.count(events, &(&1 == {:run, :gate})) == 0
+      refute Enum.any?(events, &(&1 == {:run, :gate}))
       assert Enum.count(events, &(&1 == {:run, :post})) == 1
     end)
   end

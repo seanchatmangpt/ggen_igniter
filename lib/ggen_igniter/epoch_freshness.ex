@@ -249,23 +249,27 @@ defmodule GgenIgniter.EpochFreshness do
 
   defp threshold(opts, watermark) do
     Keyword.get_lazy(opts, :threshold, fn ->
-      case watermark["similarity_threshold"] do
-        value when is_binary(value) ->
-          case Float.parse(value) do
-            {f, _} -> f
-            :error -> @default_threshold
-          end
-
-        %Decimal{} = value ->
-          Decimal.to_float(value)
-
-        value when is_float(value) ->
-          value
-
-        _ ->
-          @default_threshold
-      end
+      parse_threshold(watermark["similarity_threshold"])
     end)
+  end
+
+  defp parse_threshold(value) do
+    case value do
+      value when is_binary(value) ->
+        case Float.parse(value) do
+          {f, _} -> f
+          :error -> @default_threshold
+        end
+
+      %Decimal{} = value ->
+        Decimal.to_float(value)
+
+      value when is_float(value) ->
+        value
+
+      _ ->
+        @default_threshold
+    end
   end
 
   defp context(base_dir, watermark, now, threshold) do
@@ -318,8 +322,13 @@ defmodule GgenIgniter.EpochFreshness do
   # bare lack of provenance come last.
   defp judge_content(rel_path, content, blob, authorship, cache, ctx) do
     {similarity, closest, cache} = closest_legacy(content, cache, ctx)
-    sim = similarity || 0.0
+    judge_attribution(rel_path, content, blob, authorship, similarity, closest, cache, ctx)
+  end
 
+  # Attribution deciding clauses of the precedence chain (receipts, residue
+  # ledger, path identity, blob identity); anything they do not admit falls
+  # through to `similarity_fallback/7`.
+  defp judge_attribution(rel_path, content, blob, authorship, similarity, closest, cache, ctx) do
     cond do
       receipt = generated_by_post_watermark_receipt(rel_path, ctx) ->
         verdict =
@@ -340,7 +349,9 @@ defmodule GgenIgniter.EpochFreshness do
 
       date = residue_date(rel_path, ctx) ->
         verdict =
-          if sim >= ctx.threshold, do: :REFUSED_UNEXPLAINED_SIMILARITY, else: :ALIVE_FRESH_RESIDUE
+          if (similarity || 0.0) >= ctx.threshold,
+            do: :REFUSED_UNEXPLAINED_SIMILARITY,
+            else: :ALIVE_FRESH_RESIDUE
 
         {file_report(
            rel_path,
@@ -377,6 +388,19 @@ defmodule GgenIgniter.EpochFreshness do
            :REFUSED_COPY_READD
          ), cache}
 
+      true ->
+        similarity_fallback(rel_path, blob, authorship, similarity, closest, cache, ctx)
+    end
+  end
+
+  # Fallback tail of the precedence chain: fuzzy similarity (2, 3 of the law
+  # comment above) and the bare-lack-of-provenance verdict come last. The
+  # nil-similarity clamp (`|| 0.0`) is applied here, at the only hop that
+  # compares it.
+  defp similarity_fallback(rel_path, blob, authorship, similarity, closest, cache, ctx) do
+    sim = similarity || 0.0
+
+    cond do
       sim >= ctx.threshold ->
         {file_report(
            rel_path,
@@ -514,21 +538,25 @@ defmodule GgenIgniter.EpochFreshness do
   defp manifest_hashes(base_dir) do
     case GgenIgniter.Manifest.load_safe(base_dir) do
       {:ok, %{"entries" => entries}} when is_map(entries) ->
-        Enum.reduce(entries, %{}, fn {_key, entry}, acc ->
-          case entry && entry["outputs"] do
-            outputs when is_map(outputs) ->
-              Enum.reduce(outputs, acc, fn {path, hash}, acc ->
-                Map.update(acc, path, List.wrap(hash), &[List.wrap(hash) | &1])
-              end)
-
-            _ ->
-              acc
-          end
-        end)
+        Enum.reduce(entries, %{}, fn {_key, entry}, acc -> manifest_entry(acc, entry) end)
 
       _ ->
         %{}
     end
+  end
+
+  defp manifest_entry(acc, entry) do
+    case entry && entry["outputs"] do
+      outputs when is_map(outputs) ->
+        Enum.reduce(outputs, acc, &put_manifest_hash/2)
+
+      _ ->
+        acc
+    end
+  end
+
+  defp put_manifest_hash({path, hash}, acc) do
+    Map.update(acc, path, List.wrap(hash), &[List.wrap(hash) | &1])
   end
 
   # Recorded identities arrive in two schemes: 40-hex = git blob SHA, 64-hex
@@ -583,19 +611,26 @@ defmodule GgenIgniter.EpochFreshness do
       file
       |> File.read!()
       |> String.split("\n", trim: true)
-      |> Enum.reduce(%{}, fn line, acc ->
-        case residue_row(line) do
-          {path, %Date{} = date} ->
-            if Date.compare(date, boundary_date) in [:gt, :eq],
-              do: Map.put(acc, path, date),
-              else: acc
-
-          nil ->
-            acc
-        end
-      end)
+      |> Enum.reduce(%{}, fn line, acc -> add_residue_row(line, acc, boundary_date) end)
     else
       %{}
+    end
+  end
+
+  defp add_residue_row(line, acc, boundary_date) do
+    case residue_row(line) do
+      {path, %Date{} = date} -> keep_fresh_row(date, path, acc, boundary_date)
+      nil -> acc
+    end
+  end
+
+  # A row dated on/after the watermark's calendar date attributes the path;
+  # earlier rows do not exist to this court.
+  defp keep_fresh_row(date, path, acc, boundary_date) do
+    if Date.compare(date, boundary_date) in [:gt, :eq] do
+      Map.put(acc, path, date)
+    else
+      acc
     end
   end
 
@@ -629,22 +664,27 @@ defmodule GgenIgniter.EpochFreshness do
       content_size = byte_size(content)
 
       Enum.reduce(ctx.legacy_by_path, {nil, nil, cache}, fn {path, blob}, acc ->
-        {best_s, _best_p, cache} = acc
-        {legacy_content, cache} = legacy_content(blob, cache, ctx)
-
-        score =
-          if is_binary(legacy_content) and within_band?(content_size, byte_size(legacy_content)) do
-            similarity(content, legacy_content)
-          else
-            0.0
-          end
-
-        if score > (best_s || 0.0) do
-          {score, path, cache}
-        else
-          {best_s, elem(acc, 1), cache}
-        end
+        closest_step(content, content_size, path, blob, acc, ctx)
       end)
+    end
+  end
+
+  defp closest_step(content, content_size, path, blob, {best_s, best_p, cache}, ctx) do
+    {legacy_content, cache} = legacy_content(blob, cache, ctx)
+    score = legacy_score(content, content_size, legacy_content)
+
+    if score > (best_s || 0.0) do
+      {score, path, cache}
+    else
+      {best_s, best_p, cache}
+    end
+  end
+
+  defp legacy_score(content, content_size, legacy_content) do
+    if is_binary(legacy_content) and within_band?(content_size, byte_size(legacy_content)) do
+      similarity(content, legacy_content)
+    else
+      0.0
     end
   end
 
@@ -770,6 +810,19 @@ defmodule GgenIgniter.EpochFreshness do
         "ALIVE: HANDWRITTEN.md ledger row dated on/after the watermark, and the content " <>
           "does not resemble any pre-epoch implementation file."
 
+      :UNKNOWN_PROVENANCE ->
+        "The file could not be judged (see source_inputs). Repair the filesystem condition " <>
+          "and re-run; UNKNOWN counts as refused."
+
+      _ ->
+        refusal_law(report)
+    end
+  end
+
+  # The refused-verdict half of `law/1`'s case, split only to keep each
+  # dispatch readable; the verdict text is byte-identical to the original.
+  defp refusal_law(%{"verdict" => v} = report) do
+    case v do
       :REFUSED_GENERATED_ARTIFACT_MUTATED ->
         "Restore the exact bytes the receipt recorded, or re-run the generator so a fresh " <>
           "receipt commits to the current bytes. Editing a generated artifact after its " <>
@@ -798,10 +851,6 @@ defmodule GgenIgniter.EpochFreshness do
       :REFUSED_NO_ATTRIBUTION ->
         "No post-watermark receipt, no residue ledger row. Every implementation file needs " <>
           "provenance: a ggen receipt, or a HANDWRITTEN.md row dated >= the watermark."
-
-      :UNKNOWN_PROVENANCE ->
-        "The file could not be judged (see source_inputs). Repair the filesystem condition " <>
-          "and re-run; UNKNOWN counts as refused."
     end
   end
 
@@ -821,26 +870,28 @@ defmodule GgenIgniter.EpochFreshness do
   # tail into the name: "Repo.all/1"), plus every literal atom. Macros and
   # special forms are calls too — the feature set is deliberately uniform.
   defp ast_features(source) do
-    with {:ok, ast} <- Code.string_to_quoted(source) do
-      {_, features} =
-        Macro.prewalk(ast, MapSet.new(), fn
-          {{:., _, [target, fun]}, _, args} = node, acc
-          when is_atom(fun) and is_list(args) ->
-            {node, MapSet.put(acc, {remote_name(target, fun), length(args)})}
+    case Code.string_to_quoted(source) do
+      {:ok, ast} ->
+        {_, features} =
+          Macro.prewalk(ast, MapSet.new(), fn
+            {{:., _, [target, fun]}, _, args} = node, acc
+            when is_atom(fun) and is_list(args) ->
+              {node, MapSet.put(acc, {remote_name(target, fun), length(args)})}
 
-          {fun, _, args} = node, acc when is_atom(fun) and is_list(args) ->
-            {node, MapSet.put(acc, {fun, length(args)})}
+            {fun, _, args} = node, acc when is_atom(fun) and is_list(args) ->
+              {node, MapSet.put(acc, {fun, length(args)})}
 
-          node, acc when is_atom(node) ->
-            {node, MapSet.put(acc, node)}
+            node, acc when is_atom(node) ->
+              {node, MapSet.put(acc, node)}
 
-          node, acc ->
-            {node, acc}
-        end)
+            node, acc ->
+              {node, acc}
+          end)
 
-      features
-    else
-      _ -> MapSet.new()
+        features
+
+      _ ->
+        MapSet.new()
     end
   end
 

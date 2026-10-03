@@ -143,7 +143,8 @@ defmodule GgenIgniter.SemanticJira.Execute do
                contract_opts ++ authority_opts
              )
            ),
-         {:ok, executed} <- execute_backend(backend, descriptor, opts, target_pack(work_orders, identity)),
+         {:ok, executed} <-
+           execute_backend(backend, descriptor, opts, target_pack(work_orders, identity)),
          {:ok, receipted} <- receipt_from(executed, descriptor) do
       append_transition(opts, work_orders, ledger, identity, executed, receipted, authority_opts)
     else
@@ -189,21 +190,29 @@ defmodule GgenIgniter.SemanticJira.Execute do
          "--receipt is the external backend: it is mutually exclusive with --pack-dir/--target-dir"}
 
       present?(receipt) ->
-        case json_file(opts, :receipt) do
-          {:ok, export} -> {:ok, {:external, export}}
-          {:invalid, _} = invalid -> invalid
-        end
+        external_backend(opts)
 
       present?(pack_dir) and present?(target_dir) ->
-        if present?(opts[:receipt_out]) do
-          {:ok, {:local, pack_dir, target_dir}}
-        else
-          {:invalid, "the local backend (--pack-dir + --target-dir) requires --receipt-out"}
-        end
+        local_backend(opts, pack_dir, target_dir)
 
       true ->
         {:invalid,
          "exactly one execution backend is required: --pack-dir + --target-dir, or --receipt PATH"}
+    end
+  end
+
+  defp external_backend(opts) do
+    case json_file(opts, :receipt) do
+      {:ok, export} -> {:ok, {:external, export}}
+      {:invalid, _} = invalid -> invalid
+    end
+  end
+
+  defp local_backend(opts, pack_dir, target_dir) do
+    if present?(opts[:receipt_out]) do
+      {:ok, {:local, pack_dir, target_dir}}
+    else
+      {:invalid, "the local backend (--pack-dir + --target-dir) requires --receipt-out"}
     end
   end
 
@@ -289,9 +298,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
         {:error,
          {"execute",
           {:base_drift,
-           "git rev-parse HEAD failed in #{target_dir} (#{String.trim(out)}); order base_sha #{
-             base_sha
-           }"}}}
+           "git rev-parse HEAD failed in #{target_dir} (#{String.trim(out)}); order base_sha #{base_sha}"}}}
     end
   end
 
@@ -306,7 +313,8 @@ defmodule GgenIgniter.SemanticJira.Execute do
   rescue
     error ->
       {:error,
-       {"execute", {:sync_failed, "GgenIgniter.Reconcile.run/1 raised: " <> Exception.message(error)}}}
+       {"execute",
+        {:sync_failed, "GgenIgniter.Reconcile.run/1 raised: " <> Exception.message(error)}}}
   end
 
   # The fail-closed court: every `gates/*.rq` gate and every inverted
@@ -383,11 +391,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
   # replay law `Reconciler.reconcile/4` owns.
   defp append_transition(opts, work_orders, ledger, identity, executed, receipted, authority_opts) do
     case Enum.find_value(work_orders, {:error, :no_matching_work_order}, fn work_order ->
-           case Reconciler.reconcile(work_order, receipted.receipt, ledger, authority_opts) do
-             {:ok, event, which} -> {:ok, event, which}
-             {:error, {:refused, :definition_mismatch}} -> nil
-             {:error, {:refused, reason}} -> {:error, {:refused, reason}}
-           end
+           reconcile_order(work_order, receipted.receipt, ledger, authority_opts)
          end) do
       {:ok, event, :appended} ->
         {0,
@@ -408,6 +412,17 @@ defmodule GgenIgniter.SemanticJira.Execute do
 
       {:error, reason} ->
         refuse(opts, "reconcile", reason)
+    end
+  end
+
+  # One work order against the receipt: a `:definition_mismatch` on a
+  # non-targeting row is nil (skipped, `Enum.find_value/3` moves on), every
+  # other refusal is fatal.
+  defp reconcile_order(work_order, receipt, ledger, authority_opts) do
+    case Reconciler.reconcile(work_order, receipt, ledger, authority_opts) do
+      {:ok, event, which} -> {:ok, event, which}
+      {:error, {:refused, :definition_mismatch}} -> nil
+      {:error, {:refused, reason}} -> {:error, {:refused, reason}}
     end
   end
 
@@ -539,22 +554,27 @@ defmodule GgenIgniter.SemanticJira.Execute do
         {:ok, []}
 
       {:ok, path} when is_binary(path) and path != "" ->
-        case File.read(path) do
-          {:ok, bytes} ->
-            case RDF.Turtle.read_string(bytes) do
-              {:ok, graph} ->
-                {:ok, [authority: graph]}
-
-              {:error, reason} ->
-                {:error, {:authority, {:authority_index_unavailable, path, inspect(reason)}}}
-            end
-
-          {:error, reason} ->
-            {:invalid, "#{path}: #{inspect(reason)}"}
-        end
+        read_authority_graph(path)
 
       {:ok, _} ->
         {:invalid, "missing --authority-graph"}
+    end
+  end
+
+  defp read_authority_graph(path) do
+    case File.read(path) do
+      {:ok, bytes} -> parse_authority_graph(path, bytes)
+      {:error, reason} -> {:invalid, "#{path}: #{inspect(reason)}"}
+    end
+  end
+
+  defp parse_authority_graph(path, bytes) do
+    case RDF.Turtle.read_string(bytes) do
+      {:ok, graph} ->
+        {:ok, [authority: graph]}
+
+      {:error, reason} ->
+        {:error, {:authority, {:authority_index_unavailable, path, inspect(reason)}}}
     end
   end
 
