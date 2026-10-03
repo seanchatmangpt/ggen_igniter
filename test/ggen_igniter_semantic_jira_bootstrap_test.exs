@@ -337,7 +337,7 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
 
       {log, code} = cold_mix!(ctx, args)
       assert code == 1
-      assert log =~ "REFUSED(forbidden_input) goal:"
+      assert log =~ "REFUSED:FORBIDDEN_INPUT goal:"
       refute File.exists?(out)
     end
 
@@ -348,7 +348,7 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
         cold_mix!(ctx, task_args(ctx, out), ["ANTHROPIC_API_KEY=sk-fixture-not-a-key"])
 
       assert code == 1
-      assert log =~ "REFUSED(llm_credential_present)"
+      assert log =~ "REFUSED:LLM_CREDENTIAL_PRESENT"
       assert log =~ "ANTHROPIC_API_KEY"
       assert log =~ "mu_on_O"
       refute log =~ "sk-fixture-not-a-key"
@@ -1022,7 +1022,7 @@ defmodule GgenIgniter.SemanticJiraBootstrapTest do
     test "refuses an LLM credential in its environment and reports absent machinery", ctx do
       {log, code} = court!(ctx, ["CLAUDE_CODE_SESSION_ID=fixture"])
       assert code == 1
-      assert log =~ "REFUSED(llm_credential_present) GC23-1"
+      assert log =~ "REFUSED:LLM_CREDENTIAL_PRESENT GC23-1"
 
       {log, code} = court!(ctx, ["GGEN_IGNITER_DIR=#{ctx.dir}"])
       assert code == 75

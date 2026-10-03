@@ -11,14 +11,10 @@ Runtime access: `GgenIgniter.Refusals` (`all/0`, `known?/1`, `fetch/1`,
 Canonical: `REFUSED:<CODE> <detail>`, for example
 `REFUSED:PACK_DIGEST_MISMATCH pack=p expected=e actual=a`.
 
-`GgenIgniter.Refusals.parse/1` also accepts the legacy emitter forms and maps
-them to `{code_atom, detail}`:
-
-| legacy form | emitted by | parses to |
-|---|---|---|
-| `REFUSED(input_invalid) subj: detail` | semantic_jira bootstrap / prose | `{:INPUT_INVALID, "subj: detail"}` |
-| `REFUSED_LEGACY_EDIT detail` | epoch verdicts, hand_authored | `{:LEGACY_EDIT, "detail"}` |
-| `REFUSED_EPOCH_LEGACY_EDIT id` | epoch plan gate | `{:EPOCH_LEGACY_EDIT, "id"}` |
+`GgenIgniter.Refusals.parse/1` accepts ONLY the canonical form. The two
+D-lane-era legacy emitter shapes (`REFUSED(code) subject: detail` and bare
+`REFUSED_<CODE> detail`) were removed from the grammar when their emitters
+migrated; both parse to `{:error, :not_a_refusal}`.
 
 ## Adding a code
 

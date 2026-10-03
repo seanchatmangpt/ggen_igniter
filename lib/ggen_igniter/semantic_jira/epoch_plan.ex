@@ -1,4 +1,6 @@
 defmodule GgenIgniter.SemanticJira.EpochPlan do
+  alias GgenIgniter.Refusals
+
   @moduledoc """
   Admission-side epoch gate: refuses a WorkOrder candidate whose PLAN would
   carry pre-watermark implementation into a post-watermark epoch, before
@@ -21,7 +23,7 @@ defmodule GgenIgniter.SemanticJira.EpochPlan do
   `GgenIgniter.SemanticJira.GitGroundTruth`: the candidate opts itself in,
   and the run supplies `--epoch-manifest PATH` naming the stamped
   `watermark.json`. An epoch-carrying candidate with no (or unreadable)
-  manifest is refused `REFUSED_EPOCH_WATERMARK_UNAVAILABLE` — fail closed —
+  manifest is refused `REFUSED:EPOCH_WATERMARK_UNAVAILABLE` — fail closed —
   while candidates without `"epoch"` behave byte-identically to a run
   without the gate.
   """
@@ -87,16 +89,16 @@ defmodule GgenIgniter.SemanticJira.EpochPlan do
 
   @doc "The typed refusal string a code renders as in the admit_candidates verdict line."
   @spec refusal_code_string(code()) :: String.t()
-  def refusal_code_string(:legacy_edit), do: "REFUSED_EPOCH_LEGACY_EDIT"
+  def refusal_code_string(:legacy_edit), do: Refusals.format(:EPOCH_LEGACY_EDIT)
 
   def refusal_code_string(:unattributed_implementation),
-    do: "REFUSED_EPOCH_UNATTRIBUTED_IMPLEMENTATION"
+    do: Refusals.format(:EPOCH_UNATTRIBUTED_IMPLEMENTATION)
 
   def refusal_code_string(:reuses_pre_watermark_artifact),
-    do: "REFUSED_EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT"
+    do: Refusals.format(:EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT)
 
   def refusal_code_string(:watermark_unavailable),
-    do: "REFUSED_EPOCH_WATERMARK_UNAVAILABLE"
+    do: Refusals.format(:EPOCH_WATERMARK_UNAVAILABLE)
 
   # -- plan normalization -------------------------------------------------------
 

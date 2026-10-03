@@ -10,7 +10,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthoredTaskTest do
   (small ceilings so the ceiling law is reachable), the SPARQL law queries
   really run through the real oxigraph NIF, sha256 is really computed over
   real bytes, and every refusal is observed through the subprocess's real
-  exit code + typed `REFUSED_*` line.
+  exit code + canonical `REFUSED:<CODE> <detail>` line.
 
   The render leg is deliberately exercised with `--no-render` here (the
   scratch consumer has no ggen.toml; the render's force-scaffold + `ggen sync
@@ -404,7 +404,7 @@ ORDER BY ?kind|
       {output, 1} =
         run_task(dir, ["admit" | admit_args([{:drop, "--file"}, "--file", "test/nope.exs"])])
 
-      assert output =~ "REFUSED_FILE_NOT_FOUND: test/nope.exs"
+      assert output =~ "REFUSED:FILE_NOT_FOUND test/nope.exs"
     end
 
     test "REFUSED_MARKED_FILE", %{dir: dir} do
@@ -419,7 +419,7 @@ ORDER BY ?kind|
           "admit" | admit_args([{:drop, "--file"}, "--file", "test/marked_test.exs"])
         ])
 
-      assert output =~ "REFUSED_MARKED_FILE: test/marked_test.exs"
+      assert output =~ "REFUSED:MARKED_FILE test/marked_test.exs"
     end
 
     test "REFUSED_MISSCOPED", %{dir: dir} do
@@ -428,45 +428,45 @@ ORDER BY ?kind|
       {output, 1} =
         run_task(dir, ["admit" | admit_args([{:drop, "--file"}, "--file", "stray.exs"])])
 
-      assert output =~ "REFUSED_MISSCOPED: stray.exs"
+      assert output =~ "REFUSED:MISSCOPED stray.exs"
     end
 
     test "REFUSED_UNKNOWN_KIND", %{dir: dir} do
       {output, 1} =
         run_task(dir, ["admit" | admit_args([{:drop, "--kind"}, "--kind", "bogus_kind"])])
 
-      assert output =~ "REFUSED_UNKNOWN_KIND"
+      assert output =~ "REFUSED:UNKNOWN_KIND"
       assert output =~ "bogus_kind"
     end
 
     test "REFUSED_MISSING_SUNSET_PLAN for a debt kind", %{dir: dir} do
       {output, 1} = run_task(dir, ["admit" | admit_args([{:drop, "--sunset-plan"}])])
-      assert output =~ "REFUSED_MISSING_SUNSET_PLAN"
+      assert output =~ "REFUSED:MISSING_SUNSET_PLAN"
     end
 
     test "REFUSED_MISSING_EXPIRY for a debt kind", %{dir: dir} do
       {output, 1} = run_task(dir, ["admit" | admit_args([{:drop, "--expires"}])])
-      assert output =~ "REFUSED_MISSING_EXPIRY"
+      assert output =~ "REFUSED:MISSING_EXPIRY"
     end
 
     test "REFUSED_INVALID_EXPIRY", %{dir: dir} do
       {output, 1} =
         run_task(dir, ["admit" | admit_args([{:drop, "--expires"}, "--expires", "31/12/2099"])])
 
-      assert output =~ "REFUSED_INVALID_EXPIRY"
+      assert output =~ "REFUSED:INVALID_EXPIRY"
       assert output =~ "31/12/2099"
     end
 
     test "REFUSED_MISSING_ACCEPTANCE_COMMAND", %{dir: dir} do
       {output, 1} = run_task(dir, ["admit" | admit_args([{:drop, "--acceptance-command"}])])
-      assert output =~ "REFUSED_MISSING_ACCEPTANCE_COMMAND"
+      assert output =~ "REFUSED:MISSING_ACCEPTANCE_COMMAND"
     end
 
     test "REFUSED_DUPLICATE_SOURCE_PATH", %{dir: dir} do
       {output, 1} =
         run_task(dir, ["admit" | admit_args([{:drop, "--file"}, "--file", "lib/seed.ex"])])
 
-      assert output =~ "REFUSED_DUPLICATE_SOURCE_PATH"
+      assert output =~ "REFUSED:DUPLICATE_SOURCE_PATH"
       assert output =~ "lib/seed.ex is already admitted"
     end
 
@@ -531,13 +531,13 @@ ORDER BY ?kind|
           ]
         )
 
-      assert output2 =~ "REFUSED_CEILING_EXCEEDED"
+      assert output2 =~ "REFUSED:CEILING_EXCEEDED"
       assert output2 =~ "would hold 2 admitted files against its bpm:debtCeiling 1"
     end
 
     test "REFUSED_MISSING_FIELD for a missing principal", %{dir: dir} do
       {output, 1} = run_task(dir, ["admit" | admit_args([{:drop, "--principal"}])])
-      assert output =~ "REFUSED_MISSING_FIELD"
+      assert output =~ "REFUSED:MISSING_FIELD"
       assert output =~ "bpm:authorizingPrincipal"
     end
   end
@@ -698,7 +698,7 @@ ORDER BY ?kind|
 
     test "refuses a missing gate script", %{dir: dir} do
       {output, 1} = run_task(dir, ["check", "--gate-script", "nope.sh"])
-      assert output =~ "REFUSED_GATE_SCRIPT_NOT_FOUND"
+      assert output =~ "REFUSED:GATE_SCRIPT_NOT_FOUND"
     end
   end
 

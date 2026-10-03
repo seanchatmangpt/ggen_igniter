@@ -73,6 +73,7 @@ defmodule GgenIgniter.SemanticJira.Prose do
   """
 
   alias GgenIgniter.Digest
+  alias GgenIgniter.Refusals
   alias GgenIgniter.SemanticJira.Shacl
 
   @sj "https://ggen-igniter.dev/ontology/semantic-jira#"
@@ -228,10 +229,21 @@ defmodule GgenIgniter.SemanticJira.Prose do
     }
   end
 
-  @doc "One human-readable line for a refusal."
+  @doc "One human-readable line per refusal, canonical `REFUSED:<CODE> <detail>` text form."
   @spec render_refusal(refusal()) :: String.t()
   def render_refusal(%{code: code, subject: subject, detail: detail}) do
-    "REFUSED(#{code}) #{subject || "-"}: #{detail}"
+    detail = "#{subject || "-"}: #{detail}"
+
+    if Refusals.known?(code) do
+      Refusals.format(code, detail)
+    else
+      # D2 finding: `:shacl_violation` / `:goal_inadmissible` (see
+      # `shacl_refusals/2` / `scoped_violations/4`) have no
+      # `priv/schema/refusals.schema.json` entry, so the registry's format/2
+      # raise cannot gate them; the canonical shape is emitted ungated until
+      # the codes are registered.
+      "REFUSED:#{code |> to_string() |> String.upcase()} #{detail}"
+    end
   end
 
   @doc """

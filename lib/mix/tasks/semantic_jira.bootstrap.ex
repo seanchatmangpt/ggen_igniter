@@ -25,7 +25,7 @@ defmodule Mix.Tasks.SemanticJira.Bootstrap do
   over the same artifacts write byte-identical files.
 
   Prints `STATE_DIGEST <digest>`, a one-line summary and `WROTE <out>`, exit
-  0. A typed refusal prints one `REFUSED(<code>) <subject>: <detail>` line per
+  0. A typed refusal prints one canonical `REFUSED:<CODE> <detail>` line per
   refusal on stderr and exits 1, writing nothing: `llm_credential_present`
   (an `ANTHROPIC_*`/`CLAUDE_*`/`OPENAI_*`/`ZAI_*`/`Z_AI_*`/`GLM_*`/`ZCODE_*`
   variable is set; broken_term `mu_on_O`), `forbidden_input` (a path under
@@ -39,6 +39,7 @@ defmodule Mix.Tasks.SemanticJira.Bootstrap do
 
   use Mix.Task
 
+  alias GgenIgniter.Refusals
   alias GgenIgniter.SemanticJira.Bootstrap
   alias GgenIgniter.SemanticJira.Bootstrap.Guard
 
@@ -60,13 +61,15 @@ defmodule Mix.Tasks.SemanticJira.Bootstrap do
 
     cond do
       invalid != [] or positional != [] ->
-        refuse(["REFUSED(usage) -: unexpected arguments #{inspect(invalid ++ positional)}"])
+        refuse([
+          Refusals.format(:USAGE, "unexpected arguments #{inspect(invalid ++ positional)}")
+        ])
 
       opts[:out] in [nil, ""] ->
-        refuse(["REFUSED(usage) -: --out is required"])
+        refuse([Refusals.format(:USAGE, "--out is required")])
 
       reason = Guard.forbidden_path(opts[:out]) ->
-        refuse(["REFUSED(forbidden_input) out: #{reason}"])
+        refuse([Refusals.format(:FORBIDDEN_INPUT, "out: #{reason}")])
 
       true ->
         opts |> bootstrap_opts() |> Bootstrap.run() |> finish(opts[:out])

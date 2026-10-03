@@ -14,12 +14,13 @@ defmodule GgenIgniter.Refusals do
       REFUSED:<CODE> <detail>
 
   A code is an upper-snake-case atom such as `:LEGACY_EDIT` (the `REFUSED_`
-  prefix of epoch verdict atoms is not part of the code). `parse/1` also
-  accepts the two legacy emitter formats and maps them to `{code, detail}`:
+  prefix of epoch verdict atoms is not part of the code). `parse/1` accepts
+  ONLY this form. The two D-lane-era legacy emitter shapes were removed from
+  the grammar when their emitters migrated; both now fall through to
+  `{:error, :not_a_refusal}`:
 
-    * `REFUSED(code) subject: detail` (semantic_jira bootstrap/prose) — the
-      code is upcased, the detail is `"subject: detail"`;
-    * `REFUSED_<CODE> detail` (epoch verdicts, hand_authored) — bare token.
+    * `REFUSED(code) subject: detail` (was semantic_jira bootstrap/prose);
+    * `REFUSED_<CODE> detail` (was epoch verdict text, hand_authored).
 
   Emitters are not rewritten by this module; it is the target vocabulary.
 
@@ -28,11 +29,17 @@ defmodule GgenIgniter.Refusals do
       iex> GgenIgniter.Refusals.format(:LEGACY_EDIT, "lib/a.ex")
       "REFUSED:LEGACY_EDIT lib/a.ex"
 
-      iex> GgenIgniter.Refusals.parse("REFUSED(input_invalid) goal: bad json")
+      iex> GgenIgniter.Refusals.parse("REFUSED:INPUT_INVALID goal: bad json")
       {:ok, {:INPUT_INVALID, "goal: bad json"}}
 
-      iex> GgenIgniter.Refusals.parse("REFUSED_LEGACY_EDIT lib/a.ex")
+      iex> GgenIgniter.Refusals.parse("REFUSED:LEGACY_EDIT lib/a.ex")
       {:ok, {:LEGACY_EDIT, "lib/a.ex"}}
+
+      iex> GgenIgniter.Refusals.parse("REFUSED(input_invalid) goal: bad json")
+      {:error, :not_a_refusal}
+
+      iex> GgenIgniter.Refusals.parse("REFUSED_LEGACY_EDIT lib/a.ex")
+      {:error, :not_a_refusal}
   """
 
   @schema_path Path.expand("../../priv/schema/refusals.schema.json", __DIR__)
@@ -149,32 +156,26 @@ defmodule GgenIgniter.Refusals do
   end
 
   @doc """
-  Parses the canonical form and both legacy formats into `{code, detail}`.
+  Parses the canonical `REFUSED:<CODE> <detail>` form into `{code, detail}`.
 
   The detail is returned verbatim: only the single separator character after
   the code is dropped, so `parse(format(c, d)) == {:ok, {c, d}}` for every
   binary `d`. Codes are matched case-insensitively and normalised to upper
-  case. `{:error, :not_a_refusal}` when the text (or a non-binary) is none of
-  the forms, `{:error, {:unknown_code, string}}` when the shape matches but
-  the code is outside the enum.
+  case. `{:error, :not_a_refusal}` when the text (or a non-binary) does not
+  carry the canonical shape — the legacy `REFUSED(code)` / `REFUSED_<CODE>`
+  shapes included — or `{:error, {:unknown_code, string}}` when the shape
+  matches but the code is outside the enum.
   """
   @spec parse(term()) ::
           {:ok, {code(), String.t()}} | {:error, :not_a_refusal | {:unknown_code, String.t()}}
   def parse(text) when is_binary(text) do
-    cond do
-      m = Regex.run(~r/\A\s*REFUSED\(([A-Za-z][A-Za-z0-9_]*)\)/, text, return: :index) ->
-        finish(text, m)
-
-      m =
-          Regex.run(
-            ~r/\A\s*REFUSED[:_]([A-Za-z][A-Za-z0-9_]*[A-Za-z0-9]):?(?=[ \t\r\n]|\z)/,
-            text,
-            return: :index
-          ) ->
-        finish(text, m)
-
-      true ->
-        {:error, :not_a_refusal}
+    case Regex.run(
+           ~r/\A\s*REFUSED:([A-Za-z][A-Za-z0-9_]*[A-Za-z0-9]):?(?=[ \t\r\n]|\z)/,
+           text,
+           return: :index
+         ) do
+      m when is_list(m) -> finish(text, m)
+      nil -> {:error, :not_a_refusal}
     end
   end
 

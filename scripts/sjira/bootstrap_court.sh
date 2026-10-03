@@ -26,10 +26,10 @@
 # missing); 75 machinery absent (the checkout under judgement has no
 # semantic_jira.bootstrap task), which the stop court maps to UNKNOWN.
 #
-# Refusals (typed, exit 1): REFUSED(llm_credential_present) when the invoking
+# Refusals (typed, exit 1): REFUSED:LLM_CREDENTIAL_PRESENT when the invoking
 # environment carries an ANTHROPIC_/CLAUDE_/OPENAI_/ZAI_/Z_AI_/GLM_/ZCODE_
 # variable (broken_term mu_on_O; run the court under env -i), and
-# REFUSED(llm_binary_on_path) when a court PATH directory holds a claude, zcode,
+# REFUSED:LLM_BINARY_ON_PATH when a court PATH directory holds a claude, zcode,
 # codex or gemini executable.
 #
 # Inputs (defaults resolve from XAAS_DIR, the checkout under judgement):
@@ -86,7 +86,7 @@ for name in $(env | sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p'); do
   done
 done
 if [ -n "$present" ]; then
-  echo "REFUSED(llm_credential_present) GC23-1: LLM credential variables set:$present" \
+  echo "REFUSED:LLM_CREDENTIAL_PRESENT GC23-1: LLM credential variables set:$present" \
     "(broken_term mu_on_O); run the court under env -i"
   exit 1
 fi
@@ -144,7 +144,7 @@ for dir in $(echo "$build_path" | tr ':' ' '); do
   done
 done
 if [ -n "$refused_binaries" ]; then
-  echo "REFUSED(llm_binary_on_path) GC23-1: LLM binaries on the court PATH:$refused_binaries (broken_term mu_on_O)"
+  echo "REFUSED:LLM_BINARY_ON_PATH GC23-1: LLM binaries on the court PATH:$refused_binaries (broken_term mu_on_O)"
   exit 1
 fi
 

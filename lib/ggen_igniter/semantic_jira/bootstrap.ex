@@ -93,6 +93,7 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
   """
 
   alias GgenIgniter.Digest
+  alias GgenIgniter.Refusals
   alias GgenIgniter.SemanticJira
   alias GgenIgniter.SemanticJira.{Authority, Reconciler, TransitionLog}
   alias GgenIgniter.SemanticJira.Bootstrap.{Git, Graph, Guard, Receipts, Subjects}
@@ -146,10 +147,20 @@ defmodule GgenIgniter.SemanticJira.Bootstrap do
   def document(%{state: state, digest: digest}),
     do: canonical_json(%{"state" => state, "state_digest" => digest}) <> "\n"
 
-  @doc "One line per refusal."
+  @doc "One line per refusal, canonical `REFUSED:<CODE> <detail>` text form."
   @spec render_refusal(refusal()) :: String.t()
-  def render_refusal(%{code: code, subject: subject, detail: detail}),
-    do: "REFUSED(#{code}) #{subject || "-"}: #{detail}"
+  def render_refusal(%{code: code, subject: subject, detail: detail}) do
+    detail = "#{subject || "-"}: #{detail}"
+
+    if Refusals.known?(code) do
+      Refusals.format(code, detail)
+    else
+      # D2 finding: this refusal code has no `priv/schema/refusals.schema.json`
+      # entry, so the registry's format/2 raise cannot gate it; the canonical
+      # shape is emitted ungated until the code is registered.
+      "REFUSED:#{code |> to_string() |> String.upcase()} #{detail}"
+    end
+  end
 
   # ── fences ──────────────────────────────────────────────────────────────
 

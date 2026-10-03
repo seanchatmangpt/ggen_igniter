@@ -413,7 +413,7 @@ defmodule GgenIgniter.SemanticJiraProseTest do
       File.write!(Path.join(out, "propositions.ttl"), "# drift\n")
       {drift_output, drift_status} = run_cli(base ++ ["--check"])
       assert drift_status == 1
-      assert drift_output =~ "REFUSED(output_drift)"
+      assert drift_output =~ "REFUSED:OUTPUT_DRIFT"
 
       refused_opts =
         fixture_copy(Path.join(tmp, "refused"),
@@ -425,7 +425,7 @@ defmodule GgenIgniter.SemanticJiraProseTest do
       {refused_output, refused_status} = run_cli(cli_args(refused_opts) ++ ["--out-dir", never])
 
       assert refused_status == 1
-      assert refused_output =~ "REFUSED(provenance_mismatch) #{@invariant}"
+      assert refused_output =~ "REFUSED:PROVENANCE_MISMATCH #{@invariant}"
       refute File.exists?(never)
 
       {goal_output, goal_status} =

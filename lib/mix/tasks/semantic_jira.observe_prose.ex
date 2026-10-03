@@ -38,12 +38,13 @@ defmodule Mix.Tasks.SemanticJira.ObserveProse do
       Needs only `--goal`.
 
   Exits 0 only when admission and coverage pass (and, with `--check`, the
-  output recomputes byte-identically); otherwise prints one
-  `REFUSED(<code>) <subject>: <detail>` line per refusal and exits 1.
+  output recomputes byte-identically); otherwise prints one canonical
+  `REFUSED:<CODE> <detail>` line per refusal and exits 1.
   """
 
   use Mix.Task
 
+  alias GgenIgniter.Refusals
   alias GgenIgniter.SemanticJira.Prose
 
   @switches [
@@ -63,13 +64,15 @@ defmodule Mix.Tasks.SemanticJira.ObserveProse do
 
     cond do
       invalid != [] or positional != [] ->
-        refuse(["REFUSED(usage) -: unexpected arguments #{inspect(invalid ++ positional)}"])
+        refuse([
+          Refusals.format(:USAGE, "unexpected arguments #{inspect(invalid ++ positional)}")
+        ])
 
       opts[:admit_goal] ->
         admit_goal(opts)
 
       opts[:out_dir] == nil ->
-        refuse(["REFUSED(usage) -: --out-dir is required"])
+        refuse([Refusals.format(:USAGE, "--out-dir is required")])
 
       true ->
         opts |> observe_opts() |> Prose.observe() |> finish(opts)

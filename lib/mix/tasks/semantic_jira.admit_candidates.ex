@@ -40,13 +40,13 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
   watermark passed as `--epoch-manifest PATH` (a
   `.ggen_igniter/epoch/<epoch>/watermark.json`). An epoch candidate whose
   plan touches a stamped pre-epoch implementation path without a
-  fresh-manufacture plan is refused `REFUSED_EPOCH_LEGACY_EDIT`; an
+  fresh-manufacture plan is refused `REFUSED:EPOCH_LEGACY_EDIT`; an
   implementation-plane touch with no manufacture plan is
-  `REFUSED_EPOCH_UNATTRIBUTED_IMPLEMENTATION`; a pre-epoch artifact named as
+  `REFUSED:EPOCH_UNATTRIBUTED_IMPLEMENTATION`; a pre-epoch artifact named as
   a source without a regeneration plan is
-  `REFUSED_EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT`; an epoch candidate
+  `REFUSED:EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT`; an epoch candidate
   with the flag missing or the manifest unreadable is
-  `REFUSED_EPOCH_WATERMARK_UNAVAILABLE` (fail closed). Candidates WITHOUT an
+  `REFUSED:EPOCH_WATERMARK_UNAVAILABLE` (fail closed). Candidates WITHOUT an
   `"epoch"` value are byte-identical to a run without the option -- the
   canonical fabric set still manufactures unchanged.
 
@@ -273,8 +273,8 @@ defmodule Mix.Tasks.SemanticJira.AdmitCandidates do
       "origin_digest=#{origin_digest} work_order_digest=#{work_order["work_order_digest"]}"
   end
 
-  # Epoch refusals arrive as bare REFUSED_EPOCH_* strings and print bare; the
-  # clause is additive and cannot change a tuple-reason line's shape.
+  # Epoch refusals arrive as canonical `REFUSED:EPOCH_*` strings and print
+  # bare; the clause is additive and cannot change a tuple-reason line's shape.
   defp format(n, {:refused, identity, reason}) when is_binary(reason) do
     "refused #{n} #{identity || "-"} #{reason}"
   end

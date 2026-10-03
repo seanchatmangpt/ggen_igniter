@@ -157,17 +157,17 @@ defmodule GgenIgniter.EpochAdmissionTest do
 
   # -- refusal strings -------------------------------------------------------------
 
-  test "refusal_code_string/1 maps the closed set" do
-    assert EpochPlan.refusal_code_string(:legacy_edit) == "REFUSED_EPOCH_LEGACY_EDIT"
+  test "refusal_code_string/1 maps the closed set to canonical registry text" do
+    assert EpochPlan.refusal_code_string(:legacy_edit) == "REFUSED:EPOCH_LEGACY_EDIT"
 
     assert EpochPlan.refusal_code_string(:unattributed_implementation) ==
-             "REFUSED_EPOCH_UNATTRIBUTED_IMPLEMENTATION"
+             "REFUSED:EPOCH_UNATTRIBUTED_IMPLEMENTATION"
 
     assert EpochPlan.refusal_code_string(:reuses_pre_watermark_artifact) ==
-             "REFUSED_EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT"
+             "REFUSED:EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT"
 
     assert EpochPlan.refusal_code_string(:watermark_unavailable) ==
-             "REFUSED_EPOCH_WATERMARK_UNAVAILABLE"
+             "REFUSED:EPOCH_WATERMARK_UNAVAILABLE"
 
     assert_raise FunctionClauseError, fn -> EpochPlan.refusal_code_string(:nonsense) end
   end
@@ -207,7 +207,7 @@ defmodule GgenIgniter.EpochAdmissionTest do
 
     out = run_task(["--candidates", path, "--epoch-manifest", manifest])
 
-    assert out =~ "refused 1 EPOCH-TASK-A REFUSED_EPOCH_LEGACY_EDIT"
+    assert out =~ "refused 1 EPOCH-TASK-A REFUSED:EPOCH_LEGACY_EDIT"
     assert out =~ "summary admitted=0 refused=1"
   end
 
@@ -223,7 +223,7 @@ defmodule GgenIgniter.EpochAdmissionTest do
 
     out = run_task(["--candidates", path])
 
-    assert out =~ "refused 1 EPOCH-TASK-A REFUSED_EPOCH_WATERMARK_UNAVAILABLE"
+    assert out =~ "refused 1 EPOCH-TASK-A REFUSED:EPOCH_WATERMARK_UNAVAILABLE"
   end
 
   test "task level: no-regression — a non-epoch candidate's verdict line is identical with and without the gate",

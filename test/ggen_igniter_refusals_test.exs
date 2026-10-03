@@ -252,24 +252,17 @@ defmodule GgenIgniter.RefusalsTest do
       end
     end
 
-    test "parses legacy REFUSED(code) subject: detail" do
-      assert {:ok, {:INPUT_INVALID, "goal.json: bad"}} =
-               Refusals.parse("REFUSED(input_invalid) goal.json: bad")
-
-      assert {:ok, {:USAGE, "-: --out is required"}} =
-               Refusals.parse("REFUSED(usage) -: --out is required")
+    test "legacy REFUSED(code) emitter form no longer parses (D2 removal law)" do
+      assert {:error, :not_a_refusal} = Refusals.parse("REFUSED(input_invalid) goal.json: bad")
+      assert {:error, :not_a_refusal} = Refusals.parse("REFUSED(usage) -: --out is required")
     end
 
-    test "parses legacy bare REFUSED_CODE atoms and epoch codes" do
-      assert {:ok, {:GENERATED_ARTIFACT_MUTATED, ""}} =
-               Refusals.parse("REFUSED_GENERATED_ARTIFACT_MUTATED")
+    test "legacy bare REFUSED_CODE emitter form no longer parses (D2 removal law)" do
+      assert {:error, :not_a_refusal} = Refusals.parse("REFUSED_GENERATED_ARTIFACT_MUTATED")
+      assert {:error, :not_a_refusal} = Refusals.parse("REFUSED_EPOCH_LEGACY_EDIT order-1")
+      assert {:error, :not_a_refusal} = Refusals.parse("REFUSED_SUBJECT_EXHAUSTED: no free subject")
 
-      assert {:ok, {:EPOCH_LEGACY_EDIT, "order-1"}} =
-               Refusals.parse("REFUSED_EPOCH_LEGACY_EDIT order-1")
-
-      assert {:ok, {:SUBJECT_EXHAUSTED, "no free subject"}} =
-               Refusals.parse("REFUSED_SUBJECT_EXHAUSTED: no free subject")
-
+      # the canonical colon form is the ONE parseable form
       assert {:ok, {:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED, "baseSha abc"}} =
                Refusals.parse("REFUSED:SEMANTIC_JIRA_BASE_SHA_UNVERIFIED: baseSha abc")
     end
@@ -286,7 +279,7 @@ defmodule GgenIgniter.RefusalsTest do
     test "parse keeps the detail verbatim: only the separator space is stripped" do
       assert {:ok, {:LEGACY_EDIT, "   x  "}} = Refusals.parse("REFUSED:LEGACY_EDIT    x  ")
       assert {:ok, {:LEGACY_EDIT, "a\n"}} = Refusals.parse("REFUSED:LEGACY_EDIT a\n")
-      assert {:ok, {:INPUT_INVALID, " lead"}} = Refusals.parse("REFUSED(input_invalid)  lead")
+      assert {:ok, {:INPUT_INVALID, " lead"}} = Refusals.parse("REFUSED:INPUT_INVALID  lead")
     end
 
     test "parse normalises lowercase and mixed-case codes; non-binaries are not refusals" do
