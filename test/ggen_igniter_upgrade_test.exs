@@ -13,8 +13,8 @@ defmodule GgenIgniterUpgradeTest do
     do: Igniter.compose_task(igniter, "ggen_igniter.upgrade", [from, to])
 
   test "range selection: inside window selects, at/below from or above to does not" do
-    assert {:ok, [GgenIgniter.Upgrades.V26_9_28]} = Upgrades.select("26.9.24", "26.9.28")
-    assert {:ok, [GgenIgniter.Upgrades.V26_9_28]} = Upgrades.select("26.9.24", "26.10.1")
+    assert {:ok, [GgenIgniter.Upgrades.V260928]} = Upgrades.select("26.9.24", "26.9.28")
+    assert {:ok, [GgenIgniter.Upgrades.V260928]} = Upgrades.select("26.9.24", "26.10.1")
     assert {:ok, []} = Upgrades.select("26.9.28", "26.10.1")
     assert {:ok, []} = Upgrades.select("26.9.24", "26.9.27")
     assert {:ok, []} = Upgrades.select("26.9.28", "26.9.28")

@@ -106,51 +106,67 @@ defmodule GgenIgniter.EpochWatermark do
       identity = %{"head_sha" => head_sha, "tree_sha" => tree_sha, "files" => files}
       file = path(base_dir, epoch)
 
-      existing =
-        if File.exists?(file) do
-          case Jason.decode(File.read!(file)) do
-            {:ok, decoded} when is_map(decoded) -> decoded
-            {:error, _} -> :corrupt
-          end
-        else
-          nil
-        end
+      ctx = %{
+        base_dir: base_dir,
+        epoch: epoch,
+        identity: identity,
+        glob: glob,
+        now: now,
+        file: file,
+        restamp: restamp
+      }
 
-      case existing do
-        nil ->
-          write_stamp!(base_dir, epoch, identity, glob, now, nil)
+      resolve_stamp(read_existing(file), ctx)
+    end
+  end
 
-        :corrupt ->
+  defp read_existing(file) do
+    if File.exists?(file) do
+      case Jason.decode(File.read!(file)) do
+        {:ok, decoded} when is_map(decoded) -> decoded
+        {:error, _} -> :corrupt
+      end
+    else
+      nil
+    end
+  end
+
+  defp resolve_stamp(nil, ctx), do: write_fresh(ctx, nil)
+
+  defp resolve_stamp(:corrupt, ctx) do
+    {:error,
+     {:refused_epoch_watermark,
+      %{
+        code: :restamp_required,
+        detail:
+          "existing watermark.json for epoch #{ctx.epoch} is not decodable JSON; " <>
+            "repair or restamp with a reason"
+      }}}
+  end
+
+  defp resolve_stamp(decoded, ctx) do
+    if identity_matches?(decoded, ctx.identity) do
+      {:ok, Map.merge(decoded, ctx.identity), ctx.file}
+    else
+      case ctx.restamp do
+        %{reason: reason} when is_binary(reason) ->
+          write_fresh(ctx, reason)
+
+        _ ->
           {:error,
            {:refused_epoch_watermark,
             %{
               code: :restamp_required,
               detail:
-                "existing watermark.json for epoch #{epoch} is not decodable JSON; " <>
-                  "repair or restamp with a reason"
+                "epoch #{ctx.epoch} already stamped at a different tree; pass " <>
+                  "restamp: %{reason: ...} to redefine the epoch boundary"
             }}}
-
-        decoded ->
-          if identity_matches?(decoded, identity) do
-            {:ok, Map.merge(decoded, identity), file}
-          else
-            case restamp do
-              %{reason: reason} when is_binary(reason) ->
-                write_stamp!(base_dir, epoch, identity, glob, now, reason)
-
-              _ ->
-                {:error,
-                 {:refused_epoch_watermark,
-                  %{
-                    code: :restamp_required,
-                    detail:
-                      "epoch #{epoch} already stamped at a different tree; pass " <>
-                        "restamp: %{reason: ...} to redefine the epoch boundary"
-                  }}}
-            end
-          end
       end
     end
+  end
+
+  defp write_fresh(ctx, reason) do
+    write_stamp!(ctx.base_dir, ctx.epoch, ctx.identity, ctx.glob, ctx.now, reason)
   end
 
   # Identity = the pre-epoch tree, not the stamp's wall clock: two stamps of
