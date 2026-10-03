@@ -1,5 +1,30 @@
 # Changelog
 
+## v26.10.3
+
+Released 2026-10-03.
+
+The semantic-jira evolution wave: monotonic epochs with vector clocks, the
+Sovereign Ceiling Lease 0x04, and required-evidence threading, qualified on a
+clean-room build.
+
+- **Added** `TransitionLog` monotonic epochs + vector clocks: every event
+  carries a per-replica monotonic `seq` and a vector-clock map
+  (`opts[:vc]`), with strictly-monotonic append refusing out-of-order
+  appends; the fleet-R projection carries both (72afe77).
+- **Added** the Sovereign Ceiling Lease 0x04 (`semantic_jira/sovereign_lease.ex`)
+  and the strictly monotonic evolution gate (`066_monotonic_evolution.rq`)
+  plus gate `065_target_pack_contract.rq` and the pack-rendered `TargetPack`
+  template (d82e0f1, 8ef0fea).
+- **Added** `required_evidence` threading from the semantic-jira contract into
+  `receipt_from_xaas`, so a receipt's evidence set is contract-shaped rather
+  than caller-shaped (0789e42).
+- **Added** `semantic-jira-pack` gate 065 (target-pack contract) and gate 066
+  (strictly monotonic evolution); pack ontology carries the new event
+  vocabulary.
+- **Fixed** strict formatter cleanliness: `mix format --check-formatted` is
+  clean again across lib and test (cb378ea).
+
 ## v26.10.2
 
 Released 2026-10-02.
