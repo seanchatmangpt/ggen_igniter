@@ -31,9 +31,9 @@ defmodule GgenIgniter.SemanticJira.RProjection do
   ## Standing map (receipt standing -> R standing value)
 
   The five real `GgenIgniter.Receipt` standings map onto the R vocabulary
-  exactly as `GgenIgniter.Receipt.to_prd_status/1`'s contract, refined by the
-  admission-vacuity law (`Bootstrap.Receipts.check/1`'s own rule: an ALIVE
-  receipt with any non-zero replay exit is `admission_vacuous`):
+  per this module's own standing table below (`standing_value/2`'s clauses),
+  refined by the admission-vacuity law (`Bootstrap.Receipts.check/1`'s own
+  rule: an ALIVE receipt with any non-zero replay exit is `admission_vacuous`):
 
     * `:alive` with every mapped replay command exit `== 0` -> `"ALIVE"`.
     * `:alive` with ANY non-zero OR nil source `exit_code` -> the R standing

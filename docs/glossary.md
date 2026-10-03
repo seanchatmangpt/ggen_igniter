@@ -7,15 +7,22 @@ honestly rather than papered over with an invented definition.
 
 ## admission
 
-The whole-plan, fail-closed check `GgenIgniter.Reactors.ReconcileReactor`'s
-`:admit` step performs over the **entire** intended set of
+Two senses, one entry. **(1) Pipeline admission** — the whole-plan,
+fail-closed check `GgenIgniter.Reactors.ReconcileReactor`'s `:admit` step
+performs over the **entire** intended set of
 create/replace/eval/delete items — before a single byte is written, not
 per-item as writes happen. Refuses the whole run (never a partial refusal) on
 a duplicate output-path collision between two targets, an unowned `:delete`
 candidate, or a stale-path violation under `--on-stale refuse`. Only the
 Reactor pipeline has an explicit admission step; `GgenIgniter.Reconcile.run/1`
 and `Mix.Tasks.GgenIgniter.Sync`'s inline pipeline have no equivalent
-whole-plan gate. See `docs/reference/reactor/steps.md`,
+whole-plan gate. **(2) Kernel/graph admission** — the step that turns
+observation O into admitted O*: a gate that can refuse decides which inputs
+manufacture may act on. Candidates never become output without admission —
+in this repo, `admit_work_order/1` plus SHACL admission of the work-order
+graph, with `origin_authority` resolved against the pinned authority index
+(prose never admits; see "gate", "court"). See
+`docs/reference/reactor/steps.md`,
 `docs/integrations/ggen/planning-boundary.md`.
 
 ## actuation
@@ -204,7 +211,8 @@ every path (the full receipt lifecycle), and by
 `--dry-run`) run declares `sh_before:`/`sh_after:` — a minimal, `standing:
 :alive` receipt whose sole purpose is populating `commands`, not a full
 reconciliation receipt (that pipeline has no `:verify`/compensation step of
-its own). See `docs/reference/evidence/receipts.md`.
+its own). Schema: `priv/schema/receipt.schema.json`. A summary is not a
+receipt. See `docs/reference/evidence/receipts.md`.
 
 ## shell hook
 
@@ -249,7 +257,8 @@ See `docs/reference/reconciliation/manifest.md`,
 
 ## standing
 
-`GgenIgniter.Receipt.standing/0` — a closed set of exactly five atoms
+Two senses, one entry. **(1) Receipt standing** — `GgenIgniter.Receipt.standing/0`,
+a closed set of exactly five atoms
 (`:alive`, `:refused`, `:compensated`, `:build_broken`, `:compensation_failed`);
 `Receipt.new/1` raises `ArgumentError` on any other value. `:alive` =
 succeeded, manifest advanced. `:refused` = fail-closed refusal before any
@@ -265,7 +274,13 @@ exception with no standing, EXCEPT the one narrow, disclosed case where that
 pipeline constructs a minimal `standing: :alive` receipt purely to record
 `sh_before:`/`sh_after:` shell-hook invocations (see "shell hook") — that
 receipt does not represent a full verify/compensate lifecycle the way
-`ReconcileReactor`'s does. See `docs/reference/evidence/standing.md`.
+`ReconcileReactor`'s does. **(2) Capability standing** — the derived status of
+a claim about an exact subject: `ALIVE` (observed execution on the exact
+admitted subject), `PARTIAL_ALIVE` (some parts alive), `BLOCKED` (a named hop
+cannot proceed), `UNSUPPORTED` (no capability, distinct from a refusal), plus
+`UNKNOWN`, `BUILD_BROKEN` and typed `REFUSED:<CODE>`. Capability standing
+lives in receipts bound to an identity, never stored as a literal. See
+`docs/reference/evidence/standing.md`.
 
 ## stale artifact
 
@@ -300,7 +315,7 @@ The `sj:targetPack` vocabulary term on an admitted work order
 order to one pack, enforced by `GgenIgniter.SemanticJira.TargetPack.enforce!/2`
 at BOTH actuation hops — `mix ggen_igniter.sync` (and `ReconcileReactor`)
 and the local backend of `mix semantic_jira.execute` — so a mismatch
-refuses `REFUSED(target_pack_mismatch)` / `mu_unlawful` before anything
+refuses `REFUSED:TARGET_PACK_MISMATCH` / `mu_unlawful` before anything
 runs (no rev-parse, no pipeline, no receipt, ledger byte-unchanged); a
 `nil` targetPack names no constraint. The external `--receipt` execute
 backend checks no targetPack: the xaas fabric owned the execution. See
@@ -328,7 +343,11 @@ oxigraph query engine). See `docs/integrations/ggen/semantic-compilation.md`.
 
 ## autonomic software manufacturing
 
-The paradigm realized by `ggen_igniter`: closed-loop software generation and reconciliation where formal knowledge (RDF ontologies) compiles deterministically into verified, self-healing Elixir project state with zero unmanaged drift, fail-closed admission, automated compensation, and persistent audit standing.
+The paradigm realized by `ggen_igniter`: closed-loop software generation and
+reconciliation where formal knowledge (RDF ontologies) compiles
+deterministically into verified, self-healing Elixir project state with zero
+unmanaged drift, fail-closed admission, automated compensation, and
+persistent audit standing.
 
 ## REFUSED_*
 
@@ -352,32 +371,12 @@ a receipt that never re-enters the next observation. Each registry entry in
 `refusals.schema.json` carries a non-null `broken_term`: one of these terms,
 or `not_applicable` with a `not_applicable_reason` when no term is broken.
 
-## standing
-
-The derived status of a claim about an exact subject: `ALIVE` (observed
-execution on the exact admitted subject), `PARTIAL_ALIVE` (some parts alive),
-`BLOCKED` (a named hop cannot proceed), `UNSUPPORTED` (no capability, distinct
-from a refusal), plus `UNKNOWN`, `BUILD_BROKEN` and typed `REFUSED(...)`.
-Standing lives in receipts bound to an identity, never stored as a literal.
-
 ## gate
 
 A check that admits or refuses. A gate is only informative if it has been
 witnessed refusing (anti-vacuity: mutating the input makes it fail). Examples:
 `mix ggen_igniter.epoch.check`, `mix ggen_igniter.hand_authored`, SHACL
 admission of work orders.
-
-## admission
-
-The step that turns observation O into admitted O*: a gate that can refuse
-decides which inputs manufacture may act on. Candidates never become output
-without admission.
-
-## receipt
-
-The durable record of an action: identity, authority, consequence, replay and
-standing (`GgenIgniter.Receipt`, `priv/schema/receipt.schema.json`). A summary
-is not a receipt.
 
 ## court
 

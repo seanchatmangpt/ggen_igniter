@@ -124,7 +124,7 @@ live in each module's `schema:`/moduledoc)
   [--provider|--court-map|--authority-graph|--out-dir|--out]` — one
   frontier-eligible order end to end, in-process (zero mix shell-outs); the
   local backend first enforces the order's `sj:targetPack` against the
-  resolved `--pack-dir` (`REFUSED(target_pack_mismatch)` / `mu_unlawful`
+  resolved `--pack-dir` (`REFUSED:TARGET_PACK_MISMATCH` / `mu_unlawful`
   before any rev-parse, pipeline, or ledger byte; `nil` targetPack = no
   constraint; the external `--receipt` backend checks no targetPack — the
   fabric owned the execution), then runs the real pipeline + fail-closed

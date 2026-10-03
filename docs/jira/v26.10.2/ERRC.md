@@ -2,8 +2,10 @@
 
 ERRC (Eliminate / Reduce / Raise / Create) over the post-loop backlog, ranked.
 Evidence pointers cite `RECEIPT.md` (this directory) by section (R# = RECEIPT
-section). Cycle status: **phase 1 COMPLETE, phase 2 mostly landed — three lanes
-gated on coordinator publishes, phase 3 backlog slimmed by this wave.**
+section). Cycle status: **phase 1 COMPLETE, phase 2 LANDED through the
+post-ledger D-wave (final-state pass, ggen_igniter @ a404697) — remaining
+gates are coordinator publishes (ash_pplan hex) and the D8 pin qualification;
+phase 3 backlog slimmed by this wave.**
 
 ## Quadrant table (ranked)
 
@@ -44,19 +46,30 @@ append-only registry, `utp:hilt` opt-in (60e18bf) awaiting Hilt publish.
 | lane | outcome | evidence |
 |---|---|---|
 | F1 (xaas hex floor bump) | DONE — merged to main | 7dc90027, merge 5fc56da2 (XA-3004) |
-| F2 (v26.10.2 release propagation) | IN FLIGHT — pending coordinator publish | R# SHA ledger |
-| F3 (26.9.31 hex publish, Hilt witness) | PENDING publish | aaed6a2 prep committed; head f36e3e6 |
-| F4 (crown `:no_ready_work` repair) | IN FLIGHT — root-cause pass (lane A8) | R# residues |
-| F5 (lock regen) | BLOCKED — collision; awaits symlink-law publish | R# residues; 5f7e875 |
+| F2 (v26.10.2 release propagation) | DONE — 26.10.1 and 26.10.2 on hex; tag `v26.10.2` @ ee10e7b | R# SHA ledger |
+| F3 (26.9.31 hex publish, Hilt witness) | DONE — 26.9.31 on hex | head f36e3e6 → ccdb634; R# supporting rows |
+| F4 (crown `:no_ready_work` repair) | DONE — subprocess crown completes the full loop | 117e4b64 (provider-claim fix) |
+| F5 (lock regen) | UNBLOCKED — tag `v26.10.2` @ 2cad4cc landed (C9); hex publish state unchanged | R# supporting rows; 2cad4cc |
 | F6 (machine_experience reconciliation) | BACKLOG | R# parked #2 |
-| F7 (DOCS milestone receipt) | DONE | 67fcffa; three files on disk in this directory |
+| F7 (DOCS milestone receipt) | DONE — final-state pass folded the D-wave + C9/C11 in | 67fcffa, 04c5fcf, this pass |
 | F8 (event-terms + gate 055) | DONE — landed early | 81df828 |
 | F9 (schema promotion, fleet-r) | PARTIAL — pilot done; decision open | 134b35c; R# parked #5-6 |
 | F10 (trio + VerifyMutation) | PARTIAL — catalog done; trio open | 513c6e7; R# parked #7 |
 
-F5 detail: the lock regen collided with upstream ggen_igniter pack layout; the
-resolution is the v26.10.2 symlink law, so manufacture is BLOCKED pending the
-coordinator publish, not re-partitioned onto another lane.
+Post-ledger D-wave (after 04c5fcf, all on ggen_igniter main, verified
+read-only): 67961c7 (canonical `REFUSED:<CODE>` emitters, legacy parse shapes
+removed), 8e577a5 (`to_prd_status/1` removed — fleet-R v2 projection supersedes),
+8ef0fea (TargetPack rendered from pack facts; HANDWRITTEN row 48 retires),
+3c22220 (HILT binding DEFAULT ON — `utp:hilt false` is the compat escape),
+b83d604 (strict-profile STOP witnesses), 3a154ae (legacy digest window SHRUNK,
+removal milestone v26.11.1), c49c53f (shapes_checked assertion), a404697
+(C11 credo zero). D8 pin move to `elixir 1.19.5-otp-27` / `erlang 27.2.4` is
+on disk, uncommitted at a404697 — qualification in flight.
+
+F5 detail (historical): the lock regen collided with upstream ggen_igniter pack
+layout; the resolution was the v26.10.2 symlink law. The tag landed
+(`v26.10.2` @ 2cad4cc, C9), unblocking manufacture; the ash_pplan hex publish
+remains coordinator-gated.
 
 ## Phase 3 — remaining backlog (5)
 
@@ -85,8 +98,10 @@ REFUSED/BLOCKED receipt.
    validator ADMITTED (R# standing per hop).
 5. Crown binds `:snapshot`; named ticket-dir error added.
 6. Surviving mutants fail the ash_a2a build.
-7. Opt-in HILT work-order binding in the generated constructor (60e18bf); activation
-   gated on ash_a2a hex publishing Hilt.
+7. HILT work-order binding in the generated constructor: opt-in at 60e18bf,
+   now DEFAULT ON (3c22220) after the ash_a2a 26.9.31 Hilt publish; behavioral
+   witness against the published subject (c021243, 9562548); `utp:hilt false`
+   is the compat escape.
 8. Identity by blob sha, not blame; schema vendored with a digest pin and a
    conformance court (134b35c).
 9. Mutation catalog over the verify surface: mutants enumerated, killed, and gated
@@ -102,5 +117,5 @@ Status-truth pass: `docs/status.md` corrected and re-verified against real evide
 | phase | lanes | status |
 |---|---|---|
 | 1 | P1-G1..G4, P1-X1..X2, P1-A1..A2, P1-P1 | **COMPLETE** — all 9 lane outputs landed |
-| 2 | F1..F10 | **MOSTLY LANDED** — F1/F7/F8 DONE; F2/F3/F5 gated; F4 in flight; F6 backlog |
+| 2 | F1..F10 | **LANDED** — F1/F2/F3/F4/F7/F8 DONE; F5 unblocked (tag @ 2cad4cc, publish gated); F6 backlog; F9/F10 partial by design |
 | 3 | remainders | **BACKLOG (5)** — the list above |

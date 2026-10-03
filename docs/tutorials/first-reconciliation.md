@@ -97,7 +97,9 @@ A manifest entry records:
 ### Stage 8: Durable Receipt Generation (`Receipt.append!/2`)
 
 Every reconciliation run appends an audit record to `.ggen_igniter/receipts/<YYYY-MM-DD>.jsonl`. The receipt captures:
-* Execution standing (`:alive`, `:refused`, `:compensated`, `:build_broken`)
+* Execution standing (`:alive`, `:refused`, `:compensated`, `:build_broken`,
+  `:compensation_failed` — the closed five-atom set; see `docs/glossary.md`
+  "standing")
 * Pre-run and post-run project hashes
 * List of modified files
 * Structured OCEL event trail
