@@ -49,41 +49,40 @@ defmodule GgenIgniter.SemanticJira.EpochPlan do
 
   def check(%{"epoch" => epoch} = order, watermark) when is_binary(epoch) and epoch != "" do
     case watermark do
-      nil ->
-        {:error, {:refused_epoch_plan, :watermark_unavailable}}
-
-      %{"files" => _} = watermark ->
-        plan_touches = listify(order["plan_touches"])
-        manufacture_plan = plan_map(order["manufacture_plan"])
-        source_artifacts = listify(order["source_artifacts"])
-        legacy_paths = MapSet.new(List.wrap(watermark["files"]), & &1["path"])
-        glob = glob_matcher(watermark["implementation_glob"])
-
-        cond do
-          Enum.any?(plan_touches, &(&1 in legacy_paths and not fresh_plan?(&1, manufacture_plan))) ->
-            {:error, {:refused_epoch_plan, :legacy_edit}}
-
-          Enum.any?(plan_touches, fn path ->
-            path not in legacy_paths and glob.(path) and not fresh_plan?(path, manufacture_plan)
-          end) ->
-            {:error, {:refused_epoch_plan, :unattributed_implementation}}
-
-          Enum.any?(
-            source_artifacts,
-            &(&1 in legacy_paths and not fresh_plan?(&1, manufacture_plan))
-          ) ->
-            {:error, {:refused_epoch_plan, :reuses_pre_watermark_artifact}}
-
-          true ->
-            :ok
-        end
-
-      _ ->
-        {:error, {:refused_epoch_plan, :watermark_unavailable}}
+      %{"files" => _} -> check_plan(order, watermark)
+      _ -> {:error, {:refused_epoch_plan, :watermark_unavailable}}
     end
   end
 
   def check(_order, _watermark), do: :ok
+
+  defp check_plan(order, watermark) do
+    plan_touches = listify(order["plan_touches"])
+    manufacture_plan = plan_map(order["manufacture_plan"])
+    source_artifacts = listify(order["source_artifacts"])
+    legacy_paths = MapSet.new(List.wrap(watermark["files"]), & &1["path"])
+    glob = glob_matcher(watermark["implementation_glob"])
+
+    legacy_unfresh? = &(&1 in legacy_paths and not fresh_plan?(&1, manufacture_plan))
+
+    unattributed? = fn path ->
+      path not in legacy_paths and glob.(path) and not fresh_plan?(path, manufacture_plan)
+    end
+
+    cond do
+      Enum.any?(plan_touches, legacy_unfresh?) ->
+        {:error, {:refused_epoch_plan, :legacy_edit}}
+
+      Enum.any?(plan_touches, unattributed?) ->
+        {:error, {:refused_epoch_plan, :unattributed_implementation}}
+
+      Enum.any?(source_artifacts, legacy_unfresh?) ->
+        {:error, {:refused_epoch_plan, :reuses_pre_watermark_artifact}}
+
+      true ->
+        :ok
+    end
+  end
 
   @doc "The typed refusal string a code renders as in the admit_candidates verdict line."
   @spec refusal_code_string(code()) :: String.t()

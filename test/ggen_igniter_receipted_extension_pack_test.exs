@@ -112,12 +112,12 @@ defmodule GgenIgniter.ReceiptedExtensionPackTest do
     # Elixir 1.18 (.tool-versions pin) does not create the output dir for compile_to_path/3.
     File.mkdir_p!(Path.join(dir, "ebin"))
     path = Path.join(dir, "resource.ex")
+    ebin = Path.join(dir, "ebin")
+    File.mkdir_p!(ebin)
     File.write!(path, source)
 
     try do
-      case Kernel.ParallelCompiler.compile_to_path([path], Path.join(dir, "ebin"),
-             return_diagnostics: true
-           ) do
+      case Kernel.ParallelCompiler.compile_to_path([path], ebin, return_diagnostics: true) do
         {:ok, modules, %{compile_warnings: cw, runtime_warnings: rw}} ->
           {:ok, modules,
            (cw ++ rw)
