@@ -251,16 +251,27 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
     )
   end
 
+  # `data.gates.passed` is emitted UNCONDITIONALLY (an empty list on any
+  # failing variant) -- consumers parse it as a required key of the envelope
+  # contract, so omitting it on FAIL made a legitimate refusal envelope
+  # indistinguishable from schema drift. `status` remains the sole
+  # pass/fail discriminator; `passed` is payload, never a verdict.
   defp gate_json({:ok, results}) do
     %{"status" => "pass", "passed" => Enum.map(results, fn {name, :pass} -> name end)}
   end
 
   defp gate_json({:error, {:gate_failed, name}}) do
-    %{"status" => "gate_failed", "gate" => name}
+    %{"status" => "gate_failed", "gate" => name, "passed" => []}
   end
 
   defp gate_json({:error, {:gate_cardinality, name, expected, actual}}) do
-    %{"status" => "gate_cardinality", "gate" => name, "expected" => expected, "actual" => actual}
+    %{
+      "status" => "gate_cardinality",
+      "gate" => name,
+      "expected" => expected,
+      "actual" => actual,
+      "passed" => []
+    }
   end
 
   defp unbound_json({:ok, []}), do: %{"status" => "pass", "findings" => []}

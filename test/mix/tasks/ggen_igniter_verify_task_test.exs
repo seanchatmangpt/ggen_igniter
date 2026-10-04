@@ -115,11 +115,14 @@ defmodule Mix.Tasks.GgenIgniter.VerifyTaskTest do
 
       assert json["ok"] == false
 
+      # `passed` is unconditional (empty list on FAIL) -- consumers parse it
+      # as a required envelope key, so its absence read as schema drift.
       assert json["gates"] == %{
                "status" => "gate_cardinality",
                "gate" => "resources",
                "expected" => 2,
-               "actual" => 1
+               "actual" => 1,
+               "passed" => []
              }
 
       assert %{"status" => "unbound_facts", "findings" => [finding]} = json["verify"]

@@ -915,56 +915,68 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
                   :error -> {step_name, original_reason}
                 end
 
-              Receipt.new(%{
-                standing: :compensation_failed,
-                recipe_key: nil,
-                started_at: started_at,
-                # Deliberately `nil`, never a computed digest: some paths
-                # restored and some did not, so there is no single coherent
-                # "post-run project hash" to claim -- claiming one would
-                # misrepresent a genuinely inconsistent on-disk state as a
-                # verified-consistent one.
-                pre_run_hash: event_attr(events, "COMPENSATION_FAILED", "pre_run_hash"),
-                post_run_hash: nil,
-                files: details.paths,
-                events: events,
-                reason: describe_compensation_failure(details, orig_reason),
-                metadata: %{
-                  "failed_step" => inspect(step_name),
-                  "triggering_step" => inspect(orig_step_name),
-                  "raw_error" => inspect(orig_reason),
-                  "mutation_occurred" => true,
-                  "verification_failed" => true,
-                  "restoration_failed" => true,
-                  "manual_repair_required" => true,
-                  "compensation_restored_paths" => details.restored,
-                  "compensation_failed_paths" =>
-                    Enum.map(details.failed, fn {path, _reason} -> path end),
-                  "compensation_failed_details" =>
-                    Enum.map(details.failed, fn {path, reason} ->
-                      %{"path" => path, "reason" => inspect(reason)}
-                    end),
-                  "post_run_state_hash" => Receipt.hash_files(details.paths)
-                }
-              })
+              # `base_dir:` is the contract-correct form so `new/2` can
+              # resolve the chain tail; `recipe_key: nil` still leaves this
+              # receipt honestly rootless (put_new_parent_hash/2's guard
+              # requires a binary recipe_key).
+              Receipt.new(
+                %{
+                  standing: :compensation_failed,
+                  recipe_key: nil,
+                  started_at: started_at,
+                  # Deliberately `nil`, never a computed digest: some paths
+                  # restored and some did not, so there is no single coherent
+                  # "post-run project hash" to claim -- claiming one would
+                  # misrepresent a genuinely inconsistent on-disk state as a
+                  # verified-consistent one.
+                  pre_run_hash: event_attr(events, "COMPENSATION_FAILED", "pre_run_hash"),
+                  post_run_hash: nil,
+                  files: details.paths,
+                  events: events,
+                  reason: describe_compensation_failure(details, orig_reason),
+                  metadata: %{
+                    "failed_step" => inspect(step_name),
+                    "triggering_step" => inspect(orig_step_name),
+                    "raw_error" => inspect(orig_reason),
+                    "mutation_occurred" => true,
+                    "verification_failed" => true,
+                    "restoration_failed" => true,
+                    "manual_repair_required" => true,
+                    "compensation_restored_paths" => details.restored,
+                    "compensation_failed_paths" =>
+                      Enum.map(details.failed, fn {path, _reason} -> path end),
+                    "compensation_failed_details" =>
+                      Enum.map(details.failed, fn {path, reason} ->
+                        %{"path" => path, "reason" => inspect(reason)}
+                      end),
+                    "post_run_state_hash" => Receipt.hash_files(details.paths)
+                  }
+                },
+                base_dir: manifest_dir
+              )
 
             :error ->
               standing = standing_for_failure(step_name, original_reason)
 
-              Receipt.new(%{
-                standing: standing,
-                recipe_key: nil,
-                started_at: started_at,
-                pre_run_hash: event_attr(events, "FILES_RESTORED", "pre_run_hash"),
-                post_run_hash: event_attr(events, "FILES_RESTORED", "post_run_hash"),
-                files: event_attr(events, "ACTUATION_STARTED", "paths") || [],
-                events: events,
-                reason: describe_failure(original_reason),
-                metadata: %{
-                  "failed_step" => inspect(step_name),
-                  "raw_error" => inspect(original_reason)
-                }
-              })
+              # `base_dir:` contract-correct form; `recipe_key: nil` keeps
+              # this receipt honestly rootless (put_new_parent_hash/2 guard).
+              Receipt.new(
+                %{
+                  standing: standing,
+                  recipe_key: nil,
+                  started_at: started_at,
+                  pre_run_hash: event_attr(events, "FILES_RESTORED", "pre_run_hash"),
+                  post_run_hash: event_attr(events, "FILES_RESTORED", "post_run_hash"),
+                  files: event_attr(events, "ACTUATION_STARTED", "paths") || [],
+                  events: events,
+                  reason: describe_failure(original_reason),
+                  metadata: %{
+                    "failed_step" => inspect(step_name),
+                    "raw_error" => inspect(original_reason)
+                  }
+                },
+                base_dir: manifest_dir
+              )
           end
 
         # `sync --check` is write-free on EVERY path, refusals included.
@@ -3066,56 +3078,65 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     # never contains one.
     summary_suffix = reactor_summary_suffix(results)
 
+    # `base_dir: manifest_dir` lets `put_new_parent_hash/2` actually fire
+    # for recipe-keyed runs: without it every receipt previously carried
+    # `parent_hash: nil` (an all-rootless chain). Migration: existing
+    # receipts keep their nil parent_hash (honest rootless); receipts
+    # written AFTER this change link to their recipe_key's chain tail.
     receipt =
-      Receipt.new(%{
-        standing: :alive,
-        recipe_key: single_recipe && single_recipe.recipe_key,
-        pack_name: pack_name,
-        pack_digest: pack_digest,
-        pre_run_hash: pre_run_hash,
-        post_run_hash: post_run_hash,
-        files: Map.keys(outputs),
-        events: events,
-        reason: nil,
-        # Every real `sh_before:`/`sh_after:` invocation this run made
-        # (success only, per `actuate_pending/2`'s own comment) -- see
-        # `GgenIgniter.Receipt`'s moduledoc for the entry shape.
-        commands: commands,
-        metadata: %{
-          "graph_hash" => graph_hash,
-          "post_run_ws_hash" => post_run_ws_hash,
-          "target_count" => length(results),
-          # Best-effort single-target compatibility fields (populated
-          # whenever this run had exactly one target, i.e. the
-          # `Reconcile.run/1`-parity shape).
-          "out_path" => single_result && single_result[:out_path],
-          "outcome" =>
-            single_result && single_result[:outcome] && Atom.to_string(single_result[:outcome]),
-          "mode" => single_result && single_result[:mode] && Atom.to_string(single_result[:mode]),
-          "notice" => notice_body <> query_suffix <> summary_suffix,
-          # Per-target bare notice lines (no "ggen_igniter: " prefix, no
-          # "(engine: ...)" suffix) for a `--dry-run` caller to print
-          # DURING the run via `Mix.shell().info/1` -- mirrors
-          # `Mix.Tasks.GgenIgniter.Sync`'s own `run_pipeline!/3`
-          # (`if dry_run, do: Mix.shell().info(line)`, per target, as it
-          # goes) -- see `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3`'s
-          # own call site. `[]` for a real (non-dry-run) run: nothing to
-          # preview-print, the real notice above already covers it.
-          "dry_run_lines" =>
-            if(dry_run_run?,
-              do: results |> Enum.map(& &1[:notice_line]) |> Enum.reject(&is_nil/1),
-              else: []
-            ),
-          # Real evidence of `mode: eval` + `Igniter` composition (see
-          # `actuate_eval_sequential/2`) -- `false`/`[]` for every run with
-          # no `:eval` targets, or where every `:eval` target returned an
-          # ordinary (non-`%Igniter{}`) value. The raw `%Igniter{}` struct
-          # itself is never embedded here (not `Jason.encode!/1`-safe) --
-          # only its real, already-computed `Rewrite.paths/1` path list.
-          "igniter_diverged" => igniter_diverged,
-          "igniter_paths" => igniter_paths
-        }
-      })
+      Receipt.new(
+        %{
+          standing: :alive,
+          recipe_key: single_recipe && single_recipe.recipe_key,
+          pack_name: pack_name,
+          pack_digest: pack_digest,
+          pre_run_hash: pre_run_hash,
+          post_run_hash: post_run_hash,
+          files: Map.keys(outputs),
+          events: events,
+          reason: nil,
+          # Every real `sh_before:`/`sh_after:` invocation this run made
+          # (success only, per `actuate_pending/2`'s own comment) -- see
+          # `GgenIgniter.Receipt`'s moduledoc for the entry shape.
+          commands: commands,
+          metadata: %{
+            "graph_hash" => graph_hash,
+            "post_run_ws_hash" => post_run_ws_hash,
+            "target_count" => length(results),
+            # Best-effort single-target compatibility fields (populated
+            # whenever this run had exactly one target, i.e. the
+            # `Reconcile.run/1`-parity shape).
+            "out_path" => single_result && single_result[:out_path],
+            "outcome" =>
+              single_result && single_result[:outcome] && Atom.to_string(single_result[:outcome]),
+            "mode" =>
+              single_result && single_result[:mode] && Atom.to_string(single_result[:mode]),
+            "notice" => notice_body <> query_suffix <> summary_suffix,
+            # Per-target bare notice lines (no "ggen_igniter: " prefix, no
+            # "(engine: ...)" suffix) for a `--dry-run` caller to print
+            # DURING the run via `Mix.shell().info/1` -- mirrors
+            # `Mix.Tasks.GgenIgniter.Sync`'s own `run_pipeline!/3`
+            # (`if dry_run, do: Mix.shell().info(line)`, per target, as it
+            # goes) -- see `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3`'s
+            # own call site. `[]` for a real (non-dry-run) run: nothing to
+            # preview-print, the real notice above already covers it.
+            "dry_run_lines" =>
+              if(dry_run_run?,
+                do: results |> Enum.map(& &1[:notice_line]) |> Enum.reject(&is_nil/1),
+                else: []
+              ),
+            # Real evidence of `mode: eval` + `Igniter` composition (see
+            # `actuate_eval_sequential/2`) -- `false`/`[]` for every run with
+            # no `:eval` targets, or where every `:eval` target returned an
+            # ordinary (non-`%Igniter{}`) value. The raw `%Igniter{}` struct
+            # itself is never embedded here (not `Jason.encode!/1`-safe) --
+            # only its real, already-computed `Rewrite.paths/1` path list.
+            "igniter_diverged" => igniter_diverged,
+            "igniter_paths" => igniter_paths
+          }
+        },
+        base_dir: manifest_dir
+      )
 
     # -- 2. Persist the receipt FIRST (real append-only write) -- but ONLY
     # for a real (non-dry-run) run. `--dry-run`'s documented contract
