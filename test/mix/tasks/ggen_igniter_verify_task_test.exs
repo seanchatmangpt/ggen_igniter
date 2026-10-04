@@ -132,16 +132,118 @@ defmodule Mix.Tasks.GgenIgniter.VerifyTaskTest do
     end
   end
 
-  describe "invalid invocation" do
-    test "exits 1 when --pack is omitted" do
-      {output, status} = cmd!(["ggen_igniter.verify"])
+  describe "DERIVED_ROWS mode (contract query vs gate rows, real subprocess)" do
+    @amp "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#"
+    @resource_class @amp <> "Resource"
+
+    # A real on-disk contract file the task loads: DERIVED_ROWS declared inline.
+    defp derived_contract(query) do
+      path =
+        Path.join(
+          System.tmp_dir!(),
+          "derived_cardinality_#{System.unique_integer([:positive])}.json"
+        )
+
+      File.write!(
+        path,
+        Jason.encode!(%{
+          "gates" => %{
+            "resources" => %{"mode" => "DERIVED_ROWS", "query" => query}
+          }
+        })
+      )
+
+      on_exit(fn -> File.rm(path) end)
+      path
+    end
+
+    test "equal counts pass: gate rows == contract-query rows" do
+      cardinality = derived_contract("SELECT DISTINCT ?s WHERE { ?s a <#{@resource_class}> }")
+
+      {output, status} =
+        cmd!(["ggen_igniter.verify", "--pack", @real_pack, "--cardinality", cardinality, "--json"])
+
+      assert status == 0
+      json = Jason.decode!(output)
+      assert json["ok"] == true
+      assert json["gates"]["status"] == "pass"
+      assert "resources" in json["gates"]["passed"]
+    end
+
+    test "unequal counts fail with the typed gate_cardinality message" do
+      # Only amp:BookResource's module starts with "BookLibrary.Catalog", so
+      # this query derives 1 while the gate emits 2 rows.
+      cardinality =
+        derived_contract("""
+        SELECT DISTINCT ?s WHERE {
+          ?s a <#{@resource_class}> ; <#{@amp}resourceModule> ?m .
+          FILTER(STRSTARTS(?m, "BookLibrary.Catalog"))
+        }
+        """)
+
+      {output, status} =
+        cmd!(["ggen_igniter.verify", "--pack", @real_pack, "--cardinality", cardinality, "--json"])
+
       assert status == 1
+      json = Jason.decode!(output)
+      assert json["ok"] == false
+      assert json["gates"]["status"] == "gate_cardinality"
+      assert json["gates"]["gate"] == "resources"
+      assert json["gates"]["expected"] == 1
+      assert json["gates"]["actual"] == 2
+    end
+
+    test "a contract query that does not execute fails closed, typed" do
+      cardinality = derived_contract("SELECT ?s WHERE { ?s a <#{@resource_class}> ")
+
+      {output, status} =
+        cmd!(["ggen_igniter.verify", "--pack", @real_pack, "--cardinality", cardinality, "--json"])
+
+      assert status == 1
+      json = Jason.decode!(output)
+      assert json["ok"] == false
+      assert json["gates"]["status"] == "gate_derived_query"
+      assert json["gates"]["gate"] == "resources"
+      assert json["gates"]["message"] != nil and json["gates"]["message"] != ""
+    end
+
+    test "query_file is resolved relative to the contract file and read at load time" do
+      dir = Path.join(System.tmp_dir!(), "derived_pack_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(dir)
+      on_exit(fn -> File.rm_rf!(dir) end)
+
+      rq = Path.join(dir, "resources.derived.rq")
+      File.write!(rq, "SELECT DISTINCT ?s WHERE { ?s a <#{@resource_class}> }")
+
+      contract = Path.join(dir, "cardinality.json")
+
+      File.write!(
+        contract,
+        Jason.encode!(%{
+          "gates" => %{
+            "resources" => %{"mode" => "DERIVED_ROWS", "query_file" => "resources.derived.rq"}
+          }
+        })
+      )
+
+      {output, status} =
+        cmd!(["ggen_igniter.verify", "--pack", @real_pack, "--cardinality", contract, "--json"])
+
+      assert status == 0
+      assert %{"ok" => true, "gates" => %{"status" => "pass"}} = Jason.decode!(output)
+    end
+  end
+
+  describe "invalid invocation" do
+    test "exits 2 when --pack is omitted" do
+      {output, status} = cmd!(["ggen_igniter.verify"])
+      assert status == 2
       assert output == ""
     end
 
-    test "exits 1 when the pack directory does not exist" do
+    test "exits 2 when the pack directory does not exist" do
       {output, status} = cmd!(["ggen_igniter.verify", "--pack", "does/not/exist"])
-      assert status == 1
+      assert status == 2
       assert output == ""
     end
   end

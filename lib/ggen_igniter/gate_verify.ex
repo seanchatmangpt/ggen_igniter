@@ -107,11 +107,16 @@ defmodule GgenIgniter.GateVerify do
       first gate whose row count disagrees with its declared contract.
       `expected` is derived from the graph, `actual` is the gate's real row
       count.
+    * `{:error, {:gate_derived_query, gate_name, message}}` when a DERIVED_ROWS
+      contract's own query fails to execute against the graph. Fail-closed:
+      a contract that cannot derive its count refuses rather than scoring a
+      pass with a number it never computed.
   """
   @spec run(String.t(), String.t(), keyword()) ::
           {:ok, [{String.t(), :pass}]}
           | {:error, {:gate_failed, String.t()}}
           | {:error, {:gate_cardinality, String.t(), non_neg_integer(), non_neg_integer()}}
+          | {:error, {:gate_derived_query, String.t(), String.t()}}
   def run(pack_dir, ontology_path, opts \\ [])
       when is_binary(pack_dir) and is_binary(ontology_path) and is_list(opts) do
     graph = GgenIgniter.Ontology.load!(ontology_path)
@@ -129,6 +134,9 @@ defmodule GgenIgniter.GateVerify do
 
         {:cardinality, expected, actual} ->
           {:halt, {:error, {:gate_cardinality, name, expected, actual}}}
+
+        {:derived_query_error, message} ->
+          {:halt, {:error, {:gate_derived_query, name, message}}}
       end
     end)
     |> case do
@@ -152,10 +160,27 @@ defmodule GgenIgniter.GateVerify do
   defp cardinality_status(_graph, _rows, nil), do: :pass
 
   defp cardinality_status(graph, rows, contract) do
-    expected = length(GgenIgniter.Query.run(graph, contract_query(contract)))
-    actual = length(rows)
+    case derive_expected(graph, contract) do
+      {:ok, expected} ->
+        actual = length(rows)
 
-    if expected == actual, do: :pass, else: {:cardinality, expected, actual}
+        if expected == actual, do: :pass, else: {:cardinality, expected, actual}
+
+      # A DERIVED_ROWS contract whose query does not execute against the real
+      # graph refuses the GATE it annotates, fail-closed -- it never scores a
+      # pass with a count it failed to derive.
+      {:error, message} ->
+        {:derived_query_error, message}
+    end
+  end
+
+  defp derive_expected(graph, contract) do
+    try do
+      {:ok, length(GgenIgniter.Query.run(graph, contract_query(contract)))}
+    rescue
+      e ->
+        {:error, Exception.message(e) || inspect(e.__struct__)}
+    end
   end
 
   # ROWS: one row per subject. Anchored on a class, or -- preferred, see the
@@ -180,6 +205,15 @@ defmodule GgenIgniter.GateVerify do
     "SELECT ?s ?v WHERE { ?s a <#{class}> ; <#{predicate}> ?v }"
   end
 
+  # DERIVED_ROWS: the expected count is not an anchor count but the row count
+  # of an arbitrary contract-declared SELECT against the same graph. The gate
+  # may legitimately emit a JOIN-SHAPED row per something no single (subject,
+  # value) anchor can express -- e.g. one row per (task, property) derived
+  # through a provider join -- so the contract states the derivation itself.
+  # Equality of the two counts is the entire check; either side moving breaks
+  # it, and a query that fails to run refuses rather than passing.
+  defp contract_query(%{mode: :derived_rows, query: query}), do: query
+
   @doc """
   Default cardinality-contract path for `pack_dir`:
   `<pack_dir>/verify/cardinality.json`.
@@ -196,12 +230,23 @@ defmodule GgenIgniter.GateVerify do
   Loads and validates a `verify/cardinality.json` contract file into the
   `%{gate_stem => contract}` map `run/3` accepts.
 
-  Each entry is `{"mode": "ROWS" | "VALUES", ...}` plus exactly one anchor:
+  Each entry is `{"mode": "ROWS" | "VALUES" | "DERIVED_ROWS", ...}`. ROWS and
+  VALUES take exactly one anchor:
 
       {"mode": "ROWS",   "predicate": "<IRI>"}            # preferred
       {"mode": "ROWS",   "class": "<IRI>"}
       {"mode": "VALUES", "predicate": "<IRI>"}            # preferred
       {"mode": "VALUES", "class": "<IRI>", "predicate": "<IRI>"}
+
+  DERIVED_ROWS takes instead exactly one of an inline SPARQL `query` or a
+  `query_file` path (absolute, or relative to the contract file's own
+  directory):
+
+      {"mode": "DERIVED_ROWS", "query": "SELECT ..."}
+      {"mode": "DERIVED_ROWS", "query_file": "task_props.derived.rq"}
+
+  The gate passes only when its row count equals the contract query's row
+  count over the same graph.
 
   Returns `{:ok, map}`, `{:error, {:enoent, path}}` when the file is absent
   (a pack without contracts is legal -- see the ADDITIVE section of this
@@ -218,12 +263,12 @@ defmodule GgenIgniter.GateVerify do
          {:ok, json} <- decode_contract(body, path) do
       json
       |> Map.get("gates", %{})
-      |> Enum.reduce_while({:ok, %{}}, &reduce_contract_entry/2)
+      |> Enum.reduce_while({:ok, %{}}, &reduce_contract_entry(&1, &2, Path.dirname(path)))
     end
   end
 
-  defp reduce_contract_entry({stem, entry}, {:ok, acc}) do
-    case parse_contract(entry) do
+  defp reduce_contract_entry({stem, entry}, {:ok, acc}, contract_dir) do
+    case parse_contract(entry, contract_dir) do
       {:ok, contract} -> {:cont, {:ok, Map.put(acc, stem, contract)}}
       {:error, reason} -> {:halt, {:error, {:invalid_contract, stem, reason}}}
     end
@@ -255,32 +300,65 @@ defmodule GgenIgniter.GateVerify do
   # reader unable to tell which count a mismatch came from, and the two anchors
   # have different blind spots (see this module's docs), so the choice is
   # load-bearing and has to be explicit.
-  defp parse_contract(%{"mode" => "ROWS", "class" => _, "predicate" => _}) do
+  defp parse_contract(%{"mode" => "ROWS", "class" => _, "predicate" => _}, _dir) do
     {:error, :ambiguous_anchor}
   end
 
-  defp parse_contract(%{"mode" => "ROWS", "class" => class}) when is_binary(class) do
+  defp parse_contract(%{"mode" => "ROWS", "class" => class}, _dir) when is_binary(class) do
     {:ok, %{mode: :rows, anchor: {:class, class}}}
   end
 
-  defp parse_contract(%{"mode" => "ROWS", "predicate" => predicate}) when is_binary(predicate) do
+  defp parse_contract(%{"mode" => "ROWS", "predicate" => predicate}, _dir)
+       when is_binary(predicate) do
     {:ok, %{mode: :rows, anchor: {:predicate, predicate}}}
   end
 
-  defp parse_contract(%{"mode" => "VALUES", "class" => class, "predicate" => predicate})
+  defp parse_contract(%{"mode" => "VALUES", "class" => class, "predicate" => predicate}, _dir)
        when is_binary(class) and is_binary(predicate) do
     {:ok, %{mode: :values, anchor: {:class_predicate, class, predicate}}}
   end
 
-  defp parse_contract(%{"mode" => "VALUES", "predicate" => predicate})
+  defp parse_contract(%{"mode" => "VALUES", "predicate" => predicate}, _dir)
        when is_binary(predicate) do
     {:ok, %{mode: :values, anchor: {:predicate, predicate}}}
   end
 
-  defp parse_contract(%{"mode" => "ROWS"}), do: {:error, :missing_anchor}
-  defp parse_contract(%{"mode" => "VALUES"}), do: {:error, :missing_predicate}
-  defp parse_contract(%{"mode" => _}), do: {:error, :unknown_mode}
-  defp parse_contract(_), do: {:error, :missing_mode}
+  # DERIVED_ROWS: the expected count is the row count of a contract-declared
+  # QUERY, not of an anchor pattern. Exactly one of "query" (inline SPARQL) or
+  # "query_file" (path, absolute or relative to the contract file's directory
+  # -- i.e. `<pack>/verify/`) must be present; a relative query_file is
+  # resolved and read HERE, at load time, so a missing file is a typed
+  # contract refusal before any gate runs, and `run/3` only ever sees a
+  # ready-to-execute query string.
+  defp parse_contract(%{"mode" => "DERIVED_ROWS", "query" => query, "query_file" => _}, _dir)
+       when is_binary(query),
+       do: {:error, :ambiguous_query}
+
+  defp parse_contract(%{"mode" => "DERIVED_ROWS", "query" => query}, _dir)
+       when is_binary(query) do
+    {:ok, %{mode: :derived_rows, query: query}}
+  end
+
+  defp parse_contract(%{"mode" => "DERIVED_ROWS", "query_file" => file}, contract_dir)
+       when is_binary(file) do
+    path = if Path.type(file) == :absolute, do: file, else: Path.expand(file, contract_dir)
+
+    case File.read(path) do
+      {:ok, query} -> {:ok, %{mode: :derived_rows, query: query}}
+      {:error, :enoent} -> {:error, {:query_file_missing, path}}
+      {:error, reason} -> {:error, {:query_file_unreadable, path, reason}}
+    end
+  end
+
+  defp parse_contract(%{"mode" => "DERIVED_ROWS"}, _dir), do: {:error, :missing_query}
+  defp parse_contract(%{"mode" => "DERIVED_ROWS", "query" => _}, _dir), do: {:error, :invalid_query}
+  defp parse_contract(%{"mode" => "DERIVED_ROWS", "query_file" => _}, _dir),
+    do: {:error, :invalid_query_file}
+
+  defp parse_contract(%{"mode" => "ROWS"}, _dir), do: {:error, :missing_anchor}
+  defp parse_contract(%{"mode" => "VALUES"}, _dir), do: {:error, :missing_predicate}
+  defp parse_contract(%{"mode" => _}, _dir), do: {:error, :unknown_mode}
+  defp parse_contract(_, _dir), do: {:error, :missing_mode}
 
   @doc """
   Discovers every `<pack_dir>/verify/*.unbound.rq` inverted companion query,

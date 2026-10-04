@@ -219,6 +219,12 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
           "  gates: FAILED -- gate #{inspect(name)} emitted #{actual} row(s), " <>
             "contract expects #{expected} (a conjunct dropped an individual)"
         )
+
+      {:error, {:gate_derived_query, name, message}} ->
+        shell.error(
+          "  gates: FAILED -- gate #{inspect(name)}'s DERIVED_ROWS contract query " <>
+            "did not execute: #{message}"
+        )
     end
 
     case unbound_result do
@@ -270,6 +276,15 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
       "gate" => name,
       "expected" => expected,
       "actual" => actual,
+      "passed" => []
+    }
+  end
+
+  defp gate_json({:error, {:gate_derived_query, name, message}}) do
+    %{
+      "status" => "gate_derived_query",
+      "gate" => name,
+      "message" => message,
       "passed" => []
     }
   end
