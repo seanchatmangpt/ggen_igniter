@@ -330,6 +330,17 @@ numbered list of all 17 checks and exactly which ones `--fix` can repair, or
 [`docs/operations/debugging.md`](docs/operations/debugging.md) for a
 practical triage playbook.
 
+## `mix pm4pytest` wrapper
+
+Thin passthrough to the standalone `pm4pytest` binary (IEEE OCEL v2
+conformance, OCPQ, temporal SLA — from ggen-marketplace's
+`packages/pm4pytest`): `mix pm4pytest <args>` execs it with all args via a
+real subprocess and exits with the child's exit code. Binary resolution:
+`PM4PYTEST_BIN` (must exist on disk) → `pm4pytest` on PATH → refused with
+[`REFUSED:PM4PYTEST_BINARY_NOT_FOUND`](docs/reference/refusals.md) (family
+`hand_authored`, retryable, `broken_term: R_missing_replay`, exit 2). See
+`lib/mix/tasks/pm4pytest.ex`.
+
 ## Testing
 
 ### `mix e2e`

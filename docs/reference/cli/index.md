@@ -134,6 +134,9 @@ live in each module's `schema:`/moduledoc)
   ALIVE; ALIVE stays xaas-fabric-only); refusals carry
   `{"standing","reason","broken_term","hop","detail"}` and write
   `refused.json` under `--out-dir`; exits 0/1/2.
+- `mix pm4pytest <args>` — passthrough to the standalone `pm4pytest` binary
+  (`PM4PYTEST_BIN` → PATH → `REFUSED:PM4PYTEST_BINARY_NOT_FOUND`, exit = the
+  child's exit code).
 - `mix ggen_igniter.sa2a.evidence PATH` — admits an authority-free SA2A
   semantic-evidence envelope (`sa2a.semantic-evidence-envelope.v1`): reads the
   envelope at PATH, prints the typed reference JSON, and raises a typed refusal
