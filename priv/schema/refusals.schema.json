@@ -139,6 +139,7 @@
         "PACK_SYMLINK_ESCAPE",
         "PACK_VERIFY_FAILED",
         "PATH_ESCAPES_ROOT",
+        "PM4PYTEST_BINARY_NOT_FOUND",
         "PRE_EPOCH_RECEIPT",
         "PROJECT_MANUFACTURER",
         "PROVENANCE_MISMATCH",
@@ -487,6 +488,15 @@
       "example": "REFUSED:DUPLICATE_WORK_ORDER subject: detail"
     },
     {
+      "code": "ENGINE_COMPARISON_DIVERGENT",
+      "family": "engine_comparison",
+      "retryable": false,
+      "owner": "Mix.Tasks.GgenIgniter.Sync",
+      "fix_hint": "Engines disagreed on row-set for a named --query. Inspect the --engine-report output, fix the query or the disagreeing engine artifact, then rerun.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:ENGINE_COMPARISON_DIVERGENT engines oxigraph vs graphlaw disagree on row-set -- refusing to render from divergent evidence"
+    },
+    {
       "code": "ENTERPRISE_ARCHITECTURE",
       "family": "typed_tuple",
       "retryable": false,
@@ -584,15 +594,6 @@
       "fix_hint": "Run mix ggen_igniter.epoch.watermark and pass --epoch-manifest.",
       "broken_term": "R_missing_identity",
       "example": "REFUSED:EPOCH_WATERMARK_UNAVAILABLE order-1"
-    },
-    {
-      "code": "ENGINE_COMPARISON_DIVERGENT",
-      "family": "engine_comparison",
-      "retryable": false,
-      "owner": "Mix.Tasks.GgenIgniter.Sync",
-      "fix_hint": "Engines disagreed on row-set for a named --query. Inspect the --engine-report output, fix the query or the disagreeing engine artifact, then rerun.",
-      "broken_term": "mu_unlawful",
-      "example": "REFUSED:ENGINE_COMPARISON_DIVERGENT engines oxigraph vs graphlaw disagree on row-set -- refusing to render from divergent evidence"
     },
     {
       "code": "EXTENSION_SCHEMA",
@@ -1090,6 +1091,15 @@
       "example": "REFUSED:PATH_ESCAPES_ROOT <inspect(reason)>"
     },
     {
+      "code": "PM4PYTEST_BINARY_NOT_FOUND",
+      "family": "hand_authored",
+      "retryable": true,
+      "owner": "Mix.Tasks.GgenIgniter.Pm4pytest",
+      "fix_hint": "Install the PM4Py CLI binary and point PM4PYTEST_BINARY at it.",
+      "broken_term": "R_missing_replay",
+      "example": "REFUSED:PM4PYTEST_BINARY_NOT_FOUND binary=pm4pytest detail"
+    },
+    {
       "code": "PRE_EPOCH_RECEIPT",
       "family": "epoch_verdict",
       "retryable": false,
@@ -1216,6 +1226,33 @@
       "example": "REFUSED:SHA_UNCOMPUTABLE <detail>"
     },
     {
+      "code": "SOVEREIGN",
+      "family": "sovereign_lease",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.SovereignLease",
+      "fix_hint": "Fix the lease the wrapped reason names: at least 2 distinct EdDSA signers, all signatures verifying, and a real ontology digest delta from the current pack digest.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:SOVEREIGN insufficient_signatures"
+    },
+    {
+      "code": "SOVEREIGN_LEASE_INVALID",
+      "family": "sovereign_lease",
+      "retryable": false,
+      "owner": "Mix.Tasks.SemanticJira.AdmitCandidates",
+      "fix_hint": "Re-sign the canonical lease bytes with the configured --sovereign-keys signers and grant over a real ontology digest delta, never an unchanged digest.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:SOVEREIGN_LEASE_INVALID signature_invalid"
+    },
+    {
+      "code": "SOVEREIGN_LEASE_REQUIRED",
+      "family": "sovereign_lease",
+      "retryable": true,
+      "owner": "Mix.Tasks.SemanticJira.AdmitCandidates",
+      "fix_hint": "Mint a SovereignLease carrying >= 2 EdDSA signatures from >= 2 distinct signers and present it in the candidate's sovereign_lease field.",
+      "broken_term": "R_missing_authority",
+      "example": "REFUSED:SOVEREIGN_LEASE_REQUIRED candidate carries no sovereign_lease"
+    },
+    {
       "code": "STALE_OUTPUTS",
       "family": "typed_tuple",
       "retryable": false,
@@ -1271,24 +1308,6 @@
       "example": "REFUSED:SUBJECT_PREFIX_UNDECLARED <detail>"
     },
     {
-      "code": "TRANSITION",
-      "family": "typed_tuple",
-      "retryable": false,
-      "owner": "GgenIgniter.SemanticJira",
-      "fix_hint": "Present a genuine intent: its transition_digest must re-derive (intent_digest_mismatch), its from must equal the current standing (stale_intent) and bind the work-order digest (intent_not_bound_to_work_order).",
-      "broken_term": "R_missing_standing",
-      "example": "REFUSED:TRANSITION <inspect(reason)>"
-    },
-    {
-      "code": "TRANSITION_UNKNOWN_STATE",
-      "family": "state_machine",
-      "retryable": false,
-      "owner": "GgenIgniter.Packs.StateMachine",
-      "fix_hint": "Declare the from/to/initial state as an sm:State of the same machine, or correct the transition's state name.",
-      "broken_term": "mu_on_O",
-      "example": "REFUSED:TRANSITION_UNKNOWN_STATE <detail>"
-    },
-    {
       "code": "TARGET_PACK_MISMATCH",
       "family": "semantic_work_order",
       "retryable": false,
@@ -1305,6 +1324,24 @@
       "fix_hint": "Create the pack at priv/ggen/<name> (cwd-relative) or pass --pack-dir with a real pack directory.",
       "broken_term": "R_missing_identity",
       "example": "REFUSED:TARGET_PACK_UNKNOWN pack=demo-pack work_order=SJ-001"
+    },
+    {
+      "code": "TRANSITION",
+      "family": "typed_tuple",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira",
+      "fix_hint": "Present a genuine intent: its transition_digest must re-derive (intent_digest_mismatch), its from must equal the current standing (stale_intent) and bind the work-order digest (intent_not_bound_to_work_order).",
+      "broken_term": "R_missing_standing",
+      "example": "REFUSED:TRANSITION <inspect(reason)>"
+    },
+    {
+      "code": "TRANSITION_UNKNOWN_STATE",
+      "family": "state_machine",
+      "retryable": false,
+      "owner": "GgenIgniter.Packs.StateMachine",
+      "fix_hint": "Declare the from/to/initial state as an sm:State of the same machine, or correct the transition's state name.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:TRANSITION_UNKNOWN_STATE <detail>"
     },
     {
       "code": "UNADMITTED",
@@ -1432,33 +1469,6 @@
       "fix_hint": "The work order on disk no longer matches the digest recorded in the package; rebuild the execution package from the current work order.",
       "broken_term": "R_missing_identity",
       "example": "REFUSED:WORK_ORDER_DRIFT <detail>"
-    },
-    {
-      "code": "SOVEREIGN_LEASE_REQUIRED",
-      "family": "sovereign_lease",
-      "retryable": true,
-      "owner": "Mix.Tasks.SemanticJira.AdmitCandidates",
-      "fix_hint": "Mint a SovereignLease carrying >= 2 EdDSA signatures from >= 2 distinct signers and present it in the candidate's sovereign_lease field.",
-      "broken_term": "R_missing_authority",
-      "example": "REFUSED:SOVEREIGN_LEASE_REQUIRED candidate carries no sovereign_lease"
-    },
-    {
-      "code": "SOVEREIGN_LEASE_INVALID",
-      "family": "sovereign_lease",
-      "retryable": false,
-      "owner": "Mix.Tasks.SemanticJira.AdmitCandidates",
-      "fix_hint": "Re-sign the canonical lease bytes with the configured --sovereign-keys signers and grant over a real ontology digest delta, never an unchanged digest.",
-      "broken_term": "R_missing_authority",
-      "example": "REFUSED:SOVEREIGN_LEASE_INVALID signature_invalid"
-    },
-    {
-      "code": "SOVEREIGN",
-      "family": "sovereign_lease",
-      "retryable": false,
-      "owner": "GgenIgniter.SemanticJira.SovereignLease",
-      "fix_hint": "Fix the lease the wrapped reason names: at least 2 distinct EdDSA signers, all signatures verifying, and a real ontology digest delta from the current pack digest.",
-      "broken_term": "R_missing_authority",
-      "example": "REFUSED:SOVEREIGN insufficient_signatures"
     }
   ],
   "wrapped_reasons": [

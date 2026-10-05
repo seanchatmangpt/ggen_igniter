@@ -27,11 +27,12 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 135 codes (`$defs.code.enum` count cascade: 132 -> 135 —
+The registry holds 136 codes (`$defs.code.enum` count cascade: 132 -> 135 —
 132 pre-existing, `SOVEREIGN_LEASE_REQUIRED` + `SOVEREIGN_LEASE_INVALID` from
 the Sovereign Ceiling Lease law, and `SOVEREIGN` itself as the code the
 exhaustiveness detector forces for the `{:refused_sovereign, reason}` wrapper
-atom) derived from the schema by `GgenIgniter.Refusals.count/0`, never
+atom — then `PM4PYTEST_BINARY_NOT_FOUND` for the pm4pytest runner's missing
+external binary) derived from the schema by `GgenIgniter.Refusals.count/0`, never
 hand-maintained, plus 24 wrapped reasons (unchanged). Regenerate both tables below with:
 
 ```bash
@@ -138,6 +139,7 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `PACK_SYMLINK_ESCAPE` | pack_lock | false | R_missing_identity | `GgenIgniter.PackLock` | A symlink in the pack resolves outside the pack root; replace it with a regular file. |
 | `PACK_VERIFY_FAILED` | verify | false | admission_vacuous | `Mix.Tasks.GgenIgniter.Verify` | A pack gate contract failed under mix ggen_igniter.verify; run it without --json-envelope to see which gate query violated its cardinality contract and fix the pack ontology or query. |
 | `PATH_ESCAPES_ROOT` | typed_tuple | false | mu_unlawful | `GgenIgniter.Reactors.ReconcileReactor` | A rendered output resolves outside the project root; use a relative out-template that stays within the root. |
+| `PM4PYTEST_BINARY_NOT_FOUND` | hand_authored | true | R_missing_replay | `Mix.Tasks.GgenIgniter.Pm4pytest` | Install the PM4Py CLI binary and point PM4PYTEST_BINARY at it. |
 | `PRE_EPOCH_RECEIPT` | epoch_verdict | false | R_missing_standing | `GgenIgniter.EpochFreshness` | Re-run the generator after the watermark so a post-watermark alive receipt lists the file. |
 | `PROJECT_MANUFACTURER` | typed_tuple | false | R_missing_identity | `GgenIgniter.Gall.ProjectManufacturer` | Build the manufacturer only from an alive receipt whose post_run_hash matches the re-hashed files; standing, post_run_hash_missing and projection_drift name the failed check. |
 | `PROVENANCE_MISMATCH` | semantic_jira_input | true | mu_on_O | `GgenIgniter.SemanticJira.Prose` | Correct the proposition's provenance fields. |
