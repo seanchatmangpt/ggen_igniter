@@ -12,11 +12,16 @@ defmodule GgenIgniter.GateVerify do
   `<pack_dir>/gates/*.rq` convention, `priv/ggen/CLAUDE.md`). Each gate query
   is executed for real via `GgenIgniter.Query.run/2` against the regenerated
   ontology graph (`GgenIgniter.Ontology.load!/1`). A gate's pass/fail
-  convention mirrors this pack corpus's own `SELECT DISTINCT` existence-check
-  style (see `priv/ggen/adr-index-pack/gates/010_adrs.rq` and every other
-  pack's `gates/*.rq`): a gate **passes** when its query returns at least one
-  row (the required ontology shape/individual is present), and **fails** when
-  it returns zero rows.
+  convention is the directory it ships in. `gates/*.rq` are witness-reporting:
+  the query's rows are witnesses the ontology must produce, so a gate
+  **passes** on >= 1 row and **fails** on zero rows. `verify/*.unbound.rq`
+  are offender-reporting: the rows are violations the query surfaces, so they
+  **pass** on zero rows and **fail** on >= 1 row; they are scored by
+  `mix ggen_igniter.verify` through the pack's `verify/cardinality.json`
+  contract, not by this module. This is ADR 0010
+  (`docs/architecture/adr/0010-gate-convention-directory-is-convention.md`);
+  an offender-shaped query placed in `gates/` scores inverted -- ship it in
+  `verify/` with a cardinality contract instead.
 
   Never a single aggregate boolean: `run/3` returns a typed, per-gate
   `[{gate_name, :pass | :fail}]` list on full success, or a typed refusal
