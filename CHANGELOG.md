@@ -43,6 +43,25 @@ clean-room build.
 - **Added** `semantic-jira-pack` gate 065 (target-pack contract) and gate 066
   (strictly monotonic evolution); pack ontology carries the new event
   vocabulary.
+- **Added** `two-port-pack` HILT binding DEFAULT ON; `utp:hilt false` is the
+  documented compat escape (3c22220).
+- **Added** strict-profile STOP witnesses in config: the durable block is
+  ready, the profile itself is explicitly not (b83d604).
+- **Changed** the semantic-jira legacy digest window: SHRUNK, with removal
+  milestone v26.11.1 (3a154ae).
+- **Changed** all refusal emitters to emit the canonical `REFUSED:<CODE>`
+  form; legacy parse shapes removed (67961c7).
+- **Removed** `to_prd_status/1`, superseded by the fleet-R v2 projection
+  (8e577a5).
+- **Fixed** the prov report is shape-checked: the report now names the pack
+  shapes checked (`shapes_checked`) (c49c53f).
+- **Fixed** `mix credo` zero: 15 behavior-preserving fixes plus 7
+  law-commented exemptions (a404697).
+- **Fixed** the receipts-check command citation to the module fn (not a mix
+  task), plus v26.10.2 release notes, glossary dedup, and the HANDWRITTEN
+  ledger 52 -> 51 (d0c7e47, 9df5ae3).
+- **Added** the toolchain pin `elixir 1.19.5-otp-27` (pinned re-qualification
+  R2-GI-PIN) (4d54c19).
 - **Fixed** strict formatter cleanliness: `mix format --check-formatted` is
   clean again across lib and test (cb378ea).
 
