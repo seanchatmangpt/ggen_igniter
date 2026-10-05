@@ -264,15 +264,20 @@ defmodule GgenIgniter.Engine.Graphlaw do
 
   defp existing(path), do: if(File.exists?(path), do: path, else: nil)
 
+  # Typed boot refusal: the registry code lives in priv/schema/refusals.schema.json
+  # (`GRAPHLAW_WASM_ARTIFACT_MISSING`); canonical text form `REFUSED:<CODE> <detail>`.
+  @refusal_code "GRAPHLAW_WASM_ARTIFACT_MISSING"
+
   defp read_wasm!(path) do
     unless File.exists?(path) do
       raise RuntimeError,
         message:
-          "ggen_igniter: graphlaw wasm artifact not found at #{path} -- " <>
-            "point Application env :ggen_igniter, :graphlaw_wasm_path at an existing " <>
-            "artifact, download the checksummed graphlaw.wasm from a graphlaw GitHub " <>
-            "release (expected sha256 #{@wasm_sha256}), or build it with " <>
-            "`cd ~/graphlaw && cargo build --target wasm32-wasip1 -p graphlaw-wasm --release`"
+          "REFUSED:#{@refusal_code} path=#{path} -- " <>
+            "fix_hint: build via " <>
+            "`cd ~/graphlaw && cargo build --target wasm32-wasip1 -p graphlaw-wasm --release`, " <>
+            "or point Application env :ggen_igniter, :graphlaw_wasm_path at an existing " <>
+            "artifact, or download the checksummed graphlaw.wasm (expected sha256 " <>
+            "#{@wasm_sha256}) from a graphlaw GitHub release"
     end
 
     File.read!(path)

@@ -93,6 +93,7 @@
         "GATE_SCRIPT_NOT_FOUND",
         "GENERATED_ARTIFACT_MUTATED",
         "GENERATIONAL_RESILIENCE",
+        "GRAPHLAW_WASM_ARTIFACT_MISSING",
         "GOAL_INCOMPLETE",
         "GOAL_ROOT",
         "INITIAL_STATE_MISSING",
@@ -675,6 +676,15 @@
       "fix_hint": "Fix the resilience profile: map-shaped, two distinct generations with valid ids and digests, all required fields, and known techniques with map policies.",
       "broken_term": "mu_on_O",
       "example": "REFUSED:GENERATIONAL_RESILIENCE <inspect(reason)>"
+    },
+    {
+      "code": "GRAPHLAW_WASM_ARTIFACT_MISSING",
+      "family": "graphlaw_engine",
+      "retryable": true,
+      "owner": "GgenIgniter.Engine.Graphlaw",
+      "fix_hint": "Build via `cd ~/graphlaw && cargo build --target wasm32-wasip1 -p graphlaw-wasm --release`, or set Application env :ggen_igniter, :graphlaw_wasm_path to an existing artifact.",
+      "broken_term": "R_missing_replay",
+      "example": "REFUSED:GRAPHLAW_WASM_ARTIFACT_MISSING path=priv/graphlaw_wasm.wasm"
     },
     {
       "code": "GOAL_INCOMPLETE",

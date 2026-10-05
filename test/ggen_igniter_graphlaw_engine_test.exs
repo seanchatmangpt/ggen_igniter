@@ -47,15 +47,17 @@ defmodule GgenIgniter.GraphlawEngineTest do
       assert turtle =~ "ex:knows ex:bob"
     end
 
-    test "raises a clear, typed RuntimeError naming the path when the artifact is missing" do
-      bogus = Path.expand("/tmp/does-not-exist-graphlaw.wasm")
+    test "raises the typed REFUSED:GRAPHLAW_WASM_ARTIFACT_MISSING refusal with a fix_hint when the artifact is missing" do
+      bogus = Path.expand("/tmp/does-not-exist-graphlaw-dir/graphlaw_wasm.wasm")
 
       Application.put_env(:ggen_igniter, :graphlaw_wasm_path, bogus)
 
       try do
-        assert_raise RuntimeError, ~r/not found at #{Regex.escape(bogus)}/, fn ->
-          Graphlaw.prepare!(two_triple_graph(), [])
-        end
+        assert_raise RuntimeError,
+                     ~r/^REFUSED:GRAPHLAW_WASM_ARTIFACT_MISSING path=#{Regex.escape(bogus)} -- fix_hint: .+graphlaw_wasm_path/,
+                     fn ->
+                       Graphlaw.prepare!(two_triple_graph(), [])
+                     end
       after
         Application.delete_env(:ggen_igniter, :graphlaw_wasm_path)
       end
