@@ -1,0 +1,466 @@
+---
+to: 'docs/sjira/<%= Regex.replace(~r/[<>" ]+/, version, "") %>/ARD-PRD.ttl'
+mode: file
+sparql:
+  project: |
+    PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    SELECT ?name ?version ?title ?desc ?repo ?base_sha ?ceiling ?horizon ?replay ?stop WHERE {
+      ?p a sj:GoalCheckpoint ;
+         dcterms:hasVersion ?version ;
+         dcterms:identifier ?name ;
+         rdfs:label ?title ;
+         dcterms:description ?desc ;
+         sj:repository ?repo ;
+         sj:baseSha ?base_sha ;
+         sj:authorityCeiling ?ceiling ;
+         sj:evidenceHorizon ?horizon ;
+         sj:replayIdentity ?replay ;
+         sj:stopQuery ?stop .
+    }
+  work_order_subjects: |
+    PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+    SELECT ?work_order WHERE {
+      ?work_order a sj:WorkOrder .
+    }
+  work_orders: |
+    PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    SELECT ?work_order ?id ?title ?description ?repository ?base_sha ?subject
+           ?standing ?evidence_ceiling ?authority_ceiling ?promotion_rule ?replay_identity
+    WHERE {
+      ?work_order a sj:WorkOrder .
+      OPTIONAL { ?work_order dcterms:identifier ?id . }
+      OPTIONAL { ?work_order dcterms:title ?title . }
+      OPTIONAL { ?work_order dcterms:description ?description . }
+      OPTIONAL { ?work_order sj:repository ?repository . }
+      OPTIONAL { ?work_order sj:baseSha ?base_sha . }
+      OPTIONAL { ?work_order sj:subject ?subject . }
+      OPTIONAL { ?work_order sj:standing ?standing . }
+      OPTIONAL { ?work_order sj:evidenceCeiling ?evidence_ceiling . }
+      OPTIONAL { ?work_order sj:authorityCeiling ?authority_ceiling . }
+      OPTIONAL { ?work_order sj:promotionRule ?promotion_rule . }
+      OPTIONAL { ?work_order sj:replayIdentity ?replay_identity . }
+    }
+  properties: |
+    PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+    SELECT ?work_order ?predicate ?value WHERE {
+      ?work_order a sj:WorkOrder .
+      ?work_order ?predicate ?value .
+    }
+  nodes: |
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    SELECT ?node ?label ?description WHERE {
+      ?node rdfs:label ?label ;
+            dcterms:description ?description .
+    }
+  node_types: |
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    SELECT ?node ?type WHERE {
+      ?node rdfs:label ?label ;
+            dcterms:description ?description ;
+            a ?type .
+    }
+  exclusions: |
+    PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    SELECT ?value WHERE {
+      ?p a sj:GoalCheckpoint ;
+         dcterms:hasVersion ?v ;
+         sj:exclusion ?value .
+    }
+  alive_receipt_crown: |
+    PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    SELECT ?work_order ?id WHERE {
+      ?work_order a sj:WorkOrder ;
+                  dcterms:identifier ?id ;
+                  sj:standing "ALIVE" .
+      OPTIONAL { ?work_order sj:candidateSha ?candidate . }
+      OPTIONAL { ?work_order sj:subjectSha ?subject_sha . }
+      OPTIONAL { ?work_order sj:receipt ?receipt . }
+      FILTER(!BOUND(?candidate) || !BOUND(?subject_sha) || !BOUND(?receipt))
+    }
+  description_integrity: |
+    PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    SELECT ?node ?label ?description WHERE {
+      ?node rdfs:label ?label ;
+            dcterms:description ?description .
+      FILTER(
+        ?description = "" ||
+        ?label = "" ||
+        ?description = ?label ||
+        STR(?node) = ?description ||
+        STR(?node) = ?label
+      )
+    }
+---
+<%
+sj = "https://ggen-igniter.dev/ontology/semantic-jira#"
+
+refuse = fn reason ->
+  raise ArgumentError, "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER: #{reason}"
+end
+
+# Term-shape tolerance: `--engine sparql` returns plain strings (IRIs via
+# RDF.IRI.to_string/1, literals via RDF.Literal.value/1); `--engine oxigraph`
+# returns raw N-Triples-style term strings (angle-bracket IRIs, quoted and
+# possibly typed/tagged literals). Normalize BOTH to bare values so the body
+# is engine-agnostic. (The frontmatter `to:` trims its own value.)
+clean = fn
+  v when is_binary(v) ->
+    s = String.trim(v)
+
+    s =
+      if byte_size(s) > 1 and String.starts_with?(s, "<") and String.ends_with?(s, ">") do
+        binary_part(s, 1, byte_size(s) - 2)
+      else
+        s
+      end
+
+    case Regex.run(~r/\A"((?:[^"\\]|\\.)*)"(?:\^\^<[^>]*>|@[A-Za-z-]+)?\z/, s) do
+      [_, inner] -> inner |> String.replace("\\\"", "\"") |> String.replace("\\\\", "\\")
+      _ -> s
+    end
+
+  v -> v
+end
+
+clean_row = fn row ->
+  Map.new(row, fn {k, v} -> {k, if(is_binary(v), do: clean.(v), else: v)} end)
+end
+
+work_order_subjects = Enum.map(work_order_subjects, &clean_row.(&1))
+work_orders = Enum.map(work_orders, &clean_row.(&1))
+properties = Enum.map(properties, &clean_row.(&1))
+nodes = Enum.map(nodes, &clean_row.(&1))
+node_types = Enum.map(node_types || [], &clean_row.(&1))
+exclusions = Enum.map(exclusions || [], &clean_row.(&1))
+
+project =
+  case project do
+    [row] -> clean_row.(row)
+    rows -> refuse.("project query must return exactly one root GoalCheckpoint row; got #{length(rows)}")
+  end
+
+# -- refuse-guards (same law as templates/ard.md.eex) ------------------------
+
+subject_set = work_order_subjects |> Enum.map(& &1["work_order"]) |> Enum.sort()
+
+renderable_set = work_orders |> Enum.map(& &1["work_order"]) |> Enum.sort()
+
+if subject_set != renderable_set do
+  refuse.(
+    "every sj:WorkOrder must resolve to exactly one complete scalar row; " <>
+      "subjects=#{inspect(subject_set)} rows=#{inspect(renderable_set)}"
+  )
+end
+
+ids = Enum.map(work_orders, & &1["id"])
+
+if length(ids) != length(Enum.uniq(ids)) do
+  refuse.("dcterms:identifier must be unique across WorkOrders: #{inspect(ids)}")
+end
+
+replay_identities = Enum.map(work_orders, & &1["replay_identity"])
+
+if length(replay_identities) != length(Enum.uniq(replay_identities)) do
+  refuse.(
+    "sj:replayIdentity must be unique across WorkOrders (shapes/work-order.shacl.ttl): " <>
+      "#{inspect(replay_identities)}"
+  )
+end
+
+Enum.each(alive_receipt_crown, fn violation ->
+  refuse.(
+    "standing ALIVE requires sj:candidateSha, sj:subjectSha, and sj:receipt evidence " <>
+      "(shapes/work-order.shacl.ttl) for #{inspect(violation["id"])}"
+  )
+end)
+
+Enum.each(description_integrity, fn violation ->
+  refuse.(
+    "semantic node #{inspect(violation["node"])} lacks a real description: blank, " <>
+      "self-label, or self-IRI echo carries no semantic content"
+  )
+end)
+
+Enum.each(nodes, fn node ->
+  if String.trim(node["label"]) == "" or String.trim(node["description"]) == "" do
+    refuse.(
+      "semantic node #{inspect(node["node"])} has a blank or whitespace-only " <>
+        "rdfs:label/dcterms:description"
+    )
+  end
+end)
+
+values_for = fn work_order_iri, predicate_iri ->
+  properties
+  |> Enum.filter(fn row ->
+    row["work_order"] == work_order_iri and row["predicate"] == predicate_iri
+  end)
+  |> Enum.sort()
+  |> Enum.map(& &1["value"])
+end
+
+node_for = fn iri -> Enum.find(nodes, &(&1["node"] == iri)) end
+
+core_fields = [
+  "id",
+  "title",
+  "description",
+  "repository",
+  "base_sha",
+  "subject",
+  "standing",
+  "evidence_ceiling",
+  "authority_ceiling",
+  "promotion_rule",
+  "replay_identity"
+]
+
+blank_checked_fields = [
+  "title",
+  "description",
+  "subject",
+  "evidence_ceiling",
+  "promotion_rule",
+  "replay_identity"
+]
+
+required_node_relations = [
+  "requiresCourt",
+  "requiresEvidence",
+  "acceptance",
+  "falsifier",
+  "projection",
+  "nextAction",
+  "nextCheckpoint"
+]
+
+valid_standings = [
+  "UNKNOWN",
+  "PARTIAL_ALIVE",
+  "ALIVE",
+  "BLOCKED",
+  "BUILD_BROKEN",
+  "UNSUPPORTED"
+]
+
+valid_authority_ceilings = ["OBSERVE", "SELECT", "CONSTRUCT"]
+
+Enum.each(work_orders, fn row ->
+  Enum.each(core_fields, fn field ->
+    value = row[field]
+
+    if not is_binary(value) or value == "" do
+      refuse.("missing core field #{field} for #{inspect(row["work_order"])}")
+    end
+  end)
+
+  Enum.each(blank_checked_fields, fn field ->
+    if String.trim(row[field]) == "" do
+      refuse.("blank core field #{field} for #{inspect(row["work_order"])}")
+    end
+  end)
+
+  unless Regex.match?(~r/\A[A-Z][A-Z0-9-]{1,63}\z/, row["id"]) do
+    refuse.("invalid WorkOrder identifier #{inspect(row["id"])}")
+  end
+
+  unless Regex.match?(~r/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/, row["repository"]) do
+    refuse.("invalid repository identity #{inspect(row["repository"])} for #{row["id"]}")
+  end
+
+  unless Regex.match?(~r/\A[0-9a-f]{40}\z/, row["base_sha"]) do
+    refuse.("baseSha must be an exact 40-hex commit SHA for #{row["id"]}")
+  end
+
+  standing = row["standing"]
+
+  refuted_standing =
+    String.starts_with?(standing, "REFUSED(") and String.ends_with?(standing, ")") and
+      byte_size(standing) > 9
+
+  unless standing in valid_standings or refuted_standing do
+    refuse.("invalid standing #{inspect(standing)} for #{row["id"]}")
+  end
+
+  unless row["authority_ceiling"] in valid_authority_ceilings do
+    refuse.(
+      "authority ceiling #{inspect(row["authority_ceiling"])} exceeds Semantic Jira's " <>
+        "OBSERVE/SELECT/CONSTRUCT boundary for #{row["id"]}"
+    )
+  end
+
+  Enum.each(required_node_relations, fn relation ->
+    targets = values_for.(row["work_order"], sj <> relation)
+
+    if targets == [] do
+      refuse.("missing required #{relation} relation for #{row["id"]}")
+    end
+
+    Enum.each(targets, fn target ->
+      if node_for.(target) == nil do
+          refuse.(
+            "#{relation} target #{inspect(target)} for #{row["id"]} lacks " <>
+              "rdfs:label + dcterms:description"
+          )
+        end
+    end)
+  end)
+
+  paths = values_for.(row["work_order"], sj <> "pathScope")
+
+  if paths == [] do
+    refuse.(
+      "missing sj:pathScope evidence-path anchor for #{row["id"]} " <>
+        "(sj:evidencePath is outside shapes/work-order.shacl.ttl's closed property set)"
+    )
+  end
+end)
+
+ttl_text = fn s ->
+  s =
+    s
+    |> String.replace("\\", "\\\\")
+    |> String.replace("\"", "\\\"")
+    |> String.replace("\r\n", "\\n")
+    |> String.replace("\n", "\\n")
+    |> String.replace("\r", "\\n")
+    |> String.replace("\t", " ")
+
+  "\"" <> s <> "\""
+end
+
+type_for = fn iri ->
+  case Enum.find(node_types, &(&1["node"] == iri)) do
+    nil -> nil
+    row -> row["type"]
+  end
+end
+
+sorted = Enum.sort_by(work_orders, &{&1["id"], &1["work_order"]})
+
+emit_goal = fn row ->
+  wo = row["work_order"]
+  rel = fn name -> values_for.(wo, sj <> name) end
+  paths = rel.("pathScope")
+  courts = rel.("requiresCourt")
+  evidence = rel.("requiresEvidence")
+  acceptance = rel.("acceptance")
+  falsifiers = rel.("falsifier")
+  projections = rel.("projection")
+  actions = rel.("nextAction")
+  checkpoints = rel.("nextCheckpoint")
+
+  multi = fn prefix, iris ->
+    Enum.map_join(iris, " ;\n", fn iri -> prefix <> "<" <> iri <> ">" end)
+  end
+
+  lines = [
+    "<#{wo}> a sj:GoalCheckpoint",
+    "    dcterms:identifier #{ttl_text.(row["id"])} ",
+    "    rdfs:label #{ttl_text.(row["title"])} ",
+    "    dcterms:description #{ttl_text.(row["description"])} ",
+    "    sj:repository #{ttl_text.(row["repository"])} ",
+    "    sj:baseSha #{ttl_text.(row["base_sha"])} ",
+    "    sj:subject #{ttl_text.(row["subject"])} ",
+    "    sj:standing #{ttl_text.(row["standing"])} ",
+    "    sj:evidenceCeiling #{ttl_text.(row["evidence_ceiling"])} ",
+    "    sj:authorityCeiling #{ttl_text.(row["authority_ceiling"])} ",
+    "    sj:promotionRule #{ttl_text.(row["promotion_rule"])} ",
+    "    sj:replayIdentity #{ttl_text.(row["replay_identity"])}",
+    Enum.map_join(paths, " ;\n", &("    sj:pathScope " <> ttl_text.(&1))),
+    multi.("    sj:requiresCourt ", courts),
+    multi.("    sj:requiresEvidence ", evidence),
+    multi.("    sj:acceptance ", acceptance),
+    multi.("    sj:falsifier ", falsifiers),
+    multi.("    sj:projection ", projections),
+    multi.("    sj:nextAction ", actions),
+    multi.("    sj:nextCheckpoint ", checkpoints) <> " ."
+  ]
+
+  Enum.join(lines, " ;\n")
+end
+
+goal_bodies = Enum.map(sorted, emit_goal)
+
+has_part_block =
+  sorted
+  |> Enum.map(fn row -> "        <#{row["work_order"]}>" end)
+  |> Enum.join(",\n")
+
+node_bodies =
+  nodes
+  |> Enum.sort_by(& &1["node"])
+  |> Enum.map(fn node ->
+    iri = node["node"]
+
+    type_line =
+      case type_for.(iri) do
+        nil -> ""
+        t -> " a <#{t}> ;"
+      end
+
+    "<#{iri}>#{type_line}\n" <>
+      "    rdfs:label #{ttl_text.(node["label"])} ;\n" <>
+      "    dcterms:description #{ttl_text.(node["description"])} ."
+  end)
+  |> Enum.join("\n\n")
+
+exclusion_block =
+  exclusions
+  |> Enum.map(&String.trim(&1["value"]))
+  |> Enum.sort()
+  |> Enum.map(&("    sj:exclusion " <> ttl_text.(&1)))
+  |> Enum.join(" ;\n")
+
+version = project["version"]
+root_desc = ttl_text.(project["desc"])
+root_stop = ttl_text.(project["stop"])
+prd_ns = "https://ggen-igniter.dev/sjira/" <> version <> "/ard-prd#"
+%>
+# GENERATED by semantic-jira-pack template ard_prd.ttl.eex from the canonical
+# source graph goal.ttl. DO NOT EDIT -- regenerate with:
+#   mix ggen_igniter.sync --engine sparql \
+#     --ontology docs/sjira/<%= version %>/goal.ttl \
+#     --template <pack>/templates/ard_prd.ttl.eex
+# Statements here are requirements and evidence anchors, not self-approval.
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix prd: <<%= prd_ns %>> .
+
+<<%= prd_ns %>ARD-PRD> a sj:GoalCheckpoint ;
+    dcterms:identifier <%= ttl_text.(project["name"]) %> ;
+    rdfs:label <%= ttl_text.(project["title"]) %> ;
+    dcterms:description <%= root_desc %> ;
+    dcterms:hasVersion <%= ttl_text.(version) %> ;
+    sj:repository <%= ttl_text.(project["repo"]) %> ;
+    sj:baseSha <%= ttl_text.(project["base_sha"]) %> ;
+    sj:authorityCeiling <%= ttl_text.(project["ceiling"]) %> ;
+    sj:evidenceHorizon <%= ttl_text.(project["horizon"]) %> ;
+    sj:replayIdentity <%= ttl_text.(project["replay"]) %> ;
+    sj:stopQuery <%= root_stop %> ;
+    dcterms:hasPart
+<%= has_part_block %> ;
+<%= exclusion_block %> .
+
+<%= for body <- goal_bodies do %>
+<%= body %>
+
+<% end %>
+# ── Requirement nodes (courts, evidence, acceptance, falsifiers, ...) ──────
+
+<%= node_bodies %>
+
+# This document states requirements and evidence anchors only. Standing
+# literals are "UNKNOWN" and the authority ceiling is CONSTRUCT: the document
+# itself grants no DO authority, certifies nothing, and approves nothing.
