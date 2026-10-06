@@ -279,6 +279,71 @@ defmodule GgenIgniterGateVerifyTest do
     end
   end
 
+  describe "run/3 :engine opt (SPARQL EXISTS support)" do
+    test "an EXISTS-bearing gate on the default engine is a typed REFUSED:SPARQL_EXISTS_UNSUPPORTED, never a silent wrong answer" do
+      %{class: class, required: required, anchor: anchor} = vocab()
+      [complete] = names(1)
+
+      graph =
+        add_individual(RDF.Graph.new(), complete, class, %{anchor => complete, required => value()})
+
+      pack = scratch_pack("exists_refused", exists_gate(class, anchor))
+      ontology = write_ontology!(pack, graph)
+
+      assert {:error, {:refused, message}} = GateVerify.run(pack, ontology)
+      assert message =~ "REFUSED:SPARQL_EXISTS_UNSUPPORTED"
+      # The refusal points at the opt that fixes it, not just at the failure.
+      assert message =~ ":engine"
+      assert message =~ ":graphlaw"
+    end
+
+    test "engine: :graphlaw scores an EXISTS-bearing gate end to end" do
+      %{class: class, required: required, anchor: anchor} = vocab()
+      [complete, incomplete] = names(2)
+
+      graph =
+        RDF.Graph.new()
+        |> add_individual(complete, class, %{anchor => complete, required => value()})
+        |> add_individual(incomplete, class, %{required => value()})
+
+      pack = scratch_pack("exists_graphlaw", exists_gate(class, anchor))
+      ontology = write_ontology!(pack, graph)
+
+      # The gate anchors on the ANCHOR predicate via FILTER EXISTS, so only
+      # `complete` is a witness: 1 row -> :pass, and the refusal is gone.
+      assert {:ok, [{"things", :pass}]} =
+               GateVerify.run(pack, ontology, engine: :graphlaw)
+    end
+
+    test "a non-EXISTS gate on the default engine is unchanged" do
+      %{class: class, required: required, anchor: anchor} = vocab()
+      [complete] = names(1)
+
+      graph =
+        add_individual(RDF.Graph.new(), complete, class, %{anchor => complete, required => value()})
+
+      pack = scratch_pack("plain_default", conjunctive_gate(class, anchor, required))
+      ontology = write_ontology!(pack, graph)
+
+      assert {:ok, [{"things", :pass}]} = GateVerify.run(pack, ontology)
+    end
+
+    test "an unknown :engine is refused up front" do
+      %{class: class, required: required, anchor: anchor} = vocab()
+      [complete] = names(1)
+
+      graph =
+        add_individual(RDF.Graph.new(), complete, class, %{anchor => complete, required => value()})
+
+      pack = scratch_pack("bad_engine", conjunctive_gate(class, anchor, required))
+      ontology = write_ontology!(pack, graph)
+
+      assert_raise ArgumentError, ~r/invalid :engine/, fn ->
+        GateVerify.run(pack, ontology, engine: :crystal_ball)
+      end
+    end
+  end
+
   # -- helpers ---------------------------------------------------------------
 
   defp real_ontology_path, do: Path.join(@real_pack, "ontology.ttl")
@@ -340,6 +405,18 @@ defmodule GgenIgniterGateVerifyTest do
 
   defp rows_contract(stem, anchor) do
     %{stem => %{mode: :rows, anchor: {:predicate, iri_of(anchor)}}}
+  end
+
+  # A real witness-reporting EXISTS gate of the shape the `sparql` hex package
+  # cannot score: a required conjunct expressed as `FILTER EXISTS`.
+  defp exists_gate(class, anchor) do
+    """
+    SELECT ?s
+    WHERE {
+      ?s a <#{iri_of(class)}> .
+      FILTER EXISTS { ?s <#{iri_of(anchor)}> ?anchor }
+    }
+    """
   end
 
   defp scratch_pack(label, gate_query) do

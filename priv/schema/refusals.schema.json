@@ -158,6 +158,7 @@
         "SOVEREIGN",
         "SOVEREIGN_LEASE_INVALID",
         "SOVEREIGN_LEASE_REQUIRED",
+        "SPARQL_EXISTS_UNSUPPORTED",
         "STALE_OUTPUTS",
         "STANDING_PROJECTION",
         "STATE_DEAD_END",
@@ -685,6 +686,15 @@
       "fix_hint": "Build via `cd ~/graphlaw && cargo build --target wasm32-wasip1 -p graphlaw-wasm --release`, or set Application env :ggen_igniter, :graphlaw_wasm_path to an existing artifact.",
       "broken_term": "R_missing_replay",
       "example": "REFUSED:GRAPHLAW_WASM_ARTIFACT_MISSING path=priv/graphlaw_wasm.wasm"
+    },
+    {
+      "code": "SPARQL_EXISTS_UNSUPPORTED",
+      "family": "gate_verify_engine",
+      "retryable": true,
+      "owner": "GgenIgniter.GateVerify",
+      "fix_hint": "Re-run with the :engine opt: GateVerify.run(pack, ontology, engine: :graphlaw) or engine: :oxigraph -- the default `sparql` hex engine does not support FILTER [NOT] EXISTS.",
+      "broken_term": "R_missing_consequence",
+      "example": "REFUSED:SPARQL_EXISTS_UNSUPPORTED gate=resources -- the default `sparql` engine does not support FILTER [NOT] EXISTS; pass engine: :graphlaw"
     },
     {
       "code": "GOAL_INCOMPLETE",

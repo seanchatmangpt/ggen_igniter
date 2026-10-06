@@ -102,6 +102,13 @@ defmodule GgenIgniter.GateVerify do
       `load_cardinality/1`. Absent (the default), no gate carries a contract
       and behaviour is identical to `run/2`.
 
+    * `:engine` -- `:sparql` (the default, unchanged behaviour),
+      `:oxigraph`, or `:graphlaw`. The `sparql` hex package does not support
+      `FILTER [NOT] EXISTS`; oxigraph and graphlaw do. When an EXISTS-bearing
+      gate query is run on the default engine, `run/3` refuses with a typed
+      `REFUSED:SPARQL_EXISTS_UNSUPPORTED` naming the `:engine` opt instead of
+      returning a silently wrong answer.
+
   Returns:
 
     * `{:ok, [{gate_name, :pass}, ...]}` when every gate passes -- a real,
@@ -112,20 +119,29 @@ defmodule GgenIgniter.GateVerify do
       first gate whose row count disagrees with its declared contract.
       `expected` is derived from the graph, `actual` is the gate's real row
       count.
+    * `{:error, {:refused, message}}` where `message` starts with
+      `REFUSED:SPARQL_EXISTS_UNSUPPORTED` when an EXISTS-bearing gate hits
+      the default `:sparql` engine.
   """
   @spec run(String.t(), String.t(), keyword()) ::
           {:ok, [{String.t(), :pass}]}
           | {:error, {:gate_failed, String.t()}}
           | {:error, {:gate_cardinality, String.t(), non_neg_integer(), non_neg_integer()}}
+          | {:error, {:refused, String.t()}}
   def run(pack_dir, ontology_path, opts \\ [])
       when is_binary(pack_dir) and is_binary(ontology_path) and is_list(opts) do
     graph = GgenIgniter.Ontology.load!(ontology_path)
     contracts = Keyword.get(opts, :cardinality, %{})
+    engine = Keyword.get(opts, :engine, :sparql)
+    engine_module = GgenIgniter.Engine.fetch!(engine_name(engine))
+    # Per-run, not per-gate: graphlaw's wasm instantiation is expensive and
+    # the other engines' prepare!/2 is the identity.
+    engine_context = engine_module.prepare!(graph, [])
 
     pack_dir
     |> GgenIgniter.Pack.discover_queries()
     |> Enum.reduce_while([], fn {name, path}, acc ->
-      case gate_status(graph, path, Map.get(contracts, name)) do
+      case gate_status(engine, engine_context, path, Map.get(contracts, name)) do
         :pass ->
           {:cont, [{name, :pass} | acc]}
 
@@ -134,6 +150,9 @@ defmodule GgenIgniter.GateVerify do
 
         {:cardinality, expected, actual} ->
           {:halt, {:error, {:gate_cardinality, name, expected, actual}}}
+
+        {:refused, message} ->
+          {:halt, {:error, {:refused, message}}}
       end
     end)
     |> case do
@@ -142,22 +161,60 @@ defmodule GgenIgniter.GateVerify do
     end
   end
 
-  defp gate_status(graph, query_path, contract) do
-    rows = GgenIgniter.Query.run(graph, File.read!(query_path))
+  defp engine_name(engine) when engine in [:sparql, :oxigraph, :graphlaw],
+    do: Atom.to_string(engine)
 
-    # The zero-rows check stays FIRST and unchanged, so a pack that fails today
-    # keeps failing with the same `:gate_failed` shape rather than acquiring a
-    # new error type as a side effect of gaining a contract.
-    case rows do
-      [] -> :fail
-      [_ | _] -> cardinality_status(graph, rows, contract)
+  defp engine_name(other) do
+    raise ArgumentError,
+      message:
+        "invalid :engine #{inspect(other)}, must be one of: :sparql, :oxigraph, :graphlaw"
+  end
+
+  defp gate_status(engine, engine_context, query_path, contract) do
+    query = File.read!(query_path)
+
+    case run_query(engine, engine_context, query) do
+      {:refused, _} = refused ->
+        refused
+
+      # The zero-rows check stays FIRST and unchanged, so a pack that fails
+      # today keeps failing with the same `:gate_failed` shape rather than
+      # acquiring a new error type as a side effect of gaining a contract.
+      {:ok, []} ->
+        :fail
+
+      {:ok, [_ | _] = rows} ->
+        cardinality_status(engine, engine_context, rows, contract)
     end
   end
 
-  defp cardinality_status(_graph, _rows, nil), do: :pass
+  # `:sparql` (the `sparql` hex package) does not implement `FILTER [NOT]
+  # EXISTS` -- an EXISTS gate cannot be scored truthfully on the default
+  # engine, so it is a typed refusal pointing at the `:engine` opt, never a
+  # silently wrong score.
+  @exists_regex ~r/\bFILTER\s+(?:NOT\s+)?EXISTS\b/i
 
-  defp cardinality_status(graph, rows, contract) do
-    expected = length(GgenIgniter.Query.run(graph, contract_query(contract)))
+  defp run_query(:sparql, engine_context, query) do
+    if Regex.match?(@exists_regex, query) do
+      {:refused,
+       "REFUSED:SPARQL_EXISTS_UNSUPPORTED -- the default `sparql` engine does not " <>
+         "support FILTER [NOT] EXISTS, so the gate cannot be scored truthfully. " <>
+         "Re-run with the :engine opt: GateVerify.run(pack, ontology, engine: :graphlaw) " <>
+         "or engine: :oxigraph."}
+    else
+      {:ok, GgenIgniter.Query.run(engine_context, query)}
+    end
+  end
+
+  defp run_query(engine, engine_context, query) do
+    {:ok, GgenIgniter.Engine.fetch!(Atom.to_string(engine)).run(engine_context, query)}
+  end
+
+  defp cardinality_status(_engine, _ctx, _rows, nil), do: :pass
+
+  defp cardinality_status(engine, engine_context, rows, contract) do
+    {:ok, contract_rows} = run_query(engine, engine_context, contract_query(contract))
+    expected = length(contract_rows)
     actual = length(rows)
 
     if expected == actual, do: :pass, else: {:cardinality, expected, actual}

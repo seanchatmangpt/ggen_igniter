@@ -27,13 +27,15 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 137 codes (`$defs.code.enum` count cascade: 132 -> 135 —
+The registry holds 138 codes (`$defs.code.enum` count cascade: 132 -> 135 —
 132 pre-existing, `SOVEREIGN_LEASE_REQUIRED` + `SOVEREIGN_LEASE_INVALID` from
 the Sovereign Ceiling Lease law, and `SOVEREIGN` itself as the code the
 exhaustiveness detector forces for the `{:refused_sovereign, reason}` wrapper
 atom — then `PM4PYTEST_BINARY_NOT_FOUND` for the pm4pytest runner's missing
 external binary, then `GRAPHLAW_WASM_ARTIFACT_MISSING` for the graphlaw
-engine's missing wasm artifact boot refusal) derived from the schema by
+engine's missing wasm artifact boot refusal, then
+`SPARQL_EXISTS_UNSUPPORTED` for GateVerify's typed refusal when an
+EXISTS-bearing gate query hits the default `sparql` engine) derived from the schema by
 `GgenIgniter.Refusals.count/0`, never hand-maintained, plus 24 wrapped reasons
 (unchanged). Regenerate both tables below with:
 
@@ -160,6 +162,7 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `SOVEREIGN` | sovereign_lease | false | R_missing_authority | `GgenIgniter.SemanticJira.SovereignLease` | Fix the lease the wrapped reason names: at least 2 distinct EdDSA signers, all signatures verifying, and a real ontology digest delta from the current pack digest. |
 | `SOVEREIGN_LEASE_INVALID` | sovereign_lease | false | R_missing_authority | `Mix.Tasks.SemanticJira.AdmitCandidates` | Re-sign the canonical lease bytes with the configured --sovereign-keys signers and grant over a real ontology digest delta, never an unchanged digest. |
 | `SOVEREIGN_LEASE_REQUIRED` | sovereign_lease | true | R_missing_authority | `Mix.Tasks.SemanticJira.AdmitCandidates` | Mint a SovereignLease carrying >= 2 EdDSA signatures from >= 2 distinct signers and present it in the candidate's sovereign_lease field. |
+| `SPARQL_EXISTS_UNSUPPORTED` | gate_verify_engine | true | R_missing_consequence | `GgenIgniter.GateVerify` | Re-run with the :engine opt: GateVerify.run(pack, ontology, engine: :graphlaw) or engine: :oxigraph -- the default `sparql` hex engine does not support FILTER [NOT] EXISTS. |
 | `STALE_OUTPUTS` | typed_tuple | false | mu_unlawful | `GgenIgniter.Reactors.ReconcileReactor` | Previously generated outputs are no longer produced; rerun with --on-stale prune or preserve, or restore the template that produced them. |
 | `STANDING_PROJECTION` | typed_tuple | false | R_missing_standing | `GgenIgniter.SemanticJira` | project_standing takes a list of admitted transition events; repair the event named in the reason so standing re-derives. |
 | `STATE_DEAD_END` | state_machine | false | mu_on_O | `GgenIgniter.Packs.StateMachine` | Give the non-terminal state an outgoing sm:Transition, or mark it sm:terminal true. |
