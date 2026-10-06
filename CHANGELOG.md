@@ -8,6 +8,36 @@ Released 2026-10-03.
   files (`test/ggen_igniter_semantic_jira_transition_log_concurrency_test.exs`,
   `lib/ggen_igniter/semantic_jira/prov_events.ex`); `mix format
   --check-formatted` (the CI build gate) is clean at HEAD.
+- **Added** ADR 0010, the gate directory convention: a gate's pass/fail
+  convention is the directory it ships in — `gates/*.rq` are witness-reporting
+  (`>= 1` row = PASS, `0` = FAIL, scored in-repo); `verify/*.unbound.rq` are
+  offender-reporting (`0` rows = PASS, `>= 1` = FAIL, scored by
+  `mix ggen_igniter.verify` through each pack's `verify/cardinality.json`
+  contract) (9690f9d).
+- **Fixed** the gate_verify moduledoc per ADR 0010's required docstring change
+  (directory-is-convention, no behavior change); with the pack re-home half
+  already landed in ash_pplan 0523ad9, the recounted misfiled gate inventory
+  is 0 (f754170).
+- **Added** the `mix pm4pytest` passthrough wrapper (9e581cf) with the
+  `PM4PYTEST_BINARY_NOT_FOUND` refusal registered in the refusal enum
+  (831eaa0); documented in the README (7907a21).
+- **Removed** the unrenderable `ard_prd` draft from semantic-jira-pack: its
+  project query matches no shipped or intended GoalCheckpoint graph; recoverable
+  at 9690f9d. Clears the permanent PackHealth failure (ed704ba).
+- **Added** the typed `REFUSED:GRAPHLAW_WASM_ARTIFACT_MISSING` boot refusal:
+  when the graphlaw wasm artifact resolution chain misses
+  (`:graphlaw_wasm_path` -> packaged `priv/graphlaw_wasm.wasm` -> dev default),
+  `prepare!/2` raises the registry-typed refusal with a fix_hint instead of an
+  untyped RuntimeError; registered in `priv/schema/refusals.schema.json`
+  (family `graphlaw_engine`, retryable, broken_term `R_missing_replay`),
+  refusals count 136 -> 137 (56f79e9).
+- **Added** the permanent skip-guarded receipt-schema currency court
+  (`test/receipts_schema_currency_test.exs`): a real-projection court asserting
+  every `~/.claude/dfcm/receipt.schema.json` required field is emitted by
+  `RProjection.build/7` (5a17aad).
+- **Changed** `.gitignore` to exclude the oclnr audit cache (0175528).
+- **Added** the machine handoff / next-obligations context document for
+  `feat/adr-0010-gate-convention` (8908571).
 
 ## v26.10.4
 
