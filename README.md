@@ -603,6 +603,21 @@ real success receipt and a real compensated-failure receipt, and
    0) or directly from `lifecycle_test.ex` line 102, before the first real
    `mix compile`.
 
+## Typed refusal & engine-limit notes
+
+- **`REFUSED:GRAPHLAW_WASM_ARTIFACT_MISSING`** (56f79e9): when the graphlaw
+  wasm resolution chain misses (`:graphlaw_wasm_path` → packaged
+  `priv/graphlaw_wasm.wasm` → dev default), `Graphlaw.prepare!/2` raises this
+  registry-typed refusal (family `graphlaw_engine`, retryable,
+  `R_missing_replay`) with a `fix_hint` — see `priv/schema/refusals.schema.json`
+  and `docs/reference/refusals.md` (137 codes).
+- **`verify/cardinality.json` — ENGINE-LIMIT (blocked).** `sparql` 0.3.12
+  raises `Protocol.UndefinedError` on `FILTER NOT EXISTS` + `BIND(constant)`
+  inside `UNION` (pinned in `test/ash_r2rml_gate_integration_test.exs`);
+  escape hatches: `lib/ggen_igniter/query/qlever.ex` / `oxigraph.ex`.
+  Full-fidelity cardinality verification is deferred until lifted — tracked
+  in `ECO-UPSTREAM-IGNITER-FIXES.md` and ADR 0010.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) (fresh clone to green fast lane to PR),
