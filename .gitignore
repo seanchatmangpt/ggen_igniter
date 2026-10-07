@@ -64,3 +64,10 @@ tmp/
 /agent..ttl.*
 /noagent..ttl.*
 /neg_*
+__pycache__/
+
+# lane-lease build roots (fan-out campaign)
+node_modules/
+.DS_Store
+_build-lane*/
+target-lane*/
