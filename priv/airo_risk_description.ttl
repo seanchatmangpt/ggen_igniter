@@ -1,0 +1,182 @@
+# AIRo risk description for ggen_igniter (lane W618, AIRo wiring wave).
+# Vocabulary: https://w3id.org/airo# (AIRo 1.0, DelaramGlp/airo @main, airo.ttl).
+# Subject: the Ash-manufacture igniter — ggen_igniter as an AI-system construction
+# tool: it projects Ash resources, actions, and refusals from a canonical RDF
+# capability graph via priv/ggen/ash-manufacture-pack, and its output is compiled
+# and committed into consumer repositories.
+#
+# Every @ VIA path below is a real path in this repository at authoring time;
+# test/airo_risk_description_test.exs asserts their existence.
+
+@prefix airo: <https://w3id.org/airo#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix amp: <https://ggen.chatman-ecosystem.dev/ontology/ash-manufacture-pack#> .
+@prefix w618: <https://ggen.chatman-ecosystem.dev/airo/ggen-igniter#> .
+
+#################################################################
+# The AI system
+#################################################################
+
+w618:AshManufactureIgniter a airo:AISystem ;
+    rdfs:label "ggen_igniter Ash-manufacture igniter"@en ;
+    dcterms:description """Code-generation system that projects executable Ash resources,
+    actions, policies, and typed refusals from a canonical RDF capability graph using the
+    ash-manufacture-pack (ontology.ttl + SPARQL CONSTRUCT queries + Igniter generators).
+    Its output lands in consumer source trees, so a wrong projection is a wrong program
+    in someone else's repository."""@en ;
+    airo:hasPurpose "Deterministic, receipted Ash manufacture from an RDF capability graph."@en ;
+    airo:hasComponent w618:ManufacturePack , w618:GateSuite , w618:TestSuite ;
+    airo:producesOutput w618:GeneratedAshProjection ;
+    airo:hasAIUser w618:ConsumerRepoDeveloper ;
+    airo:hasLifecyclePhase w618:DevelopmentAndDeploymentPhase .
+
+w618:DevelopmentAndDeploymentPhase a airo:AILifecyclePhase ;
+    rdfs:label "Development and deployment of generated Ash code"@en .
+
+w618:ConsumerRepoDeveloper a airo:AIUser ;
+    rdfs:label "Developer of a consumer repository running ggen_igniter sync"@en .
+
+w618:ManufacturePack a airo:AIComponent ;
+    rdfs:label "ash-manufacture-pack (ontology, SPARQL gates, generators)"@en ;
+    rdfs:seeAlso <file://priv/ggen/ash-manufacture-pack/ontology.ttl> ;
+    dcterms:description "Pack consumed by ggen sync; VIA priv/ggen/ash-manufacture-pack/ontology.ttl, priv/ggen/ash-manufacture-pack/gates/."@en .
+
+w618:GateSuite a airo:AIComponent ;
+    rdfs:label "Post-sync gate suite (pack bin/ gates + verify contracts)"@en ;
+    dcterms:description "VIA priv/ggen/ash-manufacture-pack/bin/ (citation_check.py, drift_check.py, evidence_check.py, conformance.py, qualify.sh, receipt.py) and priv/ggen/ash-manufacture-pack/verify/ (cardinality.json, *.unbound.rq)."@en .
+
+w618:TestSuite a airo:AIComponent ;
+    rdfs:label "ggen_igniter ExUnit suite (306 *_test.exs files)"@en ;
+    dcterms:description "VIA test/ (306 ExUnit test files at authoring time)."@en .
+
+w618:GeneratedAshProjection a airo:Output ;
+    rdfs:label "Generated Ash resource/action/refusal source files"@en .
+
+#################################################################
+# Risk sources (real, documented hazards)
+#################################################################
+
+# RS-1: generated-code shadowing — generated output shadowing hand-written lib/.
+# Documented hazard: W230/W531-era receipts where generated files shadowed lib/
+# and pack templates carried fixtureOnly content into real trees.
+w618:GeneratedCodeShadowing a airo:Hazard ;
+    rdfs:label "Generated output shadows hand-written lib/ source of truth"@en ;
+    dcterms:description """Templates in the manufacture pack can render files into paths
+    that shadow consumer lib/ (the repo's source of truth). Real precedents: the W230 and
+    W531-era receipts recording fixtureOnly/history template content emitted into real
+    trees; scripts/forbid_generated_output_dir_once.py exists as a permanent guard against
+    a recurrence (VIA scripts/forbid_generated_output_dir_once.py)."""@en ;
+    airo:isRiskSourceFor w618:AshManufactureIgniter .
+
+# RS-2: consumer-installer emission — installer writes into consumer repos at sync
+# time (OS-13 / w355 documented).
+w618:InstallerEmission a airo:Hazard ;
+    rdfs:label "Consumer-installer emits unexpected files into consumer repositories"@en ;
+    dcterms:description """The ggen sync installer writes generated artifacts (and pack
+    scaffolding) directly into the consuming repository. Documented in OS-13 / lane W355:
+    an installer defect or over-broad template glob emits, moves, or overwrites files the
+    consumer did not ask for. Evidence path: the e2e installer test VIA
+    test/e2e/igniter_install_path_dep_test.exs."""@en ;
+    airo:isRiskSourceFor w618:AshManufactureIgniter .
+
+# RS-3: hex-pin staleness (OS-4) — pack pins drift from mix.lock reality.
+w618:HexPinStaleness a airo:Hazard ;
+    rdfs:label "Hex dependency pins go stale relative to locked versions"@en ;
+    dcterms:description """Pack citations are anchored to pinned dependencies
+    (amp:pinned_dep/pinned_version); when mix.lock moves and the pack's pins do not,
+    generated output is manufactured against dependencies the consumer does not have.
+    Documented as OS-4; the drift gate reports pin drift as its own failure class
+    (priv/ggen/ash-manufacture-pack/README.md §citation_check)."""@en ;
+    airo:isRiskSourceFor w618:AshManufactureIgniter .
+
+#################################################################
+# Risks, consequences, impacts
+#################################################################
+
+w618:WrongProjectionRisk a airo:Risk ;
+    rdfs:label "Consumers compile or ship code that contradicts the canonical graph"@en .
+
+w618:AshManufactureIgniter airo:hasRisk w618:WrongProjectionRisk .
+
+w618:WrongProjectionRisk airo:hasConsequence w618:ShadowedSourceConsequence , w618:UnwantedEmissionConsequence , w618:PinDriftConsequence .
+
+w618:ShadowedSourceConsequence a airo:Consequence ;
+    rdfs:label "Hand-written lib/ behavior replaced by generated shadow"@en ;
+    airo:hasImpact w618:ConsumerCorrectnessImpact .
+
+w618:UnwantedEmissionConsequence a airo:Consequence ;
+    rdfs:label "Files emitted into consumer trees that were never ordered"@en ;
+    airo:hasImpact w618:ConsumerCorrectnessImpact .
+
+w618:PinDriftConsequence a airo:Consequence ;
+    rdfs:label "Generated code built against dependencies the consumer does not lock"@en ;
+    airo:hasImpact w618:ConsumerCorrectnessImpact .
+
+w618:ConsumerCorrectnessImpact a airo:Impact ;
+    rdfs:label "Loss of correctness/reproducibility in consumer repositories"@en ;
+    airo:hasImpactOnStakeholder w618:ConsumerRepoDeveloper .
+
+w618:AshManufactureIgniter
+    airo:hasLikelihood w618:MediumLikelihood ;
+    airo:hasSeverity w618:MediumSeverity .
+
+w618:MediumLikelihood a airo:Likelihood ;
+    rdfs:label "Medium (qualitative)"@en .
+
+w618:MediumSeverity a airo:Severity ;
+    rdfs:label "Medium (qualitative)"@en .
+
+#################################################################
+# Risk controls (the real gates)
+#################################################################
+
+w618:AshManufactureIgniter airo:hasRiskControl
+    w618:SparqlGateControls , w618:BinGateControls , w618:VerifyContracts , w618:ExUnitControls , w618:AnchorRepointVerification .
+
+w618:SparqlGateControls a airo:RiskControl ;
+    rdfs:label "Pack SPARQL admission gates (13 staged .rq gates)"@en ;
+    dcterms:description """Staged CONSTRUCT/ASK gates from project -> domains -> resources ->
+    actions -> attributes -> relationships -> extensions -> support modules -> enum values ->
+    capabilities -> refusals -> citations -> dependency pins.
+    VIA priv/ggen/ash-manufacture-pack/gates/ (010_project.rq .. 092_dependency_pins.rq)."""@en ;
+    airo:mitigatesRiskConcept w618:WrongProjectionRisk .
+
+w618:BinGateControls a airo:RiskControl ;
+    rdfs:label "Post-sync executable gates in the pack bin/ directory"@en ;
+    dcterms:description """citation_check.py (anchors say what they claim), drift_check.py
+    (pin staleness), evidence_check.py, conformance.py, qualify.sh, receipt.py.
+    VIA priv/ggen/ash-manufacture-pack/bin/."""@en ;
+    airo:mitigatesRiskConcept w618:WrongProjectionRisk , w618:HexPinStaleness ;
+    airo:detectsRiskConcept w618:HexPinStaleness .
+
+w618:VerifyContracts a airo:RiskControl ;
+    rdfs:label "Verify contracts: cardinality.json + unbound-variable queries"@en ;
+    dcterms:description """VIA priv/ggen/ash-manufacture-pack/verify/cardinality.json and
+    030/035/080 *.unbound.rq; mutation-tested by lib/ggen_igniter/verify_mutation.ex
+    (cardinality_anchor_relaxed must be caught, not admitted)."""@en ;
+    airo:mitigatesRiskConcept w618:WrongProjectionRisk .
+
+w618:ExUnitControls a airo:RiskControl ;
+    rdfs:label "ExUnit suite (306 test files) incl. e2e installer test"@en ;
+    dcterms:description """VIA test/ (306 *_test.exs) and the real-transport installer test
+    VIA test/e2e/igniter_install_path_dep_test.exs."""@en ;
+    airo:mitigatesRiskConcept w618:InstallerEmission , w618:WrongProjectionRisk .
+
+w618:AnchorRepointVerification a airo:RiskControl ;
+    rdfs:label "Anchor-repoint verification (citation anchors against pinned sources)"@en ;
+    dcterms:description """citation_check.py resolves every amp:Citation anchor against the
+    real pinned dependency source and reports pin drift as its own failure class
+    (pack README, 'Anchors, not line numbers'); anti-vacuity mutation harness VIA
+    lib/ggen_igniter/verify_mutation.ex must catch a repointed cardinality anchor."""@en ;
+    airo:mitigatesRiskConcept w618:GeneratedCodeShadowing , w618:HexPinStaleness .
+
+# Reserve control for the shadowing hazard class: a permanent guard script.
+w618:GeneratedCodeShadowingGuard a airo:RiskControl ;
+    rdfs:label "Permanent guard: forbid generated output shadowing lib/"@en ;
+    dcterms:description "VIA scripts/forbid_generated_output_dir_once.py."@en ;
+    airo:mitigatesRiskConcept w618:GeneratedCodeShadowing ;
+    airo:detectsRiskConcept w618:GeneratedCodeShadowing .
+
+w618:AshManufactureIgniter airo:hasResidualRisk w618:WrongProjectionRisk .
