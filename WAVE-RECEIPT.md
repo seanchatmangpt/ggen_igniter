@@ -1,7 +1,7 @@
 # WAVE-RECEIPT — G4: `mix ggen_igniter.hand_authored` (the admission lockstep, retired)
 
 Agent: G4, ggen maximization wave v26.9.18. Ticket:
-`docs/jira/v26.9.18/g4-igniter-admission-task.md`. Standing at close: **ALIVE**
+`docs/archive/jira/v26.9.18/g4-igniter-admission-task.md`. Standing at close: **ALIVE**
 (observed task runs on the real beam4pm consumer, gate-matching replay, typed
 falsifiers all refused).
 

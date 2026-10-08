@@ -83,7 +83,7 @@ ontology/x.ttl`, a local `priv/ontology/x.ttl`, or any other shape, all
 resolve the same way: verbatim, against real OS cwd.
 
 No defect exists in this resolution path for the cross-package case — this
-was an open question this repo's own `docs/jira/v26.9.10/
+was an open question this repo's own `docs/archive/jira/v26.9.10/
 01-CROSS-PACKAGE-ONTOLOGY-SYNC.md` ticket set out to answer with evidence,
 not assumption, and the citations above are that evidence.
 
@@ -121,13 +121,13 @@ mirroring `ferroplan.ex`'s real observed shape) — see
 
 Transitive `pack.toml`-level dependency resolution (fetching a pack's own
 declared ontology dependencies automatically) is explicitly out of scope —
-see `docs/jira/v26.9.1/06-KNOWN-LIMITATIONS-AND-NON-GOALS.md`'s non-goal 1
+see `docs/archive/jira/v26.9.1/06-KNOWN-LIMITATIONS-AND-NON-GOALS.md`'s non-goal 1
 for the precedent. This pattern only covers `--ontology`'s own path
 resolution for a single explicit flag value.
 
 ## See Also
 
-- `docs/jira/v26.9.10/01-CROSS-PACKAGE-ONTOLOGY-SYNC.md` — the ticket this
+- `docs/archive/jira/v26.9.10/01-CROSS-PACKAGE-ONTOLOGY-SYNC.md` — the ticket this
   page answers.
 - `docs/integrations/ggen/packs.md` — the `--pack`/`--pack-dir` convention,
   whose ontology-not-found error message this pattern's direct `--ontology`

@@ -177,7 +177,7 @@ a reason for a direct adapter.
 
 - `priv/ggen/semantic-jira-pack/ontology.ttl`: `sj:capabilityId`, and gate 047's provider
   neutrality rule.
-- `docs/jira/v26.9.27/_LANES.md`: the epoch law. This pack is knowledge plane plus tests, so no
+- `docs/archive/jira/v26.9.27/_LANES.md`: the epoch law. This pack is knowledge plane plus tests, so no
   `lib/` implementation-plane file is added.
 - `test/ggen_igniter_semantic_a2a_dispatch_test.exs`: the manufactured SA2A resource that the
   consumer resolves against.

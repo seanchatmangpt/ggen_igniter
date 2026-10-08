@@ -164,7 +164,7 @@ head `dd6ac93` also produced run 202 success.
 | Admission falsifier matrix | ALIVE (landed commit `58460d0`) | Describe block, test file lines 362+, classes 1–7 + smuggling/uniqueness/integrity/syntax |
 | Graph-bound receipt + byte-identical replay | ALIVE (hosted, at `58460d0`) | Pipeline test asserts `metadata.graph_hash == sha256(ontology.ttl)` and byte equality (test lines 97–114); passed in runs 203/204 |
 | Handwritten ledger honesty | ALIVE | `HANDWRITTEN.md` row (2026-09-19) + `sj:ledger-unsupported-001` UNSUPPORTED row in ontology.ttl (tail of file) + commit `7676730` |
-| Ticket day-pack provenance | ALIVE | `docs/jira/v26.9.19/` (7 tickets + `_RUNBOOK.md` + `_RUNLOG.md`); `_RUNLOG.md` records `mix ggen_igniter.sync --pack calver-ticket-day-pack:…` manufacture, 2026-09-19T17:35Z, 3 exits 0; manufactured in commit `019d34a` |
+| Ticket day-pack provenance | ALIVE | `docs/archive/jira/v26.9.19/` (7 tickets + `_RUNBOOK.md` + `_RUNLOG.md`); `_RUNLOG.md` records `mix ggen_igniter.sync --pack calver-ticket-day-pack:…` manufacture, 2026-09-19T17:35Z, 3 exits 0; manufactured in commit `019d34a` |
 | Local `mix test` (full suite) | UNKNOWN (not run by this session) | Not executed in this session; hosted runs 203/204 are the green evidence. This document adds **no** local test claims. |
 | Local gates on this doc change | see receipt | `mix format --check-formatted` and `mix credo` executed this session on the tree containing this file (results recorded in the PR-body append + commit receipt) |
 
@@ -198,7 +198,7 @@ observation window only and must be re-checked against the branch tip before mer
 5. **RFC document** — this file closes the "RFC LOST" checkpoint in the PR body
    (commit recorded in §9).
 6. **Merge readiness** — PR #20 remains draft; per ticket
-   `docs/jira/v26.9.19/001-pr-20.md`, acceptance is "gh pr list no longer lists #20".
+   `docs/archive/jira/v26.9.19/001-pr-20.md`, acceptance is "gh pr list no longer lists #20".
    Not attempted by this session.
 
 ## 8. Traceability matrix

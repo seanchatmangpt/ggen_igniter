@@ -70,6 +70,6 @@ which renders one `Igniter.Mix.Task` that composes real upstream Ash generators.
 - `test/fixtures/ash_manufacture_pack/README.md` — the pack that holds the current standing
 - `.claude/hooks/refuse-handwritten-ash.sh` — the guard this pack is allowlisted against
   (line 99); its refusal rules are stated in `AGENTS.md` under "What is structurally refused"
-- `docs/jira/v26.9.8/08-REVIEW-MANUFACTURE-PATH.md` — cites this pack's 3-property
+- `docs/archive/jira/v26.9.8/08-REVIEW-MANUFACTURE-PATH.md` — cites this pack's 3-property
   `alp:Action` class as the modelling the newer pack regressed from (line 113); it does NOT
   record the hand-render exception, which is why this README exists

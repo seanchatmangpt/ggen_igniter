@@ -31,13 +31,13 @@ mix e2e                   # manual only, never in mix test; CI = .github/workflo
 - Three entry paths — know which you edit: `Mix.Tasks.GgenIgniter.Sync` (frontmatter, `--for-each`, `inject:`), bounded `GgenIgniter.Reconcile.run/1` (no frontmatter parity), opt-in Reactor pipeline (`use_reactor: true`, default false). Layers: `docs/architecture/overview.md`. Ash is dev+test-only, never runtime.
 - Manifest: `<manifest-dir>/.ggen_igniter/manifest.json` keyed by (template, out-template); `--on-stale refuse|prune|preserve` (refuse default). See `docs/reference/reconciliation/`.
 - Packs: `priv/ggen/<pack>/{ontology.ttl,gates/*.rq,templates/}`; explicit `--ontology/--query/--template` beats `--pack`. Prefer an existing pack over ad-hoc scaffolding.
-- sJira origin-authority law (SJ-002): work orders originate only from admitted `sj:CodeWorkAuthority`; prose is observation-only. ADR-012, `docs/jira/v26.9.24/_LANES.md`.
+- sJira origin-authority law (SJ-002): work orders originate only from admitted `sj:CodeWorkAuthority`; prose is observation-only. ADR-012, `docs/archive/jira/v26.9.24/_LANES.md`.
 
 ## Epoch boundary (CalVer manufacturing law)
 
 v26.10.1 is an epoch boundary: `Admit(f) ⟺ FreshEpoch(f)` for every implementation-plane file. Semantic reuse is not implementation carryover — `TTL_old → ggen_igniter → A_new` is the point; `A_old + Δ → A_new` is the violation.
 
-Three commands carry the law (mechanics pinned as Contract v1 in `docs/jira/v26.9.27/_LANES.md`; modules `GgenIgniter.EpochWatermark`, `GgenIgniter.EpochFreshness`, `GgenIgniter.SemanticJira.EpochPlan`):
+Three commands carry the law (mechanics pinned as Contract v1 in `docs/archive/jira/v26.9.27/_LANES.md`; modules `GgenIgniter.EpochWatermark`, `GgenIgniter.EpochFreshness`, `GgenIgniter.SemanticJira.EpochPlan`):
 
 ```
 mix ggen_igniter.epoch.watermark   # record pre-epoch implementation identity: path + blob sha at the boundary — identity-based, not blame-based

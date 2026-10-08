@@ -5,7 +5,7 @@
 How `ggen_igniter` renders an `Ash.Notifier` `load/2` callback for a
 Spark-DSL extension whose entities declare relationship/calculation/
 aggregate names per action, generalizing a real, previously hand-written
-fix. See `docs/jira/v26.9.10/03-ASH-NOTIFIER-LOAD2-GENERATION-PACK.md` for
+fix. See `docs/archive/jira/v26.9.10/03-ASH-NOTIFIER-LOAD2-GENERATION-PACK.md` for
 this pack's originating ticket.
 
 ---
@@ -130,7 +130,7 @@ compile-and-behave proof against actual Ash resources is needed later.
 
 ## See Also
 
-- `docs/jira/v26.9.10/03-ASH-NOTIFIER-LOAD2-GENERATION-PACK.md` — the
+- `docs/archive/jira/v26.9.10/03-ASH-NOTIFIER-LOAD2-GENERATION-PACK.md` — the
   originating ticket, including its Definition of Done and real Status.
 - `priv/ggen/ash-notifier-load2-pack/` — the real pack (`ontology.ttl`,
   `gates/010_load2_spec.rq`, `templates/notifier_load2.ex.eex`).
