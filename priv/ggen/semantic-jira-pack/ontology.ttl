@@ -1971,7 +1971,7 @@ sj:c13-fixed-point a sj:WorkOrder, sj:Checkpoint ;
     dcterms:title "Self-Hosting Fixed Point" ;
     dcterms:description "This order admits through the pack's own semantic_jira.admit_candidates and executes via semantic_jira.execute: the executor is the artifact the order produces." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
-    sj:baseSha "52c00b7ca087df95d7273a19315169cfef6e3fe4" ;
+    sj:baseSha "66aa197556b37297cff66acc4ff16c872c16ac2d" ;
     sj:subject "semantic-jira:v26.10.8:C13-fixed-point" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:standing "UNKNOWN" ;
@@ -1992,7 +1992,7 @@ sj:c13-fixed-point a sj:WorkOrder, sj:Checkpoint ;
 
 sj:court-c13-fixed-point a sj:Court ;
     rdfs:label "C13 fixed-point court (the pack's own gates)" ;
-    dcterms:description "The required court IS the pack's own gate machinery: priv/ggen/semantic-jira-pack/gates/*.rq evaluated by semantic_jira.admit_candidates; execution binds exact head 52c00b7ca087df95d7273a19315169cfef6e3fe4, validator/tool/environment, required evidence, and receipt identity." .
+    dcterms:description "The required court IS the pack's own gate machinery: priv/ggen/semantic-jira-pack/gates/*.rq evaluated by semantic_jira.admit_candidates; execution binds exact head 66aa197556b37297cff66acc4ff16c872c16ac2d (re-bound 2026-10-08 from 52c00b7ca087df95d7273a19315169cfef6e3fe4: the order's subject is the pack state AT the head that carries it), validator/tool/environment, required evidence, and receipt identity." .
 
 sj:acceptance-c13-fixed-point a sj:AcceptanceCriterion ;
     rdfs:label "C13 fixed-point acceptance" ;

@@ -71,11 +71,56 @@ is re-bound to the head that carries it (or execution runs at the pinned base).
 The fixed-point's ADMIT leg is proven; the execute leg remains the one
 outstanding rung, blocked on base re-binding, not on admission machinery.
 
+## Re-bind (2026-10-08, later pass)
+
+The order's `sj:baseSha` was re-bound from `52c00b7c…e3fe4` to
+`66aa197556b37297cff66acc4ff16c872c16ac2d` (ontology.ttl:1974, plus the court
+description's pinned head). The honest reading: the order's subject is the pack
+state AT the head that carries it, so the base must be the carrying head, not a
+predecessor. The court description discloses the re-bind inline.
+
+Re-admission (same candidates pipeline, rebuilt with the new base):
+
+```
+admitted 1 C13-FIXED-POINT origin=…objective-project-manufacturer
+origin_digest=sha256:639c07b8…af0f8
+work_order_digest=sha256:fea006056c0427d99d6bd48bf15465479a92aa180032bc993d1625ccb5b2a821
+summary admitted=1 refused=0   (exit 0)
+```
+
+## Execute leg, second attempt — typed refusal: sync_failed (current rung)
+
+With base_drift cleared, `mix semantic_jira.execute` advanced past the
+base check and refused at the sync hop, ledger byte-unchanged, no receipt
+written:
+
+```json
+{"broken_term":"mu_on_O","hop":"execute","standing":"REFUSED",
+ "reason":["sync_failed",
+ "GgenIgniter.Reconcile.run/1 raised: multiple templates found in
+ priv/ggen/semantic-jira-pack/templates/ (a2a_agent_card.json.eex,
+ a2a_manufacture.ex.eex, ard.md.eex, jira.md.eex, ocel.json.eex,
+ plan.hddl.eex, prd.md.eex, projection.md.eex, target_pack.ex.eex,
+ vision.md.eex, wbpr.md.eex) -- pass :template explicitly"]}
+```
+
+Cause: the local execute backend calls `Reconcile.run(pack_dir: pack_dir,
+out: …)` with no `:template`
+(`lib/ggen_igniter/semantic_jira/execute.ex:312`), and `Reconcile.run/1`
+raises on multi-template packs (`lib/ggen_igniter/reconcile.ex:220`). The
+semantic-jira-pack has 11 templates. This is a structural limit of the
+execute backend (single-template assumption), not an admission or base
+problem — the remaining rung for full execution is teaching the local
+execute backend to resolve or accept an explicit template for multi-template
+packs (or executing against a single-template pack subject).
+
 ## Standing
 
 - `sj:c13-fixed-point` standing: UNKNOWN (admitted at UNKNOWN; standing only
   from receipts — none yet; the execute refusal confers none).
-- Acceptance status: ADMIT leg ALIVE, EXECUTE leg REFUSED(`base_drift`).
+- Acceptance status: ADMIT leg ALIVE (re-admitted at new base,
+  `work_order_digest fea00605…a821`), EXECUTE leg REFUSED(`sync_failed`
+  after base re-bind; previously `base_drift`).
 
 ## Replay
 
@@ -86,5 +131,6 @@ mix semantic_jira.execute --work-orders <wo.json> --ledger <ndjson> \
   --identity C13-FIXED-POINT --verifier-suite ggen-igniter-local \
   --alias seanchatmangpt/ggen_igniter=ggen_igniter \
   --pack-dir priv/ggen/semantic-jira-pack --target-dir <repo> \
-  --receipt-out <p> --out-dir <dir>    # → REFUSED base_drift at exact head
+  --receipt-out <p> --out-dir <dir>    # → REFUSED sync_failed (multi-template
+                                       #   pack; backend passes no :template)
 ```
