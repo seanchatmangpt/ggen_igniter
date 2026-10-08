@@ -114,23 +114,77 @@ problem — the remaining rung for full execution is teaching the local
 execute backend to resolve or accept an explicit template for multi-template
 packs (or executing against a single-template pack subject).
 
+## Rung closure — multi-template execute backend (2026-10-08, this pass)
+
+The named rung closed. `mix semantic_jira.execute` gained `--template PATH`
+(`lib/mix/tasks/semantic_jira.execute.ex`), forwarded by the local backend to
+`Reconcile.run/1` (`lib/ggen_igniter/semantic_jira/execute.ex`,
+`reconcile_pack/3`); single-template packs auto-discover unchanged, and
+omitting the flag on a multi-template pack keeps the pipeline's own
+ambiguous-template raise (`REFUSED(sync_failed)`, ledger byte-unchanged —
+now a regression test). `Reconcile.run/1` itself is unchanged: its bounded
+one-render contract is the right shape; the backend now passes the explicit
+template it was missing.
+
+Template choice for the 11-template pack: `a2a_agent_card.json.eex` — one of
+the two pack templates (`ocel.json.eex` is the other) that render standalone
+under `Reconcile.run/1`'s gate-bindings pipeline (measured; the `for_each`
+templates need row bindings `Reconcile` deliberately does not provide, and
+probed `vision.md`/`projection.md` fail on them).
+
+Base re-bind #2: `sj:baseSha` re-bound 66aa197 → `8131c69671aa329385046ef3596faf590ae5c008`
+(the head that carries the rung-closure work; same law as re-bind #1), court
+description updated inline. Re-admission: `admitted 1 C13-FIXED-POINT …
+work_order_digest=sha256:0980e8fedf69e09c9cb9f37a8b20252bb00c5ab8021082e0537b677de97bb0d6`,
+exit 0.
+
+Execute, third attempt — advanced PAST the sync hop (the rung's falsifier:
+the previous run refused AT it):
+
+```
+{"broken_term":"admission_vacuous","hop":"execute","standing":"REFUSED",
+ "reason":["verification_failed",
+           "{:gate_failed, \"description_integrity\"}"]}
+```
+
+This is the honest terminal for THIS pass: a different, pre-existing rung
+(measured failing on the pristine HEAD-8131c69 pack with the work tree's
+edits removed — `git archive HEAD` copy, same failure), not introduced here.
+`gates/` scores witness-style under ADR-0010 (pass on >= 1 row), and SIX
+`semantic-jira-pack` gate queries are offender-shaped (0 rows on a healthy
+graph — `description_integrity`, `alive_receipt_crown`,
+`provider_neutral_admission`, `standing_projection`, `monotonic_evolution`,
+`epoch_boundary`), so the pack's gate set can never fully pass `GateVerify.run/2`
+as shipped. Per ADR-0010 they belong in `verify/*.unbound.rq` (zero-rows
+pass) with a cardinality contract — the ADR-0010 lane's own reorganization,
+the remaining rung for full C13 execution.
+
+Regression coverage: `test/ggen_igniter_semantic_jira_execute_test.exs`,
+describe block "run/1 local backend, multi-template pack (C13 execute rung)"
+— multi-template pack executes with explicit `:template`; omission refuses
+`sync_failed` with the ledger byte-unchanged.
+
 ## Standing
 
 - `sj:c13-fixed-point` standing: UNKNOWN (admitted at UNKNOWN; standing only
   from receipts — none yet; the execute refusal confers none).
-- Acceptance status: ADMIT leg ALIVE (re-admitted at new base,
-  `work_order_digest fea00605…a821`), EXECUTE leg REFUSED(`sync_failed`
-  after base re-bind; previously `base_drift`).
+- Acceptance status: ADMIT leg ALIVE (re-admitted at head 8131c69,
+  `work_order_digest 0980e8fe…bb0d6`), EXECUTE leg REFUSED(`verification_failed`
+  / `description_integrity` after advancing past the sync hop; previously
+  `sync_failed`; before that `base_drift`).
 
 ## Replay
 
 ```
 MIX_BUILD_ROOT=_build-lanecourt mix semantic_jira.admit_candidates \
-  --candidates <same jsonl>            # → admitted 1 … work_order_digest=b61fcf66…
+  --candidates <same jsonl>            # → admitted 1 … work_order_digest=0980e8fe…
 mix semantic_jira.execute --work-orders <wo.json> --ledger <ndjson> \
   --identity C13-FIXED-POINT --verifier-suite ggen-igniter-local \
   --alias seanchatmangpt/ggen_igniter=ggen_igniter \
   --pack-dir priv/ggen/semantic-jira-pack --target-dir <repo> \
-  --receipt-out <p> --out-dir <dir>    # → REFUSED sync_failed (multi-template
-                                       #   pack; backend passes no :template)
+  --receipt-out <p> --out-dir <dir> \
+  --template priv/ggen/semantic-jira-pack/templates/a2a_agent_card.json.eex
+                                       # → REFUSED verification_failed
+                                       #   (description_integrity; ADR-0010
+                                       #   misfiled offender-gates — next rung)
 ```

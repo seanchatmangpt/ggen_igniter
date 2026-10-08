@@ -38,7 +38,11 @@ defmodule GgenIgniter.SemanticJira.Execute do
       descriptor's `base_sha` (else `base_drift`); then
       `GgenIgniter.Reconcile.run/1` over the pack at `--pack-dir` with a
       static out path inside `--target-dir`
-      (`ggen-manufactured/report.md`); then `GgenIgniter.GateVerify.run/2` +
+      (`ggen-manufactured/report.md`) -- the pack's single template
+      auto-discovered, or the explicit `--template PATH` for multi-template
+      packs (omitting it on a multi-template pack is the pipeline's own
+      ambiguous-template raise, refused `sync_failed`); then
+      `GgenIgniter.GateVerify.run/2` +
       `verify_unbound/2` -- the same pair `mix ggen_igniter.verify` calls.
       Any gate or unbound-fact failure refuses `verification_failed`; a
       pipeline raise refuses `sync_failed`. All three leave the LEDGER
@@ -232,7 +236,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
   defp execute_backend({:local, pack_dir, target_dir}, descriptor, opts, target_pack) do
     with :ok <- check_target_pack(target_pack, pack_dir),
          {:ok, head} <- base_head(target_dir, descriptor["base_sha"]),
-         {:ok, result} <- reconcile_pack(pack_dir, target_dir),
+         {:ok, result} <- reconcile_pack(pack_dir, target_dir, opts[:template]),
          {:ok, gates} <- gates(pack_dir) do
       paths = [result.out_path]
       export = synthesize_export(descriptor, gates, paths)
@@ -308,8 +312,20 @@ defmodule GgenIgniter.SemanticJira.Execute do
   # contract). `Reconcile.run/1` is a faithful, un-defensive mirror of the
   # pipeline and raises on real failure; the raise is caught here, at the
   # boundary that owns the refusal (`sync_failed`), not hidden in the pipeline.
-  defp reconcile_pack(pack_dir, target_dir) do
-    Reconcile.run(pack_dir: pack_dir, out: Path.join(target_dir, @out_template))
+  # `--template` (opts[:template]) is the explicit template path for
+  # multi-template packs: `Reconcile.run/1` auto-discovers the pack's single
+  # template, and raises `{:error, {:ambiguous, _}}` on multi-template packs
+  # when no `:template` is given. Single-template packs (the execute test
+  # fixture shape) execute unchanged with no flag.
+  defp reconcile_pack(pack_dir, target_dir, template) do
+    opt_template =
+      case template do
+        nil -> []
+        "" -> []
+        path -> [template: path]
+      end
+
+    Reconcile.run(Keyword.merge([pack_dir: pack_dir, out: Path.join(target_dir, @out_template)], opt_template))
   rescue
     error ->
       {:error,

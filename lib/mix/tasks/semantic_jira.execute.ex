@@ -14,7 +14,7 @@ defmodule Mix.Tasks.SemanticJira.Execute do
         ( --pack-dir PACK --target-dir DIR --receipt-out PATH \\
           | --receipt PATH )
         [--provider NAME] [--court-map PATH] [--authority-graph PATH]
-        [--out-dir DIR] [--out PATH]
+        [--template PATH] [--out-dir DIR] [--out PATH]
 
   ## Backends (exactly one; anything else is exit 2)
 
@@ -69,6 +69,10 @@ defmodule Mix.Tasks.SemanticJira.Execute do
       unparseable is refused `authority_index_unavailable`
     * `--receipt-out PATH` — where the local backend writes the synthesized
       sealed export (required for the local backend)
+    * `--template PATH` — explicit template path for the local backend's
+      `GgenIgniter.Reconcile.run/1` render on multi-template packs (the
+      semantic-jira-pack has 11); single-template packs auto-discover and
+      never need it
     * `--out-dir DIR` — on any exit-1 refusal, the same typed map is also
       written to `<DIR>/refused.json`
     * `--out PATH` — on success, the result JSON is also written there
@@ -101,6 +105,7 @@ defmodule Mix.Tasks.SemanticJira.Execute do
           authority_graph: :string,
           pack_dir: :string,
           target_dir: :string,
+          template: :string,
           receipt: :string,
           receipt_out: :string,
           out_dir: :string,

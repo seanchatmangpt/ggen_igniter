@@ -255,6 +255,46 @@ SELECT DISTINCT ?subject WHERE {
     end
   end
 
+  describe "run/1 local backend, multi-template pack (C13 execute rung)" do
+    test "executes when :template names one explicitly (real render, real receipt)", ctx do
+      second = Path.join(ctx.pack, "templates/extra.md.eex")
+      File.write!(second, "extra template\n")
+
+      assert {0, result} =
+               Execute.run(local_opts(ctx, template: Path.join(ctx.pack, "templates/report.md.eex")))
+
+      assert result["status"] == "executed"
+      report = Path.join(ctx.target.dir, "ggen-manufactured/report.md")
+      assert File.exists?(report)
+      assert File.read!(report) =~ "gate row: execute pack report"
+      # The chosen template is the pack's own work-order render template
+      # (report.md.eex), not one of the other templates in the pack.
+      refute File.read!(report) =~ "extra template"
+
+      # The real standing transition is in the real ledger.
+      assert [%{"identity" => @identity, "to" => "PARTIAL_ALIVE", "seq" => 1}] =
+               TransitionLog.read(ctx.ledger)
+    end
+
+    test "omitting :template on a multi-template pack refuses sync_failed, ledger byte-unchanged",
+         ctx do
+      second = Path.join(ctx.pack, "templates/extra.md.eex")
+      File.write!(second, "extra template\n")
+
+      bytes_before = ledger_bytes(ctx)
+
+      assert {1, refusal} = Execute.run(local_opts(ctx))
+      assert refusal["standing"] == "REFUSED"
+      assert refusal["broken_term"] == "mu_on_O"
+      assert refusal["hop"] == "execute"
+      assert ["sync_failed", message] = refusal["reason"]
+      assert message =~ "multiple templates"
+
+      assert ledger_bytes(ctx) == bytes_before
+      refute File.exists?(ctx.receipt_out)
+    end
+  end
+
   describe "run/1 honest-ceiling mutant (a local export claiming ALIVE is refused)" do
     test "outcome alive with head_verified false refuses alive_without_head_verification at the real seam",
          ctx do
