@@ -55,3 +55,7 @@ standing work-order corpus, not campaign ledgers — they stay.
 Citations to archived campaigns use their new `docs/archive/jira/...` paths;
 older documents that still cite `docs/jira/v26.9.x/...` for an archived
 campaign are stale-by-path (the content exists, the prefix moved).
+
+## See Also
+
+Fleet documentation map (all 20 repos): `../ggen-marketplace/docs/reference/FLEET-DOC-MAP.md` (external sibling)
