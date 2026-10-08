@@ -1,0 +1,132 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# SHACL admission shapes for GoalCheckpoint doc-graphs (goal.ttl style).
+#
+# SHACL round-2 finding: successor-bucket goal graphs in the 12-repo doc-graph
+# style (the castle precedent: docs/sjira/v26.10.8/goal.ttl and
+# docs/sjira/v26.9.28/goal.ttl) are not work-order graphs, so validating them
+# against shapes/work-order.shacl.ttl reports every checkpoint as a work-order
+# mismatch. This closed shape covers the fields that style actually carries:
+# sj:GoalCheckpoint nodes with authorityCeiling CONSTRUCT, replayIdentity, a
+# sj:checkpointOf chain, zero authored sj:WorkOrder / sj:Receipt subjects
+# (the STOP law: WorkOrders are compiler projections, receipts are
+# observations), and an optional sj:stopQuery.
+#
+# Constraint surface is the intersection of pyshacl (advanced) and the
+# GgenIgniter.SemanticJira.Shacl court: minCount/maxCount, nodeKind,
+# datatype, pattern, minLength, class, closed + ignoredProperties, and
+# SELECT-only sh:sparql with the OPTIONAL + FILTER(!BOUND()) absence idiom
+# (the admitted sparql engine does not execute EXISTS/NOT EXISTS).
+#
+# Cardinality law (from the two castle precedents):
+#   - every GoalCheckpoint: dcterms:identifier, sj:authorityCeiling,
+#     sj:falsifier (1..n, IRI-or-literal: roots cite sj:Falsifier
+#     individuals, gates carry prose)
+#   - root-only (a checkpoint carrying sj:stopQuery): sj:baseSha,
+#     sj:replayIdentity -- enforced by sparql, because the plain rows are
+#     optional (gates and successor stubs legitimately omit them, and the
+#     engine surface has no conditional minCount)
+#   - everything else: 0..1 with format constraints when present.
+
+sj:GoalCheckpointDocGraphShape a sh:NodeShape ;
+    sh:targetClass sj:GoalCheckpoint ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type rdfs:label ) ;
+    sh:property [
+        sh:path dcterms:identifier ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    ] ;
+    sh:property [ sh:path dcterms:description ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path dcterms:source ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [
+        sh:path sj:repository ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    ] ;
+    # Root-only field; presence format-checked here, required on roots by the
+    # sparql constraint below (gates legitimately omit it).
+    sh:property [
+        sh:path sj:baseSha ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[0-9a-f]{40}$"
+    ] ;
+    # Kind-only on purpose: successor buckets reference the predecessor
+    # checkpoint's IRI across files (v26.10.8 -> v26.9.28), so the target is
+    # not typed in the validated graph.
+    sh:property [ sh:path sj:checkpointOf ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path sj:successorCheckpoint ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    sh:property [
+        sh:path sj:authorityCeiling ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        # Authority ceiling is CONSTRUCT: the graph never grants DO.
+        sh:pattern "^(OBSERVE|SELECT|CONSTRUCT)$"
+    ] ;
+    sh:property [ sh:path sj:evidenceHorizon ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    sh:property [ sh:path sj:requiresEvidence ; sh:nodeKind sh:IRI ] ;
+    sh:property [ sh:path sj:replayIdentity ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:exclusion ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:successorPolicy ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:pathScope ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:postcondition ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    # IRI-or-literal and 0..n on purpose: roots cite sj:Falsifier
+    # individuals, gates carry prose falsifiers, and successor stubs (e.g.
+    # GC-CASTLE-26.10.1) legitimately carry none. Constraint-free row: it
+    # exists only so sh:closed admits the predicate.
+    sh:property [ sh:path sj:falsifier ] ;
+    sh:property [ sh:path sj:acceptance ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+    # Optional (doc-graph style: the v26.10.8 successor simplified its
+    # predecessor's stopQuery to the witnessed gates; presence must be a
+    # SPARQL ASK -- STOP is computed, never declared).
+    sh:property [
+        sh:path sj:stopQuery ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "ASK[\\s\\S]*\\{"
+    ] ;
+    sh:property [ sh:path sj:courtCommand ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] ;
+    # A root (here: a checkpoint that carries sj:stopQuery) binds the goal to
+    # its exact subject: replayIdentity is mandatory there.
+    sh:sparql [
+        sh:message "a root GoalCheckpoint carrying sj:stopQuery requires sj:replayIdentity" ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                OPTIONAL { ?this sj:replayIdentity ?ri . }
+                OPTIONAL { ?this sj:stopQuery ?sq . }
+                FILTER(!BOUND(?ri) && BOUND(?sq))
+            }
+        """
+    ] ;
+    # STOP law: the goal graph carries no authored sj:WorkOrder (compiler
+    # projection) and no authored sj:Receipt (observation). Fired per
+    # checkpoint when either appears in the data graph.
+    sh:sparql [
+        sh:message "STOP law: a goal-graph checkpoint graph carries no authored sj:WorkOrder" ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                ?this a sj:GoalCheckpoint .
+                ?order a sj:WorkOrder .
+            }
+        """
+    ] ;
+    sh:sparql [
+        sh:message "STOP law: a goal-graph checkpoint graph carries no authored sj:Receipt" ;
+        sh:select """
+            SELECT ?this
+            WHERE {
+                ?this a sj:GoalCheckpoint .
+                ?receipt a sj:Receipt .
+            }
+        """
+    ] .
