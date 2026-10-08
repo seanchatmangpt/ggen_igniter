@@ -1958,6 +1958,54 @@ sj:run-gall-032-court a sj:Action ;
     rdfs:label "Run GALL-032 court" ;
     dcterms:description "Execute the narrowest repository-native court; preserve failure evidence and never blindly rerun an unchanged failure." .
 
+# ── C13 self-hosting fixed point ──────────────────────────────────────────
+# One WorkOrder whose executor IS the artifact the order produces: this pack's
+# own semantic_jira.admit_candidates / semantic_jira.execute machinery. The
+# order's acceptance closes only when the pack admits and executes the order
+# carrying that same acceptance -- the graph points at the machinery that
+# consumes the graph. Standing is honestly UNKNOWN until that exact execution
+# is receipted; nextCheckpoint names the order itself (the fixed point).
+sj:c13-fixed-point a sj:WorkOrder, sj:Checkpoint ;
+    rdfs:label "C13 — Self-Hosting Fixed Point" ;
+    dcterms:identifier "C13-FIXED-POINT" ;
+    dcterms:title "Self-Hosting Fixed Point" ;
+    dcterms:description "This order admits through the pack's own semantic_jira.admit_candidates and executes via semantic_jira.execute: the executor is the artifact the order produces." ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:baseSha "52c00b7ca087df95d7273a19315169cfef6e3fe4" ;
+    sj:subject "semantic-jira:v26.10.8:C13-fixed-point" ;
+    sj:pathScope "priv/ggen/semantic-jira-pack" ;
+    sj:standing "UNKNOWN" ;
+    sj:evidenceCeiling "SPECIFIED" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:authorityRequirement "NONE" ;
+    sj:promotionRule "Exact subject, independent court, evidence, receipt classes, acceptance, falsifier, and replay must close; standing is never inherited and is UNKNOWN until the pack itself executes this order." ;
+    sj:replayIdentity "semantic-jira:v26.10.8:C13-fixed-point" ;
+    sj:originAuthority sj:objective-project-manufacturer ;
+    sj:requiresCourt sj:court-c13-fixed-point ;
+    sj:requiresEvidence sj:source-evidence, sj:local-execution-evidence, sj:receipt-evidence, sj:replay-evidence ;
+    sj:requiresReceiptClass "verification", "replay" ;
+    sj:acceptance sj:acceptance-c13-fixed-point ;
+    sj:falsifier sj:falsifier-c13-fixed-point ;
+    sj:projection sj:projection-jira, sj:projection-wbpr, sj:projection-prd, sj:projection-ard, sj:projection-vision, sj:projection-fond, sj:projection-hddl, sj:projection-sa2a, sj:projection-worker, sj:projection-verification, sj:projection-executive, sj:projection-machine, sj:projection-receipt, sj:projection-replay ;
+    sj:nextAction sj:run-c13-fixed-point-court ;
+    sj:nextCheckpoint sj:c13-fixed-point .
+
+sj:court-c13-fixed-point a sj:Court ;
+    rdfs:label "C13 fixed-point court (the pack's own gates)" ;
+    dcterms:description "The required court IS the pack's own gate machinery: priv/ggen/semantic-jira-pack/gates/*.rq evaluated by semantic_jira.admit_candidates; execution binds exact head 52c00b7ca087df95d7273a19315169cfef6e3fe4, validator/tool/environment, required evidence, and receipt identity." .
+
+sj:acceptance-c13-fixed-point a sj:AcceptanceCriterion ;
+    rdfs:label "C13 fixed-point acceptance" ;
+    dcterms:description "This order admits through semantic_jira.admit_candidates and executes via semantic_jira.execute; the executor is the artifact the order produces. Direct evidence is required; adjacency is insufficient." .
+
+sj:falsifier-c13-fixed-point a sj:Falsifier ;
+    rdfs:label "C13 fixed-point falsifier" ;
+    dcterms:description "Admission refusal by the pack's own machinery (semantic_jira.admit_candidates refusing sj:c13-fixed-point) falsifies the fixed-point claim; subject, receipt, evidence, authority, replay, or contrary-observation mismatch likewise falsifies promotion." .
+
+sj:run-c13-fixed-point-court a sj:Action ;
+    rdfs:label "Run C13 fixed-point court" ;
+    dcterms:description "Run semantic_jira.admit_candidates against this pack's ontology at exact head; on admit, run semantic_jira.execute for sj:c13-fixed-point and preserve the receipt. Never blindly rerun an unchanged refusal." .
+
 # ---- HANDWRITTEN ledger: UNSUPPORTED(generator, element) row ----
 # Law: priv/ggen/dfcm-agent-pack/ontology.ttl (DfCM hand-writing gate).
 # Ledger entry: HANDWRITTEN.md (repo root). Ledger shrinks monotonically;
