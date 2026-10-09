@@ -1,0 +1,258 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix c: <https://ggen-igniter.dev/sjira/castle-26.9.28#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# CASTLE v26.9.28 governing sJira goal graph.
+#
+# Law:
+# - This file is a goal/checkpoint graph. It intentionally contains no authored
+#   sj:WorkOrder and no authored sj:Receipt instances.
+# - WorkOrders are compiler projections; receipts are observations.
+# - Authority ceiling is CONSTRUCT. The graph never grants DO.
+# - CASTLE owns consequential admissibility.
+# - XaaS owns runtime existence/composition.
+# - GraphLaw owns semantic-law derivation.
+# - Affidavit owns cryptographic standing.
+# - BRCE is the sole protected CONSTRUCT -> DO boundary.
+# - Board SELECT never implies DO.
+# - STOP is receipt-driven and therefore false from this file alone.
+
+c:GC-CASTLE-26.9.28
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "GC-CASTLE-26.9.28" ;
+    rdfs:label "CASTLE v26.9.28 board strategic-command and consequence crown" ;
+    dcterms:description "CASTLE = board constitution and consequence crown; XaaS = runtime core; single-owner capability fleet; single BRCE consequence boundary; exact-subject evidence; replayable standing." ;
+    dcterms:source "docs/WBPR_CASTLE_BOARD_V26_9_28.md" ;
+    sj:repository "seanchatmangpt/castle" ;
+    sj:baseSha "d854333ead2b5f47cc38bbf5680dd7db13fbf009" ;
+    sj:successorCheckpoint c:GC-CASTLE-26.10.1 ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:requiresEvidence sj:receipt-evidence, sj:replay-evidence ;
+    sj:replayIdentity "semantic-jira:castle-26.9.28:GC-CASTLE-26.9.28" ;
+    sj:exclusion
+        "A ticket, plan, model output, semantic-law result, runtime-control capability, generated artifact or board selection is never consequential authority.",
+        "The goal graph contains no authored WorkOrders or Receipts.",
+        "XaaS runtime control does not imply CASTLE consequence authority.",
+        "GraphLaw law-state does not imply DO.",
+        "Affidavit standing evidence does not itself execute consequence.",
+        "Generated artifacts never become canonical semantic truth by hand edit." ;
+    sj:successorPolicy "Discovered work that falsifies no CASTLE-28 crown gate routes to GC-CASTLE-26.10.1 and cannot reopen this crown." ;
+    sj:acceptance c:root-acceptance ;
+    sj:falsifier c:root-falsifier-authority, c:root-falsifier-ownership, c:root-falsifier-replay ;
+    sj:stopQuery """PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+ASK {
+  ?root a sj:GoalCheckpoint ;
+        dcterms:identifier "GC-CASTLE-26.9.28" .
+
+  FILTER EXISTS { ?g0 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-0" ; sj:checkpointOf+ ?root ; sj:receipt ?r0 . ?r0 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g1 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-1" ; sj:checkpointOf+ ?root ; sj:receipt ?r1 . ?r1 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g2 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-2" ; sj:checkpointOf+ ?root ; sj:receipt ?r2 . ?r2 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g3 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-3" ; sj:checkpointOf+ ?root ; sj:receipt ?r3 . ?r3 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g4 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-4" ; sj:checkpointOf+ ?root ; sj:receipt ?r4 . ?r4 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g5 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-5" ; sj:checkpointOf+ ?root ; sj:receipt ?r5 . ?r5 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g6 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-6" ; sj:checkpointOf+ ?root ; sj:receipt ?r6 . ?r6 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g7 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-7" ; sj:checkpointOf+ ?root ; sj:receipt ?r7 . ?r7 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g8 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-8" ; sj:checkpointOf+ ?root ; sj:receipt ?r8 . ?r8 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g9 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-9" ; sj:checkpointOf+ ?root ; sj:receipt ?r9 . ?r9 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g10 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-10" ; sj:checkpointOf+ ?root ; sj:receipt ?r10 . ?r10 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g11 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-11" ; sj:checkpointOf+ ?root ; sj:receipt ?r11 . ?r11 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g12 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-12" ; sj:checkpointOf+ ?root ; sj:receipt ?r12 . ?r12 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g13 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-28-13" ; sj:checkpointOf+ ?root ; sj:receipt ?r13 . ?r13 a sj:Receipt ; sj:standing "ALIVE" . }
+
+  FILTER NOT EXISTS {
+    ?order a sj:WorkOrder ; sj:checkpointOf+ ?root .
+    FILTER NOT EXISTS { ?order sj:boundaryClass sj:Successor . }
+    FILTER NOT EXISTS {
+      ?order sj:receipt ?or .
+      ?or a sj:Receipt ; sj:standing ?s .
+      FILTER(?s = "ALIVE" || STRSTARTS(?s, "BLOCKED") || STRSTARTS(?s, "UNSUPPORTED") || STRSTARTS(?s, "REFUSED"))
+    }
+  }
+}""" .
+
+c:GC-CASTLE-26.10.1
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "GC-CASTLE-26.10.1" ;
+    rdfs:label "CASTLE v26.10.1 successor bucket" ;
+    sj:authorityCeiling "CONSTRUCT" .
+
+c:root-acceptance
+    a sj:AcceptanceCriterion ;
+    rdfs:label "CASTLE root acceptance" ;
+    dcterms:description "All fourteen crown gates have independently observed ALIVE receipts at exact subjects; every required WorkOrder is terminal or successor; the protected DO topology remains single-boundary BRCE." .
+
+c:root-falsifier-authority
+    a sj:Falsifier ;
+    rdfs:label "Alternate authority path" ;
+    dcterms:description "Any path allows ticket, SELECT, CONSTRUCT, XaaS control, planner output, GraphLaw result, generated artifact or compromised computation to cause protected DO without BRCE exact-effect authority." .
+
+c:root-falsifier-ownership
+    a sj:Falsifier ;
+    rdfs:label "Duplicate irreducible ownership" ;
+    dcterms:description "Two retained repositories own the same irreducible CASTLE capability, or one required capability has no owner." .
+
+c:root-falsifier-replay
+    a sj:Falsifier ;
+    rdfs:label "Unreplayable standing" ;
+    dcterms:description "A material consequence, strategic selection or standing claim cannot be reconstructed from exact-subject evidence and receipts." .
+
+# ---------------------------------------------------------------------------
+# Crown gates
+# ---------------------------------------------------------------------------
+
+c:CASTLE-28-0
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-0" ;
+    rdfs:label "Product crown: CASTLE owns board constitution and consequence admissibility" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/castle" ;
+    sj:pathScope "src/strategic_command.rs src/strategic_board.rs docs/WBPR_CASTLE_BOARD_V26_9_28.md" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "CASTLE owns product constitution, board strategic command, consequence courts and board re-entry without absorbing runtime, semantic-law or key-management ownership." ;
+    sj:falsifier "CASTLE becomes the runtime monolith or gains a second protected DO path." .
+
+c:CASTLE-28-1
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-1" ;
+    rdfs:label "Runtime crown: XaaS owns runtime existence and composition" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/xaas" ;
+    sj:pathScope "BEAM/OTP supervision, runs, epochs, leases, provider topology, recovery" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "XaaS is the only fleet-wide runtime composition core and cannot manufacture CASTLE consequential authority." ;
+    sj:falsifier "Another peer must supervise the whole runtime graph, or XaaS runtime control grants protected DO." .
+
+c:CASTLE-28-2
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-2" ;
+    rdfs:label "SA2A exact-subject transport" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/ash_a2a" ;
+    sj:pathScope "SA2A work identity, transport, recovery and provenance" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "SA2A transports work, evidence and planner products while preserving exact subject identity." ;
+    sj:falsifier "Transport possession, routing or delivery grants DO or changes subject identity." .
+
+c:CASTLE-28-3
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-3" ;
+    rdfs:label "Process and planning runtime" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/beam4pm" ;
+    sj:pathScope "beam4pm + ferroplan + ash_pplan" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Beam4PM coordinates processes; Ferroplan performs planner search/replanning; AshPPlan projects planning semantics; none grants authority." ;
+    sj:falsifier "Planner/process output becomes authority or recovery silently broadens authority." .
+
+c:CASTLE-28-4
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-4" ;
+    rdfs:label "Semantic projection and GraphLaw" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/graphlaw" ;
+    sj:pathScope "ash_r2rml -> ash_graphlaw -> graphlaw" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Runtime/domain state projects through AshR2RML into exact-subject graphs; GraphLaw derives law-state; ash_graphlaw is a membrane, not a second semantic engine." ;
+    sj:falsifier "Projection changes subject meaning, ash_graphlaw duplicates GraphLaw semantics, or GraphLaw law-state directly actuates." .
+
+c:CASTLE-28-5
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-5" ;
+    rdfs:label "Affidavit cryptographic standing" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/affidavit" ;
+    sj:pathScope "identity, signatures, PQC, key custody, rotation, revocation, evidence standing" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Affidavit owns cryptographic standing independently from CASTLE/XaaS computation." ;
+    sj:falsifier "Compromised runtime computation can forge, revive or transfer standing." .
+
+c:CASTLE-28-6
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-6" ;
+    rdfs:label "Deterministic WASM and resource bounds" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/wasm4pm" ;
+    sj:pathScope "wasm4pm + dspy-wasm + bcinr" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Repeated deterministic work moves into bounded WASM microcircuits under explicit compute/resource bounds." ;
+    sj:falsifier "A WASM component imports ambient protected DO authority or requires rich runtime organizational semantics to function." .
+
+c:CASTLE-28-7
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-7" ;
+    rdfs:label "Adversarial execution and failure discovery" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/gymact" ;
+    sj:pathScope "gymact + autofde-lab" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "GymAct creates bounded hostile worlds; AutoFDE discovers/falsifies failure hypotheses; production consequences remain outside the experimental envelope." ;
+    sj:falsifier "Counterstrategy or simulation can cause the corresponding production consequence." .
+
+c:CASTLE-28-8
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-8" ;
+    rdfs:label "Evidence, OCEL and process intelligence" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/process-intelligence" ;
+    sj:pathScope "mfact + gitvan + ex4pm + ash_ex4pm + process-intelligence" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Receipts and observations derive OCEL/process histories, analytics and MachineExperience without analytics becoming authority." ;
+    sj:falsifier "Inferred process state is promoted to observed fact or standing solely by adjacency." .
+
+c:CASTLE-28-9
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-9" ;
+    rdfs:label "Semantic manufacture and fleet generation" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/ggen_igniter" ;
+    sj:pathScope "ggen_igniter + ggen-marketplace + ggen-ecosystem + ash_kudzu; ggen is legacy/source" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Canonical semantics manufacture adapters/tests/projections; generated artifacts remain non-sovereign; legacy systems can be extracted into semantic capital." ;
+    sj:falsifier "Generated hand edits become canonical truth or legacy ggen becomes required consequence authority." .
+
+c:CASTLE-28-10
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-10" ;
+    rdfs:label "Bounded application and external-system surfaces" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/ash_surface" ;
+    sj:pathScope "ash_surface + ash_expo + ash_atlassian + ash_planning_center + chatgpt-cloud-elixir + cargo-cicd + zcode-cli + zoela" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Human, mobile, SaaS, provider, CI/CD and domain surfaces communicate through XaaS/SA2A and do not invent private authorization semantics." ;
+    sj:falsifier "An adapter bypasses CASTLE/XaaS governance or creates an alternate authority system." .
+
+c:CASTLE-28-11
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-11" ;
+    rdfs:label "Berthier / 33SW board strategic command" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/castle" ;
+    sj:pathScope "BoardConstitution -> StrategyDoctrine -> partitions -> campaigns -> counterstrategy -> board SELECT -> inert mandate" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Machines construct/falsify/replan strategy; material SELECT remains a board act; selection emits an inert mandate and never DO." ;
+    sj:falsifier "An optimizer becomes corporate sovereignty, board SELECT implies DO, or a changed strategic premise avoids re-entry/recompile." .
+
+c:CASTLE-28-12
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-12" ;
+    rdfs:label "One protected BRCE consequence boundary" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/castle" ;
+    sj:pathScope "prepared effect -> exact-effect authority -> BRCE -> DO -> observation -> receipt -> replay" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Every protected production consequence crosses exactly one BRCE boundary and produces replayable evidence." ;
+    sj:falsifier "Any alternate protected DO path exists, or an UNKNOWN consequence is blindly retried." .
+
+c:CASTLE-28-13
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-28-13" ;
+    rdfs:label "Single irreducible owner per retained capability" ;
+    sj:checkpointOf c:GC-CASTLE-26.9.28 ;
+    sj:repository "seanchatmangpt/castle" ;
+    sj:pathScope "docs/sjira/v26.9.28/repos.ttl ownership registry" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Every retained capability has one irreducible owner; support repos must KEEP, WRAP, GENERATE, ABSORB, REPLACE or RETIRE." ;
+    sj:falsifier "Two retained repos claim the same irreducible responsibility or a required capability has no owner." .

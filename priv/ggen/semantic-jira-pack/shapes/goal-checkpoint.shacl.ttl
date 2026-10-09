@@ -99,11 +99,11 @@ sj:GoalCheckpointDocGraphShape a sh:NodeShape ;
     sh:sparql [
         sh:message "a root GoalCheckpoint carrying sj:stopQuery requires sj:replayIdentity" ;
         sh:select """
-            SELECT ?this
-            WHERE {
-                OPTIONAL { ?this sj:replayIdentity ?ri . }
-                OPTIONAL { ?this sj:stopQuery ?sq . }
-                FILTER(!BOUND(?ri) && BOUND(?sq))
+            PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+            SELECT $this WHERE {
+              OPTIONAL { $this sj:replayIdentity ?ri . }
+              OPTIONAL { $this sj:stopQuery ?sq . }
+              FILTER(!BOUND(?ri) && BOUND(?sq))
             }
         """
     ] ;
@@ -113,20 +113,20 @@ sj:GoalCheckpointDocGraphShape a sh:NodeShape ;
     sh:sparql [
         sh:message "STOP law: a goal-graph checkpoint graph carries no authored sj:WorkOrder" ;
         sh:select """
-            SELECT ?this
-            WHERE {
-                ?this a sj:GoalCheckpoint .
-                ?order a sj:WorkOrder .
+            PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+            SELECT $this WHERE {
+              $this a sj:GoalCheckpoint .
+              ?order a sj:WorkOrder .
             }
         """
     ] ;
     sh:sparql [
         sh:message "STOP law: a goal-graph checkpoint graph carries no authored sj:Receipt" ;
         sh:select """
-            SELECT ?this
-            WHERE {
-                ?this a sj:GoalCheckpoint .
-                ?receipt a sj:Receipt .
+            PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+            SELECT $this WHERE {
+              $this a sj:GoalCheckpoint .
+              ?receipt a sj:Receipt .
             }
         """
     ] .

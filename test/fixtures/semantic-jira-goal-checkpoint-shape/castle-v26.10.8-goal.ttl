@@ -1,0 +1,129 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix c10: <https://ggen-igniter.dev/sjira/castle-26.10.8#> .
+@prefix c28: <https://ggen-igniter.dev/sjira/castle-26.9.28#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# CASTLE v26.10.8 successor sJira goal graph.
+#
+# Successor of docs/sjira/v26.9.28/goal.ttl per its sj:successorPolicy:
+# discovered work that falsifies no CASTLE-28 crown gate routes forward and
+# cannot reopen the v26.9.28 crown. Grammar follows the predecessor exactly
+# (sj:GoalCheckpoint, authorityCeiling CONSTRUCT, replayIdentity,
+# checkpointOf chain), with the 60-line stopQuery simplified to the gates
+# actually witnessed in the v26.10.8 campaign.
+#
+# Law (inherited, unchanged):
+# - This file contains no authored sj:WorkOrder and no authored sj:Receipt.
+#   WorkOrders are compiler projections; receipts are observations.
+# - Authority ceiling is CONSTRUCT. The graph never grants DO.
+# - BRCE remains the sole protected CONSTRUCT -> DO boundary.
+# - STOP is receipt-driven and therefore false from this file alone.
+
+c10:GC-CASTLE-26.10.8
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "GC-CASTLE-26.10.8" ;
+    rdfs:label "CASTLE v26.10.8 successor checkpoint: witnessed fleet campaign crown" ;
+    dcterms:description "Successor bucket for the v26.10.8 campaign: full cargo suite green, pinned-XSD ISO 20022 conformance passing, v1.0 agent card landed at fe78477, capability-intake docs landed. Single BRCE consequence boundary and exact-subject evidence carried forward from GC-CASTLE-26.9.28." ;
+    dcterms:source "docs/sjira/v26.10.8/CAMPAIGN-RECEIPT.md" ;
+    sj:repository "seanchatmangpt/castle" ;
+    sj:baseSha "fe784778a400adecc4bcfa95716ea2efba576c31" ;
+    sj:checkpointOf c28:GC-CASTLE-26.9.28 ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:evidenceHorizon "EXECUTED_VERIFIED" ;
+    sj:requiresEvidence sj:receipt-evidence, sj:replay-evidence ;
+    sj:replayIdentity "semantic-jira:castle-26.10.8:GC-CASTLE-26.10.8" ;
+    sj:exclusion
+        "A ticket, plan, model output, semantic-law result, runtime-control capability, generated artifact or board selection is never consequential authority.",
+        "The goal graph contains no authored WorkOrders or Receipts.",
+        "XaaS runtime control does not imply CASTLE consequence authority.",
+        "GraphLaw law-state does not imply DO.",
+        "Affidavit standing evidence does not itself execute consequence.",
+        "Generated artifacts never become canonical semantic truth by hand edit." ;
+    sj:successorPolicy "Discovered work that falsifies no v26.10.8 gate routes to the next successor bucket and cannot reopen this crown." ;
+    sj:acceptance c10:root-acceptance ;
+    sj:falsifier c10:root-falsifier-authority, c10:root-falsifier-replay ;
+    sj:stopQuery """PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+ASK {
+  ?root a sj:GoalCheckpoint ;
+        dcterms:identifier "GC-CASTLE-26.10.8" .
+
+  FILTER EXISTS { ?g0 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-26.10.8-0" ; sj:checkpointOf+ ?root ; sj:receipt ?r0 . ?r0 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g1 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-26.10.8-1" ; sj:checkpointOf+ ?root ; sj:receipt ?r1 . ?r1 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g2 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-26.10.8-2" ; sj:checkpointOf+ ?root ; sj:receipt ?r2 . ?r2 a sj:Receipt ; sj:standing "ALIVE" . }
+  FILTER EXISTS { ?g3 a sj:GoalCheckpoint ; dcterms:identifier "CASTLE-26.10.8-3" ; sj:checkpointOf+ ?root ; sj:receipt ?r3 . ?r3 a sj:Receipt ; sj:standing "ALIVE" . }
+
+  FILTER NOT EXISTS {
+    ?order a sj:WorkOrder ; sj:checkpointOf+ ?root .
+    FILTER NOT EXISTS { ?order sj:boundaryClass sj:Successor . }
+    FILTER NOT EXISTS {
+      ?order sj:receipt ?or .
+      ?or a sj:Receipt ; sj:standing ?s .
+      FILTER(?s = "ALIVE" || STRSTARTS(?s, "BLOCKED") || STRSTARTS(?s, "UNSUPPORTED") || STRSTARTS(?s, "REFUSED"))
+    }
+  }
+}""" .
+
+c10:root-acceptance
+    a sj:AcceptanceCriterion ;
+    rdfs:label "CASTLE v26.10.8 root acceptance" ;
+    dcterms:description "All four witnessed campaign gates have independently observed ALIVE receipts at exact subjects; every required WorkOrder is terminal or successor; the protected DO topology remains single-boundary BRCE." .
+
+c10:root-falsifier-authority
+    a sj:Falsifier ;
+    rdfs:label "Alternate authority path" ;
+    dcterms:description "Any path allows ticket, SELECT, CONSTRUCT, XaaS control, planner output, GraphLaw result, generated artifact or compromised computation to cause protected DO without BRCE exact-effect authority." .
+
+c10:root-falsifier-replay
+    a sj:Falsifier ;
+    rdfs:label "Unreplayable standing" ;
+    dcterms:description "A material consequence, strategic selection or standing claim cannot be reconstructed from exact-subject evidence and receipts." .
+
+# ---------------------------------------------------------------------------
+# Witnessed campaign gates
+# ---------------------------------------------------------------------------
+
+c10:CASTLE-26.10.8-0
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-26.10.8-0" ;
+    rdfs:label "Full cargo build and test suite green" ;
+    sj:checkpointOf c10:GC-CASTLE-26.10.8 ;
+    sj:repository "seanchatmangpt/castle" ;
+    sj:pathScope "Cargo workspace build + tests" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "The complete cargo build and test suite passes at the campaign subject." ;
+    sj:falsifier "Any workspace build or test failure at the campaign head." .
+
+c10:CASTLE-26.10.8-1
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-26.10.8-1" ;
+    rdfs:label "Pinned-XSD ISO 20022 conformance passing" ;
+    sj:checkpointOf c10:GC-CASTLE-26.10.8 ;
+    sj:repository "seanchatmangpt/castle" ;
+    sj:pathScope "payments ISO 20022 conformance gates (pinned XSD)" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "The pinned-XSD ISO 20022 conformance gate passes at the campaign subject." ;
+    sj:falsifier "A conformance failure against the pinned XSD, or silent XSD float." .
+
+c10:CASTLE-26.10.8-2
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-26.10.8-2" ;
+    rdfs:label "v1.0 agent card landed (capability discovery, authority NONE)" ;
+    sj:checkpointOf c10:GC-CASTLE-26.10.8 ;
+    sj:repository "seanchatmangpt/castle" ;
+    sj:pathScope "A2A v1.0 agent card surface" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "The v1.0 agent card (capability discovery, authority NONE) is landed at fe78477." ;
+    sj:falsifier "The agent card surface grants authority or regresses capability discovery." .
+
+c10:CASTLE-26.10.8-3
+    a sj:GoalCheckpoint ;
+    dcterms:identifier "CASTLE-26.10.8-3" ;
+    rdfs:label "Capability intake docs landed" ;
+    sj:checkpointOf c10:GC-CASTLE-26.10.8 ;
+    sj:repository "seanchatmangpt/castle" ;
+    sj:pathScope "capability intake documentation" ;
+    sj:authorityCeiling "CONSTRUCT" ;
+    sj:postcondition "Capability-intake documentation is landed and consistent with the single-owner capability fleet." ;
+    sj:falsifier "Intake docs assert an ownership claim that contradicts the repos.ttl single-owner registry." .
