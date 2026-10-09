@@ -15,6 +15,7 @@ defmodule GgenIgniter.SemanticJiraExecuteTest do
 
   use ExUnit.Case, async: true
 
+  alias GgenIgniter.Reconcile
   alias GgenIgniter.SemanticJira.{Descriptor, Execute, Reconciler, TransitionLog}
 
   @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
@@ -261,7 +262,9 @@ SELECT DISTINCT ?subject WHERE {
       File.write!(second, "extra template\n")
 
       assert {0, result} =
-               Execute.run(local_opts(ctx, template: Path.join(ctx.pack, "templates/report.md.eex")))
+               Execute.run(
+                 local_opts(ctx, template: Path.join(ctx.pack, "templates/report.md.eex"))
+               )
 
       assert result["status"] == "executed"
       report = Path.join(ctx.target.dir, "ggen-manufactured/report.md")
@@ -292,6 +295,45 @@ SELECT DISTINCT ?subject WHERE {
 
       assert ledger_bytes(ctx) == bytes_before
       refute File.exists?(ctx.receipt_out)
+    end
+  end
+
+  describe "Reconcile.run/1 multi-template pack (C13 execute rung, named surface)" do
+    test "explicit :template renders the named template, not the others", ctx do
+      File.write!(Path.join(ctx.pack, "templates/extra.md.eex"), "extra template\n")
+
+      assert {:ok, result} =
+               Reconcile.run(
+                 pack_dir: ctx.pack,
+                 template: Path.join(ctx.pack, "templates/report.md.eex"),
+                 out: Path.join(ctx.dir, "reconciled/report.md")
+               )
+
+      assert result.outcome == :written
+      assert result.template_path == Path.join(ctx.pack, "templates/report.md.eex")
+      rendered = File.read!(Path.join(ctx.dir, "reconciled/report.md"))
+      assert rendered =~ "gate row: execute pack report"
+      refute rendered =~ "extra template"
+    end
+
+    test "omitting :template on a multi-template pack raises a typed ambiguous-template error",
+         ctx do
+      File.write!(Path.join(ctx.pack, "templates/extra.md.eex"), "extra template\n")
+
+      assert_raise ArgumentError, ~r/multiple templates found.*pass :template explicitly/s, fn ->
+        Reconcile.run(pack_dir: ctx.pack, out: Path.join(ctx.dir, "reconciled/report.md"))
+      end
+    end
+
+    test "single-template pack with no :template keeps auto-discovery (existing callers unchanged)",
+         ctx do
+      assert {:ok, result} =
+               Reconcile.run(pack_dir: ctx.pack, out: Path.join(ctx.dir, "reconciled/report.md"))
+
+      assert result.template_path == Path.join(ctx.pack, "templates/report.md.eex")
+
+      assert File.read!(Path.join(ctx.dir, "reconciled/report.md")) =~
+               "gate row: execute pack report"
     end
   end
 
