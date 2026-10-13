@@ -128,9 +128,34 @@ defmodule GgenIgniter.PackCompileTest do
                PackCompile.render("slow", pack_dir: dir, timeout: 50)
 
       assert out =~ "timed out after 50ms"
-      Process.sleep(500)
-      {ps, _} = System.cmd("ps", ["-axo", "command"])
-      refute ps =~ marker, "mix subprocess for #{marker} survived the timeout"
+
+      # Poll for the subprocess's death instead of betting on a fixed sleep:
+      # give the OS up to 2s, checking every 50ms, and fail naming the actual
+      # elapsed wait if the process tree survived.
+      deadline = System.monotonic_time(:millisecond) + 2_000
+      start = System.monotonic_time(:millisecond)
+
+      survived? =
+        Enum.reduce_while(Stream.iterate(0, &(&1 + 1)), true, fn _i, acc ->
+          {ps, _} = System.cmd("ps", ["-axo", "command"])
+
+          cond do
+            not (ps =~ marker) ->
+              {:halt, false}
+
+            System.monotonic_time(:millisecond) >= deadline ->
+              {:halt, true}
+
+            true ->
+              Process.sleep(50)
+              {:cont, acc}
+          end
+        end)
+
+      elapsed = System.monotonic_time(:millisecond) - start
+
+      refute survived?,
+             "mix subprocess for #{marker} survived the timeout (waited #{elapsed}ms)"
     end
   end
 
