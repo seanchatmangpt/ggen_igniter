@@ -149,13 +149,22 @@ defmodule GgenIgniter.MixProject do
 
   # Runtime-read packs under priv/ggen (semantic-jira-pack's trust-root
   # ontology, gall_work's ticket template). `priv/native/*.so` is a gitignored
-  # build product and must never ship (bare `priv` would include it), and Ash
-  # packs come from ggen-marketplace, not from this package.
+  # build product and must never ship (bare `priv` would include it).
+  # Fence history: 00b561a (v26.9.28, operator directive 2026-09-28) rejected
+  # every path containing "ash" because Ash packs were expected to come from
+  # ggen-marketplace, not this package ("Ash must not ship with the hex
+  # package", pinned in GgenIgniterPackageAshFreeTest). That fence keeps
+  # refusing every ash-named pack exactly as before, with ONE deliberate
+  # exception: the qualified ash-manufacture-pack ships so hex consumers can
+  # resolve `mix ggen_igniter.sync --pack ash-manufacture-pack`.
   defp shipped_packs do
     "priv/ggen/*"
     |> Path.wildcard()
-    |> Enum.reject(&String.contains?(&1, "ash"))
+    |> Enum.reject(&(not ash_shipped?(Path.basename(&1))))
   end
+
+  defp ash_shipped?("ash-manufacture-pack"), do: true
+  defp ash_shipped?(basename), do: not String.contains?(basename, "ash")
 
   defp deps do
     [
@@ -292,7 +301,7 @@ defmodule GgenIgniter.MixProject do
       # `GgenIgniter.Reconcile.run/1` and `ReconcileReactor.render_target/3`,
       # same reasoning as `:jason` above. Version floor checked against
       # hex.pm's real package index (2026-09; latest published is 0.15.1).
-      {:wasmex, "~> 0.9"}
+      {:wasmex, "~> 0.15"}
     ]
   end
 

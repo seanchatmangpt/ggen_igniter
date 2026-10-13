@@ -53,7 +53,11 @@ defmodule GgenIgniter.Engine.Graphlaw do
   import Bitwise, only: [bsr: 2, band: 2]
 
   @default_wasm_path "~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm"
-  @packaged_wasm_path "priv/graphlaw_wasm.wasm"
+  # NOTE: `:code.priv_dir/1` already returns the `priv/` directory itself, so the
+  # artifact must be joined relative to it (joining "priv/graphlaw_wasm.wasm"
+  # produced a non-existent `priv/priv/...` path and the shipped, checksummed
+  # artifact was never selected).
+  @packaged_wasm_path "graphlaw_wasm.wasm"
   @wasm_sha256 "8bfff66cccd1e1a4834d61a893888bb479f046c1da1152a29098be7de0fe71a8"
 
   @doc """
