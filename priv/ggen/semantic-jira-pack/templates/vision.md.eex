@@ -42,16 +42,19 @@ if length(replay_identities) != length(Enum.uniq(replay_identities)) do
   )
 end
 
-# The ALIVE-receipt-crown gate and the description-integrity gate return only
-# admission violations; any row at all is a refusal.
-Enum.each(alive_receipt_crown, fn violation ->
+# ADR-0010 (directory-is-convention): the ALIVE-receipt-crown and
+# description-integrity laws are offender-reporting -- the rows of the
+# verify/*.unbound.rq companions (discovered as <stem>_unbound named queries
+# by Pack.discover_unbound_queries/1) are violations: any row at all is a
+# refusal.
+Enum.each(alive_receipt_crown_unbound, fn violation ->
   refuse.(
     "standing ALIVE requires sj:candidateSha, sj:subjectSha, and sj:receipt evidence " <>
       "(shapes/work-order.shacl.ttl) for #{inspect(violation["id"])}"
   )
 end)
 
-Enum.each(description_integrity, fn violation ->
+Enum.each(description_integrity_unbound, fn violation ->
   refuse.(
     "semantic node #{inspect(violation["node"])} lacks a real description: blank, " <>
       "self-label, or self-IRI echo carries no semantic content"

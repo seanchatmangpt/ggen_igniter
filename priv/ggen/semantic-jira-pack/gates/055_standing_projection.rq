@@ -1,0 +1,18 @@
+# Standing-projection DRIVER gate (ADR-0010 re-bird; closes the Ra4
+# standing-projection rung named in the former gates/055 header and V23-T6R
+# refutation 2). The offender form -- a forked ledger projection (two chain
+# tips maximal in sj:seq for one identity) -- is the inverted companion
+# verify/055_standing_projection.unbound.rq (zero-rows-pass,
+# offender-reporting per ADR-0010:
+# docs/architecture/adr/0010-gate-convention-directory-is-convention.md),
+# verbatim former gates/055. The driver witnesses the positive image: every
+# WorkOrder projects exactly the standing literal its ledger projection
+# carries. One row per order identity.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT DISTINCT ?work_order ?identity ?standing WHERE {
+  ?work_order a sj:WorkOrder ;
+              dcterms:identifier ?identity ;
+              sj:standing ?standing .
+}
+ORDER BY ?identity

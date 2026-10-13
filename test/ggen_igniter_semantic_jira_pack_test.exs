@@ -36,6 +36,28 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
   @ontology_path "priv/ggen/semantic-jira-pack/ontology.ttl"
 
+  # Real-subprocess half of the HDDL round-trip court: ferroplan's own
+  # validate_files gate (consumer side; the tripwire lives in ferroplan and
+  # is never edited here). Skipped, with the reason named, when cargo is
+  # absent or FERROPLAN_DIR does not hold the example.
+  @ferroplan_dir System.get_env("FERROPLAN_DIR")
+  @ferroplan_skip (cond do
+                     is_nil(System.find_executable("cargo")) ->
+                       "cargo not on PATH: ferroplan validate_files cannot be built"
+
+                     is_nil(@ferroplan_dir) or
+                         not File.exists?(
+                           Path.join(
+                             @ferroplan_dir || "",
+                             "crates/ferroplan-hddl/examples/validate_files.rs"
+                           )
+                         ) ->
+                       "FERROPLAN_DIR unset or lacks crates/ferroplan-hddl/examples/validate_files.rs"
+
+                     true ->
+                       false
+                   end)
+
   defp scratch_dir!(tag) do
     dir =
       Path.join(
@@ -96,6 +118,69 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     "sha256:" <>
       (:crypto.hash(:sha256, File.read!(path))
        |> Base.encode16(case: :lower))
+  end
+
+  # ── ferroplan HDDL grammar (structural half of the round-trip court) ──────
+  #
+  # ferroplan's parser (crates/ferroplan-hddl/src/parser.rs, parse_problem/
+  # parse_domain) accepts ONLY the `(define (problem ...) ...)` /
+  # `(define (domain ...) ...)` forms with a closed section set. These
+  # helpers assert the rendered pair against that grammar structurally; the
+  # "ferroplan validate_files" describe block below is the real-subprocess
+  # half of the same court (parse + validate + ground, consumer: ferroplan;
+  # the tripwire lives in ferroplan, never edited here).
+
+  @sj_hddl_domain "semantic-jira-workorder"
+
+  @problem_sections [:domain, :objects, :init, :goal, :htn]
+
+  defp section_offset(bytes, section) do
+    needle = "(:" <> Atom.to_string(section)
+
+    case :binary.match(bytes, needle) do
+      {pos, _len} -> pos
+      :nomatch -> flunk("section #{needle} missing from rendered problem")
+    end
+  end
+
+  defp assert_problem_sections_ordered(bytes, path) do
+    offsets = Enum.map(@problem_sections, &section_offset(bytes, &1))
+
+    assert offsets == Enum.sort(offsets),
+           "#{path}: problem sections are not in ferroplan's accepted order " <>
+             "#{inspect(@problem_sections)}"
+
+    offsets
+  end
+
+  defp problem_domain_name(problem_bytes) do
+    case Regex.run(~r/\(:domain ([A-Za-z0-9-]+)\)/, problem_bytes, capture: :all_but_first) do
+      [name] -> name
+      nil -> flunk("rendered problem has no (:domain <name>) section")
+    end
+  end
+
+  defp assert_pair_grammar(domain_bytes, problem_bytes) do
+    assert domain_bytes =~ "(define (domain #{@sj_hddl_domain})"
+
+    assert problem_bytes =~
+             ~r/\(define \(problem [A-Za-z0-9-]+\) \(:domain #{@sj_hddl_domain}\)/
+
+    assert problem_domain_name(problem_bytes) == @sj_hddl_domain
+    assert_problem_sections_ordered(problem_bytes, "problem")
+
+    domain_offsets =
+      Enum.map([:requirements, :types, :predicates, :constants, :task, :method], fn section ->
+        case :binary.match(domain_bytes, "(:" <> Atom.to_string(section)) do
+          {pos, _len} -> pos
+          :nomatch -> flunk("domain section (:#{section} missing")
+        end
+      end)
+
+    assert domain_offsets == Enum.sort(domain_offsets),
+           "domain sections are not in ferroplan's accepted order"
+
+    :ok
   end
 
   describe "canonical WorkOrder graph -> deterministic Markdown projection -> graph-bound receipt" do
@@ -326,7 +411,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       # State features are the graph's own boundary scalars as declared
       # constants; the observed standing in :init is never the goal standing.
-      assert first_bytes =~ "(defproblem promote-SJ-001 semantic-jira-workorder"
+      assert first_bytes =~ "(define (problem promote-SJ-001) (:domain semantic-jira-workorder)"
       assert first_bytes =~ "(standing SJ-001 UNKNOWN)"
       assert first_bytes =~ "(base-sha SJ-001 d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3)"
       assert first_bytes =~ "(authority-ceiling SJ-001 CONSTRUCT)"
@@ -398,7 +483,8 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         assert count.("(") == count.(")"),
                "#{Path.basename(path)} has unbalanced parentheses"
 
-        assert bytes =~ "(defproblem promote-#{id} semantic-jira-workorder"
+        assert bytes =~ "(define (problem promote-#{id}) (:domain semantic-jira-workorder)"
+        assert_problem_sections_ordered(bytes, path)
         assert bytes =~ "(workorder #{id})"
         assert bytes =~ "(projection-authority NONE)"
         assert bytes =~ "(has-receipt #{id})"
@@ -445,6 +531,138 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
              end)
+    end
+  end
+
+  describe "ferroplan HDDL pair (domain + problem) emission" do
+    @tag timeout: @sync_timeout
+    test "emits the shared semantic-jira-workorder domain bound to the graph's standing vocabulary" do
+      work_dir = scratch_dir!("hddl_domain")
+      domain_path = Path.join(work_dir, "semantic-jira-workorder.domain.hddl")
+
+      {output, exit_code} =
+        run_sync(work_dir, [], "semantic-jira-pack:plan-domain", ".hddl", "semantic-jira-workorder.domain.hddl")
+
+      assert exit_code == 0, "domain sync failed:\n#{output}"
+      assert File.exists?(domain_path)
+
+      bytes = File.read!(domain_path)
+
+      assert bytes =~ "(define (domain semantic-jira-workorder)"
+      assert bytes =~ "(:requirements :typing)"
+
+      assert bytes =~
+               "(:types\n    workorder court evidence receipt-class falsifier checkpoint dependency-edge standing-state sha ceiling identity-atom)"
+
+      # The problem files' exact predicate surface, plus the graph-derived
+      # standing constants.
+      assert bytes =~ "(standing ?w - workorder ?s - standing-state)"
+      assert bytes =~ "(base-sha ?w - workorder ?s - sha)"
+      assert bytes =~ "(has-receipt ?w - workorder)"
+      assert bytes =~ "(projection-authority ?a - ceiling)"
+      assert bytes =~ "(:task close-court :parameters (?w - workorder ?c - court))"
+      assert bytes =~ "(promote ?w)"
+      assert bytes =~ "(:constants\n    UNKNOWN - standing-state"
+
+      [receipt] = Receipt.read_all!(work_dir)
+      assert receipt["standing"] == "alive"
+      assert domain_path in receipt["files"]
+    end
+
+    @tag timeout: @double_sync_timeout
+    test "rendered problem + domain pair matches the ferroplan-accepted grammar; a domain-name saboteur fails the pair" do
+      work_dir = scratch_dir!("hddl_pair")
+
+      {plan_output, plan_exit} =
+        run_sync(work_dir, [], "semantic-jira-pack:plan", ".hddl")
+
+      assert plan_exit == 0, "plan sync failed:\n#{plan_output}"
+
+      {domain_output, domain_exit} =
+        run_sync(work_dir, [], "semantic-jira-pack:plan-domain", ".hddl", "semantic-jira-workorder.domain.hddl")
+
+      assert domain_exit == 0, "domain sync failed:\n#{domain_output}"
+
+      problem_bytes = File.read!(Path.join(work_dir, "SJ-001.hddl"))
+      domain_bytes = File.read!(Path.join(work_dir, "semantic-jira-workorder.domain.hddl"))
+
+      assert :ok == assert_pair_grammar(domain_bytes, problem_bytes)
+
+      # Sabotage twin: the generated problem referencing a domain name the
+      # emitted domain does not carry must fail the pair check, never pass.
+      saboteur = String.replace(problem_bytes, "(:domain semantic-jira-workorder)", "(:domain rogue-domain)", global: false)
+      assert saboteur != problem_bytes, "sabotage mutation must apply"
+      assert problem_domain_name(saboteur) != @sj_hddl_domain
+      assert_raise ExUnit.AssertionError, fn ->
+        assert_pair_grammar(domain_bytes, saboteur)
+      end
+    end
+  end
+
+  describe "ferroplan validate_files round-trip" do
+    @describetag :ferroplan
+    if @ferroplan_skip, do: @describetag(skip: @ferroplan_skip)
+
+    setup do
+      dir = Path.join(System.tmp_dir!(), "sj_hddl_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(dir)
+      on_exit(fn -> File.rm_rf!(dir) end)
+
+      {plan_output, plan_exit} =
+        run_sync(dir, [], "semantic-jira-pack:plan", ".hddl")
+
+      assert plan_exit == 0, "plan sync failed:\n#{plan_output}"
+
+      {domain_output, domain_exit} =
+        run_sync(dir, [], "semantic-jira-pack:plan-domain", ".hddl", "semantic-jira-workorder.domain.hddl")
+
+      assert domain_exit == 0, "domain sync failed:\n#{domain_output}"
+
+      %{dir: dir, domain: File.read!(Path.join(dir, "semantic-jira-workorder.domain.hddl"))}
+    end
+
+    defp validate_pair(dir, problem_bytes, domain_bytes) do
+      d = Path.join(dir, "domain.hddl")
+      p = Path.join(dir, "problem.hddl")
+      File.write!(d, domain_bytes)
+      File.write!(p, problem_bytes)
+
+      System.cmd(
+        "cargo",
+        ~w(run -q -p ferroplan-hddl --example validate_files --) ++ [d, p],
+        cd: System.get_env("FERROPLAN_DIR"),
+        stderr_to_stdout: true
+      )
+    end
+
+    @tag timeout: @double_sync_timeout
+    test "admits the rendered domain with a plain work order (exit 0)", %{dir: dir, domain: domain} do
+      {out, code} = validate_pair(dir, File.read!(Path.join(dir, "SJ-001.hddl")), domain)
+      assert code == 0, out
+      assert out =~ "ok domain=semantic-jira-workorder problem=promote-SJ-001"
+    end
+
+    @tag timeout: @double_sync_timeout
+    test "admits the rendered domain with the dependency-carrying work order (exit 0)", %{dir: dir, domain: domain} do
+      {out, code} = validate_pair(dir, File.read!(Path.join(dir, "GALL-002.hddl")), domain)
+      assert code == 0, out
+      assert out =~ "ok domain=semantic-jira-workorder problem=promote-GALL-002"
+    end
+
+    @tag timeout: @double_sync_timeout
+    test "refuses a problem whose subtasks name an unrenderable vocabulary (exit 2)", %{dir: dir, domain: domain} do
+      mutant =
+        String.replace(
+          File.read!(Path.join(dir, "SJ-001.hddl")),
+          "(close-court SJ-001 exact-head-projection-court)",
+          "(close-court SJ-001 teleported-court)",
+          global: false
+        )
+
+      assert mutant != File.read!(Path.join(dir, "SJ-001.hddl")), "mutation must apply"
+      {out, code} = validate_pair(dir, mutant, domain)
+      assert code == 2, out
+      assert out =~ "refused: problem"
     end
   end
 

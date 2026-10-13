@@ -1,0 +1,17 @@
+# Epoch-boundary DRIVER gate (ADR-0010 re-bird): the positive image of the
+# epoch vocabulary law. The offender form -- an sj:EpochBoundary individual
+# missing its sj:epochLabel / sj:watermarkTree / sj:similarityThreshold /
+# sj:implementationGlob columns -- is the inverted companion
+# verify/epoch_boundary.unbound.rq (zero-rows-pass, offender-reporting per
+# ADR-0010:
+# docs/architecture/adr/0010-gate-convention-directory-is-convention.md),
+# verbatim former gates/epoch_boundary. The driver witnesses the epoch
+# vocabulary surface: the four domain-scoped properties (the columns the
+# epoch machinery GgenIgniter.EpochWatermark / EpochFreshness /
+# SemanticJira.EpochPlan reads) are declared against sj:EpochBoundary, so a
+# dropped property refuses rather than silently widening the epoch columns.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT DISTINCT ?property WHERE {
+  ?property rdfs:domain sj:EpochBoundary .
+}

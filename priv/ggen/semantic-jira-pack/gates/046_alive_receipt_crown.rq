@@ -1,0 +1,27 @@
+# ALIVE-receipt-crown DRIVER gate (ADR-0010 re-bird), the positive image of
+# the law "ALIVE requires exact candidate/subject SHA and a durable receipt"
+# (mirrors shapes/work-order.shacl.ttl). The offender form — an ALIVE order
+# missing sj:candidateSha / sj:subjectSha / sj:receipt — is the inverted
+# companion verify/046_alive_receipt_crown.unbound.rq (zero-rows-pass,
+# offender-reporting per ADR-0010:
+# docs/architecture/adr/0010-gate-convention-directory-is-convention.md),
+# verbatim former gates/046. The driver witnesses the crown vocabulary
+# surface the law is written against: the three crown predicates are declared
+# rdf:Property individuals in the pack ontology, so on the canonical graph
+# this gate has one row per crown predicate (>= 1 row = the vocabulary the
+# SHAPE binds is present; 0 rows = a crown predicate was dropped from the
+# ontology and the ALIVE law is unwritable).
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+SELECT ?property WHERE {
+  {
+    sj:candidateSha a rdf:Property .
+    BIND(sj:candidateSha AS ?property)
+  } UNION {
+    sj:subjectSha a rdf:Property .
+    BIND(sj:subjectSha AS ?property)
+  } UNION {
+    sj:receipt a rdf:Property .
+    BIND(sj:receipt AS ?property)
+  }
+}

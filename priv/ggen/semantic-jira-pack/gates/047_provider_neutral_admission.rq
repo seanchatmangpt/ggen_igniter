@@ -1,0 +1,54 @@
+# Provider-neutrality DRIVER gate (ADR-0010 re-bird; ALOOP-ZCODE-DOGFOOD-001
+# contract): the positive image of the neutrality law -- rows are the
+# (work_order, field, value) triples that SATISFY the law: every
+# provider-scannable order field carries no provider token. The offender form
+# -- a leaking literal / malformed capabilityId / direct sj:provider assertion
+# -- is the inverted companion verify/047_provider_neutral_admission.unbound.rq
+# (zero-rows-pass, offender-reporting per ADR-0010:
+# docs/architecture/adr/0010-gate-convention-directory-is-convention.md),
+# verbatim former gates/047 (its capabilityId / provider-assertion branches
+# have no positive image on this ontology: no order individual carries
+# sj:capabilityId). The closed provider-token list is copied verbatim from the
+# companion; extend it only there, in lockstep.
+# Declared sj: terms only (graph-binding tripwire: every term a gate names is
+# an rdf:type subject of the pack ontology).
+# sparql law (locked 0.3.12 + oxigraph): per-group FILTER inside each branch,
+# never FILTER inside EXISTS (see 050_frontier.rq's header).
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?work_order ?field ?value WHERE {
+  {
+    ?work_order a sj:WorkOrder ; dcterms:title ?value .
+    BIND("title" AS ?field)
+    FILTER(!REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; dcterms:description ?value .
+    BIND("description" AS ?field)
+    FILTER(!REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:subject ?value .
+    BIND("subject" AS ?field)
+    FILTER(!REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:repository ?value .
+    BIND("repository" AS ?field)
+    FILTER(!REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:evidenceCeiling ?value .
+    BIND("evidenceCeiling" AS ?field)
+    FILTER(!REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:authorityCeiling ?value .
+    BIND("authorityCeiling" AS ?field)
+    FILTER(!REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:promotionRule ?value .
+    BIND("promotionRule" AS ?field)
+    FILTER(!REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  } UNION {
+    ?work_order a sj:WorkOrder ; sj:replayIdentity ?value .
+    BIND("replayIdentity" AS ?field)
+    FILTER(!REGEX(LCASE(STR(?value)), "(claude|zcode|anthropic|codex|gemini|openai|copilot|kimi|glm)"))
+  }
+}
+ORDER BY ?field ?work_order

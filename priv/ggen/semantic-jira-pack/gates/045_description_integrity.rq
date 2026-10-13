@@ -1,0 +1,25 @@
+# Semantic-node integrity DRIVER gate (ADR-0010 re-bird): every node that
+# carries rdfs:label + dcterms:description (the shape a relation target must
+# have to resolve) must carry REAL semantic content — and the healthy graph
+# witnesses this positively: rows are the (node, label, description) triples
+# that satisfy the integrity law. A node whose description is "", its own
+# label, or its own IRI string describes nothing; those rows are emitted by
+# the inverted companion verify/045_description_integrity.unbound.rq
+# (zero-rows-pass, offender-reporting per ADR-0010:
+# docs/architecture/adr/0010-gate-convention-directory-is-convention.md),
+# which is the verbatim former gates/045 query.
+# sparql law (locked 0.3.12 + oxigraph): per-group FILTER only, no FILTER
+# inside EXISTS (see 050_frontier.rq's header).
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT DISTINCT ?node ?label ?description WHERE {
+  ?node rdfs:label ?label ;
+        dcterms:description ?description .
+  FILTER(
+    ?description != "" &&
+    ?label != "" &&
+    ?description != ?label &&
+    STR(?node) != ?description &&
+    STR(?node) != ?label
+  )
+}

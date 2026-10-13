@@ -1,0 +1,16 @@
+# Strictly monotonic ontology evolution DRIVER gate (ADR-0010 re-bird): the
+# positive image of the SOVEREIGN multi-party law. The offender form -- a
+# SOVEREIGN order whose sovereign-lease evidence links fewer than 2 distinct
+# sj:LeaseSignature records -- is the inverted companion
+# verify/066_monotonic_evolution.unbound.rq (zero-rows-pass,
+# offender-reporting per ADR-0010:
+# docs/architecture/adr/0010-gate-convention-directory-is-convention.md),
+# verbatim former gates/066. The driver witnesses the authority-requirement
+# projection the law constrains: one row per order carrying its
+# sj:authorityRequirement.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT DISTINCT ?order ?requirement WHERE {
+  ?order a sj:WorkOrder ;
+         sj:authorityRequirement ?requirement .
+}
+ORDER BY ?order
