@@ -44,21 +44,41 @@ end
 
 # The goal of this projection is ALIVE-with-receipt; a graph that claims the
 # strongest standing without the receipt crown has already smuggled the goal
-# into the state. The gate returns only admission violations; any row is a
+# into the state. ADR-0010: the law is offender-reporting -- the rows of the
+# verify/046_alive_receipt_crown.unbound.rq companion (the
+# alive_receipt_crown_unbound named query) are violations; any row is a
 # refusal.
-Enum.each(alive_receipt_crown, fn violation ->
+Enum.each(alive_receipt_crown_unbound, fn violation ->
   refuse.(
     "standing ALIVE requires sj:candidateSha, sj:subjectSha, and sj:receipt evidence " <>
       "(shapes/work-order.shacl.ttl) for #{inspect(violation["id"])}"
   )
 end)
 
-Enum.each(description_integrity, fn violation ->
+Enum.each(description_integrity_unbound, fn violation ->
   refuse.(
     "semantic node #{inspect(violation["node"])} lacks a real description: blank, " <>
       "self-label, or self-IRI echo carries no semantic content"
   )
 end)
+
+# A baseSha identifies a commit inside exactly one repository. Two WorkOrders
+# binding the same baseSha to different sj:repository labels is the witnessed
+# drift class of the v26.9.22 zcode-cli run (ZOCEL-014/015 rendered
+# "seanchatmangpt/xaas" over a zcode-cli commit); refuse at render time so the
+# class fails closed at the next regeneration instead of propagating.
+sha_repo_conflicts =
+  work_orders
+  |> Enum.group_by(& &1["base_sha"], & &1["repository"])
+  |> Enum.filter(fn {_sha, repos} -> length(Enum.uniq(repos)) > 1 end)
+
+unless sha_repo_conflicts == [] do
+  refuse.(
+    "baseSha bound to multiple distinct repositories across WorkOrders " <>
+      "(repository label and baseSha are one atomic observation; fix the graph): " <>
+      "#{inspect(sha_repo_conflicts)}"
+  )
+end
 
 Enum.each(nodes, fn node ->
   if String.trim(node["label"]) == "" or String.trim(node["description"]) == "" do
@@ -274,14 +294,37 @@ object_lines =
     object_group.("checkpoint", next_checkpoints) ++
     object_group.("dependency-edge", dependencies)
 
+# Pin-as-of stamp: derived from the order's own sj:observedAt in the canonical
+# graph -- never wall-clock. Absent stamp renders nothing (additive-only);
+# a present but malformed value refuses (fail closed).
+pin_row = Enum.find(work_orders, &(&1["work_order"] == work_order))
+
+pin_as_of =
+  case if(pin_row == nil, do: nil, else: Map.get(pin_row, "observed_at")) do
+    value when value in [nil, ""] ->
+      ""
+
+    value ->
+      unless Regex.match?(
+               ~r/\A\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?\z/,
+               value
+             ) do
+        refuse.(
+          "sj:observedAt must be an RFC 3339 date or dateTime for #{pin_row["id"]}: #{inspect(value)}"
+        )
+      end
+
+      " ;; observed-as-of #{value}"
+  end
+
 init_facts =
   [
     "(workorder #{hddl_id})",
     "(standing #{hddl_id} #{safe_token.(standing)})",
-    "(base-sha #{hddl_id} #{safe_token.(base_sha)})",
+    "(base-sha #{hddl_id} #{safe_token.(base_sha)})#{pin_as_of}",
     "(authority-ceiling #{hddl_id} #{safe_token.(authority_ceiling)})",
     "(exact-subject #{hddl_id} #{inspect(subject)})",
-    "(repository #{hddl_id} #{inspect(repository)})",
+    "(repository #{hddl_id} #{inspect(repository)})#{pin_as_of}",
     "(replay-identity #{hddl_id} #{inspect(replay_identity)})",
     "(projection-authority NONE)"
   ] ++

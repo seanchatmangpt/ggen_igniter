@@ -26,6 +26,13 @@ sj:WorkOrderShape a sh:NodeShape ;
     sh:property [ sh:path dcterms:description ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
     sh:property [ sh:path sj:repository ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" ] ;
     sh:property [ sh:path sj:baseSha ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    # Pin-as-of stamp (the sj:requiresGitGroundTruth precedent: no sh:minCount
+    # -- absence is the default and changes nothing; presence must be a single
+    # RFC 3339 date/dateTime string). templates/plan.hddl.eex stamps each
+    # (repository, base-sha) pin line with this value so a stale pin is
+    # detectable from the generated artifact; the stamp is derived from the
+    # graph, never wall-clock.
+    sh:property [ sh:path sj:observedAt ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?)?$" ] ;
     # Opt-in per-order git ground truth (no sh:minCount: absence is the
     # default and changes nothing; presence must be a single boolean).
     sh:property [ sh:path sj:requiresGitGroundTruth ; sh:maxCount 1 ; sh:datatype xsd:boolean ] ;

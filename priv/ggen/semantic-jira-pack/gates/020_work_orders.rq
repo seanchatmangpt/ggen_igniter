@@ -1,6 +1,6 @@
 PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
-SELECT ?work_order ?id ?title ?description ?repository ?base_sha ?subject
+SELECT ?work_order ?id ?title ?description ?repository ?base_sha ?observed_at ?subject
        ?standing ?evidence_ceiling ?authority_ceiling ?promotion_rule ?replay_identity
        ?requires_git_ground_truth ?target_pack
 WHERE {
@@ -10,6 +10,10 @@ WHERE {
   OPTIONAL { ?work_order dcterms:description ?description . }
   OPTIONAL { ?work_order sj:repository ?repository . }
   OPTIONAL { ?work_order sj:baseSha ?base_sha . }
+  # Pin-as-of stamp (sj:observedAt): OPTIONAL -- absence renders no stamp and
+  # changes nothing for pre-stamp orders; presence must be a single value and
+  # is format-checked by the shape and by templates/plan.hddl.eex.
+  OPTIONAL { ?work_order sj:observedAt ?observed_at . }
   OPTIONAL { ?work_order sj:subject ?subject . }
   OPTIONAL { ?work_order sj:standing ?standing . }
   OPTIONAL { ?work_order sj:evidenceCeiling ?evidence_ceiling . }

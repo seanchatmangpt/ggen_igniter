@@ -110,7 +110,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 36
 
       first_bytes = File.read!(output_path)
 
@@ -221,7 +221,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.prd.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.prd.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.prd.md"))) == 35
+      # 36 since sj:c13-fixed-point (the C13 self-hosting order added to the
+      # pack ontology; previously 35) — pre-existing stale count from the C13
+      # lane's order addition, fixed here with disclosure.
+      assert length(Path.wildcard(Path.join(work_dir, "*.prd.md"))) == 36
 
       first_bytes = File.read!(output_path)
 
@@ -309,7 +312,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.hddl"))
       assert File.exists?(Path.join(work_dir, "GALL-032.hddl"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.hddl"))) == 35
+      assert length(Path.wildcard(Path.join(work_dir, "*.hddl"))) == 36
 
       first_bytes = File.read!(output_path)
 
@@ -377,7 +380,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert exit_code == 0, "HDDL sync failed:\n#{output}"
 
       paths = Path.wildcard(Path.join(work_dir, "*.hddl"))
-      assert length(paths) == 35
+      assert length(paths) == 36
 
       for path <- paths do
         id = Path.basename(path, ".hddl")
@@ -445,6 +448,102 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     end
   end
 
+  @tag timeout: @sync_timeout
+  test "an sj:observedAt pin-as-of stamp renders next to the repository/base-sha pins" do
+    work_dir = scratch_dir!("hddl_pin_as_of")
+    stamped_ontology = Path.join(work_dir, "stamped.ttl")
+
+    # Stamp every order carrying the canonical SJ-001 base SHA; SJ-003 (a
+    # different base SHA) stays unstamped to witness the additive-only law.
+    source = File.read!(@ontology_path)
+
+    stamped =
+      String.replace(
+        source,
+        ~r/^    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;\n/m,
+        "    sj:baseSha \"d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3\" ;\n    sj:observedAt \"2026-09-19T00:00:00Z\" ;\n",
+        global: true
+      )
+
+    refute stamped == source, "stamp injection must apply"
+    File.write!(stamped_ontology, stamped)
+
+    {output, exit_code} =
+      run_sync(work_dir, ["--ontology", stamped_ontology], "semantic-jira-pack:plan", ".hddl")
+
+    assert exit_code == 0, "stamped HDDL sync failed:\n#{output}"
+
+    bytes = File.read!(Path.join(work_dir, "SJ-001.hddl"))
+
+    assert bytes =~
+             "(base-sha SJ-001 d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3) ;; observed-as-of 2026-09-19T00:00:00Z"
+
+    assert bytes =~
+             ~s[(repository SJ-001 "seanchatmangpt/ggen_igniter") ;; observed-as-of 2026-09-19T00:00:00Z]
+
+    # Additive-only: an order without sj:observedAt renders without a stamp.
+    unstamped = File.read!(Path.join(work_dir, "SJ-003.hddl"))
+    refute unstamped =~ "observed-as-of"
+
+    assert unstamped =~
+             "(base-sha SJ-003 e45d2f597f16fd2a3da21b78ce2c91fe4714169b)\n"
+  end
+
+  @tag timeout: @sync_timeout
+  test "a malformed sj:observedAt refuses the HDDL projection" do
+    work_dir = scratch_dir!("hddl_bad_as_of")
+    broken_ontology = Path.join(work_dir, "bad-as-of.ttl")
+
+    broken =
+      String.replace(
+        File.read!(@ontology_path),
+        ~r/^    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;\n/m,
+        "    sj:baseSha \"d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3\" ;\n    sj:observedAt \"september 19\" ;\n",
+        global: true
+      )
+
+    refute broken == File.read!(@ontology_path), "mutation must apply"
+    File.write!(broken_ontology, broken)
+
+    {output, exit_code} =
+      run_sync(work_dir, ["--ontology", broken_ontology], "semantic-jira-pack:plan", ".hddl")
+
+    refute exit_code == 0
+    assert output =~ "REFUSED:SEMANTIC_JIRA_SHACL"
+    assert output =~ "observedAt"
+    refute File.exists?(Path.join(work_dir, "SJ-001.hddl"))
+  end
+
+  @tag timeout: @sync_timeout
+  test "one baseSha bound to two distinct repositories refuses the HDDL projection" do
+    work_dir = scratch_dir!("hddl_sha_repo_conflict")
+    broken_ontology = Path.join(work_dir, "sha-repo-conflict.ttl")
+
+    # The witnessed v26.9.22 ZOCEL-014/015 drift class: flip ONE order's
+    # sj:repository so the canonical shared base SHA maps to two labels.
+    broken =
+      String.replace(
+        File.read!(@ontology_path),
+        "    sj:repository \"seanchatmangpt/ggen_igniter\" ;\n",
+        "    sj:repository \"seanchatmangpt/somewhere-else\" ;\n",
+        global: false
+      )
+
+    refute broken == File.read!(@ontology_path), "mutation must apply"
+    File.write!(broken_ontology, broken)
+
+    {output, exit_code} =
+      run_sync(work_dir, ["--ontology", broken_ontology], "semantic-jira-pack:plan", ".hddl")
+
+    refute exit_code == 0
+    assert output =~ "REFUSED:SEMANTIC_JIRA_INVALID_WORK_ORDER"
+
+    assert output =~
+             "baseSha bound to multiple distinct repositories across WorkOrders"
+
+    refute File.exists?(Path.join(work_dir, "SJ-001.hddl"))
+  end
+
   describe "OCEL event-log projection" do
     @tag timeout: @double_sync_timeout
     test "manufactures one parseable OCEL log per run and replays byte-identically" do
@@ -472,7 +571,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       # One WorkOrder object per canonical WorkOrder, boundary attributes bound.
       work_order_objects = Enum.filter(objects, &(&1["ocel:type"] == "WorkOrder"))
-      assert length(work_order_objects) == 35
+      assert length(work_order_objects) == 36
 
       object_ids = Enum.map(objects, & &1["ocel:id"])
       assert length(object_ids) == length(Enum.uniq(object_ids))
@@ -598,7 +697,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.ard.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.ard.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.ard.md"))) == 35
+      assert length(Path.wildcard(Path.join(work_dir, "*.ard.md"))) == 36
 
       first_bytes = File.read!(output_path)
 
@@ -715,7 +814,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.vision.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.vision.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.vision.md"))) == 35
+      assert length(Path.wildcard(Path.join(work_dir, "*.vision.md"))) == 36
 
       first_bytes = File.read!(output_path)
 
@@ -805,7 +904,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(output_path)
       assert File.exists?(Path.join(work_dir, "GALL-001.wbpr.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.wbpr.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.wbpr.md"))) == 35
+      assert length(Path.wildcard(Path.join(work_dir, "*.wbpr.md"))) == 36
 
       first_bytes = File.read!(output_path)
 
@@ -962,7 +1061,12 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       # kernel-contract row feeding the rendered TargetPack module; previously
       # 15 since gates/055_standing_projection.rq): the count tracks the
       # shipped gate set; the assertion itself is unchanged.
-      assert length(gates) == 16
+      # 17 since gates/066_monotonic_evolution.rq (the 066 count bump was
+      # missed when 066 landed; fixed here). ADR-0010 re-bird is
+      # count-neutral: the six offender gates re-homed to verify/*.unbound.rq
+      # re-ship positive driver forms at the same gates/ IDs (11 untouched + 6
+      # drivers = 17).
+      assert length(gates) == 17
 
       Enum.each(gates, fn gate ->
         assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),
@@ -981,15 +1085,16 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert "SJ-001" in frontier_ids
       refute frontier_ids == []
 
-      # gates/055 is a violation-row gate: the canonical graph declares no
-      # standing-transition events, so zero rows is the pass state (Ra4).
+      # gates/055 is a witness driver since the ADR-0010 re-bird: the offender
+      # (forked chain-tip) moved to verify/055_standing_projection.unbound.rq,
+      # so the driver projects one row per order's standing (Ra4).
       standing_rows =
         graph
         |> GgenIgniter.Query.run(
           File.read!("priv/ggen/semantic-jira-pack/gates/055_standing_projection.rq")
         )
 
-      assert standing_rows == []
+      refute standing_rows == []
     end
 
     # Ra4: the chain-tip gate fires exactly on a forked ledger projection --
@@ -1011,7 +1116,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       rows =
         graph
         |> GgenIgniter.Query.run(
-          File.read!("priv/ggen/semantic-jira-pack/gates/055_standing_projection.rq")
+          File.read!("priv/ggen/semantic-jira-pack/verify/055_standing_projection.unbound.rq")
         )
 
       # One forked identity -> one unordered tip pair, reported as both ordered
@@ -1142,6 +1247,19 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         |> Enum.map(&to_string/1)
       end
 
+      # ADR-0010 re-bird: the ALIVE-receipt-crown law is offender-reporting in
+      # verify/046_alive_receipt_crown.unbound.rq (the verbatim former
+      # gates/046); the gates/046 driver witnesses the crown vocabulary, not
+      # work orders.
+      unbound_ids = fn graph, gate ->
+        graph
+        |> GgenIgniter.Query.run(
+          File.read!("priv/ggen/semantic-jira-pack/verify/#{gate}.unbound.rq")
+        )
+        |> Enum.map(fn row -> row["id"] || row["work_order"] end)
+        |> Enum.map(&to_string/1)
+      end
+
       shacl_focus = fn graph ->
         graph
         |> SemanticJira.Shacl.validate(shapes)
@@ -1158,7 +1276,13 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       sj_graph = with_orders.("sj:WorkOrder")
       assert Enum.any?(gate_ids.(sj_graph, "010_work_order_subjects"), &(&1 =~ "R2-UNKNOWN"))
       assert "R2-UNKNOWN" in gate_ids.(sj_graph, "020_work_orders")
-      assert "R2-ALIVE" in gate_ids.(sj_graph, "046_alive_receipt_crown")
+
+      # Crown law (ADR-0010 offender form): only the ALIVE order violates;
+      # the UNKNOWN order is lawful. The gates/046 driver witnesses crown
+      # vocabulary, so the work-order-level assertion runs against the
+      # unbound companion.
+      assert "R2-ALIVE" in unbound_ids.(sj_graph, "046_alive_receipt_crown")
+      refute "R2-UNKNOWN" in unbound_ids.(sj_graph, "046_alive_receipt_crown")
       assert "R2-UNKNOWN" in gate_ids.(sj_graph, "050_frontier")
       assert length(shacl_focus.(sj_graph)) == 2
 
@@ -1171,6 +1295,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         refute Enum.any?(gate_ids.(cr_graph, gate), &(&1 =~ "R2-")),
                "gate #{gate} selects an oslc_cm:ChangeRequest-only node that SHACL never checks"
       end)
+
+      # Same law on the unbound companion: the offender query is scoped to
+      # sj:WorkOrder nodes, so a ChangeRequest-only node never surfaces.
+      refute Enum.any?(unbound_ids.(cr_graph, "046_alive_receipt_crown"), &(&1 =~ "R2-"))
     end
 
     @tag timeout: @sync_timeout
@@ -1636,7 +1764,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert File.exists?(Path.join(work_dir, "SJ-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-001.md"))
       assert File.exists?(Path.join(work_dir, "GALL-032.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 36
     end
 
     test "flag on over a forged-but-well-formed 40-hex baseSha refuses before any actuation" do
@@ -1669,7 +1797,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       {output, exit_code} = run_sync(work_dir)
 
       assert exit_code == 0, "flag-off honest sync failed:\n#{output}"
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 36
     end
 
     test "flag on with a non-git --verify-cwd refuses cleanly, not a crash" do
@@ -1722,7 +1850,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       assert exit_code == 0, "per-order git-ground-truth control failed:\n#{output}"
       assert File.exists?(Path.join(work_dir, "SJ-001.md"))
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 35
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 36
     end
   end
 
