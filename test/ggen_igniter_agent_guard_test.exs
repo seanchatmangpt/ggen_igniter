@@ -3,7 +3,7 @@ defmodule GgenIgniterAgentGuardTest do
   Real-subprocess coverage for the two `PreToolUse` guards in `.claude/`.
 
   Before this file the hand-write guard was exercised only by four cases inside
-  `test/fixtures/ash_manufacture_pack/bin/qualify.sh`, all of them `tool_name`
+  `priv/ggen/ash-manufacture-pack/bin/qualify.sh`, all of them `tool_name`
   `Write` with a `content` key, and only during a full qualification run. That
   is one payload shape out of the several the hook actually receives, so four
   measured bypasses survived a green qualification.

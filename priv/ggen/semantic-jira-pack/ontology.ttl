@@ -71,6 +71,7 @@ sj:semantic-jira-mvp a sj:WorkOrder ;
     dcterms:description "Project admitted semantic work orders into deterministic Markdown without granting the projection execution authority." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira-pack:work-order-projection" ;
     sj:standing "UNKNOWN" ;
     sj:evidenceCeiling "IMPLEMENTED_UNVERIFIED" ;
@@ -201,6 +202,11 @@ sj:observedStanding a rdf:Property ; rdfs:range xsd:string .
 # lines with it ("observed-as-of"), so a stale pin is detectable from the
 # generated artifact alone; the stamp is derived from the graph, never
 # wall-clock at render time.
+# Batch provenance (2026-10-13): all 36 dogfood WorkOrders lacked per-order
+# observation-date data (dates exist only on ledger/epoch resources), so each
+# order carries the documented as-of "2026-10-13" with an inline comment at
+# its sj:baseSha pin line. Replace with per-order observation dates as they
+# become available.
 sj:observedAt a rdf:Property ; rdfs:range xsd:string .
 sj:normativeMutation a rdf:Property ; rdfs:range xsd:boolean .
 sj:fromStanding a rdf:Property ; rdfs:range xsd:string .
@@ -411,6 +417,7 @@ sj:gall-001 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Semantic pack identity and replayable manufacture are receipted." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-001-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:standing "UNKNOWN" ;
@@ -459,6 +466,7 @@ sj:gall-002 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Project manufacture is deterministic and bound to canonical semantic input." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-002-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-002-from-001 ;
@@ -508,6 +516,7 @@ sj:gall-003 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Exact capability, prepared authority, DO, durable receipt, deduplication, crash reconciliation, and replay blocking remain separated." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-003-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-003-from-002 ;
@@ -557,6 +566,7 @@ sj:gall-004 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Observation independently binds actuation to telemetry, OCEL, and postcondition evidence." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-004-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-004-from-003 ;
@@ -606,6 +616,7 @@ sj:gall-005 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Composition binds exact upstream identities and MachineExperience requires receipted observed execution." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-005-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-005-from-004 ;
@@ -655,6 +666,7 @@ sj:gall-006 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "A fresh consumer reconstructs and manufactures from canonical semantic artifacts." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-006-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-006-from-005 ;
@@ -704,6 +716,7 @@ sj:gall-007 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Repository-local standing requires a real exact-subject Chicago court." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-007-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-007-from-006 ;
@@ -753,6 +766,7 @@ sj:gall-008 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Semantic identities project into telemetry without telemetry becoming normative law." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-008-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-008-from-007 ;
@@ -802,6 +816,7 @@ sj:gall-009 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Runtime feedback becomes candidate evidence and requires admission before changing law." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-009-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-009-from-008 ;
@@ -851,6 +866,7 @@ sj:gall-010 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Unknown and partially observed runtime state remain explicit." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-010-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-010-from-009 ;
@@ -900,6 +916,7 @@ sj:gall-011 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Each strong claim carries an executable falsifier whose failure prevents promotion." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-011-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-011-from-010 ;
@@ -949,6 +966,7 @@ sj:gall-012 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Predictions remain candidates with zero authority and do not count as observations." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-012-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-012-from-011 ;
@@ -998,6 +1016,7 @@ sj:gall-013 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Failure evidence becomes a bounded repair hypothesis with a permanent guard." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-013-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-013-from-012 ;
@@ -1047,6 +1066,7 @@ sj:gall-014 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "The manufacture, authority, observation, verification, receipt, replay, and repair loop closes without boundary collapse." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-014-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-014-from-013 ;
@@ -1096,6 +1116,7 @@ sj:gall-015 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Process reference evidence is represented as typed semantic source material." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-015-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-015-from-014 ;
@@ -1145,6 +1166,7 @@ sj:gall-016 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Normative and observed POWL ingress remain distinct and join only through explicit comparison." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-016-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-016-from-015 ;
@@ -1194,6 +1216,7 @@ sj:gall-017 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Object-centric process query reference behavior is independently verified." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-017-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-017-from-016 ;
@@ -1243,6 +1266,7 @@ sj:gall-018 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Discovered process behavior is bounded by admitted rules and cannot directly mutate normative law." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-018-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-018-from-017 ;
@@ -1292,6 +1316,7 @@ sj:gall-019 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Compliance prediction remains candidate evidence until independently verified." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-019-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-019-from-018 ;
@@ -1341,6 +1366,7 @@ sj:gall-020 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Process computation has a typed resource/capability boundary and receipted evidence." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-020-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-020-from-019 ;
@@ -1390,6 +1416,7 @@ sj:gall-021 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Portable process projections reproduce identical semantic consequences under identical identities." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-021-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-021-from-020 ;
@@ -1439,6 +1466,7 @@ sj:gall-022 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "POWL semantics survive projection without lossy reinterpretation." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-022-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-022-from-021 ;
@@ -1488,6 +1516,7 @@ sj:gall-023 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "OCPQ bindings are deterministic for an exact graph/query/toolchain subject." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-023-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-023-from-022 ;
@@ -1537,6 +1566,7 @@ sj:gall-024 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Observed events preserve object-centric identity and relationships." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-024-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-024-from-023 ;
@@ -1586,6 +1616,7 @@ sj:gall-025 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Normative process law and observed execution remain separate first-class objects." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-025-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-025-from-024 ;
@@ -1635,6 +1666,7 @@ sj:gall-026 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Conformance delta is evidence rather than a silent rewrite of the normative model." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-026-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-026-from-025 ;
@@ -1684,6 +1716,7 @@ sj:gall-027 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Process evidence retains exact semantic attribution to subject, graph, receipt, and observation." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-027-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-027-from-026 ;
@@ -1733,6 +1766,7 @@ sj:gall-028 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Event, processing, decision, and actuation clocks remain distinguishable." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-028-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-028-from-027 ;
@@ -1782,6 +1816,7 @@ sj:gall-029 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "A process finding must be admitted before becoming an intervention candidate." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-029-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-029-from-028 ;
@@ -1831,6 +1866,7 @@ sj:gall-030 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "Process intervention is scoped, authority-bound, receipted, and independently verified." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-030-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-030-from-029 ;
@@ -1880,6 +1916,7 @@ sj:gall-031 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "A redesign is first exercised as a bounded canary with rollback and falsifier conditions." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-031-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-031-from-030 ;
@@ -1929,6 +1966,7 @@ sj:gall-032 a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "External process autonomics closes only with exact runtime, observation, postcondition, receipt, and replay evidence." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:gall-032-contract" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:dependsOn sj:edge-032-from-031 ;
@@ -1978,6 +2016,7 @@ sj:c13-fixed-point a sj:WorkOrder, sj:Checkpoint ;
     dcterms:description "This order admits through the pack's own semantic_jira.admit_candidates and executes via semantic_jira.execute: the executor is the artifact the order produces." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "8131c69671aa329385046ef3596faf590ae5c008" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:v26.10.8:C13-fixed-point" ;
     sj:pathScope "priv/ggen/semantic-jira-pack" ;
     sj:standing "UNKNOWN" ;
@@ -2460,6 +2499,7 @@ sj:sj-002 a sj:WorkOrder ;
     dcterms:description "The prose-to-WorkOrder edge is removed (prose/delta.construct.rq deleted; observe_prose emits only UNKNOWN candidate propositions with sj:authorityClaim \"NONE\"); WorkOrderOriginShape enforces the origin type law, the admission-witness law, and the anti-prose falsifier; the kernel requires origin_authority; observation candidates are lawful only when authority-bound (invariant A)." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "292e40ab08a250ef3f049f9a80b4a65e332d9155" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:sj-002-origin-authority" ;
     sj:pathScope "priv/ggen/semantic-jira-pack", "lib/ggen_igniter/semantic_jira" ;
     sj:standing "UNKNOWN" ;
@@ -2618,6 +2658,7 @@ sj:sj-003 a sj:WorkOrder ;
     dcterms:description "Close the open Semantic Jira items at v26.9.28: ADR-011 additive public-vocabulary mappings, concurrent-writer safety and PROV-O export of the transition ledger, and an honest standing ledger. Standing promotion is not claimed: it needs an independent BRCE/CommandBus court receipt, which is external to this repository." ;
     sj:repository "seanchatmangpt/ggen_igniter" ;
     sj:baseSha "e45d2f597f16fd2a3da21b78ce2c91fe4714169b" ;
+    sj:observedAt "2026-10-13" ; # as-of stamp: order data carries no per-order observation date; batch-documented 2026-10-13
     sj:subject "semantic-jira:sj-003-v26-9-28-closure" ;
     sj:pathScope "priv/ggen/semantic-jira-pack", "lib/ggen_igniter/semantic_jira", "docs/architecture/adr/ADR-011-reduce-sj-toward-public-vocabularies.md" ;
     sj:standing "UNKNOWN" ;

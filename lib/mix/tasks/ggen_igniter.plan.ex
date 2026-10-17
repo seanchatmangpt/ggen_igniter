@@ -200,8 +200,6 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
         :pack,
         :pack_dir,
         :query,
-        :engine,
-        :store_id,
         :out,
         :mode,
         :unless_exists,
@@ -258,10 +256,6 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
     unless queries != [] or pack_given? do
       raise ArgumentError,
             "at least one --query name=path.rq is required (or use --pack/--pack-dir)"
-    end
-
-    if opts[:engine] == "qlever" and opts[:store_id] in [nil, ""] do
-      raise ArgumentError, "--engine qlever requires --store-id"
     end
 
     if pack_given? do
@@ -376,9 +370,7 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
   defp print_human(opts, plan_opts, pending_actuations) do
     unless opts[:quiet] do
       Mix.shell().info("ggen_igniter.plan")
-      Mix.shell().info("  engine: #{plan_opts[:engine] || "oxigraph"}")
-
-      if plan_opts[:store_id], do: Mix.shell().info("  store-id: #{plan_opts[:store_id]}")
+      Mix.shell().info("  engine: #{GgenIgniter.Engine.fixed()} (fixed -- no engine choice)")
 
       print_queries(Keyword.get_values(plan_opts, :query))
 
@@ -412,7 +404,7 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
 
   defp to_json(_opts, plan_opts, pending_actuations) do
     %{
-      "engine" => plan_opts[:engine] || "oxigraph",
+      "engine" => GgenIgniter.Engine.fixed(),
       "store_id" => plan_opts[:store_id],
       "queries" => Keyword.get_values(plan_opts, :query),
       "pending_actuations" =>

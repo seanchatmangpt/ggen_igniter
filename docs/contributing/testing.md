@@ -172,12 +172,12 @@ underlying gap from the reconciliation-manifest angle.
 
 In addition to unit tests, property tests, and `mix e2e`, the generative Ash manufacturing pipeline is verified against a 45-step acceptance ladder across 3 full execution cycles against a live PostgreSQL database.
 
-The qualification harness lives at [`test/fixtures/ash_manufacture_pack/bin/qualify.sh`](file:///Users/sac/ggen_igniter/test/fixtures/ash_manufacture_pack/bin/qualify.sh).
+The qualification harness lives at [`priv/ggen/ash-manufacture-pack/bin/qualify.sh`](file:///Users/sac/ggen_igniter/priv/ggen/ash-manufacture-pack/bin/qualify.sh).
 
 Run the qualification suite:
 
 ```bash
-bash test/fixtures/ash_manufacture_pack/bin/qualify.sh
+bash priv/ggen/ash-manufacture-pack/bin/qualify.sh
 ```
 
 ### The 6 Qualification Crowns

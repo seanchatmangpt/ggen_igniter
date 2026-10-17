@@ -150,7 +150,10 @@ defmodule GgenIgniter.SemanticJira.SovereignLease do
   # gate — a single named seam so the anti-vacuity court can bypass exactly
   # this line and require the 1-signature test to fail.
   defp signature_gate(lease, keys) do
-    with :ok <- count(lease), :ok <- verify_all(lease, keys), do: :ok
+    case count(lease) do
+      :ok -> verify_all(lease, keys)
+      error -> error
+    end
   end
 
   defp count(lease) do

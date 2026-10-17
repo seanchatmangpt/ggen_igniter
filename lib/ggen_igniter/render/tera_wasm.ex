@@ -49,7 +49,7 @@ defmodule GgenIgniter.Render.TeraWasm do
 
   Deliberately extension-driven, NOT content-sniffing for `{%` on other
   extensions: a real fixture
-  (`test/fixtures/ash_manufacture_pack/templates/manufacture.ex.eex:434`)
+  (`priv/ggen/ash-manufacture-pack/templates/manufacture.ex.eex:434`)
   contains the literal Elixir tuple/map syntax `{%{igniter | ...}` as
   ordinary EEx-template body text -- an earlier content-sniffing version of
   this predicate (`String.contains?(template_string, "{%")`) misrouted that

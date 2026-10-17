@@ -263,12 +263,16 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
     case kind(ledger) do
       :dir ->
         with_lock(Path.join(ledger, "epoch.lock"), @lock_attempts, fn ->
-          if epoch > marker_epoch(ledger), do: File.write!(marker, Integer.to_string(epoch))
+          bump_marker(marker, ledger, epoch)
         end)
 
       :file ->
-        if epoch > marker_epoch(ledger), do: File.write!(marker, Integer.to_string(epoch))
+        bump_marker(marker, ledger, epoch)
     end
+  end
+
+  defp bump_marker(marker, ledger, epoch) do
+    if epoch > marker_epoch(ledger), do: File.write!(marker, Integer.to_string(epoch))
   end
 
   @doc """

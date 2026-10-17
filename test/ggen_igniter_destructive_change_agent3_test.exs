@@ -77,8 +77,6 @@ defmodule GgenIgniter.DestructiveChangeAgent3Test do
     args =
       [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--pack-dir",
         @pack_dir,
         "--ontology",
@@ -108,8 +106,6 @@ defmodule GgenIgniter.DestructiveChangeAgent3Test do
   defp sync_domain!(ontology_path, out_path) do
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--pack-dir",
       @pack_dir,
       "--ontology",

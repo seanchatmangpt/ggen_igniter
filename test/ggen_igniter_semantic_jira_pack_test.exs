@@ -96,8 +96,6 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--pack",
       pack,
       "--out",
@@ -289,6 +287,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       receipts = Receipt.read_all!(work_dir)
       assert length(receipts) == 2
+      # Anti-vacuity guard (the length==2 assert above already implies
+      # non-emptiness, but kept explicit alongside the other sites).
+      refute receipts == []
       assert Enum.all?(receipts, &(&1["standing"] == "refused"))
     end
   end
@@ -377,6 +378,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute File.exists?(Path.join(work_dir, "SJ-001.prd.md"))
 
       receipts = Receipt.read_all!(work_dir)
+
+      # Anti-vacuity: the refusal path must persist at least one receipt;
+      # all? over an empty list would otherwise pass vacuously.
+      refute receipts == []
 
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
@@ -527,6 +532,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute File.exists?(Path.join(work_dir, "SJ-001.hddl"))
 
       receipts = Receipt.read_all!(work_dir)
+
+      # Anti-vacuity: the refusal path must persist at least one receipt;
+      # all? over an empty list would otherwise pass vacuously.
+      refute receipts == []
 
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
@@ -896,6 +905,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       receipts = Receipt.read_all!(work_dir)
 
+      # Anti-vacuity: the refusal path must persist at least one receipt;
+      # all? over an empty list would otherwise pass vacuously.
+      refute receipts == []
+
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
              end)
@@ -1012,6 +1025,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute File.exists?(Path.join(work_dir, "SJ-001.ard.md"))
 
       receipts = Receipt.read_all!(work_dir)
+
+      # Anti-vacuity: the refusal path must persist at least one receipt;
+      # all? over an empty list would otherwise pass vacuously.
+      refute receipts == []
 
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
@@ -1215,6 +1232,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       receipts = Receipt.read_all!(work_dir)
 
+      # Anti-vacuity: the refusal path must persist at least one receipt;
+      # all? over an empty list would otherwise pass vacuously.
+      refute receipts == []
+
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
              end)
@@ -1252,6 +1273,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       refute File.exists?(Path.join(work_dir, "SJ-001.md"))
 
       receipts = Receipt.read_all!(work_dir)
+
+      # Anti-vacuity: the refusal path must persist at least one receipt;
+      # all? over an empty list would otherwise pass vacuously.
+      refute receipts == []
 
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
@@ -1572,6 +1597,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       receipts = Receipt.read_all!(work_dir)
 
+      # Anti-vacuity: the refusal path must persist at least one receipt;
+      # all? over an empty list would otherwise pass vacuously.
+      refute receipts == []
+
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
              end)
@@ -1607,6 +1636,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert Path.wildcard(Path.join(work_dir, "*.md")) == []
 
       receipts = Receipt.read_all!(work_dir)
+
+      # Anti-vacuity: the refusal path must persist at least one receipt;
+      # all? over an empty list would otherwise pass vacuously.
+      refute receipts == []
 
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
@@ -2004,6 +2037,11 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       receipts = Receipt.read_all!(work_dir)
 
+      # Honest zero: git ground-truth verification is a pre-flight refusal that
+      # happens BEFORE the receipt-persistence stage, so nothing is written.
+      # The refusal signal is asserted on the CLI output above.
+      assert receipts == []
+
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
              end)
@@ -2032,6 +2070,11 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert Path.wildcard(Path.join(work_dir, "*.md")) == []
 
       receipts = Receipt.read_all!(work_dir)
+
+      # Honest zero: git ground-truth verification is a pre-flight refusal that
+      # happens BEFORE the receipt-persistence stage, so nothing is written.
+      # The refusal signal is asserted on the CLI output above.
+      assert receipts == []
 
       assert Enum.all?(receipts, fn receipt ->
                receipt["standing"] != "alive"
@@ -2171,6 +2214,10 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
     receipts = Receipt.read_all!(work_dir)
 
+    # Anti-vacuity: the refusal path must persist at least one receipt;
+    # all? over an empty list would otherwise pass vacuously.
+    refute receipts == []
+
     assert Enum.all?(receipts, fn receipt ->
              receipt["standing"] != "alive"
            end)
@@ -2185,6 +2232,11 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     assert File.exists?(Path.join(work_dir, "SJ-001.md"))
   end
 
+  # Decorative wiring pins only: these "sha256:<64x seed>" strings are never
+  # cryptographically derived here — the SUT treats them as opaque identity
+  # values and only compares them for equality/wiring. Real digest derivation
+  # (actual SHA-256 over content) is courted elsewhere (sha256_file/1 above and
+  # the graph_hash asserts in the sync suites).
   defp semantic_digest(seed), do: "sha256:" <> String.duplicate(seed, 64)
 
   @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
@@ -2278,6 +2330,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
         "worker_identity" => "zcode-cli:worker-7",
         "scope" => ["lib/ggen_igniter/semantic_jira.ex"],
         "allowed_operations" => ["read", "edit", "test"],
+        # Data-not-clock: this pin is a fixed fixture value (pin-as-of law),
+        # never compared against wall-clock time. It reads stale but is
+        # intentional — do not "fix" it to a rolling date.
         "expiration" => "2026-09-20T00:00:00Z",
         "concurrency_key" => "ggen_igniter:semantic-jira"
       }

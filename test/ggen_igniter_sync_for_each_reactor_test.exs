@@ -81,8 +81,6 @@ defmodule GgenIgniter.SyncForEachReactorTest do
 
       base_args = [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--query",
         "modules=test/fixtures/modules.rq",
         "--for-each",
@@ -203,8 +201,6 @@ defmodule GgenIgniter.SyncForEachReactorTest do
 
       args = [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--ontology",
         ontology_path,
         "--query",
@@ -253,6 +249,38 @@ defmodule GgenIgniter.SyncForEachReactorTest do
       # No partial manifest entry for this recipe either -- reconciliation
       # only ever advances on a real, successful :alive standing.
       refute File.exists?(Path.join(project_dir, ".ggen_igniter/manifest.json"))
+    end
+  end
+
+  describe "zero-driver-row direct --for-each run is a typed refusal (W984hl)" do
+    @tag :integration
+    test "a violation-gate driver query (0 rows on valid data) refuses with a named error, " <>
+           "not the deep :targets ArgumentError" do
+      out_dir = scratch_dir!("zero-driver")
+
+      {output, code} =
+        run([
+          "ggen_igniter.sync",
+          "--ontology",
+          "test/fixtures/for_each_ontology.ttl",
+          "--query",
+          "modules=test/fixtures/violation_gate_zero_rows.rq",
+          "--template",
+          "test/fixtures/for_each_module.ex.eex",
+          "--out",
+          Path.join(out_dir, "<%= module_name %>.ex"),
+          "--for-each",
+          "modules"
+        ])
+
+      refute code == 0, "expected a real refusal, got exit 0:\n#{output}"
+      assert output =~ "returned 0 rows -- nothing to render"
+      assert output =~ "violation gate"
+      refute output =~ "must not be an empty list",
+             "the deep normalize_targets ArgumentError must never surface to a CLI caller"
+
+      assert Path.wildcard(Path.join(out_dir, "**/*.ex")) == [],
+             "a refused run must write zero files"
     end
   end
 end

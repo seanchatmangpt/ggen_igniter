@@ -35,8 +35,6 @@ defmodule GgenIgniter.SyncBeam4pmBenchPackTest do
 
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--ontology",
       "#{@pack}/ontology.ttl",
       "--query",
@@ -83,8 +81,6 @@ defmodule GgenIgniter.SyncBeam4pmBenchPackTest do
 
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--ontology",
       "#{@pack}/ontology.ttl",
       "--query",
@@ -124,8 +120,6 @@ defmodule GgenIgniter.SyncBeam4pmBenchPackTest do
         ] do
       args = [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--ontology",
         "#{@pack}/ontology.ttl",
         "--query",
@@ -169,8 +163,6 @@ defmodule GgenIgniter.SyncBeam4pmBenchPackTest do
 
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/beam4pm-bench-pack-wasm-adapter/ontology.ttl",
       "--query",
@@ -209,8 +201,6 @@ defmodule GgenIgniter.SyncBeam4pmBenchPackTest do
 
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--ontology",
       "#{@pack}/ontology.ttl",
       "--query",

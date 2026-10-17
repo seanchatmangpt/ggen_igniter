@@ -72,8 +72,6 @@ defmodule GgenIgniter.SyncInProcessReconcileTest do
 
   defp sync_args(ontology_path, out_dir, extra_opts \\ []) do
     [
-      "--engine",
-      "sparql",
       "--pack-dir",
       @pack_dir,
       "--ontology",

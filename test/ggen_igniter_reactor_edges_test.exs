@@ -196,8 +196,6 @@ defmodule GgenIgniter.ReactorEdgesTest do
           "ggen_igniter.sync",
           "--pack",
           "reactor-scaffold-pack:saga",
-          "--engine",
-          "sparql",
           "--ontology",
           Path.join(dir, "o.ttl"),
           "--dry-run",

@@ -12,12 +12,12 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   @dialyzer {:no_return, print_help_and_halt: 0}
 
   @moduledoc """
-  Diagnostic task: `mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine sparql|qlever] [--store-id ID] [--fix] [--strict]`.
+  Diagnostic task: `mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--fix] [--strict]` (the query engine is FIXED to graphlaw -- no --engine flag).
 
   Runs a fixed checklist of real checks (no fabricated pass output):
 
   1. Elixir/OTP version satisfies this project's `mix.exs` requirement (`~> 1.17`, OTP >= 25).
-  2. Required deps (`rdf`, `sparql`, `igniter`, and `gno` when `--engine qlever`) are loaded
+  2. Required deps (`rdf`, `sparql`, `igniter`) are loaded
      with resolvable `:vsn`.
   3. Advisory for the known `sparql` 0.3.12 `FILTER NOT EXISTS` + `BIND` inside `UNION` bug.
   4. The CURRENT project's own `mix.exs` doesn't restrict its direct `igniter` dependency
@@ -33,8 +33,6 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
      is registered in `config :OTP_APP, ash_domains: [...]` (an unregistered domain is a
      hard compile error under `mix compile --warnings-as-errors`). `--fix` registers any
      missing one(s) for real.
-  8. (only with `--engine qlever` or a pack ontology naming a `gnoa:Qlever` store via
-     `--store-id`) the QLever endpoint is really reachable via a real `ASK` query.
   9. Pack `ontology.ttl` exists and parses as valid Turtle.
   10. At least one gate query (`gates/*.rq`) is present.
   11. At least one template (`templates/*.{eex,tmpl}`) is present.
@@ -89,7 +87,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       pack health to fail on.
 
   Checks 9-12 only run when `--pack`/`--pack-dir` is given; without it, only checks 1-3
-  and 4-7 (and 8, if `--engine qlever` was explicitly passed with a graph-free reachability
+  and 4-7
   check is not possible, so 8 is skipped) run. Checks 4-7, 13-15, 17, 18, and 19 always run.
   Check 16 only runs with `--hex-check` (it shells out to `mix hex.build`, which is slow,
   so it stays off by default to keep `mix ggen_igniter.doctor` fast).
@@ -126,8 +124,9 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   - `0` -- all checks passed (under `--strict`, this also means no `:warn` findings).
   - `1` -- ran the full checklist and at least one check came back `:error` (or, under
     `--strict`, at least one came back `:warn`).
-  - `2` -- invalid invocation/configuration: an unrecognized flag, `--engine` not one
-    of `oxigraph`/`sparql`/`qlever`, or both `--pack` and `--pack-dir` given at once.
+  - `2` -- invalid invocation/configuration: an unrecognized flag (including
+    the removed `--engine`/`--store-id`), or both `--pack` and `--pack-dir`
+    given at once.
     The checklist never runs.
   - `3` -- an explicitly requested capability isn't available on this toolchain (today:
     `--hex-check` without the `hex` Mix archive installed). The checklist never runs.
@@ -146,7 +145,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   """
   use Igniter.Mix.Task
 
-  alias GgenIgniter.{DoctorFixes, Engine, Frontmatter, Ontology, Pack}
+  alias GgenIgniter.{DoctorFixes, Pack}
   alias GgenIgniter.SemanticJira.PackHealth
 
   @impl Igniter.Mix.Task
@@ -158,8 +157,6 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       schema: [
         pack: :string,
         pack_dir: :string,
-        engine: :string,
-        store_id: :string,
         hex_check: :boolean,
         fix: :boolean,
         strict: :boolean,
@@ -178,22 +175,21 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   # Exit-code contract (PRD):
   #   0 - all checks pass
   #   1 - diagnostic failures found (at least one check returned :error)
-  #   2 - invalid invocation/configuration (unknown flag, --engine not in the
-  #       real engine registry, --pack and --pack-dir both given, etc.) --
+  #   2 - invalid invocation/configuration (unknown flag -- including the
+  #       removed --engine/--store-id -- or --pack and --pack-dir both given)
   #       these never even attempt to run the checklist.
   #   3 - unsupported capability requested (a capability that cannot be
   #       provided on this platform/toolchain, distinct from a plain
   #       configuration mistake -- see `unsupported_capability_error/2`).
   #   4 - blocked by authority/lock/environment (`--fix` needs exclusive
   #       write access to CURRENT project state and cannot get it).
-  @known_flags ~w(--pack --pack-dir --engine --store-id --hex-check --no-hex-check
+  @known_flags ~w(--pack --pack-dir --hex-check --no-hex-check
                   --fix --no-fix --strict --no-strict --json --no-json --help --version --quiet
                   --no-quiet --verbose --no-verbose --no-color -h -v -q
                   --dry-run --no-dry-run --yes --no-yes --yes-to-deps --no-yes-to-deps
                   --only --check --no-check --scribe --from-igniter-new
                   --no-from-igniter-new --igniter-repeat --no-igniter-repeat
                   --no-no-color)
-  @known_engines ["oxigraph", "sparql", "qlever"]
 
   # `use Igniter.Mix.Task`'s generated `run/1` (see `deps/igniter/lib/mix/
   # task.ex`) validates argv against `info/2`'s schema via
@@ -252,9 +248,12 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
           opts
         )
 
-      opts[:engine] not in [nil | @known_engines] ->
+      opts[:engine] not in [nil] ->
+        # Fail-closed (SHIM-COURT law, 2026-10-17): the engine is fixed to
+        # graphlaw; any --engine value is an invalid invocation, never a
+        # silently honored choice.
         invalid_invocation_and_halt(
-          "--engine #{inspect(opts[:engine])} is not a known engine (must be one of #{Enum.join(@known_engines, ", ")})",
+          "--engine #{inspect(opts[:engine])} is not accepted -- the engine is fixed to graphlaw (no engine choice)",
           opts
         )
 
@@ -293,7 +292,6 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         [
           tag("version_policy", check_version_policy(opts))
         ] ++
-        maybe_check_qlever(opts, pack_dir) ++
         if(pack_dir, do: pack_checks(pack_dir), else: []) ++
         [
           tag("git_status", check_git_status()),
@@ -406,15 +404,14 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
     mix ggen_igniter.doctor -- diagnostic checklist for ggen_igniter
 
     USAGE
-        mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR] [--engine oxigraph|sparql|qlever]
-                                 [--store-id ID] [--fix] [--strict] [--hex-check] [--json]
+        mix ggen_igniter.doctor [--pack NAME | --pack-dir DIR]
+                                 [--fix] [--strict] [--hex-check] [--json]
                                  [--quiet] [--verbose] [--no-color] [--help] [--version]
 
     FLAGS
         --pack NAME       Resolve a marketplace-convention pack by name (priv/ggen/NAME).
         --pack-dir DIR    Use an explicit pack directory (bypasses the --pack convention).
-        --engine ENGINE   One of: #{Enum.join(@known_engines, ", ")}. Default: oxigraph.
-        --store-id ID     Named store to resolve for --engine qlever reachability checks.
+        (no --engine/--store-id flags: the query engine is fixed to graphlaw)
         --fix             Apply real, safely-recognized fixes to the CURRENT project.
         --strict          Treat WARN-level findings as failures too (exit 1), not just ERROR.
                            Strict-mode-only failures are labeled "[STRICT]" in the output.
@@ -536,10 +533,8 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   end
 
   # 2. Required deps present + resolvable versions
-  defp check_deps(opts) do
-    needs_gno? = opts[:engine] == "qlever"
-
-    required = [:rdf, :sparql, :igniter] ++ if needs_gno?, do: [:gno], else: []
+  defp check_deps(_opts) do
+    required = [:rdf, :sparql, :igniter]
 
     results =
       Enum.map(required, fn app ->
@@ -558,7 +553,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
 
       errors ->
         missing = Enum.map_join(errors, ", ", fn {:error, app, _} -> to_string(app) end)
-        {:error, ":#{missing} not loaded -- add the missing dep(s) or drop --engine qlever"}
+        {:error, ":#{missing} not loaded -- add the missing dep(s)"}
     end
   end
 
@@ -684,131 +679,6 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       {:warn, "#{msg} -- would be fixed (--dry-run: no files were written)"}
     else
       {:warn, "#{msg} -- run `mix ggen_igniter.doctor --fix` to fix"}
-    end
-  end
-
-  # 8. Qlever endpoint reachable (only if --engine qlever and a store can be resolved)
-  defp maybe_check_qlever(opts, pack_dir) do
-    if opts[:engine] == "qlever" do
-      [
-        tag("qlever_reachable", check_qlever_reachable(opts, pack_dir)),
-        tag("qlever_concurrent_targets", check_qlever_concurrent_targets(pack_dir))
-      ]
-    else
-      []
-    end
-  end
-
-  defp check_qlever_reachable(opts, pack_dir) do
-    store_id = opts[:store_id]
-    ontology_path = pack_dir && Pack.default_ontology(pack_dir)
-
-    cond do
-      is_nil(store_id) ->
-        {:error,
-         "--engine qlever given but --store-id is missing -- cannot resolve a QLever store to check"}
-
-      is_nil(ontology_path) or not File.exists?(ontology_path) ->
-        {:error,
-         "--engine qlever given but no pack ontology found to resolve --store-id #{store_id} against " <>
-           "(pass --pack/--pack-dir)"}
-
-      true ->
-        try do
-          graph = Ontology.load!(ontology_path)
-          # `apply/3` on purpose: without the optional `:gno` dep the module is the
-          # raising `no_return()` stub, and a static call trips the type checker.
-          store = apply(GgenIgniter.Query.Qlever, :load_store!, [graph, store_id])
-
-          apply(GgenIgniter.Query.Qlever, :run, [store, "ASK { ?s ?p ?o }"])
-          {:ok, "QLever endpoint for #{store_id} reachable"}
-        rescue
-          error ->
-            {:error, "QLever endpoint for #{store_id} unreachable: #{Exception.message(error)}"}
-        end
-    end
-  end
-
-  # 8b. Concurrent-target qlever hazard (disclosed, not yet reachable via the
-  # shipped pipeline -- see docs/status.md's "`:run_queries` step-level
-  # concurrency" row): `GgenIgniter.Engine.Qlever.prepare!/2`
-  # (lib/ggen_igniter/engine.ex:137-138) does an unsynchronized
-  # check-then-act `Process.whereis(GgenIgniter.Finch)` followed by
-  # `Finch.start_link/1` -- a real `MatchError` whenever 2+ targets that both
-  # specify `engine: "qlever"` execute `prepare!/2` concurrently. Today
-  # `:run_queries` runs every target's queries sequentially (`Enum.map/2`,
-  # `lib/ggen_igniter/reactors/reconcile_reactor.ex:468`/`:951`), so this
-  # hazard is not triggered by the pipeline as shipped -- but a `--for-each`
-  # template whose driver query already resolves to 2+ rows under
-  # `--engine qlever` produces exactly the N-targets-one-engine shape the
-  # disclosed hazard describes, one accidental `Task.async_stream/3` away
-  # from a real crash. This check surfaces that shape now, before anyone has
-  # to rediscover the disclosed status.md row by hand.
-  defp check_qlever_concurrent_targets(pack_dir) do
-    templates = pack_dir && Path.wildcard(Path.join(pack_dir, "templates/*.{eex,tmpl}"))
-
-    for_each_names =
-      (templates || [])
-      |> Enum.map(fn path ->
-        case Frontmatter.split_template(File.read!(path)) do
-          {%Frontmatter{for_each: name}, _mode, _body} -> name
-          _ -> nil
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.uniq()
-
-    cond do
-      is_nil(pack_dir) or templates == [] ->
-        {:ok, "no pack templates found -- no --for-each concurrent qlever-target hazard to check"}
-
-      for_each_names == [] ->
-        {:ok, "no --for-each templates found -- no concurrent qlever-target hazard to check"}
-
-      true ->
-        check_for_each_row_counts(pack_dir, for_each_names)
-    end
-  end
-
-  defp check_for_each_row_counts(pack_dir, for_each_names) do
-    ontology_path = Pack.default_ontology(pack_dir)
-    queries = Pack.discover_queries(pack_dir) |> Map.new()
-
-    try do
-      graph = Ontology.load!(ontology_path)
-
-      offending =
-        Enum.filter(for_each_names, fn name ->
-          case Map.fetch(queries, name) do
-            {:ok, query_path} ->
-              query_path
-              |> File.read!()
-              |> then(&Engine.Oxigraph.run(graph, &1))
-              |> length() >= 2
-
-            :error ->
-              false
-          end
-        end)
-
-      if offending == [] do
-        {:ok,
-         "--for-each driver quer(ies) #{Enum.join(for_each_names, ", ")} resolve to fewer than " <>
-           "2 rows today -- the disclosed qlever concurrent-target hazard is not triggered"}
-      else
-        {:warn,
-         "--for-each driver quer(ies) #{Enum.join(offending, ", ")} resolve to 2+ rows under " <>
-           "--engine qlever -- if this pack's targets are ever run concurrently " <>
-           "(Task.async_stream/3), this reaches the disclosed, unsynchronized " <>
-           "Finch.start_link/1 check-then-act race in GgenIgniter.Engine.Qlever.prepare!/2 " <>
-           "(lib/ggen_igniter/engine.ex:137-138) -- a real MatchError, per docs/status.md's " <>
-           "\"`:run_queries` step-level concurrency\" row (line 132)"}
-      end
-    rescue
-      error ->
-        {:ok,
-         "could not evaluate --for-each driver quer(ies) for the concurrent qlever-target " <>
-           "hazard check (#{Exception.message(error)}) -- skipping"}
     end
   end
 

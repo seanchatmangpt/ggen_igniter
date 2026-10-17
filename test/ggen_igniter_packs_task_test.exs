@@ -38,9 +38,10 @@ defmodule GgenIgniter.PacksTaskTest do
     assert Enum.map(doc["packs"], & &1["dir"]) == Enum.sort(Enum.map(doc["packs"], & &1["dir"]))
   end
 
-  test "hex_shipped mirrors mix.exs shipped_packs (ash-named excluded)" do
+  test "hex_shipped mirrors mix.exs shipped_packs (ash-manufacture-pack is the one ash exception)" do
     by = Map.new(packs_json([])["packs"], &{Path.basename(&1["dir"]), &1})
     assert by["ash-igniter-api-pack"]["hex_shipped"] == false
+    assert by["ash-manufacture-pack"]["hex_shipped"] == true
     assert by["semantic-jira-pack"]["hex_shipped"] == true
     assert by["semantic-jira-pack"]["version"] != nil
     assert by["adr-index-pack"]["metadata_source"] == "inferred"

@@ -71,8 +71,6 @@ defmodule GgenIgniter.ReconciliationManifestTest do
     args =
       [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--pack-dir",
         @pack_dir,
         "--ontology",

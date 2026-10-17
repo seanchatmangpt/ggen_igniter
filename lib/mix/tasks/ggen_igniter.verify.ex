@@ -10,7 +10,7 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
 
   `mix ggen_igniter.sync` and `GgenIgniter.GateVerify.run/2` score a gate on
   the pack corpus's documented rule: at least one row is a pass. Every gate in
-  `test/fixtures/ash_manufacture_pack/gates/` is a conjunctive `SELECT`, so
+  `priv/ggen/ash-manufacture-pack/gates/` is a conjunctive `SELECT`, so
   that rule FAILS OPEN -- one missing triple silently drops an individual from
   the plan instead of failing the run.
 
@@ -47,7 +47,7 @@ defmodule Mix.Tasks.GgenIgniter.Verify do
 
   ## Usage
 
-      mix ggen_igniter.verify --pack test/fixtures/ash_manufacture_pack
+      mix ggen_igniter.verify --pack priv/ggen/ash-manufacture-pack
       mix ggen_igniter.verify --pack PACK --ontology path/to/other.ttl
       mix ggen_igniter.verify --pack PACK --json
 

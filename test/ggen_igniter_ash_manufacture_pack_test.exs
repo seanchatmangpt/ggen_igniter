@@ -1,6 +1,6 @@
 defmodule GgenIgniter.AshManufacturePackTest do
   @moduledoc """
-  Chicago-style proof that `test/fixtures/ash_manufacture_pack/` projects the
+  Chicago-style proof that `priv/ggen/ash-manufacture-pack/` projects the
   ontology into a real, parseable, composed `Igniter.Mix.Task` -- and that the
   projection is DERIVED from semantic facts rather than from CLI strings
   stored in the ontology.
@@ -77,7 +77,7 @@ defmodule GgenIgniter.AshManufacturePackTest do
 
   @moduletag :integration
 
-  @pack "test/fixtures/ash_manufacture_pack"
+  @pack "priv/ggen/ash-manufacture-pack"
 
   # Ontology properties the template actually READS to build argv. Each must
   # hold a fact; none may hold a generator flag.

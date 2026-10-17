@@ -26,8 +26,6 @@ defmodule GgenIgniter.SyncEvalModeTest do
       # unwrapped native values (a real, disclosed shape difference, see the
       # sync task's own moduledoc), which isn't what this eval-mode-mechanics
       # test is about.
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/audit_trail_ontology.ttl",
       "--query",
@@ -71,8 +69,6 @@ defmodule GgenIgniter.SyncEvalModeTest do
       # module_name -- oxigraph's raw, quoted term-string shape (the real,
       # disclosed difference the sync task's own moduledoc documents) isn't
       # what this --for-each/eval-mode fan-out mechanics test is about.
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/for_each_ontology.ttl",
       "--query",

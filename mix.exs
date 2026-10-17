@@ -129,7 +129,7 @@ defmodule GgenIgniter.MixProject do
 
   defp description do
     "An Elixir bootstrap of ggen's ontology-to-code pipeline: RDF ontology + SPARQL + " <>
-      "template + write-safety, with pluggable sparql/qlever/oxigraph query engines."
+      "template + write-safety, with the fixed graphlaw query engine (no engine choice)."
   end
 
   defp package do
@@ -212,33 +212,13 @@ defmodule GgenIgniter.MixProject do
       # `RuntimeError` if a consumer actually reaches `fetch_pack!/2` (the
       # github:/hex: pack-fetch path) without `:tesla` in its own deps.
       {:tesla, "~> 1.8", optional: true},
-      # `optional: true`, NOT `only: [:dev, :test]`: `lib/ggen_igniter/query/
-      # qlever.ex` (`Gno.Store.Adapters.Qlever`) and `lib/ggen_igniter/engine.ex`
-      # (`GgenIgniter.Engine.Qlever`'s `--engine qlever` dispatch) are real
-      # compile-time production code, not test support. `only: [:dev, :test]`
-      # here is what caused a real E2E failure: `mix compile
-      # --warnings-as-errors` on a freshly-scaffolded consumer app raised
-      # "Gno.Store.Adapters.Qlever.__struct__/1 is undefined" (qlever.ex:62)
-      # and "Tesla.Env.__struct__/1 is undefined" (pack.ex:334), because a
-      # dependency's own `only:` restriction is dropped entirely for any
-      # consuming app (not merely restricted to matching envs) -- confirmed
-      # directly via a minimal ash-free `{:ggen_igniter, path: ...}` repro
-      # whose `mix deps.get` never even fetched `:gno`.
-      #
-      # `optional: true` fixes this the standard Elixir way: `:gno` still
-      # resolves/compiles for *this* project's own dev/test (needed for this
-      # project's own test suite -- `mix deps.get`/`mix compile` here are
-      # unaffected), but a consumer without `:gno` in its own deps now
-      # compiles clean too, because `lib/ggen_igniter/query/qlever.ex` wraps
-      # its real `%Qlever{}`-struct-using implementation in `if
-      # Code.ensure_loaded?(Gno.Store.Adapters.Qlever) do ... else ... end` --
-      # the `else` branch compiles a stub `GgenIgniter.Query.Qlever` whose
-      # `load_store!/2` and `run/2` raise a clear, actionable `RuntimeError`
-      # instead of a struct-expansion compile error. `GgenIgniter.Engine.Qlever`
-      # (`lib/ggen_igniter/engine.ex`) adds its own `Code.ensure_loaded?`
-      # guards at its `--engine qlever` dispatch call sites for the same
-      # reason (it calls `Application.ensure_all_started(:tesla)` and
-      # `GgenIgniter.Query.Qlever.load_store!/2` directly).
+      # HISTORICAL qlever coupling (2026-10-17): `:gno` existed for the
+      # removed qlever engine (`lib/ggen_igniter/query/qlever.ex` +
+      # `GgenIgniter.Engine.Qlever`, both deleted when the engine became
+      # fixed to graphlaw). The dep stays `optional: true` because the
+      # ws5_contracts suite and `doctor_fixes.ex` still exercise the
+      # :gno/:dcatr optional-boundary behavior for CONSUMER projects; ggen_
+      # igniter itself no longer calls into Gno anywhere in lib/.
       #
       # Real bare-probe-project proof this actually eliminates the coupling:
       # see the "eliminate optional tesla/gno coupling" work log -- a fresh

@@ -26,7 +26,7 @@ one-shot templater.
 
 | Layer | Real role in this repo | Status |
 |---|---|---|
-| **ggen** | Semantic compilation (ontology → query → render → actuate). Fulfilled by this repo's **own** from-scratch Elixir port of the real Rust `ggen`'s pipeline shape (render uses Elixir stdlib `EEx`, not a Tera/Liquid port) — not a runtime dependency on, or shell-out to, the real `ggen` binary. One real Rust component *is* embedded: a Rustler NIF wrapping `ggen`'s own oxigraph query engine (the default `--engine`). | IMPLEMENTED |
+| **ggen** | Semantic compilation (ontology → query → render → actuate). Fulfilled by this repo's **own** from-scratch Elixir port of the real Rust `ggen`'s pipeline shape (render uses Elixir stdlib `EEx`, not a Tera/Liquid port) — not a runtime dependency on, or shell-out to, the real `ggen` binary. One real Rust component *is* embedded: a Rustler NIF wrapping `ggen`'s own oxigraph query engine (historical default `--engine`; since 2026-10-17 the engine is FIXED to the graphlaw WASM engine and `--engine` is removed). | IMPLEMENTED |
 | **Igniter** | CLI-task plumbing (`Igniter.Mix.Task`, `add_notice/2`) for both `mix ggen_igniter.sync`/`.doctor`, **plus** real AST mutation in `mix ggen_igniter.doctor --fix`: every `transform` in `lib/ggen_igniter/doctor_fixes.ex` parses the target with `Sourceror.parse_string!/1`, edits a `Sourceror.Zipper` through Igniter's own codemod primitives (`Igniter.Code.Module.move_to_module_using/2`, `Igniter.Code.Function.move_to_defp/3`, `Igniter.Code.List`/`Tuple`/`Keyword`, `Igniter.Project.Config.modify_config_code/5`) and re-serializes with `Sourceror.to_string/1` — see `doctor_fixes.ex:358-361`. Two real nuances remain: no `%Igniter{}`/`Rewrite` project is ever constructed (the zipper is built straight from a source string, so `project_dir` stays an explicit argument instead of the process cwd — `doctor_fixes.ex:33-57`), and `Igniter.Project.Module` is unused. A real, unconditional `mix.exs` dependency. | IMPLEMENTED (CLI plumbing + `--fix` AST codemods) |
 | **Reactor** | Coordination/dependency-ordering/concurrency/compensation. `GgenIgniter.Reactors.ReconcileReactor` is a plain `use Reactor` module (explicitly not `Ash.Reactor`, so this stays usable without Ash). Real, tested — but **opt-in**, not the default, via `config :ggen_igniter, use_reactor: true`. | PARTIAL_ALIVE (real, opt-in) |
 | **Ash** | Never a **runtime** dependency — but a real test-scoped one. `mix.exs:176-177` declares `{:ash, "~> 3.0", only: [:dev, :test]}` and `{:ash_postgres, "~> 2.0", only: [:dev, :test]}` so this repo's own suite can drive the real upstream Ash generators through `Igniter.Test`. `only: [:dev, :test]` means a consumer that depends on `ggen_igniter` never inherits either one, and no module under `lib/` requires Ash on any code path. `:ash_phoenix` is genuinely absent from `mix.exs` (it appears only inside a comment, `mix.exs:97`). `mix ggen_igniter.doctor` only *scans* a consumer's project for `use Ash.Domain` as one diagnostic among several. | Not a runtime dependency; `only: [:dev, :test]` for this repo's own suite |
@@ -37,7 +37,7 @@ OTP/Controller/Manifest/Receipt) and `docs/glossary.md` for term definitions.
 ## What's implemented vs. planned (headline items — full detail in `docs/status.md`)
 
 - **Implemented, default today**: `mix ggen_igniter.sync`/`.doctor`, all
-  four query engines (oxigraph/sparql/qlever/graphlaw), `--pack`/`--for-each`/`--dry-run`, template
+  the fixed graphlaw query engine (multi-engine selection removed 2026-10-17), `--pack`/`--for-each`/`--dry-run`, template
   frontmatter (including `inject: true` — see the correction below), the
   reconciliation manifest and `--on-stale refuse|prune|preserve`.
 - **Implemented, certified in v26.9.8**: Generative Ash Manufacturing pipeline
@@ -155,10 +155,24 @@ end
 ```
 
 Requires Elixir `~> 1.17` and OTP `>= 25` (`mix ggen_igniter.doctor`'s check 1
-verifies both) plus a working Rust/`cargo` toolchain — the default `--engine
-oxigraph` compiles a native Rustler NIF (`native/ggen_graph_nif`) as part of
-compiling this library at all, regardless of which `--engine` is ever
-actually used at runtime.
+verifies both) plus a working Rust/`cargo` toolchain — the library embeds a
+native Rustler NIF (`native/ggen_graph_nif`) that is compiled as part of
+compiling this library at all.
+
+## Engine law (2026-10-17): one engine, no choice
+
+The query engine is a FIXED constant: **graphlaw** (`GgenIgniter.Engine.fixed/0`
+== `"graphlaw"`, a real SPARQL 1.1 identity running as a WASM module
+in-process via `wasmex`; artifact shipped at `priv/graphlaw_wasm.wasm`).
+There is no `--engine` flag anymore — passing it is an invalid invocation,
+everywhere, fail-closed. The former selectable surface (`--engine oxigraph` /
+`sparql` / `qlever`, comma-list/`"all"` comparison mode, `--engine-report`,
+`--store-id`) was REMOVED after a measured standardization: graphlaw matched
+the oxigraph reference row-for-row on the entire smalt-substrate-pack SELECT
+query set (11 queries, including OPTIONAL/!BOUND gates and ORDER BY), and the
+historical default `sparql` hex engine (0.3.12) was bug-ridden (ignored
+ORDER BY, no FILTER NOT EXISTS, broken ASK/CONSTRUCT). The sparql-era bug
+history below stays as documentation of why the choice surface was retired.
 
 ## Usage
 
@@ -175,9 +189,9 @@ top-level bindings, atom-keyed, so a single-row query like `spec` can be
 referenced as bare `module_name`/`package_name` instead of
 `hd(spec)["module_name"]`.
 
-#### Engines: `--engine oxigraph` / `--engine sparql` / `--engine qlever` / `--engine graphlaw`
+#### Engines (HISTORICAL, pre-2026-10-17 — the engine is now fixed to graphlaw, see "Engine law" above)
 
-`--engine oxigraph` (**the real default since v26.8.27** — confirmed by
+`--engine oxigraph` (**the historical default 2026-08..2026-10** — confirmed by
 `lib/mix/tasks/ggen_igniter.sync.ex`'s own `opts[:engine] || "oxigraph"` and
 by an actual run's notice line) runs every query in-process against the
 loaded `%RDF.Graph{}` via a real native
@@ -455,7 +469,7 @@ Ash resource, domain, enum, change, validation or preparation.
 Two working-tree fixtures implement it (both present on disk; verify with
 `ls` before relying on any path here):
 
-- **`test/fixtures/ash_manufacture_pack/`** — the pack itself:
+- **`priv/ggen/ash-manufacture-pack/`** — the pack itself:
   `ontology.ttl` (domain semantics plus a generator-capability envelope for
   the upstream Ash/Igniter tasks), 11 SPARQL gates in `gates/` (`010_project`
   through `085_refusals`, one per template binding), the single
@@ -483,7 +497,7 @@ Read these before changing anything on this path:
   satisfy: which mutations are admitted, which are structurally refused, a
   worked example, and what to do when the generator cannot express a
   requirement. No other entry-point document in this repo links it.
-- [the pack's own README](test/fixtures/ash_manufacture_pack/README.md) — its
+- [the pack's own README](priv/ggen/ash-manufacture-pack/README.md) — its
   reference, including the exact upstream Ash/Igniter versions every claim
   about it is scoped to, and the results of its `bin/qualify.sh` run.
 - [07-ASH-MANUFACTURE-PATH.md](docs/jira/v26.9.8/07-ASH-MANUFACTURE-PATH.md)

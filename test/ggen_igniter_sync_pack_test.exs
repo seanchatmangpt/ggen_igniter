@@ -30,8 +30,6 @@ defmodule GgenIgniter.SyncPackTaskTest do
       # term strings, a real, disclosed engine-shape difference (see the
       # sync task's own moduledoc), not something this --pack-dir resolution
       # test is about.
-      "--engine",
-      "sparql",
       "--pack-dir",
       "test/fixtures/sample-pack",
       "--out",
@@ -104,8 +102,6 @@ defmodule GgenIgniter.SyncPackTaskTest do
       # into generated source; a real, disclosed engine-shape difference
       # (see the sync task's own moduledoc), not something this --pack NAME
       # resolution test is about.
-      "--engine",
-      "sparql",
       "--pack",
       "doctest-pack",
       # `spec` alone doesn't provide the `sections`/`entities`/`fields`

@@ -72,7 +72,7 @@ defmodule BookLibrary do
   Every one of those surfaces is manufactured by the real upstream
   Ash/Igniter generators, composed by `mix book_library.manufacture`, which
   is itself rendered by `ggen_igniter` from
-  `test/fixtures/ash_manufacture_pack/`.
+  `priv/ggen/ash-manufacture-pack/`.
 
   If you are an agent reading this and about to hand-write an Ash resource
   or domain here: don't. See `AGENTS.md` at the repository root.

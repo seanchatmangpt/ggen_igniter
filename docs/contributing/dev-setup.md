@@ -83,7 +83,7 @@ mix test
 ```
 
 CI also runs `mix credo` and
-`mix ggen_igniter.verify --pack test/fixtures/ash_manufacture_pack --json`.
+`mix ggen_igniter.verify --pack priv/ggen/ash-manufacture-pack --json`.
 
 ## Common failures
 

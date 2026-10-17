@@ -27,8 +27,6 @@ defmodule GgenIgniter.SyncOcel2EkgPackTaskTest do
 
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--pack",
       "ocel2-ekg-pack",
       "--out",

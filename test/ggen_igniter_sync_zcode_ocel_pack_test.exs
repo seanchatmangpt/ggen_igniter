@@ -27,8 +27,6 @@ defmodule GgenIgniter.SyncZcodeOcelPackTaskTest do
 
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--pack",
       "zcode-ocel-pack",
       "--out",

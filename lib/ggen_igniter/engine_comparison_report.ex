@@ -10,10 +10,11 @@ defmodule GgenIgniter.EngineComparisonReport do
     (mirroring `ggen_igniter_cross_engine_equivalence_properties_test.exs`'s own
     `rows_as_set/1` method, for the identical reason that test names -- order is
     a separately-tracked, already-known-divergent axis).
-  - Row-ORDER equality as a SEPARATE raw-list `==` check, deliberately kept
-    apart from set equality per the confirmed `sparql`-hex `ORDER BY`
-    row-reversal bug documented in `lib/ggen_igniter/query.ex:4-16`'s
-    moduledoc. A future divergence of that exact shape shows up here as
+  - Row-ORDER equality as a SEPARATE raw-list `==` check, kept apart from set
+    equality since the `sparql`-hex `ORDER BY` row-reversal bug was first
+    confirmed (now fixed in-tree: `lib/ggen_igniter/query.ex` applies ORDER BY
+    post-materialization). The split is retained so any future order-shaped
+    divergence still shows up here as
     `order_equal?: false` with `row_set_equal?: true`, never collapsed into
     one ambiguous boolean.
 
@@ -36,7 +37,8 @@ defmodule GgenIgniter.EngineComparisonReport do
 
   `to_markdown/1` and `to_json/1` render either one report or a list of
   reports (`GgenIgniter.EngineRegistry.run_all/4`'s caller runs one report per
-  named `--query`; `mix ggen_igniter.sync --engine oxigraph,sparql` with more
+  named `--query` (single-candidate since 2026-10-17: the engine is FIXED to
+  graphlaw; the multi-engine comparison mode was removed)
   than one `--query name=path.rq` produces more than one report over one
   invocation). No new templating path: `to_markdown/1` follows this repo's
   existing `GgenIgniter.Render.render/2` convention (`lib/ggen_igniter/

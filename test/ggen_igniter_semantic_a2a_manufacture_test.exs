@@ -181,8 +181,6 @@ defmodule GgenIgniter.SemanticA2AManufactureTest do
         "mix",
         [
           "ggen_igniter.sync",
-          "--engine",
-          "sparql",
           "--pack",
           "semantic-jira-pack:a2a_manufacture",
           "--ontology",

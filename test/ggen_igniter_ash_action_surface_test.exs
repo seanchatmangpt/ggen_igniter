@@ -508,8 +508,6 @@ defmodule GgenIgniter.AshActionSurfaceTest do
           "ggen_igniter.sync",
           "--pack",
           "ash-igniter-api-pack",
-          "--engine",
-          "sparql",
           "--ontology",
           Path.join(dir, "ontology.ttl"),
           "--out",

@@ -505,6 +505,39 @@ defmodule GgenIgniter.Pack do
   end
 
   @doc """
+  Discovers every `<pack_dir>/verify/*.unbound.rq` offender-reporting
+  companion query (ADR-0010:
+  `docs/architecture/adr/0010-gate-convention-directory-is-convention.md`),
+  sorted lexically, mapped to `{name, path}` where `name` is
+  `<gate-stem>_unbound` — the digit-prefix-stripped stem with the
+  `.unbound` suffix dropped and `_unbound` appended: `045_description_integrity.unbound.rq`
+  -> `"description_integrity_unbound"`.
+
+  Consumed by `Mix.Tasks.GgenIgniter.Sync`'s `resolve_named_queries!/2` so
+  templates can score the offender laws at render time through the same
+  discovery the verify task uses, without the offender queries ever entering
+  `gates/` (where the `>= 1 row = PASS` convention would score them inverted).
+  Kept separate from `discover_queries/1` on purpose: `GateVerify`'s witness
+  scoring and the pack catalog must keep globs `gates/*.rq` only.
+  """
+  @spec discover_unbound_queries(String.t()) :: [{String.t(), String.t()}]
+  def discover_unbound_queries(pack_dir) do
+    pack_dir
+    |> Path.join("verify/*.unbound.rq")
+    |> Path.wildcard()
+    |> Enum.sort()
+    |> Enum.map(fn path ->
+      name =
+        path
+        |> Path.basename(".rq")
+        |> String.replace(".unbound", "")
+        |> String.replace(~r/^\d+_/, "")
+
+      {"#{name}_unbound", path}
+    end)
+  end
+
+  @doc """
   Discovers the `--template` under `<pack_dir>/templates/`.
 
   With `stem` omitted (or `nil`) -- the plain `--pack NAME` case -- returns

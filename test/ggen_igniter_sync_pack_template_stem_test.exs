@@ -82,8 +82,6 @@ defmodule GgenIgniter.SyncPackTemplateStemTest do
 
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--pack",
       "#{@pack_name}:resource",
       "--out",
@@ -127,8 +125,6 @@ defmodule GgenIgniter.SyncPackTemplateStemTest do
 
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--pack",
       "#{@pack_name}:domain",
       "--out",
@@ -163,8 +159,6 @@ defmodule GgenIgniter.SyncPackTemplateStemTest do
   test "plain --pack NAME (no :TEMPLATE_STEM) still produces the exact same real ambiguity error as before" do
     args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--pack",
       @pack_name
     ]

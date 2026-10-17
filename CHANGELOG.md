@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **Changed** the `ash-manufacture-pack` canonical home from
+  `test/fixtures/ash_manufacture_pack` to `priv/ggen/ash-manufacture-pack`
+  (git mv; the fixture-era qualification evidence under
+  `test/fixtures/.qualification/` remains in place). Test files, lib
+  docstrings, and docs updated to the new path.
+- **Changed** `shipped_packs/0` in mix.exs and `PackCatalog.shipped?/2` from
+  the v26.9.28 blanket `"ash"` substring reject (commit 00b561a, operator
+  directive 2026-09-28: "Ash must not ship with the hex package") to the same
+  fence with ONE named exception: the qualified `ash-manufacture-pack` ships
+  to hex consumers; every other ash-named pack stays excluded.
+- **Fixed** `VerifyMutation`'s `@source_pack` to resolve the promoted
+  `priv/ggen/ash-manufacture-pack` (latent hex breakage flagged in the
+  v26.10.5 audit, gap G6).
+
 ## v26.10.5
 
 Released 2026-10-03.

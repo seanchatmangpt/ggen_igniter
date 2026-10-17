@@ -200,8 +200,6 @@ defmodule GgenIgniter.SemanticA2ADispatchTest do
           "mix",
           [
             "ggen_igniter.sync",
-            "--engine",
-            "sparql",
             "--pack",
             "semantic-jira-pack:a2a_agent_card",
             "--out",

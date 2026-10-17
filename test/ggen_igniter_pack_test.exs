@@ -99,6 +99,45 @@ defmodule GgenIgniter.PackTest do
     end
   end
 
+  describe "discover_unbound_queries/1" do
+    test "discovers the real semantic-jira-pack's six ADR-0010 companions as <stem>_unbound" do
+      queries = Pack.discover_unbound_queries("priv/ggen/semantic-jira-pack")
+
+      assert {"description_integrity_unbound",
+              "priv/ggen/semantic-jira-pack/verify/045_description_integrity.unbound.rq"} in queries
+
+      assert {"alive_receipt_crown_unbound",
+              "priv/ggen/semantic-jira-pack/verify/046_alive_receipt_crown.unbound.rq"} in queries
+
+      assert {"provider_neutral_admission_unbound",
+              "priv/ggen/semantic-jira-pack/verify/047_provider_neutral_admission.unbound.rq"} in queries
+
+      assert {"standing_projection_unbound",
+              "priv/ggen/semantic-jira-pack/verify/055_standing_projection.unbound.rq"} in queries
+
+      assert {"monotonic_evolution_unbound",
+              "priv/ggen/semantic-jira-pack/verify/066_monotonic_evolution.unbound.rq"} in queries
+
+      assert {"epoch_boundary_unbound",
+              "priv/ggen/semantic-jira-pack/verify/epoch_boundary.unbound.rq"} in queries
+
+      assert length(queries) == 6
+    end
+
+    test "returns an empty list when no verify/ dir exists" do
+      assert Pack.discover_unbound_queries("test/fixtures/sample-pack") == []
+    end
+
+    test "keeps discover_queries/1 scoped to gates/ (the ADR-0010 scoring boundary)" do
+      # The offender companions must never enter witness scoring: the real
+      # semantic-jira-pack has both directories, and discover_queries/1 must
+      # still return only the gates/ set.
+      assert length(Pack.discover_queries("priv/ggen/semantic-jira-pack")) == 17
+
+      assert length(Pack.discover_unbound_queries("priv/ggen/semantic-jira-pack")) == 6
+    end
+  end
+
   describe "discover_template/1" do
     test "returns {:ok, path} when exactly one *.eex file exists" do
       assert Pack.discover_template(@sample_pack_dir) ==

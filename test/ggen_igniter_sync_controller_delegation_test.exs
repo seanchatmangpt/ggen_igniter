@@ -83,8 +83,6 @@ defmodule GgenIgniter.SyncControllerDelegationTest do
     out_path = Path.join(out_dir, "resource.ex")
 
     argv = [
-      "--engine",
-      "sparql",
       "--ontology",
       @ontology,
       "--query",
@@ -166,8 +164,6 @@ defmodule GgenIgniter.SyncControllerDelegationTest do
     out_path = Path.join(out_dir, "resource_no_controller.ex")
 
     argv = [
-      "--engine",
-      "sparql",
       "--ontology",
       @ontology,
       "--query",

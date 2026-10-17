@@ -83,8 +83,6 @@ defmodule GgenIgniter.SyncInjectReactorAdmissionTest do
 
       args = [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--ontology",
         @ontology,
         "--query",
@@ -124,8 +122,6 @@ defmodule GgenIgniter.SyncInjectReactorAdmissionTest do
 
       args = [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--ontology",
         @ontology,
         "--query",
@@ -155,8 +151,6 @@ defmodule GgenIgniter.SyncInjectReactorAdmissionTest do
 
       args = [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--ontology",
         @ontology,
         "--query",

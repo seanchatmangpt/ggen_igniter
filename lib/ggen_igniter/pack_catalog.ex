@@ -100,9 +100,12 @@ defmodule GgenIgniter.PackCatalog do
     }
   end
 
-  # mix.exs shipped_packs/0: Path.wildcard("priv/ggen/*") |> reject contains "ash"
-  defp shipped?(priv_root, basename),
-    do: not String.contains?(Path.join(priv_root, basename), "ash")
+  # Mirrors mix.exs shipped_packs/0: the blanket "ash" reject (00b561a,
+  # operator directive 2026-09-28) keeps refusing every ash-named pack except
+  # the one deliberate exception, ash-manufacture-pack. See mix.exs for the
+  # full fence history.
+  defp shipped?(_priv_root, "ash-manufacture-pack"), do: true
+  defp shipped?(_priv_root, basename), do: not String.contains?(basename, "ash")
 
   defp template(path) do
     {to, for_each, error} =

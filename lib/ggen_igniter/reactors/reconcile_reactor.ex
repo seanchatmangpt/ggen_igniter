@@ -176,7 +176,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   ## Multi-target input shape
 
   `:reconcile_opts` accepts the exact same flat opts `GgenIgniter.Reconcile.run/1`
-  does (`:ontology`/`:query`/`:template`/`:pack`/`:pack_dir`/`:engine`/`:mode`/
+  does (`:ontology`/`:query`/`:template`/`:pack`/`:pack_dir`/`:mode`/
   `:out`/`:unless_exists`/`:skip_if`/`:dry_run`, plus `:on_stale`/`:manifest_dir`/
   `:verify_cwd`, new here) for the single-output case -- this is what makes
   test 1's byte-for-byte parity against `Reconcile.run/1` meaningful: with no
@@ -188,9 +188,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   merged onto the shared top-level opts) runs N independent render/actuate
   targets in one Reactor pipeline run -- this is the real, in-memory
   "PendingWrite list" the plan's `:render` step describes, and is what the
-  concurrency proof in the test suite exercises. `:ontology`/`:engine`/`:pack`/
+  concurrency proof in the test suite exercises. `:ontology`/`:pack`/
   `:pack_dir` at the TOP level are shared across every target (loaded/resolved
-  once); a target may still override its own `:pack`/`:pack_dir`/`:engine` for
+  once); a target may still override its own `:pack`/`:pack_dir` for
   its own template/query resolution.
 
   v26.9.2 (workstream B): `:for_each_row` is one more real per-target
@@ -1339,7 +1339,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   end
 
   defp run_target_queries(target_opts, graph, index) do
-    engine_name = target_opts[:engine] || "oxigraph"
+    engine_name = Engine.fixed()
     engine_module = Engine.fetch!(engine_name)
     template_path = resolve_template_path!(target_opts)
 

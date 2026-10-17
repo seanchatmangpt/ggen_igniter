@@ -57,8 +57,6 @@ defmodule B1d.SagaHelper do
         ["ggen_igniter.sync"] ++
           pack_args ++
           [
-            "--engine",
-            "sparql",
             "--ontology",
             Path.join(dir, "ontology.ttl"),
             "--out",

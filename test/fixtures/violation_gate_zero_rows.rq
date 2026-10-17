@@ -1,0 +1,12 @@
+# W984hl regression fixture: a "violation gate" query -- the shape the
+# ggen-marketplace packs were reworked to (zero rows = PASS) -- which returns
+# ZERO rows on the valid `for_each_ontology.ttl` (every row has
+# moduleName/fieldName). Used to prove a direct `--for-each` render whose
+# driver query selects nothing refuses with a named error instead of the deep
+# `reconcile_opts[:targets] must not be an empty list` ArgumentError.
+PREFIX mod: <http://seanchatmangpt.github.io/packs/multi-module#>
+SELECT DISTINCT ?s ?missing WHERE {
+  ?s a mod:GeneratedModule .
+  FILTER NOT EXISTS { ?s mod:moduleName ?n ; mod:fieldName ?f . }
+  BIND("row missing moduleName/fieldName" AS ?missing)
+}

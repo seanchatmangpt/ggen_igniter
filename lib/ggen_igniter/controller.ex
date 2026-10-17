@@ -96,7 +96,7 @@ defmodule GgenIgniter.Controller do
   `pack_key`, using `reconcile_opts` (the same option shape
   `Mix.Tasks.GgenIgniter.Sync` accepts, within `GgenIgniter.Reconcile.run/1`'s
   own bounded scope -- see that module's moduledoc: `:ontology`/`:query`/
-  `:template`/`:pack`/`:pack_dir`/`:engine`/`:mode`/`:out`/`:unless_exists`/
+  `:template`/`:pack`/`:pack_dir`/`:mode`/`:out`/`:unless_exists`/
   `:skip_if`/`:dry_run`).
 
   On success, updates this server's in-process state for `pack_key` and
@@ -199,7 +199,7 @@ defmodule GgenIgniter.Controller do
 
   defp receipt_to_legacy_result(reconcile_opts, receipt) do
     %{
-      engine: reconcile_opts[:engine] || "oxigraph",
+      engine: GgenIgniter.Engine.fixed(),
       ontology_path: nil,
       template_path: reconcile_opts[:template],
       query_count: length(Keyword.get_values(reconcile_opts, :query)),

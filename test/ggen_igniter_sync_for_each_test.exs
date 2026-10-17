@@ -29,8 +29,6 @@ defmodule GgenIgniter.SyncForEachTest do
       # quoted N-Triples-style term strings (the real, disclosed shape
       # difference the sync task's own moduledoc documents) aren't what this
       # --for-each fan-out mechanics test is about.
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/for_each_ontology.ttl",
       "--query",
@@ -126,8 +124,6 @@ defmodule GgenIgniter.SyncForEachTest do
       # template does; this is a real, disclosed engine-shape difference
       # (see the sync task's own moduledoc and `GgenIgniter.Query`'s), not
       # something this "unchanged static-output behavior" test is about.
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/audit_trail_ontology.ttl",
       "--query",
@@ -196,8 +192,6 @@ defmodule GgenIgniter.SyncForEachTest do
 
     base_args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/for_each_ontology_8.ttl",
       "--query",

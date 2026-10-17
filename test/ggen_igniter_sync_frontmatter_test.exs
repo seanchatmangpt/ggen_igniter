@@ -31,8 +31,6 @@ defmodule GgenIgniter.SyncFrontmatterTest do
       # instead of sparql's unwrapped native values, which is a real,
       # disclosed shape difference (see the sync task's own moduledoc), not
       # something this general frontmatter-mechanics test is about.
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/audit_trail_ontology.ttl",
       "--template",

@@ -1,4 +1,4 @@
-# ash_manufacture_pack
+# ash-manufacture-pack
 
 A ggen_igniter pack that models an Ash application's **domain semantics** plus the
 **generator capability envelope** of the upstream Ash/Igniter mix tasks, and projects
@@ -13,7 +13,7 @@ ash_postgres 2.13.1, igniter 0.8.4, spark 2.7.2, Elixir 1.19.5 / OTP 28.
 ## Layout
 
 ```text
-test/fixtures/ash_manufacture_pack/
+priv/ggen/ash-manufacture-pack/
 ├── ontology.ttl                    # semantic facts, capability envelope, pins, citations
 ├── gates/*.rq                      # 13 SPARQL projections, one per template binding
 ├── templates/manufacture.ex.eex    # renders the composed Igniter.Mix.Task
@@ -35,7 +35,7 @@ called the other three non-optional — a doc that disagrees with itself about w
 
 ```bash
 cd test/fixtures/book_library
-mix ggen_igniter.sync --pack-dir ../ash_manufacture_pack
+mix ggen_igniter.sync --pack ash-manufacture-pack
 ```
 
 `--pack-dir` resolves `ontology.ttl`, every `gates/*.rq` (bound under its filename stem
@@ -394,7 +394,7 @@ of manufactured paths and never touches `deps/`, `_build/` or `mix.lock`. Run 1 
 start from a known subject or "run 1 vs run 2" is not a controlled comparison.
 
 ```bash
-bash test/fixtures/ash_manufacture_pack/bin/day_zero.sh test/fixtures/book_library
+bash priv/ggen/ash-manufacture-pack/bin/day_zero.sh test/fixtures/book_library
 ```
 
 ### `qualify.sh`
@@ -407,7 +407,7 @@ per-step `NN-*.log`, `T0/T1/T2` tree hashes, `T1-vs-T2.diff`, `ocel-run1/`, `oce
 (outside the fixture, because `day_zero.sh` deletes `.ggen_igniter/`).
 
 ```bash
-bash test/fixtures/ash_manufacture_pack/bin/qualify.sh
+bash priv/ggen/ash-manufacture-pack/bin/qualify.sh
 # or: bash .../qualify.sh <fixture-path>   (QUALIFY_OUT, BOOK_LIBRARY_QUAL_DB honored)
 ```
 
@@ -433,7 +433,7 @@ precede core-phase events, and guarded steps flip from `task_composed` on run 1 
 `task_admission_refused` on run 2). Exit 0 = conformant.
 
 ```bash
-python3 test/fixtures/ash_manufacture_pack/bin/conformance.py \
+python3 priv/ggen/ash-manufacture-pack/bin/conformance.py \
   test/fixtures/book_library test/fixtures/.qualification/book_library
 ```
 
@@ -451,7 +451,7 @@ SHA-256s, and the capability matrix parsed back out of `ontology.ttl`. A missing
 yields `null` and degrades `standing`; no field is filled in from intent.
 
 ```bash
-python3 test/fixtures/ash_manufacture_pack/bin/receipt.py \
+python3 priv/ggen/ash-manufacture-pack/bin/receipt.py \
   test/fixtures/book_library test/fixtures/.qualification/book_library > receipt.json
 ```
 
@@ -469,8 +469,8 @@ occurs in that slice. It also reconciles every `amp:DependencyPin` against the s
 real `mix.lock`.
 
 ```bash
-python3 test/fixtures/ash_manufacture_pack/bin/citation_check.py \
-  test/fixtures/ash_manufacture_pack test/fixtures/book_library
+python3 priv/ggen/ash-manufacture-pack/bin/citation_check.py \
+  priv/ggen/ash-manufacture-pack test/fixtures/book_library
 # {"all_anchored": true, "anchors_checked": 41, "misses": [], "pin_drift": [], ...}
 ```
 

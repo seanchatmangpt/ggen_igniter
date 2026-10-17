@@ -247,8 +247,6 @@ defmodule GgenIgniter.SyncCheckTest do
     args =
       [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--query",
         "modules=test/fixtures/modules.rq",
         "--for-each",

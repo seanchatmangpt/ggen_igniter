@@ -71,8 +71,6 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
 
     igniter =
       run_sync!([
-        "--engine",
-        "sparql",
         "--ontology",
         "test/fixtures/for_each_ontology.ttl",
         "--query",
@@ -191,8 +189,6 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
 
     igniter =
       run_sync!([
-        "--engine",
-        "sparql",
         "--ontology",
         "test/fixtures/audit_trail_ontology.ttl",
         "--query",
@@ -227,8 +223,6 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
     """)
 
     argv = [
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/audit_trail_ontology.ttl",
       "--template",
@@ -311,8 +305,6 @@ defmodule GgenIgniter.SyncInProcessDispatchTest do
 
     igniter =
       run_sync!([
-        "--engine",
-        "sparql",
         "--pack",
         "#{@stem_pack_name}:resource",
         "--out",

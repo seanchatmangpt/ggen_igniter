@@ -1,7 +1,7 @@
 defmodule GgenIgniter.AshTaskCoverageTest do
   @moduledoc """
   Coverage gate over the generator capability envelope in
-  `test/fixtures/ash_manufacture_pack/ontology.ttl`.
+  `priv/ggen/ash-manufacture-pack/ontology.ttl`.
 
   The property under test is CLOSURE, in both directions, between two real
   surfaces:
@@ -75,7 +75,7 @@ defmodule GgenIgniter.AshTaskCoverageTest do
   """
   use ExUnit.Case, async: true
 
-  @ontology "test/fixtures/ash_manufacture_pack/ontology.ttl"
+  @ontology "priv/ggen/ash-manufacture-pack/ontology.ttl"
   @amp "http://seanchatmangpt.github.io/packs/ash-manufacture-pack#"
   @rdfs "http://www.w3.org/2000/01/rdf-schema#"
 

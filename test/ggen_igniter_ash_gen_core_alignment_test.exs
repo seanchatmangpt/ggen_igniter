@@ -6,7 +6,7 @@ defmodule GgenIgniter.AshGenCoreAlignmentTest do
 
   ## The property under test
 
-  `test/fixtures/ash_manufacture_pack/templates/manufacture.ex.eex` renders ONE
+  `priv/ggen/ash-manufacture-pack/templates/manufacture.ex.eex` renders ONE
   `Igniter.Mix.Task` whose only real work is turning semantic facts into upstream
   generator argv and handing that argv to `Igniter.compose_task/4`. The pack owns
   the *derivation*; upstream owns the *effect*. So the thing that can silently rot

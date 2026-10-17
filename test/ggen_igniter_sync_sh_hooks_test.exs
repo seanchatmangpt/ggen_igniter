@@ -84,8 +84,6 @@ defmodule GgenIgniter.SyncShHooksTest do
   defp base_args(template, out_path, manifest_dir, extra) do
     [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/audit_trail_ontology.ttl",
       "--query",

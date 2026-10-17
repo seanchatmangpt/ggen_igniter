@@ -5,11 +5,15 @@ defmodule GgenIgniterPackageAshFreeTest do
   the real `hex_metadata.config` (parsed with `:file.consult/1`). No doubles.
 
   Operator directive (2026-09-28): Ash must not ship with the hex package.
+  Amended 2026-10-06 (v26.10.6 convergence, lane R3/E2): exactly one exception
+  — the qualified `ash-manufacture-pack` ships under `priv/ggen/`; every other
+  ash-named pack stays excluded by `shipped_packs/0` in `mix.exs`.
   Pinned here as state, not description:
 
     1. `hex_metadata.config` requirements contain no `ash*` package.
-    2. No shipped file or directory is named for Ash (the `ash-*` packs are
-       excluded by `shipped_packs/0` in `mix.exs`).
+    2. No shipped file or directory is named for Ash except
+       `priv/ggen/ash-manufacture-pack/` (all other `ash-*` packs are excluded
+       by `shipped_packs/0` in `mix.exs`).
     3. No shipped `lib/` module `use`s an Ash surface (`use Ash.*`, `use AshPostgres.*`,
        `use AshA2A.*`), decided on the parsed AST so heredoc text does not count.
     Shipped files may still MENTION Ash as text (the install task and the
@@ -63,7 +67,10 @@ defmodule GgenIgniterPackageAshFreeTest do
     assert Enum.filter(names, &String.starts_with?(&1, "ash")) == []
   end
 
-  test "no shipped path is named for Ash", %{out: out, code: 0} do
+  test "no shipped path is named for Ash (ash-manufacture-pack is the one exception)", %{
+    out: out,
+    code: 0
+  } do
     ash_paths =
       out
       |> files()
@@ -71,7 +78,12 @@ defmodule GgenIgniterPackageAshFreeTest do
         p |> Path.split() |> Enum.any?(&(&1 =~ ~r/(^|[-_.])ash([-_.]|$)/i))
       end)
 
-    assert ash_paths == []
+    ash_roots =
+      ash_paths
+      |> Enum.map(&(Path.relative_to(&1, "priv/ggen") |> Path.split() |> hd()))
+      |> Enum.uniq()
+
+    assert ash_roots == ["ash-manufacture-pack"], "sanity: the manufacture pack shipped"
     assert "priv/ggen/semantic-jira-pack/ontology.ttl" in files(out), "sanity: packs ship"
   end
 

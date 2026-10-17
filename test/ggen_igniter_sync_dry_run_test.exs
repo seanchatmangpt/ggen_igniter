@@ -169,8 +169,6 @@ defmodule GgenIgniter.SyncDryRunTest do
       # strings (the real, disclosed shape difference the sync task's own
       # moduledoc documents) aren't what this --dry-run/--for-each mechanics
       # test is about.
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/for_each_ontology.ttl",
       "--query",

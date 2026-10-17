@@ -1,7 +1,7 @@
 defmodule GgenIgniterVerifyMutationTest do
   @moduledoc """
   Chicago-style: real collaborators only. Each mutant is a textual transform
-  of a real COPY of `test/fixtures/ash_manufacture_pack/verify/` assets
+  of a real COPY of `priv/ggen/ash-manufacture-pack/verify/` assets
   materialized into a unique tmp dir under `System.tmp_dir!()` (created and
   `File.rm_rf!`-deleted inside `GgenIgniter.VerifyMutation.run/1` itself), and
   the killer is the REAL verify core -- `GgenIgniter.GateVerify.load_cardinality/1`,
@@ -100,5 +100,5 @@ defmodule GgenIgniterVerifyMutationTest do
     dir
   end
 
-  defp fixture_pack, do: Path.join(__DIR__, "fixtures/ash_manufacture_pack")
+  defp fixture_pack, do: Path.join(__DIR__, "../priv/ggen/ash-manufacture-pack")
 end

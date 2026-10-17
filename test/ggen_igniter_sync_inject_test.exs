@@ -64,8 +64,6 @@ defmodule GgenIgniter.SyncInjectTest do
       args =
         [
           "ggen_igniter.sync",
-          "--engine",
-          "sparql",
           "--ontology",
           "test/fixtures/audit_trail_ontology.ttl",
           "--template",
@@ -113,8 +111,6 @@ defmodule GgenIgniter.SyncInjectTest do
       args =
         [
           "ggen_igniter.sync",
-          "--engine",
-          "sparql",
           "--ontology",
           "test/fixtures/audit_trail_ontology.ttl",
           "--template",
@@ -148,8 +144,6 @@ defmodule GgenIgniter.SyncInjectTest do
       args =
         [
           "ggen_igniter.sync",
-          "--engine",
-          "sparql",
           "--ontology",
           "test/fixtures/audit_trail_ontology.ttl",
           "--template",
@@ -187,8 +181,6 @@ defmodule GgenIgniter.SyncInjectTest do
       args =
         [
           "ggen_igniter.sync",
-          "--engine",
-          "sparql",
           "--ontology",
           "test/fixtures/audit_trail_ontology.ttl",
           "--template",
@@ -229,8 +221,6 @@ defmodule GgenIgniter.SyncInjectTest do
       args =
         [
           "ggen_igniter.sync",
-          "--engine",
-          "sparql",
           "--ontology",
           "test/fixtures/audit_trail_ontology.ttl",
           "--template",
@@ -262,8 +252,6 @@ defmodule GgenIgniter.SyncInjectTest do
       args =
         [
           "ggen_igniter.sync",
-          "--engine",
-          "sparql",
           "--ontology",
           "test/fixtures/audit_trail_ontology.ttl",
           "--template",
@@ -296,8 +284,6 @@ defmodule GgenIgniter.SyncInjectTest do
     test "both before: and after: set raises a clear error, real non-zero exit" do
       args = [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--ontology",
         "test/fixtures/audit_trail_ontology.ttl",
         "--template",
@@ -320,8 +306,6 @@ defmodule GgenIgniter.SyncInjectTest do
     test "occurrence: last (not implemented) raises a clear, named error, real non-zero exit" do
       args = [
         "ggen_igniter.sync",
-        "--engine",
-        "sparql",
         "--ontology",
         "test/fixtures/audit_trail_ontology.ttl",
         "--template",
@@ -352,8 +336,6 @@ defmodule GgenIgniter.SyncInjectTest do
       args =
         [
           "ggen_igniter.sync",
-          "--engine",
-          "sparql",
           "--ontology",
           "test/fixtures/audit_trail_ontology.ttl",
           "--template",

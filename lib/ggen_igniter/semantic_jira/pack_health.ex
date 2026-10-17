@@ -10,7 +10,7 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
   1. Loads the packaged `ontology.ttl` through the real loader.
   2. Executes EVERY gate query (`gates/*.rq`) through the same engine path
      `mix ggen_igniter.sync` uses by default (`Engine.fetch!/1` ->
-     `prepare!/2` -> `run/2`, default engine `oxigraph` per ADR-0001 --
+     `prepare!/2` -> `run/2`, the FIXED engine (graphlaw) --
      real execution, not the parse-only check `--pack` mode already offers).
   3. Renders each template through the SAME resolution + binding path the
      sync pipeline uses (`resolve_named_queries!/2`, `build_bindings/2`,
@@ -37,12 +37,12 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
 
   @pack_name "semantic-jira-pack"
 
-  # `mix ggen_igniter.sync`'s own default engine (ADR-0001): the gates are
+  # `mix ggen_igniter.sync`'s own FIXED engine (2026-10-17): the gates are
   # exercised here exactly the way a plain `mix ggen_igniter.sync --pack
   # semantic-jira-pack` runs them. Not the `sparql` hex library, whose
   # disclosed ORDER BY defect (`GgenIgniter.Query`'s moduledoc) makes it the
   # wrong engine to certify gate health with.
-  @engine "oxigraph"
+  @engine GgenIgniter.Engine.fixed()
 
   @doc """
   Runs the full health probe against the pack directory `pack_dir` (the

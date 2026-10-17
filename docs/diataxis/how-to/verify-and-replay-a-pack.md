@@ -20,7 +20,7 @@ that with two complementary checks that always both run:
    (`GgenIgniter.GateVerify.run/3` with `cardinality:`).
 
 ```
-mix ggen_igniter.verify --pack test/fixtures/ash_manufacture_pack
+mix ggen_igniter.verify --pack priv/ggen/ash-manufacture-pack
 ```
 
 Flags (verified against the task's `OptionParser.parse/2` `strict:` list,

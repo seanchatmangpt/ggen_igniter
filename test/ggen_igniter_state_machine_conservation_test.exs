@@ -32,9 +32,10 @@ defmodule GgenIgniter.StateMachineConservationTest do
   end
 
   # Real sync into a caller-owned root so the tree can be hashed before and after.
-  @engines ["sparql", "oxigraph"]
+  # Engine law (2026-10-17): the engine is fixed; the historical per-engine sweep collapsed to the one fixed engine.
+  @engines ["graphlaw"]
 
-  defp sync(ontology_dir, root, engine \\ "sparql") do
+  defp sync(ontology_dir, root, engine \\ "graphlaw") do
     out = Path.join(root, "lib/<%= file_stem %>.ex")
 
     System.cmd(

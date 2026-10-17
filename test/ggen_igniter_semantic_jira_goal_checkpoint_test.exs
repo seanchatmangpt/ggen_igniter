@@ -627,8 +627,6 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
           "mix",
           [
             "ggen_igniter.sync",
-            "--engine",
-            "sparql",
             "--pack",
             "semantic-jira-pack:jira",
             "--ontology",

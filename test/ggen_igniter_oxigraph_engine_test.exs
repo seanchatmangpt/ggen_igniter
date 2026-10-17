@@ -230,35 +230,35 @@ defmodule GgenIgniter.OxigraphEngineTest do
       graph = normalization_graph()
 
       [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
-      [sparql_row] = Query.run(graph, @normalization_query)
+      [fixed_row] = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), @normalization_query)
 
       assert oxigraph_row["iri_obj"] == "https://example.org/term-norm/object"
       refute oxigraph_row["iri_obj"] =~ "<"
       refute oxigraph_row["iri_obj"] =~ ">"
-      assert oxigraph_row["iri_obj"] == sparql_row["iri_obj"]
+      assert oxigraph_row["iri_obj"] == fixed_row["iri_obj"]
     end
 
     test "a plain string literal comes back unwrapped (no quotes) by default, matching the sparql-hex engine exactly" do
       graph = normalization_graph()
 
       [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
-      [sparql_row] = Query.run(graph, @normalization_query)
+      [fixed_row] = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), @normalization_query)
 
       assert oxigraph_row["plain_str"] == "a plain string"
       refute oxigraph_row["plain_str"] =~ "\""
-      assert oxigraph_row["plain_str"] == sparql_row["plain_str"]
+      assert oxigraph_row["plain_str"] == fixed_row["plain_str"]
     end
 
     test "a language-tagged literal comes back as its plain value (language tag dropped) by default, matching the sparql-hex engine exactly" do
       graph = normalization_graph()
 
       [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
-      [sparql_row] = Query.run(graph, @normalization_query)
+      [fixed_row] = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), @normalization_query)
 
       assert oxigraph_row["lang_tagged"] == "hola"
       refute oxigraph_row["lang_tagged"] =~ "@"
       refute oxigraph_row["lang_tagged"] =~ "\""
-      assert oxigraph_row["lang_tagged"] == sparql_row["lang_tagged"]
+      assert oxigraph_row["lang_tagged"] == fixed_row["lang_tagged"]
     end
 
     test "a datatype-tagged literal (xsd:boolean, xsd:integer) comes back as its clean lexical string (no ^^<datatype> suffix, no quotes) by default" do
@@ -277,25 +277,20 @@ defmodule GgenIgniter.OxigraphEngineTest do
       refute oxigraph_row["xsd_int"] =~ "\""
     end
 
-    test "honest, disclosed divergence: the plain default is each literal's lexical STRING, not RDF.ex's native Elixir type for xsd:boolean/xsd:integer" do
+    test "normalization: both the fixed graphlaw engine and the oxigraph reference return each literal's lexical STRING" do
       graph = normalization_graph()
 
       [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
-      [sparql_row] = Query.run(graph, @normalization_query)
+      [fixed_row] = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), @normalization_query)
 
-      # sparql-hex (`RDF.Literal.value/1`, via RDF.ex's own per-datatype
-      # `elixir_mapping/2`) really does return native Elixir types here --
-      # confirmed, not assumed.
-      assert sparql_row["xsd_bool"] == true
-      assert sparql_row["xsd_int"] == 42
-
-      # oxigraph's plain default returns the clean lexical string instead --
-      # a real, documented divergence (see GgenIgniter.Query.Oxigraph's
-      # moduledoc), asserted honestly here rather than silently glossed over.
+      # HISTORICAL: the retired sparql-hex engine returned RDF.ex native
+      # Elixir types (true / 42) here, diverging from oxigraph's plain
+      # lexical strings. With the engine FIXED to graphlaw the two remaining
+      # identities AGREE, asserted honestly:
       assert oxigraph_row["xsd_bool"] == "true"
       assert oxigraph_row["xsd_int"] == "42"
-      refute oxigraph_row["xsd_bool"] == sparql_row["xsd_bool"]
-      refute oxigraph_row["xsd_int"] == sparql_row["xsd_int"]
+      assert fixed_row["xsd_bool"] == "true"
+      assert fixed_row["xsd_int"] == "42"
     end
 
     test "raw: true is a real, explicit opt-in returning oxigraph's original N-Triples-style term strings -- datatype/language info is not discarded" do
@@ -333,20 +328,17 @@ defmodule GgenIgniter.OxigraphEngineTest do
     graph = Ontology.load!(@fortune5_shapes)
     gate_query = File.read!(@gate_010)
 
-    # Confirm the sparql-hex engine still reproduces the pinned bug (baseline,
-    # same assertion as ash_r2rml_gate_integration_test.exs) before checking
-    # whether the alternative engine avoids it.
-    assert_raise Protocol.UndefinedError, fn -> Query.run(graph, gate_query) end
-
+    # HISTORICAL: the retired sparql-hex engine raised Protocol.UndefinedError
+    # on this query shape (the pinned bug that motivated the oxigraph/graphlaw
+    # engines). With the engine FIXED to graphlaw, both the fixed engine and
+    # the oxigraph reference score this valid SPARQL 1.1 gate for real.
     case OxigraphQuery.run(graph, gate_query) do
-      rows when is_list(rows) ->
-        # Real fix: oxigraph evaluates this valid SPARQL 1.1 query shape
-        # correctly where sparql-hex could not.
-        assert is_list(rows)
-
-      other ->
-        flunk("expected a row list from the oxigraph engine, got: #{inspect(other)}")
+      rows when is_list(rows) -> assert is_list(rows)
+      other -> flunk("expected a row list from the oxigraph engine, got: #{inspect(other)}")
     end
+
+    rows = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), gate_query)
+    assert is_list(rows)
   end
 
   @tag :requires_ash_r2rml
@@ -354,14 +346,12 @@ defmodule GgenIgniter.OxigraphEngineTest do
     graph = Ontology.load!(@fortune5_shapes)
     gate_query = File.read!(@gate_020)
 
-    assert_raise Protocol.UndefinedError, fn -> Query.run(graph, gate_query) end
-
     case OxigraphQuery.run(graph, gate_query) do
-      rows when is_list(rows) ->
-        assert is_list(rows)
-
-      other ->
-        flunk("expected a row list from the oxigraph engine, got: #{inspect(other)}")
+      rows when is_list(rows) -> assert is_list(rows)
+      other -> flunk("expected a row list from the oxigraph engine, got: #{inspect(other)}")
     end
+
+    rows = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), gate_query)
+    assert is_list(rows)
   end
 end

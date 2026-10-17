@@ -52,146 +52,29 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   If `--for-each` is not given, behavior is unchanged: `--out` is a single static
   path, written once, with the existing single-row-flatten convention.
 
-  ## Engines
+  ## The engine (fixed: graphlaw)
 
-  `--engine oxigraph` (default, since v26.8.27) runs every query in-process
-  against the loaded `%RDF.Graph{}` via a real, native oxigraph engine (a
-  Rustler NIF over `~/ggen/crates/ggen-graph-wasm`'s `OxigraphEngine`,
-  `GgenIgniter.Query.Oxigraph.run/2`) instead of the pure-Elixir `sparql` hex
-  package. This became the default because of a real, empirically confirmed
-  data-corruption bug in the previous default: `GgenIgniter.Query.run/2` (the
-  `sparql` hex package, v0.3.12) does not correctly honor `ORDER BY` -- a
-  join-shaped query mirroring the real gate fixtures (`?field ex:fieldOf
-  ?entity ; ex:fieldOrder ?field_order . ?entity ex:entityStruct
-  ?entity_struct .` with `ORDER BY ?field_order` over 10 rows) came back in
-  reverse order (`[9, 8, ..., 0]` instead of the requested ascending `[0, 1,
-  ..., 9]`) -- see `GgenIgniter.Query`'s moduledoc for the full writeup. The
-  same query run through oxigraph (a real, independent, spec-conformant
-  SPARQL 1.1 engine) returned the correct ascending order. Silent row-order
-  reversal is a real corruption risk for any `--for-each` fan-out template
-  that assumes row order (e.g. numbering, positional joins), so the engine
-  that gets that right is now the one that runs unless `--engine` says
-  otherwise.
-
-  Two real, disclosed trade-offs from this default change, not silently
-  accepted:
-
-    * **Row-value shape differs from `sparql`.** `--engine sparql`'s rows are
-      plain unwrapped Elixir strings (`RDF.IRI.to_string/1` /
-      `RDF.Literal.value/1`). `--engine oxigraph`'s rows are the real,
-      unprocessed N-Triples-style term strings oxigraph itself returns --
-      IRIs come back angle-bracket-wrapped (`<https://example.org/...>`) and
-      literals come back quoted (and datatype/language-tagged when
-      applicable, e.g. `"42"^^<http://www.w3.org/2001/XMLSchema#integer>`),
-      not bare values. A template that renders a query column directly
-      (`<%= module_name %>`) will see this real shape difference if it
-      switches from `sparql` to `oxigraph`.
-    * **A working Rust toolchain is required to compile this library at
-      all**, regardless of which `--engine` a consumer ever actually invokes
-      at runtime -- `lib/ggen_igniter/native/graph_nif.ex`'s `use Rustler`
-      compiles `native/ggen_graph_nif` via a real `cargo` subprocess as part
-      of that module's own compilation (confirmed by reading the
-      `Rustler.__using__` macro's `Rustler.Compiler.compile_crate` call in the
-      `rustler` 0.38 hex package -- there is no separate `mix compilers:`
-      entry gating this; it runs whenever `graph_nif.ex` itself is
-      compiled). This requirement already existed before this default
-      changed (that loader module has been unconditionally part of this
-      library's `lib/` since `--engine oxigraph` was first added as an
-      opt-in engine) -- changing the *default* `--engine` string here is a
-      runtime-only behavior change and adds no new compile-time requirement
-      beyond what already existed. A consumer without `cargo` on `$PATH`
-      already could not `mix compile` this library before this change,
-      opt-in or not.
-
-  `--engine sparql` runs every query in-process against the loaded
-  `%RDF.Graph{}` via `GgenIgniter.Query.run/2` (the `sparql` hex package) --
-  still available, useful for a query shape known to depend on `sparql`
-  hex's specific (non-ORDER-BY) behavior, or to A/B a result against the new
-  default.
-
-  `--engine qlever` runs every query instead against a real, already-running
-  QLever SPARQL endpoint via `GgenIgniter.Query.Qlever.run/2` (`gno` + real
-  HTTP, no in-process SPARQL evaluation). `--ontology` is then still read as a
-  `%RDF.Graph{}` (via the same `Ontology.load!/1`), but only to look up the
-  `gnoa:Qlever`-typed store resource named by `--store-id` -- the query text
-  itself never touches this graph's data, it runs on the remote QLever store.
-  `--store-id` is required when `--engine qlever` is given.
-
-  `--engine graphlaw` runs every query through the graphlaw WebAssembly module
-  (PurRDF, hosted in-process by `wasmex` over a WASI store) via
-  `GgenIgniter.Engine.Graphlaw` -- a real, independent SPARQL engine identity
-  alongside `sparql`, `qlever`, and the native oxigraph NIF. Rows use the
-  same plain (unwrapped) normalization as `--engine oxigraph`, so a template
-  that renders a column directly sees identical values across both engines.
-  The wasm artifact (MIT-licensed upstream) ships in this package at
+  There is NO engine choice. Every query runs through the graphlaw WebAssembly
+  module (PurRDF, hosted in-process by `wasmex` over a WASI store) via
+  `GgenIgniter.Engine.Graphlaw` -- the one fixed engine
+  (`GgenIgniter.Engine.fixed/0` == "graphlaw"). SHIM-COURT note
+  (2026-10-17): the former selectable surface (`--engine sparql`, the
+  bug-ridden `sparql` hex 0.3.12 engine with its ignored ORDER BY / missing
+  FILTER NOT EXISTS / broken ASK and CONSTRUCT; `--engine qlever`; the
+  selectable oxigraph NIF; comma-separated/`"all"` comparison mode) was
+  REMOVED. Standardization evidence: graphlaw matched the oxigraph reference
+  engine row-for-row on the entire smalt-substrate-pack SELECT query set
+  (11 queries, measured 2026-10-17, including OPTIONAL/!BOUND gates and
+  ORDER BY), so a second selectable engine had no remaining job. The wasm
+  artifact (MIT-licensed upstream) ships in this package at
   `priv/graphlaw_wasm.wasm`; the path comes from `Application.get_env(
   :ggen_igniter, :graphlaw_wasm_path)` (explicit override), else the packaged
   artifact, else the built-in dev default
   `~/graphlaw/target/wasm32-wasip1/wasm/graphlaw_wasm.wasm`; a missing
   artifact fails fast in `prepare!/2` with a typed error naming the exact
-  paths tried and the build/download commands. Comparison mode
-  (`--engine oxigraph,graphlaw`) is
-  the intended usage: when the two engines disagree on row-set, the run
-  REFUSES (nonzero exit) rather than rendering from either side -- see the
-  comparison-mode section below.
+  paths tried and the build/download commands.
 
-  ## Comparison mode (`--engine oxigraph,sparql` / `--engine all`)
-
-  Per ADR-0008 (`docs/architecture/adr/0008-evidence-ranked-multi-engine-registry.md`):
-  `--engine` also accepts a comma-separated list (`--engine oxigraph,sparql`)
-  or the literal `--engine all`, parsed via `GgenIgniter.EngineRegistry.resolve/2`.
-  Resolving to more than one engine flips this task into **comparison mode**:
-  every named `--query` runs against EVERY resolved engine concurrently
-  (`GgenIgniter.EngineRegistry.run_all/4`), producing a
-  `GgenIgniter.EngineComparisonReport.t()` per named query. This is strictly
-  diagnostic-additive -- rendering/actuation still use only ONE **primary**
-  engine's rows (the first engine named, or `oxigraph` for `--engine all`),
-  so comparison mode changes no actuation, admission, receipt, or manifest
-  behavior at all.
-
-  `--engine all` expands to every engine `GgenIgniter.Engine.valid_names/0`
-  names whose preconditions are met: `qlever` is included only when
-  `--store-id` was given AND a real reachability probe against it succeeds
-  (mirroring `mix ggen_igniter.doctor`'s check 8) -- otherwise it is silently
-  excluded with a logged warning, never included-then-errored.
-
-  `--engine-report PATH` writes the report(s) to disk -- `.json` (via
-  `EngineComparisonReport.to_json/1`) or anything else (Markdown, via
-  `to_markdown/1`), chosen by `PATH`'s extension. Without `--engine-report`,
-  a compact summary (row count/elapsed time per engine, pairwise
-  row-set-agreement, per-engine errors) prints to stdout via
-  `Mix.shell().info/1` after the run.
-
-  ## Example (default oxigraph engine)
-
-      mix ggen_igniter.sync \\
-        --ontology test/fixtures/audit_trail_ontology.ttl \\
-        --query spec=test/fixtures/spec.rq \\
-        --template test/fixtures/extension.ex.eex \\
-        --out tmp_out/probe.ex
-
-  ## Example (sparql engine)
-
-      mix ggen_igniter.sync \\
-        --engine sparql \\
-        --ontology test/fixtures/audit_trail_ontology.ttl \\
-        --query spec=test/fixtures/spec.rq \\
-        --query sections=test/fixtures/sections.rq \\
-        --query entities=test/fixtures/entities.rq \\
-        --query fields=test/fixtures/fields.rq \\
-        --template test/fixtures/extension.ex.eex \\
-        --out tmp_out/probe.ex
-
-  ## Example (qlever engine)
-
-      mix ggen_igniter.sync \\
-        --engine qlever \\
-        --ontology config/gno/test/store.ttl \\
-        --store-id http://example.com/Qlever \\
-        --query spec=priv/ggen/some-pack/gates/010.rq \\
-        --template priv/ggen/some-pack/templates/out.ex.eex \\
-        --out lib/generated.ex
-
+  ## Example
   ## Example (`--pack` convention)
 
   Given `priv/ggen/audit-trail-pack/{ontology.ttl,gates/*.rq,templates/extension.ex.eex}`:
@@ -226,8 +109,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
   alias GgenIgniter.{
     Engine,
-    EngineComparisonReport,
-    EngineRegistry,
     Frontmatter,
     Ontology
   }
@@ -246,9 +127,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         query: [:string, :keep],
         template: :string,
         out: :string,
-        engine: :string,
-        engine_report: :string,
-        store_id: :string,
         pack: :string,
         pack_dir: :string,
         skip_if: :string,
@@ -273,7 +151,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   end
 
   @doc """
-  Reads --ontology/--query(N)/--template/--out/--engine/--store-id/--pack(-dir)
+  Reads --ontology/--query(N)/--template/--out/--pack(-dir)
   options and runs the pipeline.
 
   ## Template frontmatter (hygen/ggen parity)
@@ -560,7 +438,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         --out /tmp/ggen_verify_cwd_demo/out.md \\
         --manifest-dir /tmp/ggen_verify_cwd_demo \\
         --verify-cwd /Users/sac/ggen_igniter \\
-        --engine oxigraph
 
   Without `--verify-cwd` in this exact scenario (`--manifest-dir` pointing
   outside any Mix project), `:verify`'s `mix compile` subprocess runs `cd:`
@@ -956,8 +833,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     USAGE
         mix ggen_igniter.sync --ontology path.ttl --query name=path.rq (repeatable)
                                --template path.eex --out path.ex
-                               [--engine oxigraph|graphlaw|sparql|qlever|comma-list|all]
-                               [--engine-report PATH] [--store-id ID]
                                [--pack NAME | --pack-dir DIR] [--for-each NAME]
                                [--mode file|eval] [--on-stale refuse|prune|preserve]
                                [--manifest-dir DIR] [--unless-exists] [--skip-if EXPR]
@@ -969,21 +844,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
         --query NAME=PATH   Named SPARQL query (repeatable).
         --template PATH     EEx template to render (or resolved via --pack/--pack-dir).
         --out PATH          Output path (or an EEx path template with --for-each).
-        --engine ENGINE     One of: oxigraph, graphlaw, sparql, qlever.
-                             Default: oxigraph.
-                             Also accepts a comma-separated list or "all" --
-                             triggers diagnostic comparison mode (ADR-0008);
-                             actuation still uses only the first-named engine.
-                             graphlaw uses the wasm artifact shipped at
-                             priv/graphlaw_wasm.wasm (override via
-                             Application env :ggen_igniter, :graphlaw_wasm_path;
-                             dev fallback ~/graphlaw/target/wasm32-wasip1/wasm/
-                             graphlaw_wasm.wasm).
-        --engine-report PATH  Write the comparison-mode report to PATH (.json
-                             or Markdown by extension). Without this, a
-                             summary prints to stdout. No effect with a
-                             single --engine value.
-        --store-id ID       Named store to resolve for --engine qlever.
         --pack NAME         Resolve a marketplace-convention pack by name (priv/ggen/NAME).
         --pack-dir DIR      Use an explicit pack directory (bypasses the --pack convention).
         --for-each NAME     Fan out one render per row of the named query result.
@@ -1018,7 +878,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
         mix ggen_igniter.sync --pack audit-trail-pack --out lib/generated.ex
 
-    See `mix help ggen_igniter.sync` for the full moduledoc (engines, --for-each
+    See `mix help ggen_igniter.sync` for the full moduledoc (--for-each
     fan-out, frontmatter injection, mode: eval, reconciliation manifest, and
     controller delegation).
     """)
@@ -1136,19 +996,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     # always returns `:file` or `:eval`, even for a header-less template)
     # whenever `--mode` is not given.
     mode = resolve_mode!(opts, frontmatter_mode)
-
-    # ADR-0008 comparison mode: a comma-separated/"all" --engine value never
-    # reaches `Engine.fetch!/1` directly here or downstream -- it is resolved
-    # via `EngineRegistry.resolve/2`, run for real against every resolved
-    # engine, reported (to disk or stdout), and then collapsed BACK to a
-    # single primary engine name in `opts[:engine]` before either branch of
-    # the `cond` below (or `run_for_each_via_reactor!/7`, or
-    # `ReconcileReactor`'s own internal `target_opts[:engine] || "oxigraph"`
-    # resolution) ever sees it -- so actuation/rendering are byte-for-byte
-    # unaffected by comparison mode ever having run. A plain single engine
-    # name (the default, unchanged path) never reaches
-    # `maybe_run_engine_comparison!/3` at all -- see its own guard.
-    opts = maybe_run_engine_comparison!(opts, frontmatter)
 
     cond do
       # `mode: eval` (frontmatter-driven or `--mode eval`) previously excluded
@@ -1297,7 +1144,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
          for_each,
          mode
        ) do
-    engine_name = opts[:engine] || "oxigraph"
+    engine_name = Engine.fixed()
     engine_module = Engine.fetch!(engine_name)
     ontology_path = resolve_ontology!(opts)
     graph = Ontology.load!(ontology_path)
@@ -1319,6 +1166,25 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
            "returned 0 rows -- nothing to render (fan-out skip)"
        )}
     else
+      if rows == [] do
+        # A lone `--template` (no multi-template fan-out) whose driver query
+        # returned 0 rows is a REFUSAL, not a silent no-op: refusing names the
+        # real fault (the pack's `for_each:` points at a query that selects
+        # nothing on valid data -- e.g. a violation gate reworked to
+        # `FILTER NOT EXISTS`, where zero rows is the PASS condition) instead
+        # of letting it surface as `ReconcileReactor.normalize_targets/1`'s
+        # deep `:targets` ArgumentError (the witnessed
+        # "reactor reconciliation failed (refused)" consumer-court failure,
+        # lane W984hl 2026-10-07). Fail closed: zero named driver rows on a
+        # direct render is indistinguishable from a broken pack, and a silent
+        # zero-file render would admit it.
+        raise ArgumentError,
+              "--for-each #{inspect(for_each)} returned 0 rows -- nothing to render " <>
+                "(a direct --template run requires a driver query that selects >= 1 row " <>
+                "on valid data; check that the query named by for_each is a row-selecting " <>
+                "driver, not a violation gate"
+      end
+
       run_for_each_rows_via_reactor!(
         igniter,
         opts,
@@ -1453,7 +1319,7 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   # drifting query mechanism) so `--verify-base-sha` verifies what this run
   # would render, then raises the typed refusal before any dispatch.
   defp verify_base_shas_before_dispatch!(opts, frontmatter) do
-    engine_module = Engine.fetch!(opts[:engine] || "oxigraph")
+    engine_module = Engine.fetch!(Engine.fixed())
     graph = resolve_ontology!(opts) |> Ontology.load!()
     named_queries = resolve_named_queries!(opts, frontmatter)
     named_results = run_queries(engine_module, graph, opts, named_queries)
@@ -1477,202 +1343,6 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
 
     :ok
   end
-
-  # -- ADR-0008: evidence-ranked multi-engine registry (comparison mode) -----
-  #
-  # A plain single `--engine` value (the default; also "oxigraph,oxigraph" or
-  # any other single-name-after-dedup spelling) is left COMPLETELY untouched
-  # here -- this guard is what makes comparison mode strictly additive rather
-  # than rerouting every sync run through `EngineRegistry.resolve/2` (whose
-  # error-message text differs from `Engine.fetch!/1`'s own, so a genuinely
-  # invalid single `--engine` name must still fail through the EXACT SAME
-  # `Engine.fetch!/1` raise it always has, byte-for-byte, per ADR-0008's own
-  # "No change to single-engine callers" consequence).
-  @spec maybe_run_engine_comparison!(keyword(), Frontmatter.t() | nil) :: keyword()
-  defp maybe_run_engine_comparison!(opts, frontmatter) do
-    engine_spec = opts[:engine] || "oxigraph"
-
-    if engine_comparison_spec?(engine_spec) do
-      run_engine_comparison!(opts, frontmatter, engine_spec)
-    else
-      opts
-    end
-  end
-
-  defp engine_comparison_spec?(engine_spec),
-    do: engine_spec == "all" or String.contains?(engine_spec, ",")
-
-  # Resolves `engine_spec` for real, runs `EngineRegistry.run_all/4` for
-  # every named query against every resolved engine, reports the result (to
-  # `--engine-report PATH` or stdout), then returns `opts` with `:engine`
-  # collapsed to the single PRIMARY engine (the first engine
-  # `EngineRegistry.resolve/2` resolved -- `oxigraph` for `--engine all`,
-  # since `resolve/2`'s own `"all"` expansion sorts non-qlever names
-  # ascending and appends `qlever` last when included; the first-named engine
-  # for an explicit comma list) so every downstream consumer of `opts[:engine]`
-  # (`run_for_each_via_reactor!/7`, `ReconcileReactor`'s own internal
-  # resolution) sees an ordinary single-engine string, exactly as ADR-0008
-  # requires ("comparison mode is strictly diagnostic-additive... does not
-  # change which rows get rendered or actuated").
-  @spec run_engine_comparison!(keyword(), Frontmatter.t() | nil, String.t()) :: keyword()
-  defp run_engine_comparison!(opts, frontmatter, engine_spec) do
-    case EngineRegistry.resolve(engine_spec, opts) do
-      {:ok, [_single_engine] = engines} ->
-        Keyword.put(opts, :engine, engines |> List.first() |> Atom.to_string())
-
-      {:ok, engines} when length(engines) > 1 ->
-        primary = engines |> List.first() |> Atom.to_string()
-
-        graph = resolve_ontology!(opts) |> Ontology.load!()
-        named_queries = resolve_named_queries!(opts, frontmatter)
-
-        reports =
-          Enum.map(named_queries, fn {name, query_text} ->
-            {name, EngineRegistry.run_all(query_text, graph, engines, opts)}
-          end)
-
-        report_engine_comparison!(reports, opts)
-
-        Keyword.put(opts, :engine, primary)
-
-      {:error, reason} ->
-        raise ArgumentError,
-              "ggen_igniter: invalid --engine value #{inspect(engine_spec)}: #{reason}"
-    end
-  end
-
-  defp report_engine_comparison!(reports, opts) do
-    case opts[:engine_report] do
-      path when is_binary(path) and path != "" ->
-        if opts[:dry_run] do
-          Mix.shell().info(
-            "ggen_igniter: [dry-run] would write engine comparison report to #{path}"
-          )
-        else
-          File.write!(path, encode_engine_report(reports, path))
-          Mix.shell().info("ggen_igniter: engine comparison report written to #{path}")
-        end
-
-      _ ->
-        print_engine_comparison_summary(reports)
-    end
-
-    # ADR-0008 evidence gate: after reporting (file or stdout), a real
-    # row-set disagreement between any two successfully-run engines REFUSES
-    # the run (typed refusal, exit 1) rather than letting rendering/actuation
-    # proceed on divergent evidence. Two disclosed normalizations keep this
-    # from firing on the known, documented engine-shape axes rather than real
-    # answer divergence:
-    #
-    #   1. Values are compared after term normalization (scalars stringified
-    #      via to_string/1, non-scalars via inspect/1): the `sparql` hex
-    #      package returns typed values (e.g. integer `1` via
-    #      `RDF.Literal.value/1`) where oxigraph/graphlaw return the lexical
-    #      string form ("1") -- a shape difference, not an answer difference.
-    #   2. Row-ORDER divergence stays non-fatal (the known `sparql`-hex
-    #      ORDER BY axis, tracked separately as `order_equal?`), because
-    #      comparison mode's rendering still uses only the primary engine's
-    #      rows.
-    divergent =
-      reports
-      |> Enum.flat_map(fn {_name, report} -> divergent_pairs(report) end)
-      |> Enum.uniq()
-
-    case divergent do
-      [] ->
-        :ok
-
-      pairs ->
-        Mix.raise(
-          "REFUSED:ENGINE_COMPARISON_DIVERGENT: engines #{Enum.map_join(pairs, ", ", fn {a, b} -> "#{a} vs #{b}" end)} " <>
-            "disagree on row-set -- refusing to render from divergent evidence"
-        )
-    end
-  end
-
-  # Real row-set disagreement between two :ok candidates, judged after the
-  # term normalization documented above. `:error`/`:timeout` candidates are
-  # excluded (no rows to compare -- an engine FAILING is surfaced by the
-  # report itself, never silently swallowed by this gate).
-  defp divergent_pairs(report) do
-    normalized =
-      Map.new(report.candidates, fn c -> {c.engine, normalize_rows(c.rows)} end)
-
-    for {a, i} <- Enum.with_index(report.candidates),
-        {b, j} <- Enum.with_index(report.candidates),
-        i < j,
-        a.status == :ok,
-        b.status == :ok,
-        MapSet.new(normalized[a.engine]) != MapSet.new(normalized[b.engine]) do
-      {a.engine, b.engine}
-    end
-  end
-
-  defp normalize_rows(nil), do: []
-
-  defp normalize_rows(rows) do
-    Enum.map(rows, fn row ->
-      Map.new(row, fn {k, v} -> {k, normalize_term(v)} end)
-    end)
-  end
-
-  defp normalize_term(v) when is_binary(v), do: v
-  defp normalize_term(v) when is_atom(v) or is_integer(v) or is_float(v), do: to_string(v)
-  defp normalize_term(v), do: inspect(v)
-
-  defp encode_engine_report([{_name, report}], path) do
-    case Path.extname(path) do
-      ".json" -> EngineComparisonReport.to_json(report)
-      _ -> EngineComparisonReport.to_markdown(report)
-    end
-  end
-
-  defp encode_engine_report(reports, path) do
-    case Path.extname(path) do
-      ".json" ->
-        reports
-        |> Enum.map(fn {name, report} ->
-          Map.put(EngineComparisonReport.to_json_map(report), "query_name", name)
-        end)
-        |> Jason.encode!(pretty: true)
-
-      _ ->
-        Enum.map_join(reports, "\n---\n\n", fn {name, report} ->
-          "## Query: #{name}\n\n" <> EngineComparisonReport.to_markdown(report)
-        end)
-    end
-  end
-
-  defp print_engine_comparison_summary(reports) do
-    for {name, report} <- reports do
-      Mix.shell().info("ggen_igniter: engine comparison for query #{inspect(name)}:")
-
-      for candidate <- report.candidates do
-        Mix.shell().info("  " <> candidate_summary_line(candidate))
-      end
-
-      for {{engine_a, engine_b}, agreement} <- report.pairwise_agreement do
-        agreement_pct = if agreement.row_set_equal?, do: "100%", else: "DIVERGENT"
-
-        Mix.shell().info(
-          "  #{engine_a} vs #{engine_b}: row-set-agreement #{agreement_pct} " <>
-            "(row_count_diff: #{agreement.row_count_diff}, order_equal?: " <>
-            "#{agreement.order_equal?})"
-        )
-      end
-    end
-  end
-
-  defp candidate_summary_line(%EngineComparisonReport.CandidateResult{status: :ok} = c) do
-    "#{c.engine}: ok, #{c.row_count} rows, #{elapsed_ms(c.elapsed_us)}ms"
-  end
-
-  defp candidate_summary_line(%EngineComparisonReport.CandidateResult{} = c) do
-    "#{c.engine}: #{c.status}, #{elapsed_ms(c.elapsed_us)}ms -- #{c.error}"
-  end
-
-  defp elapsed_ms(nil), do: "-"
-  defp elapsed_ms(us), do: Float.round(us / 1000, 2)
 
   # `delegate_to_controller/4`, `controller_notice/2`, `run_pipeline!/3` (the
   # standalone non-Reactor pipeline), `outcome_summary_suffix/2`,
@@ -1853,7 +1523,18 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
       if pack_given?(opts) do
         pack_queries =
           GgenIgniter.Pack.resolve_dir!(opts)
-          |> GgenIgniter.Pack.discover_queries()
+          |> then(fn dir ->
+            # ADR-0010 (docs/architecture/adr/0010-gate-convention-directory-is-convention.md):
+            # verify/*.unbound.rq offender-reporting companions are discovered
+            # as `<gate-stem>_unbound` named queries alongside the witness
+            # gates, so templates can score the offender laws at render time
+            # (0 rows = pass, >= 1 row = refuse) without the offender queries
+            # ever entering gates/ (where the >= 1 row = PASS convention would
+            # score them inverted). GateVerify's witness scoring and the pack
+            # catalog keep globs gates/*.rq only.
+            GgenIgniter.Pack.discover_queries(dir) ++
+              GgenIgniter.Pack.discover_unbound_queries(dir)
+          end)
           |> Enum.map(fn {name, path} -> {name, File.read!(path)} end)
 
         if pack_queries == [] and explicit == [] and frontmatter_queries == [] do

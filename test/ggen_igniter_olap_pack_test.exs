@@ -35,8 +35,6 @@ defmodule GgenIgniter.OlapPackTest do
       # pins it: a real, disclosed engine-shape difference in how typed
       # literals come back (oxigraph vs sparql), orthogonal to what this
       # pack-resolution/render test is checking.
-      "--engine",
-      "sparql",
       "--pack",
       "olap-pack",
       "--out",

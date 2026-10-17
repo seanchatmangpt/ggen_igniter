@@ -6,7 +6,7 @@ defmodule GgenIgniter.Test.PostgresCase do
   starting with `/` is a unix-socket directory), `QUALIFY_PGPORT` (5432),
   `QUALIFY_PGUSER` (`postgres`), `QUALIFY_PGPASSWORD` (`postgres`),
   `QUALIFY_PGDATABASE` (`postgres`), matching
-  `test/fixtures/ash_manufacture_pack/bin/qualify.sh`.
+  `priv/ggen/ash-manufacture-pack/bin/qualify.sh`.
   """
 
   @doc """

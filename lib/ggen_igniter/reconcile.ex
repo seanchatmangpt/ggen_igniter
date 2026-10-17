@@ -64,7 +64,7 @@ defmodule GgenIgniter.Reconcile do
     * `:template` -- path to the EEx template file. Falls back to the pack's
       single auto-discovered template when `:pack`/`:pack_dir` is given.
     * `:pack` / `:pack_dir` -- see `GgenIgniter.Pack`.
-    * `:engine` -- `"oxigraph"` (default), `"sparql"`, or `"qlever"`.
+    * `:engine` -- REMOVED (2026-10-17): the engine is fixed to graphlaw; the opt is ignored if passed.
     * `:mode` -- `"file"` (default) or `"eval"`.
     * `:out` -- required for `mode: "file"`; EEx-rendered against the query
       bindings (a static path with no `<%= %>` round-trips unchanged).

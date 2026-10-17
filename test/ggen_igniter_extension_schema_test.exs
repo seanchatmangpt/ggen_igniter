@@ -508,8 +508,6 @@ defmodule GgenIgniter.ExtensionSchemaFalsifierTest do
           "ggen_igniter.sync",
           "--pack",
           "receipted-extension-pack:extension",
-          "--engine",
-          "sparql",
           "--ontology",
           ontology,
           "--out",

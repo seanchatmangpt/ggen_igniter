@@ -38,8 +38,6 @@ defmodule GgenIgniter.SyncConcurrentProcessTest do
 
     common_args = [
       "ggen_igniter.sync",
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/audit_trail_ontology.ttl",
       "--query",

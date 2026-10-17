@@ -79,7 +79,7 @@ lifecycle suite below keeps running.
 New Ash surfaces use the composed-generator path instead: ontology → 11 SPARQL
 gates → ONE composed `Igniter.Mix.Task` → real upstream Ash generators via
 `Igniter.compose_task/4`. No template renders Ash resource source on that path.
-See `test/fixtures/ash_manufacture_pack/`, `docs/status.md`'s
+See `priv/ggen/ash-manufacture-pack/`, `docs/status.md`'s
 "Ash manufacturing path" section, and `docs/jira/v26.9.8/07-ASH-MANUFACTURE-PATH.md`.
 
 The pack itself lives under
@@ -116,7 +116,7 @@ flowchart TD
 
 | Crown | Meaning | Verification Command / Oracle |
 |---|---|---|
-| **`ONTOLOGY_ALIVE`** | The ontology is loaded, 11 SPARQL gates evaluate, and the composed task renders cleanly without drift. | `mix ggen_igniter.sync --pack-dir test/fixtures/ash_manufacture_pack` exits 0; `drift_check.py` and `evidence_check.py` pass. |
+| **`ONTOLOGY_ALIVE`** | The ontology is loaded, 11 SPARQL gates evaluate, and the composed task renders cleanly without drift. | `mix ggen_igniter.sync --pack-dir priv/ggen/ash-manufacture-pack` exits 0; `drift_check.py` and `evidence_check.py` pass. |
 | **`ASH_MANUFACTURE_ALIVE`** | The manufactured task drives upstream Ash generators (`ash.gen.base_resource`, `ash.gen.resource`, `ash.gen.domain`, `ash.gen.enum`, etc.), generates migrations (`ash.codegen`), creates the database (`ash.setup`), and compiles cleanly. | `mix book_library.manufacture --phase base --yes`, `mix book_library.manufacture --phase core --yes`, `mix ash.codegen`, `mix ash.setup`, and `mix compile` all exit 0. |
 | **`ASH_RUNTIME_ALIVE`** | Manufactured resources and actions are not dead code; they execute real runtime CRUD queries against a live PostgreSQL database. | `env MIX_ENV=test mix ash.setup` and `mix test` inside the fixture exit 0 with all resource actions exercising Postgres. |
 | **`IDEMPOTENCY_ALIVE`** | Idempotency is verified across three independent dimensions over three complete execution cycles (Runs 1, 2, and 3): (1) Igniter `--check` halts with exit 0 on clean state, (2) source tree is byte-identical (`T1 == T2 == T3`), and (3) Postgres database schema fingerprint is identical (`D1 == D2 == D3`). | `mix book_library.manufacture --check` exits 0; `diff T1 T2` and `diff T2 T3` are empty; `diff D1-run1.txt D2-run2.txt` and `diff D2-run2.txt D3-run3.txt` are empty. |
@@ -125,12 +125,12 @@ flowchart TD
 
 ### The Qualification Harness (`qualify.sh`)
 
-The entire verification pipeline is driven by [`test/fixtures/ash_manufacture_pack/bin/qualify.sh`](../../../test/fixtures/ash_manufacture_pack/bin/qualify.sh).
+The entire verification pipeline is driven by [`priv/ggen/ash-manufacture-pack/bin/qualify.sh`](../../../priv/ggen/ash-manufacture-pack/bin/qualify.sh).
 
 Run the full qualification suite:
 
 ```bash
-bash test/fixtures/ash_manufacture_pack/bin/qualify.sh
+bash priv/ggen/ash-manufacture-pack/bin/qualify.sh
 ```
 
 The script runs a 45-step acceptance ladder across 3 full manufacture runs against a run-scoped PostgreSQL database (`book_library_qual_<RUN_ID>`), recording every command's output, exit code, and checksum.

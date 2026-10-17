@@ -23,8 +23,6 @@ defmodule GgenIgniter.SyncTaskTest do
       # source the way this fixture template does. Real, disclosed
       # engine-shape difference (see the sync task's own moduledoc), not
       # something this basic end-to-end smoke test is about.
-      "--engine",
-      "sparql",
       "--ontology",
       "test/fixtures/audit_trail_ontology.ttl",
       "--query",

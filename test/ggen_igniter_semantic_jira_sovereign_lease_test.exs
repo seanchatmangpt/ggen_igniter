@@ -17,12 +17,23 @@ defmodule GgenIgniter.SemanticJira.SovereignLeaseTest do
   alias GgenIgniter.SemanticJira
   alias GgenIgniter.SemanticJira.SovereignLease
 
+  # ADR-0010 re-bird: the monotonic-evolution law is offender-reporting since
+  # its re-home, so the graph-level describe below scores
+  # verify/066_monotonic_evolution.unbound.rq (the verbatim former
+  # gates/066). The gates/066 driver (authorityRequirement projection) has
+  # its own positive witness below.
   @gate_query File.read!(
                 Path.join(
                   File.cwd!(),
-                  "priv/ggen/semantic-jira-pack/gates/066_monotonic_evolution.rq"
+                  "priv/ggen/semantic-jira-pack/verify/066_monotonic_evolution.unbound.rq"
                 )
               )
+  @driver_query File.read!(
+                  Path.join(
+                    File.cwd!(),
+                    "priv/ggen/semantic-jira-pack/gates/066_monotonic_evolution.rq"
+                  )
+                )
   @ontology_path "priv/ggen/semantic-jira-pack/ontology.ttl"
   @sj "https://ggen-igniter.dev/ontology/semantic-jira#"
   @pinned @sj <> "objective-code-work-authority"
@@ -242,6 +253,36 @@ defmodule GgenIgniter.SemanticJira.SovereignLeaseTest do
       assert [] = gate_rows(order_ttl("NONE"))
     end
 
+    test "the driver projects one row per order carrying sj:authorityRequirement (ADR-0010 positive witness)" do
+      ttl = """
+      @prefix sj: <#{@sj}> .
+      @prefix dcterms: <http://purl.org/dc/terms/> .
+
+      sj:order-none a sj:WorkOrder ;
+        dcterms:identifier "SJ-MONO-GATE-NONE" ;
+        sj:authorityRequirement "NONE" .
+
+      sj:order-sov a sj:WorkOrder ;
+        dcterms:identifier "SJ-MONO-GATE-SOV" ;
+        sj:authorityRequirement "SOVEREIGN" .
+      """
+
+      path =
+        Path.join(System.tmp_dir!(), "gate066_driver_#{System.unique_integer([:positive])}.ttl")
+
+      File.write!(path, ttl)
+      on_exit(fn -> File.rm_rf!(path) end)
+
+      rows =
+        path
+        |> Ontology.load!()
+        |> Query.run(@driver_query)
+        |> Enum.map(& &1["requirement"])
+        |> Enum.sort()
+
+      assert rows == ["NONE", "SOVEREIGN"]
+    end
+
     test "the real pack ontology is clean under gate 066" do
       assert [] = Query.run(Ontology.load!(@ontology_path), @gate_query)
     end
@@ -343,7 +384,7 @@ defmodule GgenIgniter.SemanticJira.SovereignLeaseTest do
   end
 
   describe "anti-vacuity: source-level signature-gate mutation" do
-    @target_line "with :ok <- count(lease), :ok <- verify_all(lease, keys), do: :ok"
+    @target_line "case count(lease) do\n      :ok -> verify_all(lease, keys)\n      error -> error\n    end"
     @module_line "defmodule GgenIgniter.SemanticJira.SovereignLease do"
 
     test "bypassing the signature gate makes the 1-signature refusal disappear (compile-time executed)" do

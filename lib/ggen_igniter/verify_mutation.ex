@@ -3,7 +3,7 @@ defmodule GgenIgniter.VerifyMutation do
   A mutation-court catalog over the fail-closed verify surface
   (`GgenIgniter.GateVerify` + `mix ggen_igniter.verify`'s in-process core):
   every mutant is a textual transform of a COPY of a real verify asset
-  (`test/fixtures/ash_manufacture_pack/verify/*.unbound.rq`,
+  (`priv/ggen/ash-manufacture-pack/verify/*.unbound.rq`,
   `verify/cardinality.json`) materialized into a real tmp pack, and the court
   is the REAL verify run over the mutated pack. A mutant is `:killed` iff the
   real verify REFUSES the mutated pack; a mutant that still verifies clean is
@@ -96,7 +96,7 @@ defmodule GgenIgniter.VerifyMutation do
   @typedoc "Verdict per mutant id, as returned by `run/1`."
   @type verdict :: :killed | :survived
 
-  @source_pack Path.join(__DIR__, "../../test/fixtures/ash_manufacture_pack")
+  @source_pack Path.join(__DIR__, "../priv/ggen/ash-manufacture-pack")
 
   @doc """
   The catalog, in append-only order. `run/1` runs every entry; ids are stable
@@ -204,7 +204,7 @@ defmodule GgenIgniter.VerifyMutation do
   Options:
 
     * `:source_pack` -- the fixture pack to mutate copies of (default:
-      `test/fixtures/ash_manufacture_pack`).
+      `priv/ggen/ash-manufacture-pack`).
     * `:weakened_for_test` -- materialize packs WITHOUT `verify/` (see the
       moduledoc's honesty section). Default `false`.
 

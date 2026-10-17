@@ -54,8 +54,6 @@ defmodule GgenIgniter.CrossPackageOntologySyncTest do
       # pins it: real generated content asserted by literal string value,
       # and oxigraph returns typed literals as raw datatype-annotated term
       # strings -- a real, disclosed, unrelated engine-shape difference.
-      "--engine",
-      "sparql",
       "--ontology",
       ontology_rel_path,
       "--query",

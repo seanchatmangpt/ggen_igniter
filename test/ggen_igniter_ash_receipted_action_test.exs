@@ -99,7 +99,7 @@ defmodule GgenIgniter.AshReceiptedActionTest do
       for t <- @templates do
         {output, code} = sync(Path.join(@fixture, "specs/receipted_spec_opted_out.ttl"), root, t)
         assert code != 0, "zero-row projection was admitted:\n#{output}"
-        assert output =~ "[:targets] must not be an empty list"
+        assert output =~ "returned 0 rows -- nothing to render"
       end
 
       assert Path.wildcard(Path.join(root, "lib/**/*.ex")) == []

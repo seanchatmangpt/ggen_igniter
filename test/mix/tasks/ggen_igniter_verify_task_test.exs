@@ -6,7 +6,7 @@ defmodule Mix.Tasks.GgenIgniter.VerifyTaskTest do
   real-subprocess pattern (`cmd!/3`, real `System.cmd`, real exit codes --
   read that file first, this one is the same shape). No mocks anywhere: the
   task runs against a real, checked-in pack
-  (`test/fixtures/ash_manufacture_pack`, the exact fixture
+  (`priv/ggen/ash-manufacture-pack`, the exact fixture
   `GgenIgniter.GateVerify`'s own moduledoc and
   `test/ggen_igniter_gate_verify_test.exs` already use) or a real on-disk copy
   of it with one real triple deleted, and every assertion is against the
@@ -22,7 +22,7 @@ defmodule Mix.Tasks.GgenIgniter.VerifyTaskTest do
 
   ## Why the failing case mutates a COPY, never the checked-in fixture
 
-  `test/fixtures/ash_manufacture_pack` is shared, real fixture state --
+  `priv/ggen/ash-manufacture-pack` is shared, real fixture state --
   `test/ggen_igniter_gate_verify_test.exs` and every gate/pack test in this
   repo depends on it staying lawful (0 gate rows unresolved, 0 unbound
   facts). The failing case below copies the whole pack directory into a fresh
@@ -39,7 +39,7 @@ defmodule Mix.Tasks.GgenIgniter.VerifyTaskTest do
   @moduletag :integration
 
   @project_root Path.expand("../../..", __DIR__)
-  @real_pack "test/fixtures/ash_manufacture_pack"
+  @real_pack "priv/ggen/ash-manufacture-pack"
 
   # The exact triple `GgenIgniter.GateVerify`'s moduledoc documents deleting
   # to reproduce the fail-open `gates/030_resources.rq` regression: real bytes

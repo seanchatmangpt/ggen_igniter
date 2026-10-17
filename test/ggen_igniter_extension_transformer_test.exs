@@ -227,8 +227,6 @@ defmodule GgenIgniter.ExtensionTransformerFalsifierTest do
           "ggen_igniter.sync",
           "--pack",
           "receipted-extension-pack:#{stem}",
-          "--engine",
-          "sparql",
           "--ontology",
           ontology,
           "--out",

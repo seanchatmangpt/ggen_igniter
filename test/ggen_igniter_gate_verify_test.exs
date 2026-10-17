@@ -3,7 +3,7 @@ defmodule GgenIgniterGateVerifyTest do
   Chicago-school tests for `GgenIgniter.GateVerify`'s fail-CLOSED additions
   (WS07): the per-gate cardinality contract on `run/3`, the contract loader,
   and the inverted companion queries in
-  `test/fixtures/ash_manufacture_pack/verify/`.
+  `priv/ggen/ash-manufacture-pack/verify/`.
 
   Real collaborators throughout. Real `RDF.Graph` values built with RDF.ex,
   serialised to real Turtle files, loaded back by `GgenIgniter.Ontology.load!/1`
@@ -14,7 +14,7 @@ defmodule GgenIgniterGateVerifyTest do
 
   ## What is under test
 
-  Every gate in `test/fixtures/ash_manufacture_pack/gates/` is a conjunctive
+  Every gate in `priv/ggen/ash-manufacture-pack/gates/` is a conjunctive
   `SELECT`, and `GateVerify`'s documented rule is `[] -> :fail` /
   `[_|_] -> :pass`. So one missing triple silently drops an individual from the
   plan while the gate still scores `:pass` -- it FAILS OPEN. The synthetic case
@@ -50,7 +50,7 @@ defmodule GgenIgniterGateVerifyTest do
 
   alias GgenIgniter.GateVerify
 
-  @real_pack Path.join(__DIR__, "fixtures/ash_manufacture_pack")
+  @real_pack Path.join(__DIR__, "../priv/ggen/ash-manufacture-pack")
 
   # RDF 1.1's own type IRI. A contract, not test data.
   @rdf_type "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
@@ -279,72 +279,43 @@ defmodule GgenIgniterGateVerifyTest do
     end
   end
 
-  describe "run/3 :engine opt (SPARQL EXISTS support)" do
-    test "an EXISTS-bearing gate on the default engine is a typed REFUSED:SPARQL_EXISTS_UNSUPPORTED, never a silent wrong answer" do
+  describe "run/3 :engine opt (FIXED engine law)" do
+    test "the fixed engine scores an EXISTS-bearing gate end to end (no refusal needed)" do
       %{class: class, required: required, anchor: anchor} = vocab()
       [complete] = names(1)
 
       graph =
-        add_individual(RDF.Graph.new(), complete, class, %{anchor => complete, required => value()})
+        add_individual(RDF.Graph.new(), complete, class, %{
+          anchor => complete,
+          required => value()
+        })
 
-      pack = scratch_pack("exists_refused", exists_gate(class, anchor))
+      pack = scratch_pack("exists_fixed", exists_gate(class, anchor))
       ontology = write_ontology!(pack, graph)
 
-      assert {:error, {:refused, message}} = GateVerify.run(pack, ontology)
-      assert message =~ "REFUSED:SPARQL_EXISTS_UNSUPPORTED"
-      # The refusal points at the opt that fixes it, not just at the failure.
-      assert message =~ ":engine"
-      assert message =~ ":graphlaw"
-    end
-
-    test "engine: :graphlaw scores an EXISTS-bearing gate end to end" do
-      %{class: class, required: required, anchor: anchor} = vocab()
-      [complete, incomplete] = names(2)
-
-      graph =
-        RDF.Graph.new()
-        |> add_individual(complete, class, %{anchor => complete, required => value()})
-        |> add_individual(incomplete, class, %{required => value()})
-
-      pack = scratch_pack("exists_graphlaw", exists_gate(class, anchor))
-      ontology = write_ontology!(pack, graph)
-
-      # The gate anchors on the ANCHOR predicate via FILTER EXISTS, so only
-      # `complete` is a witness: 1 row -> :pass, and the refusal is gone.
-      assert {:ok, [{"things", :pass}]} =
-               GateVerify.run(pack, ontology, engine: :graphlaw)
-    end
-
-    test "a non-EXISTS gate on the default engine is unchanged" do
-      %{class: class, required: required, anchor: anchor} = vocab()
-      [complete] = names(1)
-
-      graph =
-        add_individual(RDF.Graph.new(), complete, class, %{anchor => complete, required => value()})
-
-      pack = scratch_pack("plain_default", conjunctive_gate(class, anchor, required))
-      ontology = write_ontology!(pack, graph)
-
+      # graphlaw (fixed) supports FILTER [NOT] EXISTS natively: the historical
+      # REFUSED:SPARQL_EXISTS_UNSUPPORTED class is retired with the choice.
       assert {:ok, [{"things", :pass}]} = GateVerify.run(pack, ontology)
     end
 
-    test "an unknown :engine is refused up front" do
+    test "any other :engine value is refused up front (fail-closed)" do
       %{class: class, required: required, anchor: anchor} = vocab()
       [complete] = names(1)
 
       graph =
-        add_individual(RDF.Graph.new(), complete, class, %{anchor => complete, required => value()})
+        add_individual(RDF.Graph.new(), complete, class, %{
+          anchor => complete,
+          required => value()
+        })
 
       pack = scratch_pack("bad_engine", conjunctive_gate(class, anchor, required))
       ontology = write_ontology!(pack, graph)
 
-      assert_raise ArgumentError, ~r/invalid :engine/, fn ->
+      assert_raise ArgumentError, ~r/fixed to :graphlaw/, fn ->
         GateVerify.run(pack, ontology, engine: :crystal_ball)
       end
     end
   end
-
-  # -- helpers ---------------------------------------------------------------
 
   defp real_ontology_path, do: Path.join(@real_pack, "ontology.ttl")
 
