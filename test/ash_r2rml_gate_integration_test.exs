@@ -36,13 +36,14 @@ defmodule GgenIgniter.AshR2rmlGateIntegrationTest do
     assert RDF.Graph.triple_count(graph) > 0
   end
 
-  # --- DISCOVERED, VERIFIED INCOMPATIBILITY (not a ggen_igniter bug) -------
+  # --- RESOLVED INCOMPATIBILITY (graphlaw engine, b514bf5) -----------------
   #
   # Running ash_r2rml's real gate 010/020 queries against the real fortune5
-  # ontology through GgenIgniter.Query.run/2 raises. Reproduced with the bare
-  # `sparql` library directly (no ggen_igniter code involved: `SPARQL.execute_query
+  # ontology through GgenIgniter.Query.run/2 USED to raise under the
+  # pure-Elixir `sparql` engine. Reproduced with the bare `sparql` library
+  # directly (no ggen_igniter code involved: `SPARQL.execute_query
   # (RDF.Turtle.read_file!(...), File.read!(...))` from a standalone
-  # `mix run` script) -- so this is a real limitation in `sparql` 0.3.12 itself,
+  # `mix run` script) -- so this was a real limitation in `sparql` 0.3.12 itself,
   # not in ggen_igniter's Ontology/Query wrappers:
   #
   #   ** (Protocol.UndefinedError) protocol SPARQL.Algebra.Expression not
@@ -61,28 +62,41 @@ defmodule GgenIgniter.AshR2rmlGateIntegrationTest do
   # plain Atom -- an engine defect, not a query-authoring error (the query is
   # valid, spec-conformant SPARQL 1.1).
   #
-  # Pinned here as a real, currently-reproducing failure rather than worked
-  # around or silently skipped, per the "fix forward, don't fake away a
-  # collaborator" testing discipline: this is exactly the class of
-  # cross-repo compatibility fact DMEDI's Measure phase exists to surface.
+  # The engine law (b514bf5) made graphlaw the fixed engine; graphlaw
+  # executes both gates clean -- the limitation was in the retired engine,
+  # not the queries. Both tests below now assert the real, currently-passing
+  # behavior: the gates execute and return their real row data.
 
   @tag :requires_ash_r2rml
-  test "gate 010 (required resource contract) currently raises Protocol.UndefinedError against real fortune5 shapes (verified sparql 0.3.12 limitation, not a ggen_igniter bug)" do
+  test "gate 010 (required resource contract) executes clean under the fixed graphlaw engine against real fortune5 shapes" do
     graph = Ontology.load!(@fortune5_shapes)
     gate_query = File.read!(@gate_010)
 
-    assert_raise Protocol.UndefinedError, fn ->
-      Query.run(graph, gate_query)
+    rows = Query.run(graph, gate_query)
+
+    assert is_list(rows)
+    assert rows != []
+
+    for row <- rows do
+      assert Map.has_key?(row, "shape")
+      assert Map.has_key?(row, "missing")
     end
   end
 
   @tag :requires_ash_r2rml
-  test "gate 020 (property contract) currently raises Protocol.UndefinedError against real fortune5 shapes (same verified sparql 0.3.12 limitation)" do
+  test "gate 020 (property contract) executes clean under the fixed graphlaw engine against real fortune5 shapes" do
     graph = Ontology.load!(@fortune5_shapes)
     gate_query = File.read!(@gate_020)
 
-    assert_raise Protocol.UndefinedError, fn ->
-      Query.run(graph, gate_query)
+    rows = Query.run(graph, gate_query)
+
+    assert is_list(rows)
+    assert rows != []
+
+    for row <- rows do
+      assert Map.has_key?(row, "shape")
+      assert Map.has_key?(row, "property")
+      assert Map.has_key?(row, "missing")
     end
   end
 end

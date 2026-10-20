@@ -1,6 +1,24 @@
 # Changelog
 
-## Unreleased
+## v26.10.7
+
+- **Added** `mix semantic_jira.complete` (GgenIgniter.SemanticJira.Complete):
+  the project-completion driver — loops frontier -> execute -> reconcile over
+  an admitted backlog until the frontier is empty; fail-closed on first
+  per-order refusal; bounded `--max`; completion receipt with
+  closed/blocked/orders.
+- **Added** multi-artifact order actuation: an admitted order may carry an
+  `outputs` list (per-artifact template/out/queries; legacy `to:` frontmatter
+  honored as the default out; path-scope refusals; artifact set inside the
+  sealed export before digest).
+- **Fixed** `Reconcile.run/1`'s engine default was still "oxigraph" after
+  b514bf5 fixed the engine to graphlaw (every run raised).
+- **Fixed** b514bf5 engine-law test fallout: tests still passing
+  `engine: "sparql"` updated to the fixed-engine law; usage-rules-pack
+  ontology `--engine` flag row removed (doc↔schema parity).
+- **Added** `GgenIgniter.Query` facade: fixed-engine delegation for surviving
+  `Query.run/2` call sites (gall_ticket.ex, semantic_a2a.ex).
+
 
 - **Changed** the `ash-manufacture-pack` canonical home from
   `test/fixtures/ash_manufacture_pack` to `priv/ggen/ash-manufacture-pack`

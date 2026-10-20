@@ -9,8 +9,7 @@
 # root CLAUDE.md "Non-negotiable invariants". Add or change a rule by editing
 # this file, then re-render:
 #
-#   mix ggen_igniter.sync --pack usage-rules-pack --engine sparql \
-#     --out usage-rules.md
+#   mix ggen_igniter.sync --pack usage-rules-pack --out usage-rules.md
 
 ur:pkg a ur:Package ;
     ur:name "ggen_igniter" ;
@@ -22,7 +21,7 @@ ur:tSync a ur:Task ;
     ur:order "01" ;
     ur:name "ggen_igniter.sync" ;
     ur:summary "Load a Turtle ontology, run named SPARQL queries, render an EEx template with the rows, and write (or inject) the output; reconciles against the manifest." ;
-    ur:example "mix ggen_igniter.sync --pack adr-index-pack --engine sparql --out docs/architecture/adr/README.md" .
+    ur:example "mix ggen_igniter.sync --pack adr-index-pack --out docs/architecture/adr/README.md" .
 
 ur:tPlan a ur:Task ;
     ur:order "02" ;
@@ -60,7 +59,6 @@ ur:fSyncOntology a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--ontology" 
 ur:fSyncQuery a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--query" ; ur:type "string (repeatable)" ; ur:summary "NAME=path.rq; the rows bind as @NAME in the template." .
 ur:fSyncTemplate a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--template" ; ur:type "string" ; ur:summary "EEx template path." .
 ur:fSyncOut a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--out" ; ur:type "string" ; ur:summary "Output path (may contain EEx expressions)." .
-ur:fSyncEngine a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--engine" ; ur:type "string" ; ur:summary "Query engine; oxigraph is the default, sparql is pure Elixir with FILTER NOT EXISTS/UNION limits." .
 ur:fSyncPack a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--pack" ; ur:type "string" ; ur:summary "Pack name under priv/ggen; explicit --ontology/--query/--template beat it." .
 ur:fSyncPackDir a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--pack-dir" ; ur:type "string" ; ur:summary "Explicit pack directory." .
 ur:fSyncForEach a ur:Flag ; ur:task "ggen_igniter.sync" ; ur:name "--for-each" ; ur:type "string" ; ur:summary "Render one output per row of the named query." .

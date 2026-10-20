@@ -308,8 +308,17 @@ defmodule GgenIgniter.SemanticJira.Execute do
     do: raise(ArgumentError, "order `outputs` must be a list of {template, out} specs")
 
   defp run_output(out_spec, pack_dir, target_dir) do
+    # Legacy `to:` frontmatter is honored here (Reconcile.run/1 deliberately
+    # does not parse frontmatter): when the order spec names no explicit `out`,
+    # the template's own `to:` path is the target-relative out. An explicit
+    # order `out` overrides the template's `to:`; scope is still checked at
+    # the target root either way.
+    out_rel =
+      out_spec["out"] ||
+        template_to_path(Path.join(pack_dir, out_spec["template"]))
+
     with {:ok, template_abs} <- scoped_path(out_spec["template"], pack_dir, "template", pack_dir),
-         {:ok, out_abs} <- scoped_path(out_spec["out"], target_dir, "out", target_dir) do
+         {:ok, out_abs} <- scoped_path(out_rel, target_dir, "out", target_dir) do
       query_opts =
         out_spec
         |> Map.get("queries", [])
@@ -323,7 +332,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
         case Reconcile.run(opts) do
           {:ok, result} ->
             {:ok, result.out_path,
-             %{"template" => out_spec["template"], "out" => out_spec["out"],
+             %{"template" => out_spec["template"], "out" => out_rel,
                "sha256" => digest_of(File.read!(result.out_path))}}
 
           other ->
@@ -341,6 +350,28 @@ defmodule GgenIgniter.SemanticJira.Execute do
   # Path-scope law for the outputs contract: `template` resolves against the
   # pack root, `out` against the target root; `..` escaping either root is a
   # typed refusal before any byte is written.
+  #
+  # `template_to_path/1` reads a template file and returns its frontmatter
+  # `to:` path (nil when the template has no frontmatter or no `to:`). This is
+  # the legacy-pack interop seam: legacy packs carry the out path in template
+  # frontmatter (`Reconcile.run/1` deliberately does not parse frontmatter --
+  # body is used verbatim), so the execute hop parses ONLY `to:` and only as
+  # the DEFAULT (an explicit order `out` always overrides). A template with
+  # frontmatter but no `to:` in `mode: file` would be refused by Frontmatter's
+  # own `require_to` law when its frontmatter parses.
+  defp template_to_path(template_path) do
+    template_path
+    |> File.read!()
+    |> GgenIgniter.Frontmatter.split_template()
+    |> case do
+      {nil, _mode, _body} -> nil
+      {%{to: to}, _mode, _body} -> to
+      _other -> nil
+    end
+  rescue
+    _ -> nil
+  end
+
   defp scoped_path(nil, _root, _kind, _scope_root),
     do: {:error, {"execute", {:bad_output_path, "output spec missing `template` and `out`"}}}
 

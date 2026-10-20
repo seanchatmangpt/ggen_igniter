@@ -43,7 +43,7 @@ defmodule GgenIgniter.SemanticJira.PackHealthTest do
   test "the real shipped pack is healthy: every gate executes and every template renders" do
     assert {:ok, summary} = GgenIgniter.SemanticJira.PackHealth.check(@pack_dir)
     assert summary =~ ~r/\d+ gate quer(y|ies) executed clean/
-    assert summary =~ "engine oxigraph"
+    assert summary =~ "engine graphlaw"
     assert summary =~ ~r/\d+ templates? rendered/
     # The sampling bound is DISCLOSED in the summary, never silent.
     assert summary =~ "first+last driver row sampled"

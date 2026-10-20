@@ -75,7 +75,7 @@ defmodule GgenIgniter.MixProject do
         # mix.exs/CHANGELOG.md state" test greps `mix.exs`'s raw source with
         # `~r/version:\s*"([^"]+)"/` and breaks if `version:` isn't followed
         # directly by a literal string.
-        source_ref: "v26.10.5"
+        source_ref: "v26.10.7"
       ],
       dialyzer: [
         # `:mix` is excluded from the PLT by default (it's a build-time-only

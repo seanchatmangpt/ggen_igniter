@@ -117,13 +117,13 @@ defmodule GgenIgniter.PendingActuationTest do
 
   # Reproduces exactly what `ReconcileReactor`'s real render step would
   # render for `ontology_path` right now -- using the same real, public
-  # production functions (`Ontology.load!/1`, the real `sparql` engine,
+  # production functions (`Ontology.load!/1`, the fixed `graphlaw` engine,
   # `Reconcile.build_bindings/1`, `Render.render/2`), so the "next run's
   # content" used in plan-level assertions below is genuinely computed, not
   # hardcoded.
   defp render_now!(ontology_path, query_path, template_path) do
     graph = Ontology.load!(ontology_path)
-    engine = Engine.fetch!("sparql")
+    engine = Engine.fetch!("graphlaw")
     context = engine.prepare!(graph, [])
     rows = engine.run(context, File.read!(query_path))
     bindings = Reconcile.build_bindings([{"spec", rows}])
@@ -143,7 +143,6 @@ defmodule GgenIgniter.PendingActuationTest do
     out_template = out_path
 
     opts = [
-      engine: "sparql",
       ontology: ontology_path,
       query: "spec=#{query_path}",
       template: template_path,
@@ -226,7 +225,6 @@ defmodule GgenIgniter.PendingActuationTest do
     out_template = out_path
 
     opts = [
-      engine: "sparql",
       ontology: ontology_path,
       query: "spec=#{query_path}",
       template: template_path,

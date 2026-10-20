@@ -8,7 +8,7 @@ defmodule GgenIgniter.Render.TeraWasmTest do
 
   Also proves the real end-to-end dispatch: a `.tera`-suffixed template
   reconciled through `GgenIgniter.Reconcile.run/1` (the real ontology-load ->
-  sparql-query -> render -> write-file pipeline) routes through this WASM
+  SPARQL-query (graphlaw engine, fixed) -> render -> write-file pipeline) routes through this WASM
   renderer, while a `.eex`-suffixed template through the exact same pipeline
   keeps routing through the pre-existing stdlib-EEx `GgenIgniter.Render`
   path -- both real runs against the same real ontology/query fixtures, not a
@@ -113,7 +113,6 @@ defmodule GgenIgniter.Render.TeraWasmTest do
 
       assert {:ok, result} =
                GgenIgniter.Reconcile.run(
-                 engine: "sparql",
                  ontology: ontology_path,
                  query: "greeting=#{query_path}",
                  template: template_path,
@@ -135,7 +134,6 @@ defmodule GgenIgniter.Render.TeraWasmTest do
 
       assert {:ok, result} =
                GgenIgniter.Reconcile.run(
-                 engine: "sparql",
                  ontology: ontology_path,
                  query: "greeting=#{query_path}",
                  template: template_path,

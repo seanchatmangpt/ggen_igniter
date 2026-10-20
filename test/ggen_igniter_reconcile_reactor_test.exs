@@ -1,7 +1,7 @@
 defmodule GgenIgniter.ReconcileReactorTest do
   @moduledoc """
   Chicago-style, no-mocks proof of `GgenIgniter.Reactors.ReconcileReactor`:
-  real ontology files, real SPARQL queries (the `sparql` engine, no native
+  real ontology files, real SPARQL queries (the fixed `graphlaw` engine, no native
   NIF involved), real EEx templates, real `ReconcileReactor.run/1` calls,
   real `File.read!/1` disk checks, and a real `mix compile
   --warnings-as-errors` subprocess inside a real, minimal, scratch Mix
@@ -151,7 +151,6 @@ defmodule GgenIgniter.ReconcileReactorTest do
       baseline_out = Path.join(baseline_dir, "alpha.ex")
 
       shared_opts = [
-        engine: "sparql",
         ontology: ontology_path,
         query: "spec=#{query_path}",
         template: template_path
@@ -240,7 +239,6 @@ defmodule GgenIgniter.ReconcileReactorTest do
       refute File.exists?(new_path)
 
       reconcile_opts = [
-        engine: "sparql",
         ontology: ontology_path,
         manifest_dir: project_dir,
         verify_cwd: project_dir,
@@ -367,7 +365,6 @@ defmodule GgenIgniter.ReconcileReactorTest do
       refute File.exists?(out_b)
 
       reconcile_opts = [
-        engine: "sparql",
         ontology: ontology_path,
         manifest_dir: project_dir,
         verify_cwd: project_dir,
@@ -451,7 +448,6 @@ defmodule GgenIgniter.ReconcileReactorTest do
       delay_ms = 150
 
       reconcile_opts = [
-        engine: "sparql",
         ontology: ontology_path,
         manifest_dir: project_dir,
         verify_cwd: project_dir,
@@ -510,7 +506,6 @@ defmodule GgenIgniter.ReconcileReactorTest do
       refute File.exists?(collision_out)
 
       reconcile_opts = [
-        engine: "sparql",
         ontology: ontology_path,
         manifest_dir: project_dir,
         verify_cwd: project_dir,
@@ -572,7 +567,6 @@ defmodule GgenIgniter.ReconcileReactorTest do
       {:ok, pid} = Controller.start_link([])
 
       opts = [
-        engine: "sparql",
         ontology: ontology_path,
         query: "spec=#{query_path}",
         template: template_path,
@@ -613,7 +607,6 @@ defmodule GgenIgniter.ReconcileReactorTest do
       File.write!(eval_template_path, "1 + 1\n")
 
       reconcile_opts = [
-        engine: "sparql",
         ontology: ontology_path,
         manifest_dir: project_dir,
         verify_cwd: project_dir,
@@ -694,7 +687,6 @@ defmodule GgenIgniter.ReconcileReactorTest do
       # -- Seed run: establishes real prior manifest entries recording
       # a_old_path/z_old_path as each recipe's only known output.
       seed_opts = [
-        engine: "sparql",
         ontology: Path.join(fixtures, "ontology.ttl"),
         manifest_dir: project_dir,
         verify_cwd: project_dir,
@@ -735,7 +727,6 @@ defmodule GgenIgniter.ReconcileReactorTest do
       z_new_path = Path.join([project_dir, "lib", "fresh", "z_new.ex"])
 
       batch_opts = [
-        engine: "sparql",
         ontology: Path.join(fixtures, "ontology.ttl"),
         manifest_dir: project_dir,
         verify_cwd: project_dir,
@@ -874,7 +865,6 @@ defmodule GgenIgniter.ReconcileReactorTest do
 
       assert {:error, {:unsupported_capability, message}} =
                ReconcileReactor.plan(
-                 engine: "sparql",
                  ontology: ontology_path,
                  query: "spec=#{query_path}",
                  template: template_path

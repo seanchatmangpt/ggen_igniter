@@ -34,7 +34,6 @@ defmodule GgenIgniter.ControllerTest do
     on_exit(fn -> File.rm_rf!(out_dir) end)
 
     good_opts = [
-      engine: "sparql",
       pack_dir: "test/fixtures/sample-pack",
       out: Path.join(out_dir, "resource.ex")
     ]
@@ -56,7 +55,9 @@ defmodule GgenIgniter.ControllerTest do
     # -- First real reconciliation: fresh file, real :written outcome.
     assert {:ok, record1} = Controller.reconcile(pid, key, good_opts)
     assert record1.receipt.outcome == :written
-    assert record1.receipt.engine == "sparql"
+    # The engine is fixed to graphlaw (b514bf5): the receipt records it, and
+    # there is no engine choice anymore.
+    assert record1.receipt.engine == "graphlaw"
     assert record1.manifest == %{good_opts[:out] => :written}
     assert record1.reconciliation_count == 1
     assert File.exists?(good_opts[:out])
