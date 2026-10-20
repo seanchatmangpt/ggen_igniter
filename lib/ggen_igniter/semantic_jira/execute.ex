@@ -381,6 +381,8 @@ defmodule GgenIgniter.SemanticJira.Execute do
       try do
         case Reconcile.run(opts) do
           {:ok, result} ->
+            maybe_format_elixir!(result.out_path)
+
             {:ok, result.out_path,
              %{"template" => out_spec["template"], "out" => out_rel,
                "sha256" => digest_of(File.read!(result.out_path))}}
@@ -395,6 +397,30 @@ defmodule GgenIgniter.SemanticJira.Execute do
            {"execute", {:sync_failed, "Reconcile.run/1 raised: " <> Exception.message(error)}}}
       end
     end
+  end
+
+  # Manufactured Elixir artifacts are `Code.format_string!/1`-formatted
+  # BEFORE the artifact digest is computed (the receipt commits to formatted
+  # bytes; the post-actuation `mix format` step `smalt.gen` does is subsumed).
+  # A template whose render is not valid Elixir syntax (READMEs, .md, .json,
+  # .sh -- any non-.ex artifact) is written verbatim: only a `.ex`-suffix out
+  # attempts formatting, and a syntax error leaves the file untouched (the
+  # render is the admitted bytes; formatting never invents content).
+  defp maybe_format_elixir!(out_path) do
+    if String.ends_with?(out_path, ".ex") do
+      content = File.read!(out_path)
+
+      formatted =
+        try do
+          content |> Code.format_string!(line_length: 100) |> IO.iodata_to_binary()
+        rescue
+          _ -> content
+        end
+
+      if formatted != content, do: File.write!(out_path, formatted)
+    end
+
+    :ok
   end
 
   defp maybe_put_ontology(opts, nil), do: opts
