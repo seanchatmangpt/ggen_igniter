@@ -1,0 +1,145 @@
+{
+  "artifacts": [
+    {
+      "out": "appliance/README.md",
+      "sha256": "sha256:75c32337c365bcb1168de16914778326ae47995a1153ef4aaff574371c1a8d1f",
+      "template": "templates/appliance_README_md.tmpl"
+    },
+    {
+      "out": "appliance/bin/_shared.py",
+      "sha256": "sha256:c9c485e73fcde127261319a8d6faa85313021b9580a13e7eb5d1dd6c003ad2a7",
+      "template": "templates/appliance_bin__shared_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/build-document-evidence-index.py",
+      "sha256": "sha256:188071653988c8d81fa5fac1e29423f7d61860a1efe25bfc6d4df4e37739f108",
+      "template": "templates/appliance_bin_build-document-evidence-index_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/build-offline-bundle.sh",
+      "sha256": "sha256:9617c3a4b28ae08f59a9629410b90b10421bc6cd9d86c7d4bb20b8fa049c94cf",
+      "template": "templates/appliance_bin_build-offline-bundle_sh.tmpl"
+    },
+    {
+      "out": "appliance/bin/build-standing-portfolio.py",
+      "sha256": "sha256:5a08986f17da89a53796a81e73c820192a4f152b980d501e7cfa4e16b2a64336",
+      "template": "templates/appliance_bin_build-standing-portfolio_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/build-subsystem-evidence.py",
+      "sha256": "sha256:5016d8a58e521d3b8caaca4762d277fdff58757061df015ae373e399f7f6c68f",
+      "template": "templates/appliance_bin_build-subsystem-evidence_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/cross-check-portfolio.py",
+      "sha256": "sha256:00d27e6c2c1b880b4a5aab250c76801b3f1b6a44f170bc4c977a1dccd4b297a4",
+      "template": "templates/appliance_bin_cross-check-portfolio_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/decision-engine.py",
+      "sha256": "sha256:8cd70494147c4ca2e3e850f09989c68c7d9721ce935ebb9364f5e857dd95e04b",
+      "template": "templates/appliance_bin_decision-engine_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/observe-project.py",
+      "sha256": "sha256:7a631b230ad6c59a2ac9fd515cd1649b0309a8a62b5d3f3cafe7e85ca173dea6",
+      "template": "templates/appliance_bin_observe-project_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/project-subsystem-coverage.py",
+      "sha256": "sha256:3c74d796e0b4b2dfe3ec48e2c60f0c2ebe127c05eaf2e69048bda38c1fc4cabd",
+      "template": "templates/appliance_bin_project-subsystem-coverage_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/replay-standing-portfolio.py",
+      "sha256": "sha256:cdd9778aa300454321f105da586ba89498c0ced1ee5141c4e2b6a96af7072b0c",
+      "template": "templates/appliance_bin_replay-standing-portfolio_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/run-reference-e2e.sh",
+      "sha256": "sha256:999d426cdbbae72bb9996d8153781127a7764d64b98fe663a4053ab5d8afa128",
+      "template": "templates/appliance_bin_run-reference-e2e_sh.tmpl"
+    },
+    {
+      "out": "appliance/bin/transparency-log.py",
+      "sha256": "sha256:cbed6e34656dfeb4bc0fe856dbaffa3e1e288039ad761707defe4c57c1995b6d",
+      "template": "templates/appliance_bin_transparency-log_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/verify-crown.py",
+      "sha256": "sha256:a8077ac0f5debfc8ef53b7a38a519b946e581aa0128da08eaf24f8fa78db5d21",
+      "template": "templates/appliance_bin_verify-crown_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/verify-standing-portfolio.py",
+      "sha256": "sha256:b37db30544b6fbd8a8a5a31ff835ef0d65f67c1a6718acaab998eaba9f9ffb65",
+      "template": "templates/appliance_bin_verify-standing-portfolio_py.tmpl"
+    },
+    {
+      "out": "appliance/bin/verify-subsystem-evidence.py",
+      "sha256": "sha256:36fe6d7e0c62a32c247f069fc49db4f6b8ea30d9ee556fcdca75ec0cc5826054",
+      "template": "templates/appliance_bin_verify-subsystem-evidence_py.tmpl"
+    },
+    {
+      "out": "appliance/manifest.json",
+      "sha256": "sha256:046fb28e7e6b683099f845023a48db503aa4d600434a3142f372f5d833d4667f",
+      "template": "templates/appliance_manifest_json.tmpl"
+    },
+    {
+      "out": "appliance/policy/claim-boundary.json",
+      "sha256": "sha256:399cd68f25cfdd8490ce019103b3d4280aa6255a3602e48a54710b6e2ae35475",
+      "template": "templates/appliance_policy_claim-boundary_json.tmpl"
+    },
+    {
+      "out": "appliance/policy/trust-roots.json",
+      "sha256": "sha256:1af6ce3dc94b0a171829b3be7173ba2724a10e3b522f343aafd5692f5d556faf",
+      "template": "templates/appliance_policy_trust-roots_json.tmpl"
+    }
+  ],
+  "bridge": {
+    "base_sha": "490b321597ac0f26ea07d1c2dd23464c956e8852",
+    "definition_digest": "sha256:f6dd7f7f21429b22df0aa87d1e20d378f90976b6bb0cf7aa5a53b0f22a44e802",
+    "evidence_ceiling": "repository-local",
+    "identity": "LEGACY-ASSURANCE-REGEN",
+    "ledger_tail": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_identity": "sj-legacy-live:v1:LEGACY-ASSURANCE-REGEN",
+    "repository": "sac/ggen-legacy",
+    "requires": {
+      "acceptance": [
+        "urn:semantic-jira:acceptance:LEGACY-ASSURANCE-REGEN:a1"
+      ],
+      "courts": [
+        "layer_census"
+      ],
+      "falsifiers": [
+        "urn:semantic-jira:falsifier:LEGACY-ASSURANCE-REGEN:f1"
+      ]
+    },
+    "source_snapshot_digest": "sha256:34f5f97e148d60842c9a3d3741f5b2b45762d173e3a4a4d1a2686220d2cdd2db",
+    "subject": "ggen-legacy:appliance"
+  },
+  "epoch_id": "ggen-local",
+  "fabric_verifier": {
+    "court_receipt": {
+      "acceptance_results": {
+        "urn:semantic-jira:acceptance:LEGACY-ASSURANCE-REGEN:a1": true
+      },
+      "falsifier_results": {
+        "urn:semantic-jira:falsifier:LEGACY-ASSURANCE-REGEN:f1": "survived"
+      }
+    },
+    "status": "pass",
+    "steps": [
+      {
+        "id": "layer_census",
+        "status": "pass"
+      }
+    ]
+  },
+  "final_head": "3afec1a88ce81973f6fc0d6bd8b812d2adac587e",
+  "head_verified": false,
+  "outcome": "partial_alive",
+  "receipt_digest": "sha256:18f4db79812c262d7110eb49ef2b3275f4d86cb4fb6dfb142645b0d369b7977a",
+  "receipt_id": "receipt-9f920bacb534c1ef",
+  "run_id": "local-9f920bacb534c1ef"
+}
