@@ -232,8 +232,9 @@ defmodule GgenIgniter.SemanticJira.Execute do
   defp execute_backend({:local, pack_dir, target_dir}, descriptor, opts, order) do
     with :ok <- check_target_pack(order && order["target_pack"], pack_dir),
          {:ok, head} <- base_head(target_dir, descriptor["base_sha"]),
-         {:ok, paths, artifacts} <- actuate_artifacts(order, pack_dir, target_dir, opts),
-         {:ok, gates} <- gates(pack_dir) do
+         {:ok, ontology} <- order_ontology(order, pack_dir),
+         {:ok, paths, artifacts} <- actuate_artifacts(order, pack_dir, target_dir, opts, ontology),
+         {:ok, gates} <- gates(pack_dir, ontology) do
       export =
         descriptor
         |> synthesize_export(gates, paths, artifacts)
@@ -265,9 +266,9 @@ defmodule GgenIgniter.SemanticJira.Execute do
   # for templates, the target is the root for outs). A `Reconcile.run/1`
   # raise anywhere in the list is `{:sync_failed, ...}` -- same refusal the
   # legacy path emits, so the ledger stays byte-unchanged either way.
-  defp actuate_artifacts(nil, _pack_dir, _target_dir, _opts), do: {:ok, [], nil}
+  defp actuate_artifacts(nil, _pack_dir, _target_dir, _opts, _ontology), do: {:ok, [], nil}
 
-  defp actuate_artifacts(order, pack_dir, target_dir, opts) do
+  defp actuate_artifacts(order, pack_dir, target_dir, opts, ontology) do
     outputs = normalize_outputs(order["outputs"])
 
     case outputs do
@@ -276,20 +277,61 @@ defmodule GgenIgniter.SemanticJira.Execute do
 
       outputs ->
         Enum.reduce_while(outputs, {:ok, [], []}, fn out_spec, {:ok, paths, artifacts} ->
-          case run_output(out_spec, pack_dir, target_dir) do
-            {:ok, path, meta} ->
-              {:cont, {:ok, [path | paths], [meta | artifacts]}}
+            case run_output(out_spec, pack_dir, target_dir, ontology) do
+              {:ok, path, meta} ->
+                {:cont, {:ok, [path | paths], [meta | artifacts]}}
 
-            {:error, reason} ->
-              {:halt, {:error, reason}}
-          end
-        end)
+              {:error, reason} ->
+                {:halt, {:error, reason}}
+            end
+          end)
         |> case do
           {:ok, paths, artifacts} -> {:ok, Enum.reverse(paths), Enum.reverse(artifacts)}
           other -> other
         end
     end
   end
+
+  # Order-carried authority graph: when the order names `ontology`, EVERY
+  # render AND the pack's gates run over THAT graph, not the pack's default —
+  # the vocabulary-only pack / canonical-program-graph split (witnessed live:
+  # ggen-legacy-assurance-pack carries the classes; the AssuranceProgram
+  # individuals live in the consumer repo's ontology/assurance-program.ttl).
+  # Pack-relative or absolute; scoped to the pack root; unreadable is a typed
+  # refusal before any byte.
+  defp order_ontology(order, pack_dir)
+
+  defp order_ontology(%{"ontology" => rel}, pack_dir) when is_binary(rel) do
+    abs =
+      if Path.type(rel) == :absolute do
+        # An authority graph is an INPUT, not an actuation: absolute paths are
+        # allowed anywhere readable (the canonical program graph lives at the
+        # consumer-repo level, outside the pack root). Relative resolves under
+        # the pack root; `..` escapes in a relative path refuse.
+        Path.expand(rel)
+      else
+        with {:ok, scoped} <- scoped_path(rel, pack_dir, "ontology", pack_dir) do
+          scoped
+        else
+          {:error, _} = err -> err
+        end
+      end
+
+    case abs do
+      path when is_binary(path) ->
+        if File.exists?(path) do
+          {:ok, path}
+        else
+          {:error,
+           {"execute", {:bad_output_path, "ontology path does not exist: #{inspect(path)}"}}}
+        end
+
+      {:error, _} = err ->
+        err
+    end
+  end
+
+  defp order_ontology(_order, _pack_dir), do: {:ok, nil}
 
   # Legacy path: single auto-discovered (or explicit --template) render to the
   # static out `ggen-manufactured/report.md` -- byte-identical behavior when
@@ -307,7 +349,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
   defp normalize_outputs(_other),
     do: raise(ArgumentError, "order `outputs` must be a list of {template, out} specs")
 
-  defp run_output(out_spec, pack_dir, target_dir) do
+  defp run_output(out_spec, pack_dir, target_dir, ontology) do
     # Legacy `to:` frontmatter is honored here (Reconcile.run/1 deliberately
     # does not parse frontmatter): when the order spec names no explicit `out`,
     # the template's own `to:` path is the target-relative out. An explicit
@@ -319,13 +361,21 @@ defmodule GgenIgniter.SemanticJira.Execute do
 
     with {:ok, template_abs} <- scoped_path(out_spec["template"], pack_dir, "template", pack_dir),
          {:ok, out_abs} <- scoped_path(out_rel, target_dir, "out", target_dir) do
+      # Frontmatter-stripped render: the body (after the closing --- fence)
+      # is what Reconcile renders, via its opt-in :template_string seam. The
+      # on-disk template stays the identity anchor (receipt metadata names
+      # the real template path).
+      template_body = template_body(template_abs)
+
       query_opts =
         out_spec
         |> Map.get("queries", [])
         |> Enum.map(&{:query, &1})
 
       opts =
-        [pack_dir: pack_dir, out: out_abs, template: template_abs]
+        [pack_dir: pack_dir, out: out_abs, template: template_abs,
+         template_string: template_body]
+        |> maybe_put_ontology(ontology)
         |> Keyword.merge(query_opts)
 
       try do
@@ -347,6 +397,9 @@ defmodule GgenIgniter.SemanticJira.Execute do
     end
   end
 
+  defp maybe_put_ontology(opts, nil), do: opts
+  defp maybe_put_ontology(opts, ontology), do: Keyword.put(opts, :ontology, ontology)
+
   # Path-scope law for the outputs contract: `template` resolves against the
   # pack root, `out` against the target root; `..` escaping either root is a
   # typed refusal before any byte is written.
@@ -359,6 +412,18 @@ defmodule GgenIgniter.SemanticJira.Execute do
   # the DEFAULT (an explicit order `out` always overrides). A template with
   # frontmatter but no `to:` in `mode: file` would be refused by Frontmatter's
   # own `require_to` law when its frontmatter parses.
+  # The frontmatter-stripped EEx body of a template file (the whole file when
+  # it has no frontmatter). Pairs with template_to_path/1: `to:` resolves the
+  # out path, the body is what renders.
+  defp template_body(template_path) do
+    template_path
+    |> File.read!()
+    |> GgenIgniter.Frontmatter.split_template()
+    |> elem(2)
+  rescue
+    _ -> File.read!(template_path)
+  end
+
   defp template_to_path(template_path) do
     template_path
     |> File.read!()
@@ -469,9 +534,12 @@ defmodule GgenIgniter.SemanticJira.Execute do
 
   # The fail-closed court: every `gates/*.rq` gate and every inverted
   # `verify/*.unbound.rq` companion must pass, or standing never advances.
-  defp gates(pack_dir) do
-    ontology = GgenIgniter.Pack.default_ontology(pack_dir)
+  defp gates(pack_dir, nil),
+    do: gates_impl(pack_dir, GgenIgniter.Pack.default_ontology(pack_dir))
 
+  defp gates(pack_dir, ontology), do: gates_impl(pack_dir, ontology)
+
+  defp gates_impl(pack_dir, ontology) do
     with {:ok, results} <- GateVerify.run(pack_dir, ontology),
          {:ok, []} <- GateVerify.verify_unbound(pack_dir, ontology) do
       {:ok,

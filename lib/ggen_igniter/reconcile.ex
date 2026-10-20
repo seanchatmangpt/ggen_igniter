@@ -115,7 +115,12 @@ defmodule GgenIgniter.Reconcile do
     graph = Ontology.load!(ontology_path)
 
     template_path = resolve_template!(opts)
-    template_string = File.read!(template_path)
+    # :template_string (opt-in) overrides the on-disk template read. The
+    # Semantic Jira execute hop uses it to strip template frontmatter before
+    # rendering: Reconcile itself stays frontmatter-blind by design (body
+    # verbatim), while the order-carried outputs contract resolves `to:` and
+    # renders the BODY only.
+    template_string = opts[:template_string] || File.read!(template_path)
 
     named_queries = resolve_named_queries!(opts)
     named_results = run_queries(engine_module, graph, opts, named_queries)
