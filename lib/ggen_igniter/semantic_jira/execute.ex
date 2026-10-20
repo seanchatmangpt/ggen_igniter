@@ -148,7 +148,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
              )
            ),
          {:ok, executed} <-
-           execute_backend(backend, descriptor, opts, target_pack(work_orders, identity)),
+           execute_backend(backend, descriptor, opts, order_for(work_orders, identity)),
          {:ok, receipted} <- receipt_from(executed, descriptor) do
       append_transition(opts, work_orders, ledger, identity, executed, receipted, authority_opts)
     else
@@ -220,26 +220,23 @@ defmodule GgenIgniter.SemanticJira.Execute do
     end
   end
 
-  # The executed order's `sj:targetPack` (nil when the order names none --
-  # no constraint). FORMAT was verified at admission; the WORLD check
-  # against the real --pack-dir happens in the local backend below.
-  defp target_pack(work_orders, identity) do
-    case Enum.find(work_orders, &(&1["identity"] == identity)) do
-      nil -> nil
-      order -> order["target_pack"]
-    end
+  # The executed order map (nil when identity unknown). Carries
+  # `sj:targetPack`, and the multi-artifact `outputs` contract.
+  defp order_for(work_orders, identity) do
+    Enum.find(work_orders, &(&1["identity"] == identity))
   end
 
   # Local backend: target-pack name gate, base-drift gate, real pipeline,
   # real fail-closed gates. The name gate runs FIRST so a mismatch writes
   # nothing anywhere -- no rev-parse, no actuation, no receipt.
-  defp execute_backend({:local, pack_dir, target_dir}, descriptor, opts, target_pack) do
-    with :ok <- check_target_pack(target_pack, pack_dir),
+  defp execute_backend({:local, pack_dir, target_dir}, descriptor, opts, order) do
+    with :ok <- check_target_pack(order && order["target_pack"], pack_dir),
          {:ok, head} <- base_head(target_dir, descriptor["base_sha"]),
-         {:ok, result} <- reconcile_pack(pack_dir, target_dir, opts[:template]),
+         {:ok, paths, artifacts} <- actuate_artifacts(order, pack_dir, target_dir, opts),
          {:ok, gates} <- gates(pack_dir) do
-      paths = [result.out_path]
-      export = synthesize_export(descriptor, gates, paths)
+      export =
+        descriptor
+        |> synthesize_export(gates, paths, artifacts)
 
       File.write!(opts[:receipt_out], Jason.encode!(export, pretty: true) <> "\n")
 
@@ -248,11 +245,117 @@ defmodule GgenIgniter.SemanticJira.Execute do
   end
 
   # External backend: the sealed export arrived as data at the invocation
-  # boundary; nothing executes here, only the mapping and the append remain.
+  # boundary; nothing executes here, only the mapping and the append remains.
   # The fabric owned the execution, so no pack -- and no sj:targetPack
   # check -- is involved.
-  defp execute_backend({:external, export}, _descriptor, _opts, _target_pack) do
+  defp execute_backend({:external, export}, _descriptor, _opts, _order) do
     {:ok, %{export: export}}
+  end
+
+  # Multi-artifact actuation (the order-carried `outputs` contract). When the
+  # executed order carries a non-empty `outputs` list, the local backend runs
+  # `Reconcile.run/1` once PER artifact -- explicit `template`, explicit `out`
+  # (target-relative), optional per-artifact `queries` (`name=path.rq` strings,
+  # the sync `--query` convention) -- instead of the legacy single-report
+  # render. This is what lets an order manufacture a real project's artifact
+  # set, not one report file.
+  #
+  # Refusals before any actuation: an `out` or `template` path escaping its
+  # root is `{:bad_output_path, ...}` (path-scope law; the pack is the root
+  # for templates, the target is the root for outs). A `Reconcile.run/1`
+  # raise anywhere in the list is `{:sync_failed, ...}` -- same refusal the
+  # legacy path emits, so the ledger stays byte-unchanged either way.
+  defp actuate_artifacts(nil, _pack_dir, _target_dir, _opts), do: {:ok, [], nil}
+
+  defp actuate_artifacts(order, pack_dir, target_dir, opts) do
+    outputs = normalize_outputs(order["outputs"])
+
+    case outputs do
+      [] ->
+        legacy_single_report(pack_dir, target_dir, opts)
+
+      outputs ->
+        Enum.reduce_while(outputs, {:ok, [], []}, fn out_spec, {:ok, paths, artifacts} ->
+          case run_output(out_spec, pack_dir, target_dir) do
+            {:ok, path, meta} ->
+              {:cont, {:ok, [path | paths], [meta | artifacts]}}
+
+            {:error, reason} ->
+              {:halt, {:error, reason}}
+          end
+        end)
+        |> case do
+          {:ok, paths, artifacts} -> {:ok, Enum.reverse(paths), Enum.reverse(artifacts)}
+          other -> other
+        end
+    end
+  end
+
+  # Legacy path: single auto-discovered (or explicit --template) render to the
+  # static out `ggen-manufactured/report.md` -- byte-identical behavior when
+  # the order names no `outputs`.
+  defp legacy_single_report(pack_dir, target_dir, opts) do
+    case reconcile_pack(pack_dir, target_dir, opts[:template]) do
+      {:ok, result} -> {:ok, [result.out_path], nil}
+      {:error, _} = err -> err
+    end
+  end
+
+  defp normalize_outputs(nil), do: []
+  defp normalize_outputs(outputs) when is_list(outputs), do: outputs
+
+  defp normalize_outputs(_other),
+    do: raise(ArgumentError, "order `outputs` must be a list of {template, out} specs")
+
+  defp run_output(out_spec, pack_dir, target_dir) do
+    with {:ok, template_abs} <- scoped_path(out_spec["template"], pack_dir, "template", pack_dir),
+         {:ok, out_abs} <- scoped_path(out_spec["out"], target_dir, "out", target_dir) do
+      query_opts =
+        out_spec
+        |> Map.get("queries", [])
+        |> Enum.map(&{:query, &1})
+
+      opts =
+        [pack_dir: pack_dir, out: out_abs, template: template_abs]
+        |> Keyword.merge(query_opts)
+
+      try do
+        case Reconcile.run(opts) do
+          {:ok, result} ->
+            {:ok, result.out_path,
+             %{"template" => out_spec["template"], "out" => out_spec["out"],
+               "sha256" => digest_of(File.read!(result.out_path))}}
+
+          other ->
+            {:error,
+             {"execute", {:sync_failed, "Reconcile.run/1 failed: " <> inspect(other)}}}
+        end
+      rescue
+        error ->
+          {:error,
+           {"execute", {:sync_failed, "Reconcile.run/1 raised: " <> Exception.message(error)}}}
+      end
+    end
+  end
+
+  # Path-scope law for the outputs contract: `template` resolves against the
+  # pack root, `out` against the target root; `..` escaping either root is a
+  # typed refusal before any byte is written.
+  defp scoped_path(nil, _root, _kind, _scope_root),
+    do: {:error, {"execute", {:bad_output_path, "output spec missing `template` and `out`"}}}
+
+  defp scoped_path(path, root, kind, _scope_root) do
+    abs = if Path.type(path) == :absolute, do: path, else: Path.join(root, path)
+
+    expanded = Path.expand(abs)
+
+    if String.starts_with?(expanded, Path.expand(root) <> "/") do
+      {:ok, expanded}
+    else
+      {:error,
+       {"execute", {:bad_output_path,
+        "#{kind} path #{inspect(path)} escapes its root #{inspect(root)}"}}}
+    end
   end
 
   # The sj:targetPack WORLD check (the sync-side law of
@@ -357,32 +460,47 @@ defmodule GgenIgniter.SemanticJira.Execute do
   # acceptance/falsifier IRIs to the REAL gate report (all gates passed -- a
   # gate failure refused one hop earlier), so nothing is invented: each IRI
   # stands for "the pack's own fail-closed contract held at this run".
-  defp synthesize_export(descriptor, gates, paths) do
+  defp synthesize_export(descriptor, gates, paths, artifacts) do
     bridge = descriptor["bridge"]
 
-    export = %{
-      "epoch_id" => "ggen-local",
-      "run_id" => "local-" <> String.slice(digest_of(bridge), 7, 16),
-      "receipt_id" => "receipt-" <> String.slice(digest_of(bridge), 7, 16),
-      "bridge" => bridge,
-      "final_head" => final_head(paths),
-      "outcome" => @outcome,
-      "head_verified" => false,
-      "fabric_verifier" => %{
-        "status" => gates["status"],
-        "steps" => gates["steps"],
-        "court_receipt" => %{
-          "acceptance_results" =>
-            Map.new(bridge["requires"]["acceptance"], &{&1, gates["status"] == "pass"}),
-          "falsifier_results" =>
-            Map.new(bridge["requires"]["falsifiers"], fn falsifier ->
-              {falsifier, if(gates["status"] == "pass", do: "survived", else: "killed")}
-            end)
+    export =
+      %{
+        "epoch_id" => "ggen-local",
+        "run_id" => "local-" <> String.slice(digest_of(bridge), 7, 16),
+        "receipt_id" => "receipt-" <> String.slice(digest_of(bridge), 7, 16),
+        "bridge" => bridge,
+        "final_head" => final_head(paths),
+        "outcome" => @outcome,
+        "head_verified" => false,
+        "fabric_verifier" => %{
+          "status" => gates["status"],
+          "steps" => gates["steps"],
+          "court_receipt" => %{
+            "acceptance_results" =>
+              Map.new(bridge["requires"]["acceptance"], &{&1, gates["status"] == "pass"}),
+            "falsifier_results" =>
+              Map.new(bridge["requires"]["falsifiers"], fn falsifier ->
+                {falsifier, if(gates["status"] == "pass", do: "survived", else: "killed")}
+              end)
+          }
         }
       }
-    }
+      |> maybe_put_artifacts(artifacts)
 
     Map.put(export, "receipt_digest", Descriptor.receipt_digest(export))
+  end
+
+  # Multi-artifact exports carry the actuated artifact set ({template, out,
+  # sha256} per artifact) INSIDE the export BEFORE the digest is computed --
+  # so the receipt commits to the artifact bytes, not just the report file.
+  # Legacy single-report exports are byte-identical (nil artifacts). The
+  # receipt seam recomputes the digest over the whole export on consumption,
+  # which is exactly how the witness run caught the earlier post-digest
+  # placement as a real `receipt_digest_mismatch` refusal.
+  defp maybe_put_artifacts(export, nil), do: export
+
+  defp maybe_put_artifacts(export, artifacts) do
+    Map.put(export, "artifacts", artifacts)
   end
 
   # Receipt hop for both backends: local maps the synthesized export, external

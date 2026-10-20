@@ -105,7 +105,10 @@ defmodule GgenIgniter.Reconcile do
   """
   @spec run(keyword()) :: {:ok, result()}
   def run(opts) when is_list(opts) do
-    engine_name = Keyword.get(opts, :engine, "oxigraph")
+    # engine fixation follow-through (compile-freeze unblock, Complete lane
+    # 2026-10-19): b514bf5 fixed the engine to graphlaw but missed this
+    # default, so every Reconcile.run/1 caller raised `invalid --engine`.
+    engine_name = Keyword.get(opts, :engine, "graphlaw")
     engine_module = Engine.fetch!(engine_name)
 
     ontology_path = resolve_ontology!(opts)
