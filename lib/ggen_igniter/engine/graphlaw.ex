@@ -196,6 +196,19 @@ defmodule GgenIgniter.Engine.Graphlaw do
     response
   end
 
+  # The wasmex call-receive bound. Under full-suite async load (32 ExUnit
+  # cases each compiling/instancing WASM), the historical hard 10s fired
+  # `gl_alloc timed out` on CORRECT calls -- witnessed as SemanticA2A F6 and
+  # VerifyMutation determinism failures that pass in isolation. Configurable
+  # via Application env :ggen_igniter, :graphlaw_call_timeout_ms; default 30s
+  # covers the contended-suite case without making any failure class silent
+  # (a real hang still refuses, 3x later).
+  @default_call_timeout_ms 30_000
+
+  defp call_timeout_ms do
+    Application.get_env(:ggen_igniter, :graphlaw_call_timeout_ms, @default_call_timeout_ms)
+  end
+
   defp call_export(store, instance, name, params) do
     # `from` must be a real `{pid, ref}` reply target (a raw `nil` makes the
     # NIF raise ArgumentError); the result arrives as an async `{ref, reply}`
@@ -211,8 +224,9 @@ defmodule GgenIgniter.Engine.Graphlaw do
       {^ref, {:error, reason}} ->
         raise RuntimeError, message: "graphlaw engine: #{name} failed: #{reason}"
     after
-      10_000 ->
-        raise RuntimeError, message: "graphlaw engine: #{name} timed out after 10000ms"
+      call_timeout_ms() ->
+        raise RuntimeError,
+          message: "graphlaw engine: #{name} timed out after #{call_timeout_ms()}ms"
     end
   end
 
