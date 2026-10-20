@@ -160,9 +160,11 @@ force: true
       readme = Path.join(ctx.target.dir, "appliance/README.md")
       assert File.exists?(readme)
 
-      assert File.read!(readme) =~ """
-             # legacy readme
-             """
+      # Frontmatter-stripped render fence: the actuated file must NOT carry
+      # the template's frontmatter header bytes (witnessed live as real
+      # pollution: 19 legacy appliance files gained frontmatter until the
+      # :template_string seam landed).
+      refute File.read!(readme) =~ ~r/^---/
 
       assert File.read!(readme) =~ "gate row: legacy pack readme"
 
