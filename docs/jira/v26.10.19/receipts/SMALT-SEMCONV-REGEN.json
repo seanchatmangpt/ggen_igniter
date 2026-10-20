@@ -1,0 +1,55 @@
+{
+  "artifacts": [
+    {
+      "out": "lib/smalt/telemetry/semconv/registry.ex",
+      "sha256": "sha256:7ea6c12d6c73089b93e2b02b6bfb9a29e674b8239e65b5f365cb766e8e21800b",
+      "template": "templates/registry.ex.eex"
+    }
+  ],
+  "bridge": {
+    "base_sha": "8ca1b827677dfcc4bff93273c0f3d975344eadf3",
+    "definition_digest": "sha256:e7c157c963e6b12b60fb24ffade11e769b657d86cee1b1a87e71ce55dd6b3842",
+    "evidence_ceiling": "repository-local",
+    "identity": "SMALT-SEMCONV-REGEN",
+    "ledger_tail": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_identity": "smalt-witness:v1:SMALT-SEMCONV-REGEN",
+    "repository": "sac/smalt",
+    "requires": {
+      "acceptance": [
+        "urn:semantic-jira:acceptance:SMALT-SEMCONV-REGEN:a1"
+      ],
+      "courts": [
+        "semconv_census"
+      ],
+      "falsifiers": [
+        "urn:semantic-jira:falsifier:SMALT-SEMCONV-REGEN:f1"
+      ]
+    },
+    "source_snapshot_digest": "sha256:0075cb9a4cf60761900d4f4a3263cc6297e06e04828741020215bcb4d213c71a",
+    "subject": "smalt:projections"
+  },
+  "epoch_id": "ggen-local",
+  "fabric_verifier": {
+    "court_receipt": {
+      "acceptance_results": {
+        "urn:semantic-jira:acceptance:SMALT-SEMCONV-REGEN:a1": true
+      },
+      "falsifier_results": {
+        "urn:semantic-jira:falsifier:SMALT-SEMCONV-REGEN:f1": "survived"
+      }
+    },
+    "status": "pass",
+    "steps": [
+      {
+        "id": "semconv_census",
+        "status": "pass"
+      }
+    ]
+  },
+  "final_head": "5e957e2948582877738e2baadbda334deba4c4a7",
+  "head_verified": false,
+  "outcome": "partial_alive",
+  "receipt_digest": "sha256:200cc8135e5729e1845089c99485dfe620baef6d3a97d71d092fc87fd6e07c11",
+  "receipt_id": "receipt-c271ff96ec488365",
+  "run_id": "local-c271ff96ec488365"
+}

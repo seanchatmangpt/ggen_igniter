@@ -1,0 +1,74 @@
+{
+  "work_orders": [
+    {
+      "identity": "SMALT-SUBSTRATE-REGEN",
+      "order_class": "pack-manufacture",
+      "title": "Regenerate smalt projections from smalt-substrate-pack",
+      "description": "Multi-artifact manufacture from pack ontology into the smalt tree.",
+      "subject": "smalt:projections",
+      "repository": "sac/smalt",
+      "base_sha": "8ca1b827677dfcc4bff93273c0f3d975344eadf3",
+      "standing": "UNKNOWN",
+      "evidence_ceiling": "repository-local",
+      "promotion_rule": "all_courts",
+      "replay_identity": "smalt-witness:v1:SMALT-SUBSTRATE-REGEN",
+      "required_courts": [
+        "config_coverage",
+        "shapes-coverage"
+      ],
+      "required_evidence": [
+        "verification"
+      ],
+      "acceptance": [
+        "urn:semantic-jira:acceptance:SMALT-SUBSTRATE-REGEN:a1"
+      ],
+      "falsifiers": [
+        "urn:semantic-jira:falsifier:SMALT-SUBSTRATE-REGEN:f1"
+      ],
+      "projections": [
+        "jira"
+      ],
+      "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
+      "target_pack": "smalt-substrate-pack",
+      "outputs": [
+        {
+          "template": "templates/registry.ex.eex",
+          "out": "lib/smalt/registry.ex",
+          "queries": [
+            "control_plane=/Users/sac/ggen-marketplace/packs/smalt-substrate-pack/queries/control_plane.rq",
+            "payload_rules=/Users/sac/ggen-marketplace/packs/smalt-substrate-pack/queries/payload_rules.rq"
+          ]
+        },
+        {
+          "template": "templates/event_registry.ex.eex",
+          "out": "lib/smalt/ocel/event_registry.ex",
+          "queries": [
+            "event_types=/Users/sac/ggen-marketplace/packs/smalt-substrate-pack/queries/event_types.rq",
+            "object_types=/Users/sac/ggen-marketplace/packs/smalt-substrate-pack/queries/ocel_object_types.rq"
+          ]
+        },
+        {
+          "template": "templates/store_tables.ex.eex",
+          "out": "lib/smalt/store_tables.ex",
+          "queries": [
+            "store_tables=/Users/sac/ggen-marketplace/packs/smalt-substrate-pack/queries/store_tables.rq"
+          ]
+        },
+        {
+          "template": "templates/cascade_edges.ex.eex",
+          "out": "lib/smalt/cascade_edges.ex",
+          "queries": [
+            "cascade_edges=/Users/sac/ggen-marketplace/packs/smalt-substrate-pack/queries/cascade_edges.rq"
+          ]
+        },
+        {
+          "template": "templates/config.ex.eex",
+          "out": "lib/smalt/config.ex",
+          "queries": [
+            "config_keys=/Users/sac/ggen-marketplace/packs/smalt-substrate-pack/queries/config_keys.rq"
+          ]
+        }
+      ]
+    }
+  ]
+}
