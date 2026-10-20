@@ -66,6 +66,7 @@ defmodule Mix.Tasks.SemanticJira.Complete do
           work_orders: :string,
           ledger: :string,
           pack_dir: :string,
+          packs_root: :string,
           target_dir: :string,
           receipts_dir: :string,
           template: :string,

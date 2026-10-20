@@ -162,14 +162,11 @@ SELECT DISTINCT ?subject WHERE {
 
       # The kernel reports the SETTLED orders as blocked rows with their own
       # standing reason — closed work, listed verbatim, never failures.
-      assert result["blocked_count"] == 2
-
-      assert Enum.map(result["blocked"], & &1["identity"]) == [
-               "COMPLETE-1",
-               "COMPLETE-2"
-             ]
-
-      assert Enum.all?(result["blocked"], &(&1["reason"] == "standing=PARTIAL_ALIVE"))
+      # Closed orders stand PARTIAL_ALIVE, so the frontier lists them under
+      # blocked -- but they are SETTLED, not blocked: the completion receipt
+      # reports only genuinely-open blocked rows.
+      assert result["blocked"] == []
+      assert result["blocked_count"] == 0
       assert Enum.map(result["orders"], & &1["identity"]) == ["COMPLETE-1", "COMPLETE-2"]
       assert result["ledger"] == ctx.ledger
 

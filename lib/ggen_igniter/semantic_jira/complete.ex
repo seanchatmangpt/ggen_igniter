@@ -52,6 +52,7 @@ defmodule GgenIgniter.SemanticJira.Complete do
   def run(opts) do
     with {:ok, work_orders} <- work_orders(opts),
          {:ok, ledger} <- required(opts, :ledger),
+         :ok <- pack_source_exclusive(opts),
          {:ok, authority_opts} <- authority_graph(opts),
          {:ok, receipt_opts} <- receipt_opts(opts) do
       loop(
@@ -117,8 +118,39 @@ defmodule GgenIgniter.SemanticJira.Complete do
     end
   end
 
+  # Exactly one pack source: the fixed --pack-dir OR --packs-root (per-order
+  # resolution), never both (exit 2, same boundary as Execute.run/1's backend
+  # exclusivity).
+  defp pack_source_exclusive(opts) do
+    if present?(opts[:pack_dir]) and present?(opts[:packs_root]) do
+      {:invalid, "--pack-dir and --packs-root are mutually exclusive"}
+    else
+      :ok
+    end
+  end
+
   defp frontier_hop({:ok, value}), do: {:ok, value}
   defp frontier_hop({:error, reason}), do: {:error, reason}
+
+  # Per-order pack resolution (`--packs-root DIR`): a multi-pack backlog (one
+  # project consuming several packs — smalt consumes smalt-substrate-pack AND
+  # smalt-semconv-pack) closes in ONE completion run when each order's
+  # `sj:targetPack` resolves to `<packs-root>/<target_pack>`. The fixed
+  # `--pack-dir` still wins when the executed order names no target pack (or
+  # names the same one); `--pack-dir` and `--packs-root` are mutually
+  # exclusive at the invocation boundary (exit 2), so the source of the pack
+  # is never ambiguous. Execute.run/1's own `sj:targetPack` WORLD check at
+  # the execute hop still runs over the resolved dir per order.
+  defp maybe_resolve_pack(opts, work_orders, identity) do
+    root = opts[:packs_root]
+    order = Enum.find(work_orders, &(&1["identity"] == identity))
+
+    if root && order && order["target_pack"] do
+      Keyword.put(opts, :pack_dir, Path.join(root, order["target_pack"]))
+    else
+      opts
+    end
+  end
 
   defp step(opts, work_orders, ledger, authority_opts, closed, orders, n, identity) do
     # The per-order sealed export lands at
@@ -131,6 +163,7 @@ defmodule GgenIgniter.SemanticJira.Complete do
     order_opts =
       opts
       |> Keyword.merge(identity: identity)
+      |> maybe_resolve_pack(work_orders, identity)
       |> then(&if per_order_receipt, do: Keyword.put(&1, :receipt_out, per_order_receipt), else: &1)
 
     case Execute.run(order_opts) do
@@ -156,15 +189,21 @@ defmodule GgenIgniter.SemanticJira.Complete do
   end
 
   defp complete(_opts, ledger, closed, orders, blocked) do
+    # An order this run just closed stands PARTIAL_ALIVE, so the frontier
+    # projection lists it under `blocked` (standing=PARTIAL_ALIVE). In the
+    # completion receipt those rows are SETTLED, not blocked -- report only
+    # genuinely-open blocked rows (identity not closed this run or before).
+    open_blocked = Enum.reject(blocked, &(&1["identity"] in closed))
+
     {0,
      %{
        "status" => "complete",
        "closed" => closed,
        "orders" => orders,
-       "blocked" => blocked,
+       "blocked" => open_blocked,
        "ledger" => ledger,
        "closed_count" => length(closed),
-       "blocked_count" => length(blocked)
+       "blocked_count" => length(open_blocked)
      }}
   end
 
