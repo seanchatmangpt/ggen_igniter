@@ -2,6 +2,10 @@ name: ggen_igniter CI
 on:
   push:
   pull_request:
+  # Lane L8 (2026-10-20): run the same gates on merge-queue entries so the
+  # queue's checks_requested event is covered by the identical job set.
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 concurrency:

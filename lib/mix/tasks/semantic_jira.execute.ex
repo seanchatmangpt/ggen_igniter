@@ -51,6 +51,17 @@ defmodule Mix.Tasks.SemanticJira.Execute do
       `sj:targetPack` is not checked on this backend (and `--receipt` is
       already mutually exclusive with `--pack-dir`/`--target-dir` at exit
       2).
+    * **projection** — `--pack-lock PATH` plus `--pack-dir`, `--target-dir`,
+      `--receipt-out` (W8, PROJECTION-ARCH-PLAN §D4): pack.lock-digest-pinned
+      capability projection via
+      `GgenIgniter.SemanticJira.Projection.project/2` — the executed order
+      must carry `capability_id` (`sj:capabilityId`) and `target_path`
+      (`sj:targetPath`); renders the capability's scoped row(s), writes the
+      guarded artifact at the target path (`:written`/`:unchanged`/
+      `:skipped_exists`), runs the pack gates plus per-falsifier projected
+      verify gates, and rides the projection receipt
+      `{order_id, capability_id, pack_digest, render_digest, gate_results}`
+      inside the synthesized export under `"projection"`.
 
   ## Flags
 
@@ -105,6 +116,7 @@ defmodule Mix.Tasks.SemanticJira.Execute do
           authority_graph: :string,
           pack_dir: :string,
           target_dir: :string,
+          pack_lock: :string,
           template: :string,
           receipt: :string,
           receipt_out: :string,

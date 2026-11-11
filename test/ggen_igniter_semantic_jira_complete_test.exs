@@ -24,6 +24,11 @@ defmodule GgenIgniter.SemanticJiraCompleteTest do
 
     target = git_repo!(Path.join(dir, "target"))
     pack = pack!(Path.join(dir, "pack"))
+    # A dedicated clean git repo as the security gate's cwd (R1-5): the gate
+    # must observe THIS repo, not the ggen_igniter checkout the test process
+    # happens to run in — the suite asserts on verdicts, not on the host
+    # repo's own diff posture.
+    gate = git_repo!(Path.join(dir, "gate"))
     ledger = Path.join(dir, "standing-ledger.ndjson")
     receipts_dir = Path.join(dir, "receipts")
 
@@ -33,6 +38,7 @@ defmodule GgenIgniter.SemanticJiraCompleteTest do
       dir: dir,
       target: target,
       pack: pack,
+      gate: gate,
       ledger: ledger,
       receipts_dir: receipts_dir,
       work_orders: work_orders
@@ -141,7 +147,10 @@ SELECT DISTINCT ?subject WHERE {
         alias: "o/r=target",
         pack_dir: ctx.pack,
         target_dir: ctx.target.dir,
-        receipts_dir: ctx.receipts_dir
+        receipts_dir: ctx.receipts_dir,
+        # The security pre-step's cwd: a clean controlled repo, so the gate
+        # verdict is deterministic and independent of the host checkout.
+        cwd: ctx.gate.dir
       ]
   end
 
@@ -241,7 +250,8 @@ SELECT DISTINCT ?subject WHERE {
         alias: "o/r=target",
         pack_dir: ctx.pack,
         target_dir: ctx.target.dir,
-        receipts_dir: fresh_receipts
+        receipts_dir: fresh_receipts,
+        cwd: ctx.gate.dir
       ]
 
       assert {1, refusal} = Complete.run(fresh_opts)
@@ -302,6 +312,36 @@ SELECT DISTINCT ?subject WHERE {
       assert {2, reason} = Complete.run(Keyword.delete(opts(ctx), :ledger))
       assert reason["status"] == "invalid_invocation"
       assert reason["reason"] == "missing --ledger"
+    end
+  end
+
+  describe "security_pre_step/1 (via run/1, R1-5)" do
+    @tag :r1_5
+    test "landing path runs the security gate read-only: no security-findings.json is written into the gated cwd",
+         ctx do
+      # ctx.gate is the real clean git repo every run's pre-step gates; one
+      # commit on main, clean worktree, so DiffSource's merge-base resolves
+      # and the verdict is :clear — the shape the loop needs to proceed.
+      ledger_path = Path.join(ctx.gate.dir, ".ggen_igniter/security-findings.json")
+      refute File.exists?(ledger_path)
+
+      assert {0, result} = Complete.run(opts(ctx))
+      assert result["status"] == "complete"
+
+      # The gate ran (a :clear verdict drove execution) yet wrote nothing
+      # into the tree it gated — write: false (--check semantics).
+      refute File.exists?(ledger_path)
+      refute File.exists?(Path.join(ctx.gate.dir, ".ggen_igniter"))
+    end
+
+    @tag :r1_5
+    test "non-vacuity control: write: true on the same cwd DOES write the ledger", ctx do
+      ledger_path = Path.join(ctx.gate.dir, ".ggen_igniter/security-findings.json")
+
+      assert {:ok, %{status: :clear}} =
+               GgenIgniter.SecurityReview.run(cwd: ctx.gate.dir, write: true)
+
+      assert File.exists?(ledger_path)
     end
   end
 end

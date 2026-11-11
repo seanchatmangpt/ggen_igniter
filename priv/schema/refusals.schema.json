@@ -150,6 +150,8 @@
         "REACTOR_UNKNOWN_STEP_KIND",
         "REPLAY_REFUSED",
         "SA2A_SEMANTIC_EVIDENCE",
+        "SECURITY_BLOCKED",
+        "SECURITY_REVIEW_DIFF_UNAVAILABLE",
         "SEMANTIC_JIRA",
         "SEMANTIC_JIRA_BASE_SHA_UNVERIFIED",
         "SEMANTIC_JIRA_SHACL",
@@ -1199,6 +1201,24 @@
       "fix_hint": "Supply a portable sa2a.semantic-evidence-envelope.v1 with an absolute exact-subject URN or https IRI, non-empty canonical fields and no authority-bearing claims; the envelope is evidence only and never grants standing.",
       "broken_term": "R_missing_identity",
       "example": "REFUSED:SA2A_SEMANTIC_EVIDENCE <subject> <inspect(evidence)>"
+    },
+    {
+      "code": "SECURITY_BLOCKED",
+      "family": "security_review",
+      "retryable": false,
+      "owner": "GgenIgniter.SecurityReview",
+      "fix_hint": "Fix or explicitly clear the open security findings named in the ledger (.ggen_igniter/security-findings.json); open findings block landing.",
+      "broken_term": "R_missing_consequence",
+      "example": "REFUSED:SECURITY_BLOCKED 2 open security findings (digest: 1a2b3c4d)"
+    },
+    {
+      "code": "SECURITY_REVIEW_DIFF_UNAVAILABLE",
+      "family": "security_review",
+      "retryable": true,
+      "owner": "GgenIgniter.SecurityReview.DiffSource",
+      "fix_hint": "Run the review inside a real git repo (or pass --base with a 40-hex SHA); the gate never fabricates a diff from a guessed ref.",
+      "broken_term": "R_missing_identity",
+      "example": "REFUSED:SECURITY_REVIEW_DIFF_UNAVAILABLE --base abc is not a 40-hex commit SHA"
     },
     {
       "code": "SEMANTIC_JIRA",

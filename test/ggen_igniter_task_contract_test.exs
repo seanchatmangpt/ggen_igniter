@@ -48,11 +48,13 @@ defmodule GgenIgniter.TaskContractTest do
     assert String.starts_with?(json, ~s({"data":))
   end
 
-  test "exit-code table is 0..4, unique, and each name maps to its code" do
-    assert TaskContract.documented_codes() == [0, 1, 2, 3, 4]
+  test "exit-code table is 0..5, unique, and each name maps to its code" do
+    assert TaskContract.documented_codes() == [0, 1, 2, 3, 4, 5]
     names = Enum.map(TaskContract.exit_codes(), & &1.name)
-    assert names == [:ok, :refusal, :invocation, :unsupported, :drift]
+    assert names == [:ok, :refusal, :invocation, :unsupported, :drift, :security_blocked]
     assert TaskContract.exit_code(:drift) == 4
+    assert TaskContract.exit_code(:security_blocked) == 5
+    assert TaskContract.standing(:security_blocked) == "SECURITY_BLOCKED"
 
     assert_raise ArgumentError, fn -> TaskContract.exit_code(:nope) end
   end

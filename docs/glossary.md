@@ -384,6 +384,276 @@ A verification lane that tries to falsify a claim on the exact landed subject
 (for example the epoch freshness court, `GgenIgniter.EpochFreshness`); courts
 kill, generators only propose.
 
+## risk tier
+
+Deterministic classification of a manufactured change (diff) into
+`low`/`medium`/`high` from a path-weight model (longest-prefix
+match; unmatched paths default to the privileged weight — fail-closed), plus
+the number of machine approvals the tier requires. Pure policy, not
+actuation: it computes a tier/score/approvals/signals triple other code may
+consult; it never writes or admits anything itself, and a high-risk diff
+never selects its own reviewers (the landing pipeline runs tiering at order
+2, before fan-out review at order 4). See
+`lib/ggen_igniter/review/risk_tier.ex`.
+
+## machine approval
+
+The count of automated gate passings a risk tier requires before a change
+may land — `approvals/1` on a
+`GgenIgniter.Review.RiskTier.Assessment` (`low` 0, `medium` 1, `high` 2),
+recorded additively on `GgenIgniter.Receipt` as
+`risk_tier`/`risk_score`/`risk_approvals`. The module is policy only — it
+computes the required count; the gates that satisfy it are the landing
+pipeline's stages. See `lib/ggen_igniter/review/risk_tier.ex`,
+`lib/ggen_igniter/receipt.ex`.
+
+## review perspective
+
+One lens over a reviewed diff: a `review_diff/2` behaviour implementation
+returning structured findings. The registry `perspectives/0` pins the four
+shipped lenses (correctness, invariants, chicago_tests, epoch_law); the
+aggregation core fans the diff out over them with `Task.async_stream`.
+Perspectives are pure functions — agent execution is out of scope for the
+layer. See `lib/ggen_igniter/review/perspective.ex`.
+
+## verifier voting (M-verifier quorum)
+
+Majority vote over a single review finding by M independent 1-arity
+verifier functions (`finding -> :sustain | :reject | :abstain`). Sustained
+iff `sustain_count >= floor(M/2) + 1` AND `sustain_count > reject_count`;
+abstentions count toward M but toward neither side (M = 3: 2-0 passes,
+1-1-1 fails). With no injected verifiers every finding is rejected — fail
+closed. See `lib/ggen_igniter/review/verifier.ex`.
+
+## suppression key
+
+The deterministic key a cross-round repeat suppression chain is built on:
+a vote-surviving finding whose key was `:posted` in the latest prior round
+is suppressed (a carried repeat, not news); keys embedding the line mean
+different-line `:pre_existing` findings are never suppressed. Applied only
+to vote survivors — a vote-rejected finding is suppressed by the vote and
+never resurrected. See `lib/ggen_igniter/review/filter.ex`.
+
+## round cap / REVIEW_ESCALATED
+
+The convergence loop's bounded-round law: a reviewed subject is re-reviewed
+per content-sha until it passes, its findings are fixed-and-advanced, or
+the cap (`@max_rounds`) is exhausted — at which point the round record
+takes the terminal state `REVIEW_ESCALATED` (a real `GgenIgniter.Receipt`
+with the review attrs), never a silent round 4. The cap is checked before
+any reviewer dispatch. See `lib/ggen_igniter/convergence.ex`,
+`lib/ggen_igniter/review_store.ex`.
+
+## security finding
+
+One entry in the security gate's findings ledger, produced by a
+`@checks` implementation over ADDED diff lines only (secrets in diff, shell
+interpolation, path traversal, dependency change, hook/settings change).
+Dedup by stable id (`"SEC-" <> category <> "-" <> sha8` over
+category|file|rule|normalized evidence; line deliberately excluded, so a
+reformat keeps ledger continuity); evidence centrally redacted. Verdict is
+`:blocked` iff any finding is `open`. See
+`lib/ggen_igniter/security_review.ex`,
+`lib/ggen_igniter/security_review/receipt.ex`.
+
+## SECURITY_BLOCKED
+
+The typed standing of a landing blocked by open security findings — exit
+code 5 from `mix ggen_igniter.security_review` and the pre-step branch of
+`mix semantic_jira.complete`. Distinct standing from `:drift`'s BLOCKED:
+a security block is its own refusal class, never folded into another. See
+`lib/ggen_igniter/task_contract.ex`,
+`lib/ggen_igniter/semantic_jira/complete.ex`.
+
+## auto-clear
+
+The security ledger's transition where a previously `open` finding absent
+from the current run's finding set becomes `auto_cleared` with
+`cleared_at_commit` set. A cleared id never resurrects: if the same defect
+reappears later it is still recorded `auto_cleared` — the clear decision is
+a fact about the code, not something a re-diff overrides. See
+`lib/ggen_igniter/security_review/receipt.ex`.
+
+## incident corpus
+
+The review-eval harness's seeded corpus of real incidents:
+`.ggen_igniter/review-evals/corpus.jsonl`, one JSON object per line
+(schema_version 1), each a defect case (`case_id`, git fix-commit source,
+defect invariant, located file/line with tolerance, provenance). Seeded from
+real fixed defects, scored for recall, and sealed into the eval baseline.
+See `lib/ggen_igniter/review_eval/corpus.ex`.
+
+## review eval baseline
+
+The sealed admission standard for the review pipeline:
+`.ggen_igniter/review-evals/baseline.json` (`run_id`, `head_sha`,
+`corpus_digest`, `recall`, `per_surface`). A candidate run is admitted iff
+its recall >= baseline recall AND no per-surface recall drops more than the
+surface tolerance; errors count as missed (fail-closed). Sealing refuses
+unless the run receipt exists and its corpus digest matches the current
+corpus. See `lib/ggen_igniter/review_eval/gate.ex`.
+
+## landing receipt
+
+The per-run evidence artifact of a staged landing:
+`<receipts_dir>/<run_id>/landing-receipt.json`, plus one per-stage receipt
+`stage-<order>-<name>.json`, each embedding real captured command output —
+a `:pass` with empty output is invalid and never reports ALIVE. The final
+report is never a single boolean. See
+`lib/ggen_igniter/landing_pipeline.ex`.
+
+## stage contract
+
+The behaviour every landing-pipeline gate implements: `name/0`,
+load-bearing integer `order/0` (risk tiering precedes fan-out review), and
+`run/1` returning exactly one of `{:pass, receipt}` / `{:block, reason,
+receipt}` / refused — with `Enum.reduce_while/3` short-circuiting on the
+first block, so later stages never run once an earlier gate refuses. Stage
+resolution is fail-closed: a registry module that does not exist is the
+typed refusal `{:stage_module_missing, module}`, never a silent skip. See
+`lib/ggen_igniter/landing_pipeline/stage.ex`,
+`lib/ggen_igniter/landing_pipeline.ex`.
+
+## projection backend (:projection)
+
+The sjira execute backend (wave W8) where one work order renders through
+the real reconciliation pipeline pinned to a pack.lock digest: resolve the
+order's `sj:targetPack`, scope to one row/template by `sj:capabilityId`
+via the pack's `projections/<capability_id>.rq`, write via
+`GgenIgniter.Actuate.write_file!/3` at `sj:targetPath` (guarded write =
+idempotency surface: `:written`/`:unchanged`/`:skipped_exists`), then run
+post-render gates plus falsifier-to-gate projection. Any failure refuses
+with standing NOT advanced. See
+`lib/ggen_igniter/semantic_jira/projection.ex`.
+
+## epoch plane
+
+One implementation-plane file glob bound by the epoch law
+(`Admit(f) ⟺ FreshEpoch(f)`). Three courts, one per plane:
+`lib/**/*.ex`, `config/**/*.exs`, `priv/repo/migrations/**/*.exs` — all
+three stamped by default by `GgenIgniter.EpochWatermark.stamp!/3` and
+judged by the same closed verdict set in `GgenIgniter.EpochFreshness`. See
+`lib/ggen_igniter/epoch_watermark.ex`, `lib/ggen_igniter/epoch_freshness.ex`.
+
+## pack bootstrap
+
+Cold reconstruction of bounded system state from durable artifacts only
+(git refs, canonical RDF, receipts, OCEL/TransitionLog, provider registry,
+explicit config), each source an explicit argument, emitted as canonical
+JSON plus a `state_digest`. An unreadable or tampered input is refused, not
+skipped. See `lib/ggen_igniter/semantic_jira/bootstrap.ex`.
+
+## G* fixed point
+
+The ggen-loop closure target: the loop driving its own completion —
+`mix semantic_jira.complete` loops frontier -> execute (via the
+`:projection` backend) -> reconcile until the frontier is empty, with each
+landing passed through the no-human review pipeline (risk tier, review,
+convergence, security gate, review-eval gate) instead of a human approver.
+Falsifier F1: the reference receipt replays with `|Δ|=0`; a nonzero delta
+that still admits violates F1. The "G*" name is the wave's informal label
+(not literal module vocabulary); the on-disk referents are
+`GgenIgniter.SemanticJira.Complete`, `GgenIgniter.SemanticJira.Projection`,
+and the falsifiers in `docs/jira/v26.10.20/RESTART_HANDOFF.md`.
+
+## landing pipeline
+
+`GgenIgniter.LandingPipeline` — one candidate landing driven through the
+FIXED, ordered stage registry in process: each stage is a real
+`GgenIgniter.LandingPipeline.Stage` behaviour implementation, and the order
+is load-bearing (risk tiering at order 2 precedes fan-out review at order 4,
+so a high-risk diff can never select its own reviewers). `reduce_while`
+short-circuits on the first `:block`/`:refused`; stage resolution is
+fail-closed — a missing registry module is the typed refusal
+`{:stage_module_missing, module}`, never a silent skip. Stage 0
+(`base_integrity`, implemented in the pipeline itself) proves the base
+premise against real git before any registry stage runs. Evidence is never
+a single boolean: per-stage + final receipts under
+`<receipts_dir>/<run_id>/` (see "landing receipt"). See
+`lib/ggen_igniter/landing_pipeline.ex`.
+
+## convergence
+
+`GgenIgniter.Convergence` — the per-content-sha round state machine that
+re-reviews a subject in bounded rounds: `ROUND_PASSED` (terminal),
+`ROUND_FIXED_ADVANCES` (class fixes apply, loop advances),
+`REVIEW_ESCALATED` (findings at the cap; terminal, wrapped in a real
+`GgenIgniter.Receipt`), never a silent round 4. The cap is checked BEFORE
+any reviewer dispatch, and `decide/2` is total — no raise path. Rounds 2+
+review only new/changed hunks; a finding whose hunk is unchanged is
+carried, not re-posted. See `lib/ggen_igniter/convergence.ex` (state
+machine), `lib/ggen_igniter/convergence/classes.ex`,
+`lib/ggen_igniter/convergence/hunks.ex`.
+
+## falsifier gate
+
+The projection backend's falsifier-to-gate bridge: each order falsifier
+(`order["falsifiers"]`, e.g. `"urn:semantic-jira:falsifier:EXEC-1:f1"`) is
+bound to the capability's falsified-state query written once into
+`verify/<capability>-falsifier-<n>.unbound.rq` in a STAGING COPY of the
+pack, so the falsifier rides the same `verify_unbound` census as the real
+`gates/*.rq` and can actually fire (a falsifier with no gate is a court
+that cannot fire). A capability with falsifiers but no falsified-state
+query refuses `{:falsifier_gates_missing, id}` (`admission_vacuous`).
+Projection evidence maps falsifier URNs to `survived`/`killed` from the
+real gate report. See
+`lib/ggen_igniter/semantic_jira/projection.ex` §5,
+`lib/ggen_igniter/semantic_jira/execute.ex`.
+
+## epoch court
+
+The epoch-law verification lane: `GgenIgniter.EpochFreshness` ("the epoch
+freshness court") judges every implementation-plane file of a candidate
+tree against a stamped `GgenIgniter.EpochWatermark` and returns one typed
+verdict per file under the per-file binary law
+`Admit(f) ⟺ FreshEpoch(f)` — three witnesses, in order of authority:
+receipts admit, similarity falsifies, blame informs (git authorship is
+recorded but never decides, because delete-and-re-add launders blame).
+Bound to all three planes (see "epoch plane"); falsifier F2 in
+`docs/jira/v26.10.20/RESTART_HANDOFF.md` exercises the config/migrations
+courts. See `lib/ggen_igniter/epoch_freshness.ex`,
+`lib/ggen_igniter/epoch_watermark.ex`.
+
+## review-eval
+
+The review-pipeline admission harness (`GgenIgniter.ReviewEval.*`):
+a corpus of real incidents seeded from fixed defects
+(`review_eval/seed.ex` → `corpus.ex`), a scorer running the corpus against
+a candidate reviewer and scoring recall (`scorer.ex`, per-run receipt in
+`receipt.ex`), and an admission gate over the sealed baseline
+(`gate.ex` — see "review eval baseline"). The gate admits iff candidate
+recall ≥ baseline recall with no per-surface drop beyond tolerance; errors
+count as missed, fail-closed. See `lib/ggen_igniter/review_eval/`,
+`docs/reference/cli/review-eval-gate.md`.
+
+## sealed baseline
+
+Alias for the sealed artifact of "review eval baseline":
+`Gate.seal/1` writes `.ggen_igniter/review-evals/baseline.json` only when
+the run receipt exists, its corpus digest matches the current corpus, and
+the run's head is an ancestor of HEAD — after which it is the fixed
+admission standard candidates are scored against, never silently resealed.
+See `lib/ggen_igniter/review_eval/gate.ex`.
+
+## stage behaviour
+
+Alias for "stage contract": `GgenIgniter.LandingPipeline.Stage`, the
+behaviour (`name/0`, load-bearing `order/0`, `run/1` → `{:pass, ...}` /
+`{:block, ...}` / refused) every landing-pipeline gate implements. See
+`lib/ggen_igniter/landing_pipeline/stage.ex`.
+
+## pack lock
+
+`GgenIgniter.PackLock` — the pack lockfile (`ggen_igniter.pack.lock`,
+schema_version 1, sorted-key JSON) pinning each pack to the sha256 of its
+on-disk content: a deterministic walk (path-sorted, tag `"F"` file / `"L"`
+symlink domain separation, mtimes and permissions excluded) whose digest
+change detects a tampered or silently changed pack instead of trusting it.
+`check/2` returns `:ok` or typed errors (`pack_digest_mismatch`,
+`lock_missing`, `lock_invalid`); symlink handling is the pack-lock law of
+"symlink boundary". Consumed by the `:projection` backend before any byte
+is rendered. See `lib/ggen_igniter/pack_lock.ex`.
+
 ## See also
 
 - `docs/status.md` — real IMPLEMENTED/PARTIAL_ALIVE/PLANNED status of every

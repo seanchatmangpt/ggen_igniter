@@ -6,7 +6,7 @@ defmodule GgenIgniter.MixProject do
   def project do
     [
       app: :ggen_igniter,
-      version: "26.10.7",
+      version: "26.11.10",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -75,7 +75,7 @@ defmodule GgenIgniter.MixProject do
         # mix.exs/CHANGELOG.md state" test greps `mix.exs`'s raw source with
         # `~r/version:\s*"([^"]+)"/` and breaks if `version:` isn't followed
         # directly by a literal string.
-        source_ref: "v26.10.7"
+        source_ref: "v26.11.10"
       ],
       dialyzer: [
         # `:mix` is excluded from the PLT by default (it's a build-time-only
@@ -119,7 +119,10 @@ defmodule GgenIgniter.MixProject do
       # Local shard runner: `MIX_TEST_PARTITION=2 mix test.shard --partitions 8`.
       # Do NOT run partitions concurrently in one checkout (shared _build/dev);
       # CI gives each shard its own runner.
-      "test.shard": ["test --include integration"]
+      "test.shard": ["test --include integration"],
+      # Incident-eval harness for the ggen-reviewer (lane L6, v26.10.20):
+      # run the corpus against the reviewer, then gate against the baseline.
+      "review.eval": ["ggen_igniter.review_eval.run", "ggen_igniter.review_eval.gate"]
     ]
   end
 

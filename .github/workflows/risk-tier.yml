@@ -1,0 +1,98 @@
+name: Risk Tier
+
+# Lane L8 (2026-10-20): classify every PR's blast radius from changed paths
+# using the same weight table the landing pipeline's lib uses, and label the
+# PR `risk-tier-<low|medium|high>`.
+#
+# NOTE ON AUTHORITY: this job labels only. Machine approvals (counts 0/1/2)
+# are enforced by the landing pipeline and bot-identity review submits. A bot
+# approval NEVER substitutes where branch protection requires human review --
+# this label is routing signal, not authorization.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout (PR head, no credentials persisted)
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Classify risk tier from changed paths
+        shell: bash
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}"...HEAD \
+            > "$RUNNER_TEMP/changed-files.txt"
+
+          python3 - "$RUNNER_TEMP/changed-files.txt" \
+            "${{ github.event.pull_request.base.sha }}" <<'EOF' >> "$GITHUB_OUTPUT"
+          import subprocess, sys
+
+          # Same weight table lib uses: lib/=4 priv/=3 .github/=3 test/=1
+          # docs/=0, unmatched=3. Total weight >= 10 => high.
+          WEIGHTS = [("lib/", 4), ("priv/", 3), (".github/", 3), ("test/", 1), ("docs/", 0)]
+          DEFAULT_WEIGHT = 3
+
+          with open(sys.argv[1]) as f:
+              files = [l.strip() for l in f if l.strip()]
+
+          base = sys.argv[2]
+          name_status = subprocess.run(
+              ["git", "diff", "--name-status", base + "...HEAD"],
+              capture_output=True, text=True,
+          ).stdout.splitlines()
+          deleted = {l.split("\t", 1)[1] for l in name_status
+                     if l.startswith("D\t") and "\t" in l}
+
+          workflows_touched = any(p.startswith(".github/workflows/") for p in files)
+          lib_deleted = any(p.startswith("lib/") for p in deleted)
+
+          total = sum(
+              next((w for prefix, w in WEIGHTS if p.startswith(prefix)), DEFAULT_WEIGHT)
+              for p in files
+          )
+
+          if workflows_touched or lib_deleted or total >= 10:
+              tier = "high"
+          elif total >= 3:
+              tier = "medium"
+          else:
+              tier = "low"
+
+          print(f"tier={tier}")
+          EOF
+          echo "Computed tier: $(grep '^tier=' "$GITHUB_OUTPUT" | tail -1)"
+
+      - name: Label PR with risk tier
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          tier="$(grep '^tier=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2)"
+          # Idempotent: replace any prior risk-tier label with the current one.
+          gh pr edit "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --remove-label "risk-tier-low" --remove-label "risk-tier-medium" \
+            --remove-label "risk-tier-high" || true
+          gh pr edit "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --add-label "risk-tier-$tier"

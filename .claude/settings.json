@@ -29,6 +29,15 @@
             "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/refuse-handwritten-ash.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/block-secrets-and-unsafe-code.sh\""
+          }
+        ]
       }
     ],
     "Stop": [
@@ -37,6 +46,14 @@
           {
             "type": "command",
             "command": "cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null || exit 0; [ -f mix.exs ] || exit 0; out=$(mix compile --warnings-as-errors 2>&1); if [ $? -ne 0 ]; then echo \"BLOCKED: mix compile --warnings-as-errors is failing — fix it or explain why before stopping (run the 'gate' skill for the full protocol):\" >&2; echo \"$out\" | tail -40 >&2; exit 2; fi; exit 0"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/require-gate-receipt.sh\""
           }
         ]
       }

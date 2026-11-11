@@ -1,0 +1,10 @@
+{
+  "status": "red",
+  "as_of": "2026-10-20",
+  "commands": [
+    {"command": "mix compile --warnings-as-errors", "exit": 0},
+    {"command": "mix test", "exit": 1}
+  ],
+  "summary": "Run 5: 1763 tests, 11 failures, 5 skipped (697 excluded). All per-lane suites green individually; residual failures owned by lanes C4/E1/E6 still in flight. Commit partition ready (E10); F1 rehearsal done (E8) and blocked only on the wave being uncommitted.",
+  "note": "Honest red; green only on a real 0-failure exit after last write lane lands."
+}

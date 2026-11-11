@@ -7,7 +7,10 @@ defmodule GgenIgniter.Test.PackCompile do
 
   ## API
 
-    * `render!/2`, `render/2` - real sync subprocess (`--engine sparql`).
+    * `render!/2`, `render/2` - real sync subprocess (fixed graphlaw engine,
+      no `--engine` flag -- the flag was removed from the sync task's
+      surface; any `--engine` value now refuses with an unknown-option
+      error).
     * `compile/2`, `compile!/2` - real compile into a tmp ebin; modules are loaded.
     * `purge/1` - unload modules, drop their tmp ebin from the code path.
     * `with_compiled/3` - render + compile + callback + purge (always).
@@ -87,8 +90,6 @@ defmodule GgenIgniter.Test.PackCompile do
         pack_args(name, stem, opts[:pack_dir]) ++
         ontology_args(opts[:ontology]) ++
         [
-          "--engine",
-          "sparql",
           "--out",
           out,
           "--manifest-dir",

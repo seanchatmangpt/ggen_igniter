@@ -1,5 +1,81 @@
 # Changelog
 
+## v26.11.10
+
+Released 2026-11-10. Production release shoring up the codebase, landing pipeline, review pipeline, security audit tasks, and release packaging:
+
+- **Fixed** Cranelift WASM concurrency timeout in `GgenIgniter.GallTicketTest` under high parallel suite load (`async: false`, `@moduletag timeout: 600_000`).
+- **Fixed** vendored fleet receipt schema drift in `priv/schema/fleet-receipt.v2.json` re-vendored from `~/.claude/dfcm/receipt.schema.json`.
+- **Changed** project version aligned to CalVer `26.11.10` in `mix.exs` and `CHANGELOG.md`.
+- **Subsumed** the in-flight review pipeline, staged landing pipeline, and ggen-loop closure wave (lanes per `docs/jira/v26.10.20/_LANES.md`):
+
+- **Added** the fan-out review aggregation core (`GgenIgniter.Review`,
+  `lib/ggen_igniter/review.ex`) with its support modules
+  `lib/ggen_igniter/review/{finding,perspective,verifier,tally,filter,store}.ex`
+  and the four pinned perspectives
+  `lib/ggen_igniter/review/perspectives/{correctness,invariants,chicago_tests,epoch_law}.ex`:
+  one round fans the diff over the pinned perspectives, dedupes by
+  deterministic finding id, drops `:style`/`:diagnostic` pre-vote, votes
+  survivors under M-verifier majority (default M = 3, fail closed), applies
+  cross-round suppression, tallies and persists. Mix task
+  `mix ggen_igniter.review` (`lib/mix/tasks/ggen_igniter.review.ex`).
+- **Added** deterministic risk tiering (`GgenIgniter.Review.RiskTier`,
+  `lib/ggen_igniter/review/risk_tier.ex`): pure path-weight classification
+  (fail-closed on unmatched paths); additive `risk_tier`/`risk_score`/
+  `risk_approvals` fields on `GgenIgniter.Receipt` (`lib/ggen_igniter/receipt.ex`),
+  populated at `GgenIgniter.Reactors.ReconcileReactor`'s receipt sites.
+- **Added** the bounded convergence loop (`GgenIgniter.Convergence`,
+  `lib/ggen_igniter/convergence.ex`, with
+  `lib/ggen_igniter/convergence/{hunks,classes}.ex`): per-content-sha round
+  state machine — pass / fixed-and-advance / `REVIEW_ESCALATED` at the
+  round cap, cap checked before any reviewer dispatch; rounds persisted as
+  hash-chained `rounds.jsonl` by `GgenIgniter.ReviewStore`
+  (`lib/ggen_igniter/review_store.ex`; distinct from
+  `lib/ggen_igniter/review/store.ex`). Mix task
+  `mix ggen_igniter.review.convergence`.
+- **Added** the diff-level security gate (`GgenIgniter.SecurityReview`,
+  `lib/ggen_igniter/security_review.ex` with
+  `lib/ggen_igniter/security_review/{receipt,diff_source}.ex` and checks in
+  `lib/ggen_igniter/security_review/checks/`): reviews ADDED diff lines only,
+  dedups by stable `SEC-*` finding id, auto-clears resolved findings,
+  verdict `:blocked` iff any open finding; exit code 5 `SECURITY_BLOCKED`
+  (`lib/ggen_igniter/task_contract.ex`) from `mix ggen_igniter.security_review`
+  and as the pre-step branch of `mix semantic_jira.complete`
+  (`lib/ggen_igniter/semantic_jira/complete.ex`).
+- **Added** the review-eval incident harness (`lib/ggen_igniter/review_eval/{corpus,scorer,gate,case_runner,receipt,seed}.ex`):
+  seeded incident corpus (`.ggen_igniter/review-evals/corpus.jsonl`),
+  recall scoring, and an admission gate over sealed baselines
+  (`.ggen_igniter/review-evals/baseline.json`); mix tasks
+  `mix ggen_igniter.review_eval.{seed,run,gate}` and the `review.eval` mix
+  alias.
+- **Added** the staged landing pipeline (`GgenIgniter.LandingPipeline`,
+  `lib/ggen_igniter/landing_pipeline.ex` with the stage behaviour
+  `lib/ggen_igniter/landing_pipeline/stage.ex`): fixed ordered stage
+  registry — base integrity, risk tier (order 2) before fan-out review
+  (order 4), fail-closed stage resolution
+  (`{:stage_module_missing, module}`), per-stage + `landing-receipt.json`
+  evidence, first block/refused short-circuits the run. Mix task
+  `mix ggen_igniter.review.pipeline`.
+- **Added** the W8 `:projection` execute backend
+  (`GgenIgniter.SemanticJira.Projection`, `lib/ggen_igniter/semantic_jira/projection.ex`):
+  one work order -> one capability row -> one rendered artifact through the
+  real reconciliation pipeline, pack.lock-digest pinned, guarded write as
+  the idempotency surface, post-render gates plus falsifier-to-gate
+  projection; wired into `mix semantic_jira.execute`
+  (`lib/ggen_igniter/semantic_jira/execute.ex`, additive; fixture pack at
+  `test/fixtures/projection-pack/`).
+- **Added** three-plane epoch courts: `GgenIgniter.EpochWatermark`
+  (`lib/ggen_igniter/epoch_watermark.ex`) now stamps `lib/**/*.ex`,
+  `config/**/*.exs`, and `priv/repo/migrations/**/*.exs` by default;
+  `GgenIgniter.EpochFreshness` (`lib/ggen_igniter/epoch_freshness.ex`)
+  judges all three planes under the same closed verdict set, and
+  `GgenIgniter.SemanticJira.EpochPlan`
+  (`lib/ggen_igniter/semantic_jira/epoch_plan.ex`) refuses epoch-carrying
+  plans at admission.
+- **Added** machine-review CI: `.github/workflows/machine-review.yml` and
+  `.github/workflows/risk-tier.yml` (both new), plus a `merge_group`
+  trigger in `.github/workflows/ci.yml`.
+
 ## v26.10.7
 
 - **Added** `mix semantic_jira.complete` (GgenIgniter.SemanticJira.Complete):

@@ -2,7 +2,7 @@
 
 Source: `lib/ggen_igniter/task_contract.ex` (`GgenIgniter.TaskContract`). One exit-code table and
 one JSON envelope shared by the `mix ggen_igniter.*` tasks, so a CI job can branch on the exit
-code alone. Last updated 2026-09-28 (v26.9.30 WA2, lane F2 fixes).
+code alone. Last updated 2026-10-20 (v26.10.20 review/landing-gate suite rows).
 
 ## Global table
 
@@ -13,22 +13,32 @@ code alone. Last updated 2026-09-28 (v26.9.30 WA2, lane F2 fixes).
 | 2 | `invocation` | `UNKNOWN` | Bad invocation: missing or unknown flag, unresolvable input. |
 | 3 | `unsupported` | `UNSUPPORTED` | Request outside the task's supported scope (`plan`'s read-only path). |
 | 4 | `drift` | `BLOCKED` | `sync --check`: committed generated files differ from what the ontology produces. |
+| 5 | `security_blocked` | `SECURITY_BLOCKED` | `security_review`: open security findings block landing (`GgenIgniter.SecurityReview`). |
 
 Collision analysis: `plan` already used 0/2/3; the `epoch.*` tasks use 0/1/2 (1 = refusal or
 unknown provenance); `verify` and `doctor` use 0/1. Code 4 was unused, so drift has its own code and
-never aliases a refusal (the tool refused vs. the tree is stale).
+never aliases a refusal (the tool refused vs. the tree is stale). Code 5 is likewise exclusive;
+it shares drift's BLOCKED standing but is a distinct code — the tree is not stale, the diff
+carries open security findings.
 
 ## Per-task columns
 
-| Task | 0 | 1 | 2 | 3 | 4 |
-|---|---|---|---|---|---|
+| Task | 0 | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|---|
 | `sync` | ran / no-op | reactor refusal, stale outputs, `--lock` mismatch | bad invocation (incl. a missing `--ontology`/`--template` file) | — | — |
 | `sync --check` | clean (or only preserved stale files) | refusal (incl. stale outputs under `--on-stale refuse`) | bad invocation | — | drift (incl. stale outputs under `--on-stale prune`) |
 | `plan` | plan computed (changes pending or not) | — | bad invocation (incl. unknown flag) | unsupported capability | — |
 | `verify` | pack verifies | pack failed verification | bad invocation (no `--pack`, unknown flag, missing pack dir/ontology) | — | — |
 | `doctor` | all checks passed | a check failed | unknown flag | — | — |
 | `epoch.check` | all `ALIVE_*` | refusal / unknown provenance | invocation | — | — |
-| `epoch.explain` | always, on a judged file | — | invocation | — | — |
+| `epoch.explain` | always, on a judged file | — | invocation | — | — | — |
+| `review` | round completed, no POSTED findings (clean, or all suppressed) | posted findings remain, or typed refusal (bad diff refs) | bad invocation | — | — | — |
+| `review.pipeline` | every stage passed with real embedded output (status ALIVE) | BLOCKED: base drift / first-stage block or refusal (typed JSON as last line of stderr + `landing-receipt.json` on disk) | invalid invocation (e.g. missing `--base`) | — | — | — |
+| `review.convergence` | passed (round state machine reached a terminal passed state) | escalated (`REVIEW_ESCALATED`) | bad invocation | — | — | — |
+| `review_eval.seed` | corpus seeded | Mix default 1: `corpus_exists` without `--force` (`Mix.raise`; moduledoc documents no explicit exit table) | bad flag parse | — | — | — |
+| `review_eval.run` | run receipt written (always, even on REGRESSED verdict) | — (moduledoc documents no explicit exit table) | — | — | — | — |
+| `review_eval.gate` | seal admitted / run receipt passed | refused (digest mismatch, verdict refuse, non-ancestor head) | invocation/config error (missing baseline, missing run receipt) | — | — | — |
+| `security_review` | clear — no open findings | `REFUSED:SECURITY_REVIEW_DIFF_UNAVAILABLE` | bad invocation | — | — | blocked — open security findings |
 
 ## JSON envelope
 

@@ -148,10 +148,12 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
       SELECT ?package_name WHERE { ex:a ex:packageName ?package_name }
       """)
 
+      # NOTE: no `engine:` opt -- the engine is fixed to graphlaw; passing a
+      # former `engine: "oxigraph"` value now raises ArgumentError
+      # ("the engine is fixed to \"graphlaw\" (no engine choice)").
       {:ok, result} =
         GgenIgniter.Reconcile.run(
           pack_dir: pack,
-          engine: "oxigraph",
           out: "#{root}/rec/{{ package_name }}.txt"
         )
 
@@ -216,8 +218,12 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
     test "plain --pack NAME with several templates still refuses (unchanged contract)", %{
       root: root
     } do
-      {output, code} =
-        sync(["--engine", "sparql", "--pack", "ash-lifecycle-pack-nonexistent"], root)
+      # NOTE: this previously passed `--engine sparql`; that flag was removed
+      # from the sync task's option surface (fixed graphlaw engine) and any
+      # `--engine` value now refuses with an unknown-option error, so the
+      # invocation was purged -- this test exercises the multi-template
+      # refusal, not the flag refusal.
+      {output, code} = sync(["--pack", "ash-lifecycle-pack-nonexistent"], root)
 
       refute code == 0
       assert output =~ "no *.eex/*.tmpl template found in"

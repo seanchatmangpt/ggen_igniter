@@ -32,10 +32,11 @@ defmodule GgenIgniter.StateMachineConservationTest do
   end
 
   # Real sync into a caller-owned root so the tree can be hashed before and after.
-  # Engine law (2026-10-17): the engine is fixed; the historical per-engine sweep collapsed to the one fixed engine.
-  @engines ["graphlaw"]
-
-  defp sync(ontology_dir, root, engine \\ "graphlaw") do
+  # Engine law (2026-10-17): the engine is fixed to graphlaw and the `--engine`
+  # flag was removed from the sync task's option surface -- the historical
+  # per-engine sweep collapsed to the one fixed engine, and any `--engine`
+  # value now refuses with an unknown-option error, so no flag is passed.
+  defp sync(ontology_dir, root) do
     out = Path.join(root, "lib/<%= file_stem %>.ex")
 
     System.cmd(
@@ -46,8 +47,6 @@ defmodule GgenIgniter.StateMachineConservationTest do
         @spec_,
         "--ontology",
         Path.join(ontology_dir, "ontology.ttl"),
-        "--engine",
-        engine,
         "--out",
         out,
         "--manifest-dir",
@@ -70,13 +69,13 @@ defmodule GgenIgniter.StateMachineConservationTest do
     |> then(&:crypto.hash(:sha256, :erlang.term_to_binary(&1)))
   end
 
-  defp refusal(fixture, engine) do
+  defp refusal(fixture) do
     odir = ontology!([fixture])
     root = PackCompile.tmp_project!(%{})
 
     try do
       before = tree_hash(root)
-      {output, status} = sync(odir, root, engine)
+      {output, status} = sync(odir, root)
       {status, output, before == tree_hash(root)}
     after
       PackCompile.cleanup(odir)
@@ -85,84 +84,83 @@ defmodule GgenIgniter.StateMachineConservationTest do
   end
 
   describe "typed-refusal gates (zero files written)" do
-    for engine <- @engines do
-      @engine engine
+    # The historical `for engine <- @engines` sweep is gone: the engine is
+    # fixed to graphlaw (no engine choice), so these gates run once against
+    # the fixed engine.
+    test "[graphlaw] unreachable state -> exact REFUSED:STATE_UNREACHABLE ...: c detail" do
+      {status, output, unchanged?} = refusal("neg_unreachable.ttl")
+      assert status != 0, output
+      assert output =~ ~r/REFUSED:STATE_UNREACHABLE \S+: c; broken_term=mu_on_O/
+      assert unchanged?
+    end
 
-      test "[#{engine}] unreachable state -> exact REFUSED:STATE_UNREACHABLE ...: c detail" do
-        {status, output, unchanged?} = refusal("neg_unreachable.ttl", @engine)
-        assert status != 0, output
-        assert output =~ ~r/REFUSED:STATE_UNREACHABLE \S+: c; broken_term=mu_on_O/
-        assert unchanged?
-      end
+    test "[graphlaw] dead-end non-terminal -> REFUSED:STATE_DEAD_END; edge C->D fixes it" do
+      {status, output, unchanged?} = refusal("neg_dead_end.ttl")
+      assert status != 0, output
+      assert output =~ "REFUSED:STATE_DEAD_END"
+      assert unchanged?
 
-      test "[#{engine}] dead-end non-terminal -> REFUSED:STATE_DEAD_END; edge C->D fixes it" do
-        {status, output, unchanged?} = refusal("neg_dead_end.ttl", @engine)
-        assert status != 0, output
-        assert output =~ "REFUSED:STATE_DEAD_END"
-        assert unchanged?
+      {status, output, _} = refusal("pos_dead_end_fixed.ttl")
+      assert status == 0, output
+    end
 
-        {status, output, _} = refusal("pos_dead_end_fixed.ttl", @engine)
-        assert status == 0, output
-      end
+    test "[graphlaw] transition naming an undeclared state -> TRANSITION_UNKNOWN_STATE" do
+      {status, output, unchanged?} = refusal("neg_unknown_state.ttl")
+      assert status != 0, output
+      assert output =~ "REFUSED:TRANSITION_UNKNOWN_STATE"
+      assert output =~ "ghost"
+      assert unchanged?
+    end
 
-      test "[#{engine}] transition naming an undeclared state -> TRANSITION_UNKNOWN_STATE" do
-        {status, output, unchanged?} = refusal("neg_unknown_state.ttl", @engine)
-        assert status != 0, output
-        assert output =~ "REFUSED:TRANSITION_UNKNOWN_STATE"
-        assert output =~ "ghost"
-        assert unchanged?
-      end
+    test "[graphlaw] no initial state -> REFUSED:INITIAL_STATE_MISSING" do
+      {status, output, unchanged?} = refusal("neg_no_initial.ttl")
+      assert status != 0, output
+      assert output =~ "REFUSED:INITIAL_STATE_MISSING"
+      assert unchanged?
+    end
 
-      test "[#{engine}] no initial state -> REFUSED:INITIAL_STATE_MISSING" do
-        {status, output, unchanged?} = refusal("neg_no_initial.ttl", @engine)
-        assert status != 0, output
-        assert output =~ "REFUSED:INITIAL_STATE_MISSING"
-        assert unchanged?
-      end
+    test "[graphlaw] one action targeting two states -> ACTION_AMBIGUOUS_TARGET (names it)" do
+      {status, output, unchanged?} = refusal("neg_ambiguous_target.ttl")
+      assert status != 0, output
+      assert output =~ "REFUSED:ACTION_AMBIGUOUS_TARGET"
+      assert unchanged?
+    end
 
-      test "[#{engine}] one action targeting two states -> ACTION_AMBIGUOUS_TARGET (names it)" do
-        {status, output, unchanged?} = refusal("neg_ambiguous_target.ttl", @engine)
-        assert status != 0, output
-        assert output =~ "REFUSED:ACTION_AMBIGUOUS_TARGET"
-        assert unchanged?
-      end
+    test "[graphlaw] defaultInitialState undeclared -> TRANSITION_UNKNOWN_STATE" do
+      {status, output, unchanged?} = refusal("neg_default_initial_undeclared.ttl")
+      assert status != 0, output
+      assert output =~ ~r/REFUSED:TRANSITION_UNKNOWN_STATE .*default-initial \S*abc-ghost/
+      assert unchanged?
+    end
 
-      test "[#{engine}] defaultInitialState undeclared -> TRANSITION_UNKNOWN_STATE" do
-        {status, output, unchanged?} = refusal("neg_default_initial_undeclared.ttl", @engine)
-        assert status != 0, output
-        assert output =~ ~r/REFUSED:TRANSITION_UNKNOWN_STATE .*default-initial \S*abc-ghost/
-        assert unchanged?
-      end
+    test "[graphlaw] defaultInitialState not among initialState -> refused" do
+      {status, output, unchanged?} = refusal("neg_default_initial_not_initial.ttl")
+      assert status != 0, output
+      assert output =~ ~r/REFUSED:TRANSITION_UNKNOWN_STATE .*default-initial \S*abc-b/
+      assert unchanged?
+    end
 
-      test "[#{engine}] defaultInitialState not among initialState -> refused" do
-        {status, output, unchanged?} = refusal("neg_default_initial_not_initial.ttl", @engine)
-        assert status != 0, output
-        assert output =~ ~r/REFUSED:TRANSITION_UNKNOWN_STATE .*default-initial \S*abc-b/
-        assert unchanged?
-      end
+    test "[graphlaw] defaultInitialState without stateName -> refused" do
+      {status, output, unchanged?} = refusal("neg_default_initial_unnamed.ttl")
+      assert status != 0, output
+      assert output =~ "default-initial without stateName"
+      assert unchanged?
+    end
 
-      test "[#{engine}] defaultInitialState without stateName -> refused" do
-        {status, output, unchanged?} = refusal("neg_default_initial_unnamed.ttl", @engine)
-        assert status != 0, output
-        assert output =~ "default-initial without stateName"
-        assert unchanged?
-      end
+    test "[graphlaw] illegal state name -> REFUSED:INPUT_INVALID" do
+      {status, output, unchanged?} = refusal("neg_bad_state_name.ttl")
+      assert status != 0, output
+      assert output =~ ~s(REFUSED:INPUT_INVALID)
+      assert output =~ ~r/stateName \\*"Bad Name\\*" is not a legal identifier/
+      assert unchanged?
+    end
 
-      test "[#{engine}] illegal state name -> REFUSED:INPUT_INVALID" do
-        {status, output, unchanged?} = refusal("neg_bad_state_name.ttl", @engine)
-        assert status != 0, output
-        assert output =~ ~s(REFUSED:INPUT_INVALID)
-        assert output =~ ~r/stateName \\*"Bad Name\\*" is not a legal identifier/
-        assert unchanged?
-      end
-
-      test "[#{engine}] reserved action name create -> REFUSED:INPUT_INVALID" do
-        {status, output, unchanged?} = refusal("neg_reserved_action.ttl", @engine)
-        assert status != 0, output
-        assert output =~ ~s(REFUSED:INPUT_INVALID)
-        assert output =~ ~r/action \\*"create\\*" is reserved/
-        assert unchanged?
-      end
+    test "[graphlaw] reserved action name create -> REFUSED:INPUT_INVALID" do
+      {status, output, unchanged?} = refusal("neg_reserved_action.ttl")
+      assert status != 0, output
+      assert output =~ ~s(REFUSED:INPUT_INVALID)
+      assert output =~ ~r/action \\*"create\\*" is reserved/
+      assert unchanged?
     end
 
     test "a bad machine refuses the whole sync: a good machine beside it is not written" do

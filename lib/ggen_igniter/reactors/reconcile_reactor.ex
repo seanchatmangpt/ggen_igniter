@@ -418,6 +418,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     PendingActuation,
     Receipt,
     Reconcile,
+    Review.RiskTier,
     ShellHook
   }
 
@@ -742,7 +743,18 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   end
 
   defp verify_compile(opts, event_sink, project_dir) do
-    case System.cmd("mix", ["compile", "--warnings-as-errors"],
+    # BK-51 (smalt 2026-10-22): plain `mix compile` — the whole-tree
+    # `--warnings-as-errors` gate failed on warnings in unrelated path deps
+    # (ash_r2rml/ash_graphlaw/ggen_igniter's own lib) even when every
+    # generated artifact replayed byte-identically, killing `mix smalt.gen`
+    # tree-wide with VERIFICATION_FAILED→FILES_RESTORED compensations and
+    # false `build_broken` standings. Byte-identity of the generated
+    # artifacts is enforced separately by the per-artifact replay-identity
+    # tests and the read-only `--check` drift probe; the :verify step's job
+    # is that the tree still BUILDS with the generated content in place.
+    # (Invalid generated Elixir still fails plain `mix compile`, so the
+    # compensation/undo court contract is unchanged.)
+    case System.cmd("mix", ["compile"],
            cd: project_dir,
            stderr_to_stdout: true
          ) do
@@ -915,9 +927,18 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
                   :error -> {step_name, original_reason}
                 end
 
+              # Lane L3 risk classification. Kind is NOT available on this
+              # failure path (only the touched path list is) -- every path
+              # defaults to `:modify`, disclosed as a known coarsening.
+              {risk_assessment, risk_signals} =
+                risk_with_signals(Enum.map(details.paths, &%{path: &1, kind: :modify}))
+
               Receipt.new(%{
                 standing: :compensation_failed,
                 recipe_key: nil,
+                risk_tier: risk_assessment.tier,
+                risk_score: risk_assessment.score,
+                risk_approvals: risk_assessment.approvals,
                 started_at: started_at,
                 # Deliberately `nil`, never a computed digest: some paths
                 # restored and some did not, so there is no single coherent
@@ -946,24 +967,38 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
                     end),
                   "post_run_state_hash" => Receipt.hash_files(details.paths)
                 }
+                |> Map.put("risk_signals", risk_signals)
               })
 
             :error ->
               standing = standing_for_failure(step_name, original_reason)
 
+              # Lane L3 risk classification. Same disclosure as the
+              # :compensation_failed site above: only the touched path list
+              # survives to this failure path, so every kind defaults to
+              # `:modify`.
+              failed_files = event_attr(events, "ACTUATION_STARTED", "paths") || []
+
+              {risk_assessment, risk_signals} =
+                risk_with_signals(Enum.map(failed_files, &%{path: &1, kind: :modify}))
+
               Receipt.new(%{
                 standing: standing,
                 recipe_key: nil,
+                risk_tier: risk_assessment.tier,
+                risk_score: risk_assessment.score,
+                risk_approvals: risk_assessment.approvals,
                 started_at: started_at,
                 pre_run_hash: event_attr(events, "FILES_RESTORED", "pre_run_hash"),
                 post_run_hash: event_attr(events, "FILES_RESTORED", "post_run_hash"),
-                files: event_attr(events, "ACTUATION_STARTED", "paths") || [],
+                files: failed_files,
                 events: events,
                 reason: describe_failure(original_reason),
                 metadata: %{
                   "failed_step" => inspect(step_name),
                   "raw_error" => inspect(original_reason)
                 }
+                |> Map.put("risk_signals", risk_signals)
               })
           end
 
@@ -2047,6 +2082,25 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     end
   end
 
+  # Lane L3: classify a diff via `GgenIgniter.Review.RiskTier` (pure,
+  # deterministic policy — no IO/clock/LLM at classify time) and convert its
+  # signals to Jason-encodable string-keyed maps for receipt `metadata`
+  # ("risk_signals"). Returns `{assessment, signals}` so the receipt's
+  # additive `risk_tier`/`risk_score`/`risk_approvals` fields and the
+  # metadata signal list always come from ONE classification.
+  @spec risk_with_signals([GgenIgniter.Review.RiskTier.change()]) ::
+          {GgenIgniter.Review.RiskTier.t(), [%{String.t() => String.t()}]}
+  defp risk_with_signals(diff) do
+    assessment = RiskTier.classify(diff)
+
+    signals =
+      Enum.map(assessment.signals, fn signal ->
+        %{"rule" => Atom.to_string(signal.rule), "detail" => signal.detail}
+      end)
+
+    {assessment, signals}
+  end
+
   # `nil` (flag omitted) resolves to the safest default, `:refuse` -- same
   # convention as `Mix.Tasks.GgenIgniter.Sync`'s own `resolve_on_stale!/1`
   # (silent orphaning must never be the default, silent deletion must never
@@ -3066,12 +3120,40 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     # never contains one.
     summary_suffix = reactor_summary_suffix(results)
 
+    # Lane L3 risk classification, from the admitted plan itself: each
+    # output's kind comes from the matching `%PendingActuation{}`'s own
+    # `operation` (`:create`/`:delete` pass through; `:replace`/`:inject`
+    # are modifications), defaulting to `:modify` for any output path the
+    # plan did not carry. Paths are the receipt's own `files` identity
+    # (`Map.keys(outputs)`), so `risk_tier`/`risk_score` are reproducible
+    # from the persisted receipt alone. A dry-run (empty `outputs`)
+    # classifies as the honest empty diff.
+    kind_by_canonical =
+      Map.new(admitted.pending, fn pa ->
+        {pa.canonical_target,
+         case pa.operation do
+           :create -> :create
+           :delete -> :delete
+           _ -> :modify
+         end}
+      end)
+
+    {risk_assessment, risk_signals} =
+      risk_with_signals(
+        Enum.map(Map.keys(outputs), fn path ->
+          %{path: path, kind: Map.get(kind_by_canonical, path, :modify)}
+        end)
+      )
+
     receipt =
       Receipt.new(%{
         standing: :alive,
         recipe_key: single_recipe && single_recipe.recipe_key,
         pack_name: pack_name,
         pack_digest: pack_digest,
+        risk_tier: risk_assessment.tier,
+        risk_score: risk_assessment.score,
+        risk_approvals: risk_assessment.approvals,
         pre_run_hash: pre_run_hash,
         post_run_hash: post_run_hash,
         files: Map.keys(outputs),
@@ -3115,6 +3197,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
           "igniter_diverged" => igniter_diverged,
           "igniter_paths" => igniter_paths
         }
+        |> Map.put("risk_signals", risk_signals)
       })
 
     # -- 2. Persist the receipt FIRST (real append-only write) -- but ONLY

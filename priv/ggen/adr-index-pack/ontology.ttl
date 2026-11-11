@@ -158,3 +158,11 @@ adr:dA009 a adr:Decision ;
     adr:filename "ADR-009-a2a-pack-local-vocabulary.md" ;
     adr:title "Pack-local `a2a:` vocabulary for the Semantic Jira A2A projection" ;
     adr:status "Accepted" .
+
+# Added v26.10.20 (docs lane, ADR-013): number/filename/title/status verbatim
+# from docs/architecture/adr/ADR-013-landing-pipeline-staged-composition.md.
+adr:dADR013 a adr:Decision ;
+    adr:number "ADR-013" ;
+    adr:filename "ADR-013-landing-pipeline-staged-composition.md" ;
+    adr:title "Landing Pipeline: Staged Composition Behind a Behaviour" ;
+    adr:status "Accepted (2026-10-20)" .

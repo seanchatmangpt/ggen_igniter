@@ -9,6 +9,7 @@ defmodule Mix.Tasks.SemanticJira.Complete do
 
       mix semantic_jira.complete --work-orders PATH --ledger PATH
         ( --pack-dir PACK --target-dir DIR --receipts-dir DIR
+          | --packs-root DIR --target-dir DIR --receipts-dir DIR
           | --receipt PATH )
         [--template PATH] [--verifier-suite SUITE] [--alias owner/repo=alias]
         [--provider NAME] [--court-map PATH] [--authority-graph PATH]
@@ -18,9 +19,28 @@ defmodule Mix.Tasks.SemanticJira.Complete do
 
     * `--work-orders PATH` (required) — JSON array or `{"work_orders": [...]}`
     * `--ledger PATH` (required) — the ndjson standing ledger
-    * `--pack-dir PACK` + `--target-dir DIR` — the local execution backend
-      (exactly one backend per invocation, enforced by `Execute.run/1`);
-      requires `--receipts-dir`
+    * `--pack-dir PACK` + `--target-dir DIR` — the fixed-pack local execution
+      backend (exactly one backend per invocation, enforced by
+      `Execute.run/1`); requires `--receipts-dir`
+    * `--packs-root DIR` — the multi-pack local execution backend: instead of
+      one fixed pack for the whole run, each executed order's `sj:targetPack`
+      resolves per order to `<packs-root>/<target_pack>` (a multi-pack
+      backlog — one project consuming several packs, e.g. a substrate pack
+      and a semconv pack — closes in ONE completion run). Mutually exclusive
+      with `--pack-dir` at the invocation boundary (exit 2,
+      `pack_source_exclusive/1` — the pack source is never ambiguous); the
+      fixed `--pack-dir` semantics still apply inside `Execute.run/1` per
+      order: the resolved dir must satisfy the order's `sj:targetPack`
+      WORLD check (a mismatch refuses `REFUSED(target_pack_mismatch)` at
+      the execute hop before anything runs), an order carrying no target
+      pack executes against the root-joined dir as-is. Requires
+      `--target-dir` + `--receipts-dir` like the fixed backend; each
+      order's per-order receipt still lands at
+      `<receipts-dir>/<sanitized-identity>.json`. Blocked orders in the
+      exit-0 receipt are settled work under the settled-blocked receipt law
+      (the kernel's own blocked rows with their own reasons, recorded in the
+      completion receipt — never re-executed, never a failure); `--packs-root`
+      changes which pack each order resolves to, not that law
     * `--receipts-dir DIR` — where each order's synthesized sealed export is
       written: `<DIR>/<sanitized-identity>.json` (every character outside
       `A-Za-z0-9._-` replaced by `_`); required for the local backend

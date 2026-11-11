@@ -27,3 +27,14 @@ Run this before claiming any implementation, fix, or refactor is complete.
    `~/.claude/rules/testing-chicago-style.md`'s one legitimate exception, or removed.
 7. Output a receipts block: `command -> exit code -> key output lines`. Do not use the
    words "done"/"fixed"/"working" without this block immediately preceding it.
+8. After the receipts block, print every `status=open` finding in
+   `docs/REVIEW_STATE.md` VERBATIM (id, severity, class, file:line, invariant).
+   If the file is absent or has no open findings, print `OPEN FINDINGS: none`.
+   Claiming "done" while OPEN findings exist is invalid — adjudicate them first
+   (`adjudicate-findings` skill) or state `NEEDS-HUMAN`.
+9. Review-eval gate: if this session's diff touches
+   `.claude/agents/ggen-reviewer.md` or `lib/ggen_igniter/review_eval/`, run
+   `mix ggen_igniter.review_eval.gate` and paste its real output with the
+   receipts block. If the module/task does not exist yet (the review-eval lane
+   has not landed), note it as `review_eval.gate: not-yet-landed` in the
+   receipts block — that is a disclosure, not a failure.

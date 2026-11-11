@@ -30,8 +30,30 @@ defmodule GgenIgniterSyncShelloutTest do
     )
   end
 
+  # FM-LAW-015: ggen 26.11.4 requires ea.graph.json admission; these fixtures
+  # predate the gate and are sync-mechanics tests, not admission tests. The
+  # flag path (`--skip-ea-admission`) is unreachable test-side -- lib
+  # `SyncShellout.run/2` hardcodes `["sync", "run"]` -- so the minimal,
+  # element-free valid graph (per ggen-abb-sbb `EaGraph`: schema
+  # `ggen.ea.graph.v1`, one strategy, all element arrays empty) satisfies
+  # the gate without changing what these tests verify. Per B7 recommendation.
+  defp write_ea_graph_fixture!(dir) do
+    File.write!(Path.join(dir, "ea.graph.json"), """
+    {
+      "schema": "ggen.ea.graph.v1",
+      "strategy": {"id": "strategy:sync-mechanics-fixture", "title": "Sync mechanics fixture"},
+      "capabilities": [],
+      "abbs": [],
+      "contracts": [],
+      "candidate_sbbs": [],
+      "qualifications": []
+    }
+    """)
+  end
+
   defp write_project!(dir, ontology_ttl) do
     File.mkdir_p!(Path.join(dir, "templates"))
+    write_ea_graph_fixture!(dir)
 
     File.write!(Path.join(dir, "ggen.toml"), """
     [project]

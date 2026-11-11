@@ -200,7 +200,10 @@ defmodule GgenIgniter.Receipt do
           receipt_hash: String.t() | nil,
           completed_at: String.t() | nil,
           pack_name: String.t() | nil,
-          pack_digest: String.t() | nil
+          pack_digest: String.t() | nil,
+          risk_tier: GgenIgniter.Review.RiskTier.tier() | nil,
+          risk_score: non_neg_integer() | nil,
+          risk_approvals: non_neg_integer() | nil
         }
 
   require Logger
@@ -243,7 +246,15 @@ defmodule GgenIgniter.Receipt do
             # `GgenIgniter.PackLock.digest/1`. Emitted by `to_json_map/1` only
             # when non-nil so pre-existing receipt_hash values stay stable.
             pack_name: nil,
-            pack_digest: nil
+            pack_digest: nil,
+            # Lane L3 (v26.10.20): optional deterministic risk classification
+            # from `GgenIgniter.Review.RiskTier`. Emitted by `to_json_map/1`
+            # only when non-nil (same put_optional precedent as pack_name/
+            # pack_digest above) so pre-existing receipt_hash values stay
+            # stable for receipts that never carry a classification.
+            risk_tier: nil,
+            risk_score: nil,
+            risk_approvals: nil
 
   @doc "The five real, closed-set standing atoms a receipt may carry."
   @spec standings() :: [standing(), ...]
@@ -451,6 +462,9 @@ defmodule GgenIgniter.Receipt do
     }
     |> put_optional("pack_name", receipt.pack_name)
     |> put_optional("pack_digest", receipt.pack_digest)
+    |> put_optional("risk_tier", receipt.risk_tier && Atom.to_string(receipt.risk_tier))
+    |> put_optional("risk_score", receipt.risk_score)
+    |> put_optional("risk_approvals", receipt.risk_approvals)
   end
 
   defp put_optional(map, _key, nil), do: map

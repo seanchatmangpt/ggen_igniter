@@ -410,14 +410,19 @@ defmodule GgenIgniter.E2e.LifecycleTest do
   # (`GgenIgniter.Pack.discover_template/2`'s stem-based template selection --
   # see that function's moduledoc and `Mix.Tasks.GgenIgniter.Sync`'s own
   # "`--pack NAME:TEMPLATE`" moduledoc section), rather than a separate
-  # `--pack-dir`/`--template` pair -- real flag-count reduction from 4 to 3
-  # per call (`--pack-dir` + `--ontology` + `--template` + `--engine` ->
-  # `--pack` + `--ontology` + `--engine`), NOT to 1: `--ontology` still varies
-  # per lifecycle stage (v1/v2/v3, never the pack's own bundled
-  # `ontology.ttl`) so it must stay explicit, and `--engine sparql` stays
-  # pinned for the real, separate, already-tracked oxigraph-quoting bug
-  # described below -- it is a workaround flag, not decoration, so it is not
-  # dropped just because the flag count would look better without it.
+  # `--pack-dir`/`--template` pair -- per call: `--pack` + `--ontology`.
+  # `--ontology` still varies per lifecycle stage (v1/v2/v3, never the pack's
+  # own bundled `ontology.ttl`) so it must stay explicit.
+  #
+  # A former `--engine sparql` pin was purged (2026-10-20): the `--engine`
+  # flag was removed from the sync task's option surface entirely (the
+  # engine is fixed to graphlaw -- see `Mix.Tasks.GgenIgniter.Sync`'s
+  # moduledoc "The engine (fixed: graphlaw)"), so any `--engine` value now
+  # refuses with an unknown-option error before any actuation. The
+  # oxigraph-quoting rationale below the old pin's rationale referenced is
+  # likewise historical: the fixed graphlaw engine wraps Oxigraph term
+  # serialization, so the fixture templates keep their quote-stripping
+  # normalization, but there is no second engine to pin.
   #
   # This bare `--pack NAME:STEM` form (no `--pack-dir`) only resolves because
   # `install_pack!/3` (called once, right after scaffolding -- see this
@@ -426,30 +431,6 @@ defmodule GgenIgniter.E2e.LifecycleTest do
   # still auto-discovered as named queries the same way `--pack-dir` used to
   # provide them. `--out`/`--for_each` both still come from each template's
   # own frontmatter (`to:`/`for_each:`), not passed on the CLI.
-  #
-  # `--engine sparql` is pinned explicitly (not left to the CLI's own
-  # default) -- real, verified requirement (2026-08-27): `Mix.Tasks.
-  # GgenIgniter.Sync`'s own default engine changed from "sparql" to
-  # "oxigraph" as part of concurrent, unrelated work on this same file in
-  # this session (see this module's moduledoc and `lib/mix/tasks/
-  # ggen_igniter.sync.ex`'s `engine_name = opts[:engine] || "oxigraph"`).
-  # Confirmed via a real `mix ggen_igniter.sync --dry-run` probe against this
-  # exact pack: with no `--engine` flag, the notice line read `(engine:
-  # oxigraph, ...)` and the planned output paths were literally
-  # `lib/support_desk/support/"customer".ex` / `.../"ticket".ex` -- quote
-  # characters embedded in the path/content. Traced to a real bug in
-  # `native/ggen_graph_nif/src/oxigraph_engine.rs:73`
-  # (`row.insert(variable.as_str().to_string(), term.to_string())`): Oxigraph's
-  # `Term::Display` impl serializes a string literal in Turtle/N-Triples
-  # syntax (surrounded by `"..."`), so every string-typed SPARQL binding comes
-  # back from the oxigraph engine with literal quote characters baked into
-  # its value -- unlike the `sparql` engine (the `sparql` hex package), which
-  # returns the plain unquoted lexical form this whole fixture pack's
-  # templates and assertions were authored and previously verified against.
-  # Pinning `--engine sparql` here makes this e2e hermetic against the CLI's
-  # own default (which is legitimately still in flux from that unrelated,
-  # concurrent oxigraph-engine workstream) rather than silently riding
-  # whatever it resolves to next.
   defp sync!(app_dir, template_stem, ontology_path) do
     cmd!(
       "mix",
@@ -458,9 +439,7 @@ defmodule GgenIgniter.E2e.LifecycleTest do
         "--pack",
         "#{@pack_name}:#{template_stem}",
         "--ontology",
-        ontology_path,
-        "--engine",
-        "sparql"
+        ontology_path
       ],
       cd: app_dir
     )

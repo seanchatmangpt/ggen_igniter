@@ -134,6 +134,25 @@ live in each module's `schema:`/moduledoc)
   ALIVE; ALIVE stays xaas-fabric-only); refusals carry
   `{"standing","reason","broken_term","hop","detail"}` and write
   `refused.json` under `--out-dir`; exits 0/1/2.
+- **Review / landing gate suite** (re-verified against each task's live
+  `OptionParser` strict list 2026-10-20):
+  `mix ggen_igniter.review --base [--head|--verifiers|--round|--review-id|--json]`
+  (`review.md` — one fan-out review round over a diff, exit 1 = posted
+  findings remain);
+  `mix ggen_igniter.review.convergence --sha [--diff|--max-rounds|--json]`
+  (`review-convergence.md` — bounded convergence rounds per content-sha,
+  cap 3, exit 1 = escalated);
+  `mix ggen_igniter.review.pipeline --base [--epoch|--out|--json]`
+  (`review-pipeline.md` — the fixed 8-stage landing registry, epoch-check
+  exit law);
+  `mix ggen_igniter.security_review [--base|--cwd|--receipt-out|--json|--check]`
+  (`security-review.md` — diff-level security gate, exit 5 = SECURITY_BLOCKED);
+  `mix ggen_igniter.review_eval.seed [--force|--min-conf|--max]`
+  (`review-eval-seed.md`), `mix ggen_igniter.review_eval.run
+  [--reviewer-cmd]` (`review-eval-run.md`),
+  `mix ggen_igniter.review_eval.gate (--seal --run-id | --run-receipt
+  [--surface-tolerance])` (`review-eval-gate.md`) — the incident-eval
+  corpus trio.
 - `mix pm4pytest <args>` — passthrough to the standalone `pm4pytest` binary
   (`PM4PYTEST_BIN` → PATH → `REFUSED:PM4PYTEST_BINARY_NOT_FOUND`, exit = the
   child's exit code).

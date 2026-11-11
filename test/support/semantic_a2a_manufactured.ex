@@ -75,8 +75,6 @@ defmodule GgenIgniter.Test.SemanticA2AManufactured do
         "mix",
         [
           "ggen_igniter.sync",
-          "--engine",
-          "sparql",
           "--pack",
           "semantic-jira-pack:a2a_manufacture",
           "--out",

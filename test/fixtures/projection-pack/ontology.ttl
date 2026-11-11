@@ -1,0 +1,8 @@
+@prefix ex: <http://example.com/projection-pack#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:demo-capability a ex:Row ;
+    ex:title "projection fixture row" .
+
+ex:other-capability a ex:Row ;
+    ex:title "another row" .

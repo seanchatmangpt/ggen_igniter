@@ -252,4 +252,51 @@ defmodule GgenIgniter.Telemetry.OcelEmitter do
   def any?(events, activity) when is_list(events) and is_binary(activity) do
     Enum.any?(events, &(&1["activity"] == activity))
   end
+
+  # -- Review-convergence events (lane L4, additive only) --
+
+  @review_round_event [:ggen_igniter, :review, :round]
+
+  @doc """
+  The `:telemetry` event name each `emit_review_round/2` call executes
+  under: `[:ggen_igniter, :review, :round]`. Additive lane-L4 surface; the
+  pre-existing `[:ggen_igniter, :reconcile, :ocel]` event is untouched.
+  """
+  @spec review_round_event() :: [atom(), ...]
+  def review_round_event, do: @review_round_event
+
+  @doc """
+  Builds one OCEL-shaped review-round event (same `build_event/3` shape as
+  `emit/4`), executes it as a real `:telemetry` event under
+  `[:ggen_igniter, :review, :round]`, appends it to `sink` (if a live pid),
+  and returns the built event map. `attributes` carries the round record's
+  identity fields (`sha`, `round`, `state`, `decision`, `reviewed_scope`).
+  """
+  @spec emit_review_round(pid() | nil, map()) :: event()
+  def emit_review_round(sink, attributes) when is_map(attributes) do
+    event =
+      build_event(
+        "REVIEW_ROUND",
+        [review_run_object(Map.get(attributes, "sha", Map.get(attributes, :sha, "unknown")))],
+        Map.new(attributes, fn {k, v} -> {to_string(k), jsonable(v)} end)
+      )
+
+    :telemetry.execute(@review_round_event, %{count: 1}, event)
+
+    if is_pid(sink) and Process.alive?(sink) do
+      Agent.update(sink, fn events -> [event | events] end)
+    end
+
+    event
+  end
+
+  @doc "Builds a `\"review_run\"`-typed OCEL object reference for `sha`."
+  @spec review_run_object(String.t()) :: object()
+  def review_run_object(sha) when is_binary(sha), do: %{"type" => "review_run", "id" => sha}
+
+  defp jsonable(nil), do: nil
+  defp jsonable(v) when is_atom(v) and not is_boolean(v), do: Atom.to_string(v)
+  defp jsonable(v) when is_list(v), do: Enum.map(v, &jsonable/1)
+  defp jsonable(v) when is_map(v), do: Map.new(v, fn {k, x} -> {to_string(k), jsonable(x)} end)
+  defp jsonable(v), do: v
 end

@@ -7,7 +7,6 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
   `GgenIgniter.Actuate.inject_content!/5`) a given CLI invocation hits, as a
   function of the cross product of:
 
-    * `--engine` (`sparql` | `oxigraph`)
     * `mode` (`file` | `eval`, via template frontmatter)
     * `--for-each` (present | absent)
     * `--dry-run` (present | absent)
@@ -20,7 +19,7 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
 
     * `ggen_igniter_actuate_properties_test.exs` exercises
       `GgenIgniter.Actuate` DIRECTLY (in-process function calls), never the
-      CLI task, never `--engine`/`--for-each`/`--dry-run` dispatch.
+      CLI task, never `--for-each`/`--dry-run` dispatch.
     * `ggen_igniter_sync_properties_test.exs` exercises two of
       `Mix.Tasks.GgenIgniter.Sync`'s PURE helpers
       (`build_bindings/2`/`resolve_named_queries!/2`) in-process; it never
@@ -28,8 +27,8 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
       `mode`/`inject`/write-guards.
     * `ggen_igniter_full_pipeline_properties_test.exs` composes
       `Frontmatter.split_template/1` -> `Render.render/2` ->
-      `Actuate.write_file!/3` directly (in-process), with no `--engine`,
-      no `--for-each`, no `mode: eval`, no `inject: true` -- it is a
+      `Actuate.write_file!/3` directly (in-process), with no
+      `--for-each`, no `mode: eval`, no `inject: true` -- it is a
       2-dimensional matrix (`to`/`unless_exists`) of ONE actuation path
       only.
     * `ggen_igniter_cross_engine_equivalence_properties_test.exs` compares
@@ -37,9 +36,9 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
       `mix ggen_igniter.sync`'s dispatch branches at all.
 
   None of the five pre-existing property files runs the real CLI subprocess
-  across `engine x mode x for_each x dry_run x inject x guard_variant`
+  across `mode x for_each x dry_run x inject x guard_variant`
   jointly. This file does, using StreamData to generate members of the REAL
-  VALID subset of that 6-dimensional space (worked out below), running one
+  VALID subset of that 5-dimensional space (worked out below), running one
   real `mix ggen_igniter.sync` subprocess per generated case against
   fixtures this file writes itself into a fresh temp directory (Chicago
   style: real subprocess, real files on disk, real state-based assertions on
@@ -70,45 +69,43 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
      `inject: true` or `mode: :eval` would only be testing "this flag has no
      effect here", which is already implied by reading the function heads
      above, not a new dispatch branch to probe.
-  3. `--for-each` and `--dry-run` and `--engine` are each honored
+  3. `--for-each` and `--dry-run` are each honored
      independently by EVERY actuation branch (`for_each` fans out the same
      `actuate!/8` call once per row; `dry_run` is threaded into
-     `write_opts`/`inject_opts`/the `:eval` clause guard; `--engine` only
-     changes the ROW VALUE SHAPE fed into rendering, per the sync task's own
-     moduledoc) -- these three are freely crossable with every branch below,
-     no additional constraint.
+     `write_opts`/`inject_opts`/the `:eval` clause guard) -- these two are
+     freely crossable with every branch below, no additional constraint.
+     (`--engine` is NOT a dimension: the flag was removed from the sync
+     task's option surface -- the engine is fixed to graphlaw, see
+     `Mix.Tasks.GgenIgniter.Sync`'s moduledoc "The engine (fixed:
+     graphlaw)" -- so any `--engine` invocation now refuses with an
+     unknown-option error.)
 
-  This yields exactly 3 branch families, each freely crossed with `engine x
-  for_each x dry_run` (2x2x2 = 8 each):
+  This yields exactly 3 branch families, each freely crossed with
+  `for_each x dry_run` (2x2 = 4 each):
 
     * **Branch A** (`mode: file, inject: false`) x 3 guard variants
-      (`none`/`unless_exists`/`skip_if`) = 8 x 3 = 24 valid cases.
-    * **Branch B** (`mode: file, inject: true`) = 8 valid cases.
-    * **Branch C** (`mode: eval`) = 8 valid cases.
+      (`none`/`unless_exists`/`skip_if`) = 4 x 3 = 12 valid cases.
+    * **Branch B** (`mode: file, inject: true`) = 4 valid cases.
+    * **Branch C** (`mode: eval`) = 4 valid cases.
 
-  Total: 40 valid combinations in the real space. `combo_gen/0` below
+  Total: 20 valid combinations in the real space. `combo_gen/0` below
   generates exactly this set (via dependent `gen all` binding: `inject`'s
   generator depends on the generated `mode`, `guard_variant`'s generator
   depends on both) -- it can never produce `mode: :eval, inject: true` or a
   non-`:none` `guard_variant` under `inject: true`, because those are not
   members of the valid set reasoned out above.
 
-  ## Engine-shape normalization (a real, disclosed, deliberately-authored
+  ## Row-value quote stripping (a real, disclosed, deliberately-authored
   choice, not an assumption)
 
-  Empirically confirmed before writing this test (`mix run -e` against a
-  throwaway probe ontology/query): the native oxigraph engine returns a
-  plain untyped string literal wrapped in literal double-quote characters
-  (`"\"Agent6.Mod1\""`, no `^^datatype` suffix for an untyped string), while
-  `sparql` returns the bare value (`"Agent6.Mod1"`) -- exactly the
-  discrepancy `Mix.Tasks.GgenIgniter.Sync`'s own moduledoc discloses. Every
+  The fixed graphlaw engine wraps its Oxigraph term serialization, and
+  Oxigraph's `Term::Display` serializes a plain untyped string literal with
+  literal double-quote characters around it (`"\"Agent6.Mod1\""`). Every
   fixture template this file writes strips those quote characters itself
   (`String.replace(module_name, "\"", "")`) before using a value in a
   `--for-each`-rendered `--out` path or in an assertion -- a normalization
   this TEST authors into its own throwaway fixtures, not a change to
-  `GgenIgniter.Query.Oxigraph`/`Render`/`Actuate` -- so this file's
-  dispatch-branch assertions are the same across both engines, and only
-  `--engine` dispatch itself (not incidental quoting) is what varies.
+  `GgenIgniter.Engine.Graphlaw`/`Render`/`Actuate`.
   """
 
   # async: false -- real `mix`/`ggen` subprocesses share this checkout's _build/dev.
@@ -116,6 +113,11 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
   use ExUnitProperties
 
   @moduletag :integration
+  # Each generated case runs one real `mix ggen_igniter.sync` subprocess;
+  # 24 subprocesses against a cold per-lane build root exceed the default
+  # 300s module timeout, so this module declares a real budget instead of
+  # shrinking the generated matrix.
+  @moduletag timeout: 1_800_000
 
   alias StreamData
 
@@ -158,8 +160,7 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
   # `mode: file, inject: false` template -- no frontmatter needed since
   # `--out`/`--mode` are always passed explicitly on the CLI in this test.
   # Both bound values are quote-stripped in the template itself (see
-  # moduledoc's "Engine-shape normalization" section) so the written content
-  # is byte-identical across `--engine sparql` and `--engine oxigraph`.
+  # moduledoc's "Row-value quote stripping" section).
   @file_plain_eex """
   defmodule <%= module_name |> String.replace("\\"", "") %> do
     def field_name, do: "<%= field_name |> String.replace("\\"", "") %>"
@@ -254,7 +255,6 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
   defp combo_gen do
     gen all(
           mode <- StreamData.member_of([:file, :eval]),
-          engine <- StreamData.member_of(["sparql", "oxigraph"]),
           for_each <- StreamData.boolean(),
           dry_run <- StreamData.boolean(),
           inject <- inject_gen(mode),
@@ -262,7 +262,6 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
         ) do
       %{
         mode: mode,
-        engine: engine,
         for_each: for_each,
         dry_run: dry_run,
         inject: inject,
@@ -278,7 +277,7 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
 
   property "mix ggen_igniter.sync dispatches to the correct real actuation branch, and " <>
              "produces the correct real on-disk/evaluated outcome, for every valid " <>
-             "engine x mode x for_each x dry_run x inject x guard_variant combination" do
+             "mode x for_each x dry_run x inject x guard_variant combination" do
     check all(combo <- combo_gen(), max_runs: 24) do
       case_dir =
         Path.join(
@@ -312,8 +311,6 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
 
     args =
       [
-        "--engine",
-        combo.engine,
         "--ontology",
         fixtures.ontology,
         "--template",
@@ -401,8 +398,6 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
     # (no `mix.exs`) tmp dir.
     args =
       [
-        "--engine",
-        combo.engine,
         "--ontology",
         fixtures.ontology,
         "--template",
@@ -503,8 +498,6 @@ defmodule GgenIgniter.ActuationDispatchMatrixPropertiesTest do
     # clause above.
     args =
       [
-        "--engine",
-        combo.engine,
         "--ontology",
         fixtures.ontology,
         "--template",

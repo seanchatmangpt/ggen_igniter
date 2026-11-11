@@ -49,11 +49,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
       BYTE-UNCHANGED with no receipt written (the target tree may already
       hold the actuated file in the latter two cases: work happened,
       standing did not advance -- the fail-closed honesty this module
-      exists to keep). Disclosed follow-on (NOT this module's law yet):
-      the name check pins the NAME only; re-digesting `--pack-dir` via
-      `GgenIgniter.PackLock.digest_checked/1` and comparing it against the
-      sync-time stamp `TargetPack.enforce!/2` recorded requires reading
-      the sync receipt, which is a separate lane.
+      exists to keep).
     * **receipt** -- `Descriptor.receipt_from_xaas/2` with the descriptor
       bridge: the single receipt consumer seam (v26.10.1 RESOLUTIONS R1),
       its `receipt_refused` family passing through verbatim. The export
@@ -76,6 +72,27 @@ defmodule GgenIgniter.SemanticJira.Execute do
       `{"status" => "already_applied"}`; reconciler refusals pass through
       verbatim. The append is the LAST write: every earlier refusal leaves
       the ledger byte-unchanged.
+
+  ## UNSUPPORTED(target_pack_digest_recheck)
+
+  Disclosed residue (restated from the execute hop, lane c7): the
+  `target_pack` name gate above pins the pack NAME only. The intended
+  replay fence -- re-digesting `--pack-dir` via
+  `GgenIgniter.PackLock.digest_checked/1` and comparing it against the
+  sync-time stamp `TargetPack.enforce!/2` recorded -- is
+  UNSUPPORTED this window because the sync-time stamp is never persisted:
+  `Mix.Tasks.GgenIgniter.Sync`'s `maybe_enforce_target_packs!/2` discards
+  `TargetPack.enforce!/2`'s returned `%{pack_name => pack_digest}` stamp
+  (returns bare `:ok`), so there is no sync receipt to read the stamp
+  from. Closing this residue requires either persisting the stamp in a
+  sync receipt (a `Mix.Tasks.GgenIgniter.Sync` change, not this module's
+  file) or comparing against the one digest pin that IS durable today --
+  the pack.lock file checked by `GgenIgniter.PackLock.check/2`, which the
+  `--pack-lock` projection backend already consumes. Until one of those
+  lands, a pack whose content changed after sync but whose resolved name
+  is unchanged executes without refusal. This is pinned as live law (not
+  fixed behavior) by
+  `test/ggen_igniter_semantic_jira_execute_replay_fence_test.exs`.
 
   Refusals are `{1, typed}` where `typed` is
   `%{"standing" => "REFUSED", "reason" => ..., "broken_term" => ...,
@@ -108,7 +125,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
   """
 
   alias GgenIgniter.{GateVerify, Pack, Receipt, Reconcile}
-  alias GgenIgniter.SemanticJira.{Descriptor, Reconciler, TransitionLog}
+  alias GgenIgniter.SemanticJira.{Descriptor, Projection, Reconciler, TransitionLog}
 
   @outcome "partial_alive"
   @target "PARTIAL_ALIVE"
@@ -187,21 +204,25 @@ defmodule GgenIgniter.SemanticJira.Execute do
     pack_dir = Keyword.get(opts, :pack_dir)
     target_dir = Keyword.get(opts, :target_dir)
     receipt = Keyword.get(opts, :receipt)
+    pack_lock = Keyword.get(opts, :pack_lock)
 
     cond do
-      present?(receipt) and (present?(pack_dir) or present?(target_dir)) ->
+      present?(receipt) and (present?(pack_dir) or present?(target_dir) or present?(pack_lock)) ->
         {:invalid,
-         "--receipt is the external backend: it is mutually exclusive with --pack-dir/--target-dir"}
+         "--receipt is the external backend: it is mutually exclusive with --pack-dir/--target-dir/--pack-lock"}
 
       present?(receipt) ->
         external_backend(opts)
+
+      present?(pack_lock) ->
+        projection_backend(opts, pack_dir, target_dir, pack_lock)
 
       present?(pack_dir) and present?(target_dir) ->
         local_backend(opts, pack_dir, target_dir)
 
       true ->
         {:invalid,
-         "exactly one execution backend is required: --pack-dir + --target-dir, or --receipt PATH"}
+         "exactly one execution backend is required: --pack-dir + --target-dir, --pack-lock (+ --pack-dir + --target-dir), or --receipt PATH"}
     end
   end
 
@@ -217,6 +238,23 @@ defmodule GgenIgniter.SemanticJira.Execute do
       {:ok, {:local, pack_dir, target_dir}}
     else
       {:invalid, "the local backend (--pack-dir + --target-dir) requires --receipt-out"}
+    end
+  end
+
+  # The `:projection` backend (PROJECTION-ARCH-PLAN D4/W8): --pack-lock PATH
+  # selects it; it needs everything the local backend needs PLUS the
+  # pack.lock path the digest pin is checked against. The executed order must
+  # carry `capability_id` (sj:capabilityId) and `target_path` (sj:targetPath).
+  defp projection_backend(opts, pack_dir, target_dir, pack_lock) do
+    cond do
+      not (present?(pack_dir) and present?(target_dir)) ->
+        {:invalid, "the projection backend (--pack-lock) requires --pack-dir and --target-dir"}
+
+      not present?(opts[:receipt_out]) ->
+        {:invalid, "the projection backend (--pack-lock) requires --receipt-out"}
+
+      true ->
+        {:ok, {:projection, pack_dir, target_dir, pack_lock}}
     end
   end
 
@@ -251,6 +289,60 @@ defmodule GgenIgniter.SemanticJira.Execute do
   # check -- is involved.
   defp execute_backend({:external, export}, _descriptor, _opts, _order) do
     {:ok, %{export: export}}
+  end
+
+  # The `:projection` backend (W8/D4): the local backend's name gate +
+  # base-drift gate + authority-graph resolution, then `Projection.project/2`
+  # does the pack-lock-pinned, capability-scoped render/write/gate/receipt.
+  # The projection receipt rides the synthesized export under "projection".
+  defp execute_backend({:projection, pack_dir, target_dir, lock_path}, descriptor, opts, order) do
+    with :ok <- check_target_pack(target_pack(order), pack_dir),
+         {:ok, head} <- base_head(target_dir, descriptor["base_sha"]),
+         {:ok, ontology} <- order_ontology(order, pack_dir),
+         {:ok, outcome, projection} <- project(order, pack_dir, target_dir, lock_path, opts, ontology) do
+      gates = %{"status" => "pass", "steps" => projection["gate_results"]["steps"] || []}
+
+      # The projection receipt rides INSIDE the export BEFORE the digest is
+      # computed over it (the same law `maybe_put_artifacts/2` documents: the
+      # receipt commits to the whole export, so late additions must precede
+      # the digest, and the digest is recomputed over the final bytes).
+      # The projection receipt rides INSIDE the export BEFORE the digest is
+      # computed over it (the same law `maybe_put_artifacts/2` documents: the
+      # receipt commits to the whole export, so the digest is computed over
+      # the FINAL bytes).
+      export =
+        descriptor
+        |> synthesize_export(gates, [Path.join(target_dir, target_path(order))], nil)
+        |> Map.put("projection", projection)
+        |> Map.put("projection_write_outcome", Atom.to_string(outcome))
+        |> Map.put("receipt_digest", nil)
+
+      export = Map.put(export, "receipt_digest", Descriptor.receipt_digest(export))
+
+      File.write!(opts[:receipt_out], Jason.encode!(export, pretty: true) <> "\n")
+
+      {:ok, %{export: export, head: head}}
+    end
+  end
+
+  defp target_pack(nil), do: nil
+  defp target_pack(order), do: order["target_pack"]
+
+  defp target_path(order), do: order["target_path"] || ""
+
+  # Projection refusals land at the execute hop with their typed reason
+  # (broken_term mapping below), exactly like the local backend's own reasons.
+  defp project(order, pack_dir, target_dir, lock_path, opts, ontology) do
+    case Projection.project(order,
+           pack_dir: pack_dir,
+           target_dir: target_dir,
+           lock_path: lock_path,
+           ontology: ontology,
+           template: opts[:template]
+         ) do
+      {:ok, outcome, projection} -> {:ok, outcome, projection}
+      {:error, reason} -> {:error, {"execute", reason}}
+    end
   end
 
   # Multi-artifact actuation (the order-carried `outputs` contract). When the
@@ -728,6 +820,9 @@ defmodule GgenIgniter.SemanticJira.Execute do
   defp broken_term({:descriptor_refused, _}), do: "R_missing_authority"
   defp broken_term({:base_drift, _}), do: "mu_on_O"
   defp broken_term({:target_pack_mismatch, _, _}), do: "mu_unlawful"
+  defp broken_term({:pack_lock_failed, _}), do: "mu_unlawful"
+  defp broken_term({:capability_unknown, _}), do: "R_missing_identity"
+  defp broken_term({:falsifier_gates_missing, _}), do: "admission_vacuous"
   defp broken_term(:sync_failed), do: "mu_unlawful"
   defp broken_term({:verification_failed, _}), do: "admission_vacuous"
   defp broken_term({:receipt_refused, _}), do: "R_missing_consequence"
@@ -743,6 +838,17 @@ defmodule GgenIgniter.SemanticJira.Execute do
   defp detail(_hop, {:base_drift, message}), do: message
 
   defp detail(_hop, :sync_failed), do: "the local reconciliation pipeline raised"
+
+  defp detail(_hop, {:pack_lock_failed, reason}),
+    do: "the pack.lock digest pin refused: #{GgenIgniter.PackLock.refusal_text(reason) |> String.replace_prefix("REFUSED:", "")}"
+
+  defp detail(_hop, {:capability_unknown, id}),
+    do: "no projections/<capability_id>.rq scope query in the pack for #{inspect(id)}"
+
+  defp detail(_hop, {:falsifier_gates_missing, id}),
+    do: "capability #{inspect(id)} has falsifiers but no projections/<id>.unbound.rq falsified-state query"
+
+  defp detail(_hop, {:bad_output_path, message}), do: message
 
   defp detail(_hop, {:verification_failed, message}),
     do: "the pack's fail-closed gates refused: #{message}"

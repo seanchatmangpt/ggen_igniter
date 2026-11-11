@@ -17,6 +17,26 @@ defmodule GgenIgniter.EpochWatermark do
   exact identities, with content similarity as the falsifier for renames,
   copies and re-adds that change the path.
 
+  ## Three courts (epoch law planes)
+
+  The law binds three implementation planes, judged by the same closed
+  verdict set:
+
+    * `lib/**/*.ex` — the first court
+    * `config/**/*.exs` (`config.exs`, `test.exs`, `dev.exs`, ...)
+    * `priv/repo/migrations/**/*.exs`
+
+  `stamp!/3` records identities for ALL THREE planes by default (pass
+  `:globs` to override the set, or the single `:glob` for the historical
+  lib-only stamp). A plane whose glob matches no tracked files is stamped
+  VACUOUSLY-EMPTY: the glob stays bound in the manifest and the absence is
+  a loud, recorded fact (`"implementation_globs"` lists it; downstream
+  courts report the plane with zero files), never a silent narrowing of
+  the boundary. This repo currently has no `priv/repo/migrations/` — that
+  plane is stamped vacuously-empty on purpose, and the first real
+  migration to appear lands INSIDE a stamped epoch and is judged like any
+  other implementation file.
+
   The manifest is an identity stamp, not a cache: re-stamping the same epoch
   over a different tree would silently redefine what "legacy" means for
   that epoch, so a second `stamp!/3` over a changed tree is refused unless
@@ -37,6 +57,7 @@ defmodule GgenIgniter.EpochWatermark do
 
   @schema_version "1"
   @default_glob "lib/**/*.ex"
+  @default_globs ["lib/**/*.ex", "config/**/*.exs", "priv/repo/migrations/**/*.exs"]
 
   @typedoc "Decoded watermark.json — string keys, Jason's default map shape."
   @type manifest :: %{String.t() => term()}
@@ -53,9 +74,13 @@ defmodule GgenIgniter.EpochWatermark do
   def path(base_dir, epoch),
     do: Path.join([base_dir, ".ggen_igniter", "epoch", epoch, "watermark.json"])
 
-  @doc "The implementation-plane glob stamped when `stamp!/3` is not given a `:glob`."
+  @doc "The historical lib-only implementation-plane glob (kept for compatibility)."
   @spec default_glob() :: String.t()
   def default_glob, do: @default_glob
+
+  @doc "The full three-plane implementation glob set stamped by default."
+  @spec default_globs() :: [String.t(), ...]
+  def default_globs, do: @default_globs
 
   @doc """
   Loads a previously stamped manifest. `{:error, :not_found}` when no
@@ -83,7 +108,10 @@ defmodule GgenIgniter.EpochWatermark do
 
   Options:
 
-    * `:glob` — implementation-plane glob (default `#{@default_glob}`)
+    * `:globs` — list of implementation-plane globs (default
+      `#{inspect(@default_globs)}`)
+    * `:glob` — single-glob spelling of `:globs` (historical lib-only
+      callers); ignored when `:globs` is given
     * `:restamp` — `false` (default) or `%{reason: binary}`, required to
       overwrite an existing stamp whose head/tree/files differ
     * `:now` — `DateTime.t()` for the watermark instant (default now)
@@ -95,15 +123,21 @@ defmodule GgenIgniter.EpochWatermark do
   @spec stamp!(String.t(), String.t(), keyword()) ::
           {:ok, manifest(), String.t()} | {:error, refusal()}
   def stamp!(base_dir, epoch, opts \\ []) do
-    glob = Keyword.get(opts, :glob, @default_glob)
+    globs = resolve_globs(opts)
     now = Keyword.get(opts, :now, DateTime.utc_now())
     restamp = Keyword.get(opts, :restamp, false)
 
     with :ok <- inside_work_tree!(base_dir),
          {:ok, head_sha} <- git_rev(base_dir, ["rev-parse", "HEAD"]),
          {:ok, tree_sha} <- git_rev(base_dir, ["rev-parse", "HEAD^{tree}"]),
-         {:ok, files} <- implementation_files(base_dir, glob) do
-      identity = %{"head_sha" => head_sha, "tree_sha" => tree_sha, "files" => files}
+         {:ok, files} <- implementation_files(base_dir, globs) do
+      identity = %{
+        "head_sha" => head_sha,
+        "tree_sha" => tree_sha,
+        "files" => files,
+        "implementation_globs" => globs
+      }
+
       file = path(base_dir, epoch)
 
       existing =
@@ -118,7 +152,7 @@ defmodule GgenIgniter.EpochWatermark do
 
       case existing do
         nil ->
-          write_stamp!(base_dir, epoch, identity, glob, now, nil)
+          write_stamp!(base_dir, epoch, identity, globs, now, nil)
 
         :corrupt ->
           {:error,
@@ -136,7 +170,7 @@ defmodule GgenIgniter.EpochWatermark do
           else
             case restamp do
               %{reason: reason} when is_binary(reason) ->
-                write_stamp!(base_dir, epoch, identity, glob, now, reason)
+                write_stamp!(base_dir, epoch, identity, globs, now, reason)
 
               _ ->
                 {:error,
@@ -177,15 +211,16 @@ defmodule GgenIgniter.EpochWatermark do
     |> Base.encode16(case: :lower)
   end
 
-  defp write_stamp!(base_dir, epoch, identity, glob, now, restamp_reason) do
+  defp write_stamp!(base_dir, epoch, identity, globs, now, restamp_reason) do
     manifest =
       identity
       |> Map.merge(%{
         "schema_version" => @schema_version,
         "epoch" => epoch,
         "watermark_instant" => DateTime.to_iso8601(now),
-        "implementation_glob" => glob
+        "implementation_globs" => globs
       })
+      |> Map.merge(legacy_glob_field(globs))
       |> maybe_put_reason(restamp_reason)
 
     file = path(base_dir, epoch)
@@ -201,11 +236,32 @@ defmodule GgenIgniter.EpochWatermark do
   defp maybe_put_reason(manifest, nil), do: manifest
   defp maybe_put_reason(manifest, reason), do: Map.put(manifest, "restamp_reason", reason)
 
+  # Historical single-glob spelling, kept only when it is the whole truth:
+  # a multi-plane stamp must not present one glob as THE implementation
+  # plane, so the legacy key is omitted rather than narrowed.
+  defp legacy_glob_field([single]), do: %{"implementation_glob" => single}
+  defp legacy_glob_field(_globs), do: %{}
+
+  defp resolve_globs(opts) do
+    case Keyword.get(opts, :globs) do
+      globs when is_list(globs) and globs != [] -> Enum.filter(globs, &is_binary/1)
+      _ -> case Keyword.get(opts, :glob) do
+        glob when is_binary(glob) -> [glob]
+        _ -> @default_globs
+      end
+    end
+  end
+
   # `:(glob)` pathspec magic makes `**` behave like Path.wildcard's — without
   # it, git's default pathspec `*` also matches `/` and the two glob dialects
   # silently disagree about which files the implementation plane covers.
-  defp implementation_files(base_dir, glob) do
-    case git(base_dir, ["ls-files", "-s", "--", ":(glob)" <> glob]) do
+  # All plane globs are stamped in ONE `git ls-files` call; per-glob vacuity
+  # is a loud manifest fact (see "Three courts" in the moduledoc), and the
+  # empty-set refusal fires only when NO glob matches anything.
+  defp implementation_files(base_dir, globs) do
+    pathspecs = Enum.map(globs, &":(glob)" <> &1)
+
+    case git(base_dir, ["ls-files", "-s", "--" | pathspecs]) do
       {output, 0} ->
         files =
           output
@@ -220,7 +276,7 @@ defmodule GgenIgniter.EpochWatermark do
             %{
               code: :empty_implementation_set,
               detail:
-                "glob #{inspect(glob)} matches no tracked files; an epoch stamp over " <>
+                "globs #{inspect(globs)} match no tracked files; an epoch stamp over " <>
                   "nothing is not a boundary"
             }}}
         else

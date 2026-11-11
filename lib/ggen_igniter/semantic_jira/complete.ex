@@ -166,25 +166,81 @@ defmodule GgenIgniter.SemanticJira.Complete do
       |> maybe_resolve_pack(work_orders, identity)
       |> then(&if per_order_receipt, do: Keyword.put(&1, :receipt_out, per_order_receipt), else: &1)
 
-    case Execute.run(order_opts) do
-      {0, order_receipt} ->
-        loop(opts, work_orders, ledger, authority_opts, closed ++ [identity],
-          orders ++ [order_receipt], n + 1
-        )
+    # Additive security pre-step (lane L5, 2026-10-20): before any per-order
+    # execution, run the diff-level security gate over the current worktree
+    # (GgenIgniter.SecurityReview.run/2 — same diff every order would actuate
+    # on, so it runs once per order hop, fail-closed). SECURITY_BLOCKED is
+    # distinct from :drift's BLOCKED (TaskContract exit code 5 vs 4): open
+    # security findings are a refusal this loop records in the completion
+    # receipt, never a settled-blocked order.
+    case security_pre_step(order_opts) do
+      :ok ->
+        case Execute.run(order_opts) do
+          {0, order_receipt} ->
+            loop(opts, work_orders, ledger, authority_opts, closed ++ [identity],
+              orders ++ [order_receipt], n + 1
+            )
 
-      {1, verdict} ->
+          {1, verdict} ->
+            {1,
+             %{
+               "status" => "refused",
+               "reason" => "order_refused",
+               "identity" => identity,
+               "verdict" => verdict,
+               "closed" => closed,
+               "closed_count" => length(closed)
+             }}
+
+          {2, reason} ->
+            {2, reason}
+        end
+
+      {:refused, :security_blocked, detail} ->
         {1,
          %{
            "status" => "refused",
-           "reason" => "order_refused",
+           "reason" => "security_blocked",
            "identity" => identity,
-           "verdict" => verdict,
+           "detail" => detail,
            "closed" => closed,
            "closed_count" => length(closed)
          }}
 
-      {2, reason} ->
-        {2, reason}
+      {:refused, :security_review_diff_unavailable, detail} ->
+        {1,
+         %{
+           "status" => "refused",
+           "reason" => "security_review_diff_unavailable",
+           "identity" => identity,
+           "detail" => detail,
+           "closed" => closed,
+           "closed_count" => length(closed)
+         }}
+    end
+  end
+
+  # The gate runs against the completion run's own cwd (opts[:cwd], default
+  # File.cwd!()). A `:clear` verdict is :ok and execution proceeds unchanged
+  # — the pre-step is purely additive.
+  defp security_pre_step(order_opts) do
+    cwd = Keyword.get(order_opts, :cwd, File.cwd!())
+
+    # R1-5 (2026-10-20): write: false (--check semantics) — landing must never
+    # mutate the tree it is gating; the verdict is identical either way, the
+    # ledger/sealed receipt write is the only difference.
+    case GgenIgniter.SecurityReview.run(cwd: cwd, write: false) do
+      {:ok, %{status: :clear}} ->
+        :ok
+
+      {:ok, %{status: :blocked, receipt: receipt}} ->
+        open = Enum.filter(receipt["findings"], &(&1["state"] == "open"))
+
+        {:refused, :security_blocked,
+         "#{length(open)} open security findings (ledger: #{Path.join(cwd, ".ggen_igniter/security-findings.json")})"}
+
+      {:error, {:refused, :SECURITY_REVIEW_DIFF_UNAVAILABLE, detail}} ->
+        {:refused, :security_review_diff_unavailable, detail}
     end
   end
 

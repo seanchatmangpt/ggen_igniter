@@ -1,0 +1,7 @@
+# Hard-high risk-tier floors (lib/ggen_igniter/review/risk_tier.ex).
+# Any .github/workflows/* change escalates to :high (`workflows_present` floor);
+# any lib/ deletion escalates to :high (`lib_delete` floor). CODEOWNERS cannot
+# match on change kind, so lib/ is owned on every change — strictly stronger
+# than the deletion-only floor.
+.github/workflows/ @seanchatmangpt
+lib/               @seanchatmangpt

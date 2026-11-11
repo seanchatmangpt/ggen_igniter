@@ -41,6 +41,20 @@ defmodule GgenIgniter.EpochFreshness do
   unreadable file is `UNKNOWN_PROVENANCE` (counted as refused) rather than
   skipped.
 
+  ## Three planes
+
+  The court judges the same three implementation planes
+  `GgenIgniter.EpochWatermark` stamps — `lib/**/*.ex`,
+  `config/**/*.exs`, `priv/repo/migrations/**/*.exs` — with the identical
+  closed verdict set and precedence chain; the report carries a
+  `"planes"` key giving per-glob counts and standing. A watermark from
+  before the multi-plane law (no `"implementation_globs"` key) never
+  crashes the run: its planes are expanded to the current default set, and
+  any plane the old boundary did not record is reported with plane
+  standing `UNKNOWN_PROVENANCE` (typed, counted as refused) while its
+  files are still judged individually — a config file under an old
+  lib-only watermark refuses on its own merits, fail-closed.
+
   ## Honest limits
 
   Similarity is Jaccard over AST call signatures/atoms and normalized
@@ -94,7 +108,7 @@ defmodule GgenIgniter.EpochFreshness do
   @typedoc "One file's judgment row: keys path, blob_sha, provenance_kind, manufacture_receipt, source_inputs, closest_pre_epoch_match, similarity, authorship_newest, verdict."
   @type file_report :: %{String.t() => term()}
 
-  @typedoc "Whole-run report: keys schema_version, epoch, subject_tree, watermark_tree, threshold, implementation_files, files, receipts_unparsable_lines, standing, checked_at."
+  @typedoc "Whole-run report: keys schema_version, epoch, subject_tree, watermark_tree, threshold, implementation_files, planes, files, receipts_unparsable_lines, standing, checked_at."
   @type report :: %{String.t() => term()}
 
   @doc "The closed set of verdict atoms this court returns."
@@ -122,7 +136,9 @@ defmodule GgenIgniter.EpochFreshness do
       threshold = threshold(opts, watermark)
       ctx = context(base_dir, watermark, now, threshold)
 
-      {files, _cache} = ctx |> list_candidates() |> Enum.map_reduce(%{}, &judge(&1, &2, ctx))
+      {paths, plane_of} = list_candidates(ctx)
+      {files, _cache} = Enum.map_reduce(paths, %{}, &judge(&1, &2, ctx))
+      planes = plane_reports(files, plane_of, ctx)
 
       report =
         %{
@@ -132,6 +148,7 @@ defmodule GgenIgniter.EpochFreshness do
           "watermark_tree" => watermark["tree_sha"],
           "threshold" => threshold,
           "implementation_files" => counts(files),
+          "planes" => planes,
           "files" => files,
           "receipts_unparsable_lines" => ctx.unparsable,
           "standing" => standing(files),
@@ -280,7 +297,8 @@ defmodule GgenIgniter.EpochFreshness do
       now: now,
       threshold: threshold,
       watermark_instant: parse_instant(watermark["watermark_instant"]),
-      glob: watermark["implementation_glob"] || EpochWatermark.default_glob(),
+      globs: watermark_globs(watermark),
+      watermarked_globs: recorded_globs(watermark),
       legacy_by_path: legacy_by_path(watermark),
       legacy_blobs: legacy_blobs(watermark),
       receipts: receipts,
@@ -288,6 +306,29 @@ defmodule GgenIgniter.EpochFreshness do
       manifest_hashes: manifest_hashes(base_dir),
       residue: residue_rows(base_dir, parse_instant(watermark["watermark_instant"]))
     }
+  end
+
+  # Judged planes = the boundary's own planes UNION the current default set,
+  # so a pre-multi-plane watermark still gets its new planes looked at
+  # (fail closed) instead of silently widening the old lib-only boundary.
+  defp watermark_globs(watermark) do
+    Enum.uniq(recorded_globs(watermark) ++ EpochWatermark.default_globs())
+  end
+
+  # The globs the watermark ITSELF recorded. A pre-multi-plane watermark has
+  # no "implementation_globs" key: only its single legacy glob (if any) was
+  # part of the stamped boundary — every other plane is UNKNOWN, not trusted.
+  defp recorded_globs(watermark) do
+    case watermark do
+      %{"implementation_globs" => globs} when is_list(globs) ->
+        Enum.filter(globs, &is_binary/1)
+
+      %{"implementation_glob" => glob} when is_binary(glob) ->
+        [glob]
+
+      _ ->
+        []
+    end
   end
 
   # -- per-file judgment ------------------------------------------------------
@@ -716,13 +757,55 @@ defmodule GgenIgniter.EpochFreshness do
 
   # -- tree plumbing -------------------------------------------------------------
 
+  # Candidates across ALL plane globs, each tagged with its plane (first
+  # matching glob wins for an overlapping glob set); the pair is returned so
+  # the report can carry per-plane verdicts without re-matching paths.
   defp list_candidates(ctx) do
     root = Path.expand(ctx.base_dir)
 
-    root
-    |> then(&Path.wildcard(Path.join(&1, ctx.glob)))
-    |> Enum.map(&Path.relative_to(&1, root))
-    |> Enum.sort()
+    Enum.reduce(ctx.globs, {MapSet.new(), %{}}, fn glob, {paths, plane_of} ->
+      matched =
+        root
+        |> Path.join(glob)
+        |> Path.wildcard()
+        |> Enum.map(&Path.relative_to(&1, root))
+
+      paths = MapSet.union(paths, MapSet.new(matched))
+
+      plane_of =
+        Enum.reduce(matched, plane_of, fn path, acc ->
+          Map.put_new(acc, path, glob)
+        end)
+
+      {paths, plane_of}
+    end)
+    |> then(fn {paths, plane_of} -> {Enum.sort(MapSet.to_list(paths)), plane_of} end)
+  end
+
+  # Per-plane verdicts for the report. A plane the watermark's boundary did
+  # not record (a pre-multi-plane watermark meeting a new plane) reports
+  # standing UNKNOWN_PROVENANCE — typed, counted as refused by any consumer
+  # summing non-ALIVE standings — while its files still carry their own
+  # individual (refusing) verdicts.
+  defp plane_reports(files, plane_of, ctx) do
+    Enum.map(ctx.globs, fn glob ->
+      plane_files = Enum.filter(files, &(Map.get(plane_of, &1["path"]) == glob))
+      watermarked = glob in ctx.watermarked_globs
+
+      plane_standing =
+        cond do
+          not watermarked -> :UNKNOWN_PROVENANCE
+          Enum.all?(plane_files, &alive?(&1["verdict"])) -> :ALIVE
+          true -> :REFUSED
+        end
+
+      %{
+        "glob" => glob,
+        "watermarked" => watermarked,
+        "counts" => counts(plane_files),
+        "standing" => plane_standing
+      }
+    end)
   end
 
   defp inside_base?(base_dir, rel_path) do

@@ -71,3 +71,6 @@ node_modules/
 .DS_Store
 _build-lane*/
 target-lane*/
+
+# scratch validation output
+/tmp-bp-validation/

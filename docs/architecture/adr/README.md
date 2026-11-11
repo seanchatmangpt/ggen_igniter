@@ -43,6 +43,7 @@ table below directly (a future re-run would just overwrite a hand-edit).
 | [ADR-010](ADR-010-event-sourced-standing.md) | Event-sourced standing (definition_digest + append-only log) | Accepted |
 | [ADR-011](ADR-011-reduce-sj-toward-public-vocabularies.md) | Reduce `sj:` toward oslc_cm/dcterms/PROV-O/SHACL | PLANNED |
 | [ADR-012](ADR-012-prose-never-originates-work-orders.md) | Prose never originates work orders | Accepted |
+| [ADR-013](ADR-013-landing-pipeline-staged-composition.md) | Landing Pipeline: Staged Composition Behind a Behaviour | Accepted (2026-10-20) |
 
 See `docs/status.md` for the current implementation status of the systems
 these decisions govern, and `docs/architecture/overview.md` for how they fit

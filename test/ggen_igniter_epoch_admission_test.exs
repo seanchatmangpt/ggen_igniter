@@ -78,6 +78,64 @@ defmodule GgenIgniter.EpochAdmissionTest do
     assert {:error, {:refused_epoch_plan, :legacy_edit}} = EpochPlan.check(order(), @watermark)
   end
 
+  # R1-1 regression (docs/REVIEW_STATE.md): a pre-multi-plane lib-only
+  # watermark records ONLY `implementation_glob: lib/**/*.ex`, but the court
+  # (`EpochFreshness.watermark_globs/1`, epoch_freshness.ex "Judged planes"
+  # clause) judges recorded ∪ default globs — config and migrations are
+  # still looked at (fail closed). Admission must use the same union or it
+  # passes a config-plane plan line (bytes get written) that the court then
+  # refuses — the admission≠proof split the epoch law forbids.
+  test "R1-1: lib-only watermark still judges config-plane plan touches like the court" do
+    lib_only_watermark = %{
+      "schema_version" => "1",
+      "epoch" => "v26.10.1",
+      "implementation_glob" => "lib/**/*.ex",
+      "files" => [%{"path" => "lib/legacy.ex", "blob_sha" => String.duplicate("a", 40)}]
+    }
+
+    # Not a legacy path and not covered by the recorded lib glob — under the
+    # pre-fix recorded-only glob set this line passed admission (:ok) and was
+    # only refused later by `mix ggen_igniter.epoch.check`.
+    config_touch = %{
+      "identity" => "EPOCH-R1-1",
+      "epoch" => "v26.10.1",
+      "plan_touches" => ["config/prod.exs"]
+    }
+
+    assert {:error, {:refused_epoch_plan, :unattributed_implementation}} =
+             EpochPlan.check(config_touch, lib_only_watermark)
+
+    # The court's own refusal shape for a legacy stamped path is
+    # REFUSED_LEGACY_EDIT; admission's legacy branch must fire identically
+    # even when the watermark recorded only a lib glob.
+    legacy_config_touch = %{
+      "identity" => "EPOCH-R1-1B",
+      "epoch" => "v26.10.1",
+      "plan_touches" => ["config/legacy.exs"]
+    }
+
+    lib_only_with_config_legacy = %{
+      lib_only_watermark
+      | "files" => [
+          %{"path" => "lib/legacy.ex", "blob_sha" => String.duplicate("a", 40)},
+          %{"path" => "config/legacy.exs", "blob_sha" => String.duplicate("c", 40)}
+        ]
+    }
+
+    assert {:error, {:refused_epoch_plan, :legacy_edit}} =
+             EpochPlan.check(legacy_config_touch, lib_only_with_config_legacy)
+
+    # And a migrations-plane touch is likewise refused at admission.
+    migration_touch = %{
+      "identity" => "EPOCH-R1-1C",
+      "epoch" => "v26.10.1",
+      "plan_touches" => ["priv/repo/migrations/20200101000000_books.exs"]
+    }
+
+    assert {:error, {:refused_epoch_plan, :unattributed_implementation}} =
+             EpochPlan.check(migration_touch, lib_only_watermark)
+  end
+
   test "lawful regeneration: the same touch with a generated plan admits" do
     o = order(put: %{"manufacture_plan" => %{"lib/legacy.ex" => "generated"}})
     assert :ok = EpochPlan.check(o, @watermark)

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://chatmangpt.com/schema/receipt/v2",
   "title": "R = receipt(A): identity, authority, consequence, replay, standing + ALOOP execution provenance",
-  "description": "v2: adds work_order_id, origin_authority, provider, provider_execution_id (required), optional subject_before/subject_after digests, identity.subject_digest for non-commit (sha256/blake3 pack) subjects riding on a commit anchor, and the namespaced provider extension map (provider_ext.<provider>). The top level stays OPEN; the validator (not this schema) refuses un-namespaced extension keys and enforces that identity.subject_sha is a real git commit (or the receipt routes a non-commit subject through identity.subject_digest).",
+  "description": "v2: adds work_order_id, origin_authority, provider, provider_execution_id (required), optional subject_before/subject_after digests, identity.subject_digest for non-commit (sha256/blake3 pack) subjects riding on a commit anchor, and the namespaced provider extension map (provider_ext.<provider>). The top level stays OPEN; the validator (not this schema) refuses un-namespaced extension keys and enforces that identity.subject_sha is a real git commit (or the receipt routes a non-commit subject through identity.subject_digest). Terminology note (WO-27): the informal term `sec:` is NOT minted as a schema keyword — no ratified `sec:` vocabulary exists. Digest identity is carried by identity.subject_digest and identity.graph_hash; these are the JSON projections of the standards-native multiformats/digestMultibase identification pattern (<algorithm>:<base16 value>), and that is their documented reading.",
   "type": "object",
   "required": [
     "identity",
@@ -76,7 +76,18 @@
       "properties": {
         "ceiling": {"enum": ["OBSERVE", "SELECT", "CONSTRUCT", "DO"]},
         "grant": {"type": "string", "minLength": 1, "description": "lease id, user decision reference, or NONE"},
-        "actor": {"type": "string", "minLength": 1}
+        "actor": {"type": "string", "minLength": 1},
+        "lease": {
+          "type": "object",
+          "required": ["id", "epoch"],
+          "properties": {
+            "id": {"type": "string", "minLength": 1, "description": "lease identifier (structured form of the grant reference)"},
+            "epoch": {"type": "string", "minLength": 1, "description": "lease epoch (e.g. RFC3339 instant or opaque epoch token) at which the lease became valid"},
+            "expiry": {"type": "string", "minLength": 1, "description": "lease expiry; absent means the lease does not expire on its own"},
+            "ceiling": {"enum": ["OBSERVE", "SELECT", "CONSTRUCT", "DO"]}
+          },
+          "description": "structured first-class lease (WO-25/26); grant remains the free-string reference and lease is its typed projection when one exists"
+        }
       }
     },
     "consequence": {

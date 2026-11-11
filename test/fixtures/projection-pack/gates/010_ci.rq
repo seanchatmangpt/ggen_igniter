@@ -1,0 +1,4 @@
+PREFIX ex: <http://example.com/projection-pack#>
+SELECT ?row ?title WHERE {
+  ?row a ex:Row ; ex:title ?title .
+}

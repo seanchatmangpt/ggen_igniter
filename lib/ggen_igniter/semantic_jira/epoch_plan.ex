@@ -59,14 +59,15 @@ defmodule GgenIgniter.SemanticJira.EpochPlan do
         manufacture_plan = plan_map(order["manufacture_plan"])
         source_artifacts = listify(order["source_artifacts"])
         legacy_paths = MapSet.new(List.wrap(watermark["files"]), & &1["path"])
-        glob = glob_matcher(watermark["implementation_glob"])
+        matchers = impl_globs(watermark) |> Enum.map(&glob_matcher/1)
 
         cond do
           Enum.any?(plan_touches, &(&1 in legacy_paths and not fresh_plan?(&1, manufacture_plan))) ->
             {:error, {:refused_epoch_plan, :legacy_edit}}
 
           Enum.any?(plan_touches, fn path ->
-            path not in legacy_paths and glob.(path) and not fresh_plan?(path, manufacture_plan)
+            path not in legacy_paths and any_matcher?(matchers, path) and
+              not fresh_plan?(path, manufacture_plan)
           end) ->
             {:error, {:refused_epoch_plan, :unattributed_implementation}}
 
@@ -114,11 +115,38 @@ defmodule GgenIgniter.SemanticJira.EpochPlan do
     manufacture_plan[path] in @fresh_plans
   end
 
-  # Globs arrive as the watermark's `implementation_glob` ("lib/**/*.ex");
-  # the court and the admission gate must agree on which paths are
-  # implementation-plane, so both speak the same dialect: `**` crosses
-  # directories (and matches none — `lib/**/*.ex` includes `lib/foo.ex`),
-  # `*` stays within one, `?` is one non-slash character.
+  # The watermark's implementation-plane glob set: the multi-plane
+  # `implementation_globs` list when present, else the historical single
+  # `implementation_glob`, UNION the current default set — the same
+  # recorded-∪-default semantics the court applies
+  # (`GgenIgniter.EpochFreshness.watermark_globs/1`, epoch_freshness.ex
+  # "Judged planes" clause: `Enum.uniq(recorded_globs(watermark) ++
+  # EpochWatermark.default_globs())`). A pre-multi-plane lib-only watermark
+  # therefore still has its config/migration planes looked at at admission
+  # (fail closed), so a plan line can never pass admission and then be
+  # refused by `mix ggen_igniter.epoch.check` — no admission≠proof split.
+  # The court and the admission gate must agree on which paths are implementation-plane,
+  # so both speak the same dialect: `**` crosses directories (and matches
+  # none — `lib/**/*.ex` includes `lib/foo.ex`), `*` stays within one, `?`
+  # is one non-slash character.
+  defp impl_globs(watermark) do
+    recorded =
+      case watermark do
+        %{"implementation_globs" => globs} when is_list(globs) ->
+          Enum.filter(globs, &is_binary/1)
+
+        %{"implementation_glob" => glob} when is_binary(glob) ->
+          [glob]
+
+        _ ->
+          []
+      end
+
+    Enum.uniq(recorded ++ GgenIgniter.EpochWatermark.default_globs())
+  end
+
+  defp any_matcher?(matchers, path), do: Enum.any?(matchers, & &1.(path))
+
   defp glob_matcher(nil), do: glob_matcher("lib/**/*.ex")
 
   defp glob_matcher(glob) when is_binary(glob) do

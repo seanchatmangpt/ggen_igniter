@@ -200,12 +200,22 @@ defmodule GgenIgniterReceiptSchemaTest do
       )
 
     emitted_keys = receipt |> GgenIgniter.Receipt.to_json_map() |> Map.keys() |> Enum.sort()
-    # `pack_name`/`pack_digest` (v26.9.30) are optional: emitted only when set,
-    # so receipt_hash of pre-existing receipts stays stable.
+    # `pack_name`/`pack_digest` (v26.9.30) and the risk fields (v26.10.20) are
+    # optional: emitted only when set, so receipt_hash of pre-existing receipts
+    # stays stable.
     schema_keys =
       schema["properties"]
       |> Map.keys()
-      |> Enum.reject(&(&1 in ["pack_name", "pack_digest"]))
+      |> Enum.reject(
+        &(&1 in [
+          "pack_name",
+          "pack_digest",
+          "risk_tier",
+          "risk_score",
+          "risk_approvals",
+          "human_minutes"
+        ])
+      )
       |> Enum.sort()
 
     assert emitted_keys == schema_keys
@@ -289,5 +299,191 @@ defmodule GgenIgniterReceiptSchemaTest do
     [line] = GgenIgniter.Receipt.read_all!(tmp_dir)
 
     assert validate(schema, line) == :ok
+  end
+
+  # -- Lane L3 (v26.10.20): additive risk-classification fields ---------------
+
+  describe "risk_tier/risk_score/risk_approvals (lane L3, additive)" do
+    @old_shape_receipt %{
+      id: "rcpt_0000000000000000",
+      standing: :alive,
+      recipe_key: "a=>b",
+      started_at: "2026-08-27T00:00:00.000000Z",
+      finished_at: "2026-08-27T00:00:00.000000Z"
+    }
+
+    test "old-shape receipt (no risk fields) has a stable receipt_hash" do
+      r = GgenIgniter.Receipt.new(@old_shape_receipt)
+      assert r.risk_tier == nil and r.risk_score == nil and r.risk_approvals == nil
+
+      # to_json_map must not emit the risk keys at all when unset (same
+      # put_optional precedent as pack_name/pack_digest).
+      refute Map.has_key?(GgenIgniter.Receipt.to_json_map(r), "risk_tier")
+      refute Map.has_key?(GgenIgniter.Receipt.to_json_map(r), "risk_score")
+      refute Map.has_key?(GgenIgniter.Receipt.to_json_map(r), "risk_approvals")
+
+      # Deterministic: identical old-shape attrs rebuild to the same hash.
+      assert GgenIgniter.Receipt.new(@old_shape_receipt).receipt_hash == r.receipt_hash
+    end
+
+    test "round-trip with risk fields populated: emitted as strings/ints, hash covers them" do
+      r =
+        GgenIgniter.Receipt.new(
+          standing: :alive,
+          recipe_key: "a=>b",
+          risk_tier: :high,
+          risk_score: 12,
+          risk_approvals: 2
+        )
+
+      json_map = GgenIgniter.Receipt.to_json_map(r)
+
+      assert json_map["risk_tier"] == "high"
+      assert json_map["risk_score"] == 12
+      assert json_map["risk_approvals"] == 2
+
+      # Hash covers the new fields: removing them changes the digest.
+      stripped = Map.delete(json_map, "risk_tier") |> Map.delete("risk_score") |> Map.delete("risk_approvals")
+
+      hash_of_stripped =
+        stripped
+        |> Enum.sort_by(&elem(&1, 0))
+        |> Map.new()
+        |> Jason.encode!()
+        |> then(&("sha256:" <> GgenIgniter.Digest.hex(&1)))
+
+      assert r.receipt_hash != hash_of_stripped
+    end
+
+    test "risk_tier round-trips through Jason encode/decode" do
+      r =
+        GgenIgniter.Receipt.new(
+          standing: :compensated,
+          risk_tier: :medium,
+          risk_score: 5,
+          risk_approvals: 1
+        )
+
+      encoded = r |> GgenIgniter.Receipt.to_json_map() |> Jason.encode!() |> Jason.decode!()
+
+      assert encoded["risk_tier"] == "medium"
+      assert encoded["risk_score"] == 5
+      assert encoded["risk_approvals"] == 1
+    end
+
+    test "a populated receipt's to_json_map validates against the real schema", %{schema: schema} do
+      r =
+        GgenIgniter.Receipt.new(
+          standing: :alive,
+          recipe_key: "a=>b",
+          risk_tier: :high,
+          risk_score: 12,
+          risk_approvals: 2
+        )
+
+      populated = r |> GgenIgniter.Receipt.to_json_map() |> Jason.encode!() |> Jason.decode!()
+      assert validate(schema, populated) == :ok
+    end
+
+    test "an old-shape receipt (no risk keys) still validates against the real schema", %{
+      schema: schema
+    } do
+      old = GgenIgniter.Receipt.new(@old_shape_receipt)
+
+      old_json = old |> GgenIgniter.Receipt.to_json_map() |> Jason.encode!() |> Jason.decode!()
+      assert validate(schema, old_json) == :ok
+    end
+  end
+
+  # -- Lane C18 (v26.10.20): additive F2 measurement field ---------------------
+
+  describe "human_minutes (lane C18, additive F2 seed)" do
+    test "schema declares human_minutes as integer-or-null, not required" do
+      schema = @schema_path |> File.read!() |> Jason.decode!()
+
+      assert schema["properties"]["human_minutes"]["type"] == ["integer", "null"]
+      refute "human_minutes" in schema["required"]
+    end
+
+    test "a receipt carrying human_minutes: 42 validates against the schema", %{schema: schema} do
+      data = @old_shape_receipt |> GgenIgniter.Receipt.new() |> GgenIgniter.Receipt.to_json_map() |> Map.put("human_minutes", 42)
+
+      assert validate(schema, Jason.decode!(Jason.encode!(data))) == :ok
+    end
+
+    test "a receipt carrying human_minutes: null validates against the schema", %{schema: schema} do
+      data =
+        @old_shape_receipt
+        |> GgenIgniter.Receipt.new()
+        |> GgenIgniter.Receipt.to_json_map()
+        |> Map.put("human_minutes", nil)
+
+      assert validate(schema, Jason.decode!(Jason.encode!(data))) == :ok
+    end
+
+    test "a non-integer human_minutes fails schema type validation", %{schema: schema} do
+      data =
+        @old_shape_receipt
+        |> GgenIgniter.Receipt.new()
+        |> GgenIgniter.Receipt.to_json_map()
+        |> Map.put("human_minutes", "forty-two")
+
+      assert {:error, errors} = validate(schema, Jason.decode!(Jason.encode!(data)))
+      assert Enum.any?(errors, &String.contains?(&1, "human_minutes"))
+    end
+
+    test "an old-shape receipt (no human_minutes key) still validates — the field is additive", %{
+      schema: schema
+    } do
+      old = GgenIgniter.Receipt.new(@old_shape_receipt)
+
+      refute Map.has_key?(GgenIgniter.Receipt.to_json_map(old), "human_minutes")
+
+      old_json = old |> GgenIgniter.Receipt.to_json_map() |> Jason.encode!() |> Jason.decode!()
+      assert validate(schema, old_json) == :ok
+    end
+
+    @tag :tmp_dir
+    test "landing receipt emits human_minutes only when set (put_optional, old shape stable)" do
+      tmp_root =
+        Path.join(System.tmp_dir!(), "ggen_igniter_human_minutes_#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(tmp_root)
+      on_exit(fn -> File.rm_rf!(tmp_root) end)
+
+      base_opts = [base: "HEAD", run_id: "pl-human-minutes-probe"]
+
+      {0, old_report} =
+        GgenIgniter.LandingPipeline.run(
+          [stages: [], receipts_dir: Path.join(tmp_root, "old")] ++ base_opts
+        )
+
+      refute Map.has_key?(old_report, "human_minutes")
+      assert old_report["status"] == "ALIVE"
+
+      {0, new_report} =
+        GgenIgniter.LandingPipeline.run(
+          [stages: [], receipts_dir: Path.join(tmp_root, "new"), human_minutes: 42] ++ base_opts
+        )
+
+      assert new_report["human_minutes"] == 42
+
+      # Non-integer input is refused silently: no key, same shape as unset.
+      {0, bad_report} =
+        GgenIgniter.LandingPipeline.run(
+          [stages: [], receipts_dir: Path.join(tmp_root, "bad"), human_minutes: "42"] ++
+            base_opts
+        )
+
+      refute Map.has_key?(bad_report, "human_minutes")
+
+      # The persisted landing-receipt.json matches the returned report shape.
+      persisted =
+        Path.join([tmp_root, "new", "pl-human-minutes-probe", "landing-receipt.json"])
+        |> File.read!()
+        |> Jason.decode!()
+
+      assert persisted["human_minutes"] == 42
+    end
   end
 end

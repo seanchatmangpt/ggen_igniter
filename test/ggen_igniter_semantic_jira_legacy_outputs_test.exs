@@ -32,6 +32,11 @@ defmodule GgenIgniter.SemanticJiraLegacyOutputsTest do
 
     target = git_repo!(Path.join(dir, "target"))
     pack = pack!(Path.join(dir, "pack"))
+    # A dedicated clean git repo as the security gate's cwd (R1-5): the gate
+    # must observe THIS repo, not the ggen_igniter checkout the test process
+    # happens to run in — the suite asserts on verdicts, not on the host
+    # repo's own diff posture.
+    gate = git_repo!(Path.join(dir, "gate"))
     ledger = Path.join(dir, "standing-ledger.ndjson")
     receipts_dir = Path.join(dir, "receipts")
 
@@ -39,6 +44,7 @@ defmodule GgenIgniter.SemanticJiraLegacyOutputsTest do
       dir: dir,
       target: target,
       pack: pack,
+      gate: gate,
       ledger: ledger,
       receipts_dir: receipts_dir,
       work_orders: work_orders_file!(dir, target.head)
@@ -143,7 +149,10 @@ force: true
       alias: "o/r=target",
       pack_dir: ctx.pack,
       target_dir: ctx.target.dir,
-      receipts_dir: ctx.receipts_dir
+      receipts_dir: ctx.receipts_dir,
+      # The security pre-step's cwd: a clean controlled repo, so the gate
+      # verdict is deterministic and independent of the host checkout.
+      cwd: ctx.gate.dir
     ]
   end
 

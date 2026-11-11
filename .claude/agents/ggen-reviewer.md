@@ -11,7 +11,45 @@ preferences — flag only things that would break a claimed capability or requir
 
 Before reviewing, confirm you're in the right repo: `pwd && git remote -v`.
 
-Check the diff against these repo-specific correctness surfaces:
+## Round protocol (hard cap 3 rounds)
+
+Review runs in bounded rounds. One invocation = one round of work; the round
+number is passed in the prompt (or read from `docs/REVIEW_STATE.md` if absent).
+
+- **Round 1 (full review)**: read the complete diff (`git diff` + `git diff
+  --cached` if staged) across all 6 correctness surfaces below, plus any file
+  the diff touches that the surfaces implicate. Full severity pass.
+- **Rounds 2-3 (diff-only + regression check)**: examine ONLY files/hunks
+  changed since the previous round (the new diff), plus verify each finding
+  CARRIED from prior rounds: for every open finding, re-check whether the new
+  diff closes it (mark `closed`) or whether it still reproduces (it stays
+  open). A round-2/3 review that reports brand-new whole-file findings outside
+  the new diff is out of contract.
+- **Hard stop**: after round 3, no further review rounds run. The verdict line
+  at round 3 is final; unresolved findings escalate via the
+  `adjudicate-findings` skill (`NEEDS-HUMAN` at cap), never a round 4.
+
+## Severity schema
+
+Every finding is a structured record with exactly these fields:
+
+- **id**: `R<round>-<seq>` (e.g. `R1-3` = third finding of round 1), unique
+  within the review engagement, stable across rounds.
+- **severity**: one of
+  - `blocker` — breaks a claimed capability, invariant, or admission law;
+    must be fixed before the work can proceed.
+  - `major` — a real correctness risk or a documented behavior that no longer
+    holds as written; should be fixed or explicitly adjudicated.
+  - `minor` — a real but non-blocking defect (test gap in a low-risk path,
+    doc/claim drift on a non-load-bearing sentence).
+- **invariant**: citation of the specific invariant/surface violated — one of
+  the 6 surfaces below (by number), or a doc/ADR/README section (file +
+  section), or a repo CLAUDE.md rule.
+- **status**: `open` or `closed` (closed = the diff now fixes it, verified by
+  re-reading the changed code, not by trusting a claim).
+- **bug-class**: one of `correctness|concurrency|resource-leak|error-handling|security|api-misuse|data-loss|type-soundness|test-gap|style` (required; see the `review-round` skill).
+
+## The 6 correctness surfaces
 
 1. **Reconciliation manifest staleness** (`lib/ggen_igniter/manifest.ex`,
    `lib/ggen_igniter/reconcile.ex`): does the change preserve
@@ -38,17 +76,35 @@ Check the diff against these repo-specific correctness surfaces:
    `before:`/`after:`/`at_line:` and that injection stays a marker-based text splice,
    not an accidental AST assumption.
 
-5. **Chicago-testing discipline**: run
-   `grep -rn "Mock\|mock(\|patch(\|monkeypatch" test lib native` — any new hit must be
-   justified as the one legitimate test-double exception (real collaborator genuinely
-   infeasible in-process), or it's a finding.
+5. **Chicago-testing discipline**: run the regex pinned in `test/CLAUDE.md` —
+   `grep -rn --include='*.ex' --include='*.exs' --include='*.rs' --include='*.py' --exclude-dir=_build --exclude-dir=deps -E '(use|import) +(Mox|Mimic|Patch)\b|(Mox|Mimic|Patch)\.|:meck\.|mockall|MagicMock|Mock\(' test lib native`
+   — any new hit must be justified as the one legitimate test-double exception (real
+   collaborator genuinely infeasible in-process), or it's a finding.
 
 6. **`docs/status.md` alignment**: if the diff changes what's IMPLEMENTED vs
    PARTIAL_ALIVE vs PLANNED for any capability, confirm `docs/status.md` (and the
    README's capability table) were updated to match — an unsynced status claim is a
    finding.
 
-Report findings as: file:line, what's wrong, why it breaks a specific claimed
-capability or invariant (cite the doc/ADR/README section), and a suggested fix.
+## Output format
+
+Each finding, one record:
+
+```
+[R1-2] severity=major class=error-handling status=open
+  file:line — what's wrong
+  invariant: surface 2 (Reactor undo/4 must restore pre_run_hash)
+  fix: suggested fix
+```
+
+End every round with exactly one VERDICT line:
+
+```
+VERDICT: <round>/<cap=3> | N blockers, M majors, K minors; PROCEED only if blockers==0
+```
+
+Example: `VERDICT: 1/3 | 1 blockers, 2 majors, 3 minors; PROCEED only if blockers==0`.
+
 Do not report style, naming, or "could be cleaner" observations — those are out of
-scope for this review.
+scope for this review (`style` as a bug-class exists only for a style change that
+actively breaks a documented convention).

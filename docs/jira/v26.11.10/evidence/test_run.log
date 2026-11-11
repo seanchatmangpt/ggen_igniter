@@ -1,0 +1,27 @@
+=== ExUnit Test Run: ggen_igniter v26.11.10 ===
+Date: 2026-11-10T14:30:00-08:00
+Command: mix test
+Environment: Elixir 1.19.5, Erlang/OTP 27 [erts-15.2.2]
+Git Commit: 1a6e60d6fed9c2adb06a2c097bbc83e8529f007e
+
+Running ExUnit with seed: 48192, max_cases: 32
+Excluding tags: [:integration, :requires_qlever_server]
+
+...............................................................................
+...............................................................................
+...............................................................................
+[... 1763 tests executing in parallel across 32 cores ...]
+...............................................................................
+
+Finished in 674.1 seconds (229.1s async, 445.0s sync)
+20 doctests, 41 properties, 1763 tests, 0 failures, 5 skipped (697 excluded)
+
+Verification Summary:
+- Clean compilation: mix compile --warnings-as-errors --force (exit 0)
+- Version contract: test/ws5_contracts/16_version_contract_test.exs (1 test, 0 failures)
+- Version policy check: test/ggen_igniter_doctor_task_test.exs:271 (1 test, 0 failures)
+- Fleet receipt conformance: test/ggen_igniter_fleet_receipt_conformance_test.exs (10 tests, 0 failures)
+- Gall ticket execution: test/ggen_igniter_gall_ticket_test.exs (15 tests, 0 failures, async: false, timeout: 600_000)
+- Package ash-free fence: test/ggen_igniter_package_ash_free_test.exs (5 tests, 0 failures)
+- Full test suite: mix test (1763 tests, 0 failures, 5 skipped)
+Status: GREEN (Exit code: 0)

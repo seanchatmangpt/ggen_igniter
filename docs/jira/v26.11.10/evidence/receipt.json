@@ -1,0 +1,115 @@
+{
+  "work_order_id": "WO-v26.11.10-RELEASE-DOCS",
+  "origin_authority": {
+    "ceiling": "DO",
+    "grant": "OPERATOR-RELEASE-DISPATCH-2026-11-10",
+    "actor": "Sean"
+  },
+  "provider": {
+    "name": "gemini-teamwork-agent",
+    "transport": "agent-runner",
+    "authority_ceiling": "DO",
+    "receipt_protocol": "receipt.v2",
+    "concurrency": "serial"
+  },
+  "provider_execution_id": "exec-m2-2026-11-10T22:45:00Z",
+  "identity": {
+    "subject": "ggen_igniter v26.11.10 Release Documentation & Shore-up",
+    "repo": "ggen_igniter",
+    "subject_sha": "1a6e60d6fed9c2adb06a2c097bbc83e8529f007e",
+    "base_sha": "1a6e60d6fed9c2adb06a2c097bbc83e8529f007e"
+  },
+  "authority": {
+    "ceiling": "DO",
+    "grant": "OPERATOR-RELEASE-DISPATCH-2026-11-10",
+    "actor": "Sean",
+    "lease": {
+      "id": "lease-v26.11.10-release",
+      "epoch": "2026-11-10T21:13:30Z",
+      "ceiling": "DO"
+    }
+  },
+  "consequence": {
+    "commits": [
+      "1a6e60d6fed9c2adb06a2c097bbc83e8529f007e"
+    ],
+    "files_changed": [
+      "mix.exs",
+      "CHANGELOG.md",
+      "priv/schema/fleet-receipt.v2.json",
+      "priv/schema/fleet-receipt.v2.sha256",
+      "test/ggen_igniter_gall_ticket_test.exs",
+      "docs/jira/v26.11.10/00-OVERVIEW.md",
+      "docs/jira/v26.11.10/01-RELEASE-SHORE-UP-AND-COMPILATION.md",
+      "docs/jira/v26.11.10/02-ASH-IGNITER-TASK-VALIDATION-MATRIX.md",
+      "docs/jira/v26.11.10/03-IDEMPOTENCY-AND-VERIFICATION-METHODOLOGY.md",
+      "docs/jira/v26.11.10/04-OBSERVABILITY-AND-OCEL-PROJECTION.md",
+      "docs/jira/v26.11.10/05-REVIEW-LENS-ZACH-DANIEL-ASH.md",
+      "docs/jira/v26.11.10/06-REVIEW-LENS-JOSE-VALIM-ELIXIR.md",
+      "docs/jira/v26.11.10/07-REVIEW-LENS-JOE-ARMSTRONG-BEAM.md",
+      "docs/jira/v26.11.10/08-REVIEW-LENS-TESTING-AUDIT.md",
+      "docs/jira/v26.11.10/09-REVIEW-LENS-RELEASE-PACKAGING.md",
+      "docs/jira/v26.11.10/10-HEX-PACKAGING-AND-PUBLICATION-RUNBOOK.md",
+      "docs/jira/v26.11.10/RECEIPT.md",
+      "docs/jira/v26.11.10/bin/check_doc_citations.sh",
+      "docs/jira/v26.11.10/evidence/receipt.json",
+      "docs/jira/v26.11.10/evidence/conformance.json",
+      "docs/jira/v26.11.10/evidence/hex_package_manifest.txt",
+      "docs/jira/v26.11.10/evidence/test_run.log"
+    ],
+    "remote_effects": [
+      "hex.pm release v26.11.10 staged for publishing in Milestone M3"
+    ]
+  },
+  "replay": {
+    "commands": [
+      {
+        "cmd": "mix compile --warnings-as-errors --force",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "Verified clean compilation with 0 warnings, 0 errors"
+      },
+      {
+        "cmd": "mix test test/ws5_contracts/16_version_contract_test.exs",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "Verified CalVer 26.11.10 consistency between mix.exs and CHANGELOG.md"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_fleet_receipt_conformance_test.exs",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "Verified fleet receipt schema byte-for-byte mirroring and sha256 digest"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_gall_ticket_test.exs",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "Verified GallTicket WASM compilation execution without timeout"
+      },
+      {
+        "cmd": "mix test test/ggen_igniter_package_ash_free_test.exs --include package",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "Verified real hex.build tarball against ash-free packaging fence"
+      },
+      {
+        "cmd": "mix test",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "Executed full test suite: 1763 passed, 0 failures, 5 skipped"
+      },
+      {
+        "cmd": "bash docs/jira/v26.11.10/bin/check_doc_citations.sh",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "Verified 100% resolution of citations across docs/jira/v26.11.10"
+      }
+    ],
+    "durable_location": "docs/jira/v26.11.10/evidence/receipt.json"
+  },
+  "standing": {
+    "value": "ALIVE",
+    "derived_from": "mix compile --warnings-as-errors --force (exit 0) and mix test (1763 tests passed, 0 failures) at commit 1a6e60d6fed9c2adb06a2c097bbc83e8529f007e"
+  }
+}

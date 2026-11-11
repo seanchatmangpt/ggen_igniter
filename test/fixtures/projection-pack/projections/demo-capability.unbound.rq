@@ -1,0 +1,6 @@
+PREFIX ex: <http://example.com/projection-pack#>
+# Falsified state: binds a finding row iff a capability row lacks ex:title.
+SELECT ?subject ?missing_property WHERE {
+  ?subject a ex:Row .
+  FILTER NOT EXISTS { ?subject ex:title ?missing_property . }
+}

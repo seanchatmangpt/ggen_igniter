@@ -1,0 +1,90 @@
+name: Machine Review
+
+# Lane L8 (2026-10-20): agent review + security review of every PR diff.
+# The job exits 0 when the harness ran and produced parseable outputs --
+# findings are data, not failures. Enforcement of findings belongs to the
+# landing pipeline, not this workflow.
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # One review per PR (pull_request) or per SHA (workflow_dispatch); a new
+  # push supersedes the in-flight review of the same head.
+  group: ${{ github.workflow }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  machine-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          # Full history so `git diff` against the merge base is always
+          # well-defined even on long-lived branches.
+          fetch-depth: 0
+
+      - name: Diff file list vs base
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "${{ github.event.pull_request.base.sha }}"...HEAD \
+            > "$RUNNER_TEMP/changed-files.txt"
+          echo "Changed files:"
+          cat "$RUNNER_TEMP/changed-files.txt"
+
+      - name: Diff file list vs HEAD (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only HEAD~1...HEAD > "$RUNNER_TEMP/changed-files.txt" || true
+          echo "Changed files:"
+          cat "$RUNNER_TEMP/changed-files.txt"
+
+      - name: Agent review
+        shell: bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          claude -p --output-format json \
+            "Review the changes listed in $RUNNER_TEMP/changed-files.txt against the base. \
+             Report correctness findings as JSON." \
+            > "$RUNNER_TEMP/agent-review.json"
+
+      - name: Security review (fail-closed)
+        shell: bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          claude -p --output-format json \
+            "Security-review the changes listed in $RUNNER_TEMP/changed-files.txt. \
+             Report security findings as JSON." \
+            > "$RUNNER_TEMP/security-review.json"
+          # Fail closed: the artifact must exist and parse as JSON. A missing
+          # or unparseable security review is a harness error, exit 1 --
+          # silence is never an admissible verdict.
+          python3 -c 'import json,sys; json.load(open(sys.argv[1]))' \
+            "$RUNNER_TEMP/security-review.json"
+
+      - name: Upload review findings
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: machine-review-${{ github.event.number || github.sha }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/agent-review.json
+            ${{ runner.temp }}/security-review.json

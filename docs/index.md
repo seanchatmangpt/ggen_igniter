@@ -120,14 +120,12 @@ Per-release ticket sets, adversarial reviews, and the raw evidence artifacts
 each one cites. These are dated working records, not maintained reference —
 [status.md](status.md) is the current-state page they feed.
 
-- [v26.9.8](jira/v26.9.8/) — generative Ash manufacturing certification & zero vocabulary drift release:
-  ontology → 11 SPARQL gates → one composed `Igniter.Mix.Task` → real upstream Ash generators, certified
-  across all 6 qualification crowns (`ONTOLOGY_ALIVE`, `ASH_MANUFACTURE_ALIVE`, `ASH_RUNTIME_ALIVE`,
-  `IDEMPOTENCY_ALIVE`, `OCEL_PROCESS_ALIVE`, `AGENT_HANDWRITE_REFUSAL_ALIVE`) with real PostgreSQL cutover.
-  [Overview](jira/v26.9.8/00-OVERVIEW.md),
-  [Ash task validation matrix](jira/v26.9.8/02-ASH-TASK-VALIDATION-MATRIX.md),
-  [Manufacture path](jira/v26.9.8/07-ASH-MANUFACTURE-PATH.md),
-  [Adversarial review](jira/v26.9.8/08-REVIEW-MANUFACTURE-PATH.md), and
-  [`evidence/`](jira/v26.9.8/evidence/) (conformance, drift, receipt, OCEL
-  run-1/run-2 logs).
-- [v26.9.1](jira/v26.9.1/) — prior release's ticket set.
+- [v26.11.10](jira/v26.11.10/) — production release shoring, 5-expert architectural evaluation suite (Zach Daniel, José Valim, Joe Armstrong, test/audit, release packaging), clean compilation gate, ExUnit pass (1,763 passed, 0 failures), and Hex package publication.
+  [Overview](jira/v26.11.10/00-OVERVIEW.md),
+  [Ash task validation matrix](jira/v26.11.10/02-ASH-IGNITER-TASK-VALIDATION-MATRIX.md),
+  [Zach Daniel Review](jira/v26.11.10/05-REVIEW-LENS-ZACH-DANIEL-ASH.md),
+  [José Valim Review](jira/v26.11.10/06-REVIEW-LENS-JOSE-VALIM-ELIXIR.md),
+  [Joe Armstrong Review](jira/v26.11.10/07-REVIEW-LENS-JOE-ARMSTRONG-BEAM.md),
+  [Hex Packaging Runbook](jira/v26.11.10/10-HEX-PACKAGING-AND-PUBLICATION-RUNBOOK.md), and
+  [Formal Receipt](jira/v26.11.10/RECEIPT.md).
+- [Archive](archive/jira/) — historical campaign ticket sets (`v26.9.1` through `v26.10.8`, including `v26.9.8`).

@@ -16,7 +16,9 @@ defmodule GgenIgniter.GallTicketTest do
       silently defaulted ticket.
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
+
+  @moduletag timeout: 600_000
 
   @fixture_dir Path.join([__DIR__, "fixtures", "gall_work"])
   @fixture Path.join(@fixture_dir, "checkpoint-001.ttl")
@@ -108,6 +110,10 @@ defmodule GgenIgniter.GallTicketTest do
   end
 
   describe "determinism (PRD §53): Render(TTL)_1 = Render(TTL)_2" do
+    # A real render is minutes-class; the 300s default flakes under full-suite
+    # load (20-lane fan-out). Bound the determinism pair above the observed
+    # solo wall time instead of the default.
+    @tag timeout: 1_200_000
     test "rendering the same checkpoint twice is byte-identical" do
       first = render!(@fixture, @checkpoint_iri)
       second = render!(@fixture, @checkpoint_iri)
@@ -116,6 +122,7 @@ defmodule GgenIgniter.GallTicketTest do
       assert byte_size(first) == byte_size(second)
     end
 
+    @tag timeout: 1_200_000
     test "the embedded provenance digest is stable across renders" do
       first = render!(@fixture, @checkpoint_iri)
       second = render!(@fixture, @checkpoint_iri)

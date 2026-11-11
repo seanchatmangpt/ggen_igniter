@@ -44,11 +44,11 @@ records. **Only the last three campaigns stay in place**; older campaign
 directories are moved (via `git mv`, history preserved) to
 [`archive/jira/`](archive/jira/). Currently in place:
 
-- [`v26.10.2/`](jira/v26.10.2/)
-- [`v26.10.1-loop/`](jira/v26.10.1-loop/)
-- [`v26.9.31/`](jira/v26.9.31/)
+- [`v26.11.10/`](jira/v26.11.10/)
+- [`v26.10.20/`](jira/v26.10.20/)
+- [`v26.10.19/`](jira/v26.10.19/)
 
-Everything from `v26.9.1` through `v26.9.30` lives in
+Everything from `v26.9.1` through `v26.10.8` lives in
 [`archive/jira/`](archive/jira/). Loose files (`GALL-*.md`, `SJ-*.md`) are the
 standing work-order corpus, not campaign ledgers — they stay.
 

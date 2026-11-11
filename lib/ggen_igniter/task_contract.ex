@@ -12,11 +12,15 @@ defmodule GgenIgniter.TaskContract do
   | 2    | `:invocation` | bad invocation (missing/unknown flag, unresolvable input) |
   | 3    | `:unsupported`| the request is outside the task's supported scope (`plan`'s read-only path) |
   | 4    | `:drift`      | `sync --check`: committed generated files differ from what the ontology produces |
+  | 5    | `:security_blocked` | `security_review`: open security findings block landing |
 
   Collision analysis: `plan` already used 0/2/3, the `epoch.*` tasks use 0/1/2 (1 = refusal or
   unknown provenance), `verify`/`doctor` use 0/1. Code 4 was unused by every task, so drift
   gets its own code and never aliases a refusal (1) that means "the tool refused", not "the tree
-  is stale".
+  is stale". Code 5 was likewise unused; `security_blocked` shares drift's BLOCKED standing but
+  is a distinct code: drift means "the tree is stale", security_blocked means "the diff carries
+  open security findings" (`GgenIgniter.SecurityReview`/`Mix.Tasks.GgenIgniter.SecurityReview`).
+  A landing blocked by findings is SECURITY_BLOCKED, never :drift's BLOCKED.
 
   ## Envelope (`envelope/2`)
 
@@ -48,17 +52,23 @@ defmodule GgenIgniter.TaskContract do
       name: :drift,
       standing: "BLOCKED",
       meaning: "generated files differ from what the ontology produces (sync --check)"
+    },
+    %{
+      code: 5,
+      name: :security_blocked,
+      standing: "SECURITY_BLOCKED",
+      meaning: "open security findings block landing"
     }
   ]
 
-  @type name :: :ok | :refusal | :invocation | :unsupported | :drift
+  @type name :: :ok | :refusal | :invocation | :unsupported | :drift | :security_blocked
 
   @doc "The documented exit-code table, ordered by code."
-  @spec exit_codes() :: [%{code: 0..4, name: name(), standing: String.t(), meaning: String.t()}]
+  @spec exit_codes() :: [%{code: 0..5, name: name(), standing: String.t(), meaning: String.t()}]
   def exit_codes, do: @table
 
   @doc "Numeric exit code for a table name."
-  @spec exit_code(name()) :: 0..4
+  @spec exit_code(name()) :: 0..5
   def exit_code(name) when is_atom(name) do
     case Enum.find(@table, &(&1.name == name)) do
       %{code: code} -> code
@@ -105,7 +115,7 @@ defmodule GgenIgniter.TaskContract do
   def refusal_text({code, detail}), do: "REFUSED:#{code_string(code)} #{detail}"
 
   @doc "Names of the documented exit codes, for documentation-completeness checks."
-  @spec documented_codes() :: [0..4]
+  @spec documented_codes() :: [0..5]
   def documented_codes, do: Enum.map(@table, & &1.code)
 
   defp code_string(code) when is_atom(code), do: code |> Atom.to_string() |> String.upcase()

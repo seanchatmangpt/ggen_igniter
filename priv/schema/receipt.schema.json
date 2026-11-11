@@ -133,6 +133,24 @@
       "type": ["string", "null"],
       "description": "Optional (v26.9.30): sha256 hex of the pack tree, GgenIgniter.PackLock.digest/1.",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "risk_tier": {
+      "type": ["string", "null"],
+      "description": "Optional (v26.10.20, lane L3): risk classification of this attempt. Emitted only when set (put_optional), so old-shape receipt hashes stay stable.",
+      "enum": ["low", "medium", "high", null]
+    },
+    "risk_score": {
+      "type": ["integer", "null"],
+      "description": "Optional (v26.10.20, lane L3): numeric risk score for this attempt. Emitted only when set (put_optional)."
+    },
+    "risk_approvals": {
+      "type": ["integer", "null"],
+      "description": "Optional (v26.10.20, lane L3): count of risk approvals (0, 1, or 2). Emitted only when set (put_optional).",
+      "enum": [0, 1, 2, null]
+    },
+    "human_minutes": {
+      "type": ["integer", "null"],
+      "description": "Optional (v26.10.20, lane C18, F2 measurement seed): human implementation-minutes spent on the landed capability this attempt carries. Emitted only when set (put_optional), so old-shape receipt hashes stay stable."
     }
   }
 }

@@ -1,0 +1,4 @@
+[pack]
+name = "projection-fixture-pack"
+version = "0.1.0"
+description = "Minimal W8 projection-backend fixture: one capability row, one scope query, one falsified-state query, one gate"

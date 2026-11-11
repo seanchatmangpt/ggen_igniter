@@ -344,8 +344,11 @@ SELECT DISTINCT ?subject WHERE {
 
       assert code == 1, "#{out}\n#{err}"
 
-      # The refusal is the LAST line of stderr — in fact the whole stderr
-      # stream is exactly that one line.
+      # The refusal is the LAST line of stderr — after stripping the
+      # build-lock wait lines a concurrent `mix` under a contended
+      # _build root can interleave (lane fan-out noise, not behavior
+      # under test), the whole stderr stream is exactly that one line.
+      err = String.replace(err, ~r/\e\[[0-9;]*mWaiting for lock on the build directory[^\n]*\n/, "")
       {raw_line, refusal} = last_json_line_raw(err)
       assert err == raw_line <> "\n"
 
