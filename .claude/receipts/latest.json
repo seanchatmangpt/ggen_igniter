@@ -1,7 +1,7 @@
 {
   "status": "green",
   "as_of": "2026-11-13",
-  "head": "9c2572e6ccde18a33f122a07d9d39bd246f88316",
+  "head": "9c2572e6ccde18a33f122a07d9d39bd246f88316 + working tree, committed as 3c3e083b7dbb0437af3cffe542afb08c7a02e4ea (pushed, ls-remote verified)",
   "toolchain": "Elixir 1.20.4 (compiled with Erlang/OTP 29), erlang 29.1.2 (.tool-versions pin)",
   "commands": [
     {"command": "mix compile --warnings-as-errors", "exit": 0},
