@@ -37,7 +37,8 @@ defmodule GgenIgniter.ReviewEval.Scorer do
       [hit | _] ->
         %{
           verdict: :caught,
-          match_evidence: "finding #{hit["file"]}:#{hit["line"]} within tolerance #{tol} of #{file}:#{line}",
+          match_evidence:
+            "finding #{hit["file"]}:#{hit["line"]} within tolerance #{tol} of #{file}:#{line}",
           fp_findings: length(misses)
         }
 

@@ -35,10 +35,17 @@ defmodule GgenIgniter.LandingPipeline.Stage.ConvergenceCap do
       ])
 
     case capture["exit"] do
-      0 -> {:pass, %{"output" => %{"commands" => [capture]}}}
-      1 -> {:block, {:review_escalated, capture["exit"]}, %{"output" => %{"commands" => [capture]}}}
-      2 -> {:refused, {:convergence_invocation_failed, capture["stdout_tail"]}}
-      other -> {:refused, {:convergence_unexpected_exit, other, capture["stdout_tail"]}}
+      0 ->
+        {:pass, %{"output" => %{"commands" => [capture]}}}
+
+      1 ->
+        {:block, {:review_escalated, capture["exit"]}, %{"output" => %{"commands" => [capture]}}}
+
+      2 ->
+        {:refused, {:convergence_invocation_failed, capture["stdout_tail"]}}
+
+      other ->
+        {:refused, {:convergence_unexpected_exit, other, capture["stdout_tail"]}}
     end
   end
 end

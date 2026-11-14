@@ -208,13 +208,13 @@ defmodule GgenIgniterReceiptSchemaTest do
       |> Map.keys()
       |> Enum.reject(
         &(&1 in [
-          "pack_name",
-          "pack_digest",
-          "risk_tier",
-          "risk_score",
-          "risk_approvals",
-          "human_minutes"
-        ])
+            "pack_name",
+            "pack_digest",
+            "risk_tier",
+            "risk_score",
+            "risk_approvals",
+            "human_minutes"
+          ])
       )
       |> Enum.sort()
 
@@ -343,7 +343,10 @@ defmodule GgenIgniterReceiptSchemaTest do
       assert json_map["risk_approvals"] == 2
 
       # Hash covers the new fields: removing them changes the digest.
-      stripped = Map.delete(json_map, "risk_tier") |> Map.delete("risk_score") |> Map.delete("risk_approvals")
+      stripped =
+        Map.delete(json_map, "risk_tier")
+        |> Map.delete("risk_score")
+        |> Map.delete("risk_approvals")
 
       hash_of_stripped =
         stripped
@@ -406,7 +409,11 @@ defmodule GgenIgniterReceiptSchemaTest do
     end
 
     test "a receipt carrying human_minutes: 42 validates against the schema", %{schema: schema} do
-      data = @old_shape_receipt |> GgenIgniter.Receipt.new() |> GgenIgniter.Receipt.to_json_map() |> Map.put("human_minutes", 42)
+      data =
+        @old_shape_receipt
+        |> GgenIgniter.Receipt.new()
+        |> GgenIgniter.Receipt.to_json_map()
+        |> Map.put("human_minutes", 42)
 
       assert validate(schema, Jason.decode!(Jason.encode!(data))) == :ok
     end
@@ -446,7 +453,10 @@ defmodule GgenIgniterReceiptSchemaTest do
     @tag :tmp_dir
     test "landing receipt emits human_minutes only when set (put_optional, old shape stable)" do
       tmp_root =
-        Path.join(System.tmp_dir!(), "ggen_igniter_human_minutes_#{System.unique_integer([:positive])}")
+        Path.join(
+          System.tmp_dir!(),
+          "ggen_igniter_human_minutes_#{System.unique_integer([:positive])}"
+        )
 
       File.mkdir_p!(tmp_root)
       on_exit(fn -> File.rm_rf!(tmp_root) end)

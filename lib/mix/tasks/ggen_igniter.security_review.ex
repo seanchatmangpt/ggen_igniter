@@ -111,12 +111,13 @@ defmodule Mix.Tasks.GgenIgniter.SecurityReview do
 
   defp finding_summary(f) do
     %{
-      "id" => GgenIgniter.SecurityReview.Receipt.finding_id(%{
-        category: f.category,
-        file: f.file,
-        rule: f.rule,
-        evidence: f.evidence
-      }),
+      "id" =>
+        GgenIgniter.SecurityReview.Receipt.finding_id(%{
+          category: f.category,
+          file: f.file,
+          rule: f.rule,
+          evidence: f.evidence
+        }),
       "category" => f.category,
       "file" => f.file,
       "line" => f.line,
@@ -130,12 +131,14 @@ defmodule Mix.Tasks.GgenIgniter.SecurityReview do
   defp digest(findings) do
     payload =
       findings
-      |> Enum.map(&GgenIgniter.SecurityReview.Receipt.finding_id(%{
-        category: &1.category,
-        file: &1.file,
-        rule: &1.rule,
-        evidence: &1.evidence
-      }))
+      |> Enum.map(
+        &GgenIgniter.SecurityReview.Receipt.finding_id(%{
+          category: &1.category,
+          file: &1.file,
+          rule: &1.rule,
+          evidence: &1.evidence
+        })
+      )
       |> Enum.sort()
       |> Enum.join(",")
 

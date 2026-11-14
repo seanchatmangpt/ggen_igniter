@@ -27,7 +27,7 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 140 codes (`$defs.code.enum` count cascade: 132 -> 140 —
+The registry holds 147 codes (`$defs.code.enum` count cascade: 132 -> 140 —
 132 pre-existing, `SOVEREIGN_LEASE_REQUIRED` + `SOVEREIGN_LEASE_INVALID` from
 the Sovereign Ceiling Lease law, and `SOVEREIGN` itself as the code the
 exhaustiveness detector forces for the `{:refused_sovereign, reason}` wrapper
@@ -37,7 +37,10 @@ engine's missing wasm artifact boot refusal, then
 `SPARQL_EXISTS_UNSUPPORTED` for GateVerify's typed refusal when an
 EXISTS-bearing gate query hits the default `sparql` engine, then
 `SECURITY_BLOCKED` + `SECURITY_REVIEW_DIFF_UNAVAILABLE` for the lane-L5
-security gate (open findings block landing; diff unresolvable)) derived from the schema by
+security gate (open findings block landing; diff unresolvable), then
+`DUPLICATE_OUTPUT` + `MISSING_FRONTMATTER` + `PACK_GATE_VIOLATED` + `PATH_ESCAPE` +
+`UNKNOWN_FOR_EACH` + `UNSUPPORTED_FRONTMATTER` + `WRITE_WITHOUT_FORCE` for the
+frontmatter pack runner) derived from the schema by
 `GgenIgniter.Refusals.count/0`, never hand-maintained, plus 24 wrapped reasons
 (unchanged). Regenerate both tables below with:
 
@@ -191,6 +194,13 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `WORK_ORDER` | typed_tuple | false | mu_on_O | `GgenIgniter.SemanticJira` | admit_work_order takes a map with every required work-order field valid; fix the field named in the reason (expected_map means a non-map was passed). |
 | `WORK_ORDER_ABSENT` | semantic_work_order | true | mu_on_O | `GgenIgniter.SemanticWorkOrder` | The execution package names a work order file that is missing on disk; restore it or rebuild the package. |
 | `WORK_ORDER_DRIFT` | semantic_work_order | false | R_missing_identity | `GgenIgniter.SemanticWorkOrder` | The work order on disk no longer matches the digest recorded in the package; rebuild the execution package from the current work order. |
+| `DUPLICATE_OUTPUT` | pack | false | mu_unlawful | `GgenIgniter.PackFrontmatter.Sync` | Two for_each rows or templates render to the same output path; make each output path unique. |
+| `MISSING_FRONTMATTER` | pack | false | mu_on_O | `GgenIgniter.PackFrontmatter.Sync` | A pack template has no --- frontmatter header; add one or move it out of templates/. |
+| `PACK_GATE_VIOLATED` | pack | false | mu_on_O | `GgenIgniter.PackFrontmatter.Sync` | A pack SPARQL gate returned rows against the union graph (ggen FM-PACK-013); fix the offending facts or the gate. |
+| `PATH_ESCAPE` | pack | false | mu_unlawful | `GgenIgniter.PackFrontmatter.Sync` | A rendered output path resolves outside the output directory; fix the frontmatter to path. |
+| `UNKNOWN_FOR_EACH` | pack | false | mu_on_O | `GgenIgniter.PackFrontmatter.Sync` | A template's for_each names no sparql: query in its frontmatter; declare the query. |
+| `UNSUPPORTED_FRONTMATTER` | pack | false | mu_on_O | `GgenIgniter.PackFrontmatter.Sync` | The frontmatter uses a key or form this runner does not support; remove it or extend the runner. |
+| `WRITE_WITHOUT_FORCE` | pack | false | mu_unlawful | `GgenIgniter.PackFrontmatter.Sync` | The output file exists with different bytes and force is not set; pass force or remove the file. |
 
 ## Wrapped reasons
 

@@ -42,7 +42,9 @@ defmodule GgenIgniterLandingPipelineTest do
     def order, do: 3
 
     def run(_ctx),
-      do: {:block, {:too_risky, "tier refused"}, %{"output" => Stage.capture("echo", ["blocker-ran"])}}
+      do:
+        {:block, {:too_risky, "tier refused"},
+         %{"output" => Stage.capture("echo", ["blocker-ran"])}}
   end
 
   defmodule L7Test.Stage.Late do
@@ -107,6 +109,7 @@ defmodule GgenIgniterLandingPipelineTest do
       assert File.dir?(run_dir)
 
       files = File.ls!(run_dir) |> Enum.sort()
+
       assert files == [
                "landing-receipt.json",
                "stage-0-base_integrity.json",
@@ -144,7 +147,10 @@ defmodule GgenIgniterLandingPipelineTest do
       dir: dir
     } do
       {code, report} =
-        run([base: "HEAD", stages: [L7Test.Stage.Ok1, L7Test.Stage.Blocker, L7Test.Stage.Late]], dir)
+        run(
+          [base: "HEAD", stages: [L7Test.Stage.Ok1, L7Test.Stage.Blocker, L7Test.Stage.Late]],
+          dir
+        )
 
       assert code == 1
       assert report["status"] == "BLOCKED"
@@ -163,7 +169,10 @@ defmodule GgenIgniterLandingPipelineTest do
 
     test "base drift at stage 0 blocks before any registry stage runs", %{dir: dir} do
       {code, report} =
-        run([base: "HEAD", worktree_sha: String.duplicate("a", 40), stages: [L7Test.Stage.Ok1]], dir)
+        run(
+          [base: "HEAD", worktree_sha: String.duplicate("a", 40), stages: [L7Test.Stage.Ok1]],
+          dir
+        )
 
       assert code == 1
       assert report["status"] == "BLOCKED"

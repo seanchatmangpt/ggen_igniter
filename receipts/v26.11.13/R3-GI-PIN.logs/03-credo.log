@@ -1,0 +1,11 @@
+# cwd=/Users/sac/ggen_igniter head=9c2572e6ccde18a33f122a07d9d39bd246f88316 started=2026-11-14T02:27:09Z
+# cmd=mix credo
+Checking 561 source files (this might take a while) ...
+
+Please report incorrect results: https://github.com/rrrene/credo/issues
+
+Analysis took 1.7 seconds (0.2s to load, 1.5s running 57 checks on 561 files)
+5295 mods/funs, found no issues.
+
+Showing priority issues: ↑ ↗ →  (use `mix credo explain` to explain issues, `mix credo --help` for options).
+# ended=2026-11-14T02:27:12Z exit=0

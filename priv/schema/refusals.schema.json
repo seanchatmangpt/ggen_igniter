@@ -69,6 +69,7 @@
         "DESCRIPTOR",
         "DO",
         "DOCTRINE",
+        "DUPLICATE_OUTPUT",
         "DUPLICATE_OUTPUT_PATH",
         "DUPLICATE_SOURCE_PATH",
         "DUPLICATE_WORK_ORDER",
@@ -93,9 +94,9 @@
         "GATE_SCRIPT_NOT_FOUND",
         "GENERATED_ARTIFACT_MUTATED",
         "GENERATIONAL_RESILIENCE",
-        "GRAPHLAW_WASM_ARTIFACT_MISSING",
         "GOAL_INCOMPLETE",
         "GOAL_ROOT",
+        "GRAPHLAW_WASM_ARTIFACT_MISSING",
         "INITIAL_STATE_MISSING",
         "INPUT_INVALID",
         "INPUT_UNREADABLE",
@@ -114,6 +115,7 @@
         "MISSING_ACCEPTANCE_COMMAND",
         "MISSING_EXPIRY",
         "MISSING_FIELD",
+        "MISSING_FRONTMATTER",
         "MISSING_MANIFEST",
         "MISSING_SUNSET_PLAN",
         "NO_ATTRIBUTION",
@@ -129,6 +131,7 @@
         "PACKAGE_DIGEST_MISMATCH",
         "PACK_DIGEST_MISMATCH",
         "PACK_FILE_UNREADABLE",
+        "PACK_GATE_VIOLATED",
         "PACK_IDENTITY_MISMATCH",
         "PACK_LOCK_FAILED",
         "PACK_LOCK_INVALID",
@@ -139,6 +142,7 @@
         "PACK_ONTOLOGY_NOT_FOUND",
         "PACK_SYMLINK_ESCAPE",
         "PACK_VERIFY_FAILED",
+        "PATH_ESCAPE",
         "PATH_ESCAPES_ROOT",
         "PM4PYTEST_BINARY_NOT_FOUND",
         "PRE_EPOCH_RECEIPT",
@@ -174,8 +178,10 @@
         "UNADMITTED",
         "UNCOVERED_GATE",
         "UNEXPLAINED_SIMILARITY",
+        "UNKNOWN_FOR_EACH",
         "UNKNOWN_KIND",
         "UNOWNED_DELETE",
+        "UNSUPPORTED_FRONTMATTER",
         "UPGRADER_INCOMPLETE",
         "UPGRADER_STEP_INVALID",
         "UPGRADE_DOWNGRADE",
@@ -184,7 +190,8 @@
         "VERIFICATION_EVIDENCE",
         "WORK_ORDER",
         "WORK_ORDER_ABSENT",
-        "WORK_ORDER_DRIFT"
+        "WORK_ORDER_DRIFT",
+        "WRITE_WITHOUT_FORCE"
       ]
     },
     "broken_term": {
@@ -1509,6 +1516,69 @@
       "fix_hint": "The work order on disk no longer matches the digest recorded in the package; rebuild the execution package from the current work order.",
       "broken_term": "R_missing_identity",
       "example": "REFUSED:WORK_ORDER_DRIFT <detail>"
+    },
+    {
+      "code": "DUPLICATE_OUTPUT",
+      "family": "pack",
+      "retryable": false,
+      "owner": "GgenIgniter.PackFrontmatter.Sync",
+      "fix_hint": "Two for_each rows or templates render to the same output path; make each output path unique.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:DUPLICATE_OUTPUT <detail>"
+    },
+    {
+      "code": "MISSING_FRONTMATTER",
+      "family": "pack",
+      "retryable": false,
+      "owner": "GgenIgniter.PackFrontmatter.Sync",
+      "fix_hint": "A pack template has no --- frontmatter header; add one or move it out of templates/.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:MISSING_FRONTMATTER <detail>"
+    },
+    {
+      "code": "PACK_GATE_VIOLATED",
+      "family": "pack",
+      "retryable": false,
+      "owner": "GgenIgniter.PackFrontmatter.Sync",
+      "fix_hint": "A pack SPARQL gate returned rows against the union graph (ggen FM-PACK-013); fix the offending facts or the gate.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:PACK_GATE_VIOLATED <detail>"
+    },
+    {
+      "code": "PATH_ESCAPE",
+      "family": "pack",
+      "retryable": false,
+      "owner": "GgenIgniter.PackFrontmatter.Sync",
+      "fix_hint": "A rendered output path resolves outside the output directory; fix the frontmatter to path.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:PATH_ESCAPE <detail>"
+    },
+    {
+      "code": "UNKNOWN_FOR_EACH",
+      "family": "pack",
+      "retryable": false,
+      "owner": "GgenIgniter.PackFrontmatter.Sync",
+      "fix_hint": "A template's for_each names no sparql: query in its frontmatter; declare the query.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:UNKNOWN_FOR_EACH <detail>"
+    },
+    {
+      "code": "UNSUPPORTED_FRONTMATTER",
+      "family": "pack",
+      "retryable": false,
+      "owner": "GgenIgniter.PackFrontmatter.Sync",
+      "fix_hint": "The frontmatter uses a key or form this runner does not support; remove it or extend the runner.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:UNSUPPORTED_FRONTMATTER <detail>"
+    },
+    {
+      "code": "WRITE_WITHOUT_FORCE",
+      "family": "pack",
+      "retryable": false,
+      "owner": "GgenIgniter.PackFrontmatter.Sync",
+      "fix_hint": "The output file exists with different bytes and force is not set; pass force or remove the file.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:WRITE_WITHOUT_FORCE <detail>"
     }
   ],
   "wrapped_reasons": [

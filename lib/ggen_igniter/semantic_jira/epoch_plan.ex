@@ -67,7 +67,7 @@ defmodule GgenIgniter.SemanticJira.EpochPlan do
 
           Enum.any?(plan_touches, fn path ->
             path not in legacy_paths and any_matcher?(matchers, path) and
-              not fresh_plan?(path, manufacture_plan)
+                not fresh_plan?(path, manufacture_plan)
           end) ->
             {:error, {:refused_epoch_plan, :unattributed_implementation}}
 

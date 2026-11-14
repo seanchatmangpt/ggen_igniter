@@ -1,0 +1,6 @@
+# Gate: aap:consequence must be an AshA2A consequence (observe|change|external_do|unknown).
+PREFIX aap: <https://ggen.dev/ash-a2a-app#>
+SELECT ?skill ?c WHERE {
+  ?skill a aap:Skill ; aap:consequence ?c .
+  FILTER (?c NOT IN ("observe","change","external_do","unknown"))
+}

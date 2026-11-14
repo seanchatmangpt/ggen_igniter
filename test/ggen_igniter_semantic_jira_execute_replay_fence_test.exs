@@ -151,7 +151,14 @@ SELECT DISTINCT ?subject WHERE {
 
       # Post-sync tamper: content changes, resolved name ("pack" via
       # pack.toml) does not.
-      File.write!(Path.join(ctx.pack, "ontology.ttl"), String.replace(File.read!(Path.join(ctx.pack, "ontology.ttl")), "fence pack report", "fence pack report TAMPERED"))
+      File.write!(
+        Path.join(ctx.pack, "ontology.ttl"),
+        String.replace(
+          File.read!(Path.join(ctx.pack, "ontology.ttl")),
+          "fence pack report",
+          "fence pack report TAMPERED"
+        )
+      )
 
       assert {:ok, tampered_digest} = GgenIgniter.PackLock.digest_checked(ctx.pack)
       refute tampered_digest == sync_digest

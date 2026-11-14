@@ -55,10 +55,11 @@ defmodule GgenIgniter.SyncGraphlawCliTest do
       %{root_dir: root_dir, out_path: Path.join(root_dir, "output/specimen.ex")}
     end
 
-    test "the fixed engine runs the specimen and renders the output", %{
-      out_path: out_path,
-      root_dir: root_dir
-    } = ctx do
+    test "the fixed engine runs the specimen and renders the output",
+         %{
+           out_path: out_path,
+           root_dir: root_dir
+         } = ctx do
       {output, exit_code} =
         System.cmd("mix", sync_args(ctx), cd: File.cwd!(), stderr_to_stdout: true)
 
@@ -68,9 +69,10 @@ defmodule GgenIgniter.SyncGraphlawCliTest do
       assert root_dir != nil
     end
 
-    test "passing the removed --engine flag is an invalid invocation (fail-closed)", %{
-      root_dir: root_dir
-    } = ctx do
+    test "passing the removed --engine flag is an invalid invocation (fail-closed)",
+         %{
+           root_dir: root_dir
+         } = ctx do
       {output, exit_code} =
         System.cmd(
           "mix",

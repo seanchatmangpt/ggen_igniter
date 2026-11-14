@@ -1,0 +1,37 @@
+@prefix aap: <https://ggen.dev/ash-a2a-app#> .
+@prefix ex:  <https://example.com/demo#> .
+
+ex:Desk a aap:Domain ; aap:moduleName "Demo.Desk" ; aap:appPath "demo" ; aap:domainFile "desk" .
+
+ex:Ticket a aap:Resource ; aap:moduleName "Demo.Desk.Ticket" ; aap:inDomain ex:Desk ;
+  aap:resourceFile "ticket" ;
+  aap:attribute ex:Ticket_id, ex:Ticket_title ;
+  aap:action ex:Ticket_read ;
+  aap:skill ex:Ticket_list .
+ex:Ticket_id a aap:Attribute ; aap:name "id" ; aap:ashType "uuid" ; aap:primaryKey "true" .
+ex:Ticket_title a aap:Attribute ; aap:name "title" ; aap:ashType "string" ; aap:primaryKey "false" .
+ex:Ticket_read a aap:Action ; aap:name "read" ; aap:actionType "read" .
+ex:Ticket_list a aap:Skill ; aap:name "list_tickets" ; aap:ofAction "read" ; aap:description "List support tickets" .
+
+ex:DeskAgent a aap:Agent ; aap:moduleName "Demo.DeskAgent" ; aap:agentName "desk_agent" ;
+  aap:forDomain ex:Desk ; aap:agentFile "desk_agent" .
+
+ex:Note a aap:Resource ; aap:moduleName "Demo.Desk.Note" ; aap:inDomain ex:Desk ; aap:resourceFile "note" ;
+  aap:attribute ex:Note_id, ex:Note_body ; aap:action ex:Note_read ; aap:skill ex:Note_list .
+ex:Note_id a aap:Attribute ; aap:name "id" ; aap:ashType "uuid" ; aap:primaryKey "true" .
+ex:Note_body a aap:Attribute ; aap:name "body" ; aap:ashType "string" ; aap:primaryKey "false" .
+ex:Note_read a aap:Action ; aap:name "read" ; aap:actionType "read" .
+ex:Note_list a aap:Skill ; aap:name "list_notes" ; aap:ofAction "read" ; aap:description "List notes" .
+<urn:demo:project> a aap:Project ; aap:appName "a2a_demo3" ; aap:appModule "A2aDemo3" ;
+  aap:ashA2aDep "path: \"/Users/sac/ash_a2a\"" .
+
+ex:Ticket aap:action ex:Ticket_open .
+ex:Ticket_open a aap:Action ; aap:name "open" ; aap:actionType "create" ; aap:accept "title" .
+ex:Ticket aap:skill ex:Ticket_openSkill .
+ex:Ticket_openSkill a aap:Skill ; aap:name "open_ticket" ; aap:ofAction "open" ;
+  aap:description "Open a ticket" ; aap:consequence "change" .
+
+# Live-pack gate L07_010: a `change` skill needs a covering non-bypass policy.
+ex:Ticket aap:policy ex:Ticket_pAlways .
+ex:Ticket_pAlways a aap:Policy ; aap:name "allow_all" ; aap:policyOrder 1 ; aap:condKind "always" ;
+  aap:check [ aap:checkType "authorize_if" ; aap:checkKind "always" ; aap:checkOrder 1 ] .

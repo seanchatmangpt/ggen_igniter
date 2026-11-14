@@ -69,8 +69,11 @@ defmodule GgenIgniter.ReviewStore do
     line =
       record
       |> normalize_record()
-      |> Map.put("ts", Map.get(normalize_record(record), "ts") ||
-        DateTime.utc_now() |> DateTime.to_iso8601())
+      |> Map.put(
+        "ts",
+        Map.get(normalize_record(record), "ts") ||
+          DateTime.utc_now() |> DateTime.to_iso8601()
+      )
       |> stamp_line_hash()
 
     json = json_encode(line)
@@ -139,15 +142,17 @@ defmodule GgenIgniter.ReviewStore do
       {:ok, content} ->
         content
         |> String.split("\n", trim: true)
-        |> Enum.flat_map(fn line ->
-          case Jason.decode(line) do
-            {:ok, map} -> [verify_line(map)]
-            {:error, _} -> []
-          end
-        end)
+        |> Enum.flat_map(&decode_round_line/1)
 
       {:error, _} ->
         []
+    end
+  end
+
+  defp decode_round_line(line) do
+    case Jason.decode(line) do
+      {:ok, map} -> [verify_line(map)]
+      {:error, _} -> []
     end
   end
 

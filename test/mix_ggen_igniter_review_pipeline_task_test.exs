@@ -87,9 +87,10 @@ defmodule MixGgenIgniterReviewPipelineTaskTest do
   end
 
   describe "mix ggen_igniter.review.pipeline (exit 1: BLOCKED)" do
-    test "unconfigured epoch gate is the typed no_epoch refusal, exit 1, BLOCKED receipt on disk", %{
-      dir: _dir
-    } do
+    test "unconfigured epoch gate is the typed no_epoch refusal, exit 1, BLOCKED receipt on disk",
+         %{
+           dir: _dir
+         } do
       {code, _out, err} = mix([@task, "--base", "HEAD"])
 
       assert code == 1

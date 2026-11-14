@@ -38,7 +38,12 @@ defmodule GgenIgniter.SecurityReview.Receipt do
   `category|file|rule|normalized_evidence`. Line numbers are excluded so the
   id survives line renumbering.
   """
-  @spec finding_id(%{category: String.t(), file: String.t(), rule: String.t(), evidence: String.t()}) ::
+  @spec finding_id(%{
+          category: String.t(),
+          file: String.t(),
+          rule: String.t(),
+          evidence: String.t()
+        }) ::
           String.t()
   def finding_id(%{category: category, file: file, rule: rule, evidence: evidence}) do
     payload =

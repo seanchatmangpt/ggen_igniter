@@ -67,7 +67,7 @@ defmodule GgenIgniter.Convergence do
         }
 
   @typedoc "One per-round record (also the `rounds.jsonl` JSON-line shape)."
-  @type record :: %{
+  @type round_record :: %{
           required(:sha) => String.t(),
           required(:round) => pos_integer(),
           required(:state) => round_state(),
@@ -309,6 +309,7 @@ defmodule GgenIgniter.Convergence do
     {carried, cleared} =
       Enum.split_with(open, fn f ->
         hunk_id = Map.get(f, :hunk_id)
+
         (hunk_id == nil or MapSet.member?(current_ids, hunk_id)) and
           f.class not in state.class_fixed
       end)
@@ -325,7 +326,8 @@ defmodule GgenIgniter.Convergence do
         sha: sha,
         max_rounds: state.max_rounds,
         reviewed_scope: scope,
-        hunks_reviewed: Enum.map(hunks_this_round, &%{"file" => &1.file, "hunk_id" => &1.hunk_id}),
+        hunks_reviewed:
+          Enum.map(hunks_this_round, &%{"file" => &1.file, "hunk_id" => &1.hunk_id}),
         findings_carried: carried,
         findings_new: reviewer_findings,
         findings_cleared: cleared,

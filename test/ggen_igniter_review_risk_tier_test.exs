@@ -110,7 +110,10 @@ defmodule GgenIgniter.Review.RiskTierTest do
 
   describe "escalation floors" do
     test "any .github/workflows/* escalates to :high" do
-      diff = [%{path: ".github/workflows/ci.yml", kind: :modify}, %{path: "docs/a.md", kind: :modify}]
+      diff = [
+        %{path: ".github/workflows/ci.yml", kind: :modify},
+        %{path: "docs/a.md", kind: :modify}
+      ]
 
       # score 3: would be :medium on thresholds alone
       assert %{tier: :high, score: 3} = RiskTier.classify(diff)

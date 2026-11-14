@@ -1,0 +1,6 @@
+# Gate: every aap:Resource must declare exactly one primary-key attribute.
+PREFIX aap: <https://ggen.dev/ash-a2a-app#>
+SELECT ?resource WHERE {
+  ?resource a aap:Resource .
+  FILTER NOT EXISTS { ?resource aap:attribute ?a . ?a aap:primaryKey "true" }
+}

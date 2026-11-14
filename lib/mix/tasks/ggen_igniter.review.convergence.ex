@@ -35,15 +35,7 @@ defmodule Mix.Tasks.GgenIgniter.Review.Convergence do
         aliases: [s: :sha, d: :diff, m: :max_rounds]
       )
 
-    if invalid != [] or not is_binary(opts[:sha]) do
-      Mix.shell().error("usage: mix ggen_igniter.review.convergence --sha SHA [--diff PATH] [--max-rounds N] [--json]")
-      System.halt(2)
-    end
-
-    if opts[:max_rounds] != nil and opts[:max_rounds] <= 0 do
-      Mix.shell().error("--max-rounds must be >= 1, got: #{opts[:max_rounds]}")
-      System.halt(2)
-    end
+    validate_args!(opts, invalid)
 
     base_dir = File.cwd!()
     diff = opts[:diff] && File.read!(opts[:diff])
@@ -64,17 +56,40 @@ defmodule Mix.Tasks.GgenIgniter.Review.Convergence do
         rounds = ReviewStore.read_rounds(base_dir, opts[:sha])
         final = to_string(result.state)
 
-        if opts[:json] do
-          Mix.shell().info(Jason.encode!(%{"sha" => opts[:sha], "final_state" => final, "rounds" => rounds}))
-        else
-          Mix.shell().info("review convergence: sha=#{opts[:sha]} final=#{final} rounds=#{result.rounds_executed}")
-        end
+        report(opts, final, rounds, result)
 
         if final == "review_escalated", do: System.halt(1), else: :ok
 
       {:error, reason} ->
         Mix.shell().error("review convergence failed: #{inspect(reason)}")
         System.halt(2)
+    end
+  end
+
+  defp validate_args!(opts, invalid) do
+    if invalid != [] or not is_binary(opts[:sha]) do
+      Mix.shell().error(
+        "usage: mix ggen_igniter.review.convergence --sha SHA [--diff PATH] [--max-rounds N] [--json]"
+      )
+
+      System.halt(2)
+    end
+
+    if opts[:max_rounds] != nil and opts[:max_rounds] <= 0 do
+      Mix.shell().error("--max-rounds must be >= 1, got: #{opts[:max_rounds]}")
+      System.halt(2)
+    end
+  end
+
+  defp report(opts, final, rounds, result) do
+    if opts[:json] do
+      Mix.shell().info(
+        Jason.encode!(%{"sha" => opts[:sha], "final_state" => final, "rounds" => rounds})
+      )
+    else
+      Mix.shell().info(
+        "review convergence: sha=#{opts[:sha]} final=#{final} rounds=#{result.rounds_executed}"
+      )
     end
   end
 

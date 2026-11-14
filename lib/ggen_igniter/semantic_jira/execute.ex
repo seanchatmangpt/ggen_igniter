@@ -207,7 +207,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
     pack_lock = Keyword.get(opts, :pack_lock)
 
     cond do
-      present?(receipt) and (present?(pack_dir) or present?(target_dir) or present?(pack_lock)) ->
+      present?(receipt) and any_local_flag?([pack_dir, target_dir, pack_lock]) ->
         {:invalid,
          "--receipt is the external backend: it is mutually exclusive with --pack-dir/--target-dir/--pack-lock"}
 
@@ -225,6 +225,8 @@ defmodule GgenIgniter.SemanticJira.Execute do
          "exactly one execution backend is required: --pack-dir + --target-dir, --pack-lock (+ --pack-dir + --target-dir), or --receipt PATH"}
     end
   end
+
+  defp any_local_flag?(values), do: Enum.any?(values, &present?/1)
 
   defp external_backend(opts) do
     case json_file(opts, :receipt) do
@@ -299,7 +301,8 @@ defmodule GgenIgniter.SemanticJira.Execute do
     with :ok <- check_target_pack(target_pack(order), pack_dir),
          {:ok, head} <- base_head(target_dir, descriptor["base_sha"]),
          {:ok, ontology} <- order_ontology(order, pack_dir),
-         {:ok, outcome, projection} <- project(order, pack_dir, target_dir, lock_path, opts, ontology) do
+         {:ok, outcome, projection} <-
+           project(order, pack_dir, target_dir, lock_path, opts, ontology) do
       gates = %{"status" => "pass", "steps" => projection["gate_results"]["steps"] || []}
 
       # The projection receipt rides INSIDE the export BEFORE the digest is
@@ -368,15 +371,8 @@ defmodule GgenIgniter.SemanticJira.Execute do
         legacy_single_report(pack_dir, target_dir, opts)
 
       outputs ->
-        Enum.reduce_while(outputs, {:ok, [], []}, fn out_spec, {:ok, paths, artifacts} ->
-            case run_output(out_spec, pack_dir, target_dir, ontology) do
-              {:ok, path, meta} ->
-                {:cont, {:ok, [path | paths], [meta | artifacts]}}
-
-              {:error, reason} ->
-                {:halt, {:error, reason}}
-            end
-          end)
+        outputs
+        |> run_outputs(pack_dir, target_dir, ontology)
         |> case do
           {:ok, paths, artifacts} -> {:ok, Enum.reverse(paths), Enum.reverse(artifacts)}
           other -> other
@@ -402,9 +398,8 @@ defmodule GgenIgniter.SemanticJira.Execute do
         # the pack root; `..` escapes in a relative path refuse.
         Path.expand(rel)
       else
-        with {:ok, scoped} <- scoped_path(rel, pack_dir, "ontology", pack_dir) do
-          scoped
-        else
+        case scoped_path(rel, pack_dir, "ontology", pack_dir) do
+          {:ok, scoped} -> scoped
           {:error, _} = err -> err
         end
       end
@@ -428,6 +423,15 @@ defmodule GgenIgniter.SemanticJira.Execute do
   # Legacy path: single auto-discovered (or explicit --template) render to the
   # static out `ggen-manufactured/report.md` -- byte-identical behavior when
   # the order names no `outputs`.
+  defp run_outputs(outputs, pack_dir, target_dir, ontology) do
+    Enum.reduce_while(outputs, {:ok, [], []}, fn out_spec, {:ok, paths, artifacts} ->
+      case run_output(out_spec, pack_dir, target_dir, ontology) do
+        {:ok, path, meta} -> {:cont, {:ok, [path | paths], [meta | artifacts]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
   defp legacy_single_report(pack_dir, target_dir, opts) do
     case reconcile_pack(pack_dir, target_dir, opts[:template]) do
       {:ok, result} -> {:ok, [result.out_path], nil}
@@ -465,8 +469,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
         |> Enum.map(&{:query, &1})
 
       opts =
-        [pack_dir: pack_dir, out: out_abs, template: template_abs,
-         template_string: template_body]
+        [pack_dir: pack_dir, out: out_abs, template: template_abs, template_string: template_body]
         |> maybe_put_ontology(ontology)
         |> Keyword.merge(query_opts)
 
@@ -476,12 +479,11 @@ defmodule GgenIgniter.SemanticJira.Execute do
             maybe_format_elixir!(result.out_path)
 
             {:ok, result.out_path,
-             %{"template" => out_spec["template"], "out" => out_rel,
-               "sha256" => digest_of(File.read!(result.out_path))}}
-
-          other ->
-            {:error,
-             {"execute", {:sync_failed, "Reconcile.run/1 failed: " <> inspect(other)}}}
+             %{
+               "template" => out_spec["template"],
+               "out" => out_rel,
+               "sha256" => digest_of(File.read!(result.out_path))
+             }}
         end
       rescue
         error ->
@@ -549,7 +551,6 @@ defmodule GgenIgniter.SemanticJira.Execute do
     |> case do
       {nil, _mode, _body} -> nil
       {%{to: to}, _mode, _body} -> to
-      _other -> nil
     end
   rescue
     _ -> nil
@@ -567,8 +568,8 @@ defmodule GgenIgniter.SemanticJira.Execute do
       {:ok, expanded}
     else
       {:error,
-       {"execute", {:bad_output_path,
-        "#{kind} path #{inspect(path)} escapes its root #{inspect(root)}"}}}
+       {"execute",
+        {:bad_output_path, "#{kind} path #{inspect(path)} escapes its root #{inspect(root)}"}}}
     end
   end
 
@@ -642,7 +643,9 @@ defmodule GgenIgniter.SemanticJira.Execute do
         path -> [template: path]
       end
 
-    Reconcile.run(Keyword.merge([pack_dir: pack_dir, out: Path.join(target_dir, @out_template)], opt_template))
+    Reconcile.run(
+      Keyword.merge([pack_dir: pack_dir, out: Path.join(target_dir, @out_template)], opt_template)
+    )
   rescue
     error ->
       {:error,
@@ -840,13 +843,15 @@ defmodule GgenIgniter.SemanticJira.Execute do
   defp detail(_hop, :sync_failed), do: "the local reconciliation pipeline raised"
 
   defp detail(_hop, {:pack_lock_failed, reason}),
-    do: "the pack.lock digest pin refused: #{GgenIgniter.PackLock.refusal_text(reason) |> String.replace_prefix("REFUSED:", "")}"
+    do:
+      "the pack.lock digest pin refused: #{GgenIgniter.PackLock.refusal_text(reason) |> String.replace_prefix("REFUSED:", "")}"
 
   defp detail(_hop, {:capability_unknown, id}),
     do: "no projections/<capability_id>.rq scope query in the pack for #{inspect(id)}"
 
   defp detail(_hop, {:falsifier_gates_missing, id}),
-    do: "capability #{inspect(id)} has falsifiers but no projections/<id>.unbound.rq falsified-state query"
+    do:
+      "capability #{inspect(id)} has falsifiers but no projections/<id>.unbound.rq falsified-state query"
 
   defp detail(_hop, {:bad_output_path, message}), do: message
 

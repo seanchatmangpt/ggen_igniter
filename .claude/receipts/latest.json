@@ -1,10 +1,14 @@
 {
-  "status": "red",
-  "as_of": "2026-10-20",
+  "status": "green",
+  "as_of": "2026-11-13",
+  "head": "9c2572e6ccde18a33f122a07d9d39bd246f88316",
+  "toolchain": "Elixir 1.20.4 (compiled with Erlang/OTP 29), erlang 29.1.2 (.tool-versions pin)",
   "commands": [
     {"command": "mix compile --warnings-as-errors", "exit": 0},
-    {"command": "mix test", "exit": 1}
+    {"command": "mix test", "exit": 0, "summary": "Result: 1855 passed (20 doctests, 41 properties, 1794 tests), 5 skipped, 705 excluded"},
+    {"command": "mix format --check-formatted", "exit": 0},
+    {"command": "mix credo", "exit": 0, "summary": "5289 mods/funs, found no issues"},
+    {"command": "grep chicago-regex test lib native", "exit": 0, "summary": "4 hits, all quoted-token strings/regex literals (review_tally_test:154, mock_discipline_test:18, chicago_tests.ex:6,20); no real mock use"}
   ],
-  "summary": "Run 5: 1763 tests, 11 failures, 5 skipped (697 excluded). All per-lane suites green individually; residual failures owned by lanes C4/E1/E6 still in flight. Commit partition ready (E10); F1 rehearsal done (E8) and blocked only on the wave being uncommitted.",
-  "note": "Honest red; green only on a real 0-failure exit after last write lane lands."
+  "logs": "/tmp/v26_11_13/g6_compile.log /tmp/v26_11_13/g6_test.log; pin qualification: receipts/v26.11.13/R3-GI-PIN.json"
 }

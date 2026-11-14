@@ -315,9 +315,7 @@ defmodule GgenIgniter.GgenToml.IO do
     Enum.join(lines, "\n")
   end
 
-  defp mode_to_string(:create), do: "Create"
   defp mode_to_string(:overwrite), do: "Overwrite"
-  defp mode_to_string(:merge), do: "Merge"
 
   defp source_inline_table({:inline, %{inline: text}}),
     do: "{ inline = #{toml_multiline_string(text)} }"

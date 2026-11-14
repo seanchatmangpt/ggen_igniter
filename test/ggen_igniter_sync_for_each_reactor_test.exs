@@ -276,6 +276,7 @@ defmodule GgenIgniter.SyncForEachReactorTest do
       refute code == 0, "expected a real refusal, got exit 0:\n#{output}"
       assert output =~ "returned 0 rows -- nothing to render"
       assert output =~ "violation gate"
+
       refute output =~ "must not be an empty list",
              "the deep normalize_targets ArgumentError must never surface to a CLI caller"
 

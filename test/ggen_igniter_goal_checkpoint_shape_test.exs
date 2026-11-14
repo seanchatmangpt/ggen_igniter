@@ -43,7 +43,8 @@ defmodule GgenIgniter.GoalCheckpointShapeTest do
 
   describe "Shacl.validate_file/2 (corrupted goal graphs refuse)" do
     test "a root baseSha that is not a 40-hex SHA refuses on the pattern" do
-      source = mutate!(@castle_10_8, ~r/sj:baseSha "[0-9a-f]{40}"/, "sj:baseSha \"fe78477deadbeef\"")
+      source =
+        mutate!(@castle_10_8, ~r/sj:baseSha "[0-9a-f]{40}"/, "sj:baseSha \"fe78477deadbeef\"")
 
       report = validate_source(source)
 

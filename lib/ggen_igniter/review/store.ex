@@ -33,9 +33,11 @@ defmodule GgenIgniter.Review.Store do
   under `:posted` / `:suppressed` (Finding structs). Returns the directory.
   """
   @spec save(round_doc, String.t(), String.t() | nil) :: String.t()
-        when round_doc: %{required(:round) => pos_integer(),
-                          required(:posted) => [Finding.t()],
-                          required(:suppressed) => [Finding.t()]}
+        when round_doc: %{
+               required(:round) => pos_integer(),
+               required(:posted) => [Finding.t()],
+               required(:suppressed) => [Finding.t()]
+             }
   def save(%{round: round, posted: posted, suppressed: suppressed} = doc, review_id, base \\ nil)
       when is_integer(round) and round >= 1 and is_list(posted) and is_list(suppressed) do
     dir = review_dir(review_id, base)
@@ -101,14 +103,16 @@ defmodule GgenIgniter.Review.Store do
         lines = body |> String.split("\n", trim: true)
 
         docs =
-          Enum.map(lines, fn line ->
-            case parse_object(line) do
-              {:ok, m} -> decode_doc(m)
-              :corrupt -> :corrupt
-            end
-          end)
+          Enum.map(lines, &decode_line/1)
 
         if :corrupt in docs, do: {:error, :corrupt}, else: {:ok, docs}
+    end
+  end
+
+  defp decode_line(line) do
+    case parse_object(line) do
+      {:ok, m} -> decode_doc(m)
+      :corrupt -> :corrupt
     end
   end
 

@@ -38,31 +38,26 @@ defmodule GgenIgniter.LandingPipeline.Stage.EpochCheck do
   def run(%Stage{} = ctx) do
     epoch = ctx.opts[:epoch]
 
-    unless is_binary(epoch) and epoch != "" do
-      {:refused, {:no_epoch, "opts[:epoch] must be a non-empty binary epoch id"}}
-    else
+    if is_binary(epoch) and epoch != "" do
       head = Stage.capture("git", ["rev-parse", "HEAD"])
-
-      case GgenIgniter.EpochFreshness.check(File.cwd!(), epoch) do
-        {:ok, report} ->
-          refused = get_in(report, ["planes", "summary", "refused"]) || count_refused(report)
-
-          if is_integer(refused) and refused > 0 do
-            {:block, {:epoch_refusals, refused},
-             %{"output" => %{"commands" => [head]}, "epoch_report" => epoch_summary(report)}}
-          else
-            {:pass,
-             %{
-               "output" => %{"commands" => [head]},
-               "epoch_report" => epoch_summary(report)
-             }}
-          end
-
-        {:error, reason} ->
-          {:refused, {:epoch_check_error, reason}}
-      end
+      epoch_outcome(GgenIgniter.EpochFreshness.check(File.cwd!(), epoch), head)
+    else
+      {:refused, {:no_epoch, "opts[:epoch] must be a non-empty binary epoch id"}}
     end
   end
+
+  defp epoch_outcome({:ok, report}, head) do
+    refused = get_in(report, ["planes", "summary", "refused"]) || count_refused(report)
+    output = %{"output" => %{"commands" => [head]}, "epoch_report" => epoch_summary(report)}
+
+    if is_integer(refused) and refused > 0 do
+      {:block, {:epoch_refusals, refused}, output}
+    else
+      {:pass, output}
+    end
+  end
+
+  defp epoch_outcome({:error, reason}, _head), do: {:refused, {:epoch_check_error, reason}}
 
   # The freshness report's refused count lives under a plane summary whose
   # exact shape is owned by EpochFreshness; read it defensively so a shape

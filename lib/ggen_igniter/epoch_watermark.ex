@@ -244,11 +244,14 @@ defmodule GgenIgniter.EpochWatermark do
 
   defp resolve_globs(opts) do
     case Keyword.get(opts, :globs) do
-      globs when is_list(globs) and globs != [] -> Enum.filter(globs, &is_binary/1)
-      _ -> case Keyword.get(opts, :glob) do
-        glob when is_binary(glob) -> [glob]
-        _ -> @default_globs
-      end
+      globs when is_list(globs) and globs != [] ->
+        Enum.filter(globs, &is_binary/1)
+
+      _ ->
+        case Keyword.get(opts, :glob) do
+          glob when is_binary(glob) -> [glob]
+          _ -> @default_globs
+        end
     end
   end
 
@@ -259,7 +262,7 @@ defmodule GgenIgniter.EpochWatermark do
   # is a loud manifest fact (see "Three courts" in the moduledoc), and the
   # empty-set refusal fires only when NO glob matches anything.
   defp implementation_files(base_dir, globs) do
-    pathspecs = Enum.map(globs, &":(glob)" <> &1)
+    pathspecs = Enum.map(globs, &(":(glob)" <> &1))
 
     case git(base_dir, ["ls-files", "-s", "--" | pathspecs]) do
       {output, 0} ->

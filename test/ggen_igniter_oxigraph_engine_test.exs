@@ -230,7 +230,12 @@ defmodule GgenIgniter.OxigraphEngineTest do
       graph = normalization_graph()
 
       [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
-      [fixed_row] = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), @normalization_query)
+
+      [fixed_row] =
+        GgenIgniter.Engine.Graphlaw.run(
+          GgenIgniter.Engine.Graphlaw.prepare!(graph, []),
+          @normalization_query
+        )
 
       assert oxigraph_row["iri_obj"] == "https://example.org/term-norm/object"
       refute oxigraph_row["iri_obj"] =~ "<"
@@ -242,7 +247,12 @@ defmodule GgenIgniter.OxigraphEngineTest do
       graph = normalization_graph()
 
       [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
-      [fixed_row] = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), @normalization_query)
+
+      [fixed_row] =
+        GgenIgniter.Engine.Graphlaw.run(
+          GgenIgniter.Engine.Graphlaw.prepare!(graph, []),
+          @normalization_query
+        )
 
       assert oxigraph_row["plain_str"] == "a plain string"
       refute oxigraph_row["plain_str"] =~ "\""
@@ -253,7 +263,12 @@ defmodule GgenIgniter.OxigraphEngineTest do
       graph = normalization_graph()
 
       [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
-      [fixed_row] = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), @normalization_query)
+
+      [fixed_row] =
+        GgenIgniter.Engine.Graphlaw.run(
+          GgenIgniter.Engine.Graphlaw.prepare!(graph, []),
+          @normalization_query
+        )
 
       assert oxigraph_row["lang_tagged"] == "hola"
       refute oxigraph_row["lang_tagged"] =~ "@"
@@ -281,7 +296,12 @@ defmodule GgenIgniter.OxigraphEngineTest do
       graph = normalization_graph()
 
       [oxigraph_row] = OxigraphQuery.run(graph, @normalization_query)
-      [fixed_row] = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), @normalization_query)
+
+      [fixed_row] =
+        GgenIgniter.Engine.Graphlaw.run(
+          GgenIgniter.Engine.Graphlaw.prepare!(graph, []),
+          @normalization_query
+        )
 
       # HISTORICAL: the retired sparql-hex engine returned RDF.ex native
       # Elixir types (true / 42) here, diverging from oxigraph's plain
@@ -337,7 +357,9 @@ defmodule GgenIgniter.OxigraphEngineTest do
       other -> flunk("expected a row list from the oxigraph engine, got: #{inspect(other)}")
     end
 
-    rows = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), gate_query)
+    rows =
+      GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), gate_query)
+
     assert is_list(rows)
   end
 
@@ -351,7 +373,9 @@ defmodule GgenIgniter.OxigraphEngineTest do
       other -> flunk("expected a row list from the oxigraph engine, got: #{inspect(other)}")
     end
 
-    rows = GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), gate_query)
+    rows =
+      GgenIgniter.Engine.Graphlaw.run(GgenIgniter.Engine.Graphlaw.prepare!(graph, []), gate_query)
+
     assert is_list(rows)
   end
 end

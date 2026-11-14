@@ -550,7 +550,13 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       domain_path = Path.join(work_dir, "semantic-jira-workorder.domain.hddl")
 
       {output, exit_code} =
-        run_sync(work_dir, [], "semantic-jira-pack:plan-domain", ".hddl", "semantic-jira-workorder.domain.hddl")
+        run_sync(
+          work_dir,
+          [],
+          "semantic-jira-pack:plan-domain",
+          ".hddl",
+          "semantic-jira-workorder.domain.hddl"
+        )
 
       assert exit_code == 0, "domain sync failed:\n#{output}"
       assert File.exists?(domain_path)
@@ -588,7 +594,13 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert plan_exit == 0, "plan sync failed:\n#{plan_output}"
 
       {domain_output, domain_exit} =
-        run_sync(work_dir, [], "semantic-jira-pack:plan-domain", ".hddl", "semantic-jira-workorder.domain.hddl")
+        run_sync(
+          work_dir,
+          [],
+          "semantic-jira-pack:plan-domain",
+          ".hddl",
+          "semantic-jira-workorder.domain.hddl"
+        )
 
       assert domain_exit == 0, "domain sync failed:\n#{domain_output}"
 
@@ -599,9 +611,17 @@ defmodule GgenIgniter.SemanticJiraPackTest do
 
       # Sabotage twin: the generated problem referencing a domain name the
       # emitted domain does not carry must fail the pair check, never pass.
-      saboteur = String.replace(problem_bytes, "(:domain semantic-jira-workorder)", "(:domain rogue-domain)", global: false)
+      saboteur =
+        String.replace(
+          problem_bytes,
+          "(:domain semantic-jira-workorder)",
+          "(:domain rogue-domain)",
+          global: false
+        )
+
       assert saboteur != problem_bytes, "sabotage mutation must apply"
       assert problem_domain_name(saboteur) != @sj_hddl_domain
+
       assert_raise ExUnit.AssertionError, fn ->
         assert_pair_grammar(domain_bytes, saboteur)
       end
@@ -623,7 +643,13 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert plan_exit == 0, "plan sync failed:\n#{plan_output}"
 
       {domain_output, domain_exit} =
-        run_sync(dir, [], "semantic-jira-pack:plan-domain", ".hddl", "semantic-jira-workorder.domain.hddl")
+        run_sync(
+          dir,
+          [],
+          "semantic-jira-pack:plan-domain",
+          ".hddl",
+          "semantic-jira-workorder.domain.hddl"
+        )
 
       assert domain_exit == 0, "domain sync failed:\n#{domain_output}"
 
@@ -645,21 +671,30 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     end
 
     @tag timeout: @double_sync_timeout
-    test "admits the rendered domain with a plain work order (exit 0)", %{dir: dir, domain: domain} do
+    test "admits the rendered domain with a plain work order (exit 0)", %{
+      dir: dir,
+      domain: domain
+    } do
       {out, code} = validate_pair(dir, File.read!(Path.join(dir, "SJ-001.hddl")), domain)
       assert code == 0, out
       assert out =~ "ok domain=semantic-jira-workorder problem=promote-SJ-001"
     end
 
     @tag timeout: @double_sync_timeout
-    test "admits the rendered domain with the dependency-carrying work order (exit 0)", %{dir: dir, domain: domain} do
+    test "admits the rendered domain with the dependency-carrying work order (exit 0)", %{
+      dir: dir,
+      domain: domain
+    } do
       {out, code} = validate_pair(dir, File.read!(Path.join(dir, "GALL-002.hddl")), domain)
       assert code == 0, out
       assert out =~ "ok domain=semantic-jira-workorder problem=promote-GALL-002"
     end
 
     @tag timeout: @double_sync_timeout
-    test "refuses a problem whose subtasks name an unrenderable vocabulary (exit 2)", %{dir: dir, domain: domain} do
+    test "refuses a problem whose subtasks name an unrenderable vocabulary (exit 2)", %{
+      dir: dir,
+      domain: domain
+    } do
       mutant =
         String.replace(
           File.read!(Path.join(dir, "SJ-001.hddl")),

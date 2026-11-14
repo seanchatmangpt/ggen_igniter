@@ -163,13 +163,8 @@ defmodule GgenIgniter.Review.Filter do
     end
   end
 
-  defp keyword_or_map_get(term, key) when is_map(term), do: Map.get(term, key)
-
   defp keyword_or_map_get(term, key) when is_list(term) do
-    cond do
-      Keyword.keyword?(term) -> Keyword.get(term, key)
-      true -> nil
-    end
+    if Keyword.keyword?(term), do: Keyword.get(term, key), else: nil
   end
 
   defp keyword_or_map_get(_, _), do: nil

@@ -189,6 +189,7 @@ defmodule GgenIgniter.SecurityReviewTest do
       rules = Enum.map(findings, & &1.rule)
 
       assert "credential_assignment" in rules
+
       assert Enum.map(findings, & &1.evidence) == [
                # masked to first 4 chars of the value
                "db_" <> Enum.join(["password", " = \"TEST...\""])
@@ -270,7 +271,14 @@ defmodule GgenIgniter.SecurityReviewTest do
   # ── fixtures/helpers (real data, no doubles) ───────────────────────────────
 
   defp lines_diff(lines, path \\ "fixture.txt") do
-    %{files: [%{path: path, added_lines: lines |> Enum.with_index(1) |> Enum.map(fn {t, i} -> {i, t} end)}]}
+    %{
+      files: [
+        %{
+          path: path,
+          added_lines: lines |> Enum.with_index(1) |> Enum.map(fn {t, i} -> {i, t} end)
+        }
+      ]
+    }
   end
 
   # A real, clean temp git repo: the seam tests produce a real (empty) diff

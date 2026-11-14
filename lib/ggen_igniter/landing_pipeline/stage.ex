@@ -48,7 +48,10 @@ defmodule GgenIgniter.LandingPipeline.Stage do
 
   @callback name() :: atom()
   @callback order() :: integer()
-  @callback run(t) :: {:pass, stage_receipt()} | {:block, reason :: term, stage_receipt()} | {:refused, reason :: term}
+  @callback run(t) ::
+              {:pass, stage_receipt()}
+              | {:block, reason :: term, stage_receipt()}
+              | {:refused, reason :: term}
 
   @doc """
   Runs one real subprocess (`System.cmd/3`, list-args, stderr merged into

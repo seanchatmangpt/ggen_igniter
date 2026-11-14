@@ -63,7 +63,9 @@ defmodule GgenIgniterReviewStoreTest do
       {:ok, history} = Store.load_history("rev-2", tmp())
       assert Enum.map(history, & &1.round) == [1, 2]
 
-      lines = File.read!(Path.join(dir("rev-2"), "rounds.jsonl")) |> String.split("\n", trim: true)
+      lines =
+        File.read!(Path.join(dir("rev-2"), "rounds.jsonl")) |> String.split("\n", trim: true)
+
       assert length(lines) == 2
 
       # findings.json holds ONLY the latest round

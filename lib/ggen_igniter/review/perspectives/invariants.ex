@@ -30,12 +30,9 @@ defmodule GgenIgniter.Review.Perspectives.Invariants do
   @ash_surface_regex Regex.compile!("use\\s+Ash\\.(Resource|Domain)")
 
   @rules [
-    {@ash_surface_regex,
-     "hand-written Ash surface (hook-blocked; use the ggen projection path)"},
-    {~r/git\s+worktree\s+add/,
-     "worktree creation (topology is transport, never ontology)"},
-    {~r/git\s+reset\s+--hard/,
-     "git reset --hard (fix forward; commits are immutable)"},
+    {@ash_surface_regex, "hand-written Ash surface (hook-blocked; use the ggen projection path)"},
+    {~r/git\s+worktree\s+add/, "worktree creation (topology is transport, never ontology)"},
+    {~r/git\s+reset\s+--hard/, "git reset --hard (fix forward; commits are immutable)"},
     {~r/push\s+.*--force/, "force push (merge, never rewrite shared history)"},
     {~r/-X\s+(theirs|ours)\b/,
      "blanket merge strategy flag -X theirs/ours (destroys one side; resolve by reading both)"},

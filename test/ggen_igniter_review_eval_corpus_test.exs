@@ -27,14 +27,21 @@ defmodule GgenIgniter.ReviewEval.CorpusTest do
         "receipt_citation" => nil,
         "commit_subject" => "fix: thing"
       },
-      "diff_ref" => %{"parent_sha" => String.duplicate("a", 40), "fix_sha" => String.duplicate("b", 40)},
+      "diff_ref" => %{
+        "parent_sha" => String.duplicate("a", 40),
+        "fix_sha" => String.duplicate("b", 40)
+      },
       "defect" => %{
         "description" => "desc",
         "invariant" => "f/1 must add",
         "surfaces" => ["review_eval"]
       },
       "location" => %{"file" => "lib/x/y.ex", "line" => 10, "line_tolerance" => 3},
-      "provenance" => %{"seeded_at" => "2026-10-20", "seed_command_version" => 1, "verified_in_fix" => true}
+      "provenance" => %{
+        "seeded_at" => "2026-10-20",
+        "seed_command_version" => 1,
+        "verified_in_fix" => true
+      }
     }
   end
 

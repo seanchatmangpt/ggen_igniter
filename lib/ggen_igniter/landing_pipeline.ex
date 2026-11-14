@@ -108,54 +108,53 @@ defmodule GgenIgniter.LandingPipeline do
 
   defp base_integrity(opts) do
     base = opts[:base]
-
-    unless is_binary(base) and base != "" do
-      throw_invalid("missing --base")
-    end
+    validate_base!(base)
 
     rev_parse = Stage.capture("git", ["rev-parse", "--verify", base])
 
     if rev_parse["exit"] != 0 do
       {:error, block_receipt(@base_stage, {:base_unresolvable, base}, [rev_parse])}
     else
-      base_sha = String.trim(rev_parse["stdout_tail"])
-
-      ancestor =
-        Stage.capture("git", ["merge-base", "--is-ancestor", base, "HEAD"])
-
-      cond do
-        ancestor["exit"] != 0 ->
-          {:error,
-           block_receipt(@base_stage, {:base_not_ancestor, base}, [rev_parse, ancestor])}
-
-        true ->
-          head = Stage.capture("git", ["rev-parse", "HEAD"])
-          head_sha = String.trim(head["stdout_tail"])
-          declared = opts[:worktree_sha]
-
-          cond do
-            head["exit"] != 0 ->
-              {:error, block_receipt(@base_stage, {:head_unresolvable, base}, [rev_parse, ancestor, head])}
-
-            is_binary(declared) and declared != head_sha ->
-              {:error,
-               block_receipt(@base_stage, {:base_drift, declared, head_sha}, [
-                 rev_parse,
-                 ancestor,
-                 head
-               ])}
-
-            true ->
-              receipt =
-                pass_receipt(@base_stage, [rev_parse, ancestor, head])
-                |> Map.merge(%{"base_sha" => base_sha, "worktree_sha" => head_sha})
-
-              {:ok, base_sha, declared || head_sha, receipt}
-          end
-      end
+      check_ancestor(opts, base, rev_parse)
     end
   catch
     {:invalid, reason} -> {:invalid, reason}
+  end
+
+  defp validate_base!(base) when is_binary(base) and base != "", do: :ok
+  defp validate_base!(_base), do: throw_invalid("missing --base")
+
+  defp check_ancestor(opts, base, rev_parse) do
+    base_sha = String.trim(rev_parse["stdout_tail"])
+    ancestor = Stage.capture("git", ["merge-base", "--is-ancestor", base, "HEAD"])
+
+    if ancestor["exit"] != 0 do
+      {:error, block_receipt(@base_stage, {:base_not_ancestor, base}, [rev_parse, ancestor])}
+    else
+      check_head(opts, base, base_sha, rev_parse, ancestor)
+    end
+  end
+
+  defp check_head(opts, base, base_sha, rev_parse, ancestor) do
+    head = Stage.capture("git", ["rev-parse", "HEAD"])
+    head_sha = String.trim(head["stdout_tail"])
+    declared = opts[:worktree_sha]
+    receipts = [rev_parse, ancestor, head]
+
+    cond do
+      head["exit"] != 0 ->
+        {:error, block_receipt(@base_stage, {:head_unresolvable, base}, receipts)}
+
+      is_binary(declared) and declared != head_sha ->
+        {:error, block_receipt(@base_stage, {:base_drift, declared, head_sha}, receipts)}
+
+      true ->
+        receipt =
+          pass_receipt(@base_stage, receipts)
+          |> Map.merge(%{"base_sha" => base_sha, "worktree_sha" => head_sha})
+
+        {:ok, base_sha, declared || head_sha, receipt}
+    end
   end
 
   # ── the fixed registry drive ────────────────────────────────────────────────
@@ -215,29 +214,28 @@ defmodule GgenIgniter.LandingPipeline do
       {:module, _} ->
         header = %{"stage" => to_string(module.name()), "order" => module.order()}
 
-        case apply(module, :run, [ctx]) do
-          {:pass, receipt} ->
-            if real_output?(receipt["output"]) do
-              header |> Map.merge(pass_receipt(header, nil) |> Map.merge(receipt)) |> Map.put("status", "pass")
-            else
-              block_receipt(
-                header,
-                {:invalid_stage_output, header["stage"]},
-                receipt["output"]
-              )
-            end
-
-          {:block, reason, receipt} ->
-            block_receipt(header, reason, receipt["output"])
-
-          {:refused, reason} ->
-            header |> Map.merge(%{"status" => "refused", "reason" => reason, "output" => nil})
-
-          other ->
-            block_receipt(header, {:bad_stage_return, other}, nil)
-        end
+        header |> interpret_stage_return(apply(module, :run, [ctx]))
     end
   end
+
+  defp interpret_stage_return(header, {:pass, receipt}) do
+    if real_output?(receipt["output"]) do
+      header
+      |> Map.merge(pass_receipt(header, nil) |> Map.merge(receipt))
+      |> Map.put("status", "pass")
+    else
+      block_receipt(header, {:invalid_stage_output, header["stage"]}, receipt["output"])
+    end
+  end
+
+  defp interpret_stage_return(header, {:block, reason, receipt}),
+    do: block_receipt(header, reason, receipt["output"])
+
+  defp interpret_stage_return(header, {:refused, reason}),
+    do: header |> Map.merge(%{"status" => "refused", "reason" => reason, "output" => nil})
+
+  defp interpret_stage_return(header, other),
+    do: block_receipt(header, {:bad_stage_return, other}, nil)
 
   # A missing stage module has no name/0 or order/0 to call: the receipt label
   # and order slot fall back to the MODULE NAME (underscored last segment) and
@@ -349,7 +347,8 @@ defmodule GgenIgniter.LandingPipeline do
   defp new_run_id,
     do:
       "pl-" <>
-        Integer.to_string(System.os_time(:second)) <> "-" <> Integer.to_string(System.unique_integer([:positive]))
+        Integer.to_string(System.os_time(:second)) <>
+        "-" <> Integer.to_string(System.unique_integer([:positive]))
 
   defp iso8601_now, do: DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 

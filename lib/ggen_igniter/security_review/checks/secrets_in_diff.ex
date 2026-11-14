@@ -56,9 +56,10 @@ defmodule GgenIgniter.SecurityReview.Checks.SecretsInDiff do
   # Secret values masked to their first 4 chars before the evidence ever
   # leaves this check — both credential shapes this rule detects.
   defp mask_secret(text) do
-    masked_assignment = Regex.replace(@assignment, text, fn whole, value ->
-      String.replace(whole, value, String.slice(value, 0, 4) <> "...")
-    end)
+    masked_assignment =
+      Regex.replace(@assignment, text, fn whole, value ->
+        String.replace(whole, value, String.slice(value, 0, 4) <> "...")
+      end)
 
     Regex.replace(@aws_key, masked_assignment, fn key -> String.slice(key, 0, 4) <> "..." end)
   end

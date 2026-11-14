@@ -1,0 +1,151 @@
+{
+  "work_order_id": "R3-GI-PIN",
+  "origin_authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "operator directive 2026-11-13: everything uses the most recent OTP/Erlang/Elixir; pin court re-qualification under the new pin",
+    "actor": "claude (sonnet-5.5) coordinator, operator-directed"
+  },
+  "provider": {
+    "name": "claude-code",
+    "model": "sonnet-5.5"
+  },
+  "provider_execution_id": "ggen_igniter-r3-gipin-v26.11.13",
+  "identity": {
+    "subject": "R3-GI-PIN",
+    "repo": "/Users/sac/ggen_igniter (origin seanchatmangpt/ggen_igniter)",
+    "branch": "main",
+    "subject_sha": "9c2572e6ccde18a33f122a07d9d39bd246f88316",
+    "base_sha": "9c2572e6ccde18a33f122a07d9d39bd246f88316",
+    "base_sha_note": "the judged subject is the uncommitted working tree on 9c2572e; every dirty tracked file's WT sha256 is pinned in provider_ext.r3gi.subject_manifest",
+    "lane_head_gate": "9c2572e6ccde18a33f122a07d9d39bd246f88316",
+    "subject_tree_clean": "no -- dirty (this wave's pin move, credo/format cleanup, pack-frontmatter lanes)"
+  },
+  "authority": {
+    "ceiling": "CONSTRUCT",
+    "grant": "operator directive 2026-11-13 (latest OTP/Erlang/Elixir everywhere); no push in this receipt",
+    "actor": "claude (sonnet-5.5) coordinator"
+  },
+  "consequence": {
+    "commits": [],
+    "commits_note": "none yet at receipt time; the coordinator commits receipt, pin files and court change together",
+    "files_changed": [
+      ".tool-versions",
+      ".github/workflows/*.yml",
+      "mix.exs (faker git ref)",
+      "receipts/v26.11.13/R3-GI-PIN.json",
+      "receipts/v26.11.13/R3-GI-PIN.logs/*",
+      "test/ggen_igniter_toolchain_pin_qualification_test.exs"
+    ],
+    "remote_effects": [],
+    "local_effects": [
+      "_build rebuilt under elixir 1.20.4 / OTP 29.1.2"
+    ]
+  },
+  "replay": {
+    "durable_location": "receipts/v26.11.13/R3-GI-PIN.logs",
+    "step_runner": "receipts/v26.11.13/R3-GI-PIN.logs/step.sh (derived from receipts/v26.10.2/R2-GI-PIN.logs/step.sh, pin PATH moved to elixir 1.20.4-otp-29 / erlang 29.1.2)",
+    "build_identity": "receipts/v26.11.13/R3-GI-PIN.logs/build_identity.exs",
+    "commands": [
+      {
+        "cmd": "PATH=/Users/sac/.asdf/installs/elixir/1.20.4-otp-29/bin:/Users/sac/.asdf/installs/erlang/29.1.2/bin:$PATH sh -c 'elixir --version && mix format --check-formatted && mix compile --warnings-as-errors --force && mix credo && mix test'",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "LANE GATE (literal) on the working tree under the NEW pin (elixir 1.20.4-otp-29 / erlang 29.1.2): format, forced compile, credo (5289 mods/funs, found no issues.), Finished in 598.0 seconds (185.7s async, 412.2s sync); Result: 1848 passed (20 doctests, 41 properties, 1787 tests), 5 skipped, 705 excluded. EXCLUSION DISCLOSED in the log header: the court file was REPLACED BY A ZERO-TEST STUB for this captured gate (self-referential), restored byte-identical afterwards. [head 9c2572e6ccde18a33f122a07d9d39bd246f88316; 2026-11-14T02:27:50Z -> 2026-11-14T02:37:57Z]",
+        "output_sha256": "75f602c4cb7413657daf856b305a9d7933c3ed60b5191e72c7c102f7bd6345af",
+        "log": "receipts/v26.11.13/R3-GI-PIN.logs/10-lane-gate.log",
+        "role": "lane gate on committed head"
+      },
+      {
+        "cmd": "mix format --check-formatted (under pin PATH)",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "mix format --check-formatted under the new pin: clean [head 9c2572e6ccde18a33f122a07d9d39bd246f88316; 2026-11-14T02:27:05Z -> 2026-11-14T02:27:06Z]",
+        "output_sha256": "6cc9ff8094a3cdc15078de5c99c750211d01d006500fd1edc48ecf5a3f789076",
+        "log": "receipts/v26.11.13/R3-GI-PIN.logs/01-format.log"
+      },
+      {
+        "cmd": "mix compile --warnings-as-errors --force (under pin PATH)",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "mix compile --warnings-as-errors --force under the new pin: clean [head 9c2572e6ccde18a33f122a07d9d39bd246f88316; 2026-11-14T02:27:06Z -> 2026-11-14T02:27:09Z]",
+        "output_sha256": "51a7e302dcaf96b30461bb518a2d04d1a072df6f7ca3c6431c10467969bbdf6d",
+        "log": "receipts/v26.11.13/R3-GI-PIN.logs/02-compile.log"
+      },
+      {
+        "cmd": "mix credo (under pin PATH)",
+        "cwd": "/Users/sac/ggen_igniter",
+        "exit": 0,
+        "summary": "mix credo under the new pin: 5289 mods/funs, found no issues. [head 9c2572e6ccde18a33f122a07d9d39bd246f88316; 2026-11-14T02:27:09Z -> 2026-11-14T02:27:12Z]",
+        "output_sha256": "667937d5edf30525ea4c0b02b9d9ceaf53cfd1e009df962964aa7a4c2000ff02",
+        "log": "receipts/v26.11.13/R3-GI-PIN.logs/03-credo.log"
+      }
+    ]
+  },
+  "standing": {
+    "value": "ALIVE",
+    "derived_from": "literal lane gate on the working tree at head 9c2572e6ccde18a33f122a07d9d39bd246f88316 under the .tool-versions pin (elixir 1.20.4-otp-29 / erlang 29.1.2): exit 0; Result: 1848 passed (20 doctests, 41 properties, 1787 tests), 5 skipped, 705 excluded; credo 5289 mods/funs, found no issues."
+  },
+  "provider_ext.r3gi": {
+    "work_order": {
+      "id": "R3-GI-PIN",
+      "wave": "v26.11.13",
+      "defect": "operator directive moved the pin to elixir 1.20.4-otp-29 / erlang 29.1.2 (latest installed); the pin court requires a new pinned qualification when .tool-versions moves",
+      "defect_evidence": "ToolchainPinQualificationTest failures on R2-GI-PIN toolchain identity and lane-gate log"
+    },
+    "predecessor": {
+      "receipt": "receipts/v26.10.2/R2-GI-PIN.json",
+      "status": "committed evidence, never edited (observed under elixir 1.19.5-otp-27)"
+    },
+    "toolchain": {
+      "pin_source": ".tool-versions: elixir 1.20.4-otp-29, erlang 29.1.2",
+      "elixir": "Elixir 1.20.4 (compiled with Erlang/OTP 29)",
+      "elixir_bin": "/Users/sac/.asdf/installs/elixir/1.20.4-otp-29/bin/elixir",
+      "erl_bin": "/Users/sac/.asdf/installs/erlang/29.1.2/bin/erl",
+      "otp_release": "29",
+      "otp_version": "29.1.2",
+      "erts": "17.1.1",
+      "compiler_app": "10.0.7",
+      "build_identity_log": "receipts/v26.11.13/R3-GI-PIN.logs/05-build-identity.log",
+      "build_identity_sha256": "2e67d07455dfc90f74124a424b41033d568d572ac224938963236f3ff346fa0a",
+      "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+      "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+      "nif_note": "ggen_graph_nif rebuilt under the pin by the forced compile (02-compile.log); rustler selects the NIF API by cargo feature, not the running ERTS",
+      "tool_versions_pin_used": true,
+      "mix_lock_sha256": "078090a36abc98c2819161a0054b08f34c1ac64327298341baf44d3e53fb9d7a"
+    },
+    "subject_manifest": {
+      "log": "receipts/v26.11.13/R3-GI-PIN.logs/06-working-tree-manifest.log",
+      "sha256": "eca6d5b3aaa975733b06d4a83c9e7bf96188a65ad3163b545c4bee2c5bdd37ff",
+      "note": "head + sha256 per dirty tracked file (working tree) at gate time"
+    },
+    "falsifiers": [],
+    "exclusions": [
+      {
+        "kind": "court stub exclusion",
+        "what": "test/ggen_igniter_toolchain_pin_qualification_test.exs replaced by a zero-test stub for the captured lane gate",
+        "why": "the court pins this receipt, which cites the lane-gate log the gate produces; the court cannot be part of the suite it qualifies",
+        "disclosed_in": "10-lane-gate.log header # note= line",
+        "restored_after": "yes, byte-identical (sha256 f4d9a33e9ddb315e919686c687c06960d8d9b4fe68a16e2569f2d1b0829b3b55 before and after)"
+      }
+    ],
+    "observations": [
+      {
+        "kind": "test_summary_format",
+        "finding": "Elixir 1.20.4 prints 'Result: N passed (...)' (zero failures) or 'Result: a/b passed (...)' instead of the older 'N doctests, M properties, K tests, 0 failures' line; the court regex now accepts both",
+        "standing_effect": "none"
+      },
+      {
+        "kind": "hook_toolchain_skew",
+        "finding": "the Stop hook's compile ran under homebrew elixir 1.19.5/OTP 28 and clobbered _build mid-run until PATH was fixed; gate runs here were re-run under the pin",
+        "standing_effect": "none"
+      }
+    ],
+    "findings": [
+      {
+        "id": "R3-GI-PIN-1",
+        "statement": "ggen_igniter main (working tree on 9c2572e) passes the full lane gate under elixir 1.20.4-otp-29 / erlang 29.1.2",
+        "classification": "none needed (no product failure)"
+      }
+    ]
+  }
+}

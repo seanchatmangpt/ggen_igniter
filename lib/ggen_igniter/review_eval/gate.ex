@@ -58,31 +58,36 @@ defmodule GgenIgniter.ReviewEval.Gate do
 
     baseline_path = baseline_path(repo_root)
 
-    unless File.exists?(baseline_path) do
-      {:error, {:no_baseline, baseline_path}}
-    else
+    if File.exists?(baseline_path) do
       baseline = Jason.decode!(File.read!(baseline_path))
-      corpus_digest = Corpus.digest(repo_root)
+      judge(baseline, Corpus.digest(repo_root), run_receipt, surface_tolerance)
+    else
+      {:error, {:no_baseline, baseline_path}}
+    end
+  end
 
-      cond do
-        baseline["corpus_digest"] != corpus_digest ->
-          {:refuse, :corpus_digest_changed,
-           %{baseline: baseline["corpus_digest"], current: corpus_digest}}
+  defp judge(%{"corpus_digest" => sealed} = baseline, digest, run_receipt, tolerance) do
+    if sealed == digest do
+      judge_recall(baseline, run_receipt, tolerance)
+    else
+      {:refuse, :corpus_digest_changed, %{baseline: sealed, current: digest}}
+    end
+  end
 
-        true ->
-          score = run_receipt["score"]
-          b_recall = baseline["recall"]
-          c_recall = score["recall"]
+  defp judge(baseline, digest, _run_receipt, _tolerance),
+    do: {:refuse, :corpus_digest_changed, %{baseline: baseline["corpus_digest"], current: digest}}
 
-          if c_recall >= b_recall do
-            case surface_check(baseline, run_receipt, surface_tolerance) do
-              :ok -> {:ok, :admitted, %{baseline_recall: b_recall, candidate_recall: c_recall}}
-              {:drop, surface, drop} -> {:refuse, {:surface_recall_drop, surface, drop}, %{}}
-            end
-          else
-            {:refuse, {:recall_regression, baseline: b_recall, candidate: c_recall}, %{}}
-          end
+  defp judge_recall(baseline, run_receipt, tolerance) do
+    b_recall = baseline["recall"]
+    c_recall = run_receipt["score"]["recall"]
+
+    if c_recall >= b_recall do
+      case surface_check(baseline, run_receipt, tolerance) do
+        :ok -> {:ok, :admitted, %{baseline_recall: b_recall, candidate_recall: c_recall}}
+        {:drop, surface, drop} -> {:refuse, {:surface_recall_drop, surface, drop}, %{}}
       end
+    else
+      {:refuse, {:recall_regression, baseline: b_recall, candidate: c_recall}, %{}}
     end
   end
 
@@ -91,22 +96,18 @@ defmodule GgenIgniter.ReviewEval.Gate do
     c_per = run_receipt["per_surface"] || %{}
 
     Enum.find_value(b_per, :ok, fn {surface, b_recall} ->
-      c_recall = Map.get(c_per, surface)
-
-      if is_number(c_recall) do
-        b_caught = round(b_recall * total_for(b_per, surface))
-        c_caught = round(c_recall * total_for(c_per, surface))
-
-        if b_caught - c_caught > tolerance do
-          {:drop, surface, b_caught - c_caught}
-        else
-          nil
-        end
-      else
-        nil
-      end
+      surface_drop(surface, b_recall, Map.get(c_per, surface), b_per, c_per, tolerance)
     end)
   end
+
+  defp surface_drop(surface, b_recall, c_recall, b_per, c_per, tolerance)
+       when is_number(c_recall) do
+    b_caught = round(b_recall * total_for(b_per, surface))
+    c_caught = round(c_recall * total_for(c_per, surface))
+    if b_caught - c_caught > tolerance, do: {:drop, surface, b_caught - c_caught}
+  end
+
+  defp surface_drop(_surface, _b_recall, _c_recall, _b_per, _c_per, _tolerance), do: nil
 
   defp total_for(per_surface, surface) do
     # per-surface recall times an assumed denominator is not recoverable from
@@ -133,7 +134,8 @@ defmodule GgenIgniter.ReviewEval.Gate do
 
     if receipt["corpus_digest"] == current,
       do: :ok,
-      else: {:error, {:corpus_digest_changed, receipt: receipt["corpus_digest"], current: current}}
+      else:
+        {:error, {:corpus_digest_changed, receipt: receipt["corpus_digest"], current: current}}
   end
 
   defp ancestor_of_head(repo_root, sha) do

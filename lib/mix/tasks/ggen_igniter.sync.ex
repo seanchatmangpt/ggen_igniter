@@ -897,6 +897,97 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   end
 
   defp run_sync(igniter, opts, pack_template_stem) do
+    if tera_pack_dir?(opts) do
+      run_tera_pack(igniter, opts)
+    else
+      run_sync_eex(igniter, opts, pack_template_stem)
+    end
+  end
+
+  # `--pack-dir DIR` over a ggen Tera frontmatter pack (`Sync.tera_pack?/1`) delegates to
+  # `GgenIgniter.PackFrontmatter.Sync` with `--ontology`/`--out`, and writes a receipt to
+  # `<out>/.ggen-igniter/receipt-*.json` on a real (non-dry-run) run. Every other call shape
+  # takes the unchanged EEx path.
+  defp tera_pack_dir?(opts), do: tera_pack_path(opts) != nil
+
+  # Resolved Tera pack directory for `--pack-dir DIR`, or `--pack DIR-or-NAME` (an existing
+  # directory path wins, else `Pack.resolve_dir!/1`'s `priv/ggen/NAME` / shipped-pack lookup).
+  # `nil` => not a Tera pack, take the unchanged EEx path.
+  defp tera_pack_path(opts) do
+    dir =
+      cond do
+        opts[:pack_dir] not in [nil, ""] -> opts[:pack_dir]
+        opts[:pack] not in [nil, ""] and File.dir?(opts[:pack]) -> opts[:pack]
+        opts[:pack] not in [nil, ""] -> GgenIgniter.Pack.resolve_dir!(opts)
+        true -> nil
+      end
+
+    if opts[:template] in [nil, ""] and dir != nil and File.dir?(dir) and
+         GgenIgniter.PackFrontmatter.Sync.tera_pack?(dir),
+       do: dir
+  end
+
+  # Contract mode (`--check/--json/--lock`) re-raises into `classify_failure/1`; the plain
+  # path maps `REFUSED:<CODE> ...` to stderr + exit 1 and any other ArgumentError to exit 2.
+  defp run_tera_pack(igniter, opts) do
+    do_run_tera_pack(igniter, opts)
+  rescue
+    e in ArgumentError ->
+      if Process.get(@capture_key) do
+        reraise e, __STACKTRACE__
+      else
+        msg = Exception.message(e)
+        IO.puts(:stderr, msg)
+        System.halt(if(msg =~ "REFUSED:", do: 1, else: 2))
+      end
+  end
+
+  defp do_run_tera_pack(igniter, opts) do
+    alias GgenIgniter.PackFrontmatter.{Receipt, Sync}
+
+    if opts[:ontology] in [nil, ""] do
+      raise ArgumentError,
+            "--ontology is required for a Tera frontmatter pack (--pack/--pack-dir)"
+    end
+
+    dry_run? = opts[:dry_run] == true
+
+    sync_opts = [
+      pack_dir: tera_pack_path(opts),
+      ontologies: [opts[:ontology]],
+      out_dir: opts[:out] || File.cwd!(),
+      dry_run: dry_run?
+    ]
+
+    result = Sync.run!(sync_opts)
+
+    lines =
+      Enum.map(result.files, fn %{path: p, outcome: o} ->
+        case {o, dry_run?} do
+          {:written, true} -> "planned: write #{p}"
+          {:written, false} -> "wrote #{p}"
+          {:unchanged, true} -> "planned: skip #{p} (unchanged)"
+          {other, _} -> "#{other} #{p}"
+        end
+      end)
+
+    receipt_line =
+      if dry_run? do
+        []
+      else
+        ["receipt #{Receipt.write!(result, sync_opts)}"]
+      end
+
+    if capture = Process.get(@capture_key) do
+      Process.put(@capture_key, %{capture | lines: capture.lines ++ lines ++ receipt_line})
+    else
+      Enum.each(lines ++ receipt_line, &IO.puts/1)
+    end
+
+    igniter
+  end
+
+  defp run_sync_eex(igniter, opts, pack_template_stem) do
     lock_key = opts[:manifest_dir] || File.cwd!()
 
     # `--check` is read-only (dry run): like `plan`, it takes no lock and writes nothing.

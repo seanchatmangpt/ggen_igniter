@@ -150,14 +150,15 @@ defmodule GgenIgniterReviewFilterSuppressionTest do
     test "same observation -> same id; whitespace/case-insensitive summary matches" do
       a = finding("lib/foo.ex", 7, :correctness)
 
-      b = Finding.new(
-        file: "lib/foo.ex",
-        line: 7,
-        class: :correctness,
-        severity: :important,
-        summary: "  UNDO/4   must   restore\npre_run_hash  ",
-        perspective: :correctness
-      )
+      b =
+        Finding.new(
+          file: "lib/foo.ex",
+          line: 7,
+          class: :correctness,
+          severity: :important,
+          summary: "  UNDO/4   must   restore\npre_run_hash  ",
+          perspective: :correctness
+        )
 
       assert a.id == b.id
     end

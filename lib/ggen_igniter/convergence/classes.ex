@@ -29,21 +29,23 @@ defmodule GgenIgniter.Convergence.Classes do
           {:ok, [map()], non_neg_integer()} | {:error, {:unknown_class, atom()}}
   def apply_class_fix(findings, class, opts \\ [])
       when is_list(findings) and is_atom(class) do
-    unless class in @classes do
-      {:error, {:unknown_class, class}}
-    else
+    if class in @classes do
       reason = Keyword.get(opts, :reason, "class_fixed")
 
       {fixed, count} =
-        Enum.map_reduce(findings, 0, fn finding, n ->
-          if Map.get(finding, :class) == class do
-            {Map.put(finding, :reason, reason), n + 1}
-          else
-            {finding, n}
-          end
-        end)
+        Enum.map_reduce(findings, 0, &annotate_if_class(&1, &2, class, reason))
 
       {:ok, fixed, count}
+    else
+      {:error, {:unknown_class, class}}
+    end
+  end
+
+  defp annotate_if_class(finding, n, class, reason) do
+    if Map.get(finding, :class) == class do
+      {Map.put(finding, :reason, reason), n + 1}
+    else
+      {finding, n}
     end
   end
 end

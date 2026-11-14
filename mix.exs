@@ -235,7 +235,10 @@ defmodule GgenIgniter.MixProject do
       # related to every event), so the literal values must not be load-
       # bearing -- generated names make an accidental pass on a hardcoded
       # string impossible.
-      {:faker, "~> 0.18", only: [:dev, :test]},
+      {:faker,
+       github: "elixirs/faker",
+       ref: "f9d24dc23a1f7f5755cd13d1f70e2730ad4dd64f",
+       only: [:dev, :test]},
       # Ash is a CONSUMER-side dependency of ggen_igniter, never a runtime one
       # -- see the layer table in CLAUDE.md. It is pulled in `only: [:dev,
       # :test]` so this repo's own suite can drive the REAL generative Ash

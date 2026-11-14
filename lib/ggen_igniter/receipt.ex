@@ -209,6 +209,7 @@ defmodule GgenIgniter.Receipt do
   require Logger
 
   @enforce_keys [:id, :standing, :started_at, :finished_at]
+  # credo:disable-for-next-line Credo.Check.Warning.StructFieldAmount
   defstruct id: nil,
             recipe_key: nil,
             standing: nil,

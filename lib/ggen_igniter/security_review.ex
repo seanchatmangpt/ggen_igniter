@@ -38,7 +38,17 @@ defmodule GgenIgniter.SecurityReview do
   """
 
   @enforce_keys [:category, :file, :rule, :severity, :evidence]
-  defstruct [:category, :file, :rule, :severity, :evidence, :line, :id, :first_seen_commit, :state]
+  defstruct [
+    :category,
+    :file,
+    :rule,
+    :severity,
+    :evidence,
+    :line,
+    :id,
+    :first_seen_commit,
+    :state
+  ]
 
   @type severity :: :high | :medium
   @type state :: :open | :auto_cleared
@@ -150,7 +160,8 @@ defmodule GgenIgniter.SecurityReview do
   # the ledger sees anything.
   defp dedup(findings) do
     Enum.uniq_by(findings, fn f ->
-      {f.category, f.file, f.rule, GgenIgniter.SecurityReview.Receipt.normalize_evidence(f.evidence)}
+      {f.category, f.file, f.rule,
+       GgenIgniter.SecurityReview.Receipt.normalize_evidence(f.evidence)}
     end)
   end
 

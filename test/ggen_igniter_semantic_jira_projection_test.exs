@@ -75,7 +75,10 @@ defmodule GgenIgniter.SemanticJiraProjectionTest do
 
   defp relock!(pack_dir) do
     lock_path = Path.join(Path.dirname(pack_dir), "ggen_igniter.pack.lock")
-    lock = PackLock.empty() |> PackLock.put(Path.basename(pack_dir), PackLock.entry(pack_dir, "test"))
+
+    lock =
+      PackLock.empty() |> PackLock.put(Path.basename(pack_dir), PackLock.entry(pack_dir, "test"))
+
     PackLock.write(lock_path, lock)
     lock_path
   end
@@ -194,7 +197,10 @@ defmodule GgenIgniter.SemanticJiraProjectionTest do
 
     test "an order for an unknown capability refuses capability_unknown at the execute hop",
          ctx do
-      ctx = %{ctx | work_orders: work_orders_file!(ctx.dir, ctx.target.head, %{"capability_id" => "nope"})}
+      ctx = %{
+        ctx
+        | work_orders: work_orders_file!(ctx.dir, ctx.target.head, %{"capability_id" => "nope"})
+      }
 
       assert {1, refusal} = Execute.run(projection_opts(ctx))
       assert refusal["hop"] == "execute"
@@ -221,7 +227,9 @@ defmodule GgenIgniter.SemanticJiraProjectionTest do
     end
 
     test "idempotent: :written then :unchanged on an identical re-run, bytes stable", ctx do
-      assert {:ok, :written, receipt} = Projection.project(order_map(ctx.target.head), proj_opts(ctx))
+      assert {:ok, :written, receipt} =
+               Projection.project(order_map(ctx.target.head), proj_opts(ctx))
+
       content = File.read!(artifact_path(ctx))
       assert receipt["render_digest"] == GgenIgniter.SemanticJira.digest_exact(content)
 
@@ -235,7 +243,12 @@ defmodule GgenIgniter.SemanticJiraProjectionTest do
       # Mutate the pack's rendered content (row title), re-pin the lock: the
       # render now differs, but unless_exists skips the write.
       ontology = Path.join(ctx.pack, "ontology.ttl")
-      File.write!(ontology, String.replace(File.read!(ontology), "projection fixture row", "mutated row"))
+
+      File.write!(
+        ontology,
+        String.replace(File.read!(ontology), "projection fixture row", "mutated row")
+      )
+
       relock!(ctx.pack)
 
       assert {:ok, :skipped_exists, _} =
@@ -245,10 +258,16 @@ defmodule GgenIgniter.SemanticJiraProjectionTest do
     end
 
     test "a changed pack re-writes (:written) after the lock is re-pinned", ctx do
-      assert {:ok, :written, first} = Projection.project(order_map(ctx.target.head), proj_opts(ctx))
+      assert {:ok, :written, first} =
+               Projection.project(order_map(ctx.target.head), proj_opts(ctx))
 
       ontology = Path.join(ctx.pack, "ontology.ttl")
-      File.write!(ontology, String.replace(File.read!(ontology), "projection fixture row", "mutated row"))
+
+      File.write!(
+        ontology,
+        String.replace(File.read!(ontology), "projection fixture row", "mutated row")
+      )
+
       relock!(ctx.pack)
 
       assert {:ok, :written, second} =

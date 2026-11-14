@@ -320,10 +320,10 @@ defmodule GgenIgniter.SemanticJira.Projection do
   # documented decision order). `unless_exists` defaults to false: a
   # byte-identical re-run is `:unchanged`; changed pack bytes re-write.
   defp write(abs_target, content, opts) do
-    case Actuate.write_file!(abs_target, content, unless_exists: opts[:unless_exists] == true) do
-      {:ok, outcome} -> {:ok, outcome}
-      other -> {:error, {:sync_failed, "Actuate.write_file!/3 returned: " <> inspect(other)}}
-    end
+    {:ok, outcome} =
+      Actuate.write_file!(abs_target, content, unless_exists: opts[:unless_exists] == true)
+
+    {:ok, outcome}
   end
 
   # The fail-closed court over the staging copy: every `gates/*.rq` (>= 1 row)
@@ -359,10 +359,8 @@ defmodule GgenIgniter.SemanticJira.Projection do
   defp order_field(order, opts, key) do
     field = key_string(key)
 
-    with value when is_binary(value) and value != "" <-
-           Keyword.get(opts, key) || Map.get(order, field) do
-      {:ok, value}
-    else
+    case Keyword.get(opts, key) || Map.get(order, field) do
+      value when is_binary(value) and value != "" -> {:ok, value}
       _ -> {:error, missing_reason(key)}
     end
   end

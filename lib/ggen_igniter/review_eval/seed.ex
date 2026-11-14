@@ -82,28 +82,31 @@ defmodule GgenIgniter.ReviewEval.Seed do
 
     out
     |> String.split("\n", trim: true)
-    |> Enum.flat_map(fn line ->
-      case String.split(line, "\0", parts: 4) do
-        [sha, parents, subject, date] ->
-          case String.split(parents) do
-            [parent] ->
-              [%{source_ref: sha, parent_sha: parent, fix_sha: sha, subject: subject, date: date}]
+    |> Enum.flat_map(&parse_log_line/1)
+    |> Enum.flat_map(&locate_entry(repo_root, &1))
+  end
 
-            # merge/revert-with-two-parents: skip (location derivation needs one parent)
-            _ ->
-              []
-          end
+  defp parse_log_line(line) do
+    case String.split(line, "\0", parts: 4) do
+      [sha, parents, subject, date] ->
+        single_parent_entry(sha, String.split(parents), subject, date)
 
-        _ ->
-          []
-      end
-    end)
-    |> Enum.flat_map(fn entry ->
-      case derive_location(repo_root, entry) do
-        {:ok, loc} -> [Map.merge(entry, %{location: loc, kind: kind_for_subject(entry.subject)})]
-        :error -> []
-      end
-    end)
+      _ ->
+        []
+    end
+  end
+
+  defp single_parent_entry(sha, [parent], subject, date),
+    do: [%{source_ref: sha, parent_sha: parent, fix_sha: sha, subject: subject, date: date}]
+
+  # merge/revert-with-two-parents: skip (location derivation needs one parent)
+  defp single_parent_entry(_sha, _parents, _subject, _date), do: []
+
+  defp locate_entry(repo_root, entry) do
+    case derive_location(repo_root, entry) do
+      {:ok, loc} -> [Map.merge(entry, %{location: loc, kind: kind_for_subject(entry.subject)})]
+      :error -> []
+    end
   end
 
   defp kind_for_subject(subject) do
@@ -122,8 +125,11 @@ defmodule GgenIgniter.ReviewEval.Seed do
     {out, 0} = System.cmd("git", args, cd: repo_root)
 
     case parse_hunks(out) do
-      [] -> :error
-      [{file, line} | _] -> {:ok, %{"file" => file, "line" => line, "line_tolerance" => Corpus.default_tolerance()}}
+      [] ->
+        :error
+
+      [{file, line} | _] ->
+        {:ok, %{"file" => file, "line" => line, "line_tolerance" => Corpus.default_tolerance()}}
     end
   end
 
@@ -138,16 +144,7 @@ defmodule GgenIgniter.ReviewEval.Seed do
             {acc, String.trim_leading(line, "+++ b/")}
 
           String.starts_with?(line, "@@") ->
-            case Regex.run(~r/@@ -\d+(?:,\d+)? \+(\d+)/, line) do
-              [_, start_line] ->
-                case Integer.parse(start_line) do
-                  {n, _} when current_file != nil -> {[{current_file, n} | acc], current_file}
-                  _ -> {acc, current_file}
-                end
-
-              _ ->
-                {acc, current_file}
-            end
+            {add_hunk(line, current_file, acc), current_file}
 
           true ->
             {acc, current_file}
@@ -155,6 +152,15 @@ defmodule GgenIgniter.ReviewEval.Seed do
       end)
 
     Enum.reverse(result)
+  end
+
+  defp add_hunk(line, current_file, acc) do
+    with [_, start_line] <- Regex.run(~r/@@ -\d+(?:,\d+)? \+(\d+)/, line),
+         {n, _} when current_file != nil <- Integer.parse(start_line) do
+      [{current_file, n} | acc]
+    else
+      _ -> acc
+    end
   end
 
   # -- confidence --------------------------------------------------------

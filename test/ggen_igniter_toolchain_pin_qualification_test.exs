@@ -4,7 +4,8 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
   `.tool-versions` pin (PRD section 12 GC23-11 and PR-013; ARD section 20
   `BUILD_BROKEN(toolchain)`, section 25 verification ladder, section 27
   toolchain identity). Release defect lane R1-GI-PIN, repair round 1;
-  re-qualified at v26.10.2 as lane D8 (`R2-GI-PIN`) after the pin moved.
+  re-qualified at v26.10.2 as lane D8 (`R2-GI-PIN`) after the pin moved, and again at v26.11.13
+  (`R3-GI-PIN`, elixir 1.20.4-otp-29 / erlang 29.1.2) after the pin moved to the latest toolchain.
 
   The pin moved 1.18.4-otp-27 -> 1.19.5-otp-27 in the v26.10.2 epoch
   (ash_a2a 26.9.31 requires elixir "~> 1.19"; 1.18.4 can no longer compile
@@ -44,9 +45,9 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
   alias GgenIgniter.SemanticJira.Bootstrap.Receipts
 
   @root Path.expand("..", __DIR__)
-  @receipt "receipts/v26.10.2/R2-GI-PIN.json"
+  @receipt "receipts/v26.11.13/R3-GI-PIN.json"
   @predecessor_receipt "receipts/v26.9.23/R1-GI-PIN.json"
-  @ext "provider_ext.r2gi"
+  @ext "provider_ext.r3gi"
   @lane_gate_role "lane gate on committed head"
 
   describe "running VM and CI vs .tool-versions (toolchain pin)" do
@@ -70,7 +71,7 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
     end
   end
 
-  describe "Receipts.check/1 and cited logs (receipts/v26.10.2/R2-GI-PIN.json)" do
+  describe "Receipts.check/1 and cited logs (receipts/v26.11.13/R3-GI-PIN.json)" do
     test "the pinned-qualification receipt admits clean under fleet R v2 (Receipts.check/1 == [])" do
       receipt = receipt()
 
@@ -162,7 +163,11 @@ defmodule GgenIgniter.ToolchainPinQualificationTest do
 
       assert log =~ "Erlang/OTP #{pin.erlang_major} ["
       assert log =~ banner(pin)
-      assert log =~ ~r/^\d+ doctests?, \d+ properties, \d+ tests?, 0 failures\b/m
+      # Elixir <= 1.19 prints "N doctests, M properties, K tests, 0 failures"; Elixir 1.20 prints
+      # "Result: N passed (...)" on a clean run ("Result: a/b passed" when anything failed).
+      assert log =~ ~r/^\d+ doctests?, \d+ properties, \d+ tests?, 0 failures\b/m or
+               log =~ ~r/^Result: \d+ passed \(/m
+
       assert log =~ ~r/^# ended=\S+ exit=0$/m
     end
   end

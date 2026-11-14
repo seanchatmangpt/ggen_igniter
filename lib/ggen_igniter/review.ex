@@ -65,7 +65,10 @@ defmodule GgenIgniter.Review do
       |> Enum.reject(&(&1.class in @dropped_pre_vote))
 
     verifiers =
-      Verifier.pad_default(Keyword.fetch!(opts, :verifiers), Keyword.fetch!(opts, :verifier_count))
+      Verifier.pad_default(
+        Keyword.fetch!(opts, :verifiers),
+        Keyword.fetch!(opts, :verifier_count)
+      )
 
     tallied = Tally.tally(findings, verifiers)
 
@@ -74,7 +77,9 @@ defmodule GgenIgniter.Review do
     if Keyword.fetch!(opts, :persist) do
       review_id = Keyword.fetch!(opts, :review_id)
 
-      Store.save(%{round: round, posted: posted, suppressed: suppressed}, review_id,
+      Store.save(
+        %{round: round, posted: posted, suppressed: suppressed},
+        review_id,
         Keyword.fetch!(opts, :base)
       )
     end

@@ -43,7 +43,13 @@ defmodule GgenIgniter.ReceiptPortableBoundaryTest do
   use ExUnit.Case, async: true
 
   @schema_path Path.join([__DIR__, "..", "..", "priv", "schema", "receipt.schema.json"])
-  @ggen_portable_path Path.join([__DIR__, "..", "fixtures", "ggen_portable", "receipt-portable.json"])
+  @ggen_portable_path Path.join([
+                        __DIR__,
+                        "..",
+                        "fixtures",
+                        "ggen_portable",
+                        "receipt-portable.json"
+                      ])
 
   # The closed set of ggen portable-envelope fields this court knows how to
   # disposition. ANY top-level key in a future ggen envelope outside this
@@ -62,7 +68,8 @@ defmodule GgenIgniter.ReceiptPortableBoundaryTest do
     "consequences" => {:mapped_partial, "outputs"},
     "work_order" => {:mapped_partial, "metadata[\"work_order\"]"},
     "replay" => :no_igniter_counterpart,
-    "standing" => {:mapped, "standing (NON-equivalent vocabulary: ggen ALIVE vs igniter's five closed atoms)"}
+    "standing" =>
+      {:mapped, "standing (NON-equivalent vocabulary: ggen ALIVE vs igniter's five closed atoms)"}
   }
 
   # ggen standing vocabulary observed in real portable receipts.
@@ -90,7 +97,11 @@ defmodule GgenIgniter.ReceiptPortableBoundaryTest do
 
   defp check_required(errors, _schema, _data), do: errors
 
-  defp check_additional_properties(errors, %{"additionalProperties" => false, "properties" => props}, data) do
+  defp check_additional_properties(
+         errors,
+         %{"additionalProperties" => false, "properties" => props},
+         data
+       ) do
     extra =
       Map.keys(data)
       |> MapSet.new()
@@ -114,8 +125,9 @@ defmodule GgenIgniter.ReceiptPortableBoundaryTest do
   defp check_field(errors, key, %{"type" => types} = sub, value) when is_list(types) do
     if Enum.any?(types, &type_ok?(&1, value)),
       do: errors,
-      else: ["#{key}: expected one of #{inspect(types)}, got #{inspect(value)}" | errors]
-    |> then(fn _ -> check_patterns(errors, key, sub, value) end)
+      else:
+        ["#{key}: expected one of #{inspect(types)}, got #{inspect(value)}" | errors]
+        |> then(fn _ -> check_patterns(errors, key, sub, value) end)
   end
 
   defp check_field(errors, key, %{"type" => type} = sub, value) do
@@ -346,7 +358,8 @@ defmodule GgenIgniter.ReceiptPortableBoundaryTest do
       end
 
       for s <- ggen_only do
-        refute map_ggen_standing(s) in (GgenIgniter.Receipt.standings() |> Enum.map(&Atom.to_string/1)),
+        refute map_ggen_standing(s) in (GgenIgniter.Receipt.standings()
+                                        |> Enum.map(&Atom.to_string/1)),
                "ggen #{s} must NOT silently map into igniter's vocabulary"
       end
 

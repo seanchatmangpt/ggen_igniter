@@ -49,7 +49,10 @@ defmodule GgenIgniter.AiroWiringPinW686Test do
 
   test "TTL bytes are pinned: exact sha256 and size" do
     assert File.exists?(@ttl_path)
-    assert sha256(@ttl_path) == @sha256, "priv/airo_risk_description.ttl drifted from the pinned digest"
+
+    assert sha256(@ttl_path) == @sha256,
+           "priv/airo_risk_description.ttl drifted from the pinned digest"
+
     assert byte_size(File.read!(@ttl_path)) == @bytes
   end
 

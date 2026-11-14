@@ -229,9 +229,6 @@ defmodule Mix.Tasks.GgenIgniter.Install do
           :no_change ->
             igniter
         end
-
-      :error ->
-        igniter
     end
   end
 

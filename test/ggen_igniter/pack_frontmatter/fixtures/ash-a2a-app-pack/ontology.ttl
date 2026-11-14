@@ -1,0 +1,10 @@
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix aap:  <https://ggen.dev/ash-a2a-app#> .
+
+aap:Domain    a owl:Class .
+aap:Resource  a owl:Class .
+aap:Attribute a owl:Class .
+aap:Action    a owl:Class .
+aap:Skill     a owl:Class .
+aap:Agent     a owl:Class .
+aap:Project   a owl:Class .

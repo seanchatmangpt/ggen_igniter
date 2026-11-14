@@ -950,24 +950,25 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
                 files: details.paths,
                 events: events,
                 reason: describe_compensation_failure(details, orig_reason),
-                metadata: %{
-                  "failed_step" => inspect(step_name),
-                  "triggering_step" => inspect(orig_step_name),
-                  "raw_error" => inspect(orig_reason),
-                  "mutation_occurred" => true,
-                  "verification_failed" => true,
-                  "restoration_failed" => true,
-                  "manual_repair_required" => true,
-                  "compensation_restored_paths" => details.restored,
-                  "compensation_failed_paths" =>
-                    Enum.map(details.failed, fn {path, _reason} -> path end),
-                  "compensation_failed_details" =>
-                    Enum.map(details.failed, fn {path, reason} ->
-                      %{"path" => path, "reason" => inspect(reason)}
-                    end),
-                  "post_run_state_hash" => Receipt.hash_files(details.paths)
-                }
-                |> Map.put("risk_signals", risk_signals)
+                metadata:
+                  %{
+                    "failed_step" => inspect(step_name),
+                    "triggering_step" => inspect(orig_step_name),
+                    "raw_error" => inspect(orig_reason),
+                    "mutation_occurred" => true,
+                    "verification_failed" => true,
+                    "restoration_failed" => true,
+                    "manual_repair_required" => true,
+                    "compensation_restored_paths" => details.restored,
+                    "compensation_failed_paths" =>
+                      Enum.map(details.failed, fn {path, _reason} -> path end),
+                    "compensation_failed_details" =>
+                      Enum.map(details.failed, fn {path, reason} ->
+                        %{"path" => path, "reason" => inspect(reason)}
+                      end),
+                    "post_run_state_hash" => Receipt.hash_files(details.paths)
+                  }
+                  |> Map.put("risk_signals", risk_signals)
               })
 
             :error ->
@@ -994,11 +995,12 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
                 files: failed_files,
                 events: events,
                 reason: describe_failure(original_reason),
-                metadata: %{
-                  "failed_step" => inspect(step_name),
-                  "raw_error" => inspect(original_reason)
-                }
-                |> Map.put("risk_signals", risk_signals)
+                metadata:
+                  %{
+                    "failed_step" => inspect(step_name),
+                    "raw_error" => inspect(original_reason)
+                  }
+                  |> Map.put("risk_signals", risk_signals)
               })
           end
 
@@ -3163,41 +3165,43 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
         # (success only, per `actuate_pending/2`'s own comment) -- see
         # `GgenIgniter.Receipt`'s moduledoc for the entry shape.
         commands: commands,
-        metadata: %{
-          "graph_hash" => graph_hash,
-          "post_run_ws_hash" => post_run_ws_hash,
-          "target_count" => length(results),
-          # Best-effort single-target compatibility fields (populated
-          # whenever this run had exactly one target, i.e. the
-          # `Reconcile.run/1`-parity shape).
-          "out_path" => single_result && single_result[:out_path],
-          "outcome" =>
-            single_result && single_result[:outcome] && Atom.to_string(single_result[:outcome]),
-          "mode" => single_result && single_result[:mode] && Atom.to_string(single_result[:mode]),
-          "notice" => notice_body <> query_suffix <> summary_suffix,
-          # Per-target bare notice lines (no "ggen_igniter: " prefix, no
-          # "(engine: ...)" suffix) for a `--dry-run` caller to print
-          # DURING the run via `Mix.shell().info/1` -- mirrors
-          # `Mix.Tasks.GgenIgniter.Sync`'s own `run_pipeline!/3`
-          # (`if dry_run, do: Mix.shell().info(line)`, per target, as it
-          # goes) -- see `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3`'s
-          # own call site. `[]` for a real (non-dry-run) run: nothing to
-          # preview-print, the real notice above already covers it.
-          "dry_run_lines" =>
-            if(dry_run_run?,
-              do: results |> Enum.map(& &1[:notice_line]) |> Enum.reject(&is_nil/1),
-              else: []
-            ),
-          # Real evidence of `mode: eval` + `Igniter` composition (see
-          # `actuate_eval_sequential/2`) -- `false`/`[]` for every run with
-          # no `:eval` targets, or where every `:eval` target returned an
-          # ordinary (non-`%Igniter{}`) value. The raw `%Igniter{}` struct
-          # itself is never embedded here (not `Jason.encode!/1`-safe) --
-          # only its real, already-computed `Rewrite.paths/1` path list.
-          "igniter_diverged" => igniter_diverged,
-          "igniter_paths" => igniter_paths
-        }
-        |> Map.put("risk_signals", risk_signals)
+        metadata:
+          %{
+            "graph_hash" => graph_hash,
+            "post_run_ws_hash" => post_run_ws_hash,
+            "target_count" => length(results),
+            # Best-effort single-target compatibility fields (populated
+            # whenever this run had exactly one target, i.e. the
+            # `Reconcile.run/1`-parity shape).
+            "out_path" => single_result && single_result[:out_path],
+            "outcome" =>
+              single_result && single_result[:outcome] && Atom.to_string(single_result[:outcome]),
+            "mode" =>
+              single_result && single_result[:mode] && Atom.to_string(single_result[:mode]),
+            "notice" => notice_body <> query_suffix <> summary_suffix,
+            # Per-target bare notice lines (no "ggen_igniter: " prefix, no
+            # "(engine: ...)" suffix) for a `--dry-run` caller to print
+            # DURING the run via `Mix.shell().info/1` -- mirrors
+            # `Mix.Tasks.GgenIgniter.Sync`'s own `run_pipeline!/3`
+            # (`if dry_run, do: Mix.shell().info(line)`, per target, as it
+            # goes) -- see `Mix.Tasks.GgenIgniter.Sync.run_via_reactor/3`'s
+            # own call site. `[]` for a real (non-dry-run) run: nothing to
+            # preview-print, the real notice above already covers it.
+            "dry_run_lines" =>
+              if(dry_run_run?,
+                do: results |> Enum.map(& &1[:notice_line]) |> Enum.reject(&is_nil/1),
+                else: []
+              ),
+            # Real evidence of `mode: eval` + `Igniter` composition (see
+            # `actuate_eval_sequential/2`) -- `false`/`[]` for every run with
+            # no `:eval` targets, or where every `:eval` target returned an
+            # ordinary (non-`%Igniter{}`) value. The raw `%Igniter{}` struct
+            # itself is never embedded here (not `Jason.encode!/1`-safe) --
+            # only its real, already-computed `Rewrite.paths/1` path list.
+            "igniter_diverged" => igniter_diverged,
+            "igniter_paths" => igniter_paths
+          }
+          |> Map.put("risk_signals", risk_signals)
       })
 
     # -- 2. Persist the receipt FIRST (real append-only write) -- but ONLY

@@ -28,7 +28,9 @@ defmodule GgenIgniter.EngineRegistry do
   def resolve("all", _opts), do: {:ok, [engine_atom()]}
 
   def resolve(engine_spec, _opts) when is_binary(engine_spec) do
-    names = engine_spec |> String.split(",", trim: true) |> Enum.map(&String.trim/1) |> Enum.uniq()
+    names =
+      engine_spec |> String.split(",", trim: true) |> Enum.map(&String.trim/1) |> Enum.uniq()
+
     valid = Engine.valid_names()
 
     if names == [Engine.fixed()] do

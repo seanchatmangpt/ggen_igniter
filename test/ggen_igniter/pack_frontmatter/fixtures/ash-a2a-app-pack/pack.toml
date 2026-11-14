@@ -1,0 +1,4 @@
+[pack]
+name = "ash-a2a-app-pack"
+version = "0.1.0"
+description = "Frozen copy of the ash-a2a-app-pack core (v26.11.13) for the PackFrontmatter byte-identity court."

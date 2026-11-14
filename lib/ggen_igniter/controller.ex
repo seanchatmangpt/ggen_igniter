@@ -69,7 +69,7 @@ defmodule GgenIgniter.Controller do
   alias GgenIgniter.Reconcile
 
   @type pack_key :: term()
-  @type record :: %{
+  @type pack_record :: %{
           ontology_path: String.t(),
           manifest: %{optional(String.t()) => atom()},
           reconciliation_count: pos_integer(),
@@ -100,23 +100,23 @@ defmodule GgenIgniter.Controller do
   `:skip_if`/`:dry_run`).
 
   On success, updates this server's in-process state for `pack_key` and
-  returns `{:ok, record()}`. On a real pipeline failure, returns
+  returns `{:ok, pack_record()}`. On a real pipeline failure, returns
   `{:error, reason}` -- this server's state for `pack_key` (and every other
   key) is left completely unchanged, and the server itself does not crash.
   """
   @spec reconcile(GenServer.server(), pack_key(), keyword()) ::
-          {:ok, record()} | {:error, term()}
+          {:ok, pack_record()} | {:error, term()}
   def reconcile(server, pack_key, reconcile_opts) do
     GenServer.call(server, {:reconcile, pack_key, reconcile_opts}, :infinity)
   end
 
   @doc """
   Returns the real, current in-memory record for `pack_key` -- `{:ok,
-  record()}` -- or `:never_reconciled` if this server has never
+  pack_record()}` -- or `:never_reconciled` if this server has never
   successfully reconciled that key. A pure in-process state read: this call
   never touches disk.
   """
-  @spec status(GenServer.server(), pack_key()) :: {:ok, record()} | :never_reconciled
+  @spec status(GenServer.server(), pack_key()) :: {:ok, pack_record()} | :never_reconciled
   def status(server, pack_key) do
     GenServer.call(server, {:status, pack_key})
   end

@@ -67,7 +67,12 @@ defmodule GgenIgniter.EpochConfigMigrationsTest do
     File.mkdir_p!(Path.join(dir, "config"))
     File.write!(Path.join(dir, "config/app.exs"), @config_impl)
     File.mkdir_p!(Path.join(dir, "priv/repo/migrations"))
-    File.write!(Path.join(dir, "priv/repo/migrations/20200101000000_create_books.exs"), @migration)
+
+    File.write!(
+      Path.join(dir, "priv/repo/migrations/20200101000000_create_books.exs"),
+      @migration
+    )
+
     commit_all(dir, "add config + migrations")
 
     assert {:ok, manifest, _path} = EpochWatermark.stamp!(dir, @epoch, now: @boundary)
@@ -85,7 +90,12 @@ defmodule GgenIgniter.EpochConfigMigrationsTest do
 
   test "a migration edited after the watermark is REFUSED_LEGACY_EDIT", %{dir: dir} do
     File.mkdir_p!(Path.join(dir, "priv/repo/migrations"))
-    File.write!(Path.join(dir, "priv/repo/migrations/20200101000000_create_books.exs"), @migration)
+
+    File.write!(
+      Path.join(dir, "priv/repo/migrations/20200101000000_create_books.exs"),
+      @migration
+    )
+
     commit_all(dir, "add migration")
 
     stamp_watermark(dir)
@@ -98,7 +108,10 @@ defmodule GgenIgniter.EpochConfigMigrationsTest do
     commit_all(dir, "touch migration")
 
     {:ok, report} = EpochFreshness.check(dir, @epoch)
-    assert %{"verdict" => :REFUSED_LEGACY_EDIT} = file_report(report, "priv/repo/migrations/20200101000000_create_books.exs")
+
+    assert %{"verdict" => :REFUSED_LEGACY_EDIT} =
+             file_report(report, "priv/repo/migrations/20200101000000_create_books.exs")
+
     assert report["standing"] == :REFUSED
   end
 
@@ -191,7 +204,12 @@ defmodule GgenIgniter.EpochConfigMigrationsTest do
 
   test "epoch plan gate refuses an order touching a stamped migration", %{dir: dir} do
     File.mkdir_p!(Path.join(dir, "priv/repo/migrations"))
-    File.write!(Path.join(dir, "priv/repo/migrations/20200101000000_create_books.exs"), @migration)
+
+    File.write!(
+      Path.join(dir, "priv/repo/migrations/20200101000000_create_books.exs"),
+      @migration
+    )
+
     commit_all(dir, "add migration")
 
     manifest = stamp_watermark(dir)
@@ -237,6 +255,7 @@ defmodule GgenIgniter.EpochConfigMigrationsTest do
     assert is_list(watermark["implementation_globs"])
 
     order = %{"epoch" => @epoch, "plan_touches" => ["lib/other.ex"]}
+
     assert {:error, {:refused_epoch_plan, :unattributed_implementation}} =
              EpochPlan.check(order, watermark)
   end

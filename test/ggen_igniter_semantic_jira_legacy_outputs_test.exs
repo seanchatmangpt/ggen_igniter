@@ -144,16 +144,16 @@ force: true
     extra ++
       [
         work_orders: ctx.work_orders,
-      ledger: ctx.ledger,
-      verifier_suite: @suite,
-      alias: "o/r=target",
-      pack_dir: ctx.pack,
-      target_dir: ctx.target.dir,
-      receipts_dir: ctx.receipts_dir,
-      # The security pre-step's cwd: a clean controlled repo, so the gate
-      # verdict is deterministic and independent of the host checkout.
-      cwd: ctx.gate.dir
-    ]
+        ledger: ctx.ledger,
+        verifier_suite: @suite,
+        alias: "o/r=target",
+        pack_dir: ctx.pack,
+        target_dir: ctx.target.dir,
+        receipts_dir: ctx.receipts_dir,
+        # The security pre-step's cwd: a clean controlled repo, so the gate
+        # verdict is deterministic and independent of the host checkout.
+        cwd: ctx.gate.dir
+      ]
   end
 
   describe "run/1 outputs without an explicit out (the to: frontmatter leg)" do

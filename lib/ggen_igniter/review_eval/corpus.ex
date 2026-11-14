@@ -56,23 +56,25 @@ defmodule GgenIgniter.ReviewEval.Corpus do
   def load(repo_root \\ ".") do
     path = corpus_path(repo_root)
 
-    if File.exists?(path) do
-      path
-      |> File.read!()
-      |> String.split("\n", trim: true)
-      |> Enum.with_index(1)
-      |> Enum.reduce_while({:ok, []}, fn {line, n}, {:ok, acc} ->
-        case Jason.decode(line) do
-          {:ok, obj} -> {:cont, {:ok, [obj | acc]}}
-          {:error, _} -> {:halt, {:error, {:bad_line, n}}}
-        end
-      end)
-      |> case do
-        {:ok, cases} -> {:ok, Enum.reverse(cases)}
-        other -> other
-      end
-    else
-      {:ok, []}
+    if File.exists?(path), do: load_file(path), else: {:ok, []}
+  end
+
+  defp load_file(path) do
+    path
+    |> File.read!()
+    |> String.split("\n", trim: true)
+    |> Enum.with_index(1)
+    |> Enum.reduce_while({:ok, []}, &decode_line/2)
+    |> case do
+      {:ok, cases} -> {:ok, Enum.reverse(cases)}
+      other -> other
+    end
+  end
+
+  defp decode_line({line, n}, {:ok, acc}) do
+    case Jason.decode(line) do
+      {:ok, obj} -> {:cont, {:ok, [obj | acc]}}
+      {:error, _} -> {:halt, {:error, {:bad_line, n}}}
     end
   end
 
@@ -87,8 +89,7 @@ defmodule GgenIgniter.ReviewEval.Corpus do
 
     body =
       cases
-      |> Enum.map(&Jason.encode!/1)
-      |> Enum.join("\n")
+      |> Enum.map_join("\n", &Jason.encode!/1)
       |> Kernel.<>(if cases == [], do: "", else: "\n")
 
     File.write!(path, body)
@@ -109,17 +110,15 @@ defmodule GgenIgniter.ReviewEval.Corpus do
 
   @doc "Validate one decoded case object; returns :ok or {:error, reason}."
   @spec validate_case(map()) :: :ok | {:error, term()}
-  def validate_case(
-        %{
-          "case_id" => id,
-          "schema_version" => @schema_version,
-          "source" => %{"kind" => kind} = _src,
-          "diff_ref" => %{"parent_sha" => p, "fix_sha" => f},
-          "defect" => %{"description" => _, "invariant" => _, "surfaces" => surfaces},
-          "location" => %{"file" => file, "line" => line},
-          "provenance" => _
-        }
-      )
+  def validate_case(%{
+        "case_id" => id,
+        "schema_version" => @schema_version,
+        "source" => %{"kind" => kind} = _src,
+        "diff_ref" => %{"parent_sha" => p, "fix_sha" => f},
+        "defect" => %{"description" => _, "invariant" => _, "surfaces" => surfaces},
+        "location" => %{"file" => file, "line" => line},
+        "provenance" => _
+      })
       when is_binary(id) and is_binary(p) and is_binary(f) and is_list(surfaces) and
              is_binary(file) and is_integer(line) do
     kind_atom = if is_binary(kind), do: String.to_atom(kind), else: kind

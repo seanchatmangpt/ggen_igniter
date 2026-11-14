@@ -29,8 +29,8 @@ jobs:
         run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.18.4"
-          otp-version: "27.2.4"
+          elixir-version: "1.20.4"
+          otp-version: "29.1.2"
       - run: mix deps.get
       - name: Run narrow manufacturer court
         run: mix test test/gall_checkpoint_002_project_manufacturer_test.exs

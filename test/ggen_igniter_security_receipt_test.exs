@@ -38,8 +38,16 @@ defmodule GgenIgniter.SecurityReceiptTest do
     # machine load ("nothing to commit" was observed once in CI-class fan-out),
     # setup must not abort — the real change arrives via commit_all!/2.
     git!(dir, [
-      "-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-m", "base"
+      "-c",
+      "user.email=t@t",
+      "-c",
+      "user.name=t",
+      "commit",
+      "--allow-empty",
+      "-m",
+      "base"
     ])
+
     dir
   end
 

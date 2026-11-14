@@ -68,21 +68,21 @@ defmodule Mix.Tasks.GgenIgniter.Review.Pipeline do
 
       {code, report} ->
         maybe_write_out(opts[:out], report)
-
-        if opts[:json] do
-          # Returning normally would let a runner print trailing prose AFTER
-          # the JSON document; --json must stay one valid document (the
-          # `ggen_igniter.doctor` --json law).
-          IO.puts(Jason.encode!(report))
-          System.halt(code)
-        else
-          print_human(report)
-
-          if code == 1, do: emit_last_line_stderr(report)
-
-          System.halt(code)
-        end
+        finish(report, code, opts[:json])
     end
+  end
+
+  # Returning normally would let a runner print trailing prose AFTER the JSON document; --json
+  # must stay one valid document (the `ggen_igniter.doctor` --json law).
+  defp finish(report, code, true) do
+    IO.puts(Jason.encode!(report))
+    System.halt(code)
+  end
+
+  defp finish(report, code, _json) do
+    print_human(report)
+    if code == 1, do: emit_last_line_stderr(report)
+    System.halt(code)
   end
 
   defp maybe_write_out(nil, _report), do: :ok

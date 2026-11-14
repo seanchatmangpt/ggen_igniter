@@ -19,53 +19,75 @@ defmodule Mix.Tasks.GgenIgniter.ReviewEval.Gate do
   def run(args) do
     {opts, _argv} =
       OptionParser.parse!(args,
-        strict: [seal: :boolean, run_id: :string, run_receipt: :string, surface_tolerance: :integer]
+        strict: [
+          seal: :boolean,
+          run_id: :string,
+          run_receipt: :string,
+          surface_tolerance: :integer
+        ]
       )
 
+    dispatch(opts)
+  end
+
+  defp dispatch(opts) do
     cond do
-      opts[:seal] && opts[:run_id] ->
-        case Gate.seal(repo_root: ".", run_id: opts[:run_id]) do
-          {:ok, baseline} ->
-            Mix.shell().info("baseline sealed: #{Jason.encode!(baseline)}")
-            exit_with(0)
+      opts[:seal] && opts[:run_id] -> seal(opts[:run_id])
+      opts[:run_receipt] -> gate(opts)
+      true -> usage()
+    end
+  end
 
-          {:error, reason} ->
-            Mix.shell().error("seal refused: #{inspect(reason)}")
-            exit_with(2)
-        end
+  defp usage do
+    Mix.shell().error("usage: --seal --run-id <id> | --run-receipt <path>")
+    exit_with(2)
+  end
 
-      opts[:run_receipt] ->
-        case File.exists?(opts[:run_receipt]) do
-          false ->
-            Mix.shell().error("run receipt not found: #{opts[:run_receipt]}")
-            exit_with(2)
+  defp seal(run_id) do
+    case Gate.seal(repo_root: ".", run_id: run_id) do
+      {:ok, baseline} ->
+        Mix.shell().info("baseline sealed: #{Jason.encode!(baseline)}")
+        exit_with(0)
 
-          true ->
-            receipt = Jason.decode!(File.read!(opts[:run_receipt]))
-
-            case Gate.admit(
-                   repo_root: ".",
-                   run_receipt: receipt,
-                   surface_tolerance: Keyword.get(opts, :surface_tolerance, 1)
-                 ) do
-              {:ok, :admitted, details} ->
-                Mix.shell().info("ADMITTED #{inspect(details)}")
-                exit_with(0)
-
-              {:refuse, reason, _} ->
-                Mix.shell().error("REFUSED #{inspect(reason)}")
-                exit_with(1)
-
-              {:error, reason} ->
-                Mix.shell().error("ERROR #{inspect(reason)}")
-                exit_with(2)
-            end
-        end
-
-      true ->
-        Mix.shell().error("usage: --seal --run-id <id> | --run-receipt <path>")
+      {:error, reason} ->
+        Mix.shell().error("seal refused: #{inspect(reason)}")
         exit_with(2)
     end
+  end
+
+  defp gate(opts) do
+    path = opts[:run_receipt]
+
+    if File.exists?(path) do
+      receipt = Jason.decode!(File.read!(path))
+
+      result =
+        Gate.admit(
+          repo_root: ".",
+          run_receipt: receipt,
+          surface_tolerance: Keyword.get(opts, :surface_tolerance, 1)
+        )
+
+      report_admit(result)
+    else
+      Mix.shell().error("run receipt not found: #{path}")
+      exit_with(2)
+    end
+  end
+
+  defp report_admit({:ok, :admitted, details}) do
+    Mix.shell().info("ADMITTED #{inspect(details)}")
+    exit_with(0)
+  end
+
+  defp report_admit({:refuse, reason, _}) do
+    Mix.shell().error("REFUSED #{inspect(reason)}")
+    exit_with(1)
+  end
+
+  defp report_admit({:error, reason}) do
+    Mix.shell().error("ERROR #{inspect(reason)}")
+    exit_with(2)
   end
 
   defp exit_with(code), do: System.halt(code)

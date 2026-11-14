@@ -54,7 +54,7 @@ defmodule GgenIgniter.Convergence.Critic do
 
           {acc ++ added_line_findings(body, file, hunk_id, saw_moduledoc),
            saw_moduledoc or String.contains?(body, "@moduledoc")}
-        end
+      end
     end)
     |> elem(0)
   end

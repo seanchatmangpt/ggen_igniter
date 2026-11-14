@@ -30,10 +30,18 @@ defmodule GgenIgniter.LandingPipeline.Stage.FanoutReview do
       Stage.capture("mix", ["ggen_igniter.review", "--base", ctx.base_sha, "--json"])
 
     case capture["exit"] do
-      0 -> {:pass, %{"output" => %{"commands" => [capture]}}}
-      1 -> {:block, {:review_findings_posted, capture["exit"]}, %{"output" => %{"commands" => [capture]}}}
-      2 -> {:refused, {:review_invocation_failed, capture["stdout_tail"]}}
-      other -> {:refused, {:review_unexpected_exit, other, capture["stdout_tail"]}}
+      0 ->
+        {:pass, %{"output" => %{"commands" => [capture]}}}
+
+      1 ->
+        {:block, {:review_findings_posted, capture["exit"]},
+         %{"output" => %{"commands" => [capture]}}}
+
+      2 ->
+        {:refused, {:review_invocation_failed, capture["stdout_tail"]}}
+
+      other ->
+        {:refused, {:review_unexpected_exit, other, capture["stdout_tail"]}}
     end
   end
 end

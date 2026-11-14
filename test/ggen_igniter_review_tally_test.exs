@@ -62,7 +62,8 @@ defmodule GgenIgniterReviewTallyTest do
     end
 
     test "M=2: floor(M/2)+1 = 2 sustain needed; 1-1 rejects" do
-      assert {:rejected, _} = Verifier.vote(finding(), [fn _ -> :sustain end, fn _ -> :reject end])
+      assert {:rejected, _} =
+               Verifier.vote(finding(), [fn _ -> :sustain end, fn _ -> :reject end])
     end
 
     test "M=1: single sustain sustains; single reject rejects" do
@@ -102,7 +103,9 @@ defmodule GgenIgniterReviewTallyTest do
     end
 
     test "rejecting verifiers suppress everything" do
-      result = Tally.tally([finding()], [fn _ -> :reject end, fn _ -> :reject end, fn _ -> :sustain end])
+      result =
+        Tally.tally([finding()], [fn _ -> :reject end, fn _ -> :reject end, fn _ -> :sustain end])
+
       assert %{posted: [], suppressed: [_]} = result
     end
   end

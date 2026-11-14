@@ -1,0 +1,7 @@
+# cwd=/Users/sac/ggen_igniter head=9c2572e6ccde18a33f122a07d9d39bd246f88316 started=2026-11-14T02:27:06Z
+# cmd=mix compile --warnings-as-errors --force
+Compiling 224 files (.ex)
+Compiling crate ggen_graph_nif in release mode (native/ggen_graph_nif)
+Copying /Users/sac/ggen_igniter/native/ggen_graph_nif/target/release/libggen_graph_nif.dylib to priv/native/ggen_graph_nif.so
+Generated ggen_igniter app
+# ended=2026-11-14T02:27:09Z exit=0

@@ -49,10 +49,10 @@ jobs:
       - name: Set up Erlang/OTP + Elixir + rebar3
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          # Pinned to this repo's own .tool-versions (elixir 1.18.4-otp-27,
-          # erlang 27.2.4) -- NOT beam4pm's pins, which are a different repo.
-          elixir-version: '1.19.5'
-          otp-version: '27.2.4'
+          # Pinned to this repo's own .tool-versions (elixir 1.20.4-otp-29,
+          # erlang 29.1.2) -- NOT beam4pm's pins, which are a different repo.
+          elixir-version: '1.20.4'
+          otp-version: '29.1.2'
           rebar3-version: '3.24.0'
 
       # Dependency downloads are reusable across source revisions. Compiled
@@ -63,8 +63,8 @@ jobs:
       - name: Cache mix dependencies
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          restore-keys: "${{ runner.os }}-mix-deps-27.2.4-1.18.4-\n${{ runner.os }}-mix-deps-27.2.4-\n${{ runner.os }}-mix-deps-\n"
-          key: ${{ runner.os }}-mix-deps-27.2.4-1.18.4-${{ hashFiles('mix.lock') }}
+          restore-keys: "${{ runner.os }}-mix-deps-29.1.2-1.20.4-\n${{ runner.os }}-mix-deps-29.1.2-\n${{ runner.os }}-mix-deps-\n"
+          key: ${{ runner.os }}-mix-deps-29.1.2-1.20.4-${{ hashFiles('mix.lock') }}
           path: "deps\n~/.hex\n~/.mix\n"
 
       # Exact build cache: no prefix restore. Any Elixir/NIF/mix input change
@@ -73,7 +73,7 @@ jobs:
       - name: Cache exact compiled build
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          key: ${{ runner.os }}-mix-build-27.2.4-1.18.4-${{ hashFiles('mix.lock', 'mix.exs', 'lib/**/*.ex', 'native/**') }}
+          key: ${{ runner.os }}-mix-build-29.1.2-1.20.4-${{ hashFiles('mix.lock', 'mix.exs', 'lib/**/*.ex', 'native/**') }}
           path: _build
 
       # Cargo target dir for the NIF, keyed on its own lockfile so it rotates
@@ -81,7 +81,7 @@ jobs:
       - name: Cache NIF cargo target
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          key: ${{ runner.os }}-nif-target-27.2.4-1.18.4-${{ hashFiles('native/ggen_graph_nif/Cargo.lock') }}
+          key: ${{ runner.os }}-nif-target-29.1.2-1.20.4-${{ hashFiles('native/ggen_graph_nif/Cargo.lock') }}
           path: native/ggen_graph_nif/target
 
       - name: mix deps.get
@@ -288,10 +288,10 @@ jobs:
       - name: Set up Erlang/OTP + Elixir + rebar3
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          # Pinned to this repo's own .tool-versions (elixir 1.18.4-otp-27,
-          # erlang 27.2.4) -- NOT beam4pm's pins, which are a different repo.
-          elixir-version: '1.19.5'
-          otp-version: '27.2.4'
+          # Pinned to this repo's own .tool-versions (elixir 1.20.4-otp-29,
+          # erlang 29.1.2) -- NOT beam4pm's pins, which are a different repo.
+          elixir-version: '1.20.4'
+          otp-version: '29.1.2'
           rebar3-version: '3.24.0'
 
       - name: Restore compiled tree from the build job
@@ -387,10 +387,10 @@ jobs:
       - name: Set up Erlang/OTP + Elixir + rebar3
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          # Pinned to this repo's own .tool-versions (elixir 1.18.4-otp-27,
-          # erlang 27.2.4) -- NOT beam4pm's pins, which are a different repo.
-          elixir-version: '1.19.5'
-          otp-version: '27.2.4'
+          # Pinned to this repo's own .tool-versions (elixir 1.20.4-otp-29,
+          # erlang 29.1.2) -- NOT beam4pm's pins, which are a different repo.
+          elixir-version: '1.20.4'
+          otp-version: '29.1.2'
           rebar3-version: '3.24.0'
 
       - name: Restore compiled tree from the build job

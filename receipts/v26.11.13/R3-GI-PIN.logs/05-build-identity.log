@@ -1,0 +1,10 @@
+# cwd=/Users/sac/ggen_igniter head=9c2572e6ccde18a33f122a07d9d39bd246f88316 started=2026-11-14T02:27:12Z
+# cmd=elixir receipts/v26.11.13/R3-GI-PIN.logs/build_identity.exs
+dev ggen_igniter Elixir.GgenIgniter.Actuate.beam compiler=10.0.7
+dev jason Elixir.Enumerable.Jason.OrderedObject.beam compiler=10.0.7
+dev ash_a2a Elixir.AshA2A.A2ATransport.ExtendedCard.beam compiler=10.0.7
+test ggen_igniter Elixir.AshEx4pm.Info.Activity.beam compiler=10.0.7
+test jason Elixir.Enumerable.Jason.OrderedObject.beam compiler=10.0.7
+test ash_a2a Elixir.AshA2A.A2ATransport.ExtendedCard.beam compiler=10.0.7
+otp_release=29 erts=17.1.1 compiler_app=10.0.7
+# ended=2026-11-14T02:27:12Z exit=0

@@ -111,9 +111,6 @@ defmodule GgenIgniter.Refactors.SafeRename do
           )
 
         write_source(igniter, source, zipper)
-
-      :error ->
-        igniter
     end
   end
 
@@ -145,9 +142,6 @@ defmodule GgenIgniter.Refactors.SafeRename do
           )
 
         write_source(igniter, source, zipper)
-
-      :error ->
-        igniter
     end
   end
 

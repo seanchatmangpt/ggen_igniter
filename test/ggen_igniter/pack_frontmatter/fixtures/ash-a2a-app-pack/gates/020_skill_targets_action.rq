@@ -1,0 +1,6 @@
+# Gate: every skill must name an action declared on the same resource.
+PREFIX aap: <https://ggen.dev/ash-a2a-app#>
+SELECT ?skill WHERE {
+  ?resource a aap:Resource ; aap:skill ?skill . ?skill aap:ofAction ?an .
+  FILTER NOT EXISTS { ?resource aap:action ?a . ?a aap:name ?an }
+}

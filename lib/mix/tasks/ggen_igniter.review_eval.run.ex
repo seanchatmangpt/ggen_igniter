@@ -24,21 +24,7 @@ defmodule Mix.Tasks.GgenIgniter.ReviewEval.Run do
       prompt_sha = prompt_sha()
 
       adjudicated =
-        cases
-        |> Enum.map(fn case ->
-          run_case = CaseRunner.run(case, Keyword.merge(opts, repo_root: "."))
-
-          adj =
-            case run_case.status do
-              :ok -> Scorer.adjudicate(case, run_case.findings)
-              # fail-closed: reviewer unavailable/error counts as missed-error
-              _ -> %{verdict: :error, match_evidence: inspect(run_case.status), fp_findings: 0}
-            end
-
-          adj
-          |> Map.put(:case_id, case["case_id"])
-          |> Map.put(:duration_ms, Map.get(run_case, :duration_ms, 0))
-        end)
+        Enum.map(cases, &adjudicate_case(&1, opts))
 
       {:ok, path, receipt} =
         Receipt.write_run(
@@ -53,6 +39,22 @@ defmodule Mix.Tasks.GgenIgniter.ReviewEval.Run do
       Mix.shell().info("verdict: #{receipt["verdict"]}")
     end
   end
+
+  defp adjudicate_case(case, opts) do
+    run_case = CaseRunner.run(case, Keyword.merge(opts, repo_root: "."))
+
+    run_case
+    |> adjudicate_result(case)
+    |> Map.put(:case_id, case["case_id"])
+    |> Map.put(:duration_ms, Map.get(run_case, :duration_ms, 0))
+  end
+
+  defp adjudicate_result(%{status: :ok, findings: findings}, case),
+    do: Scorer.adjudicate(case, findings)
+
+  # fail-closed: reviewer unavailable/error counts as missed-error
+  defp adjudicate_result(%{status: status}, _case),
+    do: %{verdict: :error, match_evidence: inspect(status), fp_findings: 0}
 
   defp prompt_sha do
     path = Path.expand(".claude/agents/ggen-reviewer.md", File.cwd!())

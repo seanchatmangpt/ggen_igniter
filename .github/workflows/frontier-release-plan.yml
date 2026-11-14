@@ -30,17 +30,17 @@ jobs:
       - name: Set up Erlang/OTP + Elixir + rebar3
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.18.4"
-          otp-version: "27.2.4"
+          elixir-version: "1.20.4"
+          otp-version: "29.1.2"
           rebar3-version: "3.24.0"
 
       - name: Cache mix dependencies
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           restore-keys: |
-            ${{ runner.os }}-frontier-mix-27.2.4-1.18.4-
-            ${{ runner.os }}-frontier-mix-27.2.4-
-          key: ${{ runner.os }}-frontier-mix-27.2.4-1.18.4-${{ hashFiles('mix.lock') }}
+            ${{ runner.os }}-frontier-mix-29.1.2-1.20.4-
+            ${{ runner.os }}-frontier-mix-29.1.2-
+          key: ${{ runner.os }}-frontier-mix-29.1.2-1.20.4-${{ hashFiles('mix.lock') }}
           path: |
             deps
             ~/.hex

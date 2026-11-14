@@ -73,7 +73,7 @@ defmodule GgenIgniter.ReviewEval.GateTest do
     test "seeds a receipt file under seeds/", %{fx: fx} do
       {:ok, _} = Seed.run(repo_root: fx.root, force: true)
       files = Path.wildcard(Path.join([Corpus.base_dir(fx.root), "seeds", "*-seed.json"]))
-      assert length(files) >= 1
+      assert files != []
     end
   end
 

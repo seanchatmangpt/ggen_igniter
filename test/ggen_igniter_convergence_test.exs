@@ -182,6 +182,7 @@ defmodule GgenIgniterConvergenceTest do
         )
 
       assert result.state == :review_escalated
+
       called_rounds =
         collect_calls([]) |> Enum.map(fn {:reviewer_called, r} -> r end)
 
@@ -265,6 +266,7 @@ defmodule GgenIgniterConvergenceTest do
       # no hunk to disappear, so it is never silently cleared).
       assert Enum.any?(r1.findings_carried, &(&1.hunk_id == ids["lib/foo.ex"]))
       assert %{file: "lib/loose.ex"} in Enum.map(r1.findings_carried, &Map.take(&1, [:file]))
+
       assert r1.findings_cleared == [
                finding("lib/gone.ex", "sha256:vanished-hunk", :naming, "hunk disappeared")
              ]
@@ -377,13 +379,21 @@ defmodule GgenIgniterConvergenceTest do
       +  def y, do: :ok
       """
 
-      findings = Convergence.Critic.review(%{scope: :full, hunks: Hunks.parse_unified(docd <> "\n"), round: 1})
+      findings =
+        Convergence.Critic.review(%{
+          scope: :full,
+          hunks: Hunks.parse_unified(docd <> "\n"),
+          round: 1
+        })
+
       refute Enum.any?(findings, &(&1.class == :missing_doc))
     end
 
     test "run/2 without a reviewer uses the critic: dirty diff escalates, clean diff passes" do
       base_dirty = tmp_dir()
-      dirty_diff = String.replace(@diff_text, "def broken, do: :oops", "def broken, do: IO.inspect(:x) ")
+
+      dirty_diff =
+        String.replace(@diff_text, "def broken, do: :oops", "def broken, do: IO.inspect(:x) ")
 
       {:ok, result} =
         Convergence.run(%{sha: "sha-critic-dirty", base_dir: base_dirty, diff: dirty_diff}, [])

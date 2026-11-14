@@ -30,8 +30,11 @@ defmodule GgenIgniter.ReviewEval.ScorerTest do
     end
 
     test "finding at the tolerance edge (line + 3) is caught" do
-      assert %{verdict: :caught} = Scorer.adjudicate(mk_case(50, 3), [%{"file" => @thing, "line" => 53}])
-      assert %{verdict: :caught} = Scorer.adjudicate(mk_case(50, 3), [%{"file" => @thing, "line" => 47}])
+      assert %{verdict: :caught} =
+               Scorer.adjudicate(mk_case(50, 3), [%{"file" => @thing, "line" => 53}])
+
+      assert %{verdict: :caught} =
+               Scorer.adjudicate(mk_case(50, 3), [%{"file" => @thing, "line" => 47}])
     end
 
     test "suffix path match: reviewer cites basename only" do
@@ -89,7 +92,9 @@ defmodule GgenIgniter.ReviewEval.ScorerTest do
                Scorer.adjudicate(mk_case(), [%{"file" => @thing, "line" => 50}])
 
       assert %{verdict: :missed} =
-               Scorer.adjudicate(mk_case(), [%{"file" => "lib/ggen_igniter/review_eval/THING.ex", "line" => 50}])
+               Scorer.adjudicate(mk_case(), [
+                 %{"file" => "lib/ggen_igniter/review_eval/THING.ex", "line" => 50}
+               ])
     end
   end
 

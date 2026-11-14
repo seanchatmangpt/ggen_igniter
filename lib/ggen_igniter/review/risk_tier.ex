@@ -137,6 +137,7 @@ defmodule GgenIgniter.Review.RiskTier do
   defp threshold_tier(_score), do: :low
 
   defp threshold_signals(:low, _score), do: []
+
   defp threshold_signals(tier, score),
     do: [%{rule: :score_threshold, detail: "score #{score} => #{tier}"}]
 
@@ -210,7 +211,8 @@ defmodule GgenIgniter.Review.RiskTier do
     signals
   end
 
-  defp max_tier(a, b), do: if(Map.fetch!(@tier_rank, a) >= Map.fetch!(@tier_rank, b), do: a, else: b)
+  defp max_tier(a, b),
+    do: if(Map.fetch!(@tier_rank, a) >= Map.fetch!(@tier_rank, b), do: a, else: b)
 
   defp lib_ex?(path) do
     String.starts_with?(path, "lib/") and String.ends_with?(path, ".ex")

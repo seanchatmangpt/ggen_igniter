@@ -29,31 +29,40 @@ defmodule GgenIgniter.LandingPipeline.Stage.IncidentEval do
   def run(%Stage{} = ctx) do
     run_receipt = ctx.opts[:run_receipt]
 
-    unless is_binary(run_receipt) and run_receipt != "" do
-      {:refused, {:no_run_receipt, "opts[:run_receipt] must name the candidate review-eval receipt"}}
-    else
-      unless File.exists?(run_receipt) do
+    cond do
+      not (is_binary(run_receipt) and run_receipt != "") ->
+        {:refused,
+         {:no_run_receipt, "opts[:run_receipt] must name the candidate review-eval receipt"}}
+
+      not File.exists?(run_receipt) ->
         {:refused, {:run_receipt_unreadable, run_receipt}}
-      else
-        receipt = Jason.decode!(File.read!(run_receipt))
-        head = Stage.capture("git", ["rev-parse", "HEAD"])
 
-        case GgenIgniter.ReviewEval.Gate.admit(repo_root: File.cwd!(), run_receipt: receipt) do
-          {:ok, :admitted, details} ->
-            {:pass,
-             %{
-               "output" => %{"commands" => [head]},
-               "admit_details" => %{"baseline_recall" => details[:baseline_recall], "candidate_recall" => details[:candidate_recall]}
-             }}
+      true ->
+        admit_receipt(run_receipt)
+    end
+  end
 
-          {:refuse, reason, details} ->
-            {:block, {:eval_refused, reason},
-             %{"output" => %{"commands" => [head]}, "admit_details" => inspect(details)}}
+  defp admit_receipt(run_receipt) do
+    receipt = Jason.decode!(File.read!(run_receipt))
+    head = Stage.capture("git", ["rev-parse", "HEAD"])
 
-          {:error, reason} ->
-            {:refused, {:eval_gate_error, reason}}
-        end
-      end
+    case GgenIgniter.ReviewEval.Gate.admit(repo_root: File.cwd!(), run_receipt: receipt) do
+      {:ok, :admitted, details} ->
+        {:pass,
+         %{
+           "output" => %{"commands" => [head]},
+           "admit_details" => %{
+             "baseline_recall" => details[:baseline_recall],
+             "candidate_recall" => details[:candidate_recall]
+           }
+         }}
+
+      {:refuse, reason, details} ->
+        {:block, {:eval_refused, reason},
+         %{"output" => %{"commands" => [head]}, "admit_details" => inspect(details)}}
+
+      {:error, reason} ->
+        {:refused, {:eval_gate_error, reason}}
     end
   end
 end

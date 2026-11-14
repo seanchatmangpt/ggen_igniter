@@ -87,6 +87,7 @@ defmodule GgenIgniter.SemanticJira.Complete do
     # compile-freeze unblock (smalt ex5 lane, 2026-10-19): max_of/1 is not a
     # macro, so it cannot be called in a guard — hoist it to the body.
     max = max_of(opts)
+
     with {:ok, events} <- frontier_hop(TransitionLog.fetch(ledger)),
          {:ok, front} <- frontier_hop(Reconciler.frontier(work_orders, events, authority_opts)) do
       case front.eligible do
@@ -98,8 +99,7 @@ defmodule GgenIgniter.SemanticJira.Complete do
            %{
              "status" => "refused",
              "reason" => "max_iterations_exhausted",
-             "detail" =>
-               "--max #{max} iterations reached with eligible work remaining",
+             "detail" => "--max #{max} iterations reached with eligible work remaining",
              "closed" => closed,
              "remaining_eligible" => length(front.eligible)
            }}
@@ -164,7 +164,9 @@ defmodule GgenIgniter.SemanticJira.Complete do
       opts
       |> Keyword.merge(identity: identity)
       |> maybe_resolve_pack(work_orders, identity)
-      |> then(&if per_order_receipt, do: Keyword.put(&1, :receipt_out, per_order_receipt), else: &1)
+      |> then(
+        &if per_order_receipt, do: Keyword.put(&1, :receipt_out, per_order_receipt), else: &1
+      )
 
     # Additive security pre-step (lane L5, 2026-10-20): before any per-order
     # execution, run the diff-level security gate over the current worktree
@@ -177,8 +179,14 @@ defmodule GgenIgniter.SemanticJira.Complete do
       :ok ->
         case Execute.run(order_opts) do
           {0, order_receipt} ->
-            loop(opts, work_orders, ledger, authority_opts, closed ++ [identity],
-              orders ++ [order_receipt], n + 1
+            loop(
+              opts,
+              work_orders,
+              ledger,
+              authority_opts,
+              closed ++ [identity],
+              orders ++ [order_receipt],
+              n + 1
             )
 
           {1, verdict} ->
@@ -313,8 +321,11 @@ defmodule GgenIgniter.SemanticJira.Complete do
 
   defp parse_authority_graph(path, bytes) do
     case RDF.Turtle.read_string(bytes) do
-      {:ok, graph} -> {:ok, [authority: graph]}
-      {:error, reason} -> {:error, {:authority, {:authority_index_unavailable, path, inspect(reason)}}}
+      {:ok, graph} ->
+        {:ok, [authority: graph]}
+
+      {:error, reason} ->
+        {:error, {:authority, {:authority_index_unavailable, path, inspect(reason)}}}
     end
   end
 

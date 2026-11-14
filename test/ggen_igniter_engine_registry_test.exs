@@ -75,7 +75,13 @@ defmodule GgenIgniter.EngineRegistryTest do
       assert %DateTime{} = report.generated_at
       assert length(candidates) == 1
 
-      assert %CandidateResult{engine: :graphlaw, status: :ok, row_count: 2, rows: rows, error: nil} =
+      assert %CandidateResult{
+               engine: :graphlaw,
+               status: :ok,
+               row_count: 2,
+               rows: rows,
+               error: nil
+             } =
                hd(candidates)
 
       assert is_list(rows)

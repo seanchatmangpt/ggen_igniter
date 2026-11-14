@@ -73,7 +73,9 @@ defmodule GgenIgniter.Engine do
   @spec fetch!(String.t()) :: module()
   def fetch!(name) do
     case Map.fetch(@registry, name) do
-      {:ok, module} -> module
+      {:ok, module} ->
+        module
+
       :error ->
         raise ArgumentError,
               "invalid --engine #{inspect(name)}, the engine is fixed to #{inspect(@engine_name)} (no engine choice)"
