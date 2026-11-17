@@ -4,8 +4,8 @@ Standing: UNVERIFIED
 
 Twenty read-only exploration lanes (see `LANES.md`) swept the pipeline, packs, docs and CI.
 No lane ran `mix`, `cargo` or tests: the container has no Elixir or Rust toolchain, so every
-finding is a static read with `file:line` evidence. Lane 11 (gate non-vacuity) had not
-reported when this file was written.
+finding is a static read with `file:line` evidence. All 20 lanes reported; lane 11 landed
+after the first commit.
 
 ## Receipt
 
@@ -27,6 +27,8 @@ reported when this file was written.
 | 05 | Prune failure still returns `{:ok, receipt}`; partial batch delete | `05-reconcile-manifest.md` |
 | 09 | Bad hex key crashes SOVEREIGN gate via `Base.decode16!` | `09-sjira-authority.md` |
 | 12 | Four forms bypass the Ash-write hook | `12-ash-integration.md` |
+| 11 | Gate scoring inconsistent: GateVerify passes on 1+ rows, PackFrontmatter refuses on any | `11-gate-non-vacuity.md` |
+| 11 | 26 of 41 ash-igniter-api violation codes never named in a test; 13 `priv/sa2a` gates unloaded | `11-gate-non-vacuity.md` |
 | 01 | `.nq` returns a Dataset but `Query.Oxigraph.run` matches Graph only | `01-ontology-load.md` |
 | 03 | Four render engines chosen by entry path; same `.tmpl` can differ | `03-render.md` |
 
@@ -55,7 +57,7 @@ reported when this file was written.
 
 1. Run `mix compile --warnings-as-errors` and `mix test` on a machine with the toolchain, then
    re-judge each lane's findings (UNVERIFIED to ALIVE/REFUSED with command output).
-2. Land lane 11 and add its row to this file.
+2. Reconcile gate scoring across GateVerify and PackFrontmatter (lane 11, ADR 0010).
 3. Fix the fail-open epoch fallback and the Actuate containment gap first.
 4. Repair `status.md`, `CLAUDE.md` engine and Reactor text via evidence, not edits by memory.
 5. Note: several lane tables exceed the 100-character line limit; wrap or accept.
