@@ -1,6 +1,6 @@
 # v26.11.17 — gate and publish dry-run receipt
 
-Standing: PARTIAL
+Standing: PARTIAL (gate not green)
 
 Coordinator-run evidence for the v26.11.17 sweep (`00-OVERVIEW.md`). The 20 lane findings
 stay UNVERIFIED; this file records only what was executed.
@@ -38,8 +38,21 @@ is a hypothesis, not a verified fact.
 | 6 | `ggen_igniter_fortune5_ready_task_test.exs` | `--dry-run` ggen.toml check; unclassified |
 | 8 | `ggen_igniter_security_gate_test.exs:64` | `Jason.DecodeError` on subprocess stdout; unclassified |
 
-Tests 2, 4, 5, 7 and 9 are consistent with running as root (uid 0 ignores chmod); not
-re-run as a non-root user, so UNVERIFIED.
+## Non-root re-run (uid 65534, local clone at `533118c`, build artifacts overlaid)
+
+- The 9 failing files re-run as `nobody`: `Result: 43/45 passed, 2 excluded`. The five
+  chmod-style tests (2, 4, 5, 7, 9) and tests 1, 3, 8 passed there: root hypothesis
+  CONFIRMED for those, with caveat that a non-git copy produced its own artifacts.
+- `ggen_igniter_pack_lock_test.exs` passes 18/18 as `nobody` once the tree is a git repo.
+- GI-09 (`fortune5_ready_task_test.exs:261`) fails under both users: no `ggen` binary on PATH
+  (`{:enoent, "ggen not found on PATH"}`). The test asserts instead of skipping, unlike the
+  named skips in sibling tests. Environment gap, test not gated on `ggen` availability.
+- Full `mix test` as `nobody` in the clone: `Result: 1824/1839 passed (20/20 doctests,
+  41/41 properties, 1763/1778 tests), 11 skipped, 710 excluded`; exit 2, 15 failed. Failures
+  cluster in tests that spawn `mix` subprocesses (`security_review` exit 1 instead of 0/5,
+  `review.pipeline`), plus `RiskTier`, pack-lock concurrency and GI-09. Cause of the
+  subprocess failures is NOT diagnosed here: UNVERIFIED.
+- Neither user gives a green suite in this container. The gate is not passed.
 
 ## Residues
 
