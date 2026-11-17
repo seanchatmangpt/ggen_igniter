@@ -52,7 +52,24 @@ is a hypothesis, not a verified fact.
   cluster in tests that spawn `mix` subprocesses (`security_review` exit 1 instead of 0/5,
   `review.pipeline`), plus `RiskTier`, pack-lock concurrency and GI-09. Cause of the
   subprocess failures is NOT diagnosed here: UNVERIFIED.
-- Neither user gives a green suite in this container. The gate is not passed.
+- Root causes found for the extra failures in the first runs (confirmed by re-run):
+  - Cold subprocess build roots: tests spawn `mix` with `MIX_BUILD_ROOT=_build-lane-g1` or
+    `_build-lane-e5`; a missing root recompiles the project (about 4 min) and prints compile
+    output into the JSON the test parses. Warmed roots: security-gate + review-pipeline files
+    pass (34/35 with the next item).
+  - Clean-worktree precondition: `RiskTier` asserts a non-empty `git diff --name-status <sha>`;
+    with a dirty tracked file `landing_pipeline_test.exs` passes 19/19.
+- Final root run, warm roots and one dirty tracked file (restored afterwards):
+  `Result: 1833/1839 passed (20/20 doctests, 41/41 properties, 1772/1778 tests), 11 skipped,
+  710 excluded`; exit 2, `Failed: 6 tests`.
+  - 5 are the chmod-style root artifacts: `manifest_prune`, `lock_non_eexist_error`,
+    `finalize_evidence_ordering`, `reconcile_reactor` (:delete), `compensation_failure`.
+    Passed as `nobody` earlier (43/45 on those files).
+  - 1 is GI-09: no `ggen` binary on PATH.
+- The non-root full run (`1826/1839`) was done before `_build-lane-e5` was warm in that clone
+  and is not a clean comparison; its extra failures are the cold-root cluster above.
+- Gate status: NOT green. Every remaining failure has a diagnosed cause, none is a
+  reproduced code defect, but a single green run was not obtained in this container.
 
 ## Residues
 
