@@ -309,7 +309,10 @@ defmodule GgenIgniterLandingPipelineStagesTest do
 
   describe "Stage.RiskTier.run/1 (real classification)" do
     test "classifies the real worktree diff and embeds the captured git output" do
-      assert {:pass, receipt} = Stage.RiskTier.run(ctx())
+      # Base is HEAD~1 so the captured diff is non-empty on a clean tree too
+      # (a base of HEAD only has output while tracked files are dirty).
+      {parent, 0} = System.cmd("git", ["rev-parse", "HEAD~1"])
+      assert {:pass, receipt} = Stage.RiskTier.run(ctx(base_sha: String.trim(parent)))
       assert receipt["tier"] in ["low", "medium", "high"]
       assert is_integer(receipt["score"])
       assert is_integer(receipt["approvals"])
