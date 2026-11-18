@@ -461,10 +461,26 @@ defmodule GgenIgniter.SchemaDispatch do
 
   defp build_template_source(%{"file" => file}), do: {:file, %{file: file}}
 
-  defp parse_generation_mode(mode) when is_atom(mode), do: mode
+  @generation_modes %{
+    "create" => :create,
+    "overwrite" => :overwrite,
+    "merge" => :merge
+  }
 
-  defp parse_generation_mode(mode) when is_binary(mode),
-    do: mode |> String.downcase() |> String.to_atom()
+  defp parse_generation_mode(mode) when is_atom(mode),
+    do: parse_generation_mode(Atom.to_string(mode))
+
+  defp parse_generation_mode(mode) when is_binary(mode) do
+    case Map.fetch(@generation_modes, String.downcase(mode)) do
+      {:ok, atom} ->
+        atom
+
+      :error ->
+        raise ArgumentError,
+              "unknown generation mode #{inspect(mode)}; allowed: " <>
+                Enum.join(Enum.sort(Map.keys(@generation_modes)), ", ")
+    end
+  end
 
   # -- FrontmatterConfig struct construction ------------------------------
 
