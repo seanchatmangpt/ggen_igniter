@@ -12,8 +12,9 @@ defmodule GgenIgniter.OntologyAggregateTest do
 
   alias GgenIgniter.{OntologyAggregate, Refusals, SchemaDispatch}
   alias GgenIgniter.ProjectConfig.OntologyAggregate, as: Agg
+  alias GgenIgniter.Reactors.ReconcileReactor
 
-  @marker ".ggen-v2/aggregate-freshness"
+  @marker OntologyAggregate.marker_rel()
   @old {{2020, 1, 1}, {0, 0, 0}}
 
   defp agg(overrides \\ []) do
@@ -244,6 +245,162 @@ defmodule GgenIgniter.OntologyAggregateTest do
                OntologyAggregate.enforce(dir, agg(output: "blocker/corpus.ttl", auto_regen: true))
 
       assert msg =~ "[FM-ONTOLOGY-AGG-004]"
+    end
+
+    test "marker lives under .ggen_igniter (igniter evidence store), not .ggen-v2", %{
+      tmp_dir: dir
+    } do
+      seed(dir)
+      assert @marker == ".ggen_igniter/aggregate-freshness"
+      assert {:ok, %{regenerated: true}} = OntologyAggregate.enforce(dir, agg(auto_regen: true))
+      assert File.exists?(Path.join(dir, @marker))
+      refute File.exists?(Path.join(dir, ".ggen-v2/aggregate-freshness"))
+
+      marker = File.read!(Path.join(dir, @marker))
+      # Bare SHA-256 hex (64 lowercase), never a blake3-shaped claim or sha256: prefix.
+      assert marker =~ ~r/\A[0-9a-f]{64}\z/
+      refute String.starts_with?(marker, "sha256:")
+
+      assert marker ==
+               GgenIgniter.Digest.hex(
+                 IO.iodata_to_binary(["a.ttl", 0, "# a\n", 0, "b.ttl", 0, "# b", 0])
+               )
+    end
+  end
+
+  describe "enforce_project/2" do
+    test "absent ggen.toml is a no-op", %{tmp_dir: dir} do
+      assert {:ok, nil} = OntologyAggregate.enforce_project(dir)
+      assert File.ls!(dir) == []
+    end
+
+    test "frontmatter aggregate with auto_regen regenerates under .ggen_igniter", %{
+      tmp_dir: dir
+    } do
+      seed(dir)
+
+      File.write!(
+        Path.join(dir, "ggen.toml"),
+        """
+        [project]
+        name = "demo"
+
+        [ontology]
+        source = "corpus.ttl"
+
+        [ontology.aggregate]
+        output = "corpus.ttl"
+        constituents = ["a.ttl", "b.ttl"]
+        auto_regen = true
+
+        [templates]
+        dir = "templates"
+        """
+      )
+
+      assert {:ok, %{regenerated: true}} = OntologyAggregate.enforce_project(dir)
+      assert File.read!(Path.join(dir, "corpus.ttl")) == @expected
+      assert File.exists?(Path.join(dir, @marker))
+
+      assert {:ok, %{regenerated: false}} = OntologyAggregate.enforce_project(dir)
+    end
+
+    test "stale frontmatter aggregate refuses without writing", %{tmp_dir: dir} do
+      seed(dir)
+
+      File.write!(
+        Path.join(dir, "ggen.toml"),
+        """
+        [project]
+        name = "demo"
+
+        [ontology]
+        source = "corpus.ttl"
+
+        [ontology.aggregate]
+        output = "corpus.ttl"
+        constituents = ["a.ttl", "b.ttl"]
+
+        [templates]
+        dir = "templates"
+        """
+      )
+
+      before = File.ls!(dir)
+      assert {:error, msg} = OntologyAggregate.enforce_project(dir)
+      assert msg =~ "[FM-ONTOLOGY-AGG-001]"
+      assert {:ok, {:ONTOLOGY_AGGREGATE_STALE, _}} = Refusals.parse(msg)
+      assert File.ls!(dir) == before
+    end
+
+    test "ReconcileReactor refuses stale aggregate before ontology load (receipt :refused)", %{
+      tmp_dir: dir
+    } do
+      seed(dir)
+
+      File.write!(
+        Path.join(dir, "ggen.toml"),
+        """
+        [project]
+        name = "demo"
+
+        [ontology]
+        source = "corpus.ttl"
+
+        [ontology.aggregate]
+        output = "corpus.ttl"
+        constituents = ["a.ttl", "b.ttl"]
+
+        [templates]
+        dir = "templates"
+        """
+      )
+
+      assert {:error, receipt} =
+               ReconcileReactor.run(
+                 ontology: Path.join(dir, "corpus.ttl"),
+                 query: "spec=#{Path.join(dir, "missing.rq")}",
+                 template: Path.join(dir, "missing.eex"),
+                 out: Path.join(dir, "out.ex"),
+                 manifest_dir: dir
+               )
+
+      assert receipt.standing == :refused
+      assert receipt.reason =~ "[FM-ONTOLOGY-AGG-001]"
+      refute File.exists?(Path.join(dir, "corpus.ttl"))
+      refute File.exists?(Path.join(dir, @marker))
+    end
+
+    test "Reconcile.run/1 raises on stale aggregate before Ontology.load!", %{tmp_dir: dir} do
+      seed(dir)
+
+      File.write!(
+        Path.join(dir, "ggen.toml"),
+        """
+        [project]
+        name = "demo"
+
+        [ontology]
+        source = "corpus.ttl"
+
+        [ontology.aggregate]
+        output = "corpus.ttl"
+        constituents = ["a.ttl", "b.ttl"]
+
+        [templates]
+        dir = "templates"
+        """
+      )
+
+      assert_raise ArgumentError, ~r/FM-ONTOLOGY-AGG-001/, fn ->
+        GgenIgniter.Reconcile.run(
+          ontology: Path.join(dir, "corpus.ttl"),
+          query: "spec=#{Path.join(dir, "missing.rq")}",
+          template: Path.join(dir, "missing.eex"),
+          out: Path.join(dir, "out.ex"),
+          manifest_dir: dir
+        )
+      end
     end
   end
 end

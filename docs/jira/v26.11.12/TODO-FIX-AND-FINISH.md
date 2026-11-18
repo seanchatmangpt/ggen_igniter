@@ -38,7 +38,11 @@ Updated 2026-11-18 finish slice — see `docs/jira/v26.11.18/RECEIPT-finish-slic
 - Flip Controller `use_reactor` default? **OPEN** (see v26.11.18 FINISH).
 - Restore `Receipt.to_prd_status/1`? **NO** — superseded by `RProjection`.
 - Hex publish of `26.11.18`? **OPEN** (local tarball evidence is 26.11.10).
-- Wire `[ontology.aggregate]` into sync? **OPEN** (parse/enforce exist).
+- ~~Wire `[ontology.aggregate]` into sync?~~ **CLOSED 2026-11-18** —
+  `OntologyAggregate.enforce_project/2` on `Reconcile` +
+  `ReconcileReactor`; marker `.ggen_igniter/aggregate-freshness`
+  (SHA-256). Standing: **IMPLEMENTED** (`docs/status.md`,
+  `docs/jira/v26.11.18/FINISH.md`).
 
 ## Reuse
 

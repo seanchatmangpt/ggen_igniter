@@ -102,13 +102,22 @@ defmodule GgenIgniter.ManifestExportTest do
   end
 
   describe "mix ggen_igniter.manifest.dump (subprocess exit codes)" do
-    defp mix(args),
-      do:
-        System.cmd("mix", ["ggen_igniter.manifest.dump" | args],
-          cd: @repo,
-          stderr_to_stdout: true,
-          env: [{"MIX_ENV", "test"}]
-        )
+    # Isolate from parallel-lane `_build` / NIF copy races (lane-9 triage).
+    @build_root "_build-lane-9-manifest"
+
+    defp mix(args) do
+      build_root = System.get_env("MIX_BUILD_ROOT") || @build_root
+
+      System.cmd("mix", ["ggen_igniter.manifest.dump" | args],
+        cd: @repo,
+        stderr_to_stdout: true,
+        env:
+          Map.merge(System.get_env(), %{
+            "MIX_ENV" => "test",
+            "MIX_BUILD_ROOT" => build_root
+          })
+      )
+    end
 
     test "exit 0 to --out, and file equals library dump", %{dir: dir} do
       seed(dir)

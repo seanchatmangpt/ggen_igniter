@@ -168,10 +168,10 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
       return :finalize_evidence
 
-  `:observe_prior_manifest`, `:load_ontology`, and `:resolve_pack` all depend
-  only on the `:reconcile_opts` input, so Reactor's own dependency-graph
-  scheduler runs them concurrently -- no manual concurrency management for
-  that part of the pipeline.
+  `:observe_prior_manifest`, `:enforce_ontology_aggregate`, and
+  `:resolve_pack` depend only on `:reconcile_opts` (concurrent).
+  `:load_ontology` waits on `:enforce_ontology_aggregate` so a regenerated
+  aggregate corpus is on disk before the graph is admitted.
 
   ## Multi-target input shape
 
@@ -413,6 +413,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     Injection,
     Manifest,
     Ontology,
+    OntologyAggregate,
     Pack,
     PackLock,
     PendingActuation,
@@ -446,9 +447,36 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     end)
   end
 
+  # side_effect: may rewrite aggregate corpus + `.ggen_igniter/aggregate-freshness`
+  # when `[ontology.aggregate] auto_regen = true`. Runs BEFORE ontology load
+  # (ggen-engine Stage 1a): the aggregate output is commonly the ontology source.
+  # Absent ggen.toml / aggregate is a no-op. SHA-256 marker (not BLAKE3).
+  step :enforce_ontology_aggregate do
+    argument(:reconcile_opts, input(:reconcile_opts))
+
+    run(fn %{reconcile_opts: opts}, _context ->
+      root = opts[:manifest_dir] || File.cwd!()
+
+      case OntologyAggregate.enforce_project(root, dry_run: opts[:dry_run] || false) do
+        {:ok, outcome} ->
+          {:ok, %{aggregate: outcome}}
+
+        {:error, msg} when is_binary(msg) ->
+          OcelEmitter.emit(opts[:event_sink], "GUARD_REFUSED", [], %{
+            "reason" => "REFUSED:ONTOLOGY_AGGREGATE_STALE",
+            "diagnostic" => msg
+          })
+
+          {:error, {:ontology_aggregate_stale, msg}}
+      end
+    end)
+  end
+
   # side_effect: pure -- real disk read (`Ontology.load!/1`), no mutation.
+  # Depends on `:enforce_ontology_aggregate` so regenerated corpora are visible.
   step :load_ontology do
     argument(:reconcile_opts, input(:reconcile_opts))
+    argument(:aggregate, result(:enforce_ontology_aggregate))
 
     run(fn %{reconcile_opts: opts}, _context ->
       ontology_path = resolve_ontology_path!(opts)
@@ -1246,6 +1274,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     cond do
       step_name in [
         :observe_prior_manifest,
+        :enforce_ontology_aggregate,
         :load_ontology,
         :resolve_pack,
         :admit_pack,
@@ -1309,6 +1338,9 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
 
   defp describe_failure({:refused_semantic_jira_shacl, violations}),
     do: "refused: REFUSED:SEMANTIC_JIRA_SHACL -- #{inspect(violations)}"
+
+  defp describe_failure({:ontology_aggregate_stale, msg}) when is_binary(msg),
+    do: "refused: #{msg}"
 
   defp describe_failure(other), do: inspect(other)
 

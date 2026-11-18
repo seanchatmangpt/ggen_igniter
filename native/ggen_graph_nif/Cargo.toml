@@ -10,7 +10,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 rustler = "0.36"
-# Pinned to the same oxigraph minor as ~/ggen's workspace (`Cargo.toml`
-# `[workspace.dependencies] oxigraph = { version = "0.5.11", ... }`). See
-# DRIFT.md in this directory for the graphlaw/oxigraph divergence ledger.
-oxigraph = { version = "0.5.11", features = ["rdf-12"] }
+# Exact pin matching ~/ggen/Cargo.lock's oxigraph 0.5.11 (workspace dep
+# declares "0.5.11"; lock resolves 0.5.11). See DRIFT.md.
+oxigraph = { version = "=0.5.11", features = ["rdf-12"] }

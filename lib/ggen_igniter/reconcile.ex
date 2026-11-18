@@ -69,7 +69,7 @@ defmodule GgenIgniter.Reconcile do
   hiding real failures behind a swallowed error tuple.
   """
 
-  alias GgenIgniter.{Actuate, Engine, Ontology, Pack}
+  alias GgenIgniter.{Actuate, Engine, Ontology, OntologyAggregate, Pack}
   alias GgenIgniter.Render.TeraWasm
 
   @type result :: %{
@@ -96,6 +96,16 @@ defmodule GgenIgniter.Reconcile do
     # default, so every Reconcile.run/1 caller raised `invalid --engine`.
     engine_name = Keyword.get(opts, :engine, "graphlaw")
     engine_module = Engine.fetch!(engine_name)
+
+    # Stage 1a (ggen-engine parity): enforce `[ontology.aggregate]` before the
+    # ontology is read — the aggregate output is commonly `[ontology].source`.
+    # Missing ggen.toml is a no-op; SHA-256 marker lives under `.ggen_igniter/`.
+    base_dir = opts[:manifest_dir] || File.cwd!()
+
+    case OntologyAggregate.enforce_project(base_dir, dry_run: opts[:dry_run] || false) do
+      {:ok, _} -> :ok
+      {:error, msg} when is_binary(msg) -> raise ArgumentError, msg
+    end
 
     ontology_path = resolve_ontology!(opts)
     graph = Ontology.load!(ontology_path)
@@ -291,7 +301,9 @@ defmodule GgenIgniter.Reconcile do
 
   def build_bindings(named_results) do
     list_bindings =
-      Enum.map(named_results, fn {name, rows} -> {GgenIgniter.BindingKeys.atomize!(name), rows} end)
+      Enum.map(named_results, fn {name, rows} ->
+        {GgenIgniter.BindingKeys.atomize!(name), rows}
+      end)
 
     flattened =
       named_results

@@ -91,6 +91,26 @@ defmodule GgenIgniter.SemanticJiraDescriptorTest do
     assert rendered["package"] == d["package"]
   end
 
+  test "render/1 never mints atoms from open descriptor keys (compile-time allowlist)" do
+    {:ok, d} = Descriptor.build([wo("A")], "A", @attrs)
+    # Hostile key would mint a permanent atom under the pre-finish `String.to_atom/1`
+    # over Map.take's open set. Allowlist + Map.fetch! must drop it without atomizing.
+    hostile_key = "hostile_descriptor_atom_#{System.unique_integer([:positive])}"
+
+    rendered =
+      d
+      |> Map.put(hostile_key, "should-not-bind")
+      |> Descriptor.render()
+      |> Jason.decode!()
+
+    # Global atom_count is racy under async tests; the lawful observable is that
+    # this unique key never became an atom at all.
+    assert_raise ArgumentError, fn -> String.to_existing_atom(hostile_key) end
+    refute Map.has_key?(rendered, hostile_key)
+    assert rendered["work_order_id"] == "A"
+    assert rendered["authority"] == "NONE"
+  end
+
   test "identity is unchanged through descriptor -> ash_a2a task envelope" do
     w = wo("A")
     {:ok, d} = Descriptor.build([w], "A", @attrs)

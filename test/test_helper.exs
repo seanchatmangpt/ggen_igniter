@@ -139,6 +139,36 @@ postgres_reachable? =
 
 excludes = if postgres_reachable?, do: excludes, else: [:postgres | excludes]
 
+# Real HTTP pack-fetch courts (`:requires_network` — GitHub archive + hex.pm).
+# Same decide-before-start shape as qlever/postgres: a missing network must
+# exclude, never fail. Probe both hosts used by PackFetchTest; CI short-
+# circuits like qlever (hosted runners often block/throttle outbound HTTPS
+# under load). Opt back in with `mix test --include requires_network`.
+network_reachable? =
+  not ci? and
+    try do
+      {:ok, _} = Application.ensure_all_started(:inets)
+      {:ok, _} = Application.ensure_all_started(:ssl)
+
+      Enum.all?(["https://github.com", "https://repo.hex.pm"], fn url ->
+        case :httpc.request(
+               :head,
+               {String.to_charlist(url), []},
+               [timeout: 3_000, connect_timeout: 3_000],
+               []
+             ) do
+          {:ok, {{_, status, _}, _, _}} when status in 200..399 -> true
+          _ -> false
+        end
+      end)
+    rescue
+      _ -> false
+    catch
+      _, _ -> false
+    end
+
+excludes = if network_reachable?, do: excludes, else: [:requires_network | excludes]
+
 # Fast lane (ERRC 2026-09-28, docs/jira/v26.9.28/ci-runtime-errc.md): tests tagged
 # `:integration` (real `mix`/`ggen` subprocesses, real git repos; they dominate
 # wall-clock) are excluded from a plain `mix test` and run with

@@ -18,6 +18,7 @@ not copied from earlier README badges.
 | Local Hex tarball | `ggen_igniter-26.11.10.tar` only | repo root |
 | Sync spine | CLI → **always** `ReconcileReactor` | `lib/mix/tasks/ggen_igniter.sync.ex` (`run_pipeline!/3` deleted; `mode: eval` included) |
 | Controller spine | `Reconcile.run/1` unless `use_reactor: true` | shipped default `false` |
+| `[ontology.aggregate]` | **IMPLEMENTED** (wired) | `OntologyAggregate.enforce_project/2` before ontology load on `Reconcile` + `ReconcileReactor`; marker `.ggen_igniter/aggregate-freshness` (SHA-256); focused courts 160 passed |
 
 ## False / overstated claims corrected this lane
 
@@ -37,6 +38,19 @@ not copied from earlier README badges.
 - CLAUDE.md epoch table still said config/migrations unbound — they are
   in `EpochWatermark.default_globs/0`.
 
+## Closed this wave (no longer open)
+
+- ~~Wire `[ontology.aggregate]` into sync~~ **CLOSED 2026-11-18 (lane 4)** —
+  `enforce_project/2` before ontology load on `Reconcile` +
+  `ReconcileReactor` (`:enforce_ontology_aggregate`); marker
+  `.ggen_igniter/aggregate-freshness` (SHA-256); focused courts 160
+  passed. Standing: **IMPLEMENTED**.
+- ~~Fresh full-suite gate receipt~~ **CLOSED 2026-11-18** —
+  `mix compile --warnings-as-errors` exit 0; `mix test` →
+  **1994 passed**, 5 skipped, 0 failed, exit 0
+  (22 doctests, 41 properties, 1931 tests). Cited in README ladder +
+  `RECEIPT-finish-slice.md`.
+
 ## Still open (operator decisions)
 
 1. **Flip Controller `use_reactor` default to `true`?** Product call —
@@ -44,22 +58,14 @@ not copied from earlier README badges.
 2. **Hex publish of v26.11.18?** Runbook at
    `docs/jira/v26.11.10/10-HEX-PACKAGING-AND-PUBLICATION-RUNBOOK.md`;
    not executed. Local evidence still 26.11.10.
-3. **Wire `[ontology.aggregate]` into the sync path?** Parse +
-   `OntologyAggregate.enforce/3` exist; no call from Sync/Reactor yet
-   (CHANGELOG discloses).
-4. **Remaining `String.to_atom` sites** (install otp_app, DoctorFixes,
+3. **Remaining `String.to_atom` sites** (install otp_app, DoctorFixes,
    refusals schema load, tera filter ops, review_eval kind,
    rename_options) — harden vs leave as trusted-input?
-5. **Lock TOCTOU** (`pack_lock.ex` / `lock.ex` stale-check then
+4. **Lock TOCTOU** (`pack_lock.ex` / `lock.ex` stale-check then
    rmdir/retry) — still OPEN in
    `docs/jira/v26.11.12/TODO-FIX-AND-FINISH.md`.
-6. **Marketplace ash-a2a pack G1–G8** — lives under ggen-marketplace,
+5. **Marketplace ash-a2a pack G1–G8** — lives under ggen-marketplace,
    not this repo's finish criterion.
-7. ~~**Fresh full-suite gate receipt**~~ **CLOSED 2026-11-18** —
-   `mix compile --warnings-as-errors` exit 0; `mix test` →
-   **1994 passed**, 5 skipped, 0 failed, exit 0
-   (22 doctests, 41 properties, 1931 tests). Cited in README ladder +
-   `RECEIPT-finish-slice.md`.
 
 ## See also
 

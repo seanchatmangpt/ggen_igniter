@@ -1,6 +1,6 @@
 defmodule GgenIgniter.OntologyAggregate do
   @moduledoc """
-  Enforces `[ontology.aggregate]` freshness -- port of
+  Enforces `[ontology.aggregate]` freshness -- Elixir port of
   `enforce_ontology_aggregate` (`~/ggen/crates/ggen-engine/src/sync.rs:2985-3110`).
 
   `enforce/3` paths:
@@ -8,8 +8,9 @@ defmodule GgenIgniter.OntologyAggregate do
   - `nil` aggregate -> `{:ok, nil}`, no IO.
   - empty `constituents` -> `{:error, "[FM-ONTOLOGY-AGG-002] ..."}`.
   - unreadable constituent -> `{:error, "[FM-ONTOLOGY-AGG-003] ..."}`.
-  - fresh (output bytes == sorted concat AND `.ggen-v2/aggregate-freshness`
-    == freshness hash) -> `{:ok, %{regenerated: false}}`.
+  - fresh (output bytes == sorted concat AND
+    `.ggen_igniter/aggregate-freshness` == freshness hash) ->
+    `{:ok, %{regenerated: false}}`.
   - stale, `auto_regen: false` -> `{:error, "REFUSED:ONTOLOGY_AGGREGATE_STALE
     [FM-ONTOLOGY-AGG-001] ..."}` (via `GgenIgniter.Refusals.format/2`), no writes.
   - stale, `auto_regen: true`, `dry_run: true` -> `{:ok, %{regenerated: false}}`, no writes.
@@ -19,23 +20,65 @@ defmodule GgenIgniter.OntologyAggregate do
   Constituents are ordered by relative path; the concat is the contents joined
   with `"\\n"` plus a trailing `"\\n"` if missing.
 
-  **Disclosed deviation**: the freshness hash is SHA-256
-  (`GgenIgniter.Digest.hex/1`) over `rel <> <<0>> <> content <> <<0>>` per
-  constituent; ggen uses BLAKE3 over the same byte stream. Markers are NOT
-  cross-compatible between the two tools: a marker written by one reads as
-  stale to the other.
+  **SHA-256 evidence-store law (intentional, non-interop with Rust ggen):**
+  the freshness hash is bare lowercase SHA-256 hex (`GgenIgniter.Digest.hex/1`)
+  over `rel <> <<0>> <> content <> <<0>>` per constituent. Rust ggen uses
+  BLAKE3 over the same byte stream and stores its marker under
+  `.ggen-v2/aggregate-freshness`. Igniter owns `.ggen_igniter/aggregate-freshness`
+  so the two tools never collide on a shared marker path and never pretend
+  digests are interchangeable.
 
-  Not yet wired into a sync path: `GgenIgniter.SchemaDispatch` configs are
-  consumed by `GgenToml.IO` and `Mix.Tasks.GgenIgniter.Fortune5Ready`, neither of
-  which reads the ontology for sync.
+  **Sync wiring:** `enforce_project/2` loads optional `<root>/ggen.toml` via
+  `SchemaDispatch` and runs before ontology load on both
+  `GgenIgniter.Reconcile.run/1` and `GgenIgniter.Reactors.ReconcileReactor`
+  (`:enforce_ontology_aggregate` step). Absent `ggen.toml` or a
+  DeclarativeRules schema (no aggregate section) is a no-op.
   """
 
-  alias GgenIgniter.{Digest, Refusals}
+  alias GgenIgniter.{Digest, FrontmatterConfig, Refusals, SchemaDispatch}
   alias GgenIgniter.ProjectConfig.OntologyAggregate
 
-  @marker_rel Path.join(".ggen-v2", "aggregate-freshness")
+  @marker_rel Path.join(".ggen_igniter", "aggregate-freshness")
 
   @type outcome :: %{regenerated: boolean()}
+
+  @doc "Root-relative path of igniter's aggregate freshness marker (SHA-256 hex)."
+  @spec marker_rel() :: String.t()
+  def marker_rel, do: @marker_rel
+
+  @doc """
+  Load `<root>/ggen.toml` (if present) and enforce its `[ontology.aggregate]`.
+
+  Missing `ggen.toml` -> `{:ok, nil}` (CLI-flag syncs without a toml stay
+  byte-compatible). Frontmatter configs carry the aggregate; DeclarativeRules
+  configs have no aggregate field today -> `{:ok, nil}`. A refused/malformed
+  toml that *exists* fails closed.
+  """
+  @spec enforce_project(String.t(), keyword()) :: {:ok, outcome() | nil} | {:error, String.t()}
+  def enforce_project(root, opts \\ []) when is_binary(root) do
+    toml_path = Path.join(root, "ggen.toml")
+
+    case File.read(toml_path) do
+      {:error, :enoent} ->
+        {:ok, nil}
+
+      {:error, reason} ->
+        {:error,
+         "[FM-ONTOLOGY-AGG-003] could not read `#{toml_path}`: #{:file.format_error(reason)}"}
+
+      {:ok, raw} ->
+        case SchemaDispatch.load_raw(raw) do
+          {:frontmatter, %FrontmatterConfig{ontology: %{aggregate: aggregate}}} ->
+            enforce(root, aggregate, opts)
+
+          {:declarative_rules, _config} ->
+            {:ok, nil}
+
+          {:refused, reason} ->
+            {:error, format_toml_refusal(toml_path, reason)}
+        end
+    end
+  end
 
   @doc "Enforce the aggregate's freshness law under `root`; see the moduledoc for outcomes."
   @spec enforce(String.t(), OntologyAggregate.t() | nil, keyword()) ::
@@ -73,6 +116,22 @@ defmodule GgenIgniter.OntologyAggregate do
           regenerate(output_path, marker_path, concat, freshness)
       end
     end
+  end
+
+  defp format_toml_refusal(path, {:malformed, diagnostic: diagnostic}) do
+    "[FM-ONTOLOGY-AGG-003] ggen.toml at `#{path}` refused as malformed: #{diagnostic}"
+  end
+
+  defp format_toml_refusal(path, {:ambiguous, matched: matched}) do
+    "[FM-ONTOLOGY-AGG-003] ggen.toml at `#{path}` is schema-ambiguous (matched: #{inspect(matched)})"
+  end
+
+  defp format_toml_refusal(path, {:unsupported, observed_markers: markers}) do
+    "[FM-ONTOLOGY-AGG-003] ggen.toml at `#{path}` uses unsupported markers: #{inspect(markers)}"
+  end
+
+  defp format_toml_refusal(path, other) do
+    "[FM-ONTOLOGY-AGG-003] ggen.toml at `#{path}` refused: #{inspect(other)}"
   end
 
   defp read_parts(root, constituents) do

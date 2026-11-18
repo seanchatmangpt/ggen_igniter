@@ -98,9 +98,9 @@ defmodule GgenIgniter.DoctorInProcessTest do
     assert output =~ "config :dcatr, env: ... already present" or
              output =~ "config :dcatr, env"
 
-    # Real NIF compile check and real oxigraph functional smoke test.
+    # Real NIF compile check and real graphlaw functional smoke test.
     assert output =~ ~r/(native\/ggen_graph_nif|priv\/native\/ggen_graph_nif\.so)/
-    assert output =~ ~r/GgenIgniter\.Query\.Oxigraph real SELECT query.*returned \d+ row\(s\)/
+    assert output =~ ~r/GgenIgniter\.Query\.Graphlaw real SELECT query.*returned \d+ row\(s\)/
 
     # Real, current git status of this checkout -- either clean or dirty is a
     # real fact, but the check itself must have run and reported one or the

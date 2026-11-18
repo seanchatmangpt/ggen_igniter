@@ -106,6 +106,18 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
     script_path = Path.join(dir, "writer.exs")
     File.write!(script_path, script)
 
+    # Child `mix run` processes must see the same MIX_BUILD_ROOT / MIX_ENV as
+    # this test process. Concurrent finish lanes use per-lane build roots;
+    # without an explicit merge, a stripped or raced child env can fail to
+    # locate ggen_igniter.app even when the parent build is intact.
+    child_env =
+      System.get_env()
+      |> Map.put("MIX_ENV", "test")
+      |> Map.put(
+        "MIX_BUILD_ROOT",
+        System.get_env("MIX_BUILD_ROOT") || Path.expand("_build")
+      )
+
     results =
       1..os_writers
       |> Enum.map(fn w ->
@@ -114,6 +126,7 @@ defmodule GgenIgniter.SemanticJiraTransitionLogConcurrencyTest do
             "mix",
             ["run", "--no-compile", "--no-deps-check", script_path, Integer.to_string(w)],
             cd: File.cwd!(),
+            env: child_env,
             stderr_to_stdout: true
           )
         end)

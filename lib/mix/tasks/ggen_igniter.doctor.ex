@@ -19,7 +19,8 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   1. Elixir/OTP version satisfies this project's `mix.exs` requirement (`~> 1.17`, OTP >= 25).
   2. Required deps (`rdf`, `sparql`, `igniter`) are loaded
      with resolvable `:vsn`.
-  3. Advisory for the known `sparql` 0.3.12 `FILTER NOT EXISTS` + `BIND` inside `UNION` bug.
+  3. Advisory for the known `sparql` 0.3.12 `FILTER NOT EXISTS` + `BIND` inside `UNION` bug
+     (prefer the fixed graphlaw engine; there is no `--engine` switch on doctor).
   4. The CURRENT project's own `mix.exs` doesn't restrict its direct `igniter` dependency
      with `:only` (real conflict: `ggen_igniter` needs `igniter` unconditionally, so a
      consumer's own `only: [:dev, :test]`-restricted declaration makes Mix's resolver
@@ -43,13 +44,14 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       the `.so` is missing or stale, falls back to a real `cargo build --quiet` and reports real
       stderr on failure.
   15. `GgenIgniter.Query.Graphlaw` actually works: runs a real `SELECT * WHERE { ?s ?p ?o }`
-      SPARQL query against a tiny real in-memory `%RDF.Graph{}` through the native oxigraph
-      engine and confirms it returns without raising -- a functional smoke test, not just
-      "does the NIF load".
+      SPARQL query against a tiny real in-memory `%RDF.Graph{}` through the native graphlaw
+      (oxigraph) engine and confirms it returns without raising -- a functional smoke test,
+      not just "does the NIF load". Machine `check_id`: `graphlaw_smoke_test`.
   16. (only with `--hex-check`, off by default) hex-publish readiness: shells out to a real
       `mix hex.build` and reports its real output, plus checks `mix.exs`'s `package[:description]`
       and `package[:licenses]` are both present and non-empty.
-  17. `check_version_policy`: `mix.exs`'s `version:` literal is a *projection* of this
+  17. `version_policy` (`GgenIgniter.DoctorFixes.version_policy_rule/0`, part of
+      `default_rules/0`): `mix.exs`'s `version:` literal is a *projection* of this
       project's real, observed versioning convention rather than an independently
       maintained field. This repo has no `git tag`s at all (confirmed via
       `git tag --list` returning empty), so `CHANGELOG.md`'s topmost `## vX` entry
@@ -94,14 +96,15 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
 
   ## `--fix`
 
-  Checks 4-7 and 17 are real fixes (`GgenIgniter.DoctorFixes`), not just diagnostics:
-  passing `--fix` applies each detected, safely-recognized fix directly to the CURRENT
-  project (`File.cwd!()`) -- the real consumer app `doctor` is running inside, never a
-  test-harness scaffold -- and the check line reports exactly what changed (prefixed
-  `FIXED:`), or that there was nothing to fix. Without `--fix`, these checks are
-  read-only: a real, fixable problem is reported as a `⚠` warning naming the exact fix to
-  run; a real problem whose exact shape isn't safely automatable is reported as a `✘`
-  error rather than silently skipped or guessed at.
+  Checks 4-7 and 17 are real fixes (`GgenIgniter.DoctorFixes.default_rules/0`,
+  including `version_policy_rule/0`), not just diagnostics: passing `--fix` applies
+  each detected, safely-recognized fix directly to the CURRENT project (`File.cwd!()`)
+  -- the real consumer app `doctor` is running inside, never a test-harness scaffold --
+  and the check line reports exactly what changed (prefixed `FIXED:`), or that there
+  was nothing to fix. Without `--fix`, these checks are read-only: a real, fixable
+  problem is reported as a `⚠` warning naming the exact fix to run; a real problem
+  whose exact shape isn't safely automatable is reported as a `✘` error rather than
+  silently skipped or guessed at.
 
   ## `--strict`
 
@@ -282,6 +285,8 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         Pack.resolve_dir!(opts)
       end
 
+    # Includes version_policy (DoctorFixes.default_rules/0) after the four
+    # Igniter/Ash hygiene rules -- no separate check_version_policy call.
     checks =
       [
         tag("elixir_otp_version", check_elixir_otp_version()),
@@ -289,14 +294,11 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         tag("sparql_advisory", check_sparql_advisory())
       ] ++
         doctor_fix_rule_checks(opts) ++
-        [
-          tag("version_policy", check_version_policy(opts))
-        ] ++
         if(pack_dir, do: pack_checks(pack_dir), else: []) ++
         [
           tag("git_status", check_git_status()),
           tag("nif_compiles", check_nif_compiles()),
-          tag("oxigraph_smoke_test", check_oxigraph_smoke_test()),
+          tag("graphlaw_smoke_test", check_graphlaw_smoke_test()),
           tag("semantic_jira_pack", check_semantic_jira_pack()),
           tag("lock_status", check_lock_status())
         ] ++
@@ -499,8 +501,8 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   end
 
   # `--fix` writes directly to the CURRENT project's real files
-  # (`GgenIgniter.DoctorFixes.run_rule/3` and `fix_version_policy!/1`, called
-  # from `fix_or_check/3` below). There is no long-lived lock/daemon today,
+  # (`GgenIgniter.DoctorFixes.run_rule/3` via `fix_or_check/3` below). There
+  # is no long-lived lock/daemon today,
   # but a concurrent `--fix` run (this same task, invoked twice against the
   # same project) is a real, reachable race, so a real (currently-absent-by-
   # default) marker file is the exclusivity signal: if a previous `--fix`
@@ -572,7 +574,8 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         if Version.match?(version, "<= 0.3.12") do
           {:warn,
            "sparql #{version}: FILTER NOT EXISTS + BIND inside UNION raises Protocol.UndefinedError " <>
-             "(see query/qlever.ex moduledoc) -- use --engine qlever for gate queries with this shape"}
+             "(see query/oxigraph.ex moduledoc) -- doctor/sync default to the graphlaw engine; " <>
+             "do not use the pure-Elixir sparql engine for gate queries with this shape"}
         else
           {:ok,
            "sparql #{version} (newer than the known-bad 0.3.12 UNION/FILTER NOT EXISTS advisory)"}
@@ -580,13 +583,13 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
     end
   end
 
-  # 4-7. Real project-hygiene fixes (GgenIgniter.DoctorFixes) -- diagnostic-only
-  # without --fix, applied for real to the CURRENT project (File.cwd!()) with
-  # it. These four checks are now DATA (`DoctorFixes.default_rules/0`), run
-  # through the one generic `DoctorFixes.run_rule/3` engine -- adding a fifth
-  # Igniter/Ash wiring-gap class means appending a `%DoctorFixes.Rule{}` to
-  # `default_rules/0`, never adding another hand-written `check_*` function
-  # here.
+  # 4-7 + 17. Real project-hygiene fixes (GgenIgniter.DoctorFixes) --
+  # diagnostic-only without --fix, applied for real to the CURRENT project
+  # (File.cwd!()) with it. All five are DATA (`DoctorFixes.default_rules/0`,
+  # including `version_policy_rule/0`), run through the one generic
+  # `DoctorFixes.run_rule/3` engine -- adding another Igniter/Ash wiring-gap
+  # class means appending a `%DoctorFixes.Rule{}` to `default_rules/0`, never
+  # adding another hand-written `check_*` function here.
   defp doctor_fix_rule_checks(opts) do
     Enum.map(DoctorFixes.default_rules(), &run_rule_check(opts, &1))
   end
@@ -599,17 +602,6 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         fn project_dir -> DoctorFixes.run_rule(rule, project_dir, false) end,
         fn project_dir -> DoctorFixes.run_rule(rule, project_dir, true) end
       )
-    )
-  end
-
-  # 17. mix.exs version: literal is a projection of the real, observed
-  # versioning convention (CHANGELOG.md's topmost `## vX` entry heading --
-  # see the moduledoc for why that's the real source of truth, not a guess).
-  defp check_version_policy(opts) do
-    fix_or_check(
-      opts,
-      &DoctorFixes.check_version_policy/1,
-      &DoctorFixes.fix_version_policy!/1
     )
   end
 
@@ -908,7 +900,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   end
 
   # 15. GgenIgniter.Query.Graphlaw functional smoke test
-  defp check_oxigraph_smoke_test do
+  defp check_graphlaw_smoke_test do
     graph =
       RDF.Graph.new([
         {RDF.iri("http://example.org/s"), RDF.iri("http://example.org/p"),

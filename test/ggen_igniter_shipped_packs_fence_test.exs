@@ -27,6 +27,7 @@ defmodule GgenIgniterShippedPacksFenceTest do
     end
 
     assert "semantic-jira-pack" in pack_roots, "sanity: non-ash packs still ship"
+
     refute Enum.any?(pack_roots, &String.contains?(&1, "priv/native")),
            "sanity: package files must not list priv/native"
   end
@@ -37,6 +38,7 @@ defmodule GgenIgniterShippedPacksFenceTest do
     for entry <- GgenIgniter.PackCatalog.list() do
       basename = Path.basename(entry.dir)
       expected = MapSet.member?(pack_roots, basename)
+
       assert entry.hex_shipped == expected,
              "#{basename}: PackCatalog.hex_shipped=#{entry.hex_shipped} but Mix package files #{if expected, do: "include", else: "exclude"} it"
     end

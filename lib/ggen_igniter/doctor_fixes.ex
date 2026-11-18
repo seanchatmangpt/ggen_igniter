@@ -118,19 +118,14 @@ defmodule GgenIgniter.DoctorFixes do
           silently no-ops on a real problem, and never regex-rewrites a
           shape it doesn't precisely recognize.
 
-  ## `check_version_policy/1` / `fix_version_policy!/1`
+  ## `version_policy_rule/0` (`check_version_policy/1` / `fix_version_policy!/1`)
 
   A fifth real check/fix pair (`mix.exs`'s `version:` vs. `CHANGELOG.md`'s
-  topmost `## vX` heading) lives at the bottom of this module. It predates
-  this rule-engine pass, is not one of the four fixes the engine above was
-  built to generalize, and is left as a plain function pair here (not
-  folded into `default_rules/0`/`hex_publish_rules/0`) -- it fits the same
-  `(Predicate, Transformation, Verification)` shape and is a natural future
-  `Rule`, but wiring it into the declarative engine (a new public entry
-  point, a new `default_rules/0` slot, `Mix.Tasks.GgenIgniter.Doctor`
-  wiring) is a separate, larger change than the structural-rewrite pass
-  this fix's own `fix_version_policy!/1` already received (see
-  `rewrite_version_literal/2`).
+  topmost `## vX` heading) is a first-class `%Rule{}` in `default_rules/0`
+  (name `"version_policy"`). The public `check_version_policy/1` /
+  `fix_version_policy!/1` wrappers remain for direct callers and tests;
+  `mix ggen_igniter.doctor` iterates it generically with the other hygiene
+  rules. Structural rewrite details: `rewrite_version_literal/2`.
   """
 
   @config_relpath "config/config.exs"
@@ -211,8 +206,9 @@ defmodule GgenIgniter.DoctorFixes do
   end
 
   @doc """
-  The four real rules `mix ggen_igniter.doctor` runs through `run_rule/3`,
-  in the same order it has always run them. Adding a new Igniter/Ash
+  The five real rules `mix ggen_igniter.doctor` runs through `run_rule/3`,
+  in the same order it has always run them (dep `:only` x2, dcatr env,
+  ash_domains, then CHANGELOG-derived `version:`). Adding a new Igniter/Ash
   wiring-gap class means appending one more `%Rule{}` here (data) -- never
   writing a new `check_*`/`fix_*!` function pair, and never touching
   `Mix.Tasks.GgenIgniter.Doctor` (it iterates this list generically).
@@ -223,7 +219,8 @@ defmodule GgenIgniter.DoctorFixes do
       dep_only_rule(:igniter),
       dep_only_rule(:sourceror),
       dcatr_env_rule(),
-      ash_domains_rule()
+      ash_domains_rule(),
+      version_policy_rule()
     ]
   end
 
@@ -756,7 +753,10 @@ defmodule GgenIgniter.DoctorFixes do
     case Igniter.Project.Config.modify_config_code(
            zipper,
            [:ash_domains],
-           String.to_atom(otp_app),
+           # otp_app is already an identifier-shaped string from mix.exs
+           # `app: :name` (see `read_otp_app!/1`); admit via BindingKeys
+           # rather than open `String.to_atom/1`.
+           GgenIgniter.BindingKeys.atomize!(otp_app),
            value
          ) do
       {:ok, zipper} ->
@@ -1046,22 +1046,27 @@ defmodule GgenIgniter.DoctorFixes do
   end
 
   # ---------------------------------------------------------------------
-  # Fix 5: `mix.exs`'s `version:` literal vs. the project's real, observed
-  # versioning convention (calendar-ish, mirrored 1:1 from CHANGELOG.md's
-  # own top entry header)
-  #
-  # This predates the rule-engine pass above and is still a plain
-  # check_*/fix_*! pair rather than a `Rule` in `default_rules/0` -- folding
-  # it into the declarative engine (a new public entry point, a new
-  # `default_rules/0` slot, doctor.ex wiring) is a separate, larger change
-  # than this pass's scope (migrating `fix_*!`'s *implementation* from
-  # text/regex splices to structural `Sourceror.Zipper` rewrites, same
-  # external contract). It already fits the same
-  # (Predicate, Transformation, Verification) shape and is a natural future
-  # `Rule`.
+  # Rule 5 (default_rules): `mix.exs`'s `version:` literal vs. CHANGELOG.md
   # ---------------------------------------------------------------------
 
   @changelog_relpath "CHANGELOG.md"
+
+  @doc """
+  Builds the `Rule` that detects and corrects a `mix.exs` `version:` literal
+  that disagrees with `CHANGELOG.md`'s topmost `## vX` heading -- see
+  `check_version_policy/1`. Appended to `default_rules/0` so
+  `mix ggen_igniter.doctor` runs it through `run_rule/3` with the other
+  hygiene rules.
+  """
+  @spec version_policy_rule() :: Rule.t()
+  def version_policy_rule do
+    %Rule{
+      name: "version_policy",
+      predicate: &check_version_policy/1,
+      transform: &version_policy_transform!/1,
+      verify: fn project_dir -> match?({:ok, _}, check_version_policy(project_dir)) end
+    }
+  end
 
   @doc """
   Checks whether `project_dir`'s `mix.exs` `version:` literal matches the
@@ -1120,51 +1125,40 @@ defmodule GgenIgniter.DoctorFixes do
   end
 
   @doc """
-  Applies the fix `check_version_policy/1` detects: rewrites `project_dir`'s
-  `mix.exs` `version:` literal to match CHANGELOG.md's topmost `## vX`
-  entry header, via a structural `Sourceror.Zipper` rewrite of `project/0`'s
-  real keyword-list AST node (see `rewrite_version_literal/2`) -- never a
-  full-file text/regex rewrite.
-
+  Applies the fix `check_version_policy/1` detects via `version_policy_rule/0`.
   Raises a `RuntimeError` instead of guessing if the real shape isn't one
   `check_version_policy/1` recognizes (no CHANGELOG.md, no `## v` heading,
   or `mix.exs`'s `version:` isn't a simple string literal).
   """
   @spec fix_version_policy!(Path.t()) :: {:ok, String.t()} | {:fixed, String.t()}
-  def fix_version_policy!(project_dir) do
-    case check_version_policy(project_dir) do
-      {:ok, msg} ->
-        {:ok, msg}
+  def fix_version_policy!(project_dir), do: run_rule(version_policy_rule(), project_dir, true)
 
-      {:unrecognized, msg} ->
-        raise RuntimeError, msg
+  # Assumes `check_version_policy/1` already returned `:fixable`.
+  defp version_policy_transform!(project_dir) do
+    mix_exs_path = Path.join(project_dir, "mix.exs")
+    changelog_path = Path.join(project_dir, @changelog_relpath)
 
-      {:fixable, _msg} ->
-        mix_exs_path = Path.join(project_dir, "mix.exs")
-        changelog_path = Path.join(project_dir, @changelog_relpath)
+    source = File.read!(mix_exs_path)
+    {:ok, mix_version} = read_mix_exs_version(mix_exs_path)
+    {:ok, changelog_version} = read_changelog_top_version(changelog_path)
 
-        source = File.read!(mix_exs_path)
-        {:ok, mix_version} = read_mix_exs_version(mix_exs_path)
-        {:ok, changelog_version} = read_changelog_top_version(changelog_path)
+    updated =
+      case rewrite_version_literal(source, changelog_version) do
+        {:ok, new_source} ->
+          new_source
 
-        updated =
-          case rewrite_version_literal(source, changelog_version) do
-            {:ok, new_source} ->
-              new_source
+        :error ->
+          raise RuntimeError,
+                "check_version_policy/1 found a fixable version: mismatch in " <>
+                  "#{mix_exs_path}, but the structural Sourceror.Zipper rewrite could not " <>
+                  "locate project/0's version: key -- refusing to guess"
+      end
 
-            :error ->
-              raise RuntimeError,
-                    "check_version_policy/1 found a fixable version: mismatch in " <>
-                      "#{mix_exs_path}, but the structural Sourceror.Zipper rewrite could not " <>
-                      "locate project/0's version: key -- refusing to guess"
-          end
+    File.write!(mix_exs_path, updated)
 
-        File.write!(mix_exs_path, updated)
-
-        {:fixed,
-         "corrected mix.exs version: #{inspect(mix_version)} -> #{inspect(changelog_version)} " <>
-           "(per CHANGELOG.md's top entry ## v#{changelog_version})"}
-    end
+    {:fixed,
+     "corrected mix.exs version: #{inspect(mix_version)} -> #{inspect(changelog_version)} " <>
+       "(per CHANGELOG.md's top entry ## v#{changelog_version})"}
   end
 
   # Structural counterpart of the old whole-file `version: "OLD"` ->
@@ -1193,18 +1187,48 @@ defmodule GgenIgniter.DoctorFixes do
     end
   end
 
+  # Reads `project/0`'s real `version:` string literal structurally (same
+  # scope as `rewrite_version_literal/2`) -- never the first raw-text
+  # `version: "..."` match in the file, which can be a look-alike comment
+  # ahead of `project/0` (see the doctor_fixes test that pins this).
   defp read_mix_exs_version(mix_exs_path) do
     case File.read(mix_exs_path) do
       {:error, _} ->
         {:error, "#{mix_exs_path} not found"}
 
       {:ok, source} ->
-        case Regex.run(~r/version:\s*"([^"]+)"/, source) do
-          [_, version] -> {:ok, version}
-          nil -> {:error, "could not find a simple `version: \"...\"` literal in #{mix_exs_path}"}
+        case extract_project_version_literal(source) do
+          {:ok, version} ->
+            {:ok, version}
+
+          :error ->
+            {:error, "could not find a simple `version: \"...\"` literal in #{mix_exs_path}"}
         end
     end
   end
+
+  defp extract_project_version_literal(source) do
+    zipper = source |> Sourceror.parse_string!() |> Sourceror.Zipper.zip()
+
+    with {:ok, zipper} <- move_to_named_fn(zipper, :project, 0),
+         true <- Igniter.Code.List.list?(zipper),
+         {:ok, value_zipper} <- Igniter.Code.Keyword.get_key(zipper, :version),
+         {:ok, version} <- string_literal_node(Sourceror.Zipper.node(value_zipper)) do
+      {:ok, version}
+    else
+      _ -> :error
+    end
+  rescue
+    _ -> :error
+  end
+
+  # Sourceror commonly wraps string literals as `{:__block__, meta, [bin]}`.
+  defp string_literal_node(version) when is_binary(version), do: {:ok, version}
+
+  defp string_literal_node({:__block__, _meta, [version]}) when is_binary(version),
+    do: {:ok, version}
+
+  defp string_literal_node(_), do: :error
 
   defp read_changelog_top_version(changelog_path) do
     case File.read(changelog_path) do

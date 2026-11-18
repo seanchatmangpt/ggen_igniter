@@ -11,7 +11,9 @@ defmodule GgenIgniter.SecurityGateTest do
   alias GgenIgniter.TaskContract
 
   @repo_root File.cwd!()
-  @build_root "_build-lane-g1"
+  # Dedicated build root — never share `_build-lane-g1` / default `_build` with
+  # parallel finish lanes (compile lock + NIF copy races poison JSON stdout).
+  @build_root "_build-lane-9-security"
 
   defp tmp_repo(tag) do
     dir =
@@ -27,11 +29,13 @@ defmodule GgenIgniter.SecurityGateTest do
   end
 
   defp run_task(args, dir) do
+    build_root = System.get_env("MIX_BUILD_ROOT") || @build_root
+
     System.cmd("mix", ["ggen_igniter.security_review" | args],
       cd: @repo_root,
       # merge: System.cmd's env REPLACES the environment — wiping HOME etc.
       # breaks the mix subprocess (observed: non-git --cwd wrongly exited 0).
-      env: Map.merge(System.get_env(), %{"MIX_BUILD_ROOT" => @build_root}),
+      env: Map.merge(System.get_env(), %{"MIX_BUILD_ROOT" => build_root}),
       stderr_to_stdout: true
     )
     |> then(fn {out, code} -> {out, code, dir} end)
@@ -130,12 +134,21 @@ defmodule GgenIgniter.SecurityGateTest do
   end
 
   defp decode_envelope!(out) do
-    line =
+    # Prefer a real JSON object line — compile/log noise can also start with `{`.
+    envelope =
       out
       |> String.split("\n", trim: true)
-      |> Enum.find(fn l -> String.starts_with?(String.trim(l), "{") end)
+      |> Enum.find_value(fn line ->
+        case Jason.decode(String.trim(line)) do
+          {:ok, %{} = map} -> map
+          _ -> nil
+        end
+      end)
 
-    Jason.decode!(line)
+    assert is_map(envelope),
+           "expected a JSON envelope on stdout, got:\n#{String.slice(out, 0, 800)}"
+
+    envelope
   end
 
   defp git!(dir, args) do

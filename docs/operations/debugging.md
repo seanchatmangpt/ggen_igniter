@@ -3,37 +3,40 @@
 ## Start here: `mix ggen_igniter.doctor`
 
 **IMPLEMENTED.** `lib/mix/tasks/ggen_igniter.doctor.ex` runs a fixed
-checklist of 17 real checks — no fabricated pass output. Run it bare first:
+checklist of real checks — no fabricated pass output. Engine is fixed to
+graphlaw (no `--engine`/`--store-id`). Run it bare first:
 
 ```
 mix ggen_igniter.doctor
 ```
 
 Add `--pack NAME` (or `--pack-dir DIR`) to also run the four pack-scoped
-checks (9–12 below); add `--engine qlever --store-id ID` to also check a live
-QLever endpoint; add `--hex-check` to also run the (slow) hex-publish
+checks (9–12 below); add `--hex-check` to also run the (slow) hex-publish
 readiness check; add `--fix` to have checks 4–7 and 17 apply their real,
 recognized fixes to the **current** project instead of only reporting them.
+Full flag/check reference: `docs/reference/cli/doctor.md`.
 
 | # | Check | Runs when | `--fix`? |
 |---|---|---|---|
 | 1 | Elixir/OTP version satisfies `mix.exs`'s `~> 1.17` / OTP ≥ 25 | always | no |
-| 2 | Required deps (`rdf`, `sparql`, `igniter`, `gno` if qlever) loaded, resolvable `:vsn` | always | no |
+| 2 | Required deps (`rdf`, `sparql`, `igniter`) loaded, resolvable `:vsn` | always | no |
 | 3 | Advisory: known `sparql` ≤ 0.3.12 `FILTER NOT EXISTS` + `BIND`-in-`UNION` bug | always | no |
 | 4 | Current project's own `mix.exs` doesn't `:only`-restrict its `igniter` dep | always | **yes** |
 | 5 | Same, for `sourceror` | always | **yes** |
 | 6 | `config :dcatr, env: ...` present when `:gno`/`:dcatr` are in the dep tree | always | **yes** |
 | 7 | Every `use Ash.Domain` module registered in `config :OTP_APP, ash_domains: [...]` | always | **yes** |
-| 8 | QLever endpoint really reachable via a real `ASK` query | `--engine qlever` given | no |
+| 8 | *(retired — QLever `--engine` removed; engine fixed to graphlaw)* | — | — |
 | 9 | Pack `ontology.ttl` exists and parses as valid Turtle | `--pack`/`--pack-dir` given | no |
 | 10 | At least one gate query (`gates/*.rq`) present | `--pack`/`--pack-dir` given | no |
 | 11 | At least one template (`templates/*.{eex,tmpl}`) present | `--pack`/`--pack-dir` given | no |
 | 12 | Every gate query is syntactically valid SPARQL (parse-only) | `--pack`/`--pack-dir` given | no |
 | 13 | Target (cwd) git status — clean vs. dirty, advisory only | always | no |
 | 14 | `native/ggen_graph_nif` compiled and up to date (falls back to real `cargo build --quiet`) | always | no |
-| 15 | `GgenIgniter.Query.Oxigraph` functional smoke test (real SELECT against a real tiny graph) | always | no |
+| 15 | `GgenIgniter.Query.Graphlaw` functional smoke test (real SELECT against a real tiny graph) | always | no |
 | 16 | Hex-publish readiness (`mix hex.build` + `package[:description]`/`package[:licenses]`) | `--hex-check` given | no |
-| 17 | `mix.exs`'s `version:` matches `CHANGELOG.md`'s topmost `## vX` heading | always | **yes** |
+| 17 | `version_policy`: `mix.exs` `version:` matches `CHANGELOG.md`'s topmost `## vX` | always | **yes** |
+| 18 | `.ggen_igniter/.sync.lock` status (absent / live / stale) | always | no |
+| 19 | `semantic-jira-pack` health (`PackHealth`) | always | no |
 
 Only checks 4–7 and 17 come back `:error` and fail the whole run (exit 1);
 check 13 is deliberately `:warn`-only even when it can't reach git at all

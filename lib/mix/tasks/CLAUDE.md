@@ -20,9 +20,10 @@
 - New flags: document every one in `docs/reference/cli/{sync,doctor}.md` in
   the same change — this repo treats an undocumented flag as an incomplete
   change, not a follow-up.
-- `mix ggen_igniter.doctor`'s checklist is numbered and exhaustive (17 checks
-  today) — adding a check means updating both the doctor task's own numbered
-  list and `docs/reference/cli/doctor.md`'s numbered list so they can't drift.
+- `mix ggen_igniter.doctor`'s checklist is numbered and exhaustive (checks
+  1–7, 9–19 with 8 retired after the engine was fixed to graphlaw) — adding
+  a check means updating both the doctor task's own numbered list and
+  `docs/reference/cli/doctor.md`'s numbered list so they can't drift.
 
 ## Known `Igniter.Mix.Task` base-class quirks (already fixed here — keep them fixed)
 

@@ -20,7 +20,7 @@ defmodule GgenIgniter.DoctorFixesIdempotenceTest do
     4. `ash_domains_rule/0`        -- `ash_domains_registration` (~L574)
     5. `package_description_rule/0` -- `package_description` (~L791)
     6. `package_licenses_rule/0`   -- `package_licenses` (~L895)
-    7. `fix_version_policy!/1`     -- CHANGELOG-derived version (~L1134)
+    7. `version_policy_rule/0`     -- CHANGELOG-derived version (in `default_rules/0`)
 
   `async: true` is safe: every function takes an explicit `project_dir` and
   no test changes the process cwd. No mock/stub library is used anywhere.

@@ -52,10 +52,13 @@ Canonical short list (docs lane re-derived): `docs/jira/v26.11.18/FINISH.md`.
 - Flip `use_reactor` Controller default to `true`?
 - Marketplace ash-a2a pack G1–G8 (lives under ggen-marketplace, not here)?
 - Hex publish of v26.11.18 (runbook exists; not executed this slice)?
-- Wire `[ontology.aggregate]` into sync?
 - Remaining open `String.to_atom` sites (install otp_app, DoctorFixes,
   refusals schema load, tera filter ops, review_eval kind, rename_options)?
 - Lock TOCTOU (`pack_lock` / `lock`) — still OPEN in TODO-FIX-AND-FINISH.
+
+~~Wire `[ontology.aggregate]` into sync~~ — **CLOSED** (lane 4):
+`enforce_project/2` on `Reconcile` + `ReconcileReactor`; marker
+`.ggen_igniter/aggregate-freshness`; standing **IMPLEMENTED**.
 ## Gate evidence (this slice)
 
 | Command | Exit | Result |

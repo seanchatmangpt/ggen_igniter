@@ -10,17 +10,18 @@ Standing: documented 2026-11-18 (finish lane 7). Keep this file inside
 | Vendored from `~/ggen/crates/ggen-graph-wasm/src/{lib,oxigraph_engine}.rs` | That crate **no longer exists** under `~/ggen/crates/`. ggen's SPARQL/oxigraph surface now lives in `ggen-graph` / `ggen-engine` (`DeterministicGraph`, `SparqlEvaluator`). |
 | NIF is a thin wrapper over a path dep | Hex-publish law forbids path deps; `src/query_engine.rs` + `src/oxigraph_engine.rs` are the **owned** engine copy. Do not reintroduce a `path =` dependency on ggen. |
 
-Comments in `src/*.rs` and `lib/ggen_igniter/native/graph_nif.ex` /
-`lib/ggen_igniter/query/oxigraph.ex` that still say `ggen-graph-wasm` are
-historical provenance, not a live sync edge.
+Owned wrappers (`src/*.rs`, `lib/ggen_igniter/native/graph_nif.ex`,
+`lib/ggen_igniter/query/oxigraph.ex`) name the removed crate only as
+provenance history and point here — not a live sync edge.
 
 ## oxigraph crate pin
 
 | Surface | Version |
 |---|---|
-| `native/ggen_graph_nif/Cargo.toml` | **0.5.11** (aligned this lane) |
-| `~/ggen` workspace `oxigraph` | **0.5.11** (`features = ["rdf-12"]`) |
-| Prior NIF pin | 0.5.9 (drift closed by bump + `cargo update -p oxigraph`) |
+| `native/ggen_graph_nif/Cargo.toml` | **`=0.5.11`** (exact) |
+| `Cargo.lock` resolution (this tree) | **0.5.11** |
+| `~/ggen` workspace / lock | **0.5.11** (`features = ["rdf-12"]`) |
+| Prior NIF pin | 0.5.9 (closed this lane) |
 
 API note: both `Store::load_from_reader` and `Store::load_from_slice` exist on
 0.5.11. This crate uses `load_from_reader` with `RdfParser::from_format`
