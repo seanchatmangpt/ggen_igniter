@@ -7,22 +7,21 @@ its own right, not just "it was convenient here."
 
 ## Who owns what
 
-- **Reactor owns coordination — where implemented.** `use Reactor` (plain
+- **Reactor owns coordination — preferred path.** `use Reactor` (plain
   `Reactor`, deliberately *not* `Ash.Reactor` — `ggen_igniter` must stay
-  usable without Ash as a mandatory runtime dependency). Today this means
-  `GgenIgniter.Reactors.ReconcileReactor`: observe → load → resolve → query
-  → render → admit → actuate → verify → finalize evidence. It is the
-  **target** coordination model, but it is opt-in
-  (`config :ggen_igniter, use_reactor: true`) and not yet the default path
-  — see `docs/operations/runtime.md`. Where it is *not* implemented (the
-  plain `GgenIgniter.Reconcile.run/1` pipeline, and `Mix.Tasks.GgenIgniter.Sync`'s
-  own separate inline implementation of the same spine), coordination is
-  just a plain function pipeline — that is a real, disclosed, current gap
-  in unification, not a second coordination layer competing with Reactor.
-  Do not add a second, independent step-orchestration mechanism anywhere in
-  this codebase; extend `ReconcileReactor` (see
-  `docs/contributing/adding-a-reactor-step.md`) or, for the plain pipeline,
-  extend `GgenIgniter.Reconcile.run/1`'s own linear sequence.
+  usable without Ash as a mandatory runtime dependency). The one
+  coordination spine is `GgenIgniter.Reactors.ReconcileReactor`: observe →
+  load → resolve → query → render → admit → actuate → verify → finalize
+  evidence. `mix ggen_igniter.sync` is a CLI facade into that spine only
+  (no separate inline Sync coordinator — `run_pipeline!/3` /
+  `dispatch_pipeline/3` were deleted). The remaining non-Reactor path is
+  the bounded plain function `GgenIgniter.Reconcile.run/1`, used by
+  `GgenIgniter.Controller` when `use_reactor` is `false` (shipped default)
+  and by programmatic callers that opt out of receipts/compensation —
+  see `docs/operations/runtime.md`. Do not add a second, independent
+  step-orchestration mechanism; extend `ReconcileReactor` (see
+  `docs/contributing/adding-a-reactor-step.md`) or, for the bounded
+  residual only, extend `GgenIgniter.Reconcile.run/1`'s linear sequence.
 
 - **Igniter owns Elixir project mutation.** `mix ggen_igniter.sync` and
   `mix ggen_igniter.doctor` are both real `Igniter.Mix.Task` modules. Any
@@ -98,34 +97,41 @@ its own right, not just "it was convenient here."
   `:error`/`{:unrecognized, ...}`, never guessed at.
 
 - **No duplicate coordinator.** There must be exactly one real
-  coordination path per invocation shape: the CLI's own inline pipeline for
-  `mix ggen_igniter.sync`, and one of `Reconcile.run/1` /
+  coordination path per invocation shape: `ReconcileReactor.run/1` for
+  `mix ggen_igniter.sync` (always), and exactly one of `Reconcile.run/1` /
   `ReconcileReactor.run/1` for the Controller (selected by the single
   `use_reactor` flag, never both at once for the same call). Do not add a
-  third, competing orchestration mechanism (a second GenServer with its own
-  step logic, a second Reactor module duplicating `ReconcileReactor`'s
-  spine) — extend one of the two existing coordinators instead.
+  third, competing orchestration mechanism (a revived Sync inline spine, a
+  second GenServer with its own step logic, a second Reactor module
+  duplicating `ReconcileReactor`) — extend `ReconcileReactor`, or the
+  bounded `Reconcile.run/1` residual, instead.
 
 - **Verification precedes advancement.** `:verify` (a real `mix compile
   --warnings-as-errors` subprocess against the actuated project) must run,
   and must pass, before the manifest is ever promoted or a `:delete`
   stale-prune candidate is actually removed — see `ReconcileReactor`'s
   "Prune timing" section: real prune deletions run only *after* `:verify`
-  confirms the newly-actuated project compiles, a strictly safer ordering
-  than the CLI's own current behavior (which prunes with no compile-check
-  gate at all — a disclosed, not-yet-unified difference, see
-  `docs/operations/runtime.md`).
+  confirms the newly-actuated project compiles. The CLI inherits this
+  ordering because it dispatches only through `ReconcileReactor`. The
+  bounded `Reconcile.run/1` path has no manifest/prune/verify loop by
+  design (no receipt either).
 
-## The two-pipeline reality (why architecture-rules and current code diverge in one place)
+## Preferred path vs bounded residual (sync-spine unification)
 
-The rules above describe where new code belongs. They do not paper over
-the fact that, **today**, two pipelines exist side by side because
-unification work is still in flight (see `docs/operations/runtime.md`):
-`GgenIgniter.Reconcile.run/1` (default, no receipt/compensation) and
-`GgenIgniter.Reactors.ReconcileReactor` (opt-in, full receipt/compensation/
-prune-after-verify semantics). This is stated here plainly, labeled
-PARTIAL_ALIVE, rather than described as if the target architecture were
-already the only one in effect.
+The historical three-spine gap (Sync inline / `Reconcile.run/1` /
+`ReconcileReactor`) is closed to the smallest lawful pair
+(`docs/operations/runtime.md`, corrected 2026-11-18):
+
+- **Preferred coordination path:** `GgenIgniter.Reactors.ReconcileReactor`
+  — CLI happy path for every delegatable shape, including `mode: eval`
+  (inline Sync coordinator deleted; no Sync→Controller fallback).
+- **Bounded residual:** `GgenIgniter.Reconcile.run/1` — Controller default
+  when `use_reactor` is `false`, plus programmatic callers that want the
+  plain ontology→query→render→actuate spine without receipts.
+
+This is PARTIAL_ALIVE only on the Controller default (`use_reactor: false`
+is an operator product decision, not a missing CLI spine). New
+coordination belongs in `ReconcileReactor`; do not grow a third spine.
 
 ## See Also
 

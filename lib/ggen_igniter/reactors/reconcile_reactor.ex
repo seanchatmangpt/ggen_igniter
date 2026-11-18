@@ -1413,7 +1413,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
     row_bindings =
       case target_opts[:for_each_row] do
         nil -> []
-        row -> Enum.map(row, fn {k, v} -> {String.to_atom(k), v} end)
+        row -> Enum.map(row, fn {k, v} -> {GgenIgniter.BindingKeys.atomize!(k), v} end)
       end
 
     bindings = Reconcile.build_bindings(named_results) |> Keyword.merge(row_bindings)

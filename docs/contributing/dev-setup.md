@@ -87,7 +87,7 @@ CI also runs `mix credo` and
 
 ## Common failures
 
-Start with `mix ggen_igniter.doctor` (17 checks; see
+Start with `mix ggen_igniter.doctor` (19 checks; see
 [debugging](../operations/debugging.md)). Then:
 
 - **`GgenIgniter.Native.GraphNif.query_turtle/2 is undefined`**: the NIF `.so` is missing

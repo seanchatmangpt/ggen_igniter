@@ -62,38 +62,34 @@ without touching disk.
 
 ## Which reconciliation pipeline actually runs
 
-Both execution models above ultimately call into one of two pipeline
-implementations, selected by a **third**, independent config flag:
+Three call sites, two implementations — **not** "Reactor never runs by
+default." Corrected 2026-11-18 against `lib/mix/tasks/ggen_igniter.sync.ex`
+and `lib/ggen_igniter/controller.ex` (the prior revision of this section
+claimed CLI never touched Reactor; that has been false since ADR-0007 /
+`sync`-always-attempts-receipts):
 
-- **`GgenIgniter.Reconcile.run/1`** — the plain function pipeline
-  (`Ontology.load! -> engine prepare!/run -> Render.render -> Actuate.write_file!/eval_code!`).
-  This is the **default today** — it runs whenever
-  `Application.get_env(:ggen_igniter, :use_reactor, false)` is left at its
-  default `false`. No receipt is written, no compensation/undo exists at
-  this layer, no OCEL events are emitted. `Mix.Tasks.GgenIgniter.Sync` (the
-  actual `mix ggen_igniter.sync` CLI task) has its own separate, older
-  implementation of this same spine and does **not** currently delegate to
-  `GgenIgniter.Reconcile.run/1` — the two are parallel, not yet unified (see
-  `GgenIgniter.Reconcile`'s own moduledoc, which discloses this directly:
-  "a separate, concurrent effort owns wiring the CLI to delegate here").
-  `GgenIgniter.Controller` **does** call `GgenIgniter.Reconcile.run/1`
-  directly when `use_reactor` is `false`.
-- **`GgenIgniter.Reactors.ReconcileReactor.run/1`** — the real Reactor-based
-  coordinator (`use Reactor`, not `Ash.Reactor`). This is the **target**
-  architecture (see `docs/contributing/architecture-rules.md`), but it is
-  **opt-in today**: it only runs when the consuming application sets
-  `config :ggen_igniter, use_reactor: true`. `GgenIgniter.Controller` is the
-  only caller in this codebase that branches on this flag
-  (`run_pipeline/1` in `lib/ggen_igniter/controller.ex`); `mix
-  ggen_igniter.sync` itself does not read this flag at all today.
+- **`mix ggen_igniter.sync` (CLI)** — **always**
+  `GgenIgniter.Reactors.ReconcileReactor.run/1` via `run_via_reactor/3` /
+  `run_for_each_via_reactor!/7` (including `mode: eval`). It does **not**
+  read `use_reactor`. Sync's former inline coordinator
+  (`run_pipeline!/3` / `dispatch_pipeline/3` / Controller delegation) is
+  deleted — Sync is a CLI facade, not a third spine. Receipts and
+  compensation therefore apply on every ordinary CLI sync.
+- **`GgenIgniter.Controller`** — branches on
+  `Application.get_env(:ggen_igniter, :use_reactor, false)`:
+  - `false` (shipped default) → `GgenIgniter.Reconcile.run/1` (bounded:
+    no frontmatter / `--for-each` / inject / manifest / receipt).
+  - `true` → `ReconcileReactor.run/1`.
+- **`GgenIgniter.Reconcile.run/1`** — the bounded plain-function residual
+  for Controller-default and programmatic callers that opt out of Reactor.
+  It is **not** what the CLI uses.
 
-**Default-today vs. target, stated plainly**: with every consumer's config
-at its shipped default, the ReconcileReactor pipeline **never runs** — every
-real reconciliation attempt goes through `GgenIgniter.Reconcile.run/1` (via
-`Controller`) or `Mix.Tasks.GgenIgniter.Sync`'s own inline pipeline (via the
-CLI). The Reactor pipeline is real, tested, and has the receipt/compensation
-guarantees described in `docs/operations/failure-recovery.md` — but only for
-a consumer that has explicitly opted in.
+**Consolidation choice (2026-11-18)**: preferred path is
+`ReconcileReactor`; Sync inline spine is gone; keep Controller
+`use_reactor` default `false` until an operator product decision (in-process
+consumers would suddenly get receipts/compensation/verify). See
+`docs/jira/v26.11.18/RECEIPT-finish-slice.md` and
+`docs/contributing/architecture-rules.md`.
 
 ## Native NIF: `native/ggen_graph_nif`
 
@@ -106,21 +102,19 @@ up to date (`priv/native/ggen_graph_nif.so` newer than every `.rs` source
 file); check 15 runs a real functional smoke query against it. See
 `docs/operations/debugging.md` for what to do when either check fails.
 
-**Known, disclosed runtime bug (as of 2026-08-27, PARTIAL_ALIVE)**: the
-oxigraph engine's string-literal bindings come back with the literal quote
-characters baked in (confirmed in `test/e2e/lifecycle_test.ex`'s own inline
-comment and `.ggen_igniter_factory/capability_matrix.md`), which is why the
-project's own e2e suite pins `--engine sparql` explicitly rather than
-relying on the CLI's oxigraph default. Do not assume oxigraph-engine string
-bindings are byte-identical to sparql/qlever engine bindings until this is
-fixed.
+**Historical note (closed)**: an earlier oxigraph NIF quote-mangling bug
+was fixed at the source (`normalize_term/1` in the Rust NIF; plain values
+by default — see `docs/status.md` "Native oxigraph NIF string-literal
+binding shape"). Residual caveat: plain defaults still return literal
+lexical strings for typed literals (e.g. `xsd:boolean` → `"true"`), unlike
+`Query.run/2`'s datatype coercion path historically.
 
 ## Config surface actually read at runtime
 
 | Config key | App | Default | Effect |
 |---|---|---|---|
 | `:ggen_igniter, :start_controller` | consumer's own config | `false` | Adds `GgenIgniter.Controller` as a supervised, named child of `GgenIgniter.Supervisor`. |
-| `:ggen_igniter, :use_reactor` | consumer's own config | `false` | `GgenIgniter.Controller.reconcile/3` dispatches to `ReconcileReactor.run/1` instead of `Reconcile.run/1`. Read only by `Controller`; the CLI task does not check this flag. |
+| `:ggen_igniter, :use_reactor` | consumer's own config | `false` | `GgenIgniter.Controller.reconcile/3` dispatches to `ReconcileReactor.run/1` instead of `Reconcile.run/1`. Read **only** by `Controller`. The CLI already attempts Reactor first and does not consult this flag. |
 | `:tesla, :adapter` | this project's `config/config.exs` | `{Tesla.Adapter.Finch, name: GgenIgniter.Finch}` | Routes every `Tesla`-based HTTP call (marketplace pack fetch, `gno`'s Qlever client) through the supervised Finch pool above. |
 | `:dcatr, :env` | consumer's own `config/config.exs` | none (must be set if `:gno`/`:dcatr` present) | Required by `:gno`'s `Fuseki` adapter at compile time; `mix ggen_igniter.doctor` check 6 detects a missing value and `--fix` adds it. |
 

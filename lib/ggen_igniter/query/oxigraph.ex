@@ -1,9 +1,10 @@
 defmodule GgenIgniter.Query.Oxigraph do
   @moduledoc """
-  Runs SPARQL queries via a real, native oxigraph engine (a Rustler NIF over
-  `~/ggen/crates/ggen-graph-wasm`'s `OxigraphEngine`, `native/ggen_graph_nif`)
-  instead of the pure-Elixir `sparql` hex package used by
-  `GgenIgniter.Query.run/2`.
+  Runs SPARQL queries via a real, native oxigraph engine (Rustler NIF
+  `native/ggen_graph_nif`, owned in-tree `OxigraphEngine` — see that crate's
+  `DRIFT.md`). Remains the differential/reference engine; the fixed sync
+  engine is graphlaw (`GgenIgniter.Engine.fixed/0`). Historically contrasted
+  with the pure-Elixir `sparql` hex package path.
 
   Same `[map()]` row-list contract as `GgenIgniter.Query.run/2` and
   `GgenIgniter.Query.Qlever.run/2` -- a drop-in alternative engine, not a

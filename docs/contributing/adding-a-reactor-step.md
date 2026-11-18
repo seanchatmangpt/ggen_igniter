@@ -142,9 +142,9 @@ read only by your step) rather than adding a new global test-mode flag.
   `Reconcile.run/1`) and adds only in-process state; see
   `docs/operations/controller.md` and `docs/contributing/architecture-rules.md`'s
   "GenServer does not become a workflow engine" rule.
-- Not in `Mix.Tasks.GgenIgniter.Sync` — that task has its own, separate
-  inline implementation of the same spine today (a real, disclosed
-  unification gap, not a place to add Reactor-specific logic).
+- Not in `Mix.Tasks.GgenIgniter.Sync` — that task is a CLI facade into
+  `ReconcileReactor.run/1` only (no separate inline coordinator). Put new
+  coordination steps here, not in the Mix task.
 - Not as a second `use Reactor` module — extend this one spine.
 
 ## See Also

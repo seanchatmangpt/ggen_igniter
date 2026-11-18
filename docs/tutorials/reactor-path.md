@@ -1,8 +1,13 @@
 # The Reactor Coordination Path
 
-While the default reconciliation pipeline executes as a straightforward Elixir function chain, production environments and complex multi-target codebases often require **transactional safety**, **concurrency**, **automated rollback**, and **durable audit trails**.
-
-GgenIgniter provides an advanced, opt-in coordination engine built with Ash's underlying [Reactor](https://hexdocs.pm/reactor) workflow library: **`GgenIgniter.Reactors.ReconcileReactor`**.
+`mix ggen_igniter.sync` always routes through
+**`GgenIgniter.Reactors.ReconcileReactor`** (ADR-0007; Sync's former inline
+`run_pipeline!/3` coordinator is deleted — including `mode: eval`). The
+remaining plain-function residual is **`GgenIgniter.Reconcile.run/1`**, used
+by `GgenIgniter.Controller` when `use_reactor` is false (shipped default)
+and by programmatic callers that opt out of receipts/compensation. Reactor
+gives **transactional safety**, **concurrency**, **automated rollback**,
+and **durable audit trails**.
 
 > [!NOTE]
 > `ReconcileReactor` uses plain `Reactor` (not `Ash.Reactor`), ensuring GgenIgniter remains completely dependency-free of the Ash framework at runtime.
@@ -20,22 +25,15 @@ The Reactor coordinator provides four primary operational guarantees:
 
 ---
 
-## 2. Enabling the Reactor Path
+## 2. How the Reactor Path Is Reached
 
-You can use the Reactor coordinator in two ways:
+### Method A: CLI (default — no config flag)
 
-### Method A: Application Configuration (Recommended for CLI)
-
-In your project's `config/config.exs` or `config/dev.exs`:
-
-```elixir
-import Config
-
-config :ggen_igniter,
-  use_reactor: true
-```
-
-When `use_reactor: true` is configured, standard CLI tasks (`mix ggen_igniter.sync`) automatically route execution through `GgenIgniter.Reactors.ReconcileReactor`.
+`mix ggen_igniter.sync` always attempts `ReconcileReactor` first. It does
+**not** consult `config :ggen_igniter, use_reactor`. That flag is read
+**only** by `GgenIgniter.Controller` (shipped default `false` →
+`Reconcile.run/1`). Flipping the Controller default is an open operator
+decision — see `docs/jira/v26.11.18/FINISH.md`.
 
 ### Method B: Programmatic Invocation (`ReconcileReactor.run/1`)
 

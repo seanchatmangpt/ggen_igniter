@@ -29,11 +29,11 @@ moduledoc's function list already fully explains it.
   and `query/qlever.ex` implement it). When adding a new engine/renderer/
   reactor step, follow this same top-level-behaviour + subdirectory-impl
   split — don't flatten a new implementation into the top-level file.
-- Two pipelines live in this tree side by side on purpose
-  (`reconcile.ex` = bounded/direct path, `reactors/reconcile_reactor.ex` =
-  opt-in coordinated path). Don't merge them or assume one calls the other —
-  see the root `CLAUDE.md`'s "Two parallel pipelines" section before editing
-  either.
+- Preferred coordination is `reactors/reconcile_reactor.ex`
+  (`ReconcileReactor`); `reconcile.ex` is the bounded plain-function residual
+  (Controller default when `use_reactor: false`, programmatic callers).
+  Sync never calls `Reconcile.run/1`. Don't revive a third Sync inline spine
+  — see `docs/contributing/architecture-rules.md`.
 - Real Rust interop goes through `native/` at the repo root (a sibling of
   `lib/`, not nested under here) — a stray `native/` directory under
   `lib/ggen_igniter/` in `ls` output is a build artifact symlink, not source;

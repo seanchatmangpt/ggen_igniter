@@ -1,11 +1,9 @@
 //! Rustler NIF wrapping a real, native `OxigraphEngine`. The `QueryEngine` trait and
-//! `OxigraphEngine` were originally sourced from `~/ggen/crates/ggen-graph-wasm` but are
-//! now vendored directly into this crate (see `query_engine.rs` and `oxigraph_engine.rs`)
-//! so this package has no path dependency outside its own directory, which is required
-//! to publish to hex.pm. `RemoteEngine` (the wasm32-safe path) is out of scope here: its
-//! `query()` is a real `todo!()` stub with a disclosed sync/async architecture blocker --
-//! that is separate, still-in-progress work on the WASM side, not something this native
-//! NIF can or should route around.
+//! `OxigraphEngine` live in this crate (`query_engine.rs`, `oxigraph_engine.rs`) as an
+//! owned copy — historically seeded from a since-removed `ggen-graph-wasm` crate; live
+//! ggen SPARQL/oxigraph code is now under `~/ggen/crates/ggen-{graph,engine}`. No path
+//! dependency outside this directory (hex.pm publish law). See `DRIFT.md` for the
+//! oxigraph pin + graphlaw differential ledger.
 
 mod oxigraph_engine;
 mod query_engine;

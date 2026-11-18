@@ -22,8 +22,9 @@ defmodule GgenIgniter.PackCatalog do
       when a template fans out over a driver query)
     * `:origin` -- `:priv_ggen` or `:pack_dir`
     * `:hex_shipped` -- whether the pack is included in the hex package,
-      mirroring `mix.exs` `shipped_packs/0` (`priv/ggen/*` minus any path
-      containing `"ash"`); always `false` for `:pack_dir` origin
+      mirroring `mix.exs` `shipped_packs/0` (`priv/ggen/*` minus any basename
+      containing `"ash"`, with the one deliberate exception
+      `ash-manufacture-pack`); always `false` for `:pack_dir` origin
 
   Order is deterministic: sorted by `dir`.
   """

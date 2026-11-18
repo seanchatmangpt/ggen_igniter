@@ -13,6 +13,9 @@ defmodule GgenIgniter.Render.TeraWasm do
   real call sites (`GgenIgniter.Reconcile.run/1`,
   `GgenIgniter.Reactors.ReconcileReactor.render_target/3`) use to decide
   whether a given template routes here instead of through EEx.
+
+  Frontmatter pack sync uses `GgenIgniter.PackFrontmatter.Tera` (Elixir
+  subset), not this WASM host — intentional; see `docs/reference/rendering.md`.
   """
 
   @wasm_path Path.expand(

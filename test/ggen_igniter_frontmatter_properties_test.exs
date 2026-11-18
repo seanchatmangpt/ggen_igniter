@@ -39,16 +39,10 @@ defmodule GgenIgniter.FrontmatterPropertiesTest do
     narrower deliberately to match the literal task spec and avoid relying
     on an edge case (multi-occurrence bodies) that isn't this property's
     subject.
-  - `MatchRule.from_map/1` converts `matcher`/`scope`/`occurrence` strings via
-    `String.to_existing_atom/1` -- it raises `ArgumentError` for any string
-    that isn't already a loaded atom. Verified empirically that
-    `:contains`/`:exact`/`:regex`, `:auto`/`:line`/`:file`, and
-    `:first`/`:last`/`:unique`/`:nth` all already exist once
-    `GgenIgniter.Frontmatter.MatchRule` is compiled (they appear as literal
-    atoms in its `@type` attributes and its `defstruct` defaults), so the
-    property below only ever passes strings from those three literal sets --
-    it does not claim `from_map/1` accepts arbitrary matcher/scope/occurrence
-    strings.
+  - `MatchRule.from_map/1` admits `matcher`/`scope`/`occurrence` via closed
+    allowlist tables (never open `String.to_atom/1`). Hostile or unknown
+    strings raise `ArgumentError`. The property below only ever passes
+    strings from those three literal sets.
   """
 
   use ExUnit.Case, async: true
@@ -56,6 +50,12 @@ defmodule GgenIgniter.FrontmatterPropertiesTest do
 
   alias GgenIgniter.Frontmatter
   alias GgenIgniter.Frontmatter.MatchRule
+
+  test "MatchRule.from_map/1 refuses a hostile matcher string without minting an atom" do
+    assert_raise ArgumentError, ~r/match rule "matcher"/, fn ->
+      MatchRule.from_map(%{"pattern" => "x", "matcher" => "hostile_#{System.unique_integer()}"})
+    end
+  end
 
   # ---------------------------------------------------------------------
   # Generators

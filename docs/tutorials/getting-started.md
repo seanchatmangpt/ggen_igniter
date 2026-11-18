@@ -131,7 +131,7 @@ Once `deps.get`/`mix compile` succeed for the first time, `mix ggen_igniter.doct
 
 ## 4. Verifying Your Setup with `mix ggen_igniter.doctor`
 
-GgenIgniter provides an integrated diagnostic tool: `mix ggen_igniter.doctor`. It executes a comprehensive 17-point checklist covering runtime versions, dependency integrity, NIF compilation, and SPARQL engine functionality.
+GgenIgniter provides an integrated diagnostic tool: `mix ggen_igniter.doctor`. It executes a comprehensive 19-point checklist covering runtime versions, dependency integrity, NIF compilation, lock status, and SPARQL engine functionality (`docs/reference/cli/doctor.md`).
 
 Run the doctor in your terminal:
 

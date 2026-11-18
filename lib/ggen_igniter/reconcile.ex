@@ -1,42 +1,27 @@
 defmodule GgenIgniter.Reconcile do
   @moduledoc """
-  The one real reconciliation pipeline implementation: `Ontology.load!/1` ->
-  engine `prepare!/2` + `run/2` -> `Render.render/2` -> `Actuate.write_file!/3`
-  (or `Actuate.eval_code!/2` under `mode: eval`).
+  Bounded plain-function residual of the reconciliation spine:
+  `Ontology.load!/1` -> engine `prepare!/2` + `run/2` -> `Render.render/2` ->
+  `Actuate.write_file!/3` (or `Actuate.eval_code!/2` under `mode: eval`).
 
-  Extracted as a plain, `Mix.Task`/`Igniter`-free function specifically so it
-  can be called by both a CLI entry point (`Mix.Tasks.GgenIgniter.Sync`) and a
-  persistent in-process caller (`GgenIgniter.Controller`) without duplicating
-  the ontology-load/engine-run/render/actuate logic in two places. This
-  module is the shared implementation; `GgenIgniter.Controller` calls
-  `run/1` directly and adds only in-process state around it.
+  This is **not** the preferred coordination path. Preferred coordination is
+  `GgenIgniter.Reactors.ReconcileReactor` (receipts, admission, verify,
+  compensation) — see `docs/contributing/architecture-rules.md`.
+  `Mix.Tasks.GgenIgniter.Sync` always dispatches to `ReconcileReactor.run/1`
+  and never calls this module's `run/1`. `ReconcileReactor` and Sync both
+  reuse this module's `build_bindings/1` helper for binding-shape parity.
 
-  The predicted convergence described in earlier revisions of this
-  moduledoc -- `sync.ex`'s `igniter/1` eventually delegating to this
-  module's `run/1` -- did not happen. `sync.ex`'s real mutating dispatch
-  path (`lib/mix/tasks/ggen_igniter.sync.ex`) is wired to
-  `GgenIgniter.Reactors.ReconcileReactor.run/1` instead (aliased at
-  `sync.ex:209`, dispatched at `sync.ex:982` via `dispatch_reactor_reconcile/2`
-  and `run_for_each_via_reactor!/7`) -- a separate Reactor-based
-  implementation that reuses this module's `build_bindings/1` helper and
-  mirrors its single-target bounded shape for parity, but never calls this
-  module's `run/1`. `sync.ex`'s own comments (e.g. around `sync.ex:551,559`)
-  still narrate a `GgenIgniter.Reconcile.run/1`-pipeline story as rationale,
-  but that story describes intent, not the actual call path.
+  Real `run/1` callers today:
 
-  This module's real callers today are `GgenIgniter.Controller`
-  (`Controller.reconcile/3` wraps this module's `run/1` directly, and
-  `sync.ex` will delegate to `Controller` when one is registered under the
-  name `GgenIgniter.Controller` -- see `sync.ex`'s "Controller delegation"
-  section) and this module's own tests. `Mix.Tasks.GgenIgniter.Sync`'s
-  default (no running `Controller`) reconciliation path terminates in
-  `ReconcileReactor.run/1`, not here.
+    * `GgenIgniter.Controller` when `config :ggen_igniter, use_reactor`
+      is left at its shipped default `false` (opt-in Reactor via that flag)
+    * programmatic / test callers that want the Igniter-free bounded spine
+      without manifest/receipt/verify
 
-  ## Deliberately bounded relative to `Mix.Tasks.GgenIgniter.Sync`
+  ## Deliberately bounded relative to `ReconcileReactor` / Sync
 
-  This is a bounded, real proof-of-concept slice covering exactly the spine
-  named for it: ontology-load -> engine-run -> render -> actuate. It does
-  NOT (yet) implement `Mix.Tasks.GgenIgniter.Sync`'s fuller surface:
+  This covers exactly ontology-load -> engine-run -> render -> actuate. It
+  does NOT implement the fuller CLI/Reactor surface:
 
     * No template frontmatter parsing (`GgenIgniter.Frontmatter`) -- a
       template's file content is used verbatim as the EEx body.
@@ -45,6 +30,7 @@ defmodule GgenIgniter.Reconcile do
     * No `inject: true` splice mode -- `mode: file` always dispatches to
       `Actuate.write_file!/3` (whole-file guarded write), never
       `Actuate.inject_content!/5`.
+    * No manifest, receipt, `:admit`, or `:verify`.
 
   The `--pack`/`--pack-dir` convention (`GgenIgniter.Pack`) IS supported,
   reused verbatim (not duplicated), since pack-shaped fixtures are the
@@ -304,13 +290,14 @@ defmodule GgenIgniter.Reconcile do
   end
 
   def build_bindings(named_results) do
-    list_bindings = Enum.map(named_results, fn {name, rows} -> {String.to_atom(name), rows} end)
+    list_bindings =
+      Enum.map(named_results, fn {name, rows} -> {GgenIgniter.BindingKeys.atomize!(name), rows} end)
 
     flattened =
       named_results
       |> Enum.filter(fn {_name, rows} -> length(rows) == 1 end)
       |> Enum.flat_map(fn {_name, [row]} -> row end)
-      |> Enum.map(fn {k, v} -> {String.to_atom(k), v} end)
+      |> Enum.map(fn {k, v} -> {GgenIgniter.BindingKeys.atomize!(k), v} end)
 
     Keyword.merge(list_bindings, flattened)
   end

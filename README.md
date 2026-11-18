@@ -5,8 +5,8 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Erlang/OTP](https://img.shields.io/badge/Erlang%2FOTP-27-red.svg)](https://www.erlang.org)
 [![Elixir](https://img.shields.io/badge/Elixir-1.19-purple.svg)](https://elixir-lang.org)
-[![Tests](https://img.shields.io/badge/tests-1855%20passed%2C%205%20skipped-brightgreen.svg)](test)
-[![Release](https://img.shields.io/badge/release-v26.11.18-blue.svg)](docs/jira/v26.11.17/code-alignment.md)
+[![Tests](https://img.shields.io/badge/tests-1994%20passed%2C%205%20skipped-brightgreen.svg)](test)
+[![Release](https://img.shields.io/badge/release-v26.11.18-blue.svg)](docs/jira/v26.11.18/FINISH.md)
 
 **GgenIgniter** is an ontology-driven semantic compilation and code generation engine for Elixir. It bridges RDF knowledge graphs, SPARQL 1.1 queries, EEx templates, and Igniter AST codemods into a deterministic, verifiable synthesis pipeline.
 
@@ -47,7 +47,7 @@ It compiles declarative models into clean Elixir code—including Ash resources,
 |---|---|---|---|
 | **Semantic Kernel (`ggen`)** | Ontology loading, SPARQL execution, template rendering, and safe disk actuation. | `GgenIgniter.Ontology`, `GgenIgniter.Engine.Graphlaw`, `GgenIgniter.Render`, `GgenIgniter.Actuate` | `ALIVE` |
 | **AST Codemods (`Igniter`)** | AST-level project mutation, `Sourceror.Zipper` code patches, CLI mix task composition. | `lib/mix/tasks/ggen_igniter.*`, `GgenIgniter.DoctorFixes` | `ALIVE` |
-| **Coordination (`Reactor`)** | Dependency ordering, step concurrency, saga compensation, and atomic rollback. | `GgenIgniter.Reactors.ReconcileReactor` (plain Reactor, no Ash dependency) | `ALIVE` |
+| **Coordination (`Reactor`)** | Dependency ordering, step concurrency, saga compensation, and atomic rollback. | `GgenIgniter.Reactors.ReconcileReactor` (CLI happy path; Controller still opt-in via `use_reactor`) | `PARTIAL_ALIVE` |
 | **WASM Query Engine** | Sandboxed, high-performance SPARQL 1.1 query evaluation compiled to WebAssembly. | `priv/graphlaw_wasm.wasm` executed via `Wasmex` runtime | `ALIVE` |
 | **Ash & Spark Generators** | Composed upstream generation tasks (`mix ash.gen.*`). Test/dev scoped only. | Composed via `Igniter.compose_task/4` inside generated manufacture tasks. | `ALIVE` |
 | **Telemetry & Observability** | Object-Centric Event Log (OCEL 2.0) emission for process mining conformance. | `GgenIgniter.Telemetry.Ocel2Export`, `mix ggen_igniter.ocel.seal` | `ALIVE` |
@@ -105,10 +105,13 @@ mix ggen_igniter.doctor --fix
 
 ## Transactional Reactor & Receipts
 
-For complex, multi-resource compilations, `GgenIgniter.Reactors.ReconcileReactor` coordinates execution with transactional saga semantics:
+`mix ggen_igniter.sync` always runs `GgenIgniter.Reactors.ReconcileReactor`
+(Sync's former inline coordinator is deleted). The `use_reactor` config flag
+is read **only** by `GgenIgniter.Controller` (shipped default `false` →
+bounded `Reconcile.run/1`):
 
 ```elixir
-# Opt into transactional reactor execution
+# Controller only — does not gate mix ggen_igniter.sync
 config :ggen_igniter, use_reactor: true
 ```
 
@@ -119,18 +122,22 @@ config :ggen_igniter, use_reactor: true
 
 ## Shipped Pack Catalog
 
-The repository ships pre-validated semantic packs under `priv/ggen/`:
+Re-derived 2026-11-18 from disk (`priv/ggen/`): **26** directories with
+`ontology.ttl` (plus `doctrine-canonical-source/` which is contract-only, not
+a pack). **9** of those carry `pack.toml`. Full inventory and CLI semantics:
+[`docs/reference/cli/packs.md`](docs/reference/cli/packs.md).
+
+Representative packs (not the full set — earlier README tables under-counted):
 
 | Pack Name | Domain / Purpose | Key Artifacts |
 |---|---|---|
-| `ash-manufacture-pack` | Full lifecycle Ash Domain & Resource generation via composed upstream tasks. | `ontology.ttl`, composed manufacture tasks |
-| `process-discovery-pack` | Inductive-miner directly-follows graphs (DFG) and token-replay conformance checking. | Process discovery templates, token replay |
-| `ocel2-ekg-pack` | Event Knowledge Graph (EKG) and OCEL 2.0 process log extraction. | Object trace & attribute event schemas |
-| `olap-pack` | Multidimensional slice, dice, and roll-up algebra for event data. | OLAP aggregation modules |
-| `chicago-fault-injection-pack` | Adversarial partition and kill testing for distributed BEAM topologies. | Fault injection test suites |
-| `incremental-discovery-pack` | Streaming event trace analysis and incremental DFG mining. | Windowed state graph reducers |
-| `sensor-sink-pack` | Discretization of high-frequency sensor streams into discrete semantic events. | Event discretization filters |
-| `beam4pm-bench-pack` | Microbenchmarking harnesses for Wasmtime and BEAM concurrency runtimes. | Benchmarking suites |
+| `ash-manufacture-pack` | Full lifecycle Ash Domain & Resource generation via composed upstream tasks. | `ontology.ttl`, 13 gates, composed manufacture task |
+| `semantic-jira-pack` | Admitted work-order / standing projection surface (`sj:`). | `pack.toml`, 17 gates, 12 templates |
+| `process-discovery-pack` | Inductive-miner DFG + token-replay conformance. | Multi-template (`:inductive_miner` / `:token_replay`) |
+| `ocel2-ekg-pack` | Event Knowledge Graph / OCEL 2.0 extraction. | Object trace & attribute event schemas |
+| `doctrine-hddl-pack` | Strategic-doctrine graph → HDDL + FOND. | `pack.toml`, 5 gates |
+| `chicago-fault-injection-pack` | Adversarial partition/kill testing for BEAM topologies. | Fault injection test suites |
+| `receipted-extension-pack` / `igniter-task-pack` / `state-machine-pack` | Spark/Igniter extension and task surfaces. | `pack.toml` where present; PARTIAL_ALIVE — see `docs/status.md` |
 
 ---
 
@@ -200,28 +207,33 @@ The v26.11.10 release (history) incorporated five architectural evaluations docu
 
 ## Verification Ladder & Standings Ledger
 
-Every release claim is verified through reproducible machine execution:
+Do not treat the standings table as a fresh gate receipt. Numbers below are
+honest about what was (and was not) re-measured for **v26.11.18**. Open
+operator decisions: [`docs/jira/v26.11.18/FINISH.md`](docs/jira/v26.11.18/FINISH.md).
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Verification Ladder (v26.11.17)                        │
+│  Verification Ladder (v26.11.18 finish slice)           │
 ├──────────────────────────────────────────────────────────┤
-│  ✓ Full Test Suite: 1855 passed, 5 skipped               │
-│    (20 doctests, 41 properties, 1794 tests)              │
-│  ✓ Compilation: --warnings-as-errors (exit 0)            │
-│  · Earlier ladder rungs (fence, idempotency, citations,  │
-│    audit) were last measured at v26.11.10 — re-run them  │
+│  ✓ Full Test Suite: 1994 passed, 5 skipped, 0 failed     │
+│    (22 doctests, 41 properties, 1931 tests; exit 0)      │
+│  ✓ Compilation: mix compile --warnings-as-errors exit 0  │
+│  ✓ Version contract: mix.exs + CHANGELOG = 26.11.18      │
+│  · Hex package fence: last local tarball is              │
+│    ggen_igniter-26.11.10.tar — 26.11.18 not published    │
+│  · Earlier ladder rungs (idempotency, citations, audit)  │
+│    last measured at v26.11.10 — re-run before release    │
 └──────────────────────────────────────────────────────────┘
 ```
 
 | Standing | Result | Proof Mechanism |
 |---|---|---|
-| `COMPILATION_ALIVE` | `true` | `mix compile --warnings-as-errors` exit 0 (2026-11-18). |
-| `TEST_SUITE_ALIVE` | `true` | Full ExUnit pass (1855 passed, 5 skipped). |
-| `VERSION_CONTRACT_ALIVE` | `true` | CalVer 26.11.17 synchronized across `mix.exs` and changelogs. |
-| `ASH_MANUFACTURE_ALIVE` | `true` | Direct upstream composition; zero handwritten Ash resource bypasses. |
-| `IDEMPOTENCY_ALIVE` | `true` | Zero changes and zero issues on secondary sync runs. |
-| `HEX_PACKAGE_ALIVE` | `true` | 0 `.so`/`.dylib` binaries, verified tarball SHA-256. |
+| `VERSION_CONTRACT_ALIVE` | `true` | CalVer `26.11.18` in `mix.exs` `version:` and `source_ref: "v26.11.18"`; CHANGELOG `## v26.11.18`. |
+| `COMPILATION_ALIVE` | `true` | `mix compile --warnings-as-errors` exit 0 (2026-11-18 finish slice). |
+| `TEST_SUITE_ALIVE` | `true` | `mix test` → 1994 passed, 5 skipped, 0 failed, exit 0 (2026-11-18). |
+| `ASH_MANUFACTURE_ALIVE` | `true` (by design/inspection) | Composed upstream path; handwritten Ash forbidden outside allowlisted fixtures. |
+| `IDEMPOTENCY_ALIVE` | `UNVERIFIED (this pass)` | Last certified under ash-manufacture ladder; re-run before release. |
+| `HEX_PACKAGE_ALIVE` | `false` for `26.11.18` | Local evidence is `ggen_igniter-26.11.10.tar` only; Hex publish of 26.11.18 is an open operator decision. |
 
 ---
 

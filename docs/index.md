@@ -19,9 +19,9 @@ output pasted in.
    self-contained frontmatter templates, the reconciliation manifest, and
    what `--on-stale refuse/prune/preserve` actually does to a renamed
    ontology's old output.
-4. [The Reactor Path](tutorials/reactor-path.md) — opting into the
-   `ReconcileReactor` coordinator and reading a real success receipt and a
-   real compensated-failure receipt.
+4. [The Reactor Path](tutorials/reactor-path.md) — CLI already uses
+   `ReconcileReactor`; Controller `use_reactor` opt-in; reading a real
+   success receipt and a real compensated-failure receipt.
 
 ## How-to guides — accomplish a task
 
@@ -32,7 +32,7 @@ output pasted in.
   does and does not belong.
 - [Testing](contributing/testing.md) — running the suite, property tests,
   the separate `mix e2e` tier, known seed-dependent flakiness.
-- [Debugging](operations/debugging.md) — `mix ggen_igniter.doctor`'s 17
+- [Debugging](operations/debugging.md) — `mix ggen_igniter.doctor`'s 19
   checks, known open gaps, a practical triage order for a broken build.
 - [Failure Recovery](operations/failure-recovery.md) — reading a receipt,
   the four standings, the practical recovery playbook for each one.
@@ -43,11 +43,13 @@ output pasted in.
 
 - [CLI overview](reference/cli/index.md)
 - [`mix ggen_igniter.sync`](reference/cli/sync.md) — every flag
-- [`mix ggen_igniter.doctor`](reference/cli/doctor.md) — all 17 checks
+- [`mix ggen_igniter.doctor`](reference/cli/doctor.md) — all 19 checks
+  (`grep -cE '^[0-9]+\. \*\*' docs/reference/cli/doctor.md`)
 - [Packs](reference/cli/packs.md) — `--pack`/`--pack-dir`/`--pack NAME:TEMPLATE`
+  (26 ontology packs under `priv/ggen/`; 9 with `pack.toml`)
 - [Engines](reference/cli/engines.md) — `oxigraph`/`sparql`/`qlever`/`graphlaw`
 
-**Reactor** (opt-in coordination pipeline)
+**Reactor** (CLI default; Controller still gated by `use_reactor`)
 
 - [Overview](reference/reactor/overview.md)
 - [Steps](reference/reactor/steps.md) — the real 9-step dependency graph
@@ -81,7 +83,8 @@ output pasted in.
 
 - [Overview](architecture/overview.md) — real ownership table (ggen/Igniter/Ash/Reactor/OTP/Controller/Manifest/Receipt), CURRENT vs. TARGET
 - [Component Boundaries](architecture/component-boundaries.md)
-- [Control Plane](architecture/control-plane.md) — OTP supervision, the two opt-in flags
+- [Control Plane](architecture/control-plane.md) — OTP supervision;
+  `start_controller` / Controller `use_reactor` (CLI already uses Reactor)
 - [Reconciliation Lifecycle](architecture/reconciliation-lifecycle.md) — both pipelines' real step graphs, diagrammed
 - [State Model](architecture/state-model.md) — Manifest vs. Receipt vs. Controller state
 - [Architecture Decision Records](architecture/adr/) — accepted decisions, grounded in current code

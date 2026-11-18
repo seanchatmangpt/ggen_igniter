@@ -1,15 +1,15 @@
 defmodule GgenIgniter.OxigraphEngineTest do
   @moduledoc """
-  Chicago-style, no mocks: proves the new `GgenIgniter.Query.Oxigraph` engine
-  (a real, native Rustler NIF over `~/ggen/crates/ggen-graph-wasm`'s
-  `OxigraphEngine`) actually works, and re-runs the exact real query shape
-  pinned as broken in `test/ash_r2rml_gate_integration_test.exs` (the `sparql`
-  hex package's confirmed `FILTER NOT EXISTS`/`UNION` bug) through this new
-  engine to report honestly whether it resolves that blocker.
+  Chicago-style, no mocks: proves `GgenIgniter.Query.Oxigraph` (Rustler NIF
+  `native/ggen_graph_nif`, owned in-tree `OxigraphEngine` — see
+  `native/ggen_graph_nif/DRIFT.md`) actually works, and re-runs the exact real
+  query shape pinned as broken in `test/ash_r2rml_gate_integration_test.exs`
+  (the `sparql` hex package's confirmed `FILTER NOT EXISTS`/`UNION` bug)
+  through this engine to report honestly whether it resolves that blocker.
   """
   use ExUnit.Case, async: true
 
-  alias GgenIgniter.{Ontology, Query}
+  alias GgenIgniter.Ontology
   alias GgenIgniter.Query.Oxigraph, as: OxigraphQuery
 
   @fixtures_dir Path.expand("fixtures", __DIR__)

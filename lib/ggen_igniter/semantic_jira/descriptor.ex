@@ -29,6 +29,12 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   @render_keys ~w(schema work_order_id subject repository provider worker_identity
                   verifier_identity replay_identity authority)
 
+  # Compile-time allowlist: every key `render/1` may atomize for EEx bindings.
+  # Never `String.to_atom/1` on an open map — hostile descriptors must not mint atoms.
+  @binding_atoms Map.new(@render_keys ++ @identity_keys, fn key ->
+                   {key, String.to_atom(key)}
+                 end)
+
   @doc "Schema id of descriptors produced here."
   @spec schema() :: String.t()
   def schema, do: @schema
@@ -107,7 +113,7 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
     bindings =
       descriptor
       |> Map.take(@render_keys ++ @identity_keys)
-      |> Map.new(fn {k, v} -> {String.to_atom(k), v} end)
+      |> Map.new(fn {k, v} -> {Map.fetch!(@binding_atoms, k), v} end)
       |> Map.put(:package_json, Jason.encode!(descriptor["package"]))
 
     [SemanticA2A.pack_dir(), "runtime-templates", "descriptor.json.eex"]

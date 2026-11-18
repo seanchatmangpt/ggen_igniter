@@ -100,16 +100,16 @@ The `NAME:TEMPLATE` split happens on the **first** `:` only
 colon (every real pack name in this codebase) round-trips unchanged when no
 stem is given.
 
-## Marketplace fetch: `Pack.fetch_pack!/2` (not CLI-wired)
+## Marketplace fetch: `Pack.fetch_pack!/2` + `mix ggen_igniter.pack.fetch`
 
 `GgenIgniter.Pack.fetch_pack!/2` is a real, tested function — modeled on the
 real Rust `ggen`'s `ggen pack add <registry>:<id>` — that resolves a package
 spec, downloads a real archive over HTTP, verifies it, and extracts it into
 a local cache directory (`~/.cache/ggen_igniter/packs` by default) so
-`resolve_dir!/1`-style discovery works against it. **The CLI surface is
-`mix ggen_igniter.pack.fetch <spec> [--cache-dir DIR] [--json]`**
-(`lib/mix/tasks/ggen_igniter.pack.fetch.ex`); `sync` and `doctor` have no
-`--fetch` flag wired to it. Related tasks: `ggen_igniter.pack.lock`,
+`resolve_dir!/1`-style discovery works against it. **CLI surface (wired):**
+`mix ggen_igniter.pack.fetch <spec> [--cache-dir DIR] [--json]`
+(`lib/mix/tasks/ggen_igniter.pack.fetch.ex`). `sync` and `doctor` have no
+`--fetch` flag of their own. Related tasks: `ggen_igniter.pack.lock`,
 `ggen_igniter.packs`, `ggen_igniter.pack_sync`. Two spec formats, with genuinely different verification strength
 (disclosed honestly, not glossed over):
 
@@ -130,24 +130,46 @@ Both sources are exercised by `test/ggen_igniter_pack_fetch_test.exs`
 
 ## Bundled packs in `priv/ggen/`
 
-Each row is a pack directory under `priv/ggen/<pack-name>/`, following the
-convention above (`ontology.ttl`, `gates/*.rq`, `templates/*.eex`). Source
-for every row: the listed `priv/ggen/<pack>/` files themselves.
+Census re-derived 2026-11-18 from disk (not copied from an older table):
 
-| Pack | Ontology namespace prefix | Templates | Gate queries | Example invocation |
-|---|---|---|---|---|
-| `incremental-discovery-pack` | `dfg:` `<https://ggen-igniter.dev/ontology/incremental-discovery#>` | `incremental.ex.eex` | `010_module.rq` | `mix ggen_igniter.sync --pack incremental-discovery-pack --out lib/generated/incremental.ex` |
-| `sensor-sink-pack` | `ss:` `<https://ggen-igniter.dev/ontology/sensor-sink#>` | `sensor_sink.ex.eex` | `010_module.rq` | `mix ggen_igniter.sync --pack sensor-sink-pack --out lib/generated/sensor_sink.ex` |
-| `process-discovery-pack` | `pdx:` `<https://ggen-igniter.dev/ontology/process-discovery#>` | `inductive_miner.ex.eex`, `token_replay.ex.eex` | `010_config.rq` | `mix ggen_igniter.sync --pack process-discovery-pack:inductive_miner --out lib/generated/inductive_miner.ex` |
-| `ocel2-ekg-pack` | `ekg:` `<https://ggen-igniter.dev/ontology/ocel2-ekg#>` | `ocel2.ex.eex` | `010_ir_module.rq` | `mix ggen_igniter.sync --pack ocel2-ekg-pack --out lib/generated/ocel2.ex` |
-| `olap-pack` | `olap:` `<https://ggen-igniter.dev/ontology/olap-pack#>` | `olap.ex.eex` | `010_olap_def.rq` | `mix ggen_igniter.sync --pack olap-pack --out lib/generated/olap.ex` |
-| `chicago-fault-injection-pack` | `cfi:` `<https://ggen-igniter.dev/ontology/chicago-fault-injection#>` | `fault_injection_test.exs.eex` | `010_suites.rq` | `mix ggen_igniter.sync --pack chicago-fault-injection-pack --out test/generated/fault_injection_test.exs` |
-| `beam4pm-bench-pack` | `bb:` `<https://ggen-igniter.dev/ontology/beam4pm-bench#>` | `topology.ex.eex`, `virtual_cost.ex.eex`, `wasm_engine_benchmark_test.exs.eex` | `010_virtual_cost.rq`, `020_topology.rq`, `030_wasm_bench.rq` | `mix ggen_igniter.sync --pack beam4pm-bench-pack:topology --out lib/generated/topology.ex` |
+| Kind | Count | How counted |
+|---|---|---|
+| Directories under `priv/ggen/` | 27 | `ls priv/ggen` (dirs only; excludes `CLAUDE.md`) |
+| Pack-shaped (`ontology.ttl` present) | 26 | `find priv/ggen -maxdepth 2 -name ontology.ttl` |
+| Carry `pack.toml` | 9 | `find priv/ggen -name pack.toml` |
+| Non-pack residual | 1 | `doctrine-canonical-source/` (`contract.json` only) |
 
-`process-discovery-pack` and `beam4pm-bench-pack` have more than one
-template, so `--pack NAME` alone raises the multi-template ambiguity error
-(see `--pack NAME:TEMPLATE` above) — the example invocations for those two
-rows select a template stem explicitly.
+Earlier revisions of this page listed only 7 discovery/bench packs and
+implied that was the catalog — **false**. Full pack-shaped set (alphabetical):
+
+`adr-index-pack`, `ash-igniter-api-pack`,
+`ash-lifecycle-pack-inprocess-dispatch-test`, `ash-manufacture-pack`,
+`ash-notifier-load2-pack`, `beam4pm-bench-pack`, `calver-ticket-day-pack`,
+`castle-capability-intake-pack`, `chicago-fault-injection-pack`,
+`dfcm-agent-pack`, `doctrine-hddl-pack`, `gall_work`,
+`igniter-installer-pack`, `igniter-task-pack`, `incremental-discovery-pack`,
+`ocel2-ekg-pack`, `olap-pack`, `process-discovery-pack`,
+`reactor-scaffold-pack`, `receipted-extension-pack`, `semantic-jira-pack`,
+`sensor-sink-pack`, `state-machine-pack`, `ultracode-two-port-pack`,
+`usage-rules-pack`, `zcode-ocel-pack`.
+
+`pack.toml` present on: `castle-capability-intake-pack`, `doctrine-hddl-pack`,
+`igniter-installer-pack`, `igniter-task-pack`, `receipted-extension-pack`,
+`semantic-jira-pack`, `state-machine-pack`, `ultracode-two-port-pack`,
+`zcode-ocel-pack`.
+
+Multi-template packs need `--pack NAME:TEMPLATE` (or `--template`);
+`--pack NAME` alone raises the ambiguity error when more than one
+`*.eex`/`*.tmpl` exists under `templates/`. Example:
+
+```
+mix ggen_igniter.sync --pack process-discovery-pack:inductive_miner --out lib/generated/inductive_miner.ex
+mix ggen_igniter.sync --pack beam4pm-bench-pack:topology --out lib/generated/topology.ex
+```
+
+Standing per pack is not uniform — several Spark/Igniter packs are
+`PARTIAL_ALIVE` in `docs/status.md`; do not read this inventory as "all
+ALIVE."
 
 ## `pack_given?/1` semantics
 

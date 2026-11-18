@@ -48,6 +48,13 @@ defmodule GgenIgniter.Render.TeraWasmTest do
       # Tera. Routing them through EEx wrote `{{ module_name }}` literally into the
       # generated module (observed 2026-09-27, first live sync of that pack).
       assert TeraWasm.tera_template?("templates/receipt.ex.tmpl", "defmodule {{ m }} do end")
+      assert TeraWasm.tera_template?("a.txt.tmpl", "plain text, no markers")
+      assert TeraWasm.tera_template?("a.txt.tmpl", "{% if x %}y{% endif %}")
+    end
+
+    test "false for a legacy .tmpl written in EEx syntax (<% present, no Tera delimiters)" do
+      refute TeraWasm.tera_template?("a.txt.tmpl", "<%= x %>")
+      refute TeraWasm.tera_template?("legacy.tmpl", "hello <% = name %>")
     end
 
     test "false for a non-.tera path even when content contains Tera-tag-shaped syntax" do
@@ -56,6 +63,7 @@ defmodule GgenIgniter.Render.TeraWasmTest do
 
     test "false for an .eex path with EEx-only content" do
       refute TeraWasm.tera_template?("templates/foo.ex.eex", "<%= name %>")
+      refute TeraWasm.tera_template?("a.txt.eex", "{{ x }}")
     end
 
     test "false for a real .eex fixture whose Elixir body incidentally contains '{%' " <>
@@ -131,6 +139,27 @@ defmodule GgenIgniter.Render.TeraWasmTest do
       template_path = Path.join(out_dir, "greeting.ex.eex")
       File.write!(template_path, "Hello <%= greeting_name %>!")
       out_path = Path.join(out_dir, "greeting_eex.txt")
+
+      assert {:ok, result} =
+               GgenIgniter.Reconcile.run(
+                 ontology: ontology_path,
+                 query: "greeting=#{query_path}",
+                 template: template_path,
+                 out: out_path
+               )
+
+      assert result.outcome == :written
+      assert File.read!(out_path) == "Hello World!"
+    end
+
+    test "a .tmpl template routes through WASM Tera (marketplace convention)", %{
+      out_dir: out_dir,
+      ontology_path: ontology_path,
+      query_path: query_path
+    } do
+      template_path = Path.join(out_dir, "greeting.txt.tmpl")
+      File.write!(template_path, "Hello {{ greeting_name }}!")
+      out_path = Path.join(out_dir, "greeting_tmpl.txt")
 
       assert {:ok, result} =
                GgenIgniter.Reconcile.run(

@@ -40,12 +40,15 @@ docs/
 ## Campaign ledgers (`docs/jira/`)
 
 Campaign directories under `docs/jira/` are working ledgers, not permanent
-records. **Only the last three campaigns stay in place**; older campaign
-directories are moved (via `git mv`, history preserved) to
-[`archive/jira/`](archive/jira/). Currently in place:
+records. Older campaign directories move (via `git mv`, history preserved) to
+[`archive/jira/`](archive/jira/). Currently in place (not an exhaustive
+"done" claim — see finish standing):
 
+- [`v26.11.18/`](jira/v26.11.18/FINISH.md) — finish honesty + open
+  operator decisions (`FINISH.md`, `RECEIPT-finish-slice.md`)
 - [`v26.11.17/`](jira/v26.11.17/code-alignment.md) — version alignment +
   code-alignment census
+- [`v26.11.12/`](jira/v26.11.12/TODO-FIX-AND-FINISH.md) — atom/lock backlog
 - [`v26.11.10/`](jira/v26.11.10/)
 - [`v26.10.20/`](jira/v26.10.20/)
 - [`v26.10.19/`](jira/v26.10.19/)

@@ -28,7 +28,7 @@ mix e2e                   # manual only, never in mix test; CI = .github/workflo
 
 ## Architecture map (details live in docs/)
 
-- Three entry paths — know which you edit: `Mix.Tasks.GgenIgniter.Sync` (frontmatter, `--for-each`, `inject:`), bounded `GgenIgniter.Reconcile.run/1` (no frontmatter parity), opt-in Reactor pipeline (`use_reactor: true`, default false). Layers: `docs/architecture/overview.md`. Ash is dev+test-only, never runtime.
+- Preferred sync spine: `Mix.Tasks.GgenIgniter.Sync` → `GgenIgniter.Reactors.ReconcileReactor` (CLI always; frontmatter / `--for-each` / `inject:` / `mode: eval`). Bounded residual: `GgenIgniter.Reconcile.run/1` for Controller when `use_reactor: false` (default) and programmatic callers. No Sync inline coordinator. Layers: `docs/architecture/overview.md`, `docs/contributing/architecture-rules.md`. Ash is dev+test-only, never runtime.
 - Manifest: `<manifest-dir>/.ggen_igniter/manifest.json` keyed by (template, out-template); `--on-stale refuse|prune|preserve` (refuse default). See `docs/reference/reconciliation/`.
 - Packs: `priv/ggen/<pack>/{ontology.ttl,gates/*.rq,templates/}`; explicit `--ontology/--query/--template` beats `--pack`. Prefer an existing pack over ad-hoc scaffolding.
 - sJira origin-authority law (SJ-002): work orders originate only from admitted `sj:CodeWorkAuthority`; prose is observation-only. ADR-012, `docs/archive/jira/v26.9.24/_LANES.md`.
@@ -69,8 +69,9 @@ Exempt planes — the law binds implementations, not knowledge or evidence:
 
 | plane | epoch-bound? |
 |---|---|
-| `lib/**/*.ex` | yes — the first court |
-| config, migrations | named as future courts, not yet bound |
+| `lib/**/*.ex` | yes |
+| `config/**/*.exs` | yes — in `EpochWatermark.default_globs/0` (re-check `lib/ggen_igniter/epoch_watermark.ex`) |
+| `priv/repo/migrations/**/*.exs` | yes in the default glob list; this repo currently has no such tree |
 | knowledge plane: `.ttl`, `.rq`, `.eex`, `pack.toml`, docs, markdown | no |
 | tests, falsifiers, evidence: `test/**`, fixtures, receipts | no |
 
@@ -79,8 +80,9 @@ Tests predate the new implementation on purpose: `Test_t(A_{t+1})` is an indepen
 Honest residues:
 
 - Similarity is line/AST Jaccard, not a compiler — a sufficiently creative rewrite defeats it. That is why receipts, not similarity, are the admission path and similarity only ever refuses.
-- The first court's glob is `lib/**/*.ex`; nothing outside it is judged yet.
+- Default globs are `lib/**/*.ex`, `config/**/*.exs`, and `priv/repo/migrations/**/*.exs` (`EpochWatermark.default_globs/0`); `@default_glob` remains the single-string `lib/**/*.ex` for callers that still pass one glob.
 - Unparseable receipt timestamps never attribute (fail closed).
+- Finish / open operator decisions: `docs/jira/v26.11.18/FINISH.md`.
 
 ## Pointers
 

@@ -4,6 +4,10 @@
 
 Released 2026-11-18. Defect-fix and ggen-parity release from the v26.11.17 audit wave:
 
+- **Fixed** graphlaw engine suite `async: false` so `Application.put_env(:graphlaw_wasm_path, …)` cannot race other `Query.run/2` callers.
+- **Fixed** bounded atom admission: `Frontmatter.MatchRule` enum allowlists, `SemanticJira.Descriptor` compile-time binding allowlist, and `GgenIgniter.BindingKeys` for SPARQL/EEx binding keys (sync / Reconcile / ReconcileReactor).
+- **Changed** docs to match sync-spine reality (CLI always `ReconcileReactor`; Sync inline deleted; Controller `use_reactor` default left false — operator decision). Receipt: `docs/jira/v26.11.18/RECEIPT-finish-slice.md`.
+- **Changed** docs honesty pass: pack census **26** / **9** `pack.toml`, refusal **148**+**24**, doctor **19**, Hex `26.11.18` unpublished, README suite/Hex ALIVE badges demoted. Open decisions: `docs/jira/v26.11.18/FINISH.md`.
 - **Added** `[ontology.aggregate]` frontmatter section (`GgenIgniter.OntologyAggregate`, refusal `ONTOLOGY_AGGREGATE_STALE`); sha256 freshness marker, not interoperable with ggen's BLAKE3 marker. Not yet wired into the sync path.
 - **Fixed** `[ontology].imports` was dropped by `SchemaDispatch`; now carried, serialized, and loadable via `Ontology.load_with_imports!/3`.
 - **Fixed** expense-approval reactor: refund failures in `compensate`/`undo` now propagate instead of returning `:ok`.

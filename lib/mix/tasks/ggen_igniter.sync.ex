@@ -485,98 +485,26 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   the identical engine call path purely to verify -- a disclosed, opt-in,
   read-only extra query execution.
 
-  ## Controller delegation (opt-in, thin-adapter mode)
+  ## Coordination path (single preferred spine)
 
-  When a real `GgenIgniter.Controller` `GenServer` is already running,
-  registered under the name `GgenIgniter.Controller` (`Process.whereis/1` --
-  the same registration idiom this codebase's own `GgenIgniter.Engine.Qlever`
-  already uses for `GgenIgniter.Finch`), THIS run's reconciliation work is
-  delegated to it (`GgenIgniter.Controller.reconcile/3`, wrapping the shared
-  `GgenIgniter.Reconcile.run/1` pipeline) instead of running the pipeline
-  inline -- giving this one invocation access to the controller's real,
-  in-process reconciliation history (`reconciliation_count`, surfaced in the
-  notice line below) instead of a fresh, state-free OS process. When no such
-  process is registered (the common case today -- the controller is
-  opt-in and off by default), behavior is EXACTLY the pre-existing inline
-  pipeline, unchanged.
-
-  Delegation only ever applies to a call within `GgenIgniter.Reconcile.run/1`'s
-  own deliberately bounded scope (see that module's moduledoc): the resolved
-  template must have NO frontmatter header at all, and `--for-each` must not
-  be requested (by flag or by frontmatter -- moot here since frontmatter is
-  required absent). Any call using frontmatter, `--for-each`, `inject: true`,
-  or `mode: eval`'s frontmatter defaults, or a `Controller.reconcile/3` whose
-  real arity/behavior no longer matches what this module was written against
-  (`function_exported?/3`, checked every call -- a live defensive guard, not a
-  one-time check, since this integration point was wired against a
-  concurrently-developed module), transparently falls back to the exact same
-  inline pipeline used when no controller is running at all -- never a silent
-  behavior change for a feature the controller's bounded pipeline does not
-  yet implement.
-
-  One real, disclosed trade-off of controller-mode delegation specifically:
-  the RECONCILIATION MANIFEST (`--on-stale`/`manifest.json`, described above)
-  is a property of the inline pipeline's own bookkeeping and is NOT consulted
-  or updated on the delegated path -- the controller's own in-process state
-  (keyed on `{template_path, --out}`) is the reconciliation record for that
-  call instead. This is intentional: controller mode exists precisely to
-  replace disk-based manifest tracking with in-process tracking for whichever
-  recipes it is enabled for, not to duplicate both.
+  Every mutating `mix ggen_igniter.sync` run acquires
+  `GgenIgniter.Lock.acquire/2`, then dispatches **only** to
+  `GgenIgniter.Reactors.ReconcileReactor.run/1` via `run_via_reactor/3` /
+  `run_for_each_via_reactor!/7` (including `mode: eval`, `inject:`, and
+  frontmatter `sparql:`). This task does **not** read
+  `config :ggen_igniter, use_reactor`, does **not** delegate to
+  `GgenIgniter.Controller`, and no longer carries an inline
+  `run_pipeline!/3` coordinator (deleted; see
+  `docs/contributing/architecture-rules.md`). The bounded
+  `GgenIgniter.Reconcile.run/1` residual remains for Controller-default /
+  programmatic callers only.
   """
-  # AR-9 correction (2026-08-27): every `mix ggen_igniter.sync` invocation now
-  # ALWAYS acquires a real cross-process lock (`GgenIgniter.Lock.acquire/2`)
-  # before doing any work, and ALWAYS attempts the receipt-writing Reactor
-  # pipeline (`GgenIgniter.Reactors.ReconcileReactor.run/1`) FIRST, instead of
-  # this being gated behind `Application.get_env(:ggen_igniter, :use_reactor,
-  # false)` -- that config flag is no longer read here. The lock is released
-  # in a `try/after` around the WHOLE plan+actuate sequence, so it is
-  # released on a normal return, a raised exception, or a `dispatch_pipeline`
-  # fallback alike -- never left held.
-  #
-  # `run_via_reactor/3` only ever returns `{:not_delegatable, reason}` for a
-  # request outside `GgenIgniter.Reactors.ReconcileReactor.run/1`'s own
-  # documented bounded scope. As of v26.9.2 (workstreams A and B, see
-  # `run_via_reactor/3`'s own doc comment and `run_for_each_via_reactor!/7`),
-  # that scope is down to exactly ONE real gap: `mode: eval` combined with
-  # template frontmatter (a pre-existing `ReconcileReactor` `:render`-step
-  # defect, independent of frontmatter parsing itself -- see that clause's
-  # own comment). Both `--for-each` fan-out and a template's frontmatter
-  # inline `sparql:` query text -- the two gaps THIS comment originally
-  # described -- now route through the Reactor pipeline for real. For the
-  # one request still outside scope, this task keeps the exact pre-existing
-  # `dispatch_pipeline/3` behavior (controller delegation when running, else
-  # the plain inline pipeline) -- never a silent reinterpretation of what an
-  # unsupported flag does -- and logs a one-time migration notice naming
-  # exactly which flag/feature has no Reactor-pipeline equivalent yet.
-  #
-  # Correction (2026-08-27, AR-10): before this correction, `run_via_reactor/3`
-  # refused delegation for ANY frontmatter-bearing template, including
-  # `inject: true` ones -- meaning a `mode: file`/`inject: true` write NEVER
-  # got `ReconcileReactor`'s real admission-gate coverage (duplicate-
-  # output-path refusal, path-escape refusal, a persisted `GgenIgniter.Receipt`)
-  # via the actual `mix ggen_igniter.sync` CLI, even though
-  # `ReconcileReactor`'s own `:render`/`:admit`/`:actuate` steps already
-  # fully implement `operation: :inject` `%PendingActuation{}` construction
-  # and dispatch (`render_inject_target/8`, reusing the SAME
-  # `GgenIgniter.Frontmatter.split_template/1` + `GgenIgniter.Injection`
-  # this task's own inline pipeline uses) -- proven directly, with no
-  # frontmatter parsing reinvented, by
-  # `test/ggen_igniter_reconcile_reactor_inject_test.exs`, which calls
-  # `ReconcileReactor.run/1` itself. The real gap was ONLY this dispatch
-  # guard being broader than the Reactor pipeline's real capability. Fixed
-  # by narrowing the guard to the one frontmatter feature the Reactor path
-  # genuinely does not implement (inline `sparql:` queries -- see above),
-  # and by resolving frontmatter's `to:`/`unless_exists:`/`skip_if:` (mode
-  # was already resolved) into concrete `reconcile_opts` values before
-  # delegating, since `ReconcileReactor.run_target_queries/3` reads ONLY the
-  # flat opts/`:targets` keyword list for those fields, never the
-  # template's own frontmatter directly (unlike its `:render` step, which
-  # DOES re-read frontmatter for `inject`/`before`/`after`/`at_line`
-  # specifically). See `test/ggen_igniter_sync_inject_reactor_admission_test.exs`
-  # for the real, CLI-level proof this correction closes: an `inject: true`
-  # write now genuinely routes "(via reactor)", and an `inject: true` write
-  # targeting a path outside the authorized project root is refused the
-  # same real way a `mode: file` write already was.
+  # Sync-spine law (2026-11-18): CLI → ReconcileReactor only. Historical
+  # AR-9/AR-10 notes: Reactor was first made unconditional (not gated by
+  # `use_reactor`), then inject/frontmatter/sparql/--for-each/mode:eval all
+  # closed into that same dispatch; the former
+  # `dispatch_pipeline/3`/`run_pipeline!/3`/Controller-delegation fallback
+  # chain was deleted as unreachable.
   # AR-11 correction (2026-08-28): `Igniter.Mix.Task`'s generated `run/1` (the
   # macro body in `Igniter.Mix.Task.__using__/1`) intercepts `--help`
   # (long form only -- `Igniter.Mix.Task.help_requested?/1` literally checks
@@ -1743,23 +1671,20 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   @doc false
   @spec build_bindings([{String.t(), [map()]}], map() | nil) :: keyword()
   def build_bindings(named_results, for_each_row \\ nil) do
-    list_bindings =
-      Enum.map(named_results, fn {name, rows} -> {String.to_atom(name), rows} end)
+    # Single binding spine: Reconcile.build_bindings/1 owns list + single-row
+    # flatten; this wrapper only adds `--for-each` row overrides (same merge
+    # order ReconcileReactor applies via Keyword.merge/2).
+    base = GgenIgniter.Reconcile.build_bindings(named_results)
 
-    flattened =
-      named_results
-      |> Enum.filter(fn {_name, rows} -> length(rows) == 1 end)
-      |> Enum.flat_map(fn {_name, [row]} -> row end)
-      |> Enum.map(fn {k, v} -> {String.to_atom(k), v} end)
+    case for_each_row do
+      nil ->
+        base
 
-    row_flattened =
-      case for_each_row do
-        nil -> []
-        row -> Enum.map(row, fn {k, v} -> {String.to_atom(k), v} end)
-      end
+      row ->
+        row_flattened =
+          Enum.map(row, fn {k, v} -> {GgenIgniter.BindingKeys.atomize!(k), v} end)
 
-    list_bindings
-    |> Keyword.merge(flattened)
-    |> Keyword.merge(row_flattened)
+        Keyword.merge(base, row_flattened)
+    end
   end
 end

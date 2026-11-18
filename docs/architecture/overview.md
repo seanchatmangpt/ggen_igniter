@@ -64,7 +64,7 @@ flowchart TD
 | **`GgenIgniter.Ontology`** | In-memory RDF Turtle parser and graph loader | `IMPLEMENTED` | `lib/ggen_igniter/ontology.ex`: wraps `RDF.Turtle.read_file!/1` returning `%RDF.Graph{}`. |
 | **`GgenIgniter.Engine`** | Multi-backend SPARQL query execution abstraction (`oxigraph`, `sparql`, `qlever`) | `IMPLEMENTED` | `lib/ggen_igniter/engine.ex`: Behaviour registry. Default is `oxigraph` (NIF). |
 | **`GgenIgniter.Native.GraphNif`** | Native Rust NIF binding to Oxigraph SPARQL 1.1 engine | `IMPLEMENTED` | `lib/ggen_igniter/native/graph_nif.ex`: compiles `native/ggen_graph_nif` via Rustler. |
-| **`GgenIgniter.Render`** | Template engine abstraction for EEx and Tera | `IMPLEMENTED` | `lib/ggen_igniter/render.ex`, `lib/ggen_igniter/render/tera.ex`. |
+| **`GgenIgniter.Render` / `Render.TeraWasm` / `PackFrontmatter.Tera`** | EEx default; WASM Tera for `.tera`/`.tmpl`; frontmatter subset Tera | `IMPLEMENTED` | `lib/ggen_igniter/render.ex`, `render/tera_wasm.ex`, `pack_frontmatter/tera.ex`. Divergences: `docs/reference/rendering.md`. |
 | **`GgenIgniter.PendingActuation`** | Plan IR representing deferred create, replace, eval, and delete intents | `IMPLEMENTED` | `lib/ggen_igniter/pending_actuation.ex`: captures pre-image, desired hash, operation, and rollback data. |
 | **`GgenIgniter.Reactors.ReconcileReactor`** | Declarative orchestration kernel executing the 9-stage reconciliation spine | `IMPLEMENTED` (Opt-in) | `lib/ggen_igniter/reactors/reconcile_reactor.ex`: `use Reactor`, complete with compensation and verification. |
 | **`GgenIgniter.Controller`** | Persistent BEAM `GenServer` managing in-process reconciliation counters and state | `IMPLEMENTED` | `lib/ggen_igniter/controller.ex`: `start_link/1`, `reconcile/3`, `status/2`. |
@@ -86,7 +86,7 @@ flowchart TD
 `ggen` concepts are realized in Elixir via RDF graph ingestion and SPARQL projection:
 - **Ontology Ingestion**: RDF definitions are parsed into `%RDF.Graph{}` structs (`GgenIgniter.Ontology`).
 - **Engine Execution**: SPARQL queries extract tabular result sets (`GgenIgniter.Engine.Oxigraph` via Rust NIF, `GgenIgniter.Engine.Sparql`, or `GgenIgniter.Engine.Qlever` over HTTP). Single-row queries are automatically flattened into top-level template bindings.
-- **Rendering**: EEx and Tera templates render deterministic source files or dynamic in-process code expressions (`GgenIgniter.Render`).
+- **Rendering**: EEx (`GgenIgniter.Render`) and WASM Tera (`Render.TeraWasm`) render deterministic source; frontmatter packs use `PackFrontmatter.Tera`. See `docs/reference/rendering.md`.
 
 ### 3.2. Igniter: The Project Actuator
 `ggen_igniter` integrates with the Igniter ecosystem:

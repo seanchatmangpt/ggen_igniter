@@ -13,20 +13,28 @@ one real qualification: `:ash`/`:ash_postgres` ARE declared in this repo's own
 ## 1. Core vs. Consumer Dependency Boundary
 
 Observed implementation outranks intended architecture, including over a
-previous revision of this page. `mix.exs` **does** declare `:ash` and
-`:ash_postgres` — scoped `only: [:dev, :test]`:
+previous revision of this page. `mix.exs` **does** declare Ash ecosystem deps —
+every one scoped `only: [:dev, :test]`:
 
 ```elixir
-# mix.exs:176-177 — real, current declarations
+# mix.exs — real, current declarations (ws5 contract 21 pins this set)
 {:ash, "~> 3.0", only: [:dev, :test]},
 {:ash_postgres, "~> 2.0", only: [:dev, :test]},
+{:ash_json_api, "~> 1.0", only: [:dev, :test]},
+{:ash_ai, "~> 1.0", only: [:dev, :test]},
+{:ash_state_machine, "~> 0.2", only: [:dev, :test]},
+{:ash_oban, "~> 0.8", only: [:dev, :test]},
+{:ash_a2a, "~> 26.9", only: [:dev, :test]},
 ```
 
 The claim that survives, and the one that actually matters, is narrower:
 **Ash is never a runtime dependency of `ggen_igniter`.** `only: [:dev, :test]`
-genuinely keeps both out of a consuming application's runtime; a consumer
-declares its own Ash requirement in its own `mix.exs`. `:ash_phoenix` is
-genuinely absent — `grep -n ":ash_phoenix" mix.exs` returns zero matches.
+genuinely keeps these out of a consuming application's runtime (and out of
+`hex_metadata.config` requirements); a consumer declares its own Ash
+requirement in its own `mix.exs`. `:ash_phoenix` is genuinely absent —
+`grep -n ":ash_phoenix" mix.exs` returns zero matches. Pack-path half of the
+same fence: `shipped_packs/0` excludes every `priv/ggen` basename containing
+`"ash"` except `ash-manufacture-pack`.
 
 The dev/test scoping is deliberate and has a stated reason in the comment
 directly above the two declarations, [`mix.exs:167-177`](../../../mix.exs): this

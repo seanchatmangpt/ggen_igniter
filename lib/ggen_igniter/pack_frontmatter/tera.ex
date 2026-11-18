@@ -718,16 +718,23 @@ defmodule GgenIgniter.PackFrontmatter.Tera do
   defp norm(v) when is_integer(v) or is_float(v) or is_boolean(v), do: to_string(v)
   defp norm(v), do: v
 
+  # Closed operator set — the expression parser only emits these six
+  # comparison tokens (`p_cmp/1`). Never `String.to_atom/1` on template text.
   defp compare("==", a, b), do: norm(a) == norm(b)
   defp compare("!=", a, b), do: norm(a) != norm(b)
 
-  defp compare(op, a, b) do
-    case {num(a), num(b)} do
-      {x, y} when is_number(x) and is_number(y) ->
-        apply(Kernel, String.to_atom(op), [x, y])
+  defp compare(op, a, b) when op in ["<", ">", "<=", ">="] do
+    {left, right} =
+      case {num(a), num(b)} do
+        {x, y} when is_number(x) and is_number(y) -> {x, y}
+        _ -> {to_string(norm(a)), to_string(norm(b))}
+      end
 
-      _ ->
-        apply(Kernel, String.to_atom(op), [to_string(norm(a)), to_string(norm(b))])
+    case op do
+      "<" -> left < right
+      ">" -> left > right
+      "<=" -> left <= right
+      ">=" -> left >= right
     end
   end
 

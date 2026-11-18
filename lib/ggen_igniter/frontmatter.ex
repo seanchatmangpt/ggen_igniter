@@ -328,6 +328,25 @@ defmodule GgenIgniter.Frontmatter.MatchRule do
           trim: boolean()
         }
 
+  @matchers %{
+    "contains" => :contains,
+    "exact" => :exact,
+    "regex" => :regex
+  }
+
+  @scopes %{
+    "auto" => :auto,
+    "line" => :line,
+    "file" => :file
+  }
+
+  @occurrences %{
+    "first" => :first,
+    "last" => :last,
+    "unique" => :unique,
+    "nth" => :nth
+  }
+
   @spec from_map(map()) :: t()
   def from_map(map) when is_map(map) do
     pattern =
@@ -336,25 +355,36 @@ defmodule GgenIgniter.Frontmatter.MatchRule do
 
     %__MODULE__{
       pattern: pattern,
-      matcher: to_atom(Map.get(map, "matcher", "contains")),
-      scope: to_atom(Map.get(map, "scope", "auto")),
-      occurrence: to_atom(Map.get(map, "occurrence", "first")),
+      matcher: admit_enum!(Map.get(map, "matcher", "contains"), @matchers, "matcher"),
+      scope: admit_enum!(Map.get(map, "scope", "auto"), @scopes, "scope"),
+      occurrence: admit_enum!(Map.get(map, "occurrence", "first"), @occurrences, "occurrence"),
       index: Map.get(map, "index", 0),
       case_sensitive: Map.get(map, "case_sensitive", true),
       trim: Map.get(map, "trim", false)
     }
   end
 
-  defp to_atom(a) when is_atom(a), do: a
+  defp admit_enum!(value, allowlist, field) when is_atom(value) do
+    if value in Map.values(allowlist) do
+      value
+    else
+      raise ArgumentError, admit_enum_message(field, allowlist, value)
+    end
+  end
 
-  # These fields are a small, fixed set of internal enum tags defined by this
-  # module's own code (not attacker-controlled arbitrary input), so
-  # `String.to_existing_atom/1` provides no real safety here -- it only makes
-  # `from_map/1` fail with `ArgumentError` whenever no other code path has
-  # already interned the atom in this BEAM VM instance (observed as a
-  # test-order-dependent failure in CI: frontmatter.ex:339 raising on
-  # `String.to_existing_atom("regex")`).
-  defp to_atom(s) when is_binary(s), do: String.to_atom(s)
+  defp admit_enum!(value, allowlist, field) when is_binary(value) do
+    case Map.fetch(allowlist, value) do
+      {:ok, atom} ->
+        atom
+
+      :error ->
+        raise ArgumentError, admit_enum_message(field, allowlist, value)
+    end
+  end
+
+  defp admit_enum_message(field, allowlist, value) do
+    "match rule \"#{field}\" must be one of #{Enum.join(Enum.sort(Map.keys(allowlist)), ", ")}, got: #{inspect(value)}"
+  end
 end
 
 defmodule GgenIgniter.Frontmatter.FreezePolicy do

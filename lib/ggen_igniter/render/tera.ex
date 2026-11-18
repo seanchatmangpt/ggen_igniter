@@ -22,6 +22,10 @@ defmodule GgenIgniter.Render.Tera do
   This is `GgenIgniter.Render.Tera`, a separate, additional engine.
   `GgenIgniter.Render` (stdlib EEx) remains the default renderer and is
   unaffected by this module's existence.
+
+  **Not on the production sync spine.** `Reconcile` / `ReconcileReactor`
+  route Tera via `GgenIgniter.Render.TeraWasm`; frontmatter packs use
+  `GgenIgniter.PackFrontmatter.Tera`. See `docs/reference/rendering.md`.
   """
 
   @type bindings :: map()

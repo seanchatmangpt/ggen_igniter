@@ -6,7 +6,9 @@ defmodule GgenIgniter.GraphlawEngineTest do
   differentially asserts it answers a trivial SELECT identically to the
   already-proven oxigraph engine on the same graph.
   """
-  use ExUnit.Case, async: true
+  # Mutates Application env `:graphlaw_wasm_path` in one test; must not race
+  # other suites that call `Query.run/2` (fixed graphlaw engine).
+  use ExUnit.Case, async: false
 
   alias GgenIgniter.Engine
   alias GgenIgniter.Engine.Graphlaw

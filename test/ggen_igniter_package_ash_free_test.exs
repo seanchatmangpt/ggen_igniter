@@ -20,6 +20,9 @@ defmodule GgenIgniterPackageAshFreeTest do
     semantic-jira A2A template write Ash code into a consumer project); that is
     consumer-side manufacture input, not an Ash dependency or module.
 
+  Companion fast courts (no hex.build): `ggen_igniter_shipped_packs_fence_test.exs`
+  and `ws5_contracts/21_ash_dev_test_scope_test.exs`.
+
   `async: false`: one real `mix` subprocess builds from the shared checkout.
   Tagged `:package` (the build takes a few seconds).
   """

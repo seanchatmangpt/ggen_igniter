@@ -57,22 +57,24 @@ clean exclusion of compiled native binaries guarantee a production-grade distrib
 
 #### B2. The Ash-Free packaging fence (`shipped_packs/0`)
 - **Observation:** In accordance with operator directives, internal experimental Ash packs must not ship with the public package. The only admitted Ash pack is the qualified `ash-manufacture-pack`.
-- **Resolution in ggen_igniter:** `mix.exs:163-171` implements `shipped_packs/0`:
+- **Resolution in ggen_igniter:** `mix.exs` implements `shipped_packs/0` + `ash_shipped?/1` (basename `"ash"` substring reject with one exception):
   ```elixir
   defp shipped_packs do
-    "priv/ggen"
-    |> File.ls!()
-    |> Enum.reject(fn pack_name ->
-      # Exclude all ash* packs except the qualified ash-manufacture-pack
-      String.starts_with?(pack_name, "ash") and pack_name != "ash-manufacture-pack"
-    end)
-    |> Enum.map(&Path.join("priv/ggen", &1))
+    "priv/ggen/*"
+    |> Path.wildcard()
+    |> Enum.reject(&(not ash_shipped?(Path.basename(&1))))
   end
+
+  defp ash_shipped?("ash-manufacture-pack"), do: true
+  defp ash_shipped?(basename), do: not String.contains?(basename, "ash")
   ```
-- **Verification:** Verified by `test/ggen_igniter_package_ash_free_test.exs`:
-  - `hex_metadata.config` requirements contain zero `ash*` dependencies.
-  - The only directory in `priv/ggen/` named for Ash is `ash-manufacture-pack`.
-  - No shipped `lib/` module contains `use Ash.*`.
+- **Verification:**
+  - `test/ggen_igniter_package_ash_free_test.exs` (real `mix hex.build --unpack`):
+    - `hex_metadata.config` requirements contain zero `ash*` dependencies.
+    - The only ash-named shipped pack root is `ash-manufacture-pack`.
+    - No shipped `lib/` module contains `use Ash.*`.
+  - `test/ggen_igniter_shipped_packs_fence_test.exs` (fast Mix package-files + PackCatalog mirror).
+  - `test/ws5_contracts/21_ash_dev_test_scope_test.exs` (every `:ash*` dep is `only: [:dev, :test]`).
 
 ---
 

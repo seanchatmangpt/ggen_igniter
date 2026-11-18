@@ -26,8 +26,9 @@ mix ggen_igniter.packs [--json] [--pack-dir DIR] [--name NAME]
 `to`/`for_each` from template frontmatter; `frontmatter_error` is a string when the frontmatter is malformed (bad YAML, missing closing `---`, invalid UTF-8), else `null`), `required_flags`, `origin` (`priv_ggen` / `pack_dir`),
 `hex_shipped`.
 
-`hex_shipped` mirrors `mix.exs` `shipped_packs/0`: `priv/ggen/*` minus any path containing `ash`;
-always `false` for `--pack-dir` packs.
+`hex_shipped` mirrors `mix.exs` `shipped_packs/0`: `priv/ggen/*` minus any basename containing
+`ash`, with one deliberate exception — `ash-manufacture-pack` ships so hex consumers can resolve
+`mix ggen_igniter.sync --pack ash-manufacture-pack`. Always `false` for `--pack-dir` packs.
 
 ## Exit codes
 

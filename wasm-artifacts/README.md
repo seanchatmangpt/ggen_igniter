@@ -46,8 +46,10 @@ real, tested call path: `GgenIgniter.Render.TeraWasm` (`lib/ggen_igniter/
 render/tera_wasm.ex`) loads this exact file, drives its real
 `alloc`/`render`/`result_len` ptr+len exports through `Wasmex` (WASI), and is
 dispatched to by `GgenIgniter.Reconcile.run/1` and
-`GgenIgniter.Reactors.ReconcileReactor.render_target/3` for any `.tera`-suffixed
-template — `test/ggen_igniter/render/tera_wasm_test.exs` exercises it
-end-to-end. Rebuild and copy here after any change to
+`GgenIgniter.Reactors.ReconcileReactor.render_target/3` for `.tera` and
+Tera-syntax `.tmpl` templates (EEx-syntax-only `.tmpl` stays on EEx) —
+`test/ggen_igniter/render/tera_wasm_test.exs` exercises it end-to-end.
+Divergences vs EEx / PackFrontmatter.Tera: `docs/reference/rendering.md`.
+Rebuild and copy here after any change to
 `native/tera_wasm_renderer/src/lib.rs`; nothing regenerates this file
 automatically.

@@ -1,12 +1,13 @@
 # Requirement R3 — Hex Packaging & Production Publication Runbook
 
 Operational procedure and step-by-step runbook for building, validating, and publishing
-`ggen_igniter` v26.11.10 to Hex.pm.
+`ggen_igniter` to Hex.pm.
 
-- **Release Version:** `26.11.10`
+- **Release Version:** read from `mix.exs` `version:` (currently `26.11.18`; this runbook was first written for `26.11.10`)
 - **Target Repository:** Hex.pm (`https://hex.pm/packages/ggen_igniter`)
-- **Package Manifest Evidence:** [evidence/hex_package_manifest.txt](evidence/hex_package_manifest.txt)
-- **Publication Authority:** Milestone M3 Operator Grant
+- **Package Manifest Evidence:** [evidence/hex_package_manifest.txt](evidence/hex_package_manifest.txt) (snapshot from v26.11.10; re-record on publish)
+- **Ash fence courts:** `test/ggen_igniter_package_ash_free_test.exs`, `test/ggen_igniter_shipped_packs_fence_test.exs`, `test/ws5_contracts/21_ash_dev_test_scope_test.exs`
+- **Publication Authority:** Milestone M3 Operator Grant (operator must still run publish)
 
 ---
 
@@ -34,8 +35,10 @@ mix test test/ws5_contracts/16_version_contract_test.exs
 # 3. Fleet receipt schema conformance
 mix test test/ggen_igniter_fleet_receipt_conformance_test.exs
 
-# 4. Package ash-free fence verification
-mix test test/ggen_igniter_package_ash_free_test.exs --include package
+# 4. Package ash-free fence verification (deps scope + shipped_packs + real tarball)
+mix test test/ws5_contracts/21_ash_dev_test_scope_test.exs \
+  test/ggen_igniter_shipped_packs_fence_test.exs \
+  test/ggen_igniter_package_ash_free_test.exs --include package
 
 # 5. Full test suite execution
 mix test
@@ -68,16 +71,20 @@ if [ "$SO_COUNT" -ne 0 ]; then
   exit 1
 fi
 
-# Compare file count against recorded manifest (501 regular files)
+# Record file count (v26.11.10 evidence was 501; do not treat that integer as a hard pin —
+# assert the Ash / native fences below instead, then refresh evidence/hex_package_manifest.txt)
 FILE_COUNT=$(find "$TMP_DIR" -type f | wc -l)
-echo "Total unpacked files: $FILE_COUNT (Expected: 501)"
+echo "Total unpacked files: $FILE_COUNT"
+
+# Ash pack fence (only ash-manufacture-pack may appear under priv/ggen as an ash-named root)
+find "$TMP_DIR/priv/ggen" -maxdepth 1 -type d -iname '*ash*' | sort
 ```
 
 ### 3.2 Metadata Audit
 Examine `$TMP_DIR/hex_metadata.config` to verify:
 - `name`: `"ggen_igniter"`
-- `version`: `"26.11.10"`
-- `requirements`: Does not contain `ash` or `ash_postgres`.
+- `version`: matches `mix.exs` `version:` (e.g. `"26.11.18"`)
+- `requirements`: Does not contain any `ash*` package name.
 - `licenses`: Contains `["MIT"]`.
 
 ---
@@ -109,23 +116,26 @@ Immediately following publication, execute the verification ladder to ensure the
 
 ### 5.1 Package Registry Verification
 ```bash
-curl -s -f "https://hex.pm/api/packages/ggen_igniter/releases/26.11.10" | grep '"version":"26.11.10"'
+VERSION=$(mix run -e 'IO.write Mix.Project.config()[:version]')
+curl -s -f "https://hex.pm/api/packages/ggen_igniter/releases/${VERSION}" | grep "\"version\":\"${VERSION}\""
 ```
-- Expected Result: HTTP 200 with JSON payload matching version `"26.11.10"`.
+- Expected Result: HTTP 200 with JSON payload matching the published version.
 
 ### 5.2 Hexdocs Verification
 ```bash
-curl -s -I "https://hexdocs.pm/ggen_igniter/26.11.10/readme.html" | grep "HTTP/2 200"
+VERSION=$(mix run -e 'IO.write Mix.Project.config()[:version]')
+curl -s -I "https://hexdocs.pm/ggen_igniter/${VERSION}/readme.html" | grep "HTTP/2 200"
 ```
 - Expected Result: HTTP 200 OK without redirects or 404s.
 
 ### 5.3 Consumer Installation Probe
 Create a scratch Elixir project to verify dependency resolution from Hex:
 ```bash
+VERSION=$(mix run -e 'IO.write Mix.Project.config()[:version]')
 cd $(mktemp -d)
 mix new hex_probe
 cd hex_probe
-# Add {:ggen_igniter, "~> 26.11.10"} to mix.exs
+# Add {:ggen_igniter, "~> ${VERSION}"} to mix.exs (pin the published CalVer)
 mix deps.get
 mix compile
 ```
@@ -138,6 +148,7 @@ If a critical regression is discovered after publication:
 1. **Note on Hex Immutability:** Hex.pm does not allow deleting or overwriting released packages once published.
 2. **Retire the Release:**
    ```bash
-   mix hex.retire ggen_igniter 26.11.10 --reason "invalid" --message "Critical regression identified; please use subsequent patch"
+   VERSION=$(mix run -e 'IO.write Mix.Project.config()[:version]')
+   mix hex.retire ggen_igniter "$VERSION" --reason "invalid" --message "Critical regression identified; please use subsequent patch"
    ```
-3. **Publish Shored-Up Patch:** Increment to the next CalVer tag (e.g. `26.11.11`) and re-run this runbook.
+3. **Publish Shored-Up Patch:** Increment to the next CalVer tag and re-run this runbook.

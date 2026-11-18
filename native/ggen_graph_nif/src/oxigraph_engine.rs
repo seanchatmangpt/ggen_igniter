@@ -1,8 +1,7 @@
-//! Vendored from `~/ggen/crates/ggen-graph-wasm/src/oxigraph_engine.rs` as of 2026-08-26,
-//! because that crate is only available as a local absolute path on the author's machine
-//! and cannot be a path dependency for a package published to hex.pm (hex-publish
-//! blocker). This is an honest, visible vendor copy -- not a silent duplication.
-//! Upstream source: /Users/sac/ggen/crates/ggen-graph-wasm/src/oxigraph_engine.rs
+//! Owned `OxigraphEngine` for the Rustler NIF. Historically seeded from the removed
+//! `~/ggen/crates/ggen-graph-wasm` crate (2026-08-26 vendor date); that path no longer
+//! exists. Live ggen oxigraph usage is in `ggen-graph` / `ggen-engine`. Kept in-tree so
+//! hex.pm publish has no absolute-path dependency. See `../DRIFT.md`.
 
 use std::collections::BTreeMap;
 

@@ -195,10 +195,18 @@ renders =
 
 ## 6. Template Rendering Engines
 
-Two template rendering engines exist in the codebase:
-1. **`GgenIgniter.Render` (Stdlib EEx)**:
-   - Default renderer (`lib/ggen_igniter/render.ex`).
-   - Evaluates Elixir EEx expressions (`<%= ... %>`) against query result bindings.
-2. **`GgenIgniter.Render.Tera` (Hand-Rolled Tera Subset)**:
-   - Implemented in `lib/ggen_igniter/render/tera.ex` to support marketplace packs containing Jinja2/Tera-style templates (`*.tmpl`).
-   - Supports variable interpolation (`{{ var.field }}`), loops (`{% for x in list %}`), conditionals (`{% if cond %}`), comments (`{# ... #}`), and filters (`capitalize`, `filter(attribute="...", value="...")`).
+Production dispatch is documented in `docs/reference/rendering.md`. Summary:
+
+1. **`GgenIgniter.Render` (Stdlib EEx)** — default for `*.eex` / unknown
+   extensions (`EEx.eval_string/2`).
+2. **`GgenIgniter.Render.TeraWasm`** — real `tera` crate in
+   `wasm-artifacts/tera_wasm_renderer.wasm` via `wasmex`. `Reconcile` /
+   `ReconcileReactor` call `render_for!/4`: `.tera` and Tera-syntax `.tmpl`
+   (including frontmatter `to:` / `--out` path templates) go through WASM;
+   EEx-syntax-only `.tmpl` and everything else stay on EEx.
+3. **`GgenIgniter.PackFrontmatter.Tera`** — hand-rolled subset for
+   `PackFrontmatter.Sync` (marketplace frontmatter packs). Fail-closed on
+   unsupported constructs.
+4. **`GgenIgniter.Render.Tera`** — smaller hand-rolled subset; **not**
+   invoked by any production pipeline (kept for standalone / historical
+   tests). Intentional; do not treat as unfinished wiring.

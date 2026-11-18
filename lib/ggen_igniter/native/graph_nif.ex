@@ -1,9 +1,10 @@
 defmodule GgenIgniter.Native.GraphNif do
   @moduledoc """
-  Rustler NIF loader for `native/ggen_graph_nif` (the crate wraps the real
-  `OxigraphEngine` from `~/ggen/crates/ggen-graph-wasm`'s `oxigraph-engine`
-  feature). See `GgenIgniter.Query.Oxigraph` for the consumer-facing wrapper
-  with the same `[map()]` row-list contract as the other query engines.
+  Rustler NIF loader for `native/ggen_graph_nif` (owned in-tree `OxigraphEngine`
+  over oxigraph; see `native/ggen_graph_nif/DRIFT.md` for upstream/ggen and
+  graphlaw differential ledger). See `GgenIgniter.Query.Oxigraph` for the
+  consumer-facing wrapper with the same `[map()]` row-list contract as the
+  other query engines.
   """
 
   use Rustler, otp_app: :ggen_igniter, crate: "ggen_graph_nif"

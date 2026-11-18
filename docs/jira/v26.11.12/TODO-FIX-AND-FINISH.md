@@ -1,34 +1,44 @@
 # TODO-FIX-AND-FINISH (ggen_igniter)
 
-Standing: UNVERIFIED
+Standing: PARTIAL_ALIVE
 
 Source: `ash_surface/docs/jira/v26.11.11/PROJECT-REVIEWS.md` R8, re-read where marked confirmed.
+Updated 2026-11-18 finish slice — see `docs/jira/v26.11.18/RECEIPT-finish-slice.md`.
 
 ## Fix
 
-- MED `lib/ggen_igniter/frontmatter.ex:357` `String.to_atom` on frontmatter (confirmed).
-  Check: hostile frontmatter does not mint atoms.
-- MED `lib/ggen_igniter/schema_dispatch.ex:460` `String.to_atom` on mode (confirmed).
-- MED `lib/ggen_igniter/reconcile.ex:307` atom from SPARQL var name (confirmed); `:313` and
-  `reconcile_reactor.ex:1414` UNVERIFIED (file not at that path).
-- MED `lib/ggen_igniter/semantic_jira/descriptor.ex:110` atom from descriptor keys (confirmed).
-- MED lock TOCTOU: `pack_lock.ex:400-402` stale check then rmdir/retry (confirmed);
-  `lock.ex:125-127` stale_lock? break-and-retry (confirmed). Check: concurrent-acquire court.
-- LOW git-ignored `doc/` copies can drift: UNVERIFIED.
+- ~~MED `lib/ggen_igniter/frontmatter.ex` `String.to_atom` on frontmatter~~ **CLOSED**
+  — `MatchRule` enums use closed allowlist tables; hostile matcher raises.
+- ~~MED `lib/ggen_igniter/schema_dispatch.ex` `String.to_atom` on mode~~ **CLOSED**
+  earlier (`parse_generation_mode/1` allowlist; commit `136be4c`).
+- ~~MED `lib/ggen_igniter/reconcile.ex` / `reconcile_reactor.ex` / `sync.ex`
+  SPARQL binding atomize~~ **CLOSED** via `GgenIgniter.BindingKeys.atomize!/1`
+  (identifier charset+length; not a closed name allowlist — query authors
+  choose vars).
+- ~~MED `lib/ggen_igniter/semantic_jira/descriptor.ex` atom from descriptor keys~~
+  **CLOSED** — compile-time `@binding_atoms` allowlist over `@render_keys` ∪
+  `@identity_keys`.
+- MED lock TOCTOU: `pack_lock.ex` / `lock.ex` stale check then rmdir/retry
+  (confirmed). Check: concurrent-acquire court. **OPEN**.
+- LOW git-ignored `doc/` copies can drift: UNVERIFIED. **OPEN**.
 
 ## Finish
 
-- Replace `to_atom` helpers with bounded admission. Check: `rg 'String.to_atom' lib` shows
-  only allowlisted sites.
+- Replace `to_atom` helpers with bounded admission. **PARTIAL** —
+  `rg 'String.to_atom' lib` still hits install/DoctorFixes/refusals/
+  review_eval/rename_options (trusted or operator-shaped inputs). SPARQL
+  binding sites now go through `BindingKeys`. PackFrontmatter.Tera compare
+  ops closed without `to_atom` (lane 6, 2026-11-18).
 
-## Commit hygiene
+## Decide (operator)
 
-`git status --short` (confirmed): modified 4 `docs/jira/v26.11.10/*` files; untracked
-`11-` to `17-` review lenses and `20-TEN-EXPERT-PERSONAS-SYNTHESIS.md`.
-
-## Decide
-
-- Keep the frontmatter atom comment's rationale or switch to string keys end to end?
+- ~~Keep the frontmatter atom comment's rationale or switch to string keys?~~
+  **DECIDED this slice:** keep atom enum fields; admit via allowlist (no
+  string-key rewrite).
+- Flip Controller `use_reactor` default? **OPEN** (see v26.11.18 FINISH).
+- Restore `Receipt.to_prd_status/1`? **NO** — superseded by `RProjection`.
+- Hex publish of `26.11.18`? **OPEN** (local tarball evidence is 26.11.10).
+- Wire `[ontology.aggregate]` into sync? **OPEN** (parse/enforce exist).
 
 ## Reuse
 
@@ -36,4 +46,6 @@ Source: `ash_surface/docs/jira/v26.11.11/PROJECT-REVIEWS.md` R8, re-read where m
 
 ## See Also
 
+- `docs/jira/v26.11.18/FINISH.md` — open operator decisions (canonical)
+- `docs/jira/v26.11.18/RECEIPT-finish-slice.md`
 - `ash_surface/docs/jira/v26.11.11/PROJECT-REVIEWS.md`
