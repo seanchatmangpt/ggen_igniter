@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Erlang/OTP](https://img.shields.io/badge/Erlang%2FOTP-27-red.svg)](https://www.erlang.org)
 [![Elixir](https://img.shields.io/badge/Elixir-1.19-purple.svg)](https://elixir-lang.org)
-[![Tests](https://img.shields.io/badge/tests-1763%20passed%2C%200%20failures-brightgreen.svg)](test)
+[![Tests](https://img.shields.io/badge/tests-1855%20passed%2C%205%20skipped-brightgreen.svg)](test)
 [![Release](https://img.shields.io/badge/release-v26.11.17-blue.svg)](docs/jira/v26.11.17/code-alignment.md)
 
 **GgenIgniter** is an ontology-driven semantic compilation and code generation engine for Elixir. It bridges RDF knowledge graphs, SPARQL 1.1 queries, EEx templates, and Igniter AST codemods into a deterministic, verifiable synthesis pipeline.
@@ -187,7 +187,8 @@ mix ggen_igniter.sync --pack ash-manufacture-pack
 
 ## Architectural Review Lenses
 
-The v26.11.10 release incorporates five deep architectural evaluations documented in [`docs/jira/v26.11.10/`](docs/jira/v26.11.10/):
+The v26.11.10 release (history) incorporated five architectural evaluations documented in
+[`docs/jira/v26.11.10/`](docs/jira/v26.11.10/):
 
 1. **[Zach Daniel Lens (Ash Framework)](docs/jira/v26.11.10/05-REVIEW-LENS-ZACH-DANIEL-ASH.md):** Audited Spark DSL extension points, Igniter task composition (`Igniter.compose_task/4`), and base resource loading invariants.
 2. **[José Valim Lens (Elixir Core)](docs/jira/v26.11.10/06-REVIEW-LENS-JOSE-VALIM-ELIXIR.md):** Evaluated idiomatic Elixir patterns, Mix task CLI contracts, and ExDoc extra file collision avoidance.
@@ -203,25 +204,24 @@ Every release claim is verified through reproducible machine execution:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Verification Ladder (v26.11.10)                        │
+│  Verification Ladder (v26.11.17)                        │
 ├──────────────────────────────────────────────────────────┤
-│  ✓ Full Test Suite: 1,763 passed, 41 properties, 0 fails │
-│  ✓ Compilation: --warnings-as-errors --force (0 errors)  │
-│  ✓ Package Isolation: 5/5 Ash-free package fence tests   │
-│  ✓ Idempotency: Run 1 == Run 2 (digest equality)         │
-│  ✓ Citation Audit: 42/42 verified via check_doc_citations│
-│  ✓ Independent Victory Audit: CONFIRMED                  │
+│  ✓ Full Test Suite: 1855 passed, 5 skipped               │
+│    (20 doctests, 41 properties, 1794 tests)              │
+│  ✓ Compilation: --warnings-as-errors (exit 0)            │
+│  · Earlier ladder rungs (fence, idempotency, citations,  │
+│    audit) were last measured at v26.11.10 — re-run them  │
 └──────────────────────────────────────────────────────────┘
 ```
 
 | Standing | Result | Proof Mechanism |
 |---|---|---|
-| `COMPILATION_ALIVE` | `true` | Clean `--warnings-as-errors --force` build across 219 modules. |
-| `TEST_SUITE_ALIVE` | `true` | Full ExUnit pass (1,763 passed, 0 failures, 5 skipped). |
-| `VERSION_CONTRACT_ALIVE` | `true` | CalVer 26.11.10 synchronized across `mix.exs` and changelogs. |
+| `COMPILATION_ALIVE` | `true` | `mix compile --warnings-as-errors` exit 0 (2026-11-18). |
+| `TEST_SUITE_ALIVE` | `true` | Full ExUnit pass (1855 passed, 5 skipped). |
+| `VERSION_CONTRACT_ALIVE` | `true` | CalVer 26.11.17 synchronized across `mix.exs` and changelogs. |
 | `ASH_MANUFACTURE_ALIVE` | `true` | Direct upstream composition; zero handwritten Ash resource bypasses. |
 | `IDEMPOTENCY_ALIVE` | `true` | Zero changes and zero issues on secondary sync runs. |
-| `HEX_PACKAGE_ALIVE` | `true` | 501 regular files, 0 `.so`/`.dylib` binaries, verified tarball SHA-256. |
+| `HEX_PACKAGE_ALIVE` | `true` | 0 `.so`/`.dylib` binaries, verified tarball SHA-256. |
 
 ---
 
@@ -237,9 +237,9 @@ Every release claim is verified through reproducible machine execution:
   - [Control Plane Specification](docs/architecture/control-plane.md)
   - [Architectural Decision Records (ADRs)](docs/architecture/adr/README.md)
 - **Integration & Tooling:**
-  - [Igniter AST Mutation Guide](docs/integrations/igniter-ast-mutation.md)
-  - [Ash Resource Integrations](docs/integrations/ash-resources.md)
-  - [OCEL 2.0 Process Mining](docs/reference/telemetry-ocel.md)
+  - [Igniter AST Mutation (ADR-002)](docs/architecture/adr/ADR-002-igniter-structured-elixir-mutation.md)
+  - [Ash Optional Integration (ADR-004)](docs/architecture/adr/ADR-004-ash-optional-integration.md)
+  - [OCEL Evidence](docs/reference/evidence/ocel.md)
 - **Release Archives:**
   - Historical release records are preserved under [`docs/archive/jira/`](docs/archive/jira/).
 

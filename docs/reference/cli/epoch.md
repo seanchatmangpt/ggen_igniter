@@ -51,7 +51,7 @@ prevention.
 ## Related
 
 - `docs/reference/cli/index.md` — the Semantic Jira suite entry, including
-  `admit_candidates`' `--epoch-manifest` gate and its `REFUSED_EPOCH_*`
+  `admit_candidates`' `--epoch-manifest` gate and its `REFUSED:EPOCH_*`
   refusals.
 - `priv/ggen/semantic-jira-pack/VOCABULARY.md` — "Epoch boundary terms"
   (`sj:EpochBoundary`, `sj:epochLabel`, `sj:watermarkTree`,

@@ -95,10 +95,10 @@ live in each module's `schema:`/moduledoc)
   gate 3, opt-in exactly like git ground truth, judges a candidate carrying
   a nonempty `"epoch"` value via `EpochPlan.check/2` against the stamped
   watermark passed as `--epoch-manifest` —
-  `REFUSED_EPOCH_LEGACY_EDIT`,
-  `REFUSED_EPOCH_UNATTRIBUTED_IMPLEMENTATION`,
-  `REFUSED_EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT`,
-  `REFUSED_EPOCH_WATERMARK_UNAVAILABLE` (fail closed) — while a line
+  `REFUSED:EPOCH_LEGACY_EDIT`,
+  `REFUSED:EPOCH_UNATTRIBUTED_IMPLEMENTATION`,
+  `REFUSED:EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT`,
+  `REFUSED:EPOCH_WATERMARK_UNAVAILABLE` (fail closed) — while a line
   without `"epoch"` behaves byte-identically to a run without the flag; a
   later line repeating an earlier ADMITTED line's `identity`,
   `replay_identity`, or admitted `work_order_digest` is refused

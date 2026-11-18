@@ -111,7 +111,7 @@ output pasted in.
 
 - [Glossary](glossary.md) — one canonical definition per term
 - [Status](status.md) — real IMPLEMENTED/PARTIAL_ALIVE/PLANNED status of every capability, including the certified 6-crown generative Ash qualification ladder for v26.9.8
-- [Documentation Audit](DOCUMENTATION_AUDIT.md) — classification of every `.md`
+- [Documentation Audit](archive/DOCUMENTATION_AUDIT.v26.8.27.md) — classification of every `.md`
   file in this repo as of 2026-08-27
 
 ## Release tickets and evidence
@@ -120,6 +120,8 @@ Per-release ticket sets, adversarial reviews, and the raw evidence artifacts
 each one cites. These are dated working records, not maintained reference —
 [status.md](status.md) is the current-state page they feed.
 
+- [v26.11.17](jira/v26.11.17/code-alignment.md) — version alignment +
+  code-alignment census.
 - [v26.11.10](jira/v26.11.10/) — production release shoring, 5-expert architectural evaluation suite (Zach Daniel, José Valim, Joe Armstrong, test/audit, release packaging), clean compilation gate, ExUnit pass (1,763 passed, 0 failures), and Hex package publication.
   [Overview](jira/v26.11.10/00-OVERVIEW.md),
   [Ash task validation matrix](jira/v26.11.10/02-ASH-IGNITER-TASK-VALIDATION-MATRIX.md),

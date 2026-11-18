@@ -54,14 +54,16 @@ Closed verdict set — exactly one atom per implementation file, alive iff the n
 | `ALIVE_GENERATED` | a post-watermark alive receipt lists the file and its recorded output hash equals the current blob (similarity is recorded, never refuses) |
 | `ALIVE_FRESH_RESIDUE` | a `HANDWRITTEN.md` row dated ≥ watermark covers the file and similarity against every pre-epoch file is below threshold |
 | `REFUSED_GENERATED_ARTIFACT_MUTATED` | a post-watermark alive receipt lists the file but its recorded output hash ≠ current blob |
-| `REFUSED_UNEXPLAINED_SIMILARITY` | no admission covers the file and similarity ≥ threshold (default 0.9) against a pre-epoch implementation |
+| `REFUSED_UNEXPLAINED_SIMILARITY` | no admission covers the file and similarity ≥ threshold (default 0.9) against a pre-epoch implementation, or a residue row exists but similarity ≥ threshold |
 | `REFUSED_LEGACY_EDIT` | the exact path appears in the watermark (implementation plane existed pre-epoch) with no attribution |
 | `REFUSED_COPY_READD` | the current blob sha exactly equals some pre-epoch path's blob sha |
 | `REFUSED_PRE_EPOCH_RECEIPT` | the only receipts touching the file predate the watermark or do not stand alive |
 | `REFUSED_NO_ATTRIBUTION` | no receipt, residue row, legacy match, or similarity trigger — an unattributed implementation-plane byte |
 | `UNKNOWN_PROVENANCE` | the file could not be judged at all — e.g. a glob-matching path that is not readable as a file; counted as refused. Unparseable receipts never take this slot: they simply never attribute, so the file falls through to `REFUSED_PRE_EPOCH_RECEIPT` or `REFUSED_NO_ATTRIBUTION` |
 
-Two-layer binding. Admission refuses known-illegal plans before any byte is written: `semantic_jira.admit_candidates --epoch-manifest <watermark.json>` applies `EpochPlan.check/2` to order lines carrying `"epoch"` — `REFUSED_EPOCH_LEGACY_EDIT`, `REFUSED_EPOCH_UNATTRIBUTED_IMPLEMENTATION`, `REFUSED_EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT`, `REFUSED_EPOCH_WATERMARK_UNAVAILABLE`; a missing/unreadable manifest with epoch lines present refuses every epoch line (fail closed), and lines without `"epoch"` pass byte-identical. `mix ggen_igniter.epoch.check` then proves the resulting bytes. Promotion requires both, because **admission ≠ proof, proof ≠ prevention**: a plan gate cannot see what a generator actually emits, and a tree check cannot un-write an illegal byte it refuses.
+Code precedence order (`lib/ggen_igniter/epoch_freshness.ex`): post-watermark alive receipt, residue row, `REFUSED_LEGACY_EDIT`, `REFUSED_COPY_READD`, similarity ≥ threshold, `REFUSED_PRE_EPOCH_RECEIPT`, `REFUSED_NO_ATTRIBUTION`.
+
+Two-layer binding. Admission refuses known-illegal plans before any byte is written: `semantic_jira.admit_candidates --epoch-manifest <watermark.json>` applies `EpochPlan.check/2` to order lines carrying `"epoch"` — `REFUSED:EPOCH_LEGACY_EDIT`, `REFUSED:EPOCH_UNATTRIBUTED_IMPLEMENTATION`, `REFUSED:EPOCH_PLAN_REUSES_PRE_WATERMARK_ARTIFACT`, `REFUSED:EPOCH_WATERMARK_UNAVAILABLE`; a missing/unreadable manifest with epoch lines present refuses every epoch line (fail closed), and lines without `"epoch"` pass byte-identical. `mix ggen_igniter.epoch.check` then proves the resulting bytes. Promotion requires both, because **admission ≠ proof, proof ≠ prevention**: a plan gate cannot see what a generator actually emits, and a tree check cannot un-write an illegal byte it refuses.
 
 Exempt planes — the law binds implementations, not knowledge or evidence:
 

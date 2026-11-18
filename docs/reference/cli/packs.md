@@ -106,11 +106,11 @@ stem is given.
 real Rust `ggen`'s `ggen pack add <registry>:<id>` — that resolves a package
 spec, downloads a real archive over HTTP, verifies it, and extracts it into
 a local cache directory (`~/.cache/ggen_igniter/packs` by default) so
-`resolve_dir!/1`-style discovery works against it. **This is a library
-function only; there is no `--fetch`/`mix ggen_igniter.pack.add`-style CLI
-flag or task wired to it** in either `sync` or `doctor` today — status
-**PARTIAL_ALIVE** (the function is real and tested, its CLI surface is not
-built). Two spec formats, with genuinely different verification strength
+`resolve_dir!/1`-style discovery works against it. **The CLI surface is
+`mix ggen_igniter.pack.fetch <spec> [--cache-dir DIR] [--json]`**
+(`lib/mix/tasks/ggen_igniter.pack.fetch.ex`); `sync` and `doctor` have no
+`--fetch` flag wired to it. Related tasks: `ggen_igniter.pack.lock`,
+`ggen_igniter.packs`, `ggen_igniter.pack_sync`. Two spec formats, with genuinely different verification strength
 (disclosed honestly, not glossed over):
 
 - **`"github:owner/repo"`** (optionally `"@ref"`, default `"main"`) —
