@@ -1,7 +1,7 @@
 defmodule GgenIgniter.Query do
   @moduledoc """
   Fixed-engine SPARQL facade (engine-selection removal, b514bf5 follow-up):
-  `Query.run/2` now routes to `GgenIgniter.Query.Oxigraph.run/2` — the
+  `Query.run/2` now routes to `GgenIgniter.Query.Graphlaw.run/2` (graphlaw WASM) — the
   fixed engine's row contract (string keys, plain unwrapped values) — so the
   surviving `Query.run/2` call sites (gall_ticket.ex, semantic_a2a.ex) keep
   compiling and keep the row shape callers already consume. The old
@@ -9,7 +9,7 @@ defmodule GgenIgniter.Query do
   refactor; this facade is a delegation, not an engine revival.
   """
 
-  @doc "Runs `query_string` against `graph` via the fixed engine (Oxigraph)."
+  @doc "Runs `query_string` against `graph` via the fixed engine (graphlaw)."
   @spec run(RDF.Graph.t(), String.t()) :: [map()]
-  def run(graph, query_string), do: GgenIgniter.Query.Oxigraph.run(graph, query_string)
+  def run(graph, query_string), do: GgenIgniter.Query.Graphlaw.run(graph, query_string)
 end

@@ -42,7 +42,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       exists and is newer than every `.rs` source file under the crate (a fast mtime proxy); if
       the `.so` is missing or stale, falls back to a real `cargo build --quiet` and reports real
       stderr on failure.
-  15. `GgenIgniter.Query.Oxigraph` actually works: runs a real `SELECT * WHERE { ?s ?p ?o }`
+  15. `GgenIgniter.Query.Graphlaw` actually works: runs a real `SELECT * WHERE { ?s ?p ?o }`
       SPARQL query against a tiny real in-memory `%RDF.Graph{}` through the native oxigraph
       engine and confirms it returns without raising -- a functional smoke test, not just
       "does the NIF load".
@@ -907,7 +907,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
     end
   end
 
-  # 15. GgenIgniter.Query.Oxigraph functional smoke test
+  # 15. GgenIgniter.Query.Graphlaw functional smoke test
   defp check_oxigraph_smoke_test do
     graph =
       RDF.Graph.new([
@@ -915,13 +915,13 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
          RDF.iri("http://example.org/o")}
       ])
 
-    case GgenIgniter.Query.Oxigraph.run(graph, "SELECT * WHERE { ?s ?p ?o }") do
+    case GgenIgniter.Query.Graphlaw.run(graph, "SELECT * WHERE { ?s ?p ?o }") do
       rows when is_list(rows) ->
         {:ok,
-         "GgenIgniter.Query.Oxigraph real SELECT query against an in-memory graph returned #{length(rows)} row(s)"}
+         "GgenIgniter.Query.Graphlaw real SELECT query against an in-memory graph returned #{length(rows)} row(s)"}
     end
   rescue
-    error -> {:error, "GgenIgniter.Query.Oxigraph smoke test raised: #{Exception.message(error)}"}
+    error -> {:error, "GgenIgniter.Query.Graphlaw smoke test raised: #{Exception.message(error)}"}
   end
 
   # 19. semantic-jira-pack health (GgenIgniter.SemanticJira.PackHealth):

@@ -157,7 +157,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
 
   use Igniter.Mix.Task
 
-  alias GgenIgniter.Query.Oxigraph
+  alias GgenIgniter.Query.Graphlaw
   alias GgenIgniter.Refusals
 
   @verbs ~w(admit list check)
@@ -645,7 +645,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
     pack_dir
     |> gate_queries()
     |> Enum.map(fn {name, path} ->
-      {name, path, length(Oxigraph.run(merged, File.read!(path)))}
+      {name, path, length(Graphlaw.run(merged, File.read!(path)))}
     end)
   end
 
@@ -898,7 +898,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
   """
 
   defp all_kinds(merged) do
-    Oxigraph.run(merged, @kind_query)
+    Graphlaw.run(merged, @kind_query)
     |> Enum.map(fn row ->
       %{
         iri: cell(row, "kind"),
@@ -927,7 +927,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
   """
 
   defp admitted_rows(merged) do
-    Oxigraph.run(merged, @admitted_query)
+    Graphlaw.run(merged, @admitted_query)
     |> Enum.map(fn row ->
       %{
         path: cell(row, "path"),
@@ -959,7 +959,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
   defp kind_count(merged, kind_iri) do
     query = String.replace(@count_query, "@KIND@", iri_literal(kind_iri))
 
-    case Oxigraph.run(merged, query) do
+    case Graphlaw.run(merged, query) do
       [row | _] -> int_cell(row, "n")
       [] -> 0
     end
@@ -1005,7 +1005,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
     SELECT ?h WHERE { ?h a bpm:HandAuthoredSource . }
     """
 
-    Oxigraph.run(merged, query)
+    Graphlaw.run(merged, query)
     |> MapSet.new(fn row ->
       iri = cell(row, "h")
       iri |> String.split("#") |> List.last() |> String.split("/") |> List.last()
