@@ -429,6 +429,7 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
   defp await(dir, digest, tries) do
     case find(read_dir(dir), digest) do
       nil ->
+        # SLEEP-CLASS: POLL-STEP
         Process.sleep(10)
         await(dir, digest, tries - 1)
 
@@ -531,6 +532,7 @@ defmodule GgenIgniter.SemanticJira.TransitionLog do
         end
 
       {:error, :eexist} ->
+        # SLEEP-CLASS: POLL-STEP
         Process.sleep(@lock_sleep_ms)
         with_lock(lock, attempts - 1, fun)
     end

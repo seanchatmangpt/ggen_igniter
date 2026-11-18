@@ -69,6 +69,220 @@ aia:Extension a rdfs:Class ;
     rdfs:comment "resourceOf, extensionName (ets|policy|Ash.Policy.Authorizer|...), order -> composed `ash.extend`." .
 
 #################################################################
+# Properties (declared from the aia: terms the gates/*.rq query)
+# Properties shared across classes carry no rdfs:domain.
+#################################################################
+
+# ---- Shared across classes (no rdfs:domain) ----
+aia:order a rdf:Property ;
+    rdfs:comment "Rendering order of a member fact within its owner (1-based)." .
+aia:isPublic a rdf:Property ;
+    rdfs:comment "Whether the attribute/relationship is public (`public? b`)." .
+aia:isRequired a rdf:Property ;
+    rdfs:comment "Whether the attribute/relationship is required (`allow_nil? false`)." .
+aia:actionType a rdf:Property ;
+    rdfs:comment "Ash action type (create|update|read|destroy); on aia:Action and aia:EnsurePrimary." .
+aia:actionOf a rdf:Property ;
+    rdfs:comment "Links an action-scoped fact (argument, change, validation, pagination, sort, primary) to its aia:Action." .
+aia:attributeName a rdf:Property ;
+    rdfs:comment "Attribute name; on aia:Attribute and aia:SetAttribute." .
+aia:argumentName a rdf:Property ;
+    rdfs:comment "Action argument name; on aia:Argument and aia:ManageRelationship." .
+aia:relationshipName a rdf:Property ;
+    rdfs:comment "Relationship name; on aia:Relationship and aia:ManageRelationship." .
+aia:checkKind a rdf:Property ;
+    rdfs:comment "Check kind (authorize_if|authorize_unless|forbid_if|forbid_unless); on aia:PolicyCheck and aia:FieldCheck." .
+aia:checkExpr a rdf:Property ;
+    rdfs:comment "Check expression; on aia:PolicyCheck and aia:FieldCheck." .
+
+# ---- aia:Project ----
+aia:otpApp a rdf:Property ;
+    rdfs:domain aia:Project ;
+    rdfs:comment "OTP application name." .
+aia:taskModule a rdf:Property ;
+    rdfs:domain aia:Project ;
+    rdfs:comment "Module name of the generated Mix task." .
+aia:taskName a rdf:Property ;
+    rdfs:domain aia:Project ;
+    rdfs:comment "Mix task name of the generated task." .
+
+# ---- aia:Resource ----
+aia:resourceModule a rdf:Property ;
+    rdfs:domain aia:Resource ;
+    rdfs:comment "Fully qualified Ash resource module." .
+aia:domainModule a rdf:Property ;
+    rdfs:domain aia:Resource ;
+    rdfs:comment "Fully qualified Ash domain module owning the resource." .
+
+# ---- aia:Attribute ----
+aia:attributeType a rdf:Property ;
+    rdfs:domain aia:Attribute ;
+    rdfs:comment "Ash type of the attribute." .
+
+# ---- aia:Action ----
+aia:actionName a rdf:Property ;
+    rdfs:domain aia:Action ;
+    rdfs:comment "Action name." .
+aia:accepts a rdf:Property ;
+    rdfs:domain aia:Action ;
+    rdfs:comment "Comma-separated attribute names the action accepts." .
+
+# ---- aia:Relationship ----
+aia:relationshipKind a rdf:Property ;
+    rdfs:domain aia:Relationship ;
+    rdfs:comment "belongs_to|has_one|has_many|many_to_many." .
+aia:destination a rdf:Property ;
+    rdfs:domain aia:Relationship ;
+    rdfs:comment "Destination resource module." .
+
+# ---- aia:Policy ----
+aia:policyCondition a rdf:Property ;
+    rdfs:domain aia:Policy ;
+    rdfs:comment "Policy condition expression." .
+aia:policyBody a rdf:Property ;
+    rdfs:domain aia:Policy ;
+    rdfs:comment "Policy body (check line)." .
+
+# ---- aia:Argument ----
+aia:argumentType a rdf:Property ;
+    rdfs:domain aia:Argument ;
+    rdfs:comment "Ash type of the argument." .
+aia:allowNil a rdf:Property ;
+    rdfs:domain aia:Argument ;
+    rdfs:comment "Whether the argument allows nil." .
+
+# ---- aia:SetAttribute ----
+aia:valueLiteral a rdf:Property ;
+    rdfs:domain aia:SetAttribute ;
+    rdfs:comment "Literal value text for set_attribute." .
+aia:valueType a rdf:Property ;
+    rdfs:domain aia:SetAttribute ;
+    rdfs:comment "string|integer|boolean|atom." .
+
+# ---- aia:ManageRelationship ----
+aia:manageType a rdf:Property ;
+    rdfs:domain aia:ManageRelationship ;
+    rdfs:comment "manage_relationship type option (append|append_and_remove|direct_control|create|...)." .
+
+# ---- aia:Validation ----
+aia:validationKind a rdf:Property ;
+    rdfs:domain aia:Validation ;
+    rdfs:comment "present|match|compare." .
+aia:validationSubject a rdf:Property ;
+    rdfs:domain aia:Validation ;
+    rdfs:comment "Attribute or argument the validation applies to." .
+aia:validationOption a rdf:Property ;
+    rdfs:domain aia:Validation ;
+    rdfs:comment "Validation option key (e.g. greater_than, min)." .
+aia:validationValue a rdf:Property ;
+    rdfs:domain aia:Validation ;
+    rdfs:comment "Validation option value text." .
+aia:validationValueType a rdf:Property ;
+    rdfs:domain aia:Validation ;
+    rdfs:comment "Literal type of aia:validationValue." .
+
+# ---- aia:Aggregate ----
+aia:aggregateKind a rdf:Property ;
+    rdfs:domain aia:Aggregate ;
+    rdfs:comment "count|sum|first|list|max|min|avg|exists." .
+aia:aggregateName a rdf:Property ;
+    rdfs:domain aia:Aggregate ;
+    rdfs:comment "Aggregate name." .
+aia:aggregateRelationship a rdf:Property ;
+    rdfs:domain aia:Aggregate ;
+    rdfs:comment "Relationship the aggregate traverses." .
+aia:aggregateField a rdf:Property ;
+    rdfs:domain aia:Aggregate ;
+    rdfs:comment "Field aggregated (empty string = absent)." .
+aia:aggregateFilter a rdf:Property ;
+    rdfs:domain aia:Aggregate ;
+    rdfs:comment "Filter expression (empty string = absent)." .
+aia:aggregateSort a rdf:Property ;
+    rdfs:domain aia:Aggregate ;
+    rdfs:comment "Sort expression (empty string = absent)." .
+
+# ---- aia:CodeInterface ----
+aia:interfaceName a rdf:Property ;
+    rdfs:domain aia:CodeInterface ;
+    rdfs:comment "Domain code-interface function name." .
+aia:interfaceAction a rdf:Property ;
+    rdfs:domain aia:CodeInterface ;
+    rdfs:comment "Name of the action the interface calls." .
+
+# ---- aia:PolicyRule / aia:PolicyCheck ----
+aia:ruleKind a rdf:Property ;
+    rdfs:domain aia:PolicyRule ;
+    rdfs:comment "policy|bypass." .
+aia:ruleCondition a rdf:Property ;
+    rdfs:domain aia:PolicyRule ;
+    rdfs:comment "Condition expression for the rule." .
+aia:checkOf a rdf:Property ;
+    rdfs:domain aia:PolicyCheck ;
+    rdfs:comment "Links an aia:PolicyCheck to its aia:PolicyRule." .
+
+# ---- aia:FieldPolicy / aia:FieldCheck ----
+aia:fieldNames a rdf:Property ;
+    rdfs:domain aia:FieldPolicy ;
+    rdfs:comment "Comma-separated field names, or * for all." .
+aia:fieldPolicyOf a rdf:Property ;
+    rdfs:domain aia:FieldCheck ;
+    rdfs:comment "Links an aia:FieldCheck to its aia:FieldPolicy." .
+
+# ---- aia:Calculation ----
+aia:calculationName a rdf:Property ;
+    rdfs:domain aia:Calculation ;
+    rdfs:comment "Calculation name." .
+aia:calculationType a rdf:Property ;
+    rdfs:domain aia:Calculation ;
+    rdfs:comment "Ash type of the calculation." .
+aia:calculationExpr a rdf:Property ;
+    rdfs:domain aia:Calculation ;
+    rdfs:comment "Calculation expression source." .
+
+# ---- aia:Identity ----
+aia:identityName a rdf:Property ;
+    rdfs:domain aia:Identity ;
+    rdfs:comment "Identity name." .
+aia:identityKeys a rdf:Property ;
+    rdfs:domain aia:Identity ;
+    rdfs:comment "Comma-separated attribute names forming the identity." .
+
+# ---- aia:Multitenancy ----
+aia:tenantStrategy a rdf:Property ;
+    rdfs:domain aia:Multitenancy ;
+    rdfs:comment "attribute|context." .
+aia:tenantAttribute a rdf:Property ;
+    rdfs:domain aia:Multitenancy ;
+    rdfs:comment "Tenant attribute name (for the attribute strategy)." .
+
+# ---- aia:Pagination ----
+aia:paginationOffset a rdf:Property ;
+    rdfs:domain aia:Pagination ;
+    rdfs:comment "Whether offset pagination is enabled." .
+aia:paginationKeyset a rdf:Property ;
+    rdfs:domain aia:Pagination ;
+    rdfs:comment "Whether keyset pagination is enabled." .
+aia:defaultLimit a rdf:Property ;
+    rdfs:domain aia:Pagination ;
+    rdfs:comment "Default page size." .
+aia:countable a rdf:Property ;
+    rdfs:domain aia:Pagination ;
+    rdfs:comment "Whether the page count is computed." .
+
+# ---- aia:DefaultSort ----
+aia:sortField a rdf:Property ;
+    rdfs:domain aia:DefaultSort ;
+    rdfs:comment "Field to sort by." .
+aia:sortDirection a rdf:Property ;
+    rdfs:domain aia:DefaultSort ;
+    rdfs:comment "Sort direction (asc|desc)." .
+
+# ---- aia:Extension ----
+aia:extensionName a rdf:Property ;
+    rdfs:domain aia:Extension ;
+    rdfs:comment "Extension passed to `ash.extend`." .
+
+#################################################################
 # Instance: Shop.Catalog.{Book, Author} -- Book belongs_to Author,
 # Author has_many Book (the cross relationship, declared on both sides)
 #################################################################

@@ -19,6 +19,74 @@ defmodule GgenIgniter.ProjectConfig.ProjectSection do
         }
 end
 
+defmodule GgenIgniter.ProjectConfig.OntologyAggregate do
+  @moduledoc """
+  Mirrors Rust `OntologyAggregate` -- `ggen.toml [ontology.aggregate]`
+  (`~/ggen/crates/ggen-engine/src/config.rs:129-151`, `deny_unknown_fields`).
+
+  `output` is regenerated as a sorted concat of `constituents` (paths relative
+  to the project root); `auto_regen` (default `false`) opts into regeneration
+  instead of a stale refusal. Behavior lives in `GgenIgniter.OntologyAggregate`.
+
+  `parse/1` takes the decoded `[ontology.aggregate]` table and returns
+  `{:ok, t()}` or `{:error, detail}`; unknown keys, a missing `output`, a
+  non-list or non-string `constituents`, and a non-boolean `auto_regen` are
+  all errors (never dropped silently).
+
+  ## Examples
+
+      iex> GgenIgniter.ProjectConfig.OntologyAggregate.parse(%{"output" => "o.ttl", "constituents" => ["a.ttl"]})
+      {:ok, %GgenIgniter.ProjectConfig.OntologyAggregate{output: "o.ttl", constituents: ["a.ttl"], auto_regen: false}}
+
+      iex> GgenIgniter.ProjectConfig.OntologyAggregate.parse(%{"output" => "o.ttl", "constituents" => [], "bogus" => 1})
+      {:error, "[ontology.aggregate] unknown key(s): bogus"}
+  """
+  @enforce_keys [:output, :constituents]
+  defstruct [:output, :constituents, auto_regen: false]
+
+  @type t :: %__MODULE__{
+          output: String.t(),
+          constituents: [String.t()],
+          auto_regen: boolean()
+        }
+
+  @known ~w(output constituents auto_regen)
+
+  @doc "Parse a decoded `[ontology.aggregate]` table; `{:error, detail}` on any malformation."
+  @spec parse(term()) :: {:ok, t()} | {:error, String.t()}
+  def parse(table) when is_map(table) do
+    case Map.keys(table) -- @known do
+      [] ->
+        fields(table)
+
+      unknown ->
+        {:error, "[ontology.aggregate] unknown key(s): #{Enum.join(Enum.sort(unknown), ", ")}"}
+    end
+  end
+
+  def parse(other), do: {:error, "[ontology.aggregate] must be a table, got #{inspect(other)}"}
+
+  defp fields(table) do
+    output = Map.get(table, "output")
+    constituents = Map.get(table, "constituents")
+    auto_regen = Map.get(table, "auto_regen", false)
+
+    cond do
+      not is_binary(output) ->
+        {:error, "[ontology.aggregate] `output` is required and must be a string"}
+
+      not (is_list(constituents) and Enum.all?(constituents, &is_binary/1)) ->
+        {:error, "[ontology.aggregate] `constituents` is required and must be a list of strings"}
+
+      not is_boolean(auto_regen) ->
+        {:error, "[ontology.aggregate] `auto_regen` must be a boolean"}
+
+      true ->
+        {:ok, %__MODULE__{output: output, constituents: constituents, auto_regen: auto_regen}}
+    end
+  end
+end
+
 defmodule GgenIgniter.ProjectConfig.OntologyConfig do
   @moduledoc "Mirrors Rust `OntologyConfig` -- `ggen.toml [ontology]`/`[ontology.prefixes]` (`manifest/types.rs:307-329`)."
   @enforce_keys [:source]

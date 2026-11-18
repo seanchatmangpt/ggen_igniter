@@ -1,5 +1,14 @@
 @prefix rx: <https://ggen-igniter.dev/ontology/reactor-scaffold#> .
 
+# Model scope: this file holds the legacy `reactor` model (rx:ReactorDef,
+# rx:Step, rx:RawBlock, rx:waitFor literal, rx:middlewares raw block),
+# queried by gates 010/020 and rendered by the `reactor` template.
+# The `saga` / `saga_diagram` templates use gates 030-100 and the
+# rx:Reactor / rx:SagaStep vocabulary (dependsOn, waitsFor edge,
+# middleware enum, inReactor, inputName, ashInput), which is defined by
+# test fixtures, not by this file. rx:waitFor vs rx:waitsFor and
+# rx:middlewares vs rx:middleware are intentionally distinct.
+
 # Practice/dogfood pack: proves ggen_igniter can manufacture a real,
 # full-featured plain `Reactor` module (per ADR-0003, `docs/architecture/adr/
 # 0003-plain-reactor-for-coordination.md` — never Ash.Reactor) from ontology
@@ -45,8 +54,8 @@ rx:step_charge_payment a rx:Step ;
     rx:name "charge_payment" ;
     rx:arguments "argument :user, result(:validate_user)\n    argument :amount, input(:amount)\n    argument :card_token, input(:card_token)" ;
     rx:runBody "fn %{user: user, amount: amount, card_token: card_token}, _context ->\n      GgenIgniter.Reactors.Examples.Support.charge(user, amount, card_token)\n    end" ;
-    rx:compensateBody "fn _reason, %{amount: amount, card_token: card_token}, _context ->\n      GgenIgniter.Reactors.Examples.Support.refund(card_token, amount)\n      :ok\n    end" ;
-    rx:undoBody "fn charge, %{card_token: card_token}, _context ->\n      GgenIgniter.Reactors.Examples.Support.refund(card_token, charge.amount)\n      :ok\n    end" ;
+    rx:compensateBody "fn _reason, %{amount: amount, card_token: card_token}, _context ->\n      GgenIgniter.Reactors.Examples.Support.refund(card_token, amount)\n    end" ;
+    rx:undoBody "fn charge, %{card_token: card_token}, _context ->\n      GgenIgniter.Reactors.Examples.Support.refund(card_token, charge.amount)\n    end" ;
     rx:async "true" ;
     rx:waitFor "fetch_user" .
 

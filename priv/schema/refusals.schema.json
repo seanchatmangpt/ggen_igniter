@@ -121,6 +121,7 @@
         "NO_ATTRIBUTION",
         "NO_RECEIPT",
         "NO_TYPED_AUTHORITY_NODE",
+        "ONTOLOGY_AGGREGATE_STALE",
         "ONTOLOGY_MALFORMED_SECTION",
         "ONTOLOGY_NOT_FOUND",
         "ONTOLOGY_UNPARSEABLE",
@@ -929,6 +930,15 @@
       "fix_hint": "Declare an sj:CodeWorkAuthority node.",
       "broken_term": "R_missing_authority",
       "example": "REFUSED:NO_TYPED_AUTHORITY_NODE <detail>"
+    },
+    {
+      "code": "ONTOLOGY_AGGREGATE_STALE",
+      "family": "ontology_aggregate",
+      "retryable": false,
+      "owner": "GgenIgniter.OntologyAggregate",
+      "fix_hint": "Set [ontology.aggregate] auto_regen = true once, or regenerate the aggregate corpus from its constituents.",
+      "broken_term": "mu_on_O",
+      "example": "REFUSED:ONTOLOGY_AGGREGATE_STALE <detail>"
     },
     {
       "code": "ONTOLOGY_MALFORMED_SECTION",

@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
           # Semantic Jira's git-ground-truth court proves that the canonical
@@ -61,7 +61,7 @@ jobs:
       # restore a BEAM that expects priv/native/ggen_graph_nif.so without the
       # NIF artifact itself. Keep dependency and build identities separate.
       - name: Cache mix dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           restore-keys: "${{ runner.os }}-mix-deps-29.1.2-1.20.4-\n${{ runner.os }}-mix-deps-29.1.2-\n${{ runner.os }}-mix-deps-\n"
           key: ${{ runner.os }}-mix-deps-29.1.2-1.20.4-${{ hashFiles('mix.lock') }}
@@ -71,7 +71,7 @@ jobs:
       # gets a fresh compilation, while an exact-subject retry can reuse its
       # own compiled tree.
       - name: Cache exact compiled build
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: ${{ runner.os }}-mix-build-29.1.2-1.20.4-${{ hashFiles('mix.lock', 'mix.exs', 'lib/**/*.ex', 'native/**') }}
           path: _build
@@ -79,7 +79,7 @@ jobs:
       # Cargo target dir for the NIF, keyed on its own lockfile so it rotates
       # whenever the crate's rust dependencies change.
       - name: Cache NIF cargo target
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: ${{ runner.os }}-nif-target-29.1.2-1.20.4-${{ hashFiles('native/ggen_graph_nif/Cargo.lock') }}
           path: native/ggen_graph_nif/target
@@ -192,7 +192,7 @@ jobs:
 
       # Seed the shards: exact-SHA key, saved only when this job succeeds.
       - name: Save compiled tree for the test shards
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: ${{ runner.os }}-ci-build-${{ github.sha }}
           path: |
@@ -248,7 +248,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
           # Semantic Jira's git-ground-truth court proves that the canonical
@@ -295,7 +295,7 @@ jobs:
           rebar3-version: '3.24.0'
 
       - name: Restore compiled tree from the build job
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: ${{ runner.os }}-ci-build-${{ github.sha }}
           fail-on-cache-miss: true
@@ -347,7 +347,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
           # Semantic Jira's git-ground-truth court proves that the canonical
@@ -394,7 +394,7 @@ jobs:
           rebar3-version: '3.24.0'
 
       - name: Restore compiled tree from the build job
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           key: ${{ runner.os }}-ci-build-${{ github.sha }}
           fail-on-cache-miss: true

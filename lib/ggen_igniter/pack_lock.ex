@@ -405,6 +405,7 @@ defmodule GgenIgniter.PackLock do
             raise "pack lock busy: #{lockdir} held for over #{@lock_timeout_ms}ms"
 
           true ->
+            # SLEEP-CLASS: POLL-STEP
             Process.sleep(5)
             acquire(lockdir, deadline)
         end

@@ -62,11 +62,13 @@ defmodule GgenIgniter.ActuateTest do
       path = Path.join(tmp_dir, "same.ex")
       File.write!(path, "identical content")
 
+      # Backdate the mtime so a real rewrite would visibly move it (no sleep).
+      File.touch!(path, 1_000_000_000)
+
       {:ok, mtime_before} =
         File.stat(path, time: :posix) |> then(fn {:ok, s} -> {:ok, s.mtime} end)
 
-      # ensure any timestamp-based detection would notice a real rewrite
-      Process.sleep(10)
+      assert mtime_before == 1_000_000_000
 
       assert {:ok, :unchanged} = Actuate.write_file!(path, "identical content")
       assert File.read!(path) == "identical content"

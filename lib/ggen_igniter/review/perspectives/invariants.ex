@@ -36,7 +36,7 @@ defmodule GgenIgniter.Review.Perspectives.Invariants do
     {~r/push\s+.*--force/, "force push (merge, never rewrite shared history)"},
     {~r/-X\s+(theirs|ours)\b/,
      "blanket merge strategy flag -X theirs/ours (destroys one side; resolve by reading both)"},
-    {~r/git\s+commit\s+.*\s-m\b/,
+    {~r/git\s+commit\b.*\s-m\b/,
      "inline git commit -m (shell tokenization corrupts multi-line messages; use commit -F <file>)"}
   ]
 
@@ -65,30 +65,35 @@ defmodule GgenIgniter.Review.Perspectives.Invariants do
   def added_lines(diff_text) do
     diff_text
     |> String.split("\n")
-    |> do_scan(nil, 0, [])
+    |> do_scan(nil, nil, 0, [])
     |> Enum.reverse()
   end
 
-  defp do_scan([], _file, _line, acc), do: acc
+  defp do_scan([], _prev, _file, _line, acc), do: acc
 
-  defp do_scan([line | rest], file, line_no, acc) do
+  # A `+++ ` line is a file header only when git emitted it directly after the
+  # `--- ` line; otherwise it is an added line whose content starts with `++ `.
+  defp do_scan([line | rest], prev, file, line_no, acc) do
     cond do
-      String.starts_with?(line, "+++ ") ->
-        do_scan(rest, normalize_path(line), 0, acc)
+      String.starts_with?(line, "+++ ") and file_header_pair?(prev) ->
+        do_scan(rest, line, normalize_path(line), 0, acc)
 
       String.starts_with?(line, "@@") ->
-        do_scan(rest, file, new_hunk_line(line), acc)
+        do_scan(rest, line, file, new_hunk_line(line), acc)
 
       String.starts_with?(line, "+") ->
-        do_scan(rest, file, line_no + 1, [{file, line_no, String.slice(line, 1..-1//1)} | acc])
+        added = {file, line_no, String.slice(line, 1..-1//1)}
+        do_scan(rest, line, file, line_no + 1, [added | acc])
 
       String.starts_with?(line, "-") ->
-        do_scan(rest, file, line_no, acc)
+        do_scan(rest, line, file, line_no, acc)
 
       true ->
-        do_scan(rest, file, line_no + 1, acc)
+        do_scan(rest, line, file, line_no + 1, acc)
     end
   end
+
+  defp file_header_pair?(prev), do: is_binary(prev) and String.starts_with?(prev, "--- ")
 
   defp normalize_path("+++ b/" <> path), do: path
   defp normalize_path("+++ " <> path), do: String.trim(path)

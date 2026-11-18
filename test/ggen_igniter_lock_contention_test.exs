@@ -14,8 +14,8 @@ defmodule GgenIgniterLockContentionTest do
   `RuntimeError` naming the still-held lock path) is observed directly
   instead of waiting out the 30s default.
 
-  The winner genuinely holds the lock (a real `Process.sleep/1`) for longer
-  than the loser's `timeout_ms` before returning, rather than letting its
+  The winner genuinely holds the lock (blocked on a parent-controlled
+  release message) until the loser has failed, rather than letting its
   task process exit the instant `acquire/2` returns. This matters for real:
   `GgenIgniter.Lock`'s real PID-liveness staleness check (see `lock.ex`'s
   "Stale-lock recovery" moduledoc section) checks whether the holder's
@@ -25,7 +25,7 @@ defmodule GgenIgniterLockContentionTest do
   lock becomes correctly, immediately reclaimable. Holding the lock for a
   real duration here is what makes "exactly one winner" the correct
   real-world expectation instead of an artifact of an unnaturally
-  short-lived task process.
+  short-lived task process. Holding is an observable handshake, not a clock.
   """
 
   # async: false -- UNCLASSIFIED (no global-state marker found; not yet proven safe to run concurrently -- flip candidate).
@@ -42,58 +42,50 @@ defmodule GgenIgniterLockContentionTest do
     parent = self()
     ref = make_ref()
 
-    # A real hold duration: whichever task genuinely wins the OS-level race
-    # must stay alive (not exit its process) for longer than the loser's
-    # timeout_ms below, so the loser's failure is a real "still held by a
-    # live process" outcome rather than a race against an already-dead
-    # holder's PID.
-    hold_ms = 500
+    # The winner holds the lock until the parent releases it (a live process
+    # blocked on `receive`), so the loser's failure is a real "still held by
+    # a live process" outcome. loser_timeout_ms is the deadline under test.
     loser_timeout_ms = 200
 
-    task_a =
-      Task.async(fn ->
-        send(parent, {ref, :ready})
+    racer = fn ->
+      send(parent, {ref, :ready})
+
+      receive do
+        {^ref, :go} -> :ok
+      after
+        5_000 -> raise "timed out waiting for go"
+      end
+
+      try do
+        {:ok, lock} = GgenIgniter.Lock.acquire(lock_key, timeout_ms: loser_timeout_ms)
+        send(parent, {ref, :won, self()})
 
         receive do
-          {^ref, :go} -> :ok
+          {^ref, :release} -> :ok
         after
-          5_000 -> raise "timed out waiting for go"
+          5_000 -> raise "timed out waiting for release"
         end
 
-        try do
-          {:ok, lock} = GgenIgniter.Lock.acquire(lock_key, timeout_ms: loser_timeout_ms)
-          Process.sleep(hold_ms)
-          {:ok, {:ok, lock}}
-        rescue
-          e in RuntimeError -> {:error, :locked, e}
-        end
-      end)
+        {:ok, {:ok, lock}}
+      rescue
+        e in RuntimeError ->
+          send(parent, {ref, :lost, e})
+          {:error, :locked, e}
+      end
+    end
 
-    task_b =
-      Task.async(fn ->
-        send(parent, {ref, :ready})
+    task_a = Task.async(racer)
+    task_b = Task.async(racer)
 
-        receive do
-          {^ref, :go} -> :ok
-        after
-          5_000 -> raise "timed out waiting for go"
-        end
-
-        try do
-          {:ok, lock} = GgenIgniter.Lock.acquire(lock_key, timeout_ms: loser_timeout_ms)
-          Process.sleep(hold_ms)
-          {:ok, {:ok, lock}}
-        rescue
-          e in RuntimeError -> {:error, :locked, e}
-        end
-      end)
-
-    # Wait for both tasks to be scheduled and parked at the barrier, then
-    # release them at (as close to) the same instant as possible.
+    # Wait for both tasks to be parked at the barrier, then release them.
     assert_receive {^ref, :ready}, 5_000
     assert_receive {^ref, :ready}, 5_000
     send(task_a.pid, {ref, :go})
     send(task_b.pid, {ref, :go})
+
+    assert_receive {^ref, :won, winner_pid}, 5_000
+    assert_receive {^ref, :lost, %RuntimeError{}}, 5_000
+    send(winner_pid, {ref, :release})
 
     result_a = Task.await(task_a, 5_000)
     result_b = Task.await(task_b, 5_000)

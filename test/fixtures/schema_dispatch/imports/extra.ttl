@@ -1,0 +1,3 @@
+@prefix ex: <https://ggen-igniter.dev/fixture/imports#> .
+
+ex:Extra ex:kind ex:ImportedThing .

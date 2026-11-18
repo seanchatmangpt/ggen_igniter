@@ -27,7 +27,7 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 147 codes (`$defs.code.enum` count cascade: 132 -> 140 —
+The registry holds 148 codes (`$defs.code.enum` count cascade: 132 -> 140 —
 132 pre-existing, `SOVEREIGN_LEASE_REQUIRED` + `SOVEREIGN_LEASE_INVALID` from
 the Sovereign Ceiling Lease law, and `SOVEREIGN` itself as the code the
 exhaustiveness detector forces for the `{:refused_sovereign, reason}` wrapper
@@ -129,6 +129,7 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `NO_ATTRIBUTION` | epoch_verdict | false | R_missing_authority | `GgenIgniter.EpochFreshness` | Generate the file through a receipted ggen_igniter run or add a dated HANDWRITTEN.md residue row. |
 | `NO_RECEIPT` | extension_schema | false | R_missing_consequence | `GgenIgniter.Packs.ReceiptedExtension` | Declare a receipt on the resource that uses the receipted extension, so the verifier can admit it. |
 | `NO_TYPED_AUTHORITY_NODE` | authority | false | R_missing_authority | `GgenIgniter.SemanticJira.Authority` | Declare an sj:CodeWorkAuthority node. |
+| `ONTOLOGY_AGGREGATE_STALE` | ontology_aggregate | false | mu_on_O | `GgenIgniter.OntologyAggregate` | Set [ontology.aggregate] auto_regen = true once, or regenerate the aggregate corpus from its constituents. |
 | `ONTOLOGY_MALFORMED_SECTION` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Repair the malformed hand-authored section of the ontology. |
 | `ONTOLOGY_NOT_FOUND` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Pass an existing --ontology path. |
 | `ONTOLOGY_UNPARSEABLE` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Fix the Turtle syntax error in the ontology. |

@@ -16,4 +16,38 @@ defmodule GgenIgniter.Ontology do
       _ -> RDF.Turtle.read_file!(path)
     end
   end
+
+  @doc """
+  Loads `source` and merges every `imports` path (each `Path.expand`ed against
+  `base_dir`) into one `RDF.Graph` via `RDF.Graph.add/2`. Mirrors the
+  `[ontology].imports` field (`GgenIgniter.ProjectConfig.OntologyConfig`).
+
+  Raises `ArgumentError` naming the path when an import is missing, or when
+  the source or an import loads as an `RDF.Dataset` (quad formats cannot be
+  merged into a graph without silently dropping graph names). Not wired into
+  the reactor.
+  """
+  @spec load_with_imports!(String.t(), [String.t()], String.t()) :: RDF.Graph.t()
+  def load_with_imports!(source, imports, base_dir \\ ".") do
+    Enum.reduce(imports, load_graph!(Path.expand(source, base_dir)), fn import, acc ->
+      path = Path.expand(import, base_dir)
+
+      unless File.regular?(path) do
+        raise ArgumentError, "ontology import not found: #{path}"
+      end
+
+      RDF.Graph.add(acc, load_graph!(path))
+    end)
+  end
+
+  defp load_graph!(path) do
+    unless File.regular?(path) do
+      raise ArgumentError, "ontology file not found: #{path}"
+    end
+
+    case load!(path) do
+      %RDF.Graph{} = graph -> graph
+      %RDF.Dataset{} -> raise ArgumentError, "ontology import is a Dataset, not a Graph: #{path}"
+    end
+  end
 end

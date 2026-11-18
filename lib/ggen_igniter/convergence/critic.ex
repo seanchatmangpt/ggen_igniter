@@ -38,14 +38,16 @@ defmodule GgenIgniter.Convergence.Critic do
   # `@moduledoc` has been seen since the hunk began (the missing_doc rule's
   # hunk-local window).
   defp critique_hunk(%{file: file, hunk_id: hunk_id, hunk_text: text}) when is_binary(text) do
-    text
-    |> String.split("\n")
-    |> Enum.reduce({[], false}, fn line, {acc, saw_moduledoc} ->
+    lines = String.split(text, "\n")
+
+    [nil | lines]
+    |> Enum.zip(lines)
+    |> Enum.reduce({[], false}, fn {prev, line}, {acc, saw_moduledoc} ->
       cond do
         String.starts_with?(line, "@@") ->
           {acc, saw_moduledoc}
 
-        not String.starts_with?(line, "+") or String.starts_with?(line, "+++") ->
+        not String.starts_with?(line, "+") or file_header?(prev, line) ->
           # Context and removed lines never trigger the added-line rules.
           {acc, saw_moduledoc}
 
@@ -60,6 +62,12 @@ defmodule GgenIgniter.Convergence.Critic do
   end
 
   defp critique_hunk(_hunk), do: []
+
+  # `+++ ` is a file header only directly after git's `--- ` line; elsewhere it
+  # is an added line whose content starts with `++ `.
+  defp file_header?(prev, line) do
+    String.starts_with?(line, "+++ ") and is_binary(prev) and String.starts_with?(prev, "--- ")
+  end
 
   defp added_line_findings(body, file, hunk_id, saw_moduledoc) do
     line_rules = [

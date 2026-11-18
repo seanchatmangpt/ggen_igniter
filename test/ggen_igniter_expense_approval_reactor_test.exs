@@ -48,4 +48,59 @@ defmodule GgenIgniter.Reactors.Examples.ExpenseApprovalReactorTest do
                card_token: "tok_789"
              })
   end
+
+  describe "compensate/undo refund paths" do
+    alias GgenIgniter.Reactors.Examples.{RefundLedger, Support}
+
+    defp ledger_for(token), do: Enum.filter(RefundLedger.all(), fn {t, _} -> t == token end)
+
+    test "undo succeeds on later-step failure: charge is refunded in the ledger" do
+      assert {:error, _} =
+               Reactor.run(ExpenseApprovalReactor, %{
+                 email: "alice@example.com",
+                 amount: 13,
+                 card_token: "tok_undo_ok_1"
+               })
+
+      assert {"tok_undo_ok_1", 13} in ledger_for("tok_undo_ok_1")
+    end
+
+    test "undo fails visibly: refund_failed surfaces and nothing is recorded" do
+      assert {:error, err} =
+               Reactor.run(ExpenseApprovalReactor, %{
+                 email: "alice@example.com",
+                 amount: 13,
+                 card_token: "tok_refund_fails"
+               })
+
+      assert inspect(err) =~ "refund_failed"
+      assert ledger_for("tok_refund_fails") == []
+    end
+
+    test "compensate fails: declined charge with failing refund records nothing" do
+      assert {:error, _} =
+               Reactor.run(ExpenseApprovalReactor, %{
+                 email: "alice@example.com",
+                 amount: 999_999,
+                 card_token: "tok_refund_fails"
+               })
+
+      assert ledger_for("tok_refund_fails") == []
+    end
+
+    test "compensate success: requested amount is refunded" do
+      assert {:error, _} =
+               Reactor.run(ExpenseApprovalReactor, %{
+                 email: "alice@example.com",
+                 amount: 999_999,
+                 card_token: "tok_comp_ok"
+               })
+
+      assert {"tok_comp_ok", 999_999} in ledger_for("tok_comp_ok")
+    end
+
+    test "Support.refund/2 returns a typed error for the failing token" do
+      assert Support.refund("tok_refund_fails", 1) == {:error, :refund_failed}
+    end
+  end
 end

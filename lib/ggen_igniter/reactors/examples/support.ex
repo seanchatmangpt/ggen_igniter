@@ -51,8 +51,14 @@ defmodule GgenIgniter.Reactors.Examples.Support do
   test-observable `GgenIgniter.Reactors.Examples.RefundLedger` process
   (a genuine collaborator with real state, not a mock) so tests can assert
   a `compensate`/`undo` step actually ran, not just that it compiled.
+
+  The card token `"tok_refund_fails"` is a real, deterministic refund
+  failure: it returns `{:error, :refund_failed}` and records nothing in the
+  ledger, so tests can observe a visibly failing `compensate`/`undo`.
   """
-  @spec refund(String.t(), number()) :: :ok
+  @spec refund(String.t(), number()) :: :ok | {:error, :refund_failed}
+  def refund("tok_refund_fails", _amount), do: {:error, :refund_failed}
+
   def refund(card_token, amount) do
     GgenIgniter.Reactors.Examples.RefundLedger.record(card_token, amount)
     :ok

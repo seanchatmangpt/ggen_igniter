@@ -136,6 +136,7 @@ defmodule GgenIgniter.Lock do
                     "-- another mutating ggen_igniter invocation appears to be running " <>
                     "against #{inspect(lock_key)}"
           else
+            # SLEEP-CLASS: POLL-STEP
             Process.sleep(retry_interval_ms)
             do_acquire(path, lock_key, deadline, retry_interval_ms)
           end

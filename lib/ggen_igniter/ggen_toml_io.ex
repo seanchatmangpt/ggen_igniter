@@ -120,7 +120,7 @@ defmodule GgenIgniter.GgenToml.IO do
     [
       section("project", project_table(config.project)),
       "",
-      section("ontology", %{"source" => config.ontology.source}),
+      section("ontology", ontology_table(config.ontology)),
       "",
       generation_section(config.generation),
       "",
@@ -211,12 +211,28 @@ defmodule GgenIgniter.GgenToml.IO do
 
   # -- Frontmatter schema serialization -----------------------------------
 
-  defp ontology_table(%{source: source, prefixes: prefixes}) when map_size(prefixes) == 0 do
+  # Non-empty `imports`, non-empty `prefixes`, and a present `aggregate` are
+  # emitted; empty/nil ones are omitted (the decoder defaults them back), so
+  # serialize!(load!(x)) round-trips.
+  defp ontology_table(%{source: source} = ontology) do
     %{"source" => source}
+    |> put_nonempty("imports", Map.get(ontology, :imports, []))
+    |> put_nonempty("prefixes", Map.get(ontology, :prefixes, %{}))
+    |> put_aggregate(Map.get(ontology, :aggregate))
   end
 
-  defp ontology_table(%{source: source, prefixes: prefixes}) do
-    %{"source" => source, "prefixes" => prefixes}
+  defp put_nonempty(table, _key, []), do: table
+  defp put_nonempty(table, _key, v) when v == %{}, do: table
+  defp put_nonempty(table, key, v), do: Map.put(table, key, v)
+
+  defp put_aggregate(table, nil), do: table
+
+  defp put_aggregate(table, %ProjectConfig.OntologyAggregate{} = agg) do
+    Map.put(table, "aggregate", %{
+      "output" => agg.output,
+      "constituents" => agg.constituents,
+      "auto_regen" => agg.auto_regen
+    })
   end
 
   defp packs_section(packs) when map_size(packs) == 0, do: :skip

@@ -308,12 +308,24 @@ defmodule GgenIgniterPackLockTest do
     test "8 concurrent update/3 puts all land, none lost", %{tmp_dir: tmp} do
       l = Path.join(tmp, "put.lock")
 
+      # Mutual-exclusion observable: the update fun asserts nobody else is
+      # inside it (counter == 0), widens the window with a yield, then leaves.
+      inside = :counters.new(1, [])
+
       1..8
       |> Enum.map(fn i ->
         Task.async(fn ->
           PackLock.update(l, fn lock ->
-            Process.sleep(5)
-            {:ok, PackLock.put(lock, "p#{i}", %{"name" => "p#{i}", "sha256" => "x"})}
+            overlap = :counters.get(inside, 1)
+            :counters.add(inside, 1, 1)
+            :erlang.yield()
+            :counters.add(inside, 1, -1)
+
+            if overlap == 0 do
+              {:ok, PackLock.put(lock, "p#{i}", %{"name" => "p#{i}", "sha256" => "x"})}
+            else
+              {:error, {:overlap, overlap}}
+            end
           end)
         end)
       end)

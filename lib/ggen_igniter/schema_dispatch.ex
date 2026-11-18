@@ -38,7 +38,12 @@ defmodule GgenIgniter.FrontmatterConfig do
 
   @type t :: %__MODULE__{
           project: %{name: String.t()},
-          ontology: %{source: String.t(), prefixes: %{optional(String.t()) => String.t()}},
+          ontology: %{
+            source: String.t(),
+            imports: [String.t()],
+            prefixes: %{optional(String.t()) => String.t()},
+            aggregate: GgenIgniter.ProjectConfig.OntologyAggregate.t() | nil
+          },
           templates: %{dir: String.t(), aggregate_modules: boolean()},
           packs: %{optional(String.t()) => GgenIgniter.FrontmatterPackRef.t()},
           law: %{
@@ -175,7 +180,7 @@ defmodule GgenIgniter.SchemaDispatch do
       {:ok, table} ->
         case classify_table(table) do
           :declarative_rules -> {:declarative_rules, build_project_config(table)}
-          :frontmatter -> {:frontmatter, build_frontmatter_config(table)}
+          :frontmatter -> classify_frontmatter(table)
           {:ambiguous, matched} -> {:refused, {:ambiguous, matched: matched}}
           {:unsupported, observed} -> {:refused, {:unsupported, observed_markers: observed}}
         end
@@ -379,7 +384,9 @@ defmodule GgenIgniter.SchemaDispatch do
         version: Map.get(project, "version")
       },
       ontology: %GgenIgniter.ProjectConfig.OntologyConfig{
-        source: Map.get(ontology, "source")
+        source: Map.get(ontology, "source"),
+        imports: Map.get(ontology, "imports", []),
+        prefixes: Map.get(ontology, "prefixes", %{})
       },
       generation: build_generation_config(Map.get(table, "generation", %{})),
       packs: Map.get(table, "packs", []) |> Enum.map(&build_declarative_pack_ref/1)
@@ -461,7 +468,21 @@ defmodule GgenIgniter.SchemaDispatch do
 
   # -- FrontmatterConfig struct construction ------------------------------
 
-  defp build_frontmatter_config(table) do
+  # A malformed `[ontology.aggregate]` is a typed `:malformed` refusal, never a
+  # raise and never silently dropped.
+  defp classify_frontmatter(table) do
+    case parse_aggregate(Map.get(table, "ontology", %{})) do
+      {:ok, aggregate} -> {:frontmatter, build_frontmatter_config(table, aggregate)}
+      {:error, detail} -> {:refused, {:malformed, diagnostic: detail}}
+    end
+  end
+
+  defp parse_aggregate(%{"aggregate" => raw}),
+    do: GgenIgniter.ProjectConfig.OntologyAggregate.parse(raw)
+
+  defp parse_aggregate(_), do: {:ok, nil}
+
+  defp build_frontmatter_config(table, aggregate) do
     project = Map.get(table, "project", %{})
     ontology = Map.get(table, "ontology", %{})
     templates = Map.get(table, "templates", %{})
@@ -472,7 +493,9 @@ defmodule GgenIgniter.SchemaDispatch do
       project: %{name: Map.get(project, "name")},
       ontology: %{
         source: Map.get(ontology, "source"),
-        prefixes: Map.get(ontology, "prefixes", %{})
+        imports: Map.get(ontology, "imports", []),
+        prefixes: Map.get(ontology, "prefixes", %{}),
+        aggregate: aggregate
       },
       templates: %{
         dir: Map.get(templates, "dir"),

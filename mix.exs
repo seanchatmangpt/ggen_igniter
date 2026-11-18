@@ -6,7 +6,7 @@ defmodule GgenIgniter.MixProject do
   def project do
     [
       app: :ggen_igniter,
-      version: "26.11.17",
+      version: "26.11.18",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -75,7 +75,7 @@ defmodule GgenIgniter.MixProject do
         # mix.exs/CHANGELOG.md state" test greps `mix.exs`'s raw source with
         # `~r/version:\s*"([^"]+)"/` and breaks if `version:` isn't followed
         # directly by a literal string.
-        source_ref: "v26.11.17"
+        source_ref: "v26.11.18"
       ],
       dialyzer: [
         # `:mix` is excluded from the PLT by default (it's a build-time-only
@@ -122,7 +122,9 @@ defmodule GgenIgniter.MixProject do
       "test.shard": ["test --include integration"],
       # Incident-eval harness for the ggen-reviewer (lane L6, v26.10.20):
       # run the corpus against the reviewer, then gate against the baseline.
-      "review.eval": ["ggen_igniter.review_eval.run", "ggen_igniter.review_eval.gate"]
+      "review.eval": ["ggen_igniter.review_eval.run", "ggen_igniter.review_eval.gate"],
+      # No-sleep doctrine gate (v26.11.18): fails on unclassified lib sleeps / test sleeps.
+      "sleep.gate": ["ggen_igniter.sleep_gate"]
     ]
   end
 

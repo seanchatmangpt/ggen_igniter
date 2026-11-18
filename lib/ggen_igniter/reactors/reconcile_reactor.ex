@@ -2412,9 +2412,17 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # fold.
   defp igniter_diverged?(%Igniter{rewrite: rewrite}), do: Rewrite.paths(rewrite) != []
 
+  # Sleeps only when `test_delay_ms` is a positive integer; default nil never runs.
+  defp maybe_test_delay(%{test_delay_ms: ms}) when is_integer(ms) and ms > 0 do
+    # SLEEP-CLASS: SCHEDULING -- opt-in fault-injection interval, default nil never runs; TICKET: replace with probe barrier
+    Process.sleep(ms)
+  end
+
+  defp maybe_test_delay(_exec), do: :ok
+
   defp actuate_one(%PendingActuation{operation: op} = pa, exec) when op in [:create, :replace] do
     probe_mark(exec, :start)
-    if exec.test_delay_ms && exec.test_delay_ms > 0, do: Process.sleep(exec.test_delay_ms)
+    maybe_test_delay(exec)
 
     dry_run = exec.write_opts[:dry_run] || false
 
@@ -2548,7 +2556,7 @@ defmodule GgenIgniter.Reactors.ReconcileReactor do
   # never leaving a half-migrated project on disk.
   defp actuate_one(%PendingActuation{operation: :inject} = pa, exec) do
     probe_mark(exec, :start)
-    if exec.test_delay_ms && exec.test_delay_ms > 0, do: Process.sleep(exec.test_delay_ms)
+    maybe_test_delay(exec)
 
     dry_run = exec.write_opts[:dry_run] || false
 

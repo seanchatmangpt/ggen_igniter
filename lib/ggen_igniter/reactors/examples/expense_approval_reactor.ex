@@ -81,12 +81,10 @@ defmodule GgenIgniter.Reactors.Examples.ExpenseApprovalReactor do
 
     compensate(fn _reason, %{amount: amount, card_token: card_token}, _context ->
       GgenIgniter.Reactors.Examples.Support.refund(card_token, amount)
-      :ok
     end)
 
     undo(fn charge, %{card_token: card_token}, _context ->
       GgenIgniter.Reactors.Examples.Support.refund(card_token, charge.amount)
-      :ok
     end)
 
     wait_for(:fetch_user)

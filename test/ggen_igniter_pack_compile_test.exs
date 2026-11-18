@@ -129,28 +129,19 @@ defmodule GgenIgniter.PackCompileTest do
 
       assert out =~ "timed out after 50ms"
 
-      # Poll for the subprocess's death instead of betting on a fixed sleep:
-      # give the OS up to 2s, checking every 50ms, and fail naming the actual
-      # elapsed wait if the process tree survived.
-      deadline = System.monotonic_time(:millisecond) + 2_000
+      # Bounded poll (audited helper) for the subprocess's death: up to 2s,
+      # fail naming the actual elapsed wait if the process tree survived.
       start = System.monotonic_time(:millisecond)
 
       survived? =
-        Enum.reduce_while(Stream.iterate(0, &(&1 + 1)), true, fn _i, acc ->
-          {ps, _} = System.cmd("ps", ["-axo", "command"])
-
-          cond do
-            not (ps =~ marker) ->
-              {:halt, false}
-
-            System.monotonic_time(:millisecond) >= deadline ->
-              {:halt, true}
-
-            true ->
-              Process.sleep(50)
-              {:cont, acc}
-          end
-        end)
+        GgenIgniterTest.AssertEventually.eventually(
+          fn ->
+            {ps, _} = System.cmd("ps", ["-axo", "command"])
+            not (ps =~ marker)
+          end,
+          timeout: 2_000,
+          step: 50
+        ) != {:ok, true}
 
       elapsed = System.monotonic_time(:millisecond) - start
 

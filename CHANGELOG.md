@@ -1,5 +1,18 @@
 # Changelog
 
+## v26.11.18
+
+Released 2026-11-18. Defect-fix and ggen-parity release from the v26.11.17 audit wave:
+
+- **Added** `[ontology.aggregate]` frontmatter section (`GgenIgniter.OntologyAggregate`, refusal `ONTOLOGY_AGGREGATE_STALE`); sha256 freshness marker, not interoperable with ggen's BLAKE3 marker. Not yet wired into the sync path.
+- **Fixed** `[ontology].imports` was dropped by `SchemaDispatch`; now carried, serialized, and loadable via `Ontology.load_with_imports!/3`.
+- **Fixed** expense-approval reactor: refund failures in `compensate`/`undo` now propagate instead of returning `:ok`.
+- **Fixed** `ash-igniter-api-pack` ontology now declares the `aia:` properties its gates query.
+- **Added** `mix ggen_igniter.sleep_gate` / `mix sleep.gate` (no-sleep doctrine gate); lib sleeps carry `SLEEP-CLASS` annotations; fixed-wait test sleeps replaced by observables.
+- **Added** Chicago-style tests for the secrets/shell security checks, review verifier and perspectives, and convergence critic.
+- **Changed** CI workflows: one pinned action set, toolchain from `.tool-versions`.
+- **Changed** version aligned to CalVer `26.11.18`; `source_ref` to `v26.11.18`.
+
 ## v26.11.17
 
 Released 2026-11-17. Version alignment release:
