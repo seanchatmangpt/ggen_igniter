@@ -1,5 +1,12 @@
 # Changelog
 
+## v26.11.17
+
+Released 2026-11-17. Version alignment release:
+
+- **Changed** project version aligned to CalVer `26.11.17` in `mix.exs` and `CHANGELOG.md`; `source_ref` in `mix.exs` aligned to `v26.11.17`.
+- **Added** the v26.11.17 code-alignment doc (`docs/jira/v26.11.17/code-alignment.md`).
+
 ## v26.11.10
 
 Released 2026-11-10. Production release shoring up the codebase, landing pipeline, review pipeline, security audit tasks, and release packaging:

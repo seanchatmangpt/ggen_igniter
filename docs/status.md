@@ -294,6 +294,7 @@ runtime-facing standing translation) that happen to share some words.
 - `docs/glossary.md` — term definitions
 - `docs/index.md` — full documentation map
 - `docs/architecture/adr/` — accepted architecture decisions with current-code evidence
+- `docs/jira/v26.11.17/` — the v26.11.17 version bump (mix.exs, README, CHANGELOG) and code-alignment doc
 - `docs/jira/v26.11.10/` — the v26.11.10 production release ticket set, 5-expert reviews, and machine evidence
 - `docs/archive/jira/v26.9.8/` — historical Ash manufacturing path's tickets, review and evidence
 - `docs/archive/ggen_igniter_factory/docs-findings.jsonl` — 118 archived

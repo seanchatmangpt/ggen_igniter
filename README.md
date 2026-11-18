@@ -6,7 +6,7 @@
 [![Erlang/OTP](https://img.shields.io/badge/Erlang%2FOTP-27-red.svg)](https://www.erlang.org)
 [![Elixir](https://img.shields.io/badge/Elixir-1.19-purple.svg)](https://elixir-lang.org)
 [![Tests](https://img.shields.io/badge/tests-1763%20passed%2C%200%20failures-brightgreen.svg)](test)
-[![Release](https://img.shields.io/badge/release-v26.11.10-blue.svg)](docs/jira/v26.11.10/00-OVERVIEW.md)
+[![Release](https://img.shields.io/badge/release-v26.11.17-blue.svg)](docs/jira/v26.11.17/code-alignment.md)
 
 **GgenIgniter** is an ontology-driven semantic compilation and code generation engine for Elixir. It bridges RDF knowledge graphs, SPARQL 1.1 queries, EEx templates, and Igniter AST codemods into a deterministic, verifiable synthesis pipeline.
 
@@ -165,7 +165,7 @@ Add `ggen_igniter` to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:ggen_igniter, "~> 26.11.10"}
+    {:ggen_igniter, "~> 26.11.17"}
   ]
 end
 ```
