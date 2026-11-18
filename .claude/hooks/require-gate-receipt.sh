@@ -46,13 +46,13 @@ PY
 
 # 3. freshness: receipt must be newer than the newest tracked source file
 newest_src=$(git ls-files -- 'lib/*.ex' 'lib/*.exs' 'test/*.exs' 'native/*' 'priv/*' 'mix.exs' 'config/*' '.claude/**' 2>/dev/null \
-  | while IFS= read -r f; do [ -f "$f" ] && stat -f '%m' "$f"; done | sort -rn | head -1)
+  | grep -v "^\.claude/receipts/" | while IFS= read -r f; do [ -f "$f" ] && stat -f '%m' "$f"; done | sort -rn | head -1)
 [ -n "$newest_src" ] || newest_src=0
 receipt_mtime=$(stat -f '%m' "$receipt" 2>/dev/null || echo 0)
 
 if [ "$receipt_mtime" -le "$newest_src" ]; then
   newest_file=$(git ls-files -- 'lib/*.ex' 'lib/*.exs' 'test/*.exs' 'native/*' 'priv/*' 'mix.exs' 'config/*' '.claude/**' 2>/dev/null \
-    | while IFS= read -r f; do [ -f "$f" ] && echo "$(stat -f '%m' "$f") $f"; done | sort -rn | head -1 | cut -d' ' -f2-)
+    | grep -v "^\.claude/receipts/" | while IFS= read -r f; do [ -f "$f" ] && echo "$(stat -f '%m' "$f") $f"; done | sort -rn | head -1 | cut -d' ' -f2-)
   fail "gate receipt ($receipt, mtime $receipt_mtime) is OLDER than newest tracked source change ($newest_file, mtime $newest_src). The receipt does not certify this code."
 fi
 
