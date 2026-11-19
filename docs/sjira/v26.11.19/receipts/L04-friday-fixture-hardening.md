@@ -39,17 +39,22 @@ Chicago court failed 6/39 under `--include integration`.
 
 ## Live BLOCKED — exact env keys missing locally
 
-No local secret files / env present for live. Required (all):
+Refreshed residual (full key list, no secrets):
+`receipts/L04-live-sandbox-residual.md`. Summary:
 
-1. Backend (exactly one): `SJIRA_PACK_DIR` **or** `SJIRA_PACKS_ROOT` **or** `SJIRA_RECEIPT`
-2. `SJIRA_VERIFIER_SUITE`
-3. `SJIRA_ALIAS` (`owner/repo=alias`)
-4. Local/complete: `SJIRA_TARGET_DIR` (+ `SJIRA_RECEIPTS_DIR` when draining)
-5. External receipt path: `SJIRA_IDENTITY` when backend is `SJIRA_RECEIPT`
+1. Always: `SJIRA_OUT_DIR`, `SJIRA_LEDGER`
+2. Inputs: `SJIRA_CANDIDATES` **or** observe (`SJIRA_FINDING` + `SJIRA_BASE_WORK_ORDER` + `SJIRA_ORIGIN_AUTHORITY`)
+3. Backend (exactly one): `SJIRA_PACK_DIR` **or** `SJIRA_PACKS_ROOT` **or** `SJIRA_RECEIPT`
+4. `SJIRA_VERIFIER_SUITE`
+5. `SJIRA_ALIAS` (`owner/repo=alias`)
+6. Local/complete: `SJIRA_TARGET_DIR` (+ `SJIRA_RECEIPTS_DIR` when draining)
+7. External receipt path: `SJIRA_IDENTITY` when backend is `SJIRA_RECEIPT`
 
-Fabric/auth live remains **BLOCKED (Tony)** per twin dogfood receipt.
+Fabric/auth live remains **BLOCKED (Tony)**. live-sandbox stays
+**PARTIAL_ALIVE** via `just sjira-loop-live-sandbox` (not bare live PASS).
 
 ## Standing
 
-**PASS** — Friday GoalCheckpoint Chicago green; O→A→F+evidence green; live
-honestly **BLOCKED** with exact keys. Not wave COMPLETE.
+**PASS** — Friday GoalCheckpoint Chicago green; O→A→F+evidence green;
+live-sandbox **PARTIAL_ALIVE**; bare live honestly **BLOCKED** with exact keys.
+Not demoting COMPLETE.

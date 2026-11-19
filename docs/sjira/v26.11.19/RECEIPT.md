@@ -5,7 +5,7 @@ Standing: PASS
 Subject: `/Users/sac/ggen_igniter` hands-free observe → admit → frontier →
 evidence twin. SoT is **loop-produced** `loop_receipt.json` under `receipts/`,
 not agent-authored PASS claims. Dogfood SoT for WAVE-L04:
-**dry PASS / evidence PASS / live BLOCKED (Tony)**.
+**dry PASS / evidence PASS / live-sandbox PARTIAL_ALIVE / bare live BLOCKED (Tony)**.
 
 ## Identity
 
@@ -26,7 +26,8 @@ not agent-authored PASS claims. Dogfood SoT for WAVE-L04:
 | `just sjira-loop-evidence` twin | **PASS** | EXIT=0; Mix↔hands-free eligible=`['FRI-FMT-A']`; `receipts/L04-loop_receipt.json` |
 | hands-free twin court (Chicago) | **PASS** | 3/3 EXIT=0 (supporting vacuity) |
 | Friday GoalCheckpoint Chicago (`--include integration`) | **PASS** | 44/44 after hybrid-pack `tera_pack?` fix; see `receipts/L04-friday-fixture-hardening.md` |
-| bare `just sjira-loop live` (no env) | **BLOCKED** | EXIT=2; missing `SJIRA_PACK_DIR\|SJIRA_PACKS_ROOT\|SJIRA_RECEIPT` (+ `SJIRA_VERIFIER_SUITE`, `SJIRA_ALIAS`, target) |
+| `just sjira-loop-live-sandbox` | **PARTIAL_ALIVE** | EXIT=0 post-hybrid; execute → `PARTIAL_ALIVE`; see `receipts/L04-live-sandbox-residual.md` |
+| bare `just sjira-loop live` (no env) | **BLOCKED** | EXIT=2; first miss `SJIRA_OUT_DIR`; with candidates → `SJIRA_PACK_DIR\|SJIRA_PACKS_ROOT\|SJIRA_RECEIPT` (+ verifier/alias/target) |
 | Fabric / auth live (Tony) | **BLOCKED (Tony)** | destructive/auth live remains external; not dogfood-closed |
 
 ### Product fixes
@@ -54,7 +55,8 @@ just sjira-loop-evidence         # expect 0 (twin parity)
 
 ## Standing
 
-**PASS** scoped — dry + evidence twin + Friday GoalCheckpoint drained. Live
-remains **BLOCKED** (exact keys above + Tony fabric). Not wave COMPLETE. Not
-fake ALIVE. See `receipts/L04-sjira-loop-twin.md` and
+**PASS** scoped — dry + evidence twin + Friday GoalCheckpoint drained.
+live-sandbox **PARTIAL_ALIVE** (EXIT=0). Bare live remains **BLOCKED** (exact
+keys in `receipts/L04-live-sandbox-residual.md` + Tony fabric). Not demoting
+COMPLETE. Not fake ALIVE. See `receipts/L04-sjira-loop-twin.md` and
 `receipts/L04-friday-fixture-hardening.md`.

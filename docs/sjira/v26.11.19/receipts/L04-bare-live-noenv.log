@@ -1,0 +1,2 @@
+INVALID:SJIRA_OUT_DIR is required
+error: recipe `sjira-loop` failed with exit code 2

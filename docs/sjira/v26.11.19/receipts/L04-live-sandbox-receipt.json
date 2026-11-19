@@ -1,7 +1,7 @@
 {
   "bridge": {
-    "base_sha": "10d09f83461030c2d9ee7b2775374cc412aa7bcb",
-    "definition_digest": "sha256:81acb6c7102c441fffea59709f07ea8f03c4a9562a227c0d987c3b5a54b912eb",
+    "base_sha": "233416e8a5fe072aa82dca11ad9522a2261966ee",
+    "definition_digest": "sha256:de8df53e97445c0920439ae1c8e57d4af36f2a09913070fcbd589af2c4260548",
     "evidence_ceiling": "repository-local",
     "identity": "EXEC-SANDBOX-1",
     "ledger_tail": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -18,7 +18,7 @@
         "urn:semantic-jira:falsifier:EXEC-SANDBOX-1:f1"
       ]
     },
-    "source_snapshot_digest": "sha256:a113081398412dfbb0da6d4f0b4b3d4bc87ff9819c3d5c8a425e6cfc03de91fd",
+    "source_snapshot_digest": "sha256:43b91ae3f01c0b77cb8774e65410151d0898f2127b11f9c254cdba175ba73e1c",
     "subject": "sjira:live-sandbox:subject"
   },
   "epoch_id": "ggen-local",
@@ -39,10 +39,10 @@
       }
     ]
   },
-  "final_head": "99669dc25f2cb648e572c05fbdc4741c2b0dd013",
+  "final_head": "402e4a0712188714f0283798bd3032e88516f2be",
   "head_verified": false,
   "outcome": "partial_alive",
-  "receipt_digest": "sha256:23b61b8cf1e455b366e86572cb28bba817eba2dcb9ec448a0d4abebdb4bae25b",
-  "receipt_id": "receipt-7ccaf82c608902c9",
-  "run_id": "local-7ccaf82c608902c9"
+  "receipt_digest": "sha256:b9f968c97a91af1bf77652ecb5d44f195dfaaaaf4fe045a0dcd1326087711a68",
+  "receipt_id": "receipt-fae6b491194a129e",
+  "run_id": "local-fae6b491194a129e"
 }

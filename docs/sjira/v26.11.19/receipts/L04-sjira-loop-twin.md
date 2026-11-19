@@ -34,4 +34,4 @@ From `L04-loop_receipt.json` (re-run 2026-11-19):
 
 **PASS** for WAVE-L04 dogfood progress: dry **PASS** / evidence **PASS** /
 live **BLOCKED (Tony)**. Twin `HANDS_FREE_TWIN_DRIFT` closed by ggen
-`fd4f99bbd`. Not wave COMPLETE. Not fabric ALIVE.
+`fd4f99bbd`. Not demoting COMPLETE. Not fabric ALIVE.
