@@ -1,0 +1,44 @@
+{
+  "blocked_count": 0,
+  "chain": [
+    "observe",
+    "admit_candidates",
+    "frontier",
+    "execute",
+    "receipt"
+  ],
+  "eligible_count": 1,
+  "execute_result": {
+    "event": {
+      "authority": "NONE",
+      "definition_digest": "sha256:81acb6c7102c441fffea59709f07ea8f03c4a9562a227c0d987c3b5a54b912eb",
+      "epoch": 0,
+      "event_digest": "sha256:59bc9c5d7df230fa7925c0ab850203a592a2152e95778d936ddf9ecab10bf853",
+      "from": "UNKNOWN",
+      "identity": "EXEC-SANDBOX-1",
+      "kind": "standing_transition_event",
+      "receipt_digest": "sha256:b43c4494e622c0aa50f469ee7837818d2eef7a420deb871fdf085d46e77978bd",
+      "seq": 1,
+      "snapshot_digest": "sha256:a113081398412dfbb0da6d4f0b4b3d4bc87ff9819c3d5c8a425e6cfc03de91fd",
+      "to": "PARTIAL_ALIVE",
+      "transition_digest": "sha256:e7e2ec44e6f86b5000b1cbdbe1aa12129a2ba2223e8001a8a55ee5095b31f4d9"
+    },
+    "final_head": "99669dc25f2cb648e572c05fbdc4741c2b0dd013",
+    "head_verified": false,
+    "identity": "EXEC-SANDBOX-1",
+    "outcome": "partial_alive",
+    "receipt_digest": "sha256:23b61b8cf1e455b366e86572cb28bba817eba2dcb9ec448a0d4abebdb4bae25b",
+    "receipt_out": "/Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/_loop_run/live/receipt_EXEC-SANDBOX-1.json",
+    "status": "executed",
+    "target": "PARTIAL_ALIVE"
+  },
+  "frontier": "/Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/_loop_run/live/frontier.json",
+  "ledger": "/Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/_loop_run/live/ledger.jsonl",
+  "loop_digest": "sha256:d083d740a10f1c2fe54d8b3935622b535ac43cdad63685f10a09c9c3eb7e98aa",
+  "mode": "live",
+  "note": "live chain finished without REFUSED; verifier must promote standing from gates",
+  "standing": "UNVERIFIED",
+  "status": "live_ok",
+  "work_orders": "/Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/_loop_run/live/work_orders.json",
+  "xaas_mapped_receipt": null
+}

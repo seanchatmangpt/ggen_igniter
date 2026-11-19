@@ -1,0 +1,3 @@
+# ggen-manufactured report
+<%= for row <- ci do %>gate row: <%= row["subject"] %>
+<% end %>

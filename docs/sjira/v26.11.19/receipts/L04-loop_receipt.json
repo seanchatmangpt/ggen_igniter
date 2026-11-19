@@ -1,0 +1,33 @@
+{
+  "admit_summary": {
+    "admitted": 2,
+    "refused": 0
+  },
+  "blocked_count": 1,
+  "chain": [
+    "observe_skipped",
+    "admit_candidates",
+    "frontier",
+    "hands_free_frontier"
+  ],
+  "eligible_count": 1,
+  "evidence": {
+    "admitted_digest": "sha256:5f60b630dadedf57d71bcae80f55ca71603afda49b7cb7d1555106fbd2be8a32",
+    "candidates_digest": "sha256:5f60b630dadedf57d71bcae80f55ca71603afda49b7cb7d1555106fbd2be8a32",
+    "frontier_digest": "sha256:b21791675c140bd39dd1cc13d1bceb39c85026f3849f688c3d6d331efc97eeae",
+    "hands_free_frontier_digest": "sha256:6f5753b0995c4f6f90c1e5d0364ae2fd2ead6388c7863ed031f20253ce80931d",
+    "work_orders_digest": "sha256:ce5a049c3c653ab5fdb104231e70460c48421e69952b848b2cb081085d0c9a6f"
+  },
+  "frontier": "/Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/_loop_run/evidence/frontier.json",
+  "ledger": "/Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/_loop_run/evidence/ledger.jsonl",
+  "loop_digest": "sha256:ef12fc88ead2e4eab21dae627aadb899772cf2159f563085a140e33b5c7fc5a4",
+  "mode": "dry-run",
+  "note": "dry-run: observe→admit→frontier with file digests; no execute/receipt actuation; coordinator/verifier must promote standing",
+  "skipped": [
+    "execute",
+    "receipt"
+  ],
+  "standing": "UNVERIFIED",
+  "status": "dry_run_ok",
+  "work_orders": "/Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/_loop_run/evidence/work_orders.json"
+}

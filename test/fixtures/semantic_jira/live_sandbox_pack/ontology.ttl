@@ -1,0 +1,5 @@
+@prefix ex: <http://example.com/execute-pack#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:Report a rdfs:Class .
+ex:exec-report a ex:Report ; ex:title "execute pack report" .

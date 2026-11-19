@@ -30,8 +30,22 @@ sjira-loop-dry:
     just sjira-loop dry-run
 
 # Live actuation alias (full chain including execute + receipt).
+# Requires operator/env pack+target OR use sjira-loop-live-sandbox.
 sjira-loop-live:
     just sjira-loop live
+
+# Hands-free live against sealed sandbox pack (PARTIAL_ALIVE ceiling).
+# No HITL: manufactures ephemeral git target + stamp, then autonomic_loop --live.
+sjira-loop-live-sandbox:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    root="{{justfile_directory()}}"
+    if [ ! -f "$root/mix.exs" ] && [ -f "$root/../mix.exs" ]; then
+      root="$(cd "$root/.." && pwd)"
+    fi
+    cd "$root"
+    export GGEN_IGNITER_DIR="${GGEN_IGNITER_DIR:-$root}"
+    exec bash scripts/sjira/live_sandbox.sh
 
 # Non-destructive Mix dry-run + optional ggen/hands-free frontier cross-check.
 # Set SJIRA_HANDS_FREE_CROSSCHECK=1 (and GGEN_BIN or SJIRA_HANDS_FREE_BIN).

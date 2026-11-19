@@ -1,0 +1,48 @@
+{
+  "bridge": {
+    "base_sha": "10d09f83461030c2d9ee7b2775374cc412aa7bcb",
+    "definition_digest": "sha256:81acb6c7102c441fffea59709f07ea8f03c4a9562a227c0d987c3b5a54b912eb",
+    "evidence_ceiling": "repository-local",
+    "identity": "EXEC-SANDBOX-1",
+    "ledger_tail": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_identity": "sjira:live-sandbox:EXEC-SANDBOX-1",
+    "repository": "seanchatmangpt/ggen_igniter",
+    "requires": {
+      "acceptance": [
+        "urn:semantic-jira:acceptance:EXEC-SANDBOX-1:a1"
+      ],
+      "courts": [
+        "ci"
+      ],
+      "falsifiers": [
+        "urn:semantic-jira:falsifier:EXEC-SANDBOX-1:f1"
+      ]
+    },
+    "source_snapshot_digest": "sha256:a113081398412dfbb0da6d4f0b4b3d4bc87ff9819c3d5c8a425e6cfc03de91fd",
+    "subject": "sjira:live-sandbox:subject"
+  },
+  "epoch_id": "ggen-local",
+  "fabric_verifier": {
+    "court_receipt": {
+      "acceptance_results": {
+        "urn:semantic-jira:acceptance:EXEC-SANDBOX-1:a1": true
+      },
+      "falsifier_results": {
+        "urn:semantic-jira:falsifier:EXEC-SANDBOX-1:f1": "survived"
+      }
+    },
+    "status": "pass",
+    "steps": [
+      {
+        "id": "ci",
+        "status": "pass"
+      }
+    ]
+  },
+  "final_head": "99669dc25f2cb648e572c05fbdc4741c2b0dd013",
+  "head_verified": false,
+  "outcome": "partial_alive",
+  "receipt_digest": "sha256:23b61b8cf1e455b366e86572cb28bba817eba2dcb9ec448a0d4abebdb4bae25b",
+  "receipt_id": "receipt-7ccaf82c608902c9",
+  "run_id": "local-7ccaf82c608902c9"
+}

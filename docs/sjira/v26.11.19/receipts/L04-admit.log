@@ -1,0 +1,3 @@
+admitted 1 FRI-FMT-A origin=https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority origin_digest=sha256:310e14f1e30a9bb4d6ebd4388036e10ce3c973b13c0d45a7b550fa3dfd53c72c work_order_digest=sha256:b91493f14bc8919837305fa4fec55f16c8c7c78413607376f2b225585910385d
+admitted 2 FRI-FMT-B origin=https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority origin_digest=sha256:310e14f1e30a9bb4d6ebd4388036e10ce3c973b13c0d45a7b550fa3dfd53c72c work_order_digest=sha256:9e8a568f50356e0b01eb2b04ea7b8a2862295a91c94319cae19553034f76955c
+summary admitted=2 refused=0

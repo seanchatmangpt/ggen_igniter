@@ -1,0 +1,4 @@
+PREFIX ex: <http://example.com/execute-pack#>
+SELECT DISTINCT ?subject WHERE {
+  ?s a ex:Report ; ex:title ?subject .
+}
