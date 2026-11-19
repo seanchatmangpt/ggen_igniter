@@ -74,10 +74,23 @@ defmodule GgenIgniter.PackFrontmatter.Sync do
     %{files: files, gates: gates}
   end
 
-  @doc "True when `pack_dir` holds frontmatter `.tmpl`/`.tera` templates whose bodies use Tera syntax."
+  @doc """
+  True when `pack_dir` is a *pure* Tera frontmatter pack: it holds frontmatter
+  `.tmpl`/`.tera` templates whose bodies use Tera syntax, and it holds **no**
+  classic `.eex` templates.
+
+  Hybrid packs (EEx manufacture + one additive `.tera`, e.g. semantic-jira-pack
+  with `jira.md.eex` and `doc_work_order.ttl.tera`) must stay on the classic
+  EEx `mix ggen_igniter.sync` path. Classifying them as Tera packs would run
+  FM-PACK-013 inverted gate polarity over ADR-0010 witness `gates/*.rq` and
+  refuse every WorkOrder row as a "violation".
+  """
   @spec tera_pack?(String.t()) :: boolean()
   def tera_pack?(pack_dir) do
-    templates(pack_dir) != [] and
+    # Any classic EEx template keeps the pack on the ADR-0010 EEx sync path.
+    eex = Path.wildcard(Path.join(pack_dir, "templates/*.eex"))
+
+    eex == [] and templates(pack_dir) != [] and
       Enum.any?(templates(pack_dir), fn t ->
         body = File.read!(t)
         String.starts_with?(body, "---\n") and Regex.match?(~r/\{\{|\{%/, body)

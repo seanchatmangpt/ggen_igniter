@@ -92,4 +92,13 @@ defmodule GgenIgniter.PackFrontmatter.DispatchTest do
     pack = Path.join(File.cwd!(), "test/fixtures/ash-lifecycle-pack")
     refute Sync.tera_pack?(pack)
   end
+
+  test "hybrid EEx+Tera packs stay off the Tera dispatch (semantic-jira-pack)" do
+    # One additive doc_work_order.ttl.tera must not flip ADR-0010 witness gates
+    # onto FM-PACK-013 inverted polarity via mix ggen_igniter.sync --pack.
+    pack = Path.join(File.cwd!(), "priv/ggen/semantic-jira-pack")
+    assert File.exists?(Path.join(pack, "templates/jira.md.eex"))
+    assert File.exists?(Path.join(pack, "templates/doc_work_order.ttl.tera"))
+    refute Sync.tera_pack?(pack)
+  end
 end

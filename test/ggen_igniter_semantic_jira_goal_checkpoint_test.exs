@@ -77,10 +77,11 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
       assert {:ok, results} = Shacl.run(@pack_dir, write_merged!(goal_source()))
       assert {"friday_work_order_shape", :pass} in results
       assert {"goal_checkpoint_shape", :pass} in results
-      # 19 pre-SJ-002 shapes + work_order_origin_shape + admission_digest_shape
-      # (v26.9.24 R10) + authority_trust_root_shape (G1, v26.9.25); the same
-      # count Shacl.run reports here.
-      assert length(results) == 22
+      # Census (v26.11.19): Shacl.run over the shipped pack reports 27 shapes —
+      # the Friday GoalCheckpoint set plus provenance / A2A / epoch / lease /
+      # origin / admission_digest / authority_trust_root additions landed after
+      # the original 22-count pin. Keep the count honest to the pack on disk.
+      assert length(results) == 27
     end
 
     for {field, shape, constraint} <- @mutation_table do
@@ -410,13 +411,13 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
   end
 
   describe "Shacl.validate_file/2 (pre-Friday orders are unaffected)" do
-    test "the canonical pack ontology (35 orders: 33 legacy + SJ-002 + SJ-003, no sj:checkpointOf) still conforms" do
+    test "the canonical pack ontology (36 orders: C13 + GALL-001..032 + MVP + SJ-002 + SJ-003, no sj:checkpointOf) still conforms" do
       report = Shacl.validate_file(@ontology_path, @shapes_path)
 
       assert report.conforms, "violations:\n#{inspect(report.violations, pretty: true)}"
 
       graph = GgenIgniter.Ontology.load!(@ontology_path)
-      assert length(KernelDifferential.order_iris(graph)) == 35
+      assert length(KernelDifferential.order_iris(graph)) == 36
 
       refute Enum.any?(RDF.Graph.triples(graph), fn {_s, p, _o} ->
                p == RDF.iri(@sj <> "checkpointOf")
@@ -618,7 +619,7 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
 
   describe "mix ggen_igniter.sync (real subprocess over the merged goal graph)" do
     @tag timeout: :timer.minutes(5)
-    test "manufactures the Friday ticket beside all 35 orders (33 legacy + SJ-002 + SJ-003) with a graph-bound receipt" do
+    test "manufactures the Friday ticket beside all 37 orders (36 pack + GC-FIXTURE) with a graph-bound receipt" do
       work_dir = scratch_dir!("sync")
       ontology = write_merged!(goal_source())
 
@@ -643,7 +644,8 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
         )
 
       assert exit_code == 0, "sync failed:\n#{output}"
-      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 36
+      # 36 shipped pack WorkOrders + GC-FIXTURE-WO-1 from the merged goal graph.
+      assert length(Path.wildcard(Path.join(work_dir, "*.md"))) == 37
 
       friday = File.read!(Path.join(work_dir, "GC-FIXTURE-WO-1.md"))
       assert friday =~ "# GC-FIXTURE-WO-1 — Repair mix format drift"
@@ -751,17 +753,19 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
   end
 
   # Renders jira.md.eex for one for_each row exactly as the sync pipeline
-  # binds it: every pack gate's rows under its discovered name, plus the
-  # driver row's columns as top-level atom-keyed bindings. The pack's SHACL
-  # court is deliberately not in this path, so template-level refusals are
-  # observed on their own.
+  # binds it: every pack gate's rows under its discovered name, every
+  # verify/*.unbound.rq companion as `<stem>_unbound` (ADR-0010; same merge
+  # `mix ggen_igniter.sync` performs), plus the driver row's columns as
+  # top-level atom-keyed bindings. The pack's SHACL court is deliberately
+  # not in this path, so template-level refusals are observed on their own.
   defp render_ticket!(graph, id) do
     named =
-      @pack_dir
-      |> Pack.discover_queries()
-      |> Map.new(fn {name, path} ->
-        {String.to_atom(name), Query.run(graph, File.read!(path))}
-      end)
+      Map.new(
+        Pack.discover_queries(@pack_dir) ++ Pack.discover_unbound_queries(@pack_dir),
+        fn {name, path} ->
+          {String.to_atom(name), Query.run(graph, File.read!(path))}
+        end
+      )
 
     row = Enum.find(named.work_orders, &(&1["id"] == id)) || flunk("no work_orders row for #{id}")
 

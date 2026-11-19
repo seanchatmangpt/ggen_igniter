@@ -25,12 +25,14 @@ not agent-authored PASS claims. Dogfood SoT for WAVE-L04:
 | observe → admit → frontier (Mix dry-run) | **PASS** | friday fixture EXIT=0 `dry_run_ok`; admit 2/0; eligible=1 blocked=1 |
 | `just sjira-loop-evidence` twin | **PASS** | EXIT=0; Mix↔hands-free eligible=`['FRI-FMT-A']`; `receipts/L04-loop_receipt.json` |
 | hands-free twin court (Chicago) | **PASS** | 3/3 EXIT=0 (supporting vacuity) |
-| bare `just sjira-loop live` (no env) | **BLOCKED** | EXIT=2 honest; pack/target/verifier env |
+| Friday GoalCheckpoint Chicago (`--include integration`) | **PASS** | 44/44 after hybrid-pack `tera_pack?` fix; see `receipts/L04-friday-fixture-hardening.md` |
+| bare `just sjira-loop live` (no env) | **BLOCKED** | EXIT=2; missing `SJIRA_PACK_DIR\|SJIRA_PACKS_ROOT\|SJIRA_RECEIPT` (+ `SJIRA_VERIFIER_SUITE`, `SJIRA_ALIAS`, target) |
 | Fabric / auth live (Tony) | **BLOCKED (Tony)** | destructive/auth live remains external; not dogfood-closed |
 
-### Product fix that unblocked evidence
+### Product fixes
 
 1. **ggen** `fd4f99bbd` — CLI `sjira frontier` loads embedded canonical authority index when `--authority` absent (closes `authority_index_unavailable` → empty HF → `HANDS_FREE_TWIN_DRIFT`).
+2. **igniter** hybrid pack law — `PackFrontmatter.Sync.tera_pack?/1` ignores additive `.tera` beside classic `*.eex` so `semantic-jira-pack:jira` stays on ADR-0010 EEx sync (closes FM-PACK-013 false refuse of witness gates).
 
 ## Replay
 
@@ -52,5 +54,7 @@ just sjira-loop-evidence         # expect 0 (twin parity)
 
 ## Standing
 
-**PASS** scoped — dry + evidence twin drained. Live remains **BLOCKED (Tony)**.
-Not wave COMPLETE. Not fake ALIVE. See `receipts/L04-sjira-loop-twin.md`.
+**PASS** scoped — dry + evidence twin + Friday GoalCheckpoint drained. Live
+remains **BLOCKED** (exact keys above + Tony fabric). Not wave COMPLETE. Not
+fake ALIVE. See `receipts/L04-sjira-loop-twin.md` and
+`receipts/L04-friday-fixture-hardening.md`.
