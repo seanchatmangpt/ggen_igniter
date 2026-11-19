@@ -19,6 +19,18 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   (`runtime-templates/descriptor.json.eex` of `semantic-jira-pack`) and the A2A task
   metadata (`to_a2a_task/3`). Authority is always `NONE`; the descriptor grants
   no lease, does no DO, and never promotes standing.
+
+  ## Shape enforcement scope
+
+  `priv/ggen/semantic-jira-pack/shapes/execution-descriptor.shacl.ttl` is NOT
+  run by `build/4`: there is no descriptor -> RDF render helper, and running
+  `Shacl.validate_file/2` over a synthesized graph would also enforce its
+  `sj:workOrderId` pattern (`^[A-Z][A-Z0-9-]{1,63}$`), which is stricter than the
+  work-order admission that `build/4` already performs (ids such as `"A"` or
+  lowercase ids are admitted work orders). The enforceable subset, applied
+  here, is the worker/verifier identity pattern; the provider pattern was
+  already enforced by `build_provider/1`. The remaining shape rows describe
+  values copied from the admitted order and are guaranteed by admission.
   """
 
   alias GgenIgniter.{Render, RuntimeShape, SemanticA2A, SemanticJira}
@@ -53,6 +65,10 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
   `:authority` (origin-authority index, graph or Turtle path; default the
   canonical index -- `SemanticJira.frontier/4`). An order whose origin does
   not resolve is `{:not_on_frontier, "origin_not_admitted"}`.
+
+  `worker_identity` and `verifier_identity` must match `\\A[A-Za-z0-9_.-]{1,128}\\z`
+  (the pattern `execution-descriptor.shacl.ttl` declares); otherwise
+  `{:error, {:refused_descriptor, {:invalid_option, :worker_identity | :verifier_identity}}}`.
   """
   @spec build([map()], String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
   def build(work_orders, identity, attrs, opts \\ [])
@@ -74,6 +90,8 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
 
     with {:ok, provider} <- build_provider(attrs),
          {:ok, candidate} <- eligible(front, identity),
+         {:ok, worker} <- build_identity(attrs, "worker_identity", :worker_identity),
+         {:ok, verifier} <- build_identity(attrs, "verifier_identity", :verifier_identity),
          {:ok, raw} <- find(projected, identity),
          {:ok, admitted} <- refuse(SemanticJira.admit_work_order(raw)),
          :ok <- same_snapshot(admitted, candidate),
@@ -91,8 +109,8 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
          "graph_digest" => attrs["graph_digest"],
          "source_digest" => attrs["source_digest"],
          "provider" => provider,
-         "worker_identity" => attrs["worker_identity"],
-         "verifier_identity" => attrs["verifier_identity"],
+         "worker_identity" => worker,
+         "verifier_identity" => verifier,
          "replay_identity" => admitted["replay_identity"],
          "package" => package |> RuntimeShape.to_map() |> json_safe(),
          "authority" => "NONE"
@@ -225,6 +243,16 @@ defmodule GgenIgniter.SemanticJira.Descriptor do
 
       _ ->
         {:error, {:refused_descriptor, {:invalid_option, :provider}}}
+    end
+  end
+
+  # build/4's worker/verifier identity: the pattern `sj:workerIdentity` /
+  # `sj:verifierIdentity` declare in execution-descriptor.shacl.ttl, refused in
+  # build/4's own vocabulary. A missing identity (nil) is refused too.
+  defp build_identity(attrs, key, option) do
+    case match_option(Map.get(attrs, key), @alias_re, option) do
+      {:ok, _} = ok -> ok
+      {:error, {:descriptor_refused, reason}} -> {:error, {:refused_descriptor, reason}}
     end
   end
 

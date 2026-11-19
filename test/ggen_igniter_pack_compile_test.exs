@@ -124,29 +124,31 @@ defmodule GgenIgniter.PackCompileTest do
       File.mkdir_p!(dir)
       on_exit(fn -> PackCompile.cleanup(dir) end)
 
-      assert {:error, %{exit_status: 124, output: out}} =
+      assert {:error, %{exit_status: 124, output: out, os_pid: os_pid}} =
                PackCompile.render("slow", pack_dir: dir, timeout: 50)
 
       assert out =~ "timed out after 50ms"
 
-      # Bounded poll (audited helper) for the subprocess's death: up to 2s,
-      # fail naming the actual elapsed wait if the process tree survived.
+      # Bounded poll (audited helper) on the real OS pid: `kill -0` exits
+      # non-zero once the process no longer exists.
       start = System.monotonic_time(:millisecond)
 
       survived? =
         GgenIgniterTest.AssertEventually.eventually(
           fn ->
-            {ps, _} = System.cmd("ps", ["-axo", "command"])
-            not (ps =~ marker)
+            {_, status} =
+              System.cmd("kill", ["-0", Integer.to_string(os_pid)], stderr_to_stdout: true)
+
+            status != 0
           end,
-          timeout: 2_000,
+          timeout: 10_000,
           step: 50
         ) != {:ok, true}
 
       elapsed = System.monotonic_time(:millisecond) - start
 
       refute survived?,
-             "mix subprocess for #{marker} survived the timeout (waited #{elapsed}ms)"
+             "mix subprocess pid #{os_pid} (#{marker}) survived the timeout (waited #{elapsed}ms)"
     end
   end
 

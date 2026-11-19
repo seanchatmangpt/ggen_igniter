@@ -101,6 +101,10 @@ defmodule GgenIgniter.SemanticJira do
     work_order = strings(value)
 
     with :ok <- required(work_order, @required),
+         # SHAPE ALIGNMENT AUDIT B1 (deliberately NOT enforced): the SHACL shape pins
+         # dcterms:identifier to ^[A-Z][A-Z0-9-]{1,63}$, but the kernel only requires
+         # a non-blank identity. Existing fixtures admit one-character identities
+         # ("A", "B", "C" in reconciler/descriptor tests); migrate them first.
          :ok <- repository(work_order["repository"]),
          :ok <- sha(:base_sha, work_order["base_sha"]),
          :ok <- optional_sha(:candidate_sha, work_order["candidate_sha"]),
@@ -112,7 +116,12 @@ defmodule GgenIgniter.SemanticJira do
            ),
          :ok <- dependencies(Map.get(work_order, "dependencies", [])),
          :ok <- projection_types(Map.get(work_order, "projections", [])),
+         # B4 (deliberate): the shape says sj:requiresReceiptClass minCount 1, but
+         # the kernel defaults required_receipt_classes to [] until pre-existing
+         # orders are audited. Do not tighten without that audit.
          :ok <- receipt_classes(Map.get(work_order, "required_receipt_classes", [])),
+         # B3 (deliberately NOT enforced): shape sj:pathScope minCount 1, but many
+         # fixtures omit path_scope (default []), so an empty scope is admitted.
          :ok <- path_scope(Map.get(work_order, "path_scope", [])),
          :ok <- origin_authority(work_order["origin_authority"]),
          :ok <- optional_origin_observation(work_order["origin_observation"]),

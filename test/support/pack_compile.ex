@@ -102,6 +102,9 @@ defmodule GgenIgniter.Test.PackCompile do
       {output, 0} ->
         {:ok, %{out_dir: dir, files: generated_files(dir), output: output}}
 
+      {output, status, os_pid} ->
+        {:error, %{exit_status: status, output: output, os_pid: os_pid}}
+
       {output, status} ->
         {:error, %{exit_status: status, output: output}}
     end
@@ -163,7 +166,7 @@ defmodule GgenIgniter.Test.PackCompile do
         kill_tree(os_pid)
         catch_close(port)
         out = IO.iodata_to_binary(acc)
-        {out <> "sync subprocess timed out after #{timeout}ms", 124}
+        {out <> "sync subprocess timed out after #{timeout}ms", 124, os_pid}
     end
   end
 

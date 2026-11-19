@@ -368,7 +368,9 @@ defmodule GgenIgniter.PackLock do
   holder writes a unique token to `<lockdir>/owner`, releases only while that
   token is still current, and a stale dir (older than #{@stale_lock_s}s) is
   reclaimed by atomic rename to a grave plus a token re-check, never by a bare
-  rmdir.
+  rmdir. A stale lockdir with no owner token (holder died before writing it) is
+  reclaimed the same way. `opts[:timeout_ms]` bounds acquisition (default
+  #{@lock_timeout_ms}ms).
   """
   @spec update(String.t(), keyword(), (lock() -> {:ok, lock()} | {:error, term()})) ::
           {:ok, lock()} | {:error, term()}
@@ -379,7 +381,8 @@ defmodule GgenIgniter.PackLock do
     token =
       "#{System.pid()}.#{System.unique_integer([:positive])}.#{Base.encode16(:crypto.strong_rand_bytes(8))}"
 
-    acquire(lockdir, token, System.monotonic_time(:millisecond) + @lock_timeout_ms)
+    timeout_ms = Keyword.get(opts, :timeout_ms, @lock_timeout_ms)
+    acquire(lockdir, token, System.monotonic_time(:millisecond) + timeout_ms)
 
     try do
       with {:ok, lock} <- load_for_update(lock_path, opts[:force] == true),
@@ -394,7 +397,31 @@ defmodule GgenIgniter.PackLock do
 
   # Removes the lockdir only while it still carries OUR owner token: a holder
   # whose stale lock was reclaimed must never delete its successor's lock.
+  # The token-read-then-rmdir runs under the breaker mutex so a reclaimer cannot
+  # interleave; the wait is bounded, after which the (still token-checked)
+  # release proceeds unserialized.
   defp release(lockdir, token) do
+    deadline = System.monotonic_time(:millisecond) + 2_000
+    release_serialized(lockdir, token, deadline)
+  end
+
+  defp release_serialized(lockdir, token, deadline) do
+    case with_breaker(lockdir, fn -> release_if_owner(lockdir, token) end) do
+      {:ok, :ok} ->
+        :ok
+
+      :busy ->
+        if System.monotonic_time(:millisecond) > deadline do
+          release_if_owner(lockdir, token)
+        else
+          # SLEEP-CLASS: POLL-STEP
+          Process.sleep(2)
+          release_serialized(lockdir, token, deadline)
+        end
+    end
+  end
+
+  defp release_if_owner(lockdir, token) do
     owner = Path.join(lockdir, "owner")
 
     case File.read(owner) do
@@ -429,7 +456,7 @@ defmodule GgenIgniter.PackLock do
             acquire(lockdir, token, deadline)
 
           System.monotonic_time(:millisecond) > deadline ->
-            raise "pack lock busy: #{lockdir} held for over #{@lock_timeout_ms}ms"
+            raise "pack lock busy: #{lockdir} not acquired before the lock timeout"
 
           true ->
             # SLEEP-CLASS: POLL-STEP
@@ -447,22 +474,79 @@ defmodule GgenIgniter.PackLock do
   # owner token is compared with the one seen before the staleness check: equal
   # means we buried the stale lock; different means we moved a fresh lock, which
   # is renamed back. A lost rename race just retries the acquire loop.
+  #
+  # Staleness is judged read-only first, so a live lockdir is never renamed.
+  # Only a stale-looking dir is claimed, under the short-lived `<lockdir>.breaker`
+  # mkdir mutex (same pattern as `GgenIgniter.Lock`), which re-checks staleness
+  # before the rename. An ownerless dir (holder died between mkdir and the token
+  # write) is reclaimable on the same terms: its "token" is the empty string, and
+  # the grave must still be ownerless to be removed.
   defp reclaim_stale(lockdir) do
-    with {:ok, seen} when seen != "" <- File.read(Path.join(lockdir, "owner")),
-         true <- stale?(lockdir),
+    if stale?(lockdir) do
+      case with_breaker(lockdir, fn -> claim_if_stale(lockdir) end) do
+        {:ok, reclaimed?} -> reclaimed?
+        :busy -> false
+      end
+    else
+      false
+    end
+  end
+
+  defp claim_if_stale(lockdir) do
+    with true <- stale?(lockdir),
+         seen = read_owner(lockdir),
          grave = "#{lockdir}.dead.#{System.unique_integer([:positive])}",
          :ok <- File.rename(lockdir, grave) do
-      case File.read(Path.join(grave, "owner")) do
-        {:ok, ^seen} ->
-          File.rm_rf(grave)
-          true
-
-        _ ->
-          _ = File.rename(grave, lockdir)
-          false
+      if read_owner(grave) == seen do
+        File.rm_rf(grave)
+        true
+      else
+        _ = File.rename(grave, lockdir)
+        false
       end
     else
       _ -> false
+    end
+  end
+
+  defp read_owner(dir) do
+    case File.read(Path.join(dir, "owner")) do
+      {:ok, token} -> token
+      _ -> ""
+    end
+  end
+
+  @breaker_stale_s 5
+
+  # Runs `fun` holding the `<lockdir>.breaker` mutex; `:busy` when another
+  # breaker holds it (an orphaned breaker older than #{@breaker_stale_s}s is
+  # reclaimed for the next attempt).
+  defp with_breaker(lockdir, fun) do
+    breaker = lockdir <> ".breaker"
+
+    case File.mkdir(breaker) do
+      :ok ->
+        try do
+          {:ok, fun.()}
+        after
+          File.rmdir(breaker)
+        end
+
+      {:error, :eexist} ->
+        reclaim_orphan_breaker(breaker)
+        :busy
+
+      {:error, reason} ->
+        raise "cannot create #{breaker}: #{:file.format_error(reason)}"
+    end
+  end
+
+  defp reclaim_orphan_breaker(breaker) do
+    with {:ok, %File.Stat{mtime: m}} <- File.stat(breaker, time: :posix),
+         true <- System.os_time(:second) - m > @breaker_stale_s do
+      File.rmdir(breaker)
+    else
+      _ -> :ok
     end
   end
 

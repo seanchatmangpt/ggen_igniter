@@ -102,10 +102,36 @@ defmodule GgenIgniter.DoctorInProcessTest do
     assert output =~ ~r/(native\/ggen_graph_nif|priv\/native\/ggen_graph_nif\.so)/
     assert output =~ ~r/GgenIgniter\.Query\.Graphlaw real SELECT query.*returned \d+ row\(s\)/
 
-    # Real, current git status of this checkout -- either clean or dirty is a
-    # real fact, but the check itself must have run and reported one or the
-    # other (never silently skipped, never a fabricated pass).
+    # The git check ran against this checkout (clean or dirty is a real fact
+    # that varies); exact formats are pinned deterministically in the next test.
     assert output =~ "git clean" or output =~ ~r/git dirty \(\d+ uncommitted change\(s\)\)/
+  end
+
+  test "git status check: throwaway real repo reports clean, then the dirty format" do
+    dir = Path.join(System.tmp_dir!(), "doctor_git_#{System.unique_integer([:positive])}")
+    File.rm_rf!(dir)
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf!(dir) end)
+
+    git = fn args ->
+      {out, 0} =
+        System.cmd("git", ["-c", "user.name=t", "-c", "user.email=t@t" | args],
+          cd: dir,
+          stderr_to_stdout: true
+        )
+
+      out
+    end
+
+    git.(["init", "-q"])
+    File.write!(Path.join(dir, "a.txt"), "one\n")
+    git.(["add", "a.txt"])
+    git.(["commit", "-q", "-m", "init"])
+
+    assert {:ok, "git clean"} = Doctor.check_git_status(cwd: dir)
+
+    File.write!(Path.join(dir, "b.txt"), "two\n")
+    assert {:warn, "git dirty (1 uncommitted change(s))"} = Doctor.check_git_status(cwd: dir)
   end
 
   test "--pack-dir against the real sample-pack fixture: pack checks 9-12 all pass in-process" do

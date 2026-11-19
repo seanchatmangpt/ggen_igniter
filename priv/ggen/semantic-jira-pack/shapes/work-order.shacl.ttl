@@ -59,6 +59,9 @@ sj:WorkOrderShape a sh:NodeShape ;
     sh:property [ sh:path sj:projection ; sh:minCount 1 ; sh:nodeKind sh:IRI ] ;
     sh:property [ sh:path sj:nextAction ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Action ] ;
     sh:property [ sh:path sj:nextCheckpoint ; sh:minCount 1 ; sh:nodeKind sh:IRI ; sh:class sj:Checkpoint ] ;
+    # NOTE (alignment audit B4): the kernel (SemanticJira.admit_work_order/1) defaults
+    # required_receipt_classes to [] on purpose until pre-existing orders are audited;
+    # this minCount 1 is stricter than kernel admission by design for now.
     sh:property [ sh:path sj:requiresReceiptClass ; sh:minCount 1 ; sh:datatype xsd:string ; sh:pattern "^(manufacture|projection|authority_preparation|actuation|verification|postcondition|replay|publication|deployment)$" ] ;
     sh:property [ sh:path sj:candidateSha ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
     sh:property [ sh:path sj:subjectSha ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;

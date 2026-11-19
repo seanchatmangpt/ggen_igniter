@@ -296,7 +296,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         doctor_fix_rule_checks(opts) ++
         if(pack_dir, do: pack_checks(pack_dir), else: []) ++
         [
-          tag("git_status", check_git_status()),
+          tag("git_status", check_git_status([])),
           tag("nif_compiles", check_nif_compiles()),
           tag("graphlaw_smoke_test", check_graphlaw_smoke_test()),
           tag("semantic_jira_pack", check_semantic_jira_pack()),
@@ -760,8 +760,12 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   end
 
   # 13. Target dir git status
-  defp check_git_status do
-    case System.cmd("git", ["status", "--porcelain"], cd: File.cwd!(), stderr_to_stdout: true) do
+  # Public (`@doc false`) so tests can point it at a throwaway repo via `:cwd`.
+  @doc false
+  def check_git_status(opts \\ []) do
+    cwd = Keyword.get(opts, :cwd, File.cwd!())
+
+    case System.cmd("git", ["status", "--porcelain"], cd: cwd, stderr_to_stdout: true) do
       {output, 0} ->
         dirty_count = output |> String.split("\n", trim: true) |> length()
 
