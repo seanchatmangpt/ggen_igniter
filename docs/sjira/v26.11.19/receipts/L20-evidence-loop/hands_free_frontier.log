@@ -1,0 +1,1 @@
+2026-11-19T23:02:59.957064Z  INFO ggen.cli{command=sjira frontier --orders-path /Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/L20-evidence-loop/work_orders.json --format json version="26.11.5"}: ggen_cli_lib: close time.busy=13.2ms time.idle=24.6µs

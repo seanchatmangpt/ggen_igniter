@@ -1,9 +1,11 @@
 # Hands-free sjira autonomic loop (v26.11.19) — GAP9 / SJ10
-Standing: PARTIAL
+Standing: PARTIAL_ALIVE
 
 Subject: `/Users/sac/ggen_igniter` hands-free observe → admit → frontier (+ optional
 ggen/hands-free cross-check with mandatory eligible-set parity). Live execute
 remains operator-gated. Skeptic L19 vacuity closed: JSON-ok alone is not PASS.
+Twin drift closed: Rust CLI frontier loads embedded canonical authority index
+when `--authority` is absent (ggen `fd4f99bbd`); Mix↔HF eligible=`['FRI-FMT-A']`.
 
 ## Identity
 
@@ -14,17 +16,18 @@ remains operator-gated. Skeptic L19 vacuity closed: JSON-ok alone is not PASS.
 | Twin court | `test/ggen_igniter_semantic_jira_hands_free_twin_court_test.exs` |
 | Just recipes | `justfile.d/10-sjira.just` (+ root `Justfile` import) |
 | Mix tasks | `lib/mix/tasks/semantic_jira.{observe,admit_candidates,frontier,execute,complete,xaas_receipt}.ex` |
-| Rust hands-free twin | `/Users/sac/ggen/examples/zero-code-sjira-hands-free` (`sjira-hands-free` → `ggen sjira`) |
+| Rust hands-free twin | `/Users/sac/ggen` `ggen sjira frontier` (canonical_index default) |
 | EA sibling | `/Users/sac/ggen/examples/zero-code-sjira` (scaffold; not the live twin) |
 | fnox | no `just sjira-loop` surface (sjira docs under `docs/sjira/`; loop SoT is ggen_igniter) |
+| Evidence receipt | `docs/sjira/v26.11.19/receipts/L20-evidence-loop_receipt.json` |
 
 ## GAP9 / SJ10 standing (beyond dry-run)
 
 | Hop | Standing | Notes |
 |---|---|---|
-| observe → admit → frontier (Mix dry-run) | **PASS** | friday fixture EXIT=0, `status: dry_run_ok`, digests present; `admit: admitted=2 refused=0`; `frontier: eligible=1 blocked=1` |
-| evidence digests in `loop_receipt.json` | landed | `candidates`/`admitted`/`work_orders`/`frontier` sha256 |
-| `just sjira-loop-evidence` / `SJIRA_HANDS_FREE_CROSSCHECK=1` | **REFUSED** | ggen 26.11.5 EXIT=1 `REFUSED:HANDS_FREE_TWIN_DRIFT eligible-set mismatch mix=['FRI-FMT-A'] hands_free=[]` (Mix↔Rust `authority_index_unavailable`). Missing ggen still REFUSE: EXIT=1 `REFUSED:HANDS_FREE … exited 127` |
+| observe → admit → frontier (Mix dry-run) | **PASS** | friday fixture EXIT=0, `status: dry_run_ok`; `admit: admitted=2 refused=0`; `frontier: eligible=1 blocked=1` |
+| evidence digests in `loop_receipt.json` | **PASS** | candidates/admitted/work_orders/frontier/hands_free_frontier sha256 present |
+| `just sjira-loop-evidence` / `SJIRA_HANDS_FREE_CROSSCHECK=1` | **PASS** | EXIT=0; `hands-free twin parity: ok eligible=['FRI-FMT-A']`; HF digest `sha256:6f5753b0995c4f6f90c1e5d0364ae2fd2ead6388c7863ed031f20253ce80931d` |
 | hands-free twin court (Chicago) | **PASS** | 3/3: match PASS; FLIP mismatch REFUSES `HANDS_FREE_TWIN_DRIFT`; `--self-test` PASS |
 | live execute / complete | **BLOCKED** | EXIT=2 without operator pack/target (see below) |
 
@@ -33,7 +36,8 @@ remains operator-gated. Skeptic L19 vacuity closed: JSON-ok alone is not PASS.
 Eligible identity sets from Mix frontier and hands-free frontier must be equal
 before evidence PASS. Divergence is typed `REFUSED:HANDS_FREE_TWIN_DRIFT`
 (`scripts/sjira/hands_free_twin_parity.py`). Prior vacuous JSON-ok EXIT=0 with
-Mix `eligible=1` vs Rust `eligible=[]` is closed.
+Mix `eligible=1` vs Rust `eligible=[]` is closed. Live ggen after
+`fd4f99bbd` + install admits the same set.
 
 ### Live BLOCKED — exact refuse conditions
 
@@ -49,15 +53,16 @@ Even with env present, live is **destructive** (pack sync / gate verify / ledger
 
 ## Authority
 
-- Builder: skeptic L19 twin-vacuity close (eligible-set parity + Chicago flip court).
-- Prior O→A→F dry-run remains green on friday fixture.
-- Evidence hop with live ggen 26.11.5 is now honestly REFUSED until Rust twin admits the same eligible set (authority index).
+- Builder: L20 twin-drift close — Rust frontier `canonical_index()` when
+  `--authority` absent (ggen `fd4f99bbd`); `~/.local/bin/ggen` rebuilt/installed.
+- Evidence hop EXIT=0 on friday fixture with eligible-set parity.
+- Live execute remains operator-gated BLOCKED.
 
 ## Consequence
 
 - `autonomic_loop.sh` invokes `hands_free_twin_parity.py` after hands-free parse.
 - Court proves discrimination: match EXIT=0, mismatch EXIT=1 `HANDS_FREE_TWIN_DRIFT`.
-- O→A→F dry-run PASS; evidence with current ggen REFUSED; live BLOCKED → Standing **PARTIAL**.
+- O→A→F dry-run PASS; evidence PASS; live BLOCKED → Standing **PARTIAL_ALIVE**.
 
 ## Replay
 
@@ -82,9 +87,9 @@ open(sys.argv[1],"w").writelines(json.dumps(w,separators=(",",":"))+"\n" for w i
 export SJIRA_CANDIDATES=$SJIRA_OUT_DIR/candidates.jsonl
 just sjira-loop dry-run; echo EXIT:$?   # expect 0
 
-# Twin evidence with live ggen (expect REFUSE until Rust eligible matches):
+# Twin evidence with live ggen (eligible parity):
 export GGEN_BIN="$HOME/.local/bin/ggen"
-just sjira-loop-evidence; echo EXIT:$?  # expect 1 HANDS_FREE_TWIN_DRIFT
+just sjira-loop-evidence; echo EXIT:$?  # expect 0
 
 # Live BLOCKED:
 just sjira-loop live; echo EXIT:$?      # expect 2
@@ -92,7 +97,8 @@ just sjira-loop live; echo EXIT:$?      # expect 2
 
 ## Standing
 
-**PARTIAL** — Mix O→A→F friday dry-run EXIT=0 `dry_run_ok`. Hands-free twin court
-EXIT=0 (3/3; mismatch FLIPS to `REFUSED:HANDS_FREE_TWIN_DRIFT`). Live ggen evidence
-EXIT=1 twin drift (honest refuse, not vacuous JSON-ok PASS). Live execute remains
-**BLOCKED** (EXIT=2). Not full-loop ALIVE.
+**PARTIAL_ALIVE** — Mix O→A→F friday dry-run EXIT=0 `dry_run_ok`. Hands-free twin
+court EXIT=0 (3/3). Live ggen evidence EXIT=0 twin parity
+`eligible=['FRI-FMT-A']` (tool `loop_receipt` standing remains `UNVERIFIED` for
+dry-run mode by design). Live execute remains **BLOCKED** (EXIT=2). Not full-loop
+ALIVE.
