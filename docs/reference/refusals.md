@@ -27,7 +27,7 @@ and a distinct `fix_hint` (or a shared `hint_group`).
 
 ## Registry
 
-The registry holds 148 codes (`$defs.code.enum` count cascade: 132 -> 140 —
+The registry holds 150 codes (`$defs.code.enum` count cascade: 132 -> 140 —
 132 pre-existing, `SOVEREIGN_LEASE_REQUIRED` + `SOVEREIGN_LEASE_INVALID` from
 the Sovereign Ceiling Lease law, and `SOVEREIGN` itself as the code the
 exhaustiveness detector forces for the `{:refused_sovereign, reason}` wrapper
@@ -40,7 +40,9 @@ EXISTS-bearing gate query hits the default `sparql` engine, then
 security gate (open findings block landing; diff unresolvable), then
 `DUPLICATE_OUTPUT` + `MISSING_FRONTMATTER` + `PACK_GATE_VIOLATED` + `PATH_ESCAPE` +
 `UNKNOWN_FOR_EACH` + `UNSUPPORTED_FRONTMATTER` + `WRITE_WITHOUT_FORCE` for the
-frontmatter pack runner) derived from the schema by
+frontmatter pack runner, then `TARGET_PACK_DIGEST_MISMATCH` +
+`TARGET_PACK_DIGEST_RECHECK_UNSUPPORTED` for execute's fail-closed post-sync
+pack digest recheck) derived from the schema by
 `GgenIgniter.Refusals.count/0`, never hand-maintained, plus 24 wrapped reasons
 (unchanged). Regenerate both tables below with:
 
@@ -177,6 +179,8 @@ violates. `not_applicable` means no term is broken; the entry then carries a
 | `STATE_UNREACHABLE` | state_machine | false | mu_on_O | `GgenIgniter.Packs.StateMachine` | Add a transition into the named state from a reachable state, or remove the unreachable sm:State. |
 | `SUBJECT_EXHAUSTED` | hand_authored | false | not_applicable | `Mix.Tasks.GgenIgniter.HandAuthored` | No free subject IRI after 200 attempts; pick another base. |
 | `SUBJECT_PREFIX_UNDECLARED` | hand_authored | true | mu_on_O | `Mix.Tasks.GgenIgniter.HandAuthored` | Declare the subject namespace prefix in the ontology. |
+| `TARGET_PACK_DIGEST_MISMATCH` | semantic_work_order | false | mu_unlawful | `GgenIgniter.SemanticJira.Execute` | Re-sync (or restore) the pack so its PackLock digest matches the durable sync stamp at .ggen_igniter/target_pack_digests.json; a post-sync content change is refused before actuation. |
+| `TARGET_PACK_DIGEST_RECHECK_UNSUPPORTED` | semantic_work_order | true | mu_unlawful | `GgenIgniter.SemanticJira.Execute` | Run mix ggen_igniter.sync so TargetPack.enforce!/2 persists .ggen_igniter/target_pack_digests.json under the target, then re-execute; execute refuses rather than run over an unchecked pack. |
 | `TARGET_PACK_MISMATCH` | semantic_work_order | false | mu_unlawful | `GgenIgniter.SemanticJira.Execute` | Execute against the pack the order names: pass the --pack-dir whose pack.toml [pack].name (or, absent a manifest, its directory basename) equals the order's sj:targetPack. |
 | `TARGET_PACK_UNKNOWN` | semantic_work_order | true | R_missing_identity | `GgenIgniter.SemanticJira.TargetPack` | Create the pack at priv/ggen/<name> (cwd-relative) or pass --pack-dir with a real pack directory. |
 | `TRANSITION` | typed_tuple | false | R_missing_standing | `GgenIgniter.SemanticJira` | Present a genuine intent: its transition_digest must re-derive (intent_digest_mismatch), its from must equal the current standing (stale_intent) and bind the work-order digest (intent_not_bound_to_work_order). |

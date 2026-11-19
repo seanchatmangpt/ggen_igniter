@@ -1351,14 +1351,22 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   # already verified by the admission kernel): resolve each distinct
   # `target_pack` named in the materialized rows against the real
   # filesystem and stamp its `GgenIgniter.PackLock` digest
-  # (`GgenIgniter.SemanticJira.TargetPack.enforce!/2`). A run where no row
+  # (`GgenIgniter.SemanticJira.TargetPack.enforce!/2`). A non-empty stamp
+  # is persisted under `.ggen_igniter/target_pack_digests.json` so execute's
+  # fail-closed digest recheck has a durable pin. A run where no row
   # carries a target pack is a no-op. Raises the typed refusal
   # `REFUSED:TARGET_PACK_UNKNOWN` BEFORE any dispatch -- zero files written,
   # zero receipts appended -- exactly like `maybe_verify_base_shas!/2`.
   defp maybe_enforce_target_packs!(opts, named_results) do
-    GgenIgniter.SemanticJira.TargetPack.enforce!(named_results,
-      verify_cwd: opts[:verify_cwd] || File.cwd!()
-    )
+    stamp =
+      GgenIgniter.SemanticJira.TargetPack.enforce!(named_results,
+        verify_cwd: opts[:verify_cwd] || File.cwd!()
+      )
+
+    if map_size(stamp) > 0 do
+      base = opts[:manifest_dir] || opts[:verify_cwd] || File.cwd!()
+      GgenIgniter.SemanticJira.TargetPack.write_stamp!(base, stamp)
+    end
 
     :ok
   end

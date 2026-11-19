@@ -2696,3 +2696,291 @@ sj:run-sj-003-court a sj:Action ;
 sj:sj-003-checkpoint a sj:Checkpoint ;
     rdfs:label "SJ-003 checkpoint" ;
     dcterms:description "SJ-003 gates green on exact head; BRCE receipt for standing promotion remains BLOCKED." .
+
+# ---- CliTask facts (HANDWRITTEN ledger paydown: runtime Mix.Task shells) ----
+# templates/cli_task.ex.eex manufactures lib/mix/tasks/semantic_jira.*.ex from
+# these facts. Bodies only parse flags and call GgenIgniter.SemanticJira.Cli.*;
+# the kernel stays hand-written. Emit styles: shell_info (Mix.shell + exit),
+# emit (Cli.emit/2 with opts), emit_empty (Cli.emit([]) — --out is Turtle).
+
+sj:CliTask a rdfs:Class ;
+    rdfs:label "Semantic Jira CLI Mix task" ;
+    dcterms:description "One runtime mix semantic_jira.* shell manufactured by templates/cli_task.ex.eex: OptionParser strict schema plus a thin Cli.<verb>/1 call. Not an Igniter.Mix.Task (igniter.gen.task emits the wrong task type for this surface)." .
+
+sj:CliOption a rdfs:Class ;
+    rdfs:label "Semantic Jira CLI option" ;
+    dcterms:description "One OptionParser strict-schema entry belonging to an sj:CliTask (opt name, type string|keep, order)." .
+
+sj:cliTaskName a rdf:Property ; rdfs:domain sj:CliTask ; rdfs:range xsd:string .
+sj:cliModule a rdf:Property ; rdfs:domain sj:CliTask ; rdfs:range xsd:string .
+sj:cliShortdoc a rdf:Property ; rdfs:domain sj:CliTask ; rdfs:range xsd:string .
+sj:cliModuledoc a rdf:Property ; rdfs:domain sj:CliTask ; rdfs:range xsd:string .
+sj:cliVerb a rdf:Property ; rdfs:domain sj:CliTask ; rdfs:range xsd:string ;
+    rdfs:comment "GgenIgniter.SemanticJira.Cli.<verb>/1 function name." .
+sj:cliEmitStyle a rdf:Property ; rdfs:domain sj:CliTask ; rdfs:range xsd:string ;
+    rdfs:comment "shell_info | emit | emit_empty" .
+sj:cliEnsureApps a rdf:Property ; rdfs:domain sj:CliTask ; rdfs:range xsd:boolean ;
+    rdfs:comment "When true, run/1 starts :rdf and :sparql before Cli." .
+sj:cliOptionOf a rdf:Property ; rdfs:domain sj:CliOption ; rdfs:range sj:CliTask .
+sj:cliOptName a rdf:Property ; rdfs:domain sj:CliOption ; rdfs:range xsd:string .
+sj:cliOptType a rdf:Property ; rdfs:domain sj:CliOption ; rdfs:range xsd:string .
+sj:cliOptOrder a rdf:Property ; rdfs:domain sj:CliOption ; rdfs:range xsd:integer .
+
+sj:cli-task-frontier a sj:CliTask ;
+    rdfs:label "mix semantic_jira.frontier" ;
+    dcterms:description "Projects standing from the ledger and prints the next frontier as one JSON object via Cli.frontier/1." ;
+    sj:cliTaskName "semantic_jira.frontier" ;
+    sj:cliModule "Mix.Tasks.SemanticJira.Frontier" ;
+    sj:cliShortdoc "Print the Semantic Jira frontier projected from the standing ledger" ;
+    sj:cliVerb "frontier" ;
+    sj:cliEmitStyle "shell_info" ;
+    sj:cliEnsureApps false ;
+    sj:cliModuledoc '''Projects standing from the ledger and prints the next frontier.
+
+    mix semantic_jira.frontier --work-orders PATH --ledger PATH [--authority-graph PATH]
+
+Prints one JSON object: `eligible`, `blocked`, `standings` (identity ->
+projected standing), `events`, `ledger_tail`. Exit `0` on success, `1` when
+the ledger or work orders are refused (a tampered ledger is refused, never
+silently projected), `2` for an invalid invocation.
+
+Origin law (SJ-002 AC-04): an order is eligible only when its
+`origin_authority` resolves to an admitted authority -- typed
+`sj:StrategicObjective`/`sj:GoalCheckpoint`, not prose, carrying one
+`sj:admissionDigest` that recomputes. `--authority-graph PATH` names the
+Turtle authority graph; absent, the canonical semantic-jira-pack ontology.
+An unresolved origin is blocked with reason `origin_not_admitted`; an
+unreadable `--authority-graph` is exit `2`, an unparseable one exit `1`.''' .
+
+sj:cli-opt-frontier-work-orders a sj:CliOption ; sj:cliOptionOf sj:cli-task-frontier ;
+    sj:cliOptName "work_orders" ; sj:cliOptType "string" ; sj:cliOptOrder 1 .
+sj:cli-opt-frontier-ledger a sj:CliOption ; sj:cliOptionOf sj:cli-task-frontier ;
+    sj:cliOptName "ledger" ; sj:cliOptType "string" ; sj:cliOptOrder 2 .
+sj:cli-opt-frontier-authority-graph a sj:CliOption ; sj:cliOptionOf sj:cli-task-frontier ;
+    sj:cliOptName "authority_graph" ; sj:cliOptType "string" ; sj:cliOptOrder 3 .
+
+sj:cli-task-reconcile a sj:CliTask ;
+    rdfs:label "mix semantic_jira.reconcile" ;
+    dcterms:description "Reconciles one verified receipt into the standing ledger via Cli.reconcile/1." ;
+    sj:cliTaskName "semantic_jira.reconcile" ;
+    sj:cliModule "Mix.Tasks.SemanticJira.Reconcile" ;
+    sj:cliShortdoc "Reconcile one receipt into the Semantic Jira standing ledger" ;
+    sj:cliVerb "reconcile" ;
+    sj:cliEmitStyle "shell_info" ;
+    sj:cliEnsureApps false ;
+    sj:cliModuledoc '''Turns a verified receipt into an append-only standing transition.
+
+    mix semantic_jira.reconcile --work-orders PATH --ledger PATH --receipt PATH \\
+      [--authority-graph PATH]
+
+`--work-orders` is a JSON array of WorkOrders (or `{"work_orders": [...]}`),
+`--receipt` a JSON receipt (see `GgenIgniter.SemanticJira.Reconciler.reconcile/3`),
+`--ledger` the ndjson ledger (created on first append), `--authority-graph`
+the Turtle origin-authority graph (default: the canonical semantic-jira-pack
+ontology) -- an order whose origin does not resolve is refused
+`origin_not_admitted` before promotion (SJ-002 AC-04).
+
+Prints one JSON object. Exit `0` for `applied`/`already_applied`, `1` for a
+typed refusal (`{"status": "refused", "reason": [...]}`), `2` for an invalid
+invocation.''' .
+
+sj:cli-opt-reconcile-work-orders a sj:CliOption ; sj:cliOptionOf sj:cli-task-reconcile ;
+    sj:cliOptName "work_orders" ; sj:cliOptType "string" ; sj:cliOptOrder 1 .
+sj:cli-opt-reconcile-ledger a sj:CliOption ; sj:cliOptionOf sj:cli-task-reconcile ;
+    sj:cliOptName "ledger" ; sj:cliOptType "string" ; sj:cliOptOrder 2 .
+sj:cli-opt-reconcile-receipt a sj:CliOption ; sj:cliOptionOf sj:cli-task-reconcile ;
+    sj:cliOptName "receipt" ; sj:cliOptType "string" ; sj:cliOptOrder 3 .
+sj:cli-opt-reconcile-authority-graph a sj:CliOption ; sj:cliOptionOf sj:cli-task-reconcile ;
+    sj:cliOptName "authority_graph" ; sj:cliOptType "string" ; sj:cliOptOrder 4 .
+
+sj:cli-task-descriptor a sj:CliTask ;
+    rdfs:label "mix semantic_jira.descriptor" ;
+    dcterms:description "Projects one frontier candidate into a XaaS execution descriptor via Cli.descriptor/1." ;
+    sj:cliTaskName "semantic_jira.descriptor" ;
+    sj:cliModule "Mix.Tasks.SemanticJira.Descriptor" ;
+    sj:cliShortdoc "Project one Semantic Jira frontier candidate into a XaaS execution descriptor" ;
+    sj:cliVerb "descriptor" ;
+    sj:cliEmitStyle "emit" ;
+    sj:cliEnsureApps false ;
+    sj:cliModuledoc '''Builds the descriptor `Xaas.Ultracode.SemanticWork.admit/1` consumes for ONE
+work order that is on the current frontier.
+
+    mix semantic_jira.descriptor --work-orders PATH --ledger PATH --identity ID \\
+      --alias owner/repo=alias --verifier-suite NAME [--provider NAME] \\
+      [--court-map PATH] [--authority-graph PATH] [--out PATH]
+
+`--alias` (repeatable) maps a WorkOrder's `repository` to the XaaS
+`execution_repo_alias`; `--verifier-suite` names the registered XaaS suite.
+`--provider` names the XaaS construction provider bound into the descriptor
+(default `recipe`, the deterministic XaaS RecipeWorker; an LLM provider such
+as `zcode` is bound only when passed explicitly, e.g. `--provider zcode`).
+`--court-map` is the minted court map JSON (`mix semantic_jira.court_map`)
+binding the work order's acceptance/falsifier IRIs to witnessing tests; the
+fabric uses it at close time to witness IRI-keyed verdicts.
+`--authority-graph` is the Turtle origin-authority graph (default: the
+canonical semantic-jira-pack ontology); an identity whose origin does not
+resolve is refused `not_eligible ... origin_not_admitted`. Nothing is
+defaulted except `--provider`. The JSON object printed on stdout is the
+descriptor plus a `"bridge"` key that XaaS must echo back in its receipt.
+
+Exit `0` on success; `1` with typed refusal JSON on stderr (identity not on
+the frontier, tampered ledger, missing alias, ...); `2` for invalid invocation.''' .
+
+sj:cli-opt-descriptor-work-orders a sj:CliOption ; sj:cliOptionOf sj:cli-task-descriptor ;
+    sj:cliOptName "work_orders" ; sj:cliOptType "string" ; sj:cliOptOrder 1 .
+sj:cli-opt-descriptor-ledger a sj:CliOption ; sj:cliOptionOf sj:cli-task-descriptor ;
+    sj:cliOptName "ledger" ; sj:cliOptType "string" ; sj:cliOptOrder 2 .
+sj:cli-opt-descriptor-identity a sj:CliOption ; sj:cliOptionOf sj:cli-task-descriptor ;
+    sj:cliOptName "identity" ; sj:cliOptType "string" ; sj:cliOptOrder 3 .
+sj:cli-opt-descriptor-alias a sj:CliOption ; sj:cliOptionOf sj:cli-task-descriptor ;
+    sj:cliOptName "alias" ; sj:cliOptType "keep" ; sj:cliOptOrder 4 .
+sj:cli-opt-descriptor-verifier-suite a sj:CliOption ; sj:cliOptionOf sj:cli-task-descriptor ;
+    sj:cliOptName "verifier_suite" ; sj:cliOptType "string" ; sj:cliOptOrder 5 .
+sj:cli-opt-descriptor-provider a sj:CliOption ; sj:cliOptionOf sj:cli-task-descriptor ;
+    sj:cliOptName "provider" ; sj:cliOptType "string" ; sj:cliOptOrder 6 .
+sj:cli-opt-descriptor-court-map a sj:CliOption ; sj:cliOptionOf sj:cli-task-descriptor ;
+    sj:cliOptName "court_map" ; sj:cliOptType "string" ; sj:cliOptOrder 7 .
+sj:cli-opt-descriptor-authority-graph a sj:CliOption ; sj:cliOptionOf sj:cli-task-descriptor ;
+    sj:cliOptName "authority_graph" ; sj:cliOptType "string" ; sj:cliOptOrder 8 .
+sj:cli-opt-descriptor-out a sj:CliOption ; sj:cliOptionOf sj:cli-task-descriptor ;
+    sj:cliOptName "out" ; sj:cliOptType "string" ; sj:cliOptOrder 9 .
+
+sj:cli-task-court-map a sj:CliTask ;
+    rdfs:label "mix semantic_jira.court_map" ;
+    dcterms:description "Mints one work order's court map from ontology witness facts via Cli.court_map/1." ;
+    sj:cliTaskName "semantic_jira.court_map" ;
+    sj:cliModule "Mix.Tasks.SemanticJira.CourtMap" ;
+    sj:cliShortdoc "Project a work order's court map from the pack ontology's witness facts" ;
+    sj:cliVerb "court_map" ;
+    sj:cliEmitStyle "emit" ;
+    sj:cliEnsureApps false ;
+    sj:cliModuledoc '''Upstream minting step of the fabric court-receipt contract.
+
+    mix semantic_jira.court_map --ontology PATH --identity ID [--out PATH]
+
+Reads the pack ontology and emits the court map for ONE work order: each
+acceptance/falsifier IRI bound to its `sj:witnessedBy` test, plus the
+`sj:requiresCourt` IRIs. The output feeds `Descriptor.build/4`'s
+`:court_map` option (`mix semantic_jira.descriptor --court-map`), which the
+fabric persists on the Run and consumes at close time
+(`Xaas.Ultracode.CourtReceipt`). Refuses when the work order is missing,
+has no court facts, or any acceptance/falsifier IRI is unwitnessed.
+
+Exit `0` on success; `1` with typed refusal JSON on stderr; `2` for invalid
+invocation.''' .
+
+sj:cli-opt-court-map-ontology a sj:CliOption ; sj:cliOptionOf sj:cli-task-court-map ;
+    sj:cliOptName "ontology" ; sj:cliOptType "string" ; sj:cliOptOrder 1 .
+sj:cli-opt-court-map-identity a sj:CliOption ; sj:cliOptionOf sj:cli-task-court-map ;
+    sj:cliOptName "identity" ; sj:cliOptType "string" ; sj:cliOptOrder 2 .
+sj:cli-opt-court-map-out a sj:CliOption ; sj:cliOptionOf sj:cli-task-court-map ;
+    sj:cliOptName "out" ; sj:cliOptType "string" ; sj:cliOptOrder 3 .
+
+sj:cli-task-xaas-receipt a sj:CliTask ;
+    rdfs:label "mix semantic_jira.xaas_receipt" ;
+    dcterms:description "Maps a sealed XaaS receipt onto the reconciler receipt via Cli.xaas_receipt/1." ;
+    sj:cliTaskName "semantic_jira.xaas_receipt" ;
+    sj:cliModule "Mix.Tasks.SemanticJira.XaasReceipt" ;
+    sj:cliShortdoc "Map a sealed XaaS receipt onto the receipt the Semantic Jira reconciler consumes" ;
+    sj:cliVerb "xaas_receipt" ;
+    sj:cliEmitStyle "emit" ;
+    sj:cliEnsureApps false ;
+    sj:cliModuledoc '''Return edge of the frontier -> XaaS -> reconciler loop.
+
+    mix semantic_jira.xaas_receipt --bridge PATH --xaas-receipt PATH [--out PATH]
+
+`--bridge` is the `"bridge"` object of the descriptor that was executed (or
+the whole descriptor JSON); `--xaas-receipt` is the sealed XaaS receipt export
+(contract in `GgenIgniter.SemanticJira.Descriptor`). The receipt is refused
+unless its digest recomputes, it echoes the bridge verbatim, its head is a
+40-hex sha, and an `alive` outcome carries a verified head and a passing
+fabric verifier. Pipe the output to `mix semantic_jira.reconcile --receipt`.
+
+Exit `0` on success; `1` with typed refusal JSON on stderr; `2` for invalid
+invocation.''' .
+
+sj:cli-opt-xaas-receipt-bridge a sj:CliOption ; sj:cliOptionOf sj:cli-task-xaas-receipt ;
+    sj:cliOptName "bridge" ; sj:cliOptType "string" ; sj:cliOptOrder 1 .
+sj:cli-opt-xaas-receipt-xaas-receipt a sj:CliOption ; sj:cliOptionOf sj:cli-task-xaas-receipt ;
+    sj:cliOptName "xaas_receipt" ; sj:cliOptType "string" ; sj:cliOptOrder 2 .
+sj:cli-opt-xaas-receipt-out a sj:CliOption ; sj:cliOptionOf sj:cli-task-xaas-receipt ;
+    sj:cliOptName "out" ; sj:cliOptType "string" ; sj:cliOptOrder 3 .
+sj:cli-opt-xaas-receipt-work-orders a sj:CliOption ; sj:cliOptionOf sj:cli-task-xaas-receipt ;
+    sj:cliOptName "work_orders" ; sj:cliOptType "string" ; sj:cliOptOrder 4 .
+
+sj:cli-task-prov a sj:CliTask ;
+    rdfs:label "mix semantic_jira.prov" ;
+    dcterms:description "Exports the standing ledger as PROV-O Turtle via Cli.prov/1." ;
+    sj:cliTaskName "semantic_jira.prov" ;
+    sj:cliModule "Mix.Tasks.SemanticJira.Prov" ;
+    sj:cliShortdoc "Export the Semantic Jira standing ledger as PROV-O Turtle" ;
+    sj:cliVerb "prov" ;
+    sj:cliEmitStyle "emit_empty" ;
+    sj:cliEnsureApps false ;
+    sj:cliModuledoc '''Serializes the standing transition ledger as PROV-O (`prov:Activity` /
+`prov:Entity` / `prov:wasDerivedFrom`), validated by the SHACL court.
+
+    mix semantic_jira.prov --ledger PATH [--out PATH]
+
+With `--out` the Turtle is written to that path and one JSON status line is
+printed; without it the JSON carries the Turtle in `"turtle"`. Exit `0` on
+success, `1` when the ledger is refused (tampered/undecodable) or the
+serialization fails SHACL, `2` for an invalid invocation.''' .
+
+sj:cli-opt-prov-ledger a sj:CliOption ; sj:cliOptionOf sj:cli-task-prov ;
+    sj:cliOptName "ledger" ; sj:cliOptType "string" ; sj:cliOptOrder 1 .
+sj:cli-opt-prov-out a sj:CliOption ; sj:cliOptionOf sj:cli-task-prov ;
+    sj:cliOptName "out" ; sj:cliOptType "string" ; sj:cliOptOrder 2 .
+
+sj:cli-task-observe a sj:CliTask ;
+    rdfs:label "mix semantic_jira.observe" ;
+    dcterms:description "Admits an observed process finding as a candidate WorkOrder via Cli.observe/1." ;
+    sj:cliTaskName "semantic_jira.observe" ;
+    sj:cliModule "Mix.Tasks.SemanticJira.Observe" ;
+    sj:cliShortdoc "Admit an observed process finding as a candidate Semantic Jira WorkOrder" ;
+    sj:cliVerb "observe" ;
+    sj:cliEmitStyle "emit" ;
+    sj:cliEnsureApps true ;
+    sj:cliModuledoc '''Observation edge: a finding becomes a candidate WorkOrder that is admitted by
+the kernel and the SHACL court, or refused with a typed reason.
+
+    mix semantic_jira.observe --finding PATH --base-work-order PATH \\
+      --origin-authority IRI [--origin-observation IRI] \\
+      [--ontology PATH] [--repair PATH] [--identity ID] [--out PATH]
+
+`--origin-authority` is REQUIRED for the candidate path (INVARIANT A): the
+IRI of the canonical authority this observation is bound to, e.g.
+`https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority`.
+`Authority.verify_origin/3` checks the declared origin against the canonical
+ontology before SHACL runs. A missing flag is the typed refusal
+`{:missing_origin_authority, _}` and an unadmitted origin is
+`{:origin_not_admitted, _}` — both exit 1, not invalid invocation.
+`--origin-observation` defaults to the stable `...#obs-<digest12>-finding`
+identity derived from the finding digest.
+
+`--finding` holds the `process_finding/1` attrs; `--base-work-order` is the
+WorkOrder whose typed courts, evidence, projections, ceilings and path scope
+the candidate reuses; `--ontology` is the canonical graph SHACL runs over
+(default: the pack ontology); `--repair` optionally holds
+`repair_work_order/2` attrs. Prints the admitted work order, its Turtle and
+the SHACL report. Nothing is written to the canonical graph.
+
+Exit `0` on success; `1` with typed refusal JSON on stderr; `2` for invalid
+invocation.''' .
+
+sj:cli-opt-observe-finding a sj:CliOption ; sj:cliOptionOf sj:cli-task-observe ;
+    sj:cliOptName "finding" ; sj:cliOptType "string" ; sj:cliOptOrder 1 .
+sj:cli-opt-observe-base-work-order a sj:CliOption ; sj:cliOptionOf sj:cli-task-observe ;
+    sj:cliOptName "base_work_order" ; sj:cliOptType "string" ; sj:cliOptOrder 2 .
+sj:cli-opt-observe-origin-authority a sj:CliOption ; sj:cliOptionOf sj:cli-task-observe ;
+    sj:cliOptName "origin_authority" ; sj:cliOptType "string" ; sj:cliOptOrder 3 .
+sj:cli-opt-observe-origin-observation a sj:CliOption ; sj:cliOptionOf sj:cli-task-observe ;
+    sj:cliOptName "origin_observation" ; sj:cliOptType "string" ; sj:cliOptOrder 4 .
+sj:cli-opt-observe-ontology a sj:CliOption ; sj:cliOptionOf sj:cli-task-observe ;
+    sj:cliOptName "ontology" ; sj:cliOptType "string" ; sj:cliOptOrder 5 .
+sj:cli-opt-observe-repair a sj:CliOption ; sj:cliOptionOf sj:cli-task-observe ;
+    sj:cliOptName "repair" ; sj:cliOptType "string" ; sj:cliOptOrder 6 .
+sj:cli-opt-observe-identity a sj:CliOption ; sj:cliOptionOf sj:cli-task-observe ;
+    sj:cliOptName "identity" ; sj:cliOptType "string" ; sj:cliOptOrder 7 .
+sj:cli-opt-observe-out a sj:CliOption ; sj:cliOptionOf sj:cli-task-observe ;
+    sj:cliOptName "out" ; sj:cliOptType "string" ; sj:cliOptOrder 8 .

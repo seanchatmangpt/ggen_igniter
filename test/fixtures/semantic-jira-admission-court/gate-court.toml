@@ -1,0 +1,8 @@
+[court]
+schema = "ggen.semantic-gate-witness-court/1"
+case_key = "exact-stem"
+gate_dir = "gates"
+pass_dir = "witnesses/pass"
+fail_dir = "witnesses/fail"
+require_pass = true
+require_fail = true

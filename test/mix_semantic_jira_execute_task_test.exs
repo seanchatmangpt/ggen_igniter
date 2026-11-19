@@ -24,7 +24,7 @@ defmodule MixSemanticJiraExecuteTaskTest do
 
   use ExUnit.Case, async: true
 
-  alias GgenIgniter.SemanticJira.{Cli, Descriptor, TransitionLog}
+  alias GgenIgniter.SemanticJira.{Cli, Descriptor, TargetPack, TransitionLog}
 
   @fixture Path.expand("fixtures/semantic_jira/friday_work_orders.json", __DIR__)
   @alias "seanchatmangpt/ggen_igniter=ggen_igniter"
@@ -383,6 +383,9 @@ SELECT DISTINCT ?subject WHERE {
       pack = pack!(Path.join(dir, "pack"))
       work_orders = work_orders_file!(dir, target.head, "pack")
       receipt_out = Path.join(dir, "receipt-export.json")
+
+      assert {:ok, digest} = GgenIgniter.PackLock.digest_checked(pack)
+      :ok = TargetPack.write_stamp!(target.dir, %{"pack" => digest})
 
       {code, out, err} =
         mix(

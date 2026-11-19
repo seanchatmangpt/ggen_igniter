@@ -1,0 +1,151 @@
+# FAIL witness: WO-INVALID-TARGET-PACK deliberately lacks ck:observedTrigger.
+# Gate 01_all_codes_live.rq MUST return that row (anti-vacuity).
+
+@prefix ck:   <urn:court-kit:> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Court-kit refusal register for GgenIgniter.SemanticJira.admit_work_order/1.
+# APPEND-ONLY: tokens never renumber. Every row carries ck:observedTrigger
+# pointing at the Chicago twin court that discharged the KAT.
+# Witnessed by: test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs
+
+<urn:court-kit:sjira-admission> a rdfs:Class ;
+    dct:title "semantic-jira-admission-court" ;
+    dct:description "Anti-vacuity register: every admit_work_order refusal tag is observedTrigger-capable." .
+
+ck:code-WO-EXPECTED-MAP a ck:RefusalCode ;
+    ck:token "WO-EXPECTED-MAP" ;
+    ck:name "ExpectedMapRefusal" ;
+    ck:trigger "admit_work_order/1 receives a non-map (list, atom, binary, integer)." ;
+    ck:recovery "Pass a map-shaped WorkOrder." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-EXPECTED-MAP_refusal_live" .
+
+ck:code-WO-MISSING-REQUIRED-FIELD a ck:RefusalCode ;
+    ck:token "WO-MISSING-REQUIRED-FIELD" ;
+    ck:name "MissingRequiredFieldRefusal" ;
+    ck:trigger "A @required field is blank (nil, \"\", or [])." ;
+    ck:recovery "Supply every required WorkOrder field as a non-blank value." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-MISSING-REQUIRED-FIELD_refusal_live" .
+
+ck:code-WO-INVALID-REPOSITORY a ck:RefusalCode ;
+    ck:token "WO-INVALID-REPOSITORY" ;
+    ck:name "InvalidRepositoryRefusal" ;
+    ck:trigger "repository is not owner/repo matching @repo." ;
+    ck:recovery "Use a GitHub-style owner/repo string." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-REPOSITORY_refusal_live" .
+
+ck:code-WO-INVALID-SHA-BASE a ck:RefusalCode ;
+    ck:token "WO-INVALID-SHA-BASE" ;
+    ck:name "InvalidBaseShaRefusal" ;
+    ck:trigger "base_sha is not exactly 40 lowercase hex." ;
+    ck:recovery "Pin base_sha to a full 40-hex commit." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-SHA-BASE_refusal_live" .
+
+ck:code-WO-INVALID-SHA-CANDIDATE a ck:RefusalCode ;
+    ck:token "WO-INVALID-SHA-CANDIDATE" ;
+    ck:name "InvalidCandidateShaRefusal" ;
+    ck:trigger "candidate_sha is present but not 40 lowercase hex." ;
+    ck:recovery "Omit candidate_sha or pin a full 40-hex commit." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-SHA-CANDIDATE_refusal_live" .
+
+ck:code-WO-INVALID-STANDING a ck:RefusalCode ;
+    ck:token "WO-INVALID-STANDING" ;
+    ck:name "InvalidStandingRefusal" ;
+    ck:trigger "standing is outside the closed ladder / REFUSED(...) form." ;
+    ck:recovery "Use UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED or REFUSED(reason)." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-STANDING_refusal_live" .
+
+ck:code-WO-INVALID-LIST a ck:RefusalCode ;
+    ck:token "WO-INVALID-LIST" ;
+    ck:name "InvalidListRefusal" ;
+    ck:trigger "A nonempty-list field is empty or contains a blank entry." ;
+    ck:recovery "Provide a non-empty list of non-blank binaries for required_courts/evidence/acceptance/falsifiers/projections." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-LIST_refusal_live" .
+
+ck:code-WO-INVALID-DEPENDENCY a ck:RefusalCode ;
+    ck:token "WO-INVALID-DEPENDENCY" ;
+    ck:name "InvalidDependencyRefusal" ;
+    ck:trigger "A dependency row lacks upstream or uses a type outside @dependency_types." ;
+    ck:recovery "Fix the dependency edge (upstream + admitted type + optional receipt digest)." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-DEPENDENCY_refusal_live" .
+
+ck:code-WO-INVALID-DEPENDENCIES a ck:RefusalCode ;
+    ck:token "WO-INVALID-DEPENDENCIES" ;
+    ck:name "InvalidDependenciesRefusal" ;
+    ck:trigger "dependencies is not a list." ;
+    ck:recovery "Pass dependencies as a list (possibly empty)." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-DEPENDENCIES_refusal_live" .
+
+ck:code-WO-UNSUPPORTED-PROJECTION-TYPE a ck:RefusalCode ;
+    ck:token "WO-UNSUPPORTED-PROJECTION-TYPE" ;
+    ck:name "UnsupportedProjectionTypeRefusal" ;
+    ck:trigger "projections contains a type outside the fifteen admitted classes." ;
+    ck:recovery "Use only SemanticJira.projection_types/0." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-UNSUPPORTED-PROJECTION-TYPE_refusal_live" .
+
+ck:code-WO-INVALID-PROJECTION-TYPES a ck:RefusalCode ;
+    ck:token "WO-INVALID-PROJECTION-TYPES" ;
+    ck:name "InvalidProjectionTypesRefusal" ;
+    ck:trigger "projections is not a list." ;
+    ck:recovery "Pass projections as a list of admitted type strings." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-PROJECTION-TYPES_refusal_live" .
+
+ck:code-WO-UNSUPPORTED-RECEIPT-CLASS a ck:RefusalCode ;
+    ck:token "WO-UNSUPPORTED-RECEIPT-CLASS" ;
+    ck:name "UnsupportedReceiptClassRefusal" ;
+    ck:trigger "required_receipt_classes contains a class outside @receipt_classes." ;
+    ck:recovery "Use only SemanticJira.receipt_classes/0." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-UNSUPPORTED-RECEIPT-CLASS_refusal_live" .
+
+ck:code-WO-INVALID-RECEIPT-CLASSES a ck:RefusalCode ;
+    ck:token "WO-INVALID-RECEIPT-CLASSES" ;
+    ck:name "InvalidReceiptClassesRefusal" ;
+    ck:trigger "required_receipt_classes is not a list." ;
+    ck:recovery "Pass required_receipt_classes as a list (possibly empty)." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-RECEIPT-CLASSES_refusal_live" .
+
+ck:code-WO-INVALID-PATH-SCOPE a ck:RefusalCode ;
+    ck:token "WO-INVALID-PATH-SCOPE" ;
+    ck:name "InvalidPathScopeRefusal" ;
+    ck:trigger "path_scope contains an absolute path, blank, or non-binary entry." ;
+    ck:recovery "Use repo-relative non-blank path strings only." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-PATH-SCOPE_refusal_live" .
+
+ck:code-WO-INVALID-ORIGIN-AUTHORITY a ck:RefusalCode ;
+    ck:token "WO-INVALID-ORIGIN-AUTHORITY" ;
+    ck:name "InvalidOriginAuthorityRefusal" ;
+    ck:trigger "origin_authority is not an absolute IRI string." ;
+    ck:recovery "Name an admitted sj:CodeWorkAuthority IRI." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-ORIGIN-AUTHORITY_refusal_live" .
+
+ck:code-WO-INVALID-ORIGIN-OBSERVATION a ck:RefusalCode ;
+    ck:token "WO-INVALID-ORIGIN-OBSERVATION" ;
+    ck:name "InvalidOriginObservationRefusal" ;
+    ck:trigger "origin_observation is present but not an absolute IRI." ;
+    ck:recovery "Omit origin_observation or supply an absolute IRI." ;
+    ck:sourceVersion "26.11.19" ;
+    ck:observedTrigger "test/ggen_igniter_semantic_jira_admission_refusal_court_test.exs::kat_WO-INVALID-ORIGIN-OBSERVATION_refusal_live" .
+
+ck:code-WO-INVALID-TARGET-PACK a ck:RefusalCode ;
+    ck:token "WO-INVALID-TARGET-PACK" ;
+    ck:name "InvalidTargetPackRefusal" ;
+    ck:trigger "target_pack is present but fails the lowercase pack-name FORMAT law." ;
+    ck:recovery "Use a lowercase-leading [a-z0-9][a-z0-9_-]* pack name, or omit." ;
+    ck:sourceVersion "26.11.19" .

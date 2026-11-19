@@ -16,7 +16,7 @@ defmodule GgenIgniter.SemanticJiraExecuteTest do
   use ExUnit.Case, async: true
 
   alias GgenIgniter.Reconcile
-  alias GgenIgniter.SemanticJira.{Descriptor, Execute, Reconciler, TransitionLog}
+  alias GgenIgniter.SemanticJira.{Descriptor, Execute, Reconciler, TargetPack, TransitionLog}
 
   @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
   @suite "ci"
@@ -161,6 +161,11 @@ SELECT DISTINCT ?subject WHERE {
       {:ok, bytes} -> bytes
       {:error, _} -> ""
     end
+  end
+
+  defp stamp_target_pack!(ctx, pack_name) do
+    assert {:ok, digest} = GgenIgniter.PackLock.digest_checked(ctx.pack)
+    :ok = TargetPack.write_stamp!(ctx.target.dir, %{pack_name => digest})
   end
 
   defp work_order_list(ctx),
@@ -390,9 +395,11 @@ SELECT DISTINCT ?subject WHERE {
   describe "run/1 sj:targetPack enforcement (local backend)" do
     # The tmp pack fixture has no pack.toml, so the lawful name source is
     # the basename fallback: the pack RESOLVES to "pack" here. A matching
-    # target_pack executes exactly as the no-constraint cases above.
+    # target_pack executes exactly as the no-constraint cases above once the
+    # sync-time digest stamp is present (fail-closed recheck).
     test "an order naming the pack the --pack-dir resolves to executes as before", ctx do
       work_orders = work_orders_file!(ctx.dir, ctx.target.head, "pack")
+      stamp_target_pack!(ctx, "pack")
       opts = local_opts(ctx, work_orders: work_orders)
 
       assert {0, result} = Execute.run(opts)
@@ -447,8 +454,9 @@ SELECT DISTINCT ?subject WHERE {
       assert refusal["detail"] == %{"expected" => "pack", "resolved" => "manifest-name"}
       refute File.exists?(ctx.receipt_out)
 
-      # And the manifest name executes exactly as before.
+      # And the manifest name executes exactly as before (with a matching stamp).
       work_orders = work_orders_file!(ctx.dir, ctx.target.head, "manifest-name")
+      stamp_target_pack!(ctx, "manifest-name")
 
       assert {0, result} = Execute.run(local_opts(ctx, work_orders: work_orders))
       assert result["status"] == "executed"

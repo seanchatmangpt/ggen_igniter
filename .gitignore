@@ -74,3 +74,11 @@ target-lane*/
 
 # scratch validation output
 /tmp-bp-validation/
+
+# Session / agent scratch (sjira gap-close hygiene)
+loop_receipt.json
+**/loop_receipt.json
+.env
+.env.*
+!.env.example
+*.pyc

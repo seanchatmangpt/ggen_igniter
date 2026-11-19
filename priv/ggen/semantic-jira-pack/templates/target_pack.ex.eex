@@ -4,7 +4,8 @@ mode: file
 ---
 defmodule <%= module %> do
   @moduledoc """
-  Sync-time WORLD enforcement for WorkOrder `sj:targetPack` names.
+  Sync-time WORLD enforcement for WorkOrder `sj:targetPack` names, plus the
+  durable digest stamp execute rechecks against.
 
   The FORMAT/WORLD law split (the `sj:baseSha` precedent):
   `GgenIgniter.SemanticJira.admit_work_order/1` verifies a target pack as a
@@ -25,6 +26,10 @@ defmodule <%= module %> do
     * A digest failure (symlink escape, unreadable file) re-raises with the
       existing `GgenIgniter.PackLock` prefixes
       (`REFUSED:PACK_SYMLINK_ESCAPE` / `REFUSED:PACK_FILE_UNREADABLE`).
+    * `write_stamp!/2` persists the returned `%{pack_name => pack_digest}`
+      map under `.ggen_igniter/target_pack_digests.json` so execute can
+      fail-closed recheck; `recheck/3` compares a live
+      `PackLock.digest_checked/1` against that stamp.
 
   Like `GitGroundTruth`, the two helpers in `Mix.Tasks.GgenIgniter.Sync`
   (`maybe_enforce_target_packs!/2`, beside both `maybe_verify_base_shas!`
@@ -35,10 +40,20 @@ defmodule <%= module %> do
   alias GgenIgniter.{Pack, PackLock}
 
   @refusal "<%= refusal_prefix %>"
+  @stamp_relpath ".ggen_igniter/target_pack_digests.json"
+  @stamp_schema_version "1"
 
   @doc "The typed refusal prefix every unknown-pack refusal from this module carries."
   @spec refusal_prefix() :: String.t()
   def refusal_prefix, do: @refusal
+
+  @doc "Relative path of the durable sync-time pack digest stamp."
+  @spec stamp_relpath() :: String.t()
+  def stamp_relpath, do: @stamp_relpath
+
+  @doc "Absolute path of the stamp under consumer-project `base_dir`."
+  @spec stamp_path(String.t()) :: String.t()
+  def stamp_path(base_dir) when is_binary(base_dir), do: Path.join(base_dir, @stamp_relpath)
 
   @doc """
   Enforces every distinct non-nil `target_pack` across `named_results`
@@ -60,6 +75,97 @@ defmodule <%= module %> do
     |> Map.new(&{&1["target_pack"], &1["id"]})
     |> Enum.map(fn {pack, work_order} -> {pack, resolve_and_digest!(pack, work_order, opts)} end)
     |> Map.new()
+  end
+
+  @doc """
+  Persists `stamp` (`%{pack_name => digest}`) under
+  `stamp_path(base_dir)`, merging with any prior stamp so a later sync of a
+  different pack does not erase earlier pins. Atomic temp+rename write.
+  """
+  @spec write_stamp!(String.t(), %{String.t() => String.t()}) :: :ok
+  def write_stamp!(base_dir, stamp) when is_binary(base_dir) and is_map(stamp) do
+    path = stamp_path(base_dir)
+    File.mkdir_p!(Path.dirname(path))
+
+    existing =
+      case read_stamp(base_dir) do
+        {:ok, packs} -> packs
+        {:error, _} -> %{}
+      end
+
+    packs =
+      existing
+      |> Map.merge(stamp)
+      |> Enum.sort_by(fn {k, _} -> k end)
+      |> Map.new()
+
+    body =
+      Jason.encode!(
+        %{"schema_version" => @stamp_schema_version, "packs" => packs},
+        pretty: true
+      ) <> "\n"
+
+    tmp = path <> ".tmp.#{System.unique_integer([:positive])}"
+    File.write!(tmp, body)
+    File.rename!(tmp, path)
+    :ok
+  end
+
+  @doc """
+  Reads the durable stamp at `stamp_path(base_dir)`.
+
+  Returns `{:ok, %{pack_name => digest}}`, `{:error, :missing}`, or
+  `{:error, :invalid}`.
+  """
+  @spec read_stamp(String.t()) ::
+          {:ok, %{String.t() => String.t()}} | {:error, :missing | :invalid}
+  def read_stamp(base_dir) when is_binary(base_dir) do
+    case File.read(stamp_path(base_dir)) do
+      {:error, :enoent} ->
+        {:error, :missing}
+
+      {:error, _} ->
+        {:error, :invalid}
+
+      {:ok, body} ->
+        case Jason.decode(body) do
+          {:ok, %{"packs" => packs}} when is_map(packs) ->
+            if Enum.all?(packs, fn {k, v} -> is_binary(k) and is_binary(v) end) do
+              {:ok, packs}
+            else
+              {:error, :invalid}
+            end
+
+          _ ->
+            {:error, :invalid}
+        end
+    end
+  end
+
+  @doc """
+  Fail-closed digest recheck: live `PackLock.digest_checked/1` of `pack_dir`
+  must equal the stamp entry for `pack_name`.
+
+  Returns `:ok`, `{:error, :stamp_entry_missing}`,
+  `{:error, {:digest_mismatch, expected, actual}}`, or a PackLock walk error.
+  """
+  @spec recheck(String.t(), String.t(), %{String.t() => String.t()}) ::
+          :ok
+          | {:error, :stamp_entry_missing}
+          | {:error, {:digest_mismatch, String.t(), String.t()}}
+          | {:error, {:pack_symlink_escape | :pack_file_unreadable, String.t()}}
+  def recheck(pack_name, pack_dir, stamp) when is_binary(pack_name) and is_map(stamp) do
+    case Map.fetch(stamp, pack_name) do
+      :error ->
+        {:error, :stamp_entry_missing}
+
+      {:ok, expected} ->
+        case PackLock.digest_checked(pack_dir) do
+          {:ok, ^expected} -> :ok
+          {:ok, actual} -> {:error, {:digest_mismatch, expected, actual}}
+          {:error, _} = err -> err
+        end
+    end
   end
 
   # FORMAT was already verified at admission; here the name must name a real

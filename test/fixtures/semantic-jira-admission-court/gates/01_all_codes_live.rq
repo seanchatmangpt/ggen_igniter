@@ -1,0 +1,14 @@
+# MESSAGE: court-kit KAT gate — every registered Semantic Jira admission
+# refusal code must carry ck:observedTrigger. Any returned row is an
+# unproven code (fail closed). Donor: ~/ggen-marketplace/packs/court-kit-pack
+# gates/01_all_codes_live.rq.
+PREFIX ck: <urn:court-kit:>
+
+SELECT ?code ?token ?violation WHERE {
+  ?code a ck:RefusalCode ;
+        ck:token ?token .
+  OPTIONAL { ?code ck:observedTrigger ?obs }
+  FILTER(!BOUND(?obs))
+  BIND("registered refusal code without a witnessed firing (no ck:observedTrigger) — KAT cannot be discharged" AS ?violation)
+}
+ORDER BY ?token

@@ -79,12 +79,15 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       `priv/ggen/semantic-jira-pack/` (resolved against the same ggen_igniter root
       `check_nif_compiles` uses) loads its `ontology.ttl`, executes EVERY gate query
       clean through `mix ggen_igniter.sync`'s default engine path (`graphlaw`, real
-      execution -- not the parse-only check 12), and renders every template once per
+      execution -- not the parse-only check 12), runs `GateVerify.verify_unbound/2`
+      plus falsifier `projections/*.unbound.rq` courts (orders carrying `sj:falsifier`
+      refuse when projections unbound is empty), and renders every template once per
       driver row through the sync pipeline's own `build_bindings/2` +
       `Render.render/2` convention. Fail-closed: any broken component (Turtle syntax,
-      crashing gate, undefined template binding, zero-row driver query) is an honest
-      `✘` naming it, never a crash of the whole doctor run. A pack DIRECTORY absent
-      from the resolved root (a package form or checkout that omits `priv/ggen`)
+      crashing gate, unbound facts, undefined template binding, zero-row driver query)
+      is an honest `✘` naming it, never a crash of the whole doctor run. A pack
+      DIRECTORY absent from the resolved root (a package form or checkout that omits
+      `priv/ggen`)
       is `⚠` advisory, never `:error` -- a package form that ships no pack has no
       pack health to fail on.
 
@@ -924,11 +927,13 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   # 19. semantic-jira-pack health (GgenIgniter.SemanticJira.PackHealth):
   # the shipped dogfood pack's ontology loads, every gate query EXECUTES
   # clean through the same default-engine path `mix ggen_igniter.sync` uses,
-  # and every template renders once per driver row through the pipeline's own
-  # `build_bindings/2` + `Render.render/2` convention -- real execution, no
-  # subprocess, no filesystem writes. Fail-closed both levels down: PackHealth
-  # never raises (any broken component becomes `{:error, detail}` naming it),
-  # and this wrapper never lets an unexpected raise escape the checklist.
+  # GateVerify.verify_unbound/2 + falsifier projections/*.unbound.rq courts
+  # pass (zero-rows), and every template renders once per driver row through
+  # the pipeline's own `build_bindings/2` + `Render.render/2` convention --
+  # real execution, no subprocess, no filesystem writes. Fail-closed both
+  # levels down: PackHealth never raises (any broken component becomes
+  # `{:error, detail}` naming it), and this wrapper never lets an unexpected
+  # raise escape the checklist.
   # A missing pack DIRECTORY (`priv/ggen/semantic-jira-pack/` absent from the
   # resolved ggen_igniter root -- e.g. a trimmed package form without
   # `priv/ggen`) is `:warn`, not `:error`: a package form that ships no pack

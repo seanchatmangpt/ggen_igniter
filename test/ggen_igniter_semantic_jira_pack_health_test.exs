@@ -44,6 +44,9 @@ defmodule GgenIgniter.SemanticJira.PackHealthTest do
     assert {:ok, summary} = GgenIgniter.SemanticJira.PackHealth.check(@pack_dir)
     assert summary =~ ~r/\d+ gate quer(y|ies) executed clean/
     assert summary =~ "engine graphlaw"
+    assert summary =~ "verify/*.unbound.rq"
+    assert summary =~ "projections/*.unbound.rq"
+    assert summary =~ "zero-rows-pass"
     assert summary =~ ~r/\d+ templates? rendered/
     # The sampling bound is DISCLOSED in the summary, never silent.
     assert summary =~ "first+last driver row sampled"
@@ -55,6 +58,36 @@ defmodule GgenIgniter.SemanticJira.PackHealthTest do
     assert summary =~ "jira.md.eex 2/"
     assert summary =~ "prd.md.eex 2/"
     assert summary =~ "projection.md.eex 2/"
+  end
+
+  test "fail-closed: verify_unbound findings are an honest error" do
+    pack_dir = pack_copy!("broken_unbound")
+
+    File.write!(
+      Path.join(pack_dir, "verify/045_description_integrity.unbound.rq"),
+      """
+      PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+      PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+      SELECT ?subject ?missing_property WHERE {
+        ?subject a sj:WorkOrder ; rdfs:label ?label .
+        BIND("forced-unbound" AS ?missing_property)
+      }
+      """
+    )
+
+    assert {:error, detail} = GgenIgniter.SemanticJira.PackHealth.check(pack_dir)
+    assert detail =~ "verify_unbound found"
+    assert detail =~ "unbound fact"
+  end
+
+  test "fail-closed: falsifiers without projections/*.unbound.rq are admission_vacuous" do
+    pack_dir = pack_copy!("no_projection_unbound")
+    File.rm_rf!(Path.join(pack_dir, "projections"))
+
+    assert {:error, detail} = GgenIgniter.SemanticJira.PackHealth.check(pack_dir)
+    assert detail =~ "sj:falsifier"
+    assert detail =~ "projections/*.unbound.rq is empty"
+    assert detail =~ "admission_vacuous"
   end
 
   test "fail-closed: a gate that does not execute is an honest error naming the gate" do

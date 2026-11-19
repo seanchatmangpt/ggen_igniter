@@ -13,8 +13,13 @@ defmodule GgenIgniter.SemanticJira do
 
   alias GgenIgniter.{Digest, RuntimeShape}
   alias GgenIgniter.SemanticJira.Authority
+  alias GgenIgniter.SemanticJira.WorkOrderShape
 
-  @standings ~w(UNKNOWN PARTIAL_ALIVE ALIVE BLOCKED BUILD_BROKEN UNSUPPORTED)
+  # Base standings + sha/repo/pack/digest patterns: derived from
+  # work-order.shacl.ttl via WorkOrderShape (Phase 1 digest-safe dual-SoT).
+  # REFUSED(...) remains a separate standing/1 clause below — not in this list.
+  # Do NOT derive @required / @definition_fields from sh:minCount (digest-breaking).
+  @standings WorkOrderShape.standings()
   @dimensions ~w(observed admitted inferred selected constructed executed changed verified receipted replayed merged published deployed)
 
   @dependency_types ~w(requiresSemanticIdentity requiresProjection requiresCapability requiresReceipt requiresRuntime requiresVerifier requiresObservation requiresPostcondition requiresPublication)
@@ -40,17 +45,17 @@ defmodule GgenIgniter.SemanticJira do
     dependencies required_courts required_evidence required_receipt_classes
     acceptance falsifiers projections path_scope origin_authority)
 
-  @sha ~r/\A[0-9a-f]{40}\z/
-  @digest ~r/\Asha256:[0-9a-f]{64}\z/
-  @repo ~r/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/
+  @sha WorkOrderShape.sha_pattern()
+  @digest WorkOrderShape.digest_pattern()
+  @repo WorkOrderShape.repo_pattern()
   # Pack-name FORMAT law (sj:targetPack): lowercase-leading name with
   # digits, hyphens, underscores. FORMAT only -- real pack existence and
   # content identity are sync-time WORLD facts
   # (GgenIgniter.SemanticJira.TargetPack.enforce!/2), never admitted here.
-  @pack_name ~r/\A[a-z0-9][a-z0-9_-]*\z/
+  @pack_name WorkOrderShape.pack_name_pattern()
   # Absolute-IRI check: RFC 3986 scheme prefix plus a non-empty,
   # whitespace-free rest — an origin authority is an IRI string, never a
-  # bare local name.
+  # bare local name. (Not mirrored as a WorkOrderShape scalar pattern.)
   @iri ~r/\A[A-Za-z][A-Za-z0-9+.-]*:\S+\z/
 
   @type json_map :: %{optional(String.t()) => term()}

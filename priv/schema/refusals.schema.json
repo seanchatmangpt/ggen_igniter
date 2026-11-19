@@ -172,6 +172,8 @@
         "STATE_UNREACHABLE",
         "SUBJECT_EXHAUSTED",
         "SUBJECT_PREFIX_UNDECLARED",
+        "TARGET_PACK_DIGEST_MISMATCH",
+        "TARGET_PACK_DIGEST_RECHECK_UNSUPPORTED",
         "TARGET_PACK_MISMATCH",
         "TARGET_PACK_UNKNOWN",
         "TRANSITION",
@@ -1363,6 +1365,24 @@
       "fix_hint": "Declare the subject namespace prefix in the ontology.",
       "broken_term": "mu_on_O",
       "example": "REFUSED:SUBJECT_PREFIX_UNDECLARED <detail>"
+    },
+    {
+      "code": "TARGET_PACK_DIGEST_MISMATCH",
+      "family": "semantic_work_order",
+      "retryable": false,
+      "owner": "GgenIgniter.SemanticJira.Execute",
+      "fix_hint": "Re-sync (or restore) the pack so its PackLock digest matches the durable sync stamp at .ggen_igniter/target_pack_digests.json; a post-sync content change is refused before actuation.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:TARGET_PACK_DIGEST_MISMATCH pack=demo-pack expected=abc actual=def"
+    },
+    {
+      "code": "TARGET_PACK_DIGEST_RECHECK_UNSUPPORTED",
+      "family": "semantic_work_order",
+      "retryable": true,
+      "owner": "GgenIgniter.SemanticJira.Execute",
+      "fix_hint": "Run mix ggen_igniter.sync so TargetPack.enforce!/2 persists .ggen_igniter/target_pack_digests.json under the target, then re-execute; execute refuses rather than run over an unchecked pack.",
+      "broken_term": "mu_unlawful",
+      "example": "REFUSED:TARGET_PACK_DIGEST_RECHECK_UNSUPPORTED"
     },
     {
       "code": "TARGET_PACK_MISMATCH",

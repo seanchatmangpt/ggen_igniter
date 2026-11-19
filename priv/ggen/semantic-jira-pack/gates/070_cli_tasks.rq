@@ -1,0 +1,15 @@
+# Runtime Mix.Task shells for the Semantic Jira CLI surface. One row per
+# sj:CliTask; templates/cli_task.ex.eex fans out over these rows and calls
+# GgenIgniter.SemanticJira.Cli.<verb>/1 — never reimplements the kernel.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT DISTINCT ?task ?task_name ?module ?shortdoc ?moduledoc ?verb ?emit_style ?ensure_apps WHERE {
+  ?task a sj:CliTask ;
+        sj:cliTaskName ?task_name ;
+        sj:cliModule ?module ;
+        sj:cliShortdoc ?shortdoc ;
+        sj:cliModuledoc ?moduledoc ;
+        sj:cliVerb ?verb ;
+        sj:cliEmitStyle ?emit_style ;
+        sj:cliEnsureApps ?ensure_apps .
+}
+ORDER BY ?task_name

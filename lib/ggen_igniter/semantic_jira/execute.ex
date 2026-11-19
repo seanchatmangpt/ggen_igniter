@@ -22,7 +22,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
       a sealed XaaS export consumed as data). The EXTERNAL backend has no
       pack involvement at all: the fabric owned the execution, so no
       `sj:targetPack` check runs there (pack enforcement is a property of
-      the LOCAL pipeline, which is the one that opens the pack). Local:
+      the LOCAL pipeline, which is the one that opens the pack).       Local:
       first the order's `sj:targetPack` (FORMAT-verified at admission by
       `GgenIgniter.SemanticJira.admit_work_order/1`'s `@pack_name` regex;
       `nil` = no constraint, behavior unchanged) must match the resolved
@@ -34,7 +34,15 @@ defmodule GgenIgniter.SemanticJira.Execute do
       (`REFUSED(target_pack_mismatch)`, `mu_unlawful`) BEFORE
       `git rev-parse`, `GgenIgniter.Reconcile.run/1`, or any gate runs --
       sync's pack enforcement no longer evaporates between sync and
-      execute. Then `git -C target rev-parse HEAD` must equal the
+      execute. When `sj:targetPack` is set, the replay fence then
+      re-digests `--pack-dir` via `PackLock.digest_checked/1` and compares
+      it against the durable sync stamp
+      (`.ggen_igniter/target_pack_digests.json` under `--target-dir`, or
+      `--target-pack-stamp PATH`): a missing/invalid stamp or missing
+      pack entry refuses `target_pack_digest_recheck_unsupported`
+      (`mu_unlawful`); a digest drift refuses
+      `target_pack_digest_mismatch` (`mu_unlawful`) -- both BEFORE any
+      actuation. Then `git -C target rev-parse HEAD` must equal the
       descriptor's `base_sha` (else `base_drift`); then
       `GgenIgniter.Reconcile.run/1` over the pack at `--pack-dir` with a
       static out path inside `--target-dir`
@@ -73,27 +81,6 @@ defmodule GgenIgniter.SemanticJira.Execute do
       verbatim. The append is the LAST write: every earlier refusal leaves
       the ledger byte-unchanged.
 
-  ## UNSUPPORTED(target_pack_digest_recheck)
-
-  Disclosed residue (restated from the execute hop, lane c7): the
-  `target_pack` name gate above pins the pack NAME only. The intended
-  replay fence -- re-digesting `--pack-dir` via
-  `GgenIgniter.PackLock.digest_checked/1` and comparing it against the
-  sync-time stamp `TargetPack.enforce!/2` recorded -- is
-  UNSUPPORTED this window because the sync-time stamp is never persisted:
-  `Mix.Tasks.GgenIgniter.Sync`'s `maybe_enforce_target_packs!/2` discards
-  `TargetPack.enforce!/2`'s returned `%{pack_name => pack_digest}` stamp
-  (returns bare `:ok`), so there is no sync receipt to read the stamp
-  from. Closing this residue requires either persisting the stamp in a
-  sync receipt (a `Mix.Tasks.GgenIgniter.Sync` change, not this module's
-  file) or comparing against the one digest pin that IS durable today --
-  the pack.lock file checked by `GgenIgniter.PackLock.check/2`, which the
-  `--pack-lock` projection backend already consumes. Until one of those
-  lands, a pack whose content changed after sync but whose resolved name
-  is unchanged executes without refusal. This is pinned as live law (not
-  fixed behavior) by
-  `test/ggen_igniter_semantic_jira_execute_replay_fence_test.exs`.
-
   Refusals are `{1, typed}` where `typed` is
   `%{"standing" => "REFUSED", "reason" => ..., "broken_term" => ...,
   "hop" => ..., "detail" => ...}`; with `--out-dir` the same map is also
@@ -103,18 +90,20 @@ defmodule GgenIgniter.SemanticJira.Execute do
 
   The `broken_term` vocabulary (`~/.claude/rules/chatman-equation.md`):
 
-    | hop       | reason head                 | broken_term            |
-    |-----------|-----------------------------|------------------------|
-    | frontier  | `:unknown_identity`         | `R_missing_identity`   |
-    | frontier  | `{:not_eligible, _, _}`     | `R_missing_standing`   |
-    | frontier  | `{:ledger_refused, _}`      | `R_missing_replay`     |
-    | descriptor| `{:descriptor_refused, _}`  | `R_missing_authority`  |
-    | execute   | `{:base_drift, _}`          | `mu_on_O`              |
-    | execute   | `target_pack_mismatch`      | `mu_unlawful`          |
-    | execute   | `:sync_failed`              | `mu_unlawful`          |
-    | execute   | `{:verification_failed, _}` | `admission_vacuous`    |
-    | receipt   | `{:receipt_refused, _}`     | `R_missing_consequence`|
-    | reconcile | `{:refused, _}`             | `R_missing_authority`  |
+    | hop       | reason head                              | broken_term            |
+    |-----------|------------------------------------------|------------------------|
+    | frontier  | `:unknown_identity`                      | `R_missing_identity`   |
+    | frontier  | `{:not_eligible, _, _}`                  | `R_missing_standing`   |
+    | frontier  | `{:ledger_refused, _}`                   | `R_missing_replay`     |
+    | descriptor| `{:descriptor_refused, _}`               | `R_missing_authority`  |
+    | execute   | `{:base_drift, _}`                       | `mu_on_O`              |
+    | execute   | `target_pack_mismatch`                   | `mu_unlawful`          |
+    | execute   | `target_pack_digest_mismatch`            | `mu_unlawful`          |
+    | execute   | `target_pack_digest_recheck_unsupported` | `mu_unlawful`          |
+    | execute   | `:sync_failed`                           | `mu_unlawful`          |
+    | execute   | `{:verification_failed, _}`              | `admission_vacuous`    |
+    | receipt   | `{:receipt_refused, _}`                  | `R_missing_consequence`|
+    | reconcile | `{:refused, _}`                          | `R_missing_authority`  |
 
   Zero `mix` shell-outs: the whole chain is function calls into
   `TransitionLog`, `Reconciler`, `Descriptor`, `GgenIgniter.Reconcile`,
@@ -125,7 +114,7 @@ defmodule GgenIgniter.SemanticJira.Execute do
   """
 
   alias GgenIgniter.{GateVerify, Pack, Receipt, Reconcile}
-  alias GgenIgniter.SemanticJira.{Descriptor, Projection, Reconciler, TransitionLog}
+  alias GgenIgniter.SemanticJira.{Descriptor, Projection, Reconciler, TargetPack, TransitionLog}
 
   @outcome "partial_alive"
   @target "PARTIAL_ALIVE"
@@ -266,11 +255,13 @@ defmodule GgenIgniter.SemanticJira.Execute do
     Enum.find(work_orders, &(&1["identity"] == identity))
   end
 
-  # Local backend: target-pack name gate, base-drift gate, real pipeline,
-  # real fail-closed gates. The name gate runs FIRST so a mismatch writes
-  # nothing anywhere -- no rev-parse, no actuation, no receipt.
+  # Local backend: target-pack name gate, digest recheck, base-drift gate,
+  # real pipeline, real fail-closed gates. Name + digest gates run FIRST so
+  # a mismatch / missing stamp writes nothing anywhere -- no rev-parse, no
+  # actuation, no receipt.
   defp execute_backend({:local, pack_dir, target_dir}, descriptor, opts, order) do
     with :ok <- check_target_pack(order && order["target_pack"], pack_dir),
+         :ok <- recheck_target_pack_digest(order && order["target_pack"], pack_dir, target_dir, opts),
          {:ok, head} <- base_head(target_dir, descriptor["base_sha"]),
          {:ok, ontology} <- order_ontology(order, pack_dir),
          {:ok, paths, artifacts} <- actuate_artifacts(order, pack_dir, target_dir, opts, ontology),
@@ -594,6 +585,63 @@ defmodule GgenIgniter.SemanticJira.Execute do
     end
   end
 
+  # Fail-closed replay fence: when sj:targetPack is set, re-digest the pack
+  # and compare against the durable sync stamp. Missing/invalid stamp or
+  # missing pack entry refuses unsupported (never executes unchecked);
+  # digest drift refuses mismatch. Nil target_pack keeps the no-constraint
+  # path (name gate already no-op'd).
+  defp recheck_target_pack_digest(nil, _pack_dir, _target_dir, _opts), do: :ok
+
+  defp recheck_target_pack_digest(pack_name, pack_dir, target_dir, opts) do
+    stamp_base = opts[:target_pack_stamp_dir] || target_dir
+
+    case load_digest_stamp(opts, stamp_base) do
+      {:ok, stamp} ->
+        case TargetPack.recheck(pack_name, pack_dir, stamp) do
+          :ok ->
+            :ok
+
+          {:error, :stamp_entry_missing} ->
+            {:error, {"execute", :target_pack_digest_recheck_unsupported}}
+
+          {:error, {:digest_mismatch, expected, actual}} ->
+            {:error, {"execute", {:target_pack_digest_mismatch, pack_name, expected, actual}}}
+
+          {:error, reason} ->
+            {:error, {"execute", {:pack_digest_failed, reason}}}
+        end
+
+      {:error, _} ->
+        {:error, {"execute", :target_pack_digest_recheck_unsupported}}
+    end
+  end
+
+  defp load_digest_stamp(opts, stamp_base) do
+    case Keyword.get(opts, :target_pack_stamp) do
+      path when is_binary(path) and path != "" ->
+        read_stamp_file(path)
+
+      _ ->
+        TargetPack.read_stamp(stamp_base)
+    end
+  end
+
+  defp read_stamp_file(path) do
+    case File.read(path) do
+      {:error, :enoent} ->
+        {:error, :missing}
+
+      {:error, _} ->
+        {:error, :invalid}
+
+      {:ok, body} ->
+        case Jason.decode(body) do
+          {:ok, %{"packs" => packs}} when is_map(packs) -> {:ok, packs}
+          _ -> {:error, :invalid}
+        end
+    end
+  end
+
   defp resolve_pack_name(pack_dir) do
     case Pack.parse_manifest(pack_dir) do
       {:ok, %Pack.Manifest{name: name}} -> name
@@ -798,6 +846,26 @@ defmodule GgenIgniter.SemanticJira.Execute do
     })
   end
 
+  defp refuse(opts, hop, {:target_pack_digest_mismatch, pack, expected, actual} = reason) do
+    emit_refusal(opts, %{
+      "standing" => "REFUSED(target_pack_digest_mismatch)",
+      "reason" => "target_pack_digest_mismatch",
+      "broken_term" => broken_term(reason),
+      "hop" => hop,
+      "detail" => %{"pack" => pack, "expected" => expected, "actual" => actual}
+    })
+  end
+
+  defp refuse(opts, hop, :target_pack_digest_recheck_unsupported = reason) do
+    emit_refusal(opts, %{
+      "standing" => "REFUSED(target_pack_digest_recheck_unsupported)",
+      "reason" => "target_pack_digest_recheck_unsupported",
+      "broken_term" => broken_term(reason),
+      "hop" => hop,
+      "detail" => detail(hop, reason)
+    })
+  end
+
   defp refuse(opts, hop, reason) do
     emit_refusal(opts, %{
       "standing" => "REFUSED",
@@ -823,7 +891,10 @@ defmodule GgenIgniter.SemanticJira.Execute do
   defp broken_term({:descriptor_refused, _}), do: "R_missing_authority"
   defp broken_term({:base_drift, _}), do: "mu_on_O"
   defp broken_term({:target_pack_mismatch, _, _}), do: "mu_unlawful"
+  defp broken_term({:target_pack_digest_mismatch, _, _, _}), do: "mu_unlawful"
+  defp broken_term(:target_pack_digest_recheck_unsupported), do: "mu_unlawful"
   defp broken_term({:pack_lock_failed, _}), do: "mu_unlawful"
+  defp broken_term({:pack_digest_failed, _}), do: "mu_unlawful"
   defp broken_term({:capability_unknown, _}), do: "R_missing_identity"
   defp broken_term({:falsifier_gates_missing, _}), do: "admission_vacuous"
   defp broken_term(:sync_failed), do: "mu_unlawful"
@@ -841,6 +912,13 @@ defmodule GgenIgniter.SemanticJira.Execute do
   defp detail(_hop, {:base_drift, message}), do: message
 
   defp detail(_hop, :sync_failed), do: "the local reconciliation pipeline raised"
+
+  defp detail(_hop, :target_pack_digest_recheck_unsupported),
+    do:
+      "no sync-time pack digest stamp is available to recheck against; refuse rather than execute over an unchecked pack"
+
+  defp detail(_hop, {:pack_digest_failed, reason}),
+    do: "the pack digest walk refused: #{GgenIgniter.PackLock.refusal_text(reason)}"
 
   defp detail(_hop, {:pack_lock_failed, reason}),
     do:

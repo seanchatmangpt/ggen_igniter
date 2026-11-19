@@ -1,0 +1,74 @@
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+# Falsified-state query for the pack's work-order projection surface
+# (SJ-001 subject `semantic-jira-pack:work-order-projection`).
+#
+# ZERO ROWS IS THE PASS CONDITION. A row means a falsifier condition holds
+# on the packaged ontology -- the court that cannot fire is closed by making
+# this query executable: Projection.project copies it into
+# `verify/<capability>-falsifier-<n>.unbound.rq`, and PackHealth runs every
+# `projections/*.unbound.rq` whenever WorkOrders carry `sj:falsifier`.
+#
+# Branches (subject/missing_property contract GateVerify.verify_unbound/2):
+#   A-D  WorkOrder missing a required admission scalar
+#        (sj:missing-required-field-renders)
+#   E    ProjectionSpec whose authorityClaim is absent or not NONE
+#        (sj:projection-gains-authority)
+#   F-G  Falsifier individual missing label or description
+#        (vacuous falsifier claim)
+#
+# DIALECT: OPTIONAL + BIND + UNION + FILTER + BOUND only (sparql 0.3.12 +
+# graphlaw; no EXISTS/NOT EXISTS).
+
+SELECT ?subject ?missing_property WHERE {
+  {
+    ?subject a sj:WorkOrder .
+    OPTIONAL { ?subject dcterms:identifier ?id . }
+    FILTER(!BOUND(?id))
+    BIND("dcterms:identifier" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a sj:WorkOrder .
+    OPTIONAL { ?subject dcterms:title ?title . }
+    FILTER(!BOUND(?title))
+    BIND("dcterms:title" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a sj:WorkOrder .
+    OPTIONAL { ?subject dcterms:description ?desc . }
+    FILTER(!BOUND(?desc))
+    BIND("dcterms:description" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a sj:WorkOrder .
+    OPTIONAL { ?subject sj:standing ?standing . }
+    FILTER(!BOUND(?standing))
+    BIND("sj:standing" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a sj:ProjectionSpec .
+    OPTIONAL { ?subject sj:authorityClaim ?claim . FILTER(?claim = "NONE") }
+    FILTER(!BOUND(?claim))
+    BIND("sj:authorityClaim" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a sj:Falsifier .
+    OPTIONAL { ?subject rdfs:label ?label . }
+    FILTER(!BOUND(?label))
+    BIND("rdfs:label" AS ?missing_property)
+  }
+  UNION
+  {
+    ?subject a sj:Falsifier .
+    OPTIONAL { ?subject dcterms:description ?fdesc . }
+    FILTER(!BOUND(?fdesc))
+    BIND("dcterms:description" AS ?missing_property)
+  }
+}

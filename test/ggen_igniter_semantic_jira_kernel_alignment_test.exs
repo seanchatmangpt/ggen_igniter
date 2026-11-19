@@ -14,10 +14,14 @@ defmodule GgenIgniter.SemanticJiraKernelAlignmentTest do
   use ExUnit.Case, async: true
 
   alias GgenIgniter.SemanticJira
+  alias GgenIgniter.SemanticJira.WorkOrderShape
 
   @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
   @shape Path.expand("../priv/ggen/semantic-jira-pack/shapes/work-order.shacl.ttl", __DIR__)
   @identity_regex ~r/\A[A-Z][A-Z0-9-]{1,63}\z/
+  # Frozen pre-Phase-1 kernel standings (digest-blind). Must stay byte-identical
+  # to WorkOrderShape.standings/0; drift means STOP before reminting digests.
+  @frozen_standings ~w(UNKNOWN PARTIAL_ALIVE ALIVE BLOCKED BUILD_BROKEN UNSUPPORTED)
 
   defp canonical(overrides \\ %{}) do
     Map.merge(
@@ -101,4 +105,31 @@ defmodule GgenIgniter.SemanticJiraKernelAlignmentTest do
                )
     end
   end
+
+  describe "Phase 1 WorkOrderShape standings/patterns (digest-safe)" do
+    test "generated standings equal the frozen kernel expectation" do
+      assert WorkOrderShape.standings() == @frozen_standings
+      assert WorkOrderShape.frozen_standings() == @frozen_standings
+      assert SemanticJira.standings() == @frozen_standings
+    end
+
+    test "shape file still carries the REFUSED arm the kernel keeps separate" do
+      assert WorkOrderShape.standing_shacl_pattern() =~ "REFUSED"
+      assert File.read!(@shape) =~ ~S|sj:standing|
+      assert File.read!(@shape) =~ "REFUSED"
+    end
+
+    test "sha/repo/pack/digest patterns still admit the canonical fixture" do
+      assert Regex.match?(WorkOrderShape.sha_pattern(), String.duplicate("a", 40))
+      assert Regex.match?(WorkOrderShape.repo_pattern(), "seanchatmangpt/ggen_igniter")
+      assert Regex.match?(WorkOrderShape.pack_name_pattern(), "semantic-jira-pack")
+      assert Regex.match?(
+               WorkOrderShape.digest_pattern(),
+               "sha256:" <> String.duplicate("b", 64)
+             )
+
+      assert {:ok, _} = SemanticJira.admit_work_order(canonical())
+    end
+  end
 end
+

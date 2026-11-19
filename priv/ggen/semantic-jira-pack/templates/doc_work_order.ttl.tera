@@ -1,0 +1,64 @@
+---
+to: docs/sjira/{{ version | default(value="v26.10.8") }}/WORKGRAPH.generated.ttl
+force: true
+sparql:
+  orders: |
+    PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    SELECT ?id ?title ?description ?repo ?base ?subject ?standing ?evc ?ceiling
+           ?origin ?acceptance ?falsifier
+           (GROUP_CONCAT(DISTINCT ?landed; separator=" ") AS ?landed_shas)
+           (GROUP_CONCAT(DISTINCT STR(?see); separator=" ") AS ?see_also)
+    WHERE {
+      ?o a sj:WorkOrder ;
+         dcterms:identifier ?id ;
+         dcterms:title ?title ;
+         sj:repository ?repo ;
+         sj:baseSha ?base ;
+         sj:subject ?subject ;
+         sj:standing ?standing ;
+         sj:evidenceCeiling ?evc ;
+         sj:authorityCeiling ?ceiling ;
+         sj:originAuthority ?origin ;
+         sj:acceptance ?acceptance ;
+         sj:falsifier ?falsifier .
+      OPTIONAL { ?o dcterms:description ?description }
+      OPTIONAL { ?o sj:landedCommit ?landed }
+      OPTIONAL { ?o rdfs:seeAlso ?see }
+    }
+    GROUP BY ?id ?title ?description ?repo ?base ?subject ?standing ?evc ?ceiling
+             ?origin ?acceptance ?falsifier
+    ORDER BY ?id
+---
+{# Canonical campaign WorkOrder doc-graph emission.
+   Validates against shapes/doc-work-order.shacl.ttl (NOT work-order.shacl.ttl).
+   Golden: ggen-marketplace/docs/sjira/v26.10.8/WORKGRAPH.ttl
+   Do not emit execution-order court IRIs here — that is work-order.shacl.ttl territory. #}
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix v8: <urn:seanchatmangpt:sjira:{{ version | default(value="v26.10.8") }}:> .
+
+# GENERATED campaign workgraph (doc-work-order shape).
+# Shape: priv/ggen/semantic-jira-pack/shapes/doc-work-order.shacl.ttl
+# Authority ceiling is CONSTRUCT; receipts cited outside the graph.
+
+{% for row in orders -%}
+v8:{{ row.id }} a sj:WorkOrder ;
+  dcterms:identifier "{{ row.id }}" ;
+  dcterms:title "{{ row.title }}" ;
+{% if row.description %}  dcterms:description "{{ row.description }}" ;
+{% endif %}  sj:subject "{{ row.subject }}" ;
+  sj:standing "{{ row.standing }}" ;
+  sj:repository "{{ row.repo }}" ;
+  sj:baseSha "{{ row.base }}" ;
+  sj:originAuthority <{{ row.origin }}> ;
+{% if row.landed_shas %}{% for sha in row.landed_shas | default(value="") | split(pat=" ") %}{% if sha %}  sj:landedCommit "{{ sha }}" ;
+{% endif %}{% endfor %}{% endif %}  sj:acceptance "{{ row.acceptance }}" ;
+  sj:falsifier "{{ row.falsifier }}" ;
+  sj:authorityCeiling "{{ row.ceiling }}" ;
+  sj:evidenceCeiling "{{ row.evc }}" .
+{% endfor %}

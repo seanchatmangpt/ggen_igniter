@@ -4,17 +4,16 @@ defmodule GgenIgniter.SemanticJira.ExecuteReplayFenceTest do
   in-process `GgenIgniter.SemanticJira.Execute.run/1` chain, assertions on
   real ledger bytes, real receipt files, and the real refusal map.
 
-  This file pins the `UNSUPPORTED(target_pack_digest_recheck)` residue of
-  `GgenIgniter.SemanticJira.Execute`'s moduledoc as LIVE LAW, falsifiably:
-  the local backend's target-pack gate pins the pack NAME only, so a pack
-  whose content changed after sync but whose resolved name is unchanged
-  executes without refusal. When the residue closes, the first test below
-  fails and IS the signal to delete the UNSUPPORTED paragraph.
+  Closes the former `UNSUPPORTED(target_pack_digest_recheck)` residue:
+  post-sync pack content tamper with an unchanged resolved name must refuse
+  at the execute hop (fail-closed digest recheck against the durable sync
+  stamp). A green run that still executes over tampered bytes is the failure
+  signal -- these tests flip red if the fence is removed.
   """
 
   use ExUnit.Case, async: true
 
-  alias GgenIgniter.SemanticJira.{Execute, TransitionLog}
+  alias GgenIgniter.SemanticJira.{Execute, TargetPack, TransitionLog}
 
   @origin_authority "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority"
   @suite "ci"
@@ -104,8 +103,8 @@ SELECT DISTINCT ?subject WHERE {
 
     order = %{
       "identity" => @identity,
-      "title" => "Replay-fence residue pin",
-      "description" => "Name-only pack gate residue, pinned as live law.",
+      "title" => "Replay-fence digest recheck",
+      "description" => "Fail-closed post-sync pack digest recheck.",
       "subject" => "fence-test:subject",
       "repository" => "o/r",
       "base_sha" => head,
@@ -142,12 +141,16 @@ SELECT DISTINCT ?subject WHERE {
       ]
   end
 
-  describe "run/1 UNSUPPORTED(target_pack_digest_recheck) residue (pinned live law)" do
-    test "a pack whose content changed after sync but whose name is unchanged executes WITHOUT refusal",
+  defp stamp_sync!(ctx) do
+    assert {:ok, sync_digest} = GgenIgniter.PackLock.digest_checked(ctx.pack)
+    :ok = TargetPack.write_stamp!(ctx.target.dir, %{"pack" => sync_digest})
+    sync_digest
+  end
+
+  describe "run/1 target_pack_digest_recheck (fail-closed fence)" do
+    test "a pack whose content changed after sync but whose name is unchanged REFUSES before actuation",
          ctx do
-      # "Sync time": the digest the (never-persisted) sync stamp would have
-      # recorded over this exact pack content.
-      assert {:ok, sync_digest} = GgenIgniter.PackLock.digest_checked(ctx.pack)
+      sync_digest = stamp_sync!(ctx)
 
       # Post-sync tamper: content changes, resolved name ("pack" via
       # pack.toml) does not.
@@ -163,35 +166,79 @@ SELECT DISTINCT ?subject WHERE {
       assert {:ok, tampered_digest} = GgenIgniter.PackLock.digest_checked(ctx.pack)
       refute tampered_digest == sync_digest
 
-      # The name gate passes (name is unchanged), and -- because the
-      # sync-time digest stamp was never persisted -- NO digest comparison
-      # runs. The order executes to PARTIAL_ALIVE over the tampered pack.
+      before_ledger =
+        case File.read(ctx.ledger) do
+          {:ok, body} -> body
+          {:error, :enoent} -> ""
+        end
+
+      assert {1, refusal} = Execute.run(local_opts(ctx))
+      assert refusal["standing"] == "REFUSED(target_pack_digest_mismatch)"
+      assert refusal["reason"] == "target_pack_digest_mismatch"
+      assert refusal["broken_term"] == "mu_unlawful"
+      assert refusal["hop"] == "execute"
+      assert refusal["detail"]["pack"] == "pack"
+      assert refusal["detail"]["expected"] == sync_digest
+      assert refusal["detail"]["actual"] == tampered_digest
+
+      # NOTHING executed: no actuated report, no receipt, ledger unchanged.
+      refute File.exists?(Path.join(ctx.target.dir, "ggen-manufactured/report.md"))
+      refute File.exists?(ctx.receipt_out)
+
+      after_ledger =
+        case File.read(ctx.ledger) do
+          {:ok, body} -> body
+          {:error, :enoent} -> ""
+        end
+
+      assert after_ledger == before_ledger
+    end
+
+    test "a matching stamp lets the untampered pack execute", ctx do
+      stamp_sync!(ctx)
+
       assert {0, result} = Execute.run(local_opts(ctx))
       assert result["status"] == "executed"
       assert result["outcome"] == "partial_alive"
-
-      # The tampered ontology actually rendered (the residue is live, not
-      # theoretical): the actuated report carries the tampered title.
-      report = Path.join(ctx.target.dir, "ggen-manufactured/report.md")
-      assert File.exists?(report)
-      assert File.read!(report) =~ "gate row: fence pack report TAMPERED"
 
       assert [%{"identity" => @identity, "to" => "PARTIAL_ALIVE"}] =
                TransitionLog.read(ctx.ledger)
     end
 
-    test "the moduledoc carries the typed UNSUPPORTED disclosure (regression fence on the residue note)",
-         _ctx do
-      # Real state assertion on the real compiled docs (read back from the
-      # .beam on disk via Code.fetch_docs/1): the residue must stay
-      # disclosed in the module itself, not only in a lane receipt.
+    test "target_pack without a sync stamp refuses unsupported (never executes unchecked)",
+         ctx do
+      before_ledger =
+        case File.read(ctx.ledger) do
+          {:ok, body} -> body
+          {:error, :enoent} -> ""
+        end
+
+      assert {1, refusal} = Execute.run(local_opts(ctx))
+      assert refusal["standing"] == "REFUSED(target_pack_digest_recheck_unsupported)"
+      assert refusal["reason"] == "target_pack_digest_recheck_unsupported"
+      assert refusal["broken_term"] == "mu_unlawful"
+      assert refusal["hop"] == "execute"
+
+      refute File.exists?(Path.join(ctx.target.dir, "ggen-manufactured/report.md"))
+      refute File.exists?(ctx.receipt_out)
+
+      after_ledger =
+        case File.read(ctx.ledger) do
+          {:ok, body} -> body
+          {:error, :enoent} -> ""
+        end
+
+      assert after_ledger == before_ledger
+    end
+
+    test "the moduledoc no longer discloses UNSUPPORTED(target_pack_digest_recheck)", _ctx do
       assert {:docs_v1, _, _elixir, _lang, %{"en" => text}, _meta, _docs} =
                Code.fetch_docs(GgenIgniter.SemanticJira.Execute)
 
-      assert text =~ "UNSUPPORTED(target_pack_digest_recheck)"
-      assert text =~ "PackLock.digest_checked/1"
-      assert text =~ "TargetPack.enforce!/2"
-      assert text =~ "never persisted"
+      refute text =~ "UNSUPPORTED(target_pack_digest_recheck)"
+      assert text =~ "target_pack_digest_mismatch"
+      assert text =~ "target_pack_digest_recheck_unsupported"
+      assert text =~ "target_pack_digests.json"
     end
   end
 end

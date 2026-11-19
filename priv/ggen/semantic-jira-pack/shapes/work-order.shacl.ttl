@@ -43,6 +43,14 @@ sj:WorkOrderShape a sh:NodeShape ;
     # (pack resolution + PackLock digest) lives in
     # GgenIgniter.SemanticJira.TargetPack.enforce!/2, never in the court.
     sh:property [ sh:path sj:targetPack ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-z0-9][a-z0-9_-]*$" ] ;
+    # Opt-in epoch plan (same two-level discipline as requiresGitGroundTruth /
+    # targetPack): presence opts the order into EpochPlan; absence changes
+    # nothing. sh:closed must admit these predicates or epoch candidates refuse
+    # before the watermark court can judge them (WP1 SoT freeze).
+    sh:property [ sh:path sj:epoch ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^v?[0-9]+(\\.[0-9]+)*$" ] ;
+    sh:property [ sh:path sj:planTouches ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:manufacturePlan ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path sj:sourceArtifacts ; sh:datatype xsd:string ; sh:minLength 1 ] ;
     sh:property [ sh:path sj:subject ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
     sh:property [ sh:path sj:standing ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$" ] ;
     sh:property [ sh:path sj:evidenceCeiling ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
@@ -651,9 +659,32 @@ sj:StandingTransitionEventProvShape a sh:NodeShape ;
     sh:property [ sh:path sj:identity ; sh:minCount 1 ; sh:maxCount 1 ; sh:minLength 1 ] ;
     sh:property [ sh:path sj:from ; sh:minCount 1 ; sh:maxCount 1 ] ;
     sh:property [ sh:path sj:to ; sh:minCount 1 ; sh:maxCount 1 ] ;
+    # L3 stamps (ProvEvents): opt-in; pre-L3 events omit them. Same IRI as the
+    # WorkOrder CalVer sj:epoch but xsd:integer here — dual-range residue
+    # (VOCABULARY.md WP1).
+    sh:property [ sh:path sj:epoch ; sh:maxCount 1 ; sh:datatype xsd:integer ] ;
+    sh:property [ sh:path sj:vectorClock ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
     sh:property [ sh:path prov:used ; sh:minCount 2 ; sh:maxCount 2 ; sh:class prov:Entity ] ;
     sh:property [ sh:path prov:generated ; sh:minCount 1 ; sh:maxCount 1 ; sh:class prov:Entity ] ;
     sh:property [ sh:path prov:wasAssociatedWith ; sh:minCount 1 ; sh:class prov:SoftwareAgent ] .
+
+# Epoch boundary individuals (CalVer manufacturing watermark). Driver gate
+# gates/epoch_boundary.rq witnesses the domain-scoped columns; this shape
+# admits a complete boundary and refuses a half-declared one.
+sj:EpochBoundaryShape a sh:NodeShape ;
+    sh:targetClass sj:EpochBoundary ;
+    sh:property [ sh:path sj:epochLabel ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^v?[0-9]+(\\.[0-9]+)*$" ] ;
+    sh:property [ sh:path sj:watermarkTree ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[0-9a-f]{40}$" ] ;
+    sh:property [ sh:path sj:similarityThreshold ; sh:maxCount 1 ; sh:datatype xsd:decimal ] ;
+    sh:property [ sh:path sj:implementationGlob ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+    sh:property [ sh:path dcterms:issued ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?)?$" ] .
+
+# Witnessing obligation on acceptance/falsifier individuals (court_map).
+# Declared so a present witness is format-checked; absence stays lawful
+# (pre-court-map orders).
+sj:WitnessedByShape a sh:NodeShape ;
+    sh:targetSubjectsOf sj:witnessedBy ;
+    sh:property [ sh:path sj:witnessedBy ; sh:minCount 1 ; sh:datatype xsd:string ; sh:pattern "[^\\s]" ] .
 
 sj:StandingEntityProvShape a sh:NodeShape ;
     sh:targetClass sj:StandingState ;

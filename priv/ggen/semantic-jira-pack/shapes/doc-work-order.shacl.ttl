@@ -1,0 +1,183 @@
+@prefix sj: <https://ggen-igniter.dev/ontology/semantic-jira#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# SHACL admission shapes for campaign WorkOrder doc-graphs (WORKGRAPH.ttl style).
+#
+# Precedent: shapes/goal-checkpoint.shacl.ttl for GoalCheckpoint-only goal.ttl
+# graphs. Campaign WORKGRAPH.ttl files author sj:WorkOrder individuals that
+# deliberately omit execution-order court fields (typed sj:Court /
+# sj:EvidenceRequirement / sj:AcceptanceCriterion IRIs, in-graph sj:Receipt,
+# sj:promotionRule, sj:replayIdentity, …). Validating them against
+# shapes/work-order.shacl.ttl therefore reports every order as a style
+# mismatch (audit Finding 3.2 / WORKGRAPH-SHACL-REPORT: marketplace alone
+# was style-mismatch=152).
+#
+# This closed shape covers the fields that campaign doc-graphs actually
+# carry. It does NOT replace work-order.shacl.ttl for execution admission —
+# that court stays strict. Selection: scripts/validate_workgraphs.py must
+# route campaign WORKGRAPH.ttl files here the same way it routes goal.ttl
+# to goal-checkpoint.shacl.ttl (coordinator wiring).
+#
+# Constraint surface: minCount/maxCount, nodeKind, datatype, pattern,
+# minLength, closed + ignoredProperties, SELECT-only sh:sparql with
+# OPTIONAL + FILTER(!BOUND()) (admitted sparql engine idiom).
+#
+# Golden pack: ggen-marketplace/docs/sjira/v26.10.8/WORKGRAPH.ttl.
+# Remaining fleet style-mismatch vs work-order.shacl.ttl (v26.10.8 report,
+# excluding castle which already greens under goal-checkpoint, excluding
+# marketplace once this shape is selected): ~790 across 10 repos
+# (ash_a2a 72, ash_affidavit 112, ash_pplan 15, ash_r2rml 90, ash_surface 94,
+# beam4pm 79, ex4pm 81, ggen-ecosystem 91, xaas 131, zcode-cli 25).
+# Mass rewrite of those graphs into execution-order shape is unsafe: they
+# are doc-graphs by header law; regenerate via gen_workgraph / the
+# doc_work_order.ttl.tera template once this shape is selected.
+
+sj:DocWorkOrderShape a sh:NodeShape ;
+    sh:targetClass sj:WorkOrder ;
+    sh:closed true ;
+    # Doc-graph citations live outside the execution vocabulary: receipts on
+    # disk (rdfs:seeAlso / prov:wasDerivedFrom), landed member SHAs, and the
+    # gen_workgraph unfolded item/edge/cross-repo predicates.
+    sh:ignoredProperties (
+        rdf:type
+        rdfs:label
+        rdfs:seeAlso
+        prov:wasDerivedFrom
+        sj:landedCommit
+        sj:acceptanceItem
+        sj:falsifierItem
+        sj:dependency
+        sj:crossRepo
+        sj:subjectSha
+        sj:candidateSha
+        sj:promotionRule
+        sj:replayIdentity
+        sj:pathScope
+        sj:projection
+        sj:requiresCourt
+        sj:requiresEvidence
+        sj:requiresReceiptClass
+        sj:nextCheckpoint
+        sj:nextAction
+        sj:authorityRequirement
+        sj:dependsOn
+        sj:receipt
+        sj:observedAt
+    ) ;
+    sh:property [
+        sh:path dcterms:identifier ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[A-Z][A-Z0-9-]{1,63}$"
+    ] ;
+    sh:property [
+        sh:path dcterms:title ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:minLength 1
+    ] ;
+    # Optional on seed graphs (marketplace V8-* historically omitted it);
+    # required when present. gen_workgraph / the tera template always emit it.
+    sh:property [
+        sh:path dcterms:description ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:minLength 1
+    ] ;
+    sh:property [
+        sh:path sj:repository ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    ] ;
+    sh:property [
+        sh:path sj:baseSha ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^[0-9a-f]{40}$"
+    ] ;
+    sh:property [
+        sh:path sj:subject ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:minLength 1
+    ] ;
+    sh:property [
+        sh:path sj:standing ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        # Same closed vocabulary as WorkOrderShape; ALIVE on a doc-graph means
+        # "receipt cited outside the graph", not "in-graph sj:Receipt crown".
+        sh:pattern "^(UNKNOWN|PARTIAL_ALIVE|ALIVE|BLOCKED|BUILD_BROKEN|UNSUPPORTED|REFUSED\\(.+\\))$"
+    ] ;
+    sh:property [
+        sh:path sj:evidenceCeiling ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:minLength 1
+    ] ;
+    sh:property [
+        sh:path sj:authorityCeiling ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        # Doc-graphs never grant DO.
+        sh:pattern "^(OBSERVE|SELECT|CONSTRUCT)$"
+    ] ;
+    # Kind-only: campaign seeds cite the pack's objective IRI; gen_workgraph
+    # emits the same. In-graph admissionDigest is NOT required here (unlike
+    # WorkOrderOriginShape) — the digest lives in ontology.ttl, and doc-graphs
+    # are not the execution admission court.
+    sh:property [
+        sh:path sj:originAuthority ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:nodeKind sh:IRI
+    ] ;
+    # Literal acceptance / falsifier are the campaign seed form. Execution
+    # orders use typed IRI individuals; both are lawful under this shape
+    # (nodeKind unconstrained so IRI-or-literal admits).
+    sh:property [
+        sh:path sj:acceptance ;
+        sh:minCount 1 ;
+        sh:minLength 1
+    ] ;
+    sh:property [
+        sh:path sj:falsifier ;
+        sh:minCount 1 ;
+        sh:minLength 1
+    ] ;
+    sh:sparql [
+        sh:message "Doc-graph WorkOrder identifiers must be unique across WorkOrders." ;
+        sh:select """
+          PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+          PREFIX dcterms: <http://purl.org/dc/terms/>
+          SELECT $this WHERE {
+            $this dcterms:identifier ?id .
+            ?other a sj:WorkOrder ; dcterms:identifier ?id .
+            FILTER(?other != $this)
+          }
+        """
+    ] ;
+    sh:sparql [
+        sh:message "Doc-graph WorkOrder must not grant DO authorityCeiling." ;
+        sh:select """
+          PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+          SELECT $this WHERE {
+            $this sj:authorityCeiling ?ceiling .
+            FILTER(?ceiling = "DO" || CONTAINS(?ceiling, "DO"))
+          }
+        """
+    ] .
+
+# Projection specs emitted by gen_workgraph carry authorityClaim NONE.
+sj:DocProjectionSpecShape a sh:NodeShape ;
+    sh:targetClass sj:ProjectionSpec ;
+    sh:property [
+        sh:path sj:authorityClaim ;
+        sh:maxCount 1 ;
+        sh:hasValue "NONE"
+    ] .

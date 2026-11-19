@@ -29,12 +29,16 @@ defmodule Mix.Tasks.SemanticJira.Execute do
       hop BEFORE anything runs — no rev-parse, no pipeline, no receipt,
       ledger byte-unchanged (sync's `GgenIgniter.SemanticJira.TargetPack.
       enforce!/2` enforcement no longer evaporates between sync and
-      execute; the pack-lock digest comparison against the sync stamp is
-      the disclosed follow-on, not yet this task's law). Then checks
-      `git -C <target> rev-parse HEAD` against the order's `base_sha`
-      (`base_drift` on drift), runs the real `GgenIgniter.Reconcile.run/1`
-      pipeline over the pack (`sync_failed` if it raises), then the real
-      fail-closed `GgenIgniter.GateVerify.run/2` + `verify_unbound/2`
+      execute). When `sj:targetPack` is set, execute then fail-closed
+      rechecks the pack digest against the durable sync stamp
+      (`.ggen_igniter/target_pack_digests.json` under `--target-dir`):
+      missing stamp refuses `target_pack_digest_recheck_unsupported`;
+      digest drift refuses `target_pack_digest_mismatch` (`mu_unlawful`).
+      Then checks `git -C <target> rev-parse HEAD` against the order's
+      `base_sha` (`base_drift` on drift), runs the real
+      `GgenIgniter.Reconcile.run/1` pipeline over the pack (`sync_failed`
+      if it raises), then the real fail-closed
+      `GgenIgniter.GateVerify.run/2` + `verify_unbound/2`
       (`verification_failed` on any gate or unbound-fact failure). On
       success it synthesizes the sealed export — bridge echo, outcome
       `partial_alive`, `head_verified` FALSE (honest ceiling: local caps at

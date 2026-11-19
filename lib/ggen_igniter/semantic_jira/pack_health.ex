@@ -12,7 +12,17 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
      `mix ggen_igniter.sync` uses by default (`Engine.fetch!/1` ->
      `prepare!/2` -> `run/2`, the FIXED engine (graphlaw) --
      real execution, not the parse-only check `--pack` mode already offers).
-  3. Renders each template through the SAME resolution + binding path the
+  3. Runs `GgenIgniter.GateVerify.verify_unbound/2` over
+     `verify/*.unbound.rq` (zero rows = PASS). Doctor used to certify only
+     the witness gates; without this hop a pack could ship offender-shaped
+     companions that never fire under the always-run health probe.
+  4. When any WorkOrder carries `sj:falsifier`, requires at least one
+     `projections/*.unbound.rq` falsified-state query and executes each
+     under the same zero-rows-pass / `subject`+`missing_property` contract
+     `Projection.project/2` uses when it stages falsifier gates. A falsifier
+     with no unbound projection is a court that cannot fire
+     (`admission_vacuous`).
+  5. Renders each template through the SAME resolution + binding path the
      sync pipeline uses (`resolve_named_queries!/2`, `build_bindings/2`,
      `Render.render/2`) on the template's FIRST and LAST real driver rows.
      That bound is deliberate and disclosed in the check's own summary:
@@ -28,14 +38,18 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
 
   Fail-closed contract: `check/1` never raises. Any failure anywhere in the
   pipeline -- missing ontology, Turtle syntax error, a gate that crashes the
-  engine, a template with an undefined binding, a driver query resolving to
-  zero rows -- becomes `{:error, detail}` naming the failing component, so a
+  engine, unbound facts, falsifiers without projections/*.unbound.rq, a
+  template with an undefined binding, a driver query resolving to zero
+  rows -- becomes `{:error, detail}` naming the failing component, so a
   broken pack degrades to an honest doctor `:error` line instead of crashing
   the whole doctor run (the same rescue-at-the-check contract
   `check_oxigraph_smoke_test` in the doctor task follows).
   """
 
+  alias GgenIgniter.GateVerify
+
   @pack_name "semantic-jira-pack"
+  @sj_ns "https://ggen-igniter.dev/ontology/semantic-jira#"
 
   # `mix ggen_igniter.sync`'s own FIXED engine (2026-10-17): the gates are
   # exercised here exactly the way a plain `mix ggen_igniter.sync --pack
@@ -49,9 +63,10 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
   directory holding `ontology.ttl`, `gates/`, and `templates/` -- i.e. what
   `GgenIgniter.Pack.resolve_dir!/1` resolves to).
 
-  Returns `{:ok, summary}` when every gate executes clean and every template
-  renders on sampled real driver rows, or `{:error, detail}` naming the first
-  failing component. Never raises.
+  Returns `{:ok, summary}` when every gate executes clean, verify_unbound and
+  falsifier unbound projections pass, and every template renders on sampled
+  real driver rows, or `{:error, detail}` naming the first failing component.
+  Never raises.
   """
   @spec check(String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def check(pack_dir) do
@@ -83,6 +98,12 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
     # template happened to resolve it first.
     Enum.each(gates, fn {name, path} -> execute_gate!(engine, context, name, path) end)
 
+    # Phase 1b: inverted companions + falsifier unbound projections. Doctor
+    # must not certify a pack whose verify/*.unbound.rq or
+    # projections/*.unbound.rq courts never run.
+    unbound_count = verify_unbound!(pack_dir, ontology_path)
+    projection_unbound_count = verify_falsifier_projections!(pack_dir, graph)
+
     # Phase 2: every template renders through the sync pipeline's own binding
     # convention on sampled real driver rows (first + last -- the disclosed
     # bound; see the moduledoc for why all-row rendering stays in the
@@ -93,6 +114,9 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
     {:ok,
      "#{length(gates)} gate quer#{if length(gates) == 1, do: "y", else: "ies"} executed clean " <>
        "against the packaged ontology (engine #{@engine}); " <>
+       "#{unbound_count} verify/*.unbound.rq companion#{if unbound_count == 1, do: "", else: "s"} " <>
+       "zero-rows-pass; #{projection_unbound_count} projections/*.unbound.rq " <>
+       "falsifier projection#{if projection_unbound_count == 1, do: "", else: "s"} zero-rows-pass; " <>
        "#{length(templates)} template#{if length(templates) == 1, do: "", else: "s"} rendered " <>
        "(first+last driver row sampled; #{total_rows} driver row#{if total_rows == 1, do: "", else: "s"} total): " <>
        Enum.map_join(rendered, ", ", fn {name, sampled, rows} -> "#{name} #{sampled}/#{rows}" end)}
@@ -106,6 +130,98 @@ defmodule GgenIgniter.SemanticJira.PackHealth do
   """
   @spec pack_dir(String.t()) :: String.t()
   def pack_dir(root_dir), do: Path.join([root_dir, "priv", "ggen", @pack_name])
+
+  # Phase 1b: the same `GateVerify.verify_unbound/2` hop `mix ggen_igniter.verify`
+  # and `Projection.project/2` run. Zero rows across every verify/*.unbound.rq
+  # companion is the pass condition; any finding is an honest health error.
+  defp verify_unbound!(pack_dir, ontology_path) do
+    companions = GateVerify.discover_unbound(pack_dir)
+
+    case GateVerify.verify_unbound(pack_dir, ontology_path) do
+      {:ok, []} ->
+        length(companions)
+
+      {:error, {:unbound_facts, findings}} ->
+        sample =
+          findings
+          |> Enum.take(3)
+          |> Enum.map_join("; ", fn f ->
+            "#{f.gate}: subject=#{inspect(f.subject)} missing=#{inspect(f.missing_property)}"
+          end)
+
+        raise ArgumentError,
+              "verify_unbound found #{length(findings)} unbound fact(s) " <>
+                "(zero-rows-pass required): #{sample}"
+    end
+  end
+
+  # Falsifier -> unbound projection coverage. WorkOrders that claim
+  # `sj:falsifier` must ship at least one `projections/*.unbound.rq`
+  # falsified-state query, and each must return zero rows against the
+  # packaged ontology (the same contract Projection stages into verify/).
+  defp verify_falsifier_projections!(pack_dir, graph) do
+    falsifier_orders = count_falsifier_orders(graph)
+    paths = projection_unbound_paths(pack_dir)
+
+    cond do
+      falsifier_orders == 0 ->
+        length(paths)
+
+      paths == [] ->
+        raise ArgumentError,
+              "#{falsifier_orders} WorkOrder(s) carry sj:falsifier but " <>
+                "projections/*.unbound.rq is empty -- falsifier gates cannot fire " <>
+                "(admission_vacuous)"
+
+      true ->
+        Enum.each(paths, &execute_projection_unbound!(pack_dir, graph, &1))
+        length(paths)
+    end
+  end
+
+  defp count_falsifier_orders(graph) do
+    query = """
+    PREFIX sj: <#{@sj_ns}>
+    SELECT ?wo WHERE {
+      ?wo a sj:WorkOrder ; sj:falsifier ?f .
+    }
+    """
+
+    ctx = GgenIgniter.Engine.Graphlaw.prepare!(graph, [])
+
+    ctx
+    |> GgenIgniter.Engine.Graphlaw.run(query)
+    |> Enum.uniq_by(&Map.get(&1, "wo"))
+    |> length()
+  end
+
+  defp projection_unbound_paths(pack_dir) do
+    pack_dir
+    |> Path.join("projections/*.unbound.rq")
+    |> Path.wildcard()
+    |> Enum.sort()
+  end
+
+  defp execute_projection_unbound!(pack_dir, graph, path) do
+    ctx = GgenIgniter.Engine.Graphlaw.prepare!(graph, [])
+    rows = GgenIgniter.Engine.Graphlaw.run(ctx, File.read!(path))
+
+    if rows != [] do
+      sample =
+        rows
+        |> Enum.take(3)
+        |> Enum.map_join("; ", fn row ->
+          "subject=#{inspect(Map.get(row, "subject"))} " <>
+            "missing=#{inspect(Map.get(row, "missing_property"))}"
+        end)
+
+      raise ArgumentError,
+            "projections unbound #{Path.relative_to(path, pack_dir)} returned " <>
+              "#{length(rows)} row(s) (zero-rows-pass required): #{sample}"
+    end
+
+    :ok
+  end
 
   # Phase 1's per-gate executor: runs one gate through the engine context and
   # re-raises any failure attributed to the gate itself (name + path), so a

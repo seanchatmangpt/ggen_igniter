@@ -1,0 +1,11 @@
+# OptionParser strict schema for each sj:CliTask. Filtered in the template by
+# matching ?task to the for_each driver row.
+PREFIX sj: <https://ggen-igniter.dev/ontology/semantic-jira#>
+SELECT DISTINCT ?task ?option ?opt_name ?opt_type ?opt_order WHERE {
+  ?option a sj:CliOption ;
+          sj:cliOptionOf ?task ;
+          sj:cliOptName ?opt_name ;
+          sj:cliOptType ?opt_type ;
+          sj:cliOptOrder ?opt_order .
+}
+ORDER BY ?opt_order ?opt_name
