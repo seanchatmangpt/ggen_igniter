@@ -45,8 +45,9 @@ selection. Autoloop branches not merged (WIP acceptance red).
 
 | Ref | SHA |
 |---|---|
-| Pre-land `origin/main` | `ba31e9be666e92805c6464b5ad321702ec27150c` |
-| Subject after land | (this commit) |
+| Hybrid fix | `294902e` |
+| Sync timeout raise | `89cb68f` |
+| L09 receipt | `60457949a72ec671fe5cc45477f8ef77592ff1e7` |
 
 ## Standing
 
