@@ -174,6 +174,35 @@ defmodule Mix.Tasks.GgenIgniter.RenameTaskTest do
       assert output =~ "to"
     end
 
+    test "refuses a non-identifier --to and leaves the fixture byte-identical" do
+      n = System.unique_integer([:positive])
+      mod = "GgenIgniterRenameFixture.BadTo#{n}.Sample"
+
+      path =
+        write_fixture!("bad_to_#{n}", """
+        defmodule #{mod} do
+          def foo, do: :ok
+        end
+        """)
+
+      before = File.read!(path)
+
+      {output, exit_code} =
+        run_task(["--from", "#{mod}.foo", "--to", "Fix.A.bad-name!x"])
+
+      refute exit_code == 0
+      assert output =~ "invalid --to"
+      assert File.read!(path) == before
+    end
+
+    test "refuses a lowercase module segment in --from" do
+      {output, exit_code} =
+        run_task(["--from", "lower.Mod.foo", "--to", "Upper.Mod.bar"])
+
+      refute exit_code == 0
+      assert output =~ "invalid --from"
+    end
+
     test "exits non-zero on a malformed --from (no function segment)" do
       {output, exit_code} = run_task(["--from", "NotAFunction", "--to", "Also.Not.AFunction"])
 

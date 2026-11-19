@@ -43,10 +43,10 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       exists and is newer than every `.rs` source file under the crate (a fast mtime proxy); if
       the `.so` is missing or stale, falls back to a real `cargo build --quiet` and reports real
       stderr on failure.
-  15. `GgenIgniter.Query.Graphlaw` actually works: runs a real `SELECT * WHERE { ?s ?p ?o }`
-      SPARQL query against a tiny real in-memory `%RDF.Graph{}` through the native graphlaw
-      (oxigraph) engine and confirms it returns without raising -- a functional smoke test,
-      not just "does the NIF load". Machine `check_id`: `graphlaw_smoke_test`.
+  15. `GgenIgniter.Query.Graphlaw` actually works: loads a one-triple in-memory `%RDF.Graph{}`
+      into the graphlaw WASM engine, runs `SELECT * WHERE { ?s ?p ?o }`, and requires exactly
+      1 row whose `s`/`p`/`o` plain strings equal the loaded triple -- a functional WASM smoke
+      test (an empty or wrong result is an error). Machine `check_id`: `graphlaw_smoke_test`.
   16. (only with `--hex-check`, off by default) hex-publish readiness: shells out to a real
       `mix hex.build` and reports its real output, plus checks `mix.exs`'s `package[:description]`
       and `package[:licenses]` are both present and non-empty.
@@ -78,7 +78,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   19. `semantic_jira_pack` health (`GgenIgniter.SemanticJira.PackHealth`): the shipped
       `priv/ggen/semantic-jira-pack/` (resolved against the same ggen_igniter root
       `check_nif_compiles` uses) loads its `ontology.ttl`, executes EVERY gate query
-      clean through `mix ggen_igniter.sync`'s default engine path (`oxigraph`, real
+      clean through `mix ggen_igniter.sync`'s default engine path (`graphlaw`, real
       execution -- not the parse-only check 12), and renders every template once per
       driver row through the sync pipeline's own `build_bindings/2` +
       `Render.render/2` convention. Fail-closed: any broken component (Turtle syntax,
@@ -574,7 +574,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         if Version.match?(version, "<= 0.3.12") do
           {:warn,
            "sparql #{version}: FILTER NOT EXISTS + BIND inside UNION raises Protocol.UndefinedError " <>
-             "(see query/oxigraph.ex moduledoc) -- doctor/sync default to the graphlaw engine; " <>
+             "(known sparql-library limitation) -- doctor/sync default to the graphlaw engine; " <>
              "do not use the pure-Elixir sparql engine for gate queries with this shape"}
         else
           {:ok,
@@ -901,16 +901,17 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
 
   # 15. GgenIgniter.Query.Graphlaw functional smoke test
   defp check_graphlaw_smoke_test do
-    graph =
-      RDF.Graph.new([
-        {RDF.iri("http://example.org/s"), RDF.iri("http://example.org/p"),
-         RDF.iri("http://example.org/o")}
-      ])
+    {s, p, o} = {"http://example.org/s", "http://example.org/p", "http://example.org/o"}
+    graph = RDF.Graph.new([{RDF.iri(s), RDF.iri(p), RDF.iri(o)}])
 
     case GgenIgniter.Query.Graphlaw.run(graph, "SELECT * WHERE { ?s ?p ?o }") do
-      rows when is_list(rows) ->
+      [%{"s" => ^s, "p" => ^p, "o" => ^o}] ->
         {:ok,
-         "GgenIgniter.Query.Graphlaw real SELECT query against an in-memory graph returned #{length(rows)} row(s)"}
+         "GgenIgniter.Query.Graphlaw real SELECT query against an in-memory graph returned 1 row(s) matching the loaded triple"}
+
+      other ->
+        {:error,
+         "GgenIgniter.Query.Graphlaw smoke test expected exactly 1 row #{inspect(%{"s" => s, "p" => p, "o" => o})}, got #{inspect(other)}"}
     end
   rescue
     error -> {:error, "GgenIgniter.Query.Graphlaw smoke test raised: #{Exception.message(error)}"}

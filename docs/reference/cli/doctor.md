@@ -39,8 +39,9 @@ engine was fixed to graphlaw — the number is retired, not reassigned.
    naming every missing app if any are unresolvable.
 3. **`sparql` hex package advisory** — warns if the loaded `:sparql` version
    is `<= 0.3.12`: that version's known `FILTER NOT EXISTS` + `BIND` inside
-   `UNION` bug raises `Protocol.UndefinedError`. Advises staying on the
-   default graphlaw engine for gate queries with that shape. Always
+   `UNION` bug raises `Protocol.UndefinedError`. Advises not using the
+   pure-Elixir `sparql` engine for gate queries with that shape (queries run
+   through graphlaw). Always
    `:warn`/`:ok`, never `:error` (and `:warn` if `:sparql` itself isn't
    loaded, since the version can't be checked).
 4. **Current project's `igniter` dep not `:only`-restricted** — real
@@ -82,8 +83,8 @@ engine was fixed to graphlaw — the number is retired, not reassigned.
     --quiet` and reports real stderr on failure (`:error`).
 15. **`GgenIgniter.Query.Graphlaw` functional smoke test** — runs a real
     `SELECT * WHERE { ?s ?p ?o }` against a tiny in-memory `%RDF.Graph{}`
-    through the native graphlaw engine and confirms it returns without raising —
-    a functional check, not just "does the NIF load". `check_id`:
+    through the graphlaw engine (WebAssembly via wasmex) and confirms it returns
+    without raising — a functional check, not just "does the engine load". `check_id`:
     `graphlaw_smoke_test`.
 16. **hex-publish readiness** (only with `--hex-check`) — shells out to a
     real `mix hex.build` and reports its real output; also checks

@@ -25,8 +25,8 @@ moduledoc's function list already fully explains it.
   the last segment (`actuate.ex` -> `GgenIgniter.Actuate`).
 - Subdirectories (`query/`, `render/`, `reactors/`, `telemetry/`) hold
   implementations of a behaviour/role defined by the sibling top-level file
-  (`query.ex` defines the `GgenIgniter.Engine` behaviour; `query/oxigraph.ex`
-  and `query/qlever.ex` implement it). When adding a new engine/renderer/
+  (`query.ex` defines the `GgenIgniter.Engine` behaviour; `query/graphlaw.ex`
+  is the fixed engine; `query/oxigraph.ex` is retained but not selectable). When adding a new engine/renderer/
   reactor step, follow this same top-level-behaviour + subdirectory-impl
   split — don't flatten a new implementation into the top-level file.
 - Preferred coordination is `reactors/reconcile_reactor.ex`

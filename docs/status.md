@@ -287,7 +287,7 @@ that PRD mapping — separate purposes that share some words.
 
 ## Finish honesty (docs lane, 2026-11-18)
 
-Open operator decisions: `docs/jira/v26.11.18/FINISH.md`. Pack census: **26** ontology packs / **9** with `pack.toml` under `priv/ggen/`. Refusal codes: **148** + **24** wrapped. Doctor checks: **19**. Version: **26.11.18** (`mix.exs`). Hex publish of 26.11.18: **not done** (local tarball evidence stops at 26.11.10). `[ontology.aggregate]` sync wiring: **IMPLEMENTED** (lane 4; see capability row above).
+Open operator decisions: `docs/jira/v26.11.18/FINISH.md`. Pack census: **26** ontology packs / **9** with `pack.toml` under `priv/ggen/`. Refusal codes: **148** + **24** wrapped. Doctor checks: **18** (ids 1-19; id 8 retired). Version: **26.11.18** (`mix.exs`). Hex publish of 26.11.18: **not done** (local tarball evidence stops at 26.11.10). `[ontology.aggregate]` sync wiring: **IMPLEMENTED** (lane 4; see capability row above).
 
 ## See also
 

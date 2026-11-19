@@ -48,7 +48,11 @@ defmodule GgenIgniter.PackLock do
   replace: readers see the old or the new file, never a partial one).
   `update/3` serializes read-modify-write across processes AND OS processes via
   an atomic `File.mkdir` on `<lock>.lockdir` (`:global.trans` would not
-  protect two concurrent `mix` invocations).
+  protect two concurrent `mix` invocations). Ownership is a token file inside
+  the lockdir: stale reclaim renames the dir to `<lockdir>.dead.<n>` (atomic
+  claim), verifies the grave's token equals the one seen stale, and otherwise
+  renames it back; release only removes a lockdir still carrying the
+  releaser's own token, so a reclaimed holder cannot free its successor's lock.
   """
 
   defmodule Refusal do
@@ -360,15 +364,22 @@ defmodule GgenIgniter.PackLock do
   atomically) or `{:error, reason}` (nothing written). An existing but invalid
   lock is `{:error, {:lock_invalid, path}}` and is never overwritten unless
   `force: true` is given. Mutual exclusion is an atomic `File.mkdir` of
-  `<lock>.lockdir` (works across OS processes; stale dirs older than
-  #{@stale_lock_s}s are reclaimed).
+  `<lock>.lockdir` (works across OS processes). The lockdir is token-owned: the
+  holder writes a unique token to `<lockdir>/owner`, releases only while that
+  token is still current, and a stale dir (older than #{@stale_lock_s}s) is
+  reclaimed by atomic rename to a grave plus a token re-check, never by a bare
+  rmdir.
   """
   @spec update(String.t(), keyword(), (lock() -> {:ok, lock()} | {:error, term()})) ::
           {:ok, lock()} | {:error, term()}
   def update(lock_path, opts \\ [], fun) do
     File.mkdir_p!(Path.dirname(lock_path))
     lockdir = lock_path <> ".lockdir"
-    acquire(lockdir, System.monotonic_time(:millisecond) + @lock_timeout_ms)
+
+    token =
+      "#{System.pid()}.#{System.unique_integer([:positive])}.#{Base.encode16(:crypto.strong_rand_bytes(8))}"
+
+    acquire(lockdir, token, System.monotonic_time(:millisecond) + @lock_timeout_ms)
 
     try do
       with {:ok, lock} <- load_for_update(lock_path, opts[:force] == true),
@@ -377,7 +388,23 @@ defmodule GgenIgniter.PackLock do
         {:ok, new}
       end
     after
-      File.rmdir(lockdir)
+      release(lockdir, token)
+    end
+  end
+
+  # Removes the lockdir only while it still carries OUR owner token: a holder
+  # whose stale lock was reclaimed must never delete its successor's lock.
+  defp release(lockdir, token) do
+    owner = Path.join(lockdir, "owner")
+
+    case File.read(owner) do
+      {:ok, ^token} ->
+        File.rm(owner)
+        File.rmdir(lockdir)
+        :ok
+
+      _ ->
+        :ok
     end
   end
 
@@ -390,16 +417,16 @@ defmodule GgenIgniter.PackLock do
     end
   end
 
-  defp acquire(lockdir, deadline) do
+  defp acquire(lockdir, token, deadline) do
     case File.mkdir(lockdir) do
       :ok ->
+        File.write!(Path.join(lockdir, "owner"), token)
         :ok
 
       {:error, :eexist} ->
         cond do
-          stale?(lockdir) ->
-            File.rmdir(lockdir)
-            acquire(lockdir, deadline)
+          reclaim_stale(lockdir) ->
+            acquire(lockdir, token, deadline)
 
           System.monotonic_time(:millisecond) > deadline ->
             raise "pack lock busy: #{lockdir} held for over #{@lock_timeout_ms}ms"
@@ -407,11 +434,35 @@ defmodule GgenIgniter.PackLock do
           true ->
             # SLEEP-CLASS: POLL-STEP
             Process.sleep(5)
-            acquire(lockdir, deadline)
+            acquire(lockdir, token, deadline)
         end
 
       {:error, reason} ->
         raise "cannot create #{lockdir}: #{:file.format_error(reason)}"
+    end
+  end
+
+  # Token-checked stale reclaim. The lockdir is first claimed by an atomic
+  # rename to a unique grave (only one racer wins the rename), then the grave's
+  # owner token is compared with the one seen before the staleness check: equal
+  # means we buried the stale lock; different means we moved a fresh lock, which
+  # is renamed back. A lost rename race just retries the acquire loop.
+  defp reclaim_stale(lockdir) do
+    with {:ok, seen} when seen != "" <- File.read(Path.join(lockdir, "owner")),
+         true <- stale?(lockdir),
+         grave = "#{lockdir}.dead.#{System.unique_integer([:positive])}",
+         :ok <- File.rename(lockdir, grave) do
+      case File.read(Path.join(grave, "owner")) do
+        {:ok, ^seen} ->
+          File.rm_rf(grave)
+          true
+
+        _ ->
+          _ = File.rename(grave, lockdir)
+          false
+      end
+    else
+      _ -> false
     end
   end
 

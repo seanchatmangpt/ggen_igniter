@@ -147,8 +147,10 @@ defmodule Mix.Tasks.GgenIgniter.Install do
 
   defp install_ash_domain(igniter) do
     otp_app =
-      igniter.args.options[:otp_app] ||
-        Igniter.Project.Application.app_name(igniter) |> to_string()
+      case igniter.args.options[:otp_app] do
+        nil -> Igniter.Project.Application.app_name(igniter)
+        flag -> otp_app_atom!(flag)
+      end
 
     domain_module =
       case igniter.args.options[:domain] do
@@ -165,7 +167,7 @@ defmodule Mix.Tasks.GgenIgniter.Install do
         |> Igniter.Project.Deps.add_dep({:ash, "~> 3.0"})
         |> Igniter.Project.Config.configure_new(
           "config.exs",
-          String.to_atom(otp_app),
+          otp_app,
           [:ash_domains],
           [domain_module]
         )
@@ -187,6 +189,17 @@ defmodule Mix.Tasks.GgenIgniter.Install do
 
         referenced from project/0 as `deps: deps()`, and re-run `mix ggen_igniter.install`.
         """)
+    end
+  end
+
+  # A legitimately new app name is not yet an atom, so `to_existing_atom` would be wrong;
+  # the snake_case allowlist bounds what user input may mint.
+  defp otp_app_atom!(value) when is_binary(value) do
+    if Regex.match?(~r/\A[a-z][a-z0-9_]*\z/, value) do
+      String.to_atom(value)
+    else
+      raise ArgumentError,
+            "invalid --otp-app #{inspect(value)}: expected snake_case (~r/\\A[a-z][a-z0-9_]*\\z/)"
     end
   end
 

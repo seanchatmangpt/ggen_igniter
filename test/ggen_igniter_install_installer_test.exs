@@ -67,6 +67,34 @@ defmodule GgenIgniterInstallInstallerTest do
     assert content(igniter, ".formatter.exs") =~ ":ggen_igniter"
   end
 
+  test "a valid --otp-app configures ash_domains under that app, not the project default" do
+    igniter =
+      test_project(files: %{"mix.exs" => @mix_exs})
+      |> Igniter.compose_task("ggen_igniter.install", [
+        "--with-ash-domain",
+        "--otp-app",
+        "other_app"
+      ])
+
+    config = content(igniter, "config/config.exs")
+    assert config =~ "config :other_app"
+    assert config =~ "ash_domains"
+  end
+
+  test "an invalid --otp-app raises ArgumentError and writes no config" do
+    project = test_project(files: %{"mix.exs" => @mix_exs})
+
+    assert_raise ArgumentError, ~r/invalid --otp-app.*expected snake_case/, fn ->
+      Igniter.compose_task(project, "ggen_igniter.install", [
+        "--with-ash-domain",
+        "--otp-app",
+        "Bad App;x"
+      ])
+    end
+
+    refute Rewrite.has_source?(project.rewrite, "config/config.exs")
+  end
+
   test "a pre-existing import_deps entry is extended, not duplicated" do
     project =
       test_project(

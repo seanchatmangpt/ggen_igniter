@@ -171,6 +171,13 @@ jobs:
           mix compile
           MIX_ENV=test mix compile
 
+      # No-sleep doctrine gate (mix.exs alias `sleep.gate`): fails on any
+      # unclassified Process.sleep in lib/ or test/.
+      - name: mix sleep.gate
+        shell: bash
+        run: |
+          mix sleep.gate
+
       # gi-verify-task closure: `mix ggen_igniter.verify` (lib/mix/tasks/
       # ggen_igniter.verify.ex) had zero callers anywhere in this repo before
       # this step -- confirmed by `grep -rn "ggen_igniter.verify"

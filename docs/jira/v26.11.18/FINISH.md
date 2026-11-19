@@ -13,7 +13,7 @@ not copied from earlier README badges.
 | Ontology packs under `priv/ggen/` | **26** | dirs with `ontology.ttl` |
 | Of those with `pack.toml` | **9** | `find priv/ggen -name pack.toml` |
 | Non-pack residual | `doctrine-canonical-source/` | contract-only |
-| Doctor checks | **19** | `docs/reference/cli/doctor.md` numbered list |
+| Doctor checks | **18** (ids 1-19; id 8 retired) | `docs/reference/cli/doctor.md` numbered list |
 | Refusal codes | **148** + **24** wrapped | `priv/schema/refusals.schema.json` |
 | Local Hex tarball | `ggen_igniter-26.11.10.tar` only | repo root |
 | Sync spine | CLI → **always** `ReconcileReactor` | `lib/mix/tasks/ggen_igniter.sync.ex` (`run_pipeline!/3` deleted; `mode: eval` included) |
@@ -58,9 +58,11 @@ not copied from earlier README badges.
 2. **Hex publish of v26.11.18?** Runbook at
    `docs/jira/v26.11.10/10-HEX-PACKAGING-AND-PUBLICATION-RUNBOOK.md`;
    not executed. Local evidence still 26.11.10.
-3. **Remaining `String.to_atom` sites** (install otp_app, DoctorFixes,
-   refusals schema load, tera filter ops, review_eval kind,
-   rename_options) — harden vs leave as trusted-input?
+3. **Remaining `String.to_atom` sites**: `mix/tasks/ggen_igniter.install.ex`
+   (otp_app), `review_eval/corpus.ex`, `refusals.ex` (schema load, two sites),
+   `refactors/rename_options.ex` (fun name). Tera filter ops and `DoctorFixes`
+   are already closed. These are being hardened in this wave (not yet
+   gated; closure needs the gate).
 4. **Lock TOCTOU** (`pack_lock.ex` / `lock.ex` stale-check then
    rmdir/retry) — still OPEN in
    `docs/jira/v26.11.12/TODO-FIX-AND-FINISH.md`.

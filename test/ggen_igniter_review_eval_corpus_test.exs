@@ -92,5 +92,14 @@ defmodule GgenIgniter.ReviewEval.CorpusTest do
       assert {:error, {:unknown_source_kind, "nope"}} = Corpus.validate_case(bad)
       assert {:error, :invalid_case_shape} = Corpus.validate_case(%{})
     end
+
+    test "hostile source kind is refused without minting an atom" do
+      kind = "hostile_kind_#{System.unique_integer([:positive])}"
+      bad = sample_case() |> put_in(["source", "kind"], kind)
+
+      assert_raise ArgumentError, fn -> String.to_existing_atom(kind) end
+      assert {:error, {:unknown_source_kind, ^kind}} = Corpus.validate_case(bad)
+      assert_raise ArgumentError, fn -> String.to_existing_atom(kind) end
+    end
   end
 end

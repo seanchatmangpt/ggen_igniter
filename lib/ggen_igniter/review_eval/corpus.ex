@@ -121,12 +121,12 @@ defmodule GgenIgniter.ReviewEval.Corpus do
       })
       when is_binary(id) and is_binary(p) and is_binary(f) and is_list(surfaces) and
              is_binary(file) and is_integer(line) do
-    kind_atom = if is_binary(kind), do: String.to_atom(kind), else: kind
+    known = Enum.map(known_kinds(), &Atom.to_string/1)
 
-    if kind_atom in known_kinds() do
-      :ok
-    else
-      {:error, {:unknown_source_kind, kind}}
+    cond do
+      is_binary(kind) and kind in known -> :ok
+      is_atom(kind) and kind in known_kinds() -> :ok
+      true -> {:error, {:unknown_source_kind, kind}}
     end
   end
 

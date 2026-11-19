@@ -81,9 +81,9 @@ defmodule GgenIgniter.Lock do
   """
 
   @enforce_keys [:path, :key]
-  defstruct [:path, :key]
+  defstruct [:path, :key, marker: nil]
 
-  @type t :: %__MODULE__{path: String.t(), key: String.t()}
+  @type t :: %__MODULE__{path: String.t(), key: String.t(), marker: String.t() | nil}
 
   @lock_subpath ".ggen_igniter/.sync.lock"
   @default_timeout_ms 30_000
@@ -117,34 +117,93 @@ defmodule GgenIgniter.Lock do
   defp do_acquire(path, lock_key, deadline, retry_interval_ms) do
     case File.open(path, [:write, :exclusive]) do
       {:ok, io} ->
-        IO.write(io, holder_marker())
+        marker = unique_marker()
+        IO.write(io, holder_marker(marker))
         File.close(io)
-        {:ok, %__MODULE__{path: path, key: lock_key}}
+        {:ok, %__MODULE__{path: path, key: lock_key, marker: marker}}
 
       {:error, :eexist} ->
-        if stale_lock?(path) do
-          # A prior holder never reached `release/1` (crash, kill, machine
-          # restart) -- break the stale lock and retry immediately rather
-          # than waiting out the rest of the timeout against a lock nobody
-          # still holds.
-          File.rm(path)
-          do_acquire(path, lock_key, deadline, retry_interval_ms)
-        else
-          if System.monotonic_time(:millisecond) >= deadline do
-            raise RuntimeError,
-                  "GgenIgniter.Lock: could not acquire lock #{inspect(path)} within timeout " <>
-                    "-- another mutating ggen_igniter invocation appears to be running " <>
-                    "against #{inspect(lock_key)}"
-          else
-            # SLEEP-CLASS: POLL-STEP
-            Process.sleep(retry_interval_ms)
+        case break_if_stale(path) do
+          :broke ->
+            # A prior holder never reached `release/1` (crash, kill, machine
+            # restart) -- the stale lock was atomically claimed and removed;
+            # retry immediately rather than waiting out the timeout.
             do_acquire(path, lock_key, deadline, retry_interval_ms)
-          end
+
+          :not_stale ->
+            wait_or_raise(path, lock_key, deadline, retry_interval_ms)
+            do_acquire(path, lock_key, deadline, retry_interval_ms)
         end
 
       {:error, reason} ->
         raise RuntimeError,
               "GgenIgniter.Lock: could not create lock file #{inspect(path)}: #{inspect(reason)}"
+    end
+  end
+
+  # Raises past the deadline; otherwise sleeps one poll step and returns :ok.
+  defp wait_or_raise(path, lock_key, deadline, retry_interval_ms) do
+    if System.monotonic_time(:millisecond) >= deadline do
+      raise RuntimeError,
+            "GgenIgniter.Lock: could not acquire lock #{inspect(path)} within timeout " <>
+              "-- another mutating ggen_igniter invocation appears to be running " <>
+              "against #{inspect(lock_key)}"
+    else
+      # SLEEP-CLASS: POLL-STEP
+      Process.sleep(retry_interval_ms)
+      :ok
+    end
+  end
+
+  # TOCTOU-free stale break. Live locks are never touched: staleness is first
+  # judged read-only. Only a lock that already looks stale is broken, and only
+  # while holding a short-lived `<lock>.breaker` mutex (mkdir is atomic), so two
+  # breakers can never race a stale-check against each other's remove. A fresh
+  # lock can only appear after the stale file is gone, and only breakers remove
+  # stale files, so the re-check-then-rm under the mutex cannot delete a lock a
+  # concurrent winner just created.
+  @breaker_stale_ms 5_000
+
+  @spec break_if_stale(String.t()) :: :broke | :not_stale
+  defp break_if_stale(path) do
+    if stale_lock?(path), do: with_breaker(path), else: :not_stale
+  end
+
+  defp with_breaker(path) do
+    breaker = path <> ".breaker"
+
+    case File.mkdir(breaker) do
+      :ok ->
+        try do
+          if stale_lock?(path) do
+            _ = File.rm(path)
+            :broke
+          else
+            :not_stale
+          end
+        after
+          File.rmdir(breaker)
+        end
+
+      {:error, :eexist} ->
+        # Another breaker is working (retry via the caller's poll), unless its
+        # mutex itself is orphaned by a crash -- reclaim that.
+        reclaim_orphan_breaker(breaker)
+        :not_stale
+
+      {:error, reason} ->
+        raise RuntimeError,
+              "GgenIgniter.Lock: could not create stale-break mutex " <>
+                "#{inspect(breaker)}: #{inspect(reason)}"
+    end
+  end
+
+  defp reclaim_orphan_breaker(breaker) do
+    with {:ok, %File.Stat{mtime: mtime}} <- File.stat(breaker, time: :posix),
+         true <- System.os_time(:second) - mtime > div(@breaker_stale_ms, 1000) do
+      File.rmdir(breaker)
+    else
+      _ -> :ok
     end
   end
 
@@ -155,8 +214,18 @@ defmodule GgenIgniter.Lock do
   raise.
   """
   @spec release(t()) :: :ok
-  def release(%__MODULE__{path: path}) do
-    File.rm(path)
+  def release(%__MODULE__{path: path, marker: marker}) do
+    # Remove only if the file still carries THIS lock's marker, so a lock
+    # re-acquired by another holder after a steal is never deleted.
+    case File.read(path) do
+      {:ok, content} ->
+        if is_binary(marker) and String.contains?(content, "marker=#{marker} "),
+          do: File.rm(path)
+
+      {:error, _} ->
+        :ok
+    end
+
     :ok
   end
 
@@ -170,8 +239,13 @@ defmodule GgenIgniter.Lock do
   @spec lock_path(String.t()) :: String.t()
   def lock_path(lock_key), do: Path.join(Path.expand(lock_key), @lock_subpath)
 
-  defp holder_marker do
-    "pid=#{System.pid()} node=#{Node.self()} creation=#{node_creation()} " <>
+  defp unique_marker do
+    "#{System.pid()}-#{System.unique_integer([:positive])}-" <>
+      Base.encode16(:crypto.strong_rand_bytes(8))
+  end
+
+  defp holder_marker(marker) do
+    "pid=#{System.pid()} marker=#{marker} node=#{Node.self()} creation=#{node_creation()} " <>
       "erlang_pid=#{inspect(self())} at=#{DateTime.utc_now() |> DateTime.to_iso8601()}\n"
   end
 

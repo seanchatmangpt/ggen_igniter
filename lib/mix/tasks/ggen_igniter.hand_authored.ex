@@ -129,7 +129,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
   Loads consumer + pack ontologies, prints the admitted set grouped per kind
   (count / ceiling, `AT CEILING` flagged), one row per admission (path, kind,
   debt, sha-bound, expiry), then really runs the pack's own gate queries
-  `050`/`060`/`070` (`gates/*.rq`) through the oxigraph engine over the merged
+  `050`/`060`/`070` (`gates/*.rq`) through the graphlaw engine over the merged
   consumer+pack graph. Exit 1 iff any gate query returns a row (the graph
   itself violates the law) -- this is the pre-render, pre-shell-gate
   half of `check`, usable against the graph alone.
@@ -650,7 +650,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
   end
 
   defp report_list_gates(igniter, gate_rows, total) do
-    IO.puts("pack gates (oxigraph over merged consumer+pack graph):")
+    IO.puts("pack gates (graphlaw over merged consumer+pack graph):")
 
     Enum.each(gate_rows, fn {name, _path, n} ->
       IO.puts("  #{String.pad_trailing(name, 44)} #{n} row(s)")
@@ -1230,7 +1230,7 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
       Regex.match?(~r/^PREFIX\s+#{Regex.escape(prefix)}\s*:/mi, content)
   end
 
-  # GgenIgniter.Query.Oxigraph returns `[map()]` rows with STRING keys and
+  # GgenIgniter.Query.Graphlaw returns `[map()]` rows with STRING keys and
   # plain lexical values (Literal::value(); IRIs as bare IRI strings) -- the
   # same normalization every pack template reads. Unbound OPTIONALs simply
   # don't appear as keys, so a missing key is an empty string / nil.
@@ -1244,13 +1244,32 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
     end
   end
 
+  # Only a missing/nil binding is 0. Lexicals "3" and "3.0" parse; anything
+  # else (including "") raises ArgumentError rather than hiding a lexical diff.
   defp int_cell(row, key) do
-    case cell(row, key) do
-      "" -> 0
-      v -> String.to_integer(v)
+    case Map.get(row, key) do
+      nil ->
+        0
+
+      v when is_binary(v) ->
+        case Integer.parse(v) do
+          {n, ""} ->
+            n
+
+          _ ->
+            case Float.parse(v) do
+              {f, ""} ->
+                trunc(f)
+
+              _ ->
+                raise ArgumentError,
+                      "int_cell #{inspect(key)}: not an integer lexical: #{inspect(v)}"
+            end
+        end
+
+      v ->
+        raise ArgumentError, "int_cell #{inspect(key)}: not an integer lexical: #{inspect(v)}"
     end
-  rescue
-    _ -> 0
   end
 
   defp iri_literal(iri) do

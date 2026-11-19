@@ -19,8 +19,10 @@ Updated 2026-11-18 finish slice — see `docs/jira/v26.11.18/RECEIPT-finish-slic
   **CLOSED** — compile-time `@binding_atoms` allowlist over `@render_keys` ∪
   `@identity_keys`.
 - MED lock TOCTOU: `pack_lock.ex` / `lock.ex` stale check then rmdir/retry
-  (confirmed). Check: concurrent-acquire court. **OPEN**.
-- LOW git-ignored `doc/` copies can drift: UNVERIFIED. **OPEN**.
+  (confirmed). Check: concurrent-acquire court. **IN PROGRESS** — fix landed
+  in this wave, see `docs/jira/v26.11.18` (not CLOSED; closure needs the gate).
+- LOW git-ignored `doc/` is generated ExDoc output — non-issue, not a source
+  of drift to track.
 
 ## Finish
 

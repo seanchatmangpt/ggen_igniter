@@ -47,11 +47,21 @@ defmodule GgenIgniter.Refusals do
 
   @schema @schema_path |> File.read!() |> Jason.decode!()
 
+  @code_re ~r/\A[A-Z][A-Z0-9]*(_[A-Z0-9]+)*\z/
+
   @entries @schema
            |> Map.fetch!("refusals")
            |> Enum.map(fn e ->
+             code = e["code"]
+
+             unless is_binary(code) and Regex.match?(@code_re, code),
+               do:
+                 raise(CompileError,
+                   description: "refusals.schema.json: malformed refusal code #{inspect(code)}"
+                 )
+
              %{
-               code: String.to_atom(e["code"]),
+               code: String.to_atom(code),
                family: e["family"],
                retryable: e["retryable"],
                owner: e["owner"],
@@ -69,7 +79,7 @@ defmodule GgenIgniter.Refusals do
   @wrapped @schema
            |> Map.get("wrapped_reasons", [])
            |> Enum.map(fn w ->
-             %{reason: w["reason"], parent: String.to_atom(w["parent"]), note: w["note"]}
+             %{reason: w["reason"], parent: String.to_existing_atom(w["parent"]), note: w["note"]}
            end)
 
   @by_code Map.new(@entries, &{&1.code, &1})

@@ -12,6 +12,10 @@ defmodule GgenIgniter.Refactors.RenameOptions do
   `{:shutdown, 1}`.
   """
 
+  @max_name_bytes 128
+  @fun_name ~r/^[a-z_][A-Za-z0-9_]*[?!]?$/
+  @mod_segment ~r/^[A-Z][A-Za-z0-9_]*$/
+
   @doc "Runs the rename described by parsed task `options` against `igniter`."
   @spec rename(Igniter.t(), keyword()) :: Igniter.t()
   def rename(igniter, options) do
@@ -51,9 +55,9 @@ defmodule GgenIgniter.Refactors.RenameOptions do
          [_ | _] <- parts,
          fun <- List.last(parts),
          mod_parts <- :lists.droplast(parts),
-         true <- mod_parts != [],
+         true <- mod_parts != [] and Enum.all?(mod_parts, &module_segment?/1),
          {fun_name, arity} <- fun_to_arity(fun),
-         fun_atom <- String.to_atom(fun_name),
+         {:ok, fun_atom} <- admit_function_name(fun_name),
          # Plain stdlib `Module.concat/1` over the raw string segments (it
          # prepends the `Elixir.` alias namespace itself), not
          # `Igniter.Project.Module.parse/1` -- `lib/mix/tasks/CLAUDE.md`
@@ -72,6 +76,18 @@ defmodule GgenIgniter.Refactors.RenameOptions do
 
         exit({:shutdown, 1})
     end
+  end
+
+  # Identifier shape is admitted BEFORE any atom is minted from CLI text.
+  defp admit_function_name(name)
+       when is_binary(name) and byte_size(name) <= @max_name_bytes do
+    if Regex.match?(@fun_name, name), do: {:ok, String.to_atom(name)}, else: :error
+  end
+
+  defp admit_function_name(_), do: :error
+
+  defp module_segment?(segment) do
+    byte_size(segment) <= @max_name_bytes and Regex.match?(@mod_segment, segment)
   end
 
   defp fun_to_arity(fun) do

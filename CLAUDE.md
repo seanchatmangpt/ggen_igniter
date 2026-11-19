@@ -4,12 +4,12 @@ Guidance for agents in this repository.
 
 ## What this is
 
-Elixir bootstrap of [ggen](https://github.com/seanchatmangpt/ggen)'s ontology-to-code pipeline: `Ontology.load!/1` → `Engine.run/2` → `Render.render/2` → `Actuate.write_file!/3`, tracked by a reconciliation manifest so upstream renames are mechanically detected. One embedded Rust piece: the `native/ggen_graph_nif` oxigraph engine (default `--engine`; the pure-Elixir `sparql` engine has known `FILTER NOT EXISTS`/`UNION` limits). `docs/status.md` marks IMPLEMENTED / PARTIAL_ALIVE / PLANNED; never claim an unverified status.
+Elixir bootstrap of [ggen](https://github.com/seanchatmangpt/ggen)'s ontology-to-code pipeline: `Ontology.load!/1` → `Engine.run/2` → `Render.render/2` → `Actuate.write_file!/3`, tracked by a reconciliation manifest so upstream renames are mechanically detected. The query engine is fixed to graphlaw (WebAssembly via wasmex, `GgenIgniter.Engine.Graphlaw`); there is no `--engine` flag. `native/ggen_graph_nif` (oxigraph) remains in the tree but is not a selectable engine; `Query.run/2` routes through `GgenIgniter.Query.Graphlaw`. `docs/status.md` marks IMPLEMENTED / PARTIAL_ALIVE / PLANNED; never claim an unverified status.
 
 ## Commands
 
 ```
-mix deps.get              # needs a Rust toolchain (compiles the NIF)
+mix deps.get              # needs a Rust toolchain (builds the retained NIF)
 mix compile
 mix test                  # default suite
 mix ggen_igniter.doctor   # run first when diagnosing

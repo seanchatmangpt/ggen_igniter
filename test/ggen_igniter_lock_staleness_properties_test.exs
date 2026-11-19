@@ -126,34 +126,53 @@ defmodule GgenIgniter.LockStalenessPropertiesTest do
       lock_key = Path.expand(tmp_dir)
 
       # Each subprocess: acquire the real lock, print a timestamped ACQUIRED
-      # line, hold it for a real 300ms via Process.sleep, print a timestamped
-      # RELEASED line, then release. The second racer necessarily blocks on
-      # the real :eexist path (this repo's real cross-OS-process mechanism,
-      # per lock.ex's moduledoc) until the first genuinely releases -- proven
+      # line, then HOLD until the parent writes a line to its stdin (the
+      # parent, not a timer, controls release), print a timestamped RELEASED
+      # line, then release. The second racer necessarily blocks on the real
+      # :eexist path (this repo's real cross-OS-process mechanism, per
+      # lock.ex's moduledoc) until the first genuinely releases -- proven
       # below by asserting the two [acquired, released] real-time windows do
       # not overlap.
       script = """
-      {:ok, lock} = GgenIgniter.Lock.acquire(#{inspect(lock_key)}, timeout_ms: 10_000, retry_interval_ms: 20)
+      {:ok, lock} = GgenIgniter.Lock.acquire(#{inspect(lock_key)}, timeout_ms: 240_000, retry_interval_ms: 20)
       IO.puts("ACQUIRED " <> Integer.to_string(System.os_time(:millisecond)))
-      Process.sleep(300)
+      IO.gets("")
       IO.puts("RELEASED " <> Integer.to_string(System.os_time(:millisecond)))
       :ok = GgenIgniter.Lock.release(lock)
       """
 
-      run_subprocess = fn ->
-        System.cmd("mix", ["run", "--no-start", "-e", script],
-          cd: File.cwd!(),
-          stderr_to_stdout: true
-        )
+      mix = System.find_executable("mix") || flunk("mix executable not on PATH")
+
+      spawn_holder = fn ->
+        Port.open({:spawn_executable, mix}, [
+          :binary,
+          :exit_status,
+          :stderr_to_stdout,
+          args: ["run", "--no-start", "-e", script],
+          cd: File.cwd!()
+        ])
       end
 
-      task_a = Task.async(run_subprocess)
-      task_b = Task.async(run_subprocess)
-
-      # Generous await: two concurrent `mix run` boots contend on the build
+      # Generous deadline: two concurrent `mix run` boots contend on the build
       # dir lock under a parallel suite; ExUnit's own timeout is the backstop.
-      {output_a, exit_a} = Task.await(task_a, 240_000)
-      {output_b, exit_b} = Task.await(task_b, 240_000)
+      deadline = System.monotonic_time(:millisecond) + 240_000
+
+      lock_path = Path.join(lock_key, ".ggen_igniter/.sync.lock")
+
+      port_a = spawn_holder.()
+      {:ok, acc_a} = await_port_output(port_a, "", ~r/ACQUIRED \d+\n/, deadline)
+
+      # A holds the lock for real while B starts and contends.
+      assert File.exists?(lock_path)
+      port_b = spawn_holder.()
+
+      # Release A (parent-controlled), then let B acquire and release in turn.
+      Port.command(port_a, "go\n")
+      {:exit, exit_a, output_a} = await_port_exit(port_a, acc_a, deadline)
+
+      {:ok, acc_b} = await_port_output(port_b, "", ~r/ACQUIRED \d+\n/, deadline)
+      Port.command(port_b, "go\n")
+      {:exit, exit_b, output_b} = await_port_exit(port_b, acc_b, deadline)
 
       assert exit_a == 0, "subprocess A failed:\n#{output_a}"
       assert exit_b == 0, "subprocess B failed:\n#{output_b}"
@@ -176,8 +195,35 @@ defmodule GgenIgniter.LockStalenessPropertiesTest do
              "expected non-overlapping hold windows across two real OS processes, " <>
                "got A=[#{acq_a}, #{rel_a}] B=[#{acq_b}, #{rel_b}]\nA output:\n#{output_a}\nB output:\n#{output_b}"
 
-      lock_path = Path.join(lock_key, ".ggen_igniter/.sync.lock")
       refute File.exists?(lock_path)
+    end
+  end
+
+  # Deadline-bounded receive loops over a real OS-process port: observe the
+  # child's output instead of guessing how long it needs.
+  defp await_port_output(port, acc, pattern, deadline) do
+    if acc =~ pattern do
+      {:ok, acc}
+    else
+      remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+
+      receive do
+        {^port, {:data, data}} -> await_port_output(port, acc <> data, pattern, deadline)
+        {^port, {:exit_status, status}} -> flunk("subprocess exited #{status} early:\n#{acc}")
+      after
+        remaining -> flunk("timed out waiting for #{inspect(pattern)}; output so far:\n#{acc}")
+      end
+    end
+  end
+
+  defp await_port_exit(port, acc, deadline) do
+    remaining = max(deadline - System.monotonic_time(:millisecond), 0)
+
+    receive do
+      {^port, {:data, data}} -> await_port_exit(port, acc <> data, deadline)
+      {^port, {:exit_status, status}} -> {:exit, status, acc}
+    after
+      remaining -> flunk("timed out waiting for subprocess exit; output so far:\n#{acc}")
     end
   end
 end

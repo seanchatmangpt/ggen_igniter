@@ -2,7 +2,8 @@ defmodule GgenIgniter.Query.Graphlaw do
   @moduledoc """
   One-shot SPARQL SELECT over an in-memory `RDF.Graph` through the graphlaw
   WASM engine (`GgenIgniter.Engine.Graphlaw`), replacing the oxigraph NIF as the
-  engine behind `GgenIgniter.Query.run/2`.
+  engine behind `GgenIgniter.Query.run/2`. `GgenIgniter.Query.Oxigraph` still
+  exists (retained, not selectable through `Query.run/2`) and is the only path for `raw: true`.
 
   Same `[map()]` row contract as `GgenIgniter.Query.Oxigraph.run/2`: string keys,
   plain unwrapped values, unbound variables omitted. Raises `RuntimeError` on any

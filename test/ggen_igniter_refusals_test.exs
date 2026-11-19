@@ -242,6 +242,29 @@ defmodule GgenIgniter.RefusalsTest do
     end
   end
 
+  describe "compile-time load hardening" do
+    test "every wrapped parent is a registered code" do
+      for %{parent: parent, reason: reason} <- Refusals.wrapped_reasons() do
+        assert {:ok, %{code: ^parent}} = Refusals.fetch(parent),
+               "#{reason}: parent #{inspect(parent)} is not registered"
+      end
+    end
+
+    test "every code round-trips through fetch/1" do
+      for %{code: code} = entry <- Refusals.all() do
+        assert {:ok, ^entry} = Refusals.fetch(code)
+        assert {:ok, ^entry} = Refusals.fetch(Atom.to_string(code))
+      end
+    end
+
+    test "an unknown code is rejected without minting an atom" do
+      name = "ZZ_NEVER_MINTED_#{System.unique_integer([:positive])}"
+
+      assert {:error, {:unknown_code, ^name}} = Refusals.parse("REFUSED:" <> name <> " x")
+      assert_raise ArgumentError, fn -> String.to_existing_atom(name) end
+    end
+  end
+
   describe "parse/1 and format/2" do
     test "round-trips the canonical form for every code" do
       for %{code: code} <- Refusals.all() do

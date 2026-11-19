@@ -86,7 +86,9 @@ defmodule GgenIgniter.DoctorTaskTest do
 
     assert exit_code == 0, "mix ggen_igniter.doctor failed:\n#{output}"
     assert output =~ ~r/✔ (native\/ggen_graph_nif|priv\/native\/ggen_graph_nif\.so)/
-    assert output =~ ~r/✔ GgenIgniter\.Query\.Graphlaw real SELECT query.*returned \d+ row\(s\)/
+
+    assert output =~
+             ~r/✔ GgenIgniter\.Query\.Graphlaw real SELECT query.*returned 1 row\(s\) matching the loaded triple/
   end
 
   test "mix ggen_igniter.doctor --hex-check runs a real mix hex.build and checks package metadata" do
