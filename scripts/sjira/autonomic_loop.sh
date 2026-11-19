@@ -62,8 +62,9 @@
 #   SJIRA_HANDS_FREE_STYLE         nounverb|direct (default: auto — *hands-free*
 #                                  basename → `system frontier`; else `frontier`).
 #   GGEN_BIN                       else: `{GGEN_BIN|ggen} sjira frontier …`
-#   Note: Rust frontier order envelope may differ from Mix flat WorkOrders;
-#   cross-check REFUSE is lawful evidence of twin drift, not a fake pass.
+#   Eligible-set parity is mandatory: Mix vs hands-free `eligible` identity
+#   sets must match or the loop exits 1 with REFUSED:HANDS_FREE_TWIN_DRIFT
+#   (scripts/sjira/hands_free_twin_parity.py). JSON-ok alone is not PASS.
 #
 # Live local backend (exactly one backend; same law as mix semantic_jira.execute):
 #   SJIRA_PACK_DIR + SJIRA_TARGET_DIR + SJIRA_RECEIPTS_DIR
@@ -411,6 +412,8 @@ if [ "${SJIRA_HANDS_FREE_CROSSCHECK:-}" = "1" ]; then
     tail -n 80 "$hands_free_log" >&2 || true
     refuse "HANDS_FREE" "frontier cross-check exited $hf_code"
   fi
+  # Structural gates (empty / non-JSON / REFUSED standing) then eligible-set
+  # parity vs Mix frontier — JSON-ok alone must not PASS (skeptic L19).
   python3 - "$hands_free_frontier_json" <<'PY'
 import json, sys
 path = sys.argv[1]
@@ -428,9 +431,22 @@ if isinstance(doc, dict) and (
 ):
     print("REFUSED:HANDS_FREE " + json.dumps(doc), file=sys.stderr)
     sys.exit(1)
-print(f"hands-free frontier: ok bytes={len(raw)}")
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(doc, f, sort_keys=True, indent=2, ensure_ascii=False)
+    f.write("\n")
+print(f"hands-free frontier: parsed bytes={len(raw)}")
 PY
-  log "hands-free frontier cross-check → $hands_free_frontier_json"
+  parity_py="$here/hands_free_twin_parity.py"
+  [ -f "$parity_py" ] || refuse "HANDS_FREE" "missing twin parity helper: $parity_py"
+  set +e
+  python3 "$parity_py" "$frontier_json" "$hands_free_frontier_json"
+  parity_code=$?
+  set -e
+  if [ "$parity_code" -ne 0 ]; then
+    refuse "HANDS_FREE_TWIN_DRIFT" \
+      "Mix↔hands-free eligible identity sets diverge (see stderr above)"
+  fi
+  log "hands-free frontier cross-check → $hands_free_frontier_json (eligible-set parity ok)"
 fi
 
 if [ "$mode" = "dry-run" ]; then
