@@ -1,5 +1,5 @@
-# Hands-free sjira autonomic loop (v26.11.19) — GAP9
-Standing: UNVERIFIED
+# Hands-free sjira autonomic loop (v26.11.19) — GAP9 / SJ10
+Standing: PASS
 
 Subject: `/Users/sac/ggen_igniter` hands-free observe → admit → frontier (+ optional
 ggen/hands-free cross-check). Live execute remains operator-gated.
@@ -15,14 +15,21 @@ ggen/hands-free cross-check). Live execute remains operator-gated.
 | EA sibling | `/Users/sac/ggen/examples/zero-code-sjira` (scaffold; not the live twin) |
 | fnox | no `just sjira-loop` surface (sjira docs under `docs/sjira/`; loop SoT is ggen_igniter) |
 
-## GAP9 standing (beyond dry-run)
+## GAP9 / SJ10 standing (beyond dry-run)
 
 | Hop | Standing | Notes |
 |---|---|---|
-| observe → admit → frontier (Mix dry-run) | **UNVERIFIED** this lane (builder ran no gate) | Prior session verifier: EXIT=0, `dry_run_ok` with friday fixture + identical-`cp` `-ef` skip |
+| observe → admit → frontier (Mix dry-run) | **PASS** | SJ10 verifier `fe831c68`: friday fixture EXIT=0, `status: dry_run_ok`, digests present; `admit: admitted=2 refused=0`; `frontier: eligible=1 blocked=1` |
 | evidence digests in `loop_receipt.json` | landed | `candidates`/`admitted`/`work_orders`/`frontier` sha256 |
-| `just sjira-loop-evidence` / `SJIRA_HANDS_FREE_CROSSCHECK=1` | **UNVERIFIED** (may **REFUSE** on twin envelope drift) | Non-destructive ggen/hands-free frontier after Mix; fail-closed when enabled. Mix emits flat `work_orders[]`; Rust `ggen sjira frontier` / hands-free often wants wrapped frontier entries — a REFUSE here is lawful twin-drift evidence, not a fake green |
-| live execute / complete | **BLOCKED** | See exact blockers below (prefer non-destructive) |
+| `just sjira-loop-evidence` / `SJIRA_HANDS_FREE_CROSSCHECK=1` | **PASS** | `GGEN_BIN=~/.local/bin/ggen` (**ggen 26.11.5**) EXIT=0; `hands-free frontier: ok bytes=189`; digest recorded. Missing ggen REFUSE proved: `GGEN_BIN=/nonexistent/ggen-missing` → EXIT=1 `REFUSED:HANDS_FREE frontier cross-check exited 127` |
+| live execute / complete | **BLOCKED** | EXIT=2 without operator pack/target (see below) |
+
+### Twin note (non-blocking)
+
+Mix frontier: `eligible=1 blocked=1`. Rust `ggen sjira frontier`: both WOs
+`authority_index_unavailable`, `eligible=[]`. Cross-check still EXIT=0 (JSON ok, no
+REFUSED standing) — lawful Mix↔Rust twin drift, not a fake Mix green; does not
+block O→A→F+evidence PASS.
 
 ### Live BLOCKED — exact refuse conditions
 
@@ -36,18 +43,22 @@ ggen/hands-free cross-check). Live execute remains operator-gated.
 
 Even with env present, live is **destructive** (pack sync / gate verify / ledger append / target HEAD check). No sealed sandbox fixture pack+target was admitted for GAP9; therefore live is documented **BLOCKED** pending operator-supplied temp target + verifier suite, not faked green.
 
+SJ10 replay: `just sjira-loop live` (no pack/target) → EXIT=2
+`INVALID:live mode needs SJIRA_PACK_DIR|SJIRA_PACKS_ROOT|SJIRA_RECEIPT`.
+
 ## Authority
 
 - Builder: fnox-planner-engineer GAP9 restore after mid-wave wipe.
 - Prior dry-run evidence (verifier `d14a5308`): EXIT=0, `status: dry_run_ok`, friday `test/fixtures/semantic_jira/friday_work_orders.json`.
+- SJ10 evidence crosscheck (verifier `fe831c68`): friday dry-run EXIT=0; evidence EXIT=0 with ggen 26.11.5; live EXIT=2 BLOCKED; missing ggen EXIT=1 REFUSE.
 
 ## Consequence
 
 - Loop + Just recipes re-landed with `-ef` identical-path skip.
-- Dry-run receipt now carries evidence digests (and optional hands-free frontier digest).
-- Live not actuated this lane.
+- Dry-run receipt carries evidence digests (and optional hands-free frontier digest).
+- O→A→F+evidence promoted to **PASS** on SJ10 replay; live not actuated / remains **BLOCKED**.
 
-## Replay (verifier)
+## Replay (verifier SJ10 / `fe831c68`)
 
 ```sh
 cd /Users/sac/ggen_igniter
@@ -69,17 +80,20 @@ export SJIRA_CANDIDATES=$SJIRA_OUT_DIR/candidates.jsonl
 just sjira-loop dry-run; echo EXIT:$?
 python3 -m json.tool "$SJIRA_OUT_DIR/loop_receipt.json"
 
-# Optional non-destructive twin (needs ggen on PATH):
-export SJIRA_HANDS_FREE_CROSSCHECK=1
-# export GGEN_BIN=… or SJIRA_HANDS_FREE_BIN=…/sjira-hands-free
+# Non-destructive twin (ggen 26.11.5):
+export GGEN_BIN="$HOME/.local/bin/ggen"
 just sjira-loop-evidence; echo EXIT:$?
 
 # Live must stay BLOCKED without operator pack/target (expect EXIT 2):
 just sjira-loop live; echo EXIT:$?
+
+# Missing ggen must REFUSE (expect EXIT 1):
+GGEN_BIN=/nonexistent/ggen-missing just sjira-loop-evidence; echo EXIT:$?
 ```
 
 ## Standing
 
-UNVERIFIED — builder did not run mix/just/cargo. Verifier promotes O→A→F on EXIT=0 +
-`loop_receipt.json` with digests; leaves live **BLOCKED** unless operator env is supplied
-and a non-production target is used.
+**PASS** — O→A→F friday dry-run EXIT=0 `dry_run_ok` + `just sjira-loop-evidence` EXIT=0
+with `GGEN_BIN=~/.local/bin/ggen` (ggen 26.11.5). Live remains **BLOCKED** (EXIT=2
+without operator env). Missing-ggen evidence REFUSE EXIT=1 proved. Mix↔Rust
+`authority_index_unavailable` twin drift is non-blocking.
