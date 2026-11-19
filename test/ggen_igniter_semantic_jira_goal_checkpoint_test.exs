@@ -618,7 +618,10 @@ defmodule GgenIgniter.SemanticJiraGoalCheckpointTest do
   end
 
   describe "mix ggen_igniter.sync (real subprocess over the merged goal graph)" do
-    @tag timeout: :timer.minutes(5)
+    # Real pack sync under concurrent wave load regularly exceeds 5m; isolate
+    # runs land ~140s. Keep the wall high so load-induced TimeoutError is not
+    # a false red on the hybrid-pack EEx path court.
+    @tag timeout: :timer.minutes(15)
     test "manufactures the Friday ticket beside all 37 orders (36 pack + GC-FIXTURE) with a graph-bound receipt" do
       work_dir = scratch_dir!("sync")
       ontology = write_merged!(goal_source())
