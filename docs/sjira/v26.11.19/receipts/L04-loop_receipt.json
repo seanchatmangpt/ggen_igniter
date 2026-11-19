@@ -18,9 +18,9 @@
     "hands_free_frontier_digest": "sha256:6f5753b0995c4f6f90c1e5d0364ae2fd2ead6388c7863ed031f20253ce80931d",
     "work_orders_digest": "sha256:ce5a049c3c653ab5fdb104231e70460c48421e69952b848b2cb081085d0c9a6f"
   },
-  "frontier": "/Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/_loop_run/evidence/frontier.json",
-  "ledger": "/Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/_loop_run/evidence/ledger.jsonl",
-  "loop_digest": "sha256:ef12fc88ead2e4eab21dae627aadb899772cf2159f563085a140e33b5c7fc5a4",
+  "frontier": "/var/folders/s6/jqyw48zs39z38b_3f6f_x2sc0000gn/T/tmp.tpsZB1ihwP/frontier.json",
+  "ledger": "/var/folders/s6/jqyw48zs39z38b_3f6f_x2sc0000gn/T/tmp.tpsZB1ihwP/ledger.jsonl",
+  "loop_digest": "sha256:e380837686d67202f13b71fee96fee314fad96c7d0d7392985d7c19b113d0cb8",
   "mode": "dry-run",
   "note": "dry-run: observe→admit→frontier with file digests; no execute/receipt actuation; coordinator/verifier must promote standing",
   "skipped": [
@@ -29,5 +29,5 @@
   ],
   "standing": "UNVERIFIED",
   "status": "dry_run_ok",
-  "work_orders": "/Users/sac/ggen_igniter/docs/sjira/v26.11.19/receipts/_loop_run/evidence/work_orders.json"
+  "work_orders": "/var/folders/s6/jqyw48zs39z38b_3f6f_x2sc0000gn/T/tmp.tpsZB1ihwP/work_orders.json"
 }
