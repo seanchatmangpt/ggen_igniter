@@ -117,8 +117,20 @@ excludes = if qlever_reachable?, do: excludes, else: [:requires_qlever_server | 
 # been the right technique for this specific tag; it was never the
 # unreliable half of this file, only a silent victim of the configure/1
 # overwrite bug above when it happened to run after the qlever block.
+# The precondition is the exact fixture the tagged tests load, READABLE (an existing
+# but permission-denied ~/ash_r2rml tree is an unavailable collaborator, not a defect
+# in this repo); the exclusion is loud in ExUnit's "Excluding tags" line.
+ash_r2rml_fixture_readable? =
+  match?(
+    {:ok, _},
+    File.open(
+      Path.expand("~/ash_r2rml/priv/ontologies/fortune5/operational_shapes.ttl"),
+      [:read]
+    )
+  )
+
 excludes =
-  if File.exists?(Path.expand("~/ash_r2rml")) do
+  if ash_r2rml_fixture_readable? do
     excludes
   else
     [:requires_ash_r2rml | excludes]
