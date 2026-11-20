@@ -1,0 +1,8 @@
+== sjira-loop [live] observe: skipped (SJIRA_CANDIDATES=/tmp/sjira-bare-pack.2IFmZZ/candidates.jsonl)
+== sjira-loop [live] admit_candidates: mix semantic_jira.admit_candidates --candidates /tmp/sjira-bare-pack.2IFmZZ/candidates.jsonl
+admit: admitted=2 refused=0
+work_orders: 2
+== sjira-loop [live] frontier: mix semantic_jira.frontier --work-orders /tmp/sjira-bare-pack.2IFmZZ/work_orders.json --ledger /tmp/sjira-bare-pack.2IFmZZ/ledger.jsonl
+frontier: eligible=1 blocked=1
+INVALID:live mode needs SJIRA_PACK_DIR|SJIRA_PACKS_ROOT|SJIRA_RECEIPT
+error: Recipe `sjira-loop` failed with exit code 2

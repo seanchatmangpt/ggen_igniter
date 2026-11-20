@@ -1344,7 +1344,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       # count-neutral: the six offender gates re-homed to verify/*.unbound.rq
       # re-ship positive driver forms at the same gates/ IDs (11 untouched + 6
       # drivers = 17).
-      assert length(gates) == 17
+      # 19 since gates/070_cli_tasks.rq + gates/071_cli_options.rq (v26.11.19
+      # gap-close CLI courts); census tracks the shipped gates/ set.
+      assert length(gates) == 19
 
       Enum.each(gates, fn gate ->
         assert is_list(GgenIgniter.Query.run(graph, File.read!(gate))),

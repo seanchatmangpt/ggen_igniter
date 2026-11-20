@@ -132,7 +132,9 @@ defmodule GgenIgniter.PackTest do
       # The offender companions must never enter witness scoring: the real
       # semantic-jira-pack has both directories, and discover_queries/1 must
       # still return only the gates/ set.
-      assert length(Pack.discover_queries("priv/ggen/semantic-jira-pack")) == 17
+      # 19 since gates/070_cli_tasks.rq + gates/071_cli_options.rq (v26.11.19
+      # gap-close); discover_queries/1 stays scoped to gates/ only.
+      assert length(Pack.discover_queries("priv/ggen/semantic-jira-pack")) == 19
 
       assert length(Pack.discover_unbound_queries("priv/ggen/semantic-jira-pack")) == 6
     end

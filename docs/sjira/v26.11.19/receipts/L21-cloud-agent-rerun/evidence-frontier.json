@@ -1,0 +1,40 @@
+{
+  "blocked": [
+    {
+      "dependencies": [
+        {
+          "required_standing": "ALIVE",
+          "type": "requiresReceipt",
+          "upstream": "FRI-FMT-A"
+        }
+      ],
+      "identity": "FRI-FMT-B",
+      "reason": "dependencies_unsatisfied"
+    }
+  ],
+  "eligible": [
+    {
+      "authority": "NONE",
+      "base_sha": "5984ec480c2318e86aa621da5f496e5e014b0fac",
+      "candidate_sha": null,
+      "definition_digest": "sha256:22b803e028f97e130cf235628a2ca69ccdcb759cfabeb52cf74fa5bd6267cf46",
+      "identity": "FRI-FMT-A",
+      "origin_admission_digest": "sha256:310e14f1e30a9bb4d6ebd4388036e10ce3c973b13c0d45a7b550fa3dfd53c72c",
+      "origin_authority": "https://ggen-igniter.dev/ontology/semantic-jira#objective-code-work-authority",
+      "path_scope": [
+        "lib"
+      ],
+      "repository": "seanchatmangpt/ggen_igniter",
+      "subject": "ggen_igniter:format-drift:lib",
+      "title": "Repair mix format drift in the reference subject",
+      "work_order_digest": "sha256:b91493f14bc8919837305fa4fec55f16c8c7c78413607376f2b225585910385d"
+    }
+  ],
+  "events": 0,
+  "ledger_tail": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "standings": {
+    "FRI-FMT-A": "UNKNOWN",
+    "FRI-FMT-B": "UNKNOWN"
+  },
+  "status": "ok"
+}

@@ -49,3 +49,13 @@ Optional / path-specific:
 Hands-free substitute (no operator pack/target): `just sjira-loop-live-sandbox`.
 
 Fabric / auth live remains **BLOCKED (Tony)** — not claimed PASS. Not demoting any COMPLETE.
+
+## Cloud-agent reconfirm (L21, 2026-11-20)
+
+| Surface | Exit | Standing / note |
+|---|---|---|
+| `just sjira-loop-live-sandbox` | **0** | `live_ok`; execute `outcome=partial_alive` → PARTIAL_ALIVE |
+| bare live (no env) | **2** | `INVALID:SJIRA_OUT_DIR is required` |
+| bare live (OUT+LEDGER+friday candidates) | **2** | `INVALID:live mode needs SJIRA_PACK_DIR|SJIRA_PACKS_ROOT|SJIRA_RECEIPT` |
+
+Artifacts: `L21-cloud-agent-rerun/`. Fabric / auth live remains **BLOCKED (Tony)**.
