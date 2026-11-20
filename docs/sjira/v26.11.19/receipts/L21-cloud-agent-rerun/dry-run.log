@@ -1,0 +1,8 @@
+== sjira-loop [dry-run] observe: skipped (SJIRA_CANDIDATES=/tmp/sjira-dry.vh4356/candidates.jsonl)
+== sjira-loop [dry-run] admit_candidates: mix semantic_jira.admit_candidates --candidates /tmp/sjira-dry.vh4356/candidates.jsonl
+admit: admitted=2 refused=0
+work_orders: 2
+== sjira-loop [dry-run] frontier: mix semantic_jira.frontier --work-orders /tmp/sjira-dry.vh4356/work_orders.json --ledger /tmp/sjira-dry.vh4356/ledger.jsonl
+frontier: eligible=1 blocked=1
+{"status": "dry_run_ok", "loop_receipt": "/tmp/sjira-dry.vh4356/loop_receipt.json", "eligible": 1, "evidence": {"candidates_digest": "sha256:5f60b630dadedf57d71bcae80f55ca71603afda49b7cb7d1555106fbd2be8a32", "admitted_digest": "sha256:5f60b630dadedf57d71bcae80f55ca71603afda49b7cb7d1555106fbd2be8a32", "work_orders_digest": "sha256:ce5a049c3c653ab5fdb104231e70460c48421e69952b848b2cb081085d0c9a6f", "frontier_digest": "sha256:b21791675c140bd39dd1cc13d1bceb39c85026f3849f688c3d6d331efc97eeae", "hands_free_frontier_digest": null}}
+== sjira-loop [dry-run] dry-run complete → /tmp/sjira-dry.vh4356/loop_receipt.json

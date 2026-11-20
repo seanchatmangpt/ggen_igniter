@@ -1,0 +1,77 @@
+
+04:03:29.273 [notice]     :alarm_handler: {:set, {:system_memory_high_watermark, []}}
+
+04:03:29.287 [warning] AshA2A legacy_compat profile: outbox_key_missing: receipt outbox is unkeyed; set :receipt_outbox_key or :receipt_binding_key
+
+04:03:29.287 [warning] AshA2A legacy_compat profile: outbox_dir_not_durable: :receipt_outbox_dir nil is unset or under a tmp directory
+
+04:03:29.287 [warning] AshA2A legacy_compat profile: receipt_store_in_memory: :receipt_store is AshA2A.ReceiptStore.Memory
+
+04:03:29.287 [warning] AshA2A legacy_compat profile: capability_release_mode_legacy: :capability_release_mode must be :strict (capabilities unbound under :legacy)
+
+04:03:29.287 [warning] AshA2A legacy_compat profile: kill_switch_class_missing: :kill_switch_class is nil; no class can be halted
+
+04:03:29.287 [warning] AshA2A legacy_compat profile: claim_store_missing: no :claim_store configured; nothing durable backs claims
+
+04:03:29.292 [warning] AshA2A: receipts are not durable in this runtime (receipt_store=AshA2A.ReceiptStore.Memory, durable=false, data_dir_tmp=false, receipt_outbox_dir_tmp=true). Configure AshA2A.ReceiptStore.Ekv with a persistent :data_dir and a persistent :receipt_outbox_dir, or set config :ash_a2a, :env to a non-:prod value for development.
+
+04:03:31.530 [error] Postgrex.Protocol (#PID<0.510.0> ("db_conn_1")) failed to connect: ** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
+
+04:03:31.531 [error] :gen_statem #PID<0.510.0> terminating
+** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
+    (db_connection 2.10.2) lib/db_connection/connection.ex:121: DBConnection.Connection.handle_event/4
+    (stdlib 8.1.1) gen_statem.erl:3743: :gen_statem.loop_state_callback/11
+    (stdlib 8.1.1) proc_lib.erl:333: :proc_lib.init_p_do_apply/3
+Process Label: "db_conn_1"
+Queue: [internal: {:connect, :init}]
+Postponed: []
+State: Postgrex.Protocol
+Callback mode: :handle_event_function, state_enter: false
+
+04:03:31.532 [error] Postgrex.Protocol (#PID<0.513.0> ("db_conn_1")) failed to connect: ** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
+
+04:03:31.532 [error] :gen_statem #PID<0.513.0> terminating
+** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
+    (db_connection 2.10.2) lib/db_connection/connection.ex:121: DBConnection.Connection.handle_event/4
+    (stdlib 8.1.1) gen_statem.erl:3743: :gen_statem.loop_state_callback/11
+    (stdlib 8.1.1) proc_lib.erl:333: :proc_lib.init_p_do_apply/3
+Process Label: "db_conn_1"
+Queue: [internal: {:connect, :init}]
+Postponed: []
+State: Postgrex.Protocol
+Callback mode: :handle_event_function, state_enter: false
+
+04:03:31.532 [error] Postgrex.Protocol (#PID<0.514.0> ("db_conn_1")) failed to connect: ** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
+
+04:03:31.533 [error] :gen_statem #PID<0.514.0> terminating
+** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
+    (db_connection 2.10.2) lib/db_connection/connection.ex:121: DBConnection.Connection.handle_event/4
+    (stdlib 8.1.1) gen_statem.erl:3743: :gen_statem.loop_state_callback/11
+    (stdlib 8.1.1) proc_lib.erl:333: :proc_lib.init_p_do_apply/3
+Process Label: "db_conn_1"
+Queue: [internal: {:connect, :init}]
+Postponed: []
+State: Postgrex.Protocol
+Callback mode: :handle_event_function, state_enter: false
+
+04:03:31.533 [error] Postgrex.Protocol (#PID<0.515.0> ("db_conn_1")) failed to connect: ** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
+
+04:03:31.533 [error] :gen_statem #PID<0.515.0> terminating
+** (DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused
+    (db_connection 2.10.2) lib/db_connection/connection.ex:121: DBConnection.Connection.handle_event/4
+    (stdlib 8.1.1) gen_statem.erl:3743: :gen_statem.loop_state_callback/11
+    (stdlib 8.1.1) proc_lib.erl:333: :proc_lib.init_p_do_apply/3
+Process Label: "db_conn_1"
+Queue: [internal: {:connect, :init}]
+Postponed: []
+State: Postgrex.Protocol
+Callback mode: :handle_event_function, state_enter: false
+Running ExUnit with seed: 831100, max_cases: 8
+Excluding tags: [:integration, :postgres, :requires_ash_r2rml, :requires_qlever_server]
+
+...
+Finished in 0.1 seconds (0.1s async, 0.00s sync)
+
+Result: 3 passed
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed

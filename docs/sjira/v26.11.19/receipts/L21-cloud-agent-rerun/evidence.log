@@ -1,0 +1,11 @@
+== sjira-loop [dry-run] observe: skipped (SJIRA_CANDIDATES=/tmp/sjira-evidence.2A1G69/candidates.jsonl)
+== sjira-loop [dry-run] admit_candidates: mix semantic_jira.admit_candidates --candidates /tmp/sjira-evidence.2A1G69/candidates.jsonl
+admit: admitted=2 refused=0
+work_orders: 2
+== sjira-loop [dry-run] frontier: mix semantic_jira.frontier --work-orders /tmp/sjira-evidence.2A1G69/work_orders.json --ledger /tmp/sjira-evidence.2A1G69/ledger.jsonl
+frontier: eligible=1 blocked=1
+hands-free frontier: parsed bytes=827
+hands-free twin parity: ok eligible=['FRI-FMT-A']
+== sjira-loop [dry-run] hands-free frontier cross-check → /tmp/sjira-evidence.2A1G69/hands_free_frontier.json (eligible-set parity ok)
+{"status": "dry_run_ok", "loop_receipt": "/tmp/sjira-evidence.2A1G69/loop_receipt.json", "eligible": 1, "evidence": {"candidates_digest": "sha256:5f60b630dadedf57d71bcae80f55ca71603afda49b7cb7d1555106fbd2be8a32", "admitted_digest": "sha256:5f60b630dadedf57d71bcae80f55ca71603afda49b7cb7d1555106fbd2be8a32", "work_orders_digest": "sha256:ce5a049c3c653ab5fdb104231e70460c48421e69952b848b2cb081085d0c9a6f", "frontier_digest": "sha256:b21791675c140bd39dd1cc13d1bceb39c85026f3849f688c3d6d331efc97eeae", "hands_free_frontier_digest": "sha256:6f5753b0995c4f6f90c1e5d0364ae2fd2ead6388c7863ed031f20253ce80931d"}}
+== sjira-loop [dry-run] dry-run complete → /tmp/sjira-evidence.2A1G69/loop_receipt.json

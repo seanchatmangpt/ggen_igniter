@@ -1,0 +1,13 @@
+[os_mon] memory supervisor port (memsup): Erlang has closed
+[os_mon] cpu supervisor port (cpu_sup): Erlang has closed
+candidate identity=EXEC-SANDBOX-1 base_sha=571f2a0dd24a7c6e3d32e63f20ff5d5a629d58d5
+== sjira-live-sandbox out=/tmp/sjira-live-sandbox.8SjeMj pack=/tmp/sjira-live-sandbox.8SjeMj/sandbox/pack target=/tmp/sjira-live-sandbox.8SjeMj/sandbox/target head=571f2a0dd24a7c6e3d32e63f20ff5d5a629d58d5
+== sjira-loop [live] observe: skipped (SJIRA_CANDIDATES=/tmp/sjira-live-sandbox.8SjeMj/candidates.jsonl)
+== sjira-loop [live] admit_candidates: mix semantic_jira.admit_candidates --candidates /tmp/sjira-live-sandbox.8SjeMj/candidates.jsonl
+admit: admitted=1 refused=0
+work_orders: 1
+== sjira-loop [live] frontier: mix semantic_jira.frontier --work-orders /tmp/sjira-live-sandbox.8SjeMj/work_orders.json --ledger /tmp/sjira-live-sandbox.8SjeMj/ledger.jsonl
+frontier: eligible=1 blocked=0
+== sjira-loop [live] execute: mix semantic_jira.execute --work-orders /tmp/sjira-live-sandbox.8SjeMj/work_orders.json --ledger /tmp/sjira-live-sandbox.8SjeMj/ledger.jsonl --identity EXEC-SANDBOX-1 --verifier-suite ci --alias seanchatmangpt/ggen_igniter=target --out /tmp/sjira-live-sandbox.8SjeMj/execute_result.json --out-dir /tmp/sjira-live-sandbox.8SjeMj --pack-dir /tmp/sjira-live-sandbox.8SjeMj/sandbox/pack --target-dir /tmp/sjira-live-sandbox.8SjeMj/sandbox/target --receipt-out /tmp/sjira-live-sandbox.8SjeMj/receipt_EXEC-SANDBOX-1.json
+{"status": "live_ok", "loop_receipt": "/tmp/sjira-live-sandbox.8SjeMj/loop_receipt.json"}
+== sjira-loop [live] live complete → /tmp/sjira-live-sandbox.8SjeMj/loop_receipt.json
