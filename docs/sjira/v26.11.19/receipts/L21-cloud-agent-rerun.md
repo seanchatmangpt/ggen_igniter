@@ -49,6 +49,13 @@ frontier digests:
   Updated to `== 19`. Hybrid `tera_pack?` law and twin parity already landed
   (L04/L20). No Ash hand-writes. No fabric ALIVE claim.
 
+## Full-suite gate note (this VM)
+
+`mix compile --warnings-as-errors` EXIT 0. Full `mix test` once reported 7
+failures under load: pack census (fixed above), mutual frontier-shape court
+(needs sibling `../ggen` checkout — ENV), and 4 mix-subprocess timeouts that
+pass in isolation. Not introduced by L21 doc/receipt edits.
+
 ## Residuals that belong outside this repo
 
 1. **ggen / xaas fabric verifier** — live-sandbox stays PARTIAL_ALIVE until an
@@ -56,6 +63,9 @@ frontier digests:
    BLOCKED.
 2. **Bare `just sjira-loop live`** — fail-closed on missing pack/target keys by
    design; not an igniter defect (env contract in `L04-live-sandbox-residual.md`).
+3. **PR open** — branch pushed; `gh`/`ManagePullRequest` create blocked
+   (`Resource not accessible by integration`). Operator: open from
+   https://github.com/seanchatmangpt/ggen_igniter/pull/new/cursor/sjira-residue-finish-6fdc
 
 ## Standing
 
