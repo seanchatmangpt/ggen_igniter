@@ -18,7 +18,7 @@ receipts under `hitl-impossible/` and the EXIT lines below, not agent prose.
 | igniter checkout | `/workspace` `seanchatmangpt/ggen_igniter` |
 | igniter `HEAD` / `origin/main` | `b0cb7ac725e116fe0ca73cc67789cba86c54661e` (PR #58; ancestor_exit=0) |
 | Elixir / OTP / just | Mix 1.20.4, OTP 29 (`erlang 29.1.2` from `.tool-versions`), just 1.59.0 |
-| xaas | this VM's GitHub token gets HTTP 404 on `seanchatmangpt/xaas`. Phase 4 was started on an approved cloud checkout and is **not pasted here yet**. |
+| xaas `origin/main` | `ee89b838cd3dd807af85a166f417bb51f185d255` (`merge(origin/main): integrate tip before CRUD P0 push`). `28cb0cdf887cf60035b7a1157cd560e7c61f8df5` (#111) ancestor_exit=0. Re-run on an approved cloud checkout; this VM's token still 404s the repo. Elixir 1.20.2 / OTP 28.5.0.2. `GGEN_BIN` unset, no `ggen` on PATH. |
 
 ## Phase 1 — ggen frontier without `--authority`
 
@@ -134,14 +134,55 @@ Stopped there. Did not invent `INTERNAL_API_TOKEN` or a verifier suite secret.
 
 ## Phase 4 — xaas
 
-Not re-derived in this checkout. `gh api repos/seanchatmangpt/xaas` returned
-404 and `git ls-remote` returned "Repository not found" for this VM's token.
-A cloud agent was started on the already-approved `xaas` repo to re-run the
-facade / dogfood courts and the `:ggen_not_found` miss. **Those exits are not
-in this file.** Do not read admit-dogfood PASS as fabric ALIVE. Tony-gated
-fabric remains an honest **BLOCKED** residual until that agent pastes a
-receipt. This section must be amended with real exits before anyone treats
-the xaas matrix rows as closed.
+Re-run on xaas `origin/main` `ee89b838cd3dd807af85a166f417bb51f185d255`.
+`merge-base --is-ancestor 28cb0cdf887cf60035b7a1157cd560e7c61f8df5 origin/main`
+**ANCESTOR_EXIT:0**. No code change. No secrets invented. `GGEN_BIN` unset,
+`command -v ggen` absent, `~/.local/bin/ggen` absent.
+
+`mix test` of the three requested files is aliased to also run
+`test/xaas_web/chicago_style_audit_court_test.exs`. That combined process:
+
+```text
+COURTS_EXIT:2
+Result: 19/20 passed, 4 skipped
+Failed: 1 test
+test/xaas_web/chicago_style_audit_court_test.exs:89
+CONTROLLER TESTS MISSING XaasWeb.ConnCase:
+- test/xaas_web/controllers/ai_elements_controller_test.exs
+```
+
+That failure is the injected Chicago controller-suite audit, not a Semantic
+Jira assertion and not a HITL leak. The same three files invoked as
+`Mix.Tasks.Test.run/1` (alias not applied):
+
+```text
+DIRECT_EXIT:0
+Result: 15 passed, 4 skipped
+```
+
+The four skips are the real-`ggen` happy paths (`admit_candidate` workgraph,
+pre-shaped admit, facade admit, A2A `sjira.admit` over the wire). They did
+not PASS. A skip is not fabric ALIVE and not `head_verified=true`.
+
+Falsifier 4a passed inside that EXIT 0 run. Set-but-missing `GGEN_BIN`,
+`:sjira_ggen_bin`, and an explicit opt path return `:ggen_not_found` and do
+not fall through to PATH (`lib/xaas/sjira/serv_engine_facade.ex`). Passed
+names include `GGEN_BIN set-but-missing refuses without PATH fall-through`,
+`admit with missing ggen refuses typed :ggen_not_found`,
+`admit_candidate refuses missing ggen without FakeGgen`, and
+`sjira.admit with missing ggen refuses typed :ggen_not_found over the wire`.
+With `GGEN_BIN` unset and no `ggen` on PATH, no admit returned success.
+
+`docs/sjira/v26.11.19/FABRIC-AUTH-LIVE-RESIDUAL.md` still says standing
+**BLOCKED (Tony)** for fabric/auth live ALIVE, and that `sjira.admit` is
+admit only (authority NONE). ALIVE still requires `outcome == "alive"`,
+`evidence.head_verified == true`, and fabric verifier status `pass`, via
+`INTERNAL_API_TOKEN`, a registered `SJIRA_VERIFIER_SUITE`, an epoch worktree,
+and `just sjira-loop live` or MCP `close_candidate`. Those env keys were
+absent on that host. `k8s/secret.yaml` was not decrypted. Honest ceiling:
+**BLOCKED (Tony)**. Not a HITL leak.
+
+`XAAS_PHASE4: FAIL_CLOSED_NOT_ALIVE`
 
 ## Matrix
 
@@ -154,14 +195,15 @@ the xaas matrix rows as closed.
 | igniter live-sandbox | `just sjira-loop-live-sandbox` | no | no | 0 | `partial_alive`, `head_verified=false`, `standing=UNVERIFIED` | no |
 | igniter bare live | `just sjira-loop live` | no | no | 2 | `INVALID:SJIRA_OUT_DIR is required` (then the key walk above) | no |
 | evidence, `GGEN_BIN` unset, no PATH `ggen` | `just sjira-loop-evidence` | no | no | 1 | `REFUSED:HANDS_FREE` / exit 127 | no |
-| xaas `GGEN_BIN` miss | not re-run here | — | — | — | pending cloud checkout | not claimed |
-| xaas admit dogfood | not re-run here | — | — | — | pending; admit ≠ ALIVE | not claimed |
+| xaas `GGEN_BIN` / opt path miss | `ServEngineFacade.ggen_bin/0` and admit courts | no | no | 0 (inside DIRECT_EXIT 0) | `:ggen_not_found`, no PATH fall-through | no |
+| xaas admit dogfood | `admit_candidate admits WORKGRAPH WO via real ggen` | no | no | skipped | ggen absent; skip ≠ ALIVE, `head_verified` not true | no |
+| xaas three-file `mix test` via alias | alias also runs Chicago audit court | no | no | 2 | unrelated `ai_elements_controller_test.exs` ConnCase miss; sjira assertions not the failure | no |
 
 ## Residuals that are not HITL
 
 1. **Bare live** — fail-closed on the env keys listed above. Not a prompt.
 2. **live-sandbox** — `PARTIAL_ALIVE` / `outcome=partial_alive` / `standing=UNVERIFIED` / `head_verified=false`. Not ALIVE.
-3. **Tony fabric / auth live** — still **BLOCKED**. This agent did not have `INTERNAL_API_TOKEN`, a registered `SJIRA_VERIFIER_SUITE`, or a real epoch worktree, and did not ask for them. Phase 4's re-run is outstanding on the xaas checkout; that does not promote fabric to ALIVE.
+3. **Tony fabric / auth live** — still **BLOCKED**. xaas `ee89b838` has no `INTERNAL_API_TOKEN`, no registered `SJIRA_VERIFIER_SUITE`, and no epoch worktree. Admit dogfood skipped. That does not promote fabric to ALIVE.
 4. Marketplace was not treated as a finish blocker.
 
 ## Verdict
