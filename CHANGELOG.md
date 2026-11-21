@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Added** HITL-impossible validation receipt for the Semantic Jira dry/evidence/frontier ladder (`docs/sjira/v26.11.21/receipts/HITL-IMPOSSIBLE-VALIDATION.md`). live-sandbox stays `PARTIAL_ALIVE`. xaas `ee89b838` missing-`ggen` courts return `:ggen_not_found`; admit dogfood skipped. Fabric is not ALIVE. Bare live stays fail-closed.
+
 ## v26.11.18
 
 Released 2026-11-18. Defect-fix and ggen-parity release from the v26.11.17 audit wave:
