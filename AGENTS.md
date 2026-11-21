@@ -265,3 +265,23 @@ the step emits `capability_refused`.
 - `.claude/hooks/refuse-handwritten-ash.sh` — the guard described above.
 - `test/ggen_igniter_agent_guard_test.exs` — its ExUnit falsifier: real subprocess, real
   stdin JSON, real exit codes, for both this guard and the sibling `Bash` guard.
+
+## Cursor Cloud specific instructions
+
+Toolchain pins live in `.tool-versions`: Elixir `1.20.4-otp-29` and Erlang `29.1.2`. The README's Elixir `~> 1.17` / OTP `>= 25` floor is older than the pin `mix ggen_igniter.doctor` and CI actually run. Ubuntu 24.04 prebuilts that match the pin:
+
+- `https://builds.hex.pm/builds/otp/amd64/ubuntu-24.04/OTP-29.1.2.tar.gz` (extract, then `./Install -minimal`)
+- `https://builds.hex.pm/builds/elixir/v1.20.4-otp-29.zip`
+
+Then `mix local.hex --force` and `mix local.rebar --force`.
+
+`mix compile` builds the Rustler crate `native/ggen_graph_nif` (oxigraph / rocksdb). Two image defaults fail that build:
+
+- Rust 1.83 cannot parse `wit-bindgen`'s edition 2024 manifest. Use Rust stable 1.85 or newer (`rustup default stable`). Verified with rustc 1.100.0.
+- `/usr/bin/c++` on this image is clang 18 without libc++ headers, so `oxrocksdb-sys` stops with `fatal error: 'memory' file not found`. `build-essential`'s g++ 13 compiles the crate. Export `CC=gcc CXX=g++`, or point the `cc` / `c++` alternatives at gcc / g++, before `mix compile`. The first NIF build is the long step; `CARGO_BUILD_JOBS=2` stays inside a small VM.
+
+There is no application server. The health check is `mix ggen_igniter.doctor`. A real generation is `mix ggen_igniter.sync` (for example `--pack-dir priv/ggen/adr-index-pack` with `--out` and `--manifest-dir` pointed at a throwaway directory). The fail-closed pack check is `mix ggen_igniter.verify --pack priv/ggen/ash-manufacture-pack --json`. `test/fixtures/ash_manufacture_pack` is not on disk.
+
+Default `mix test` excludes `:integration`, `:postgres`, `:requires_ash_r2rml`, and `:requires_qlever_server`. Postgres 15 is only for `--only postgres` (`docker-compose.e2e.yml` profile `db`). One `mix compile` or `mix test` at a time in this checkout: they share a single Mix build lock.
+
+Frontier-shape court tests resolve a sibling ggen checkout at `../ggen` from the repo root (`test/ggen_igniter_semantic_jira_frontier_shape_court_test.exs`). With this repo at `/workspace` that path is `/ggen`. The public repository is `https://github.com/seanchatmangpt/ggen`.
