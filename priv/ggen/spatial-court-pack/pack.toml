@@ -1,0 +1,4 @@
+[pack]
+name = "spatial-court-pack"
+version = "26.11.21"
+description = "Playwright Spatial Court emission from SHACL sh:PropertyGroup graphs (viewport sweep, rRLG-lite, touch/gap floors, optional Gestalt). Orthogonal to semantic-jira-pack courts."

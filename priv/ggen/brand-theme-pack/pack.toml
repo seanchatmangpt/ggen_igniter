@@ -1,0 +1,4 @@
+[pack]
+name = "brand-theme-pack"
+version = "26.11.21"
+description = "Tailwind CSS v4 @theme fluid spacing emission from DTCG brand.toml (Fourth Watch / OI-15 theme half). Sibling of spatial-court-pack."

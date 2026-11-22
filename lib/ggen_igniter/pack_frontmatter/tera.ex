@@ -63,7 +63,12 @@ defmodule GgenIgniter.PackFrontmatter.Tera do
         Enum.reverse([{:text, src} | acc])
 
       {idx, kind} ->
-        {text, rest} = String.split_at(src, idx)
+        # `next_open/1` returns a BYTE offset from `:binary.match/2`. Must split
+        # with `:binary.part/3`, not `String.split_at/2` (grapheme index) — a
+        # preceding multi-byte codepoint (e.g. `≥`) would otherwise eat into the
+        # tag and turn `{% for ... %}` into `{% or ... %}`.
+        text = binary_part(src, 0, idx)
+        rest = binary_part(src, idx, byte_size(src) - idx)
         acc = if text == "", do: acc, else: [{:text, text} | acc]
         {tok, rest} = read_tag(rest, kind)
         scan(rest, [tok | acc])

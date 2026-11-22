@@ -1,0 +1,388 @@
+/**
+ * GENERATED Spatial Court — do not hand-edit.
+ * Source: priv/ggen/spatial-court-pack/templates/spatial_court.spec.ts.eex
+ * Emitter: mix ggen_igniter.spatial_court --ontology <ttl> --out <path>
+ *
+ * Anti-vacuity mutants are LIVE below (setContent refuse witnesses — not comments).
+ * CI_MUTATION=0 → LOUD_SKIP. Missing Gestalt hooks → LOUD_SKIP (never silent return).
+ *   - 360-in-320 → horizontal overflow refuse
+ *   - 18×18 primary → touch-target floor refuse
+ *   - adjacent gap < 8 → gap floor refuse
+ *   - Gestalt inter < 2·intra → proximity ratio refuse
+ */
+import { test, expect, type Page } from "@playwright/test";
+
+/** 9-wide default; adapter spawn may override via UI_LAYOUT_* env CSV. */
+const DEFAULT_VIEWPORTS: number[] = <%= viewports_json %>;
+
+function parseViewportCsv(raw: string | undefined): number[] | null {
+  if (!raw || !String(raw).trim()) return null;
+  const nums = String(raw)
+    .split(",")
+    .map((s) => Number.parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  return nums.length > 0 ? nums : null;
+}
+
+const VIEWPORTS: number[] =
+  parseViewportCsv(process.env.UI_LAYOUT_PLAYWRIGHT_VIEWPORTS) ??
+  parseViewportCsv(process.env.UI_LAYOUT_VIEWPORTS) ??
+  DEFAULT_VIEWPORTS;
+const VIEWPORT_HEIGHT = <%= viewport_height %>;
+const MIN_TOUCH = <%= min_touch %>;
+const MIN_GAP = <%= min_gap %>;
+const GESTALT_RATIO = <%= gestalt_ratio %>;
+const BASE_URL = <%= base_url_json %>;
+const ROUTE = <%= route_json %>;
+
+type Box = { x: number; y: number; width: number; height: number; selector: string };
+
+const GROUPS: Array<{
+  id: string;
+  label: string;
+  selector: string;
+  members: Array<{ id: string; selector: string; touch: boolean }>;
+}> = <%= groups_json %>;
+
+async function gotoCourt(page: Page) {
+  await page.goto(`${BASE_URL}${ROUTE}`, { waitUntil: "domcontentloaded" });
+}
+
+async function visibleBoxes(page: Page, selector: string): Promise<Box[]> {
+  const loc = page.locator(selector);
+  const n = await loc.count();
+  const out: Box[] = [];
+  for (let i = 0; i < n; i++) {
+    const el = loc.nth(i);
+    if (!(await el.isVisible())) continue;
+    const box = await el.boundingBox();
+    if (!box || box.width <= 0 || box.height <= 0) continue;
+    // Filter transparent layout wrappers (NOI / Non-Observable Issue guard).
+    const opacity = await el.evaluate((node) => {
+      const s = window.getComputedStyle(node as Element);
+      return Number.parseFloat(s.opacity || "1");
+    });
+    if (opacity <= 0) continue;
+    out.push({ ...box, selector: `${selector}[${i}]` });
+  }
+  return out;
+}
+
+function overlaps(a: Box, b: Box): boolean {
+  return !(
+    a.x + a.width <= b.x ||
+    b.x + b.width <= a.x ||
+    a.y + a.height <= b.y ||
+    b.y + b.height <= a.y
+  );
+}
+
+function edgeGap(a: Box, b: Box): number {
+  const dx = Math.max(0, Math.max(a.x - (b.x + b.width), b.x - (a.x + a.width)));
+  const dy = Math.max(0, Math.max(a.y - (b.y + b.height), b.y - (a.y + a.height)));
+  if (dx === 0 && dy === 0) return 0;
+  if (dx === 0) return dy;
+  if (dy === 0) return dx;
+  return Math.hypot(dx, dy);
+}
+
+async function assertNoHorizontalOverflow(page: Page) {
+  const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    innerWidth: window.innerWidth,
+  }));
+  expect(
+    scrollWidth,
+    `horizontal overflow: scrollWidth=${scrollWidth} > innerWidth=${innerWidth}`
+  ).toBeLessThanOrEqual(innerWidth);
+}
+
+async function assertRrLgLite(page: Page, width: number) {
+  const selectors = GROUPS.flatMap((g) => g.members.map((m) => m.selector));
+  const boxes: Box[] = [];
+  for (const sel of selectors) {
+    boxes.push(...(await visibleBoxes(page, sel)));
+  }
+
+  for (let i = 0; i < boxes.length; i++) {
+    const a = boxes[i];
+    expect(a.x, `${a.selector} protrudes left`).toBeGreaterThanOrEqual(0);
+    expect(a.y, `${a.selector} protrudes top`).toBeGreaterThanOrEqual(0);
+    expect(a.x + a.width, `${a.selector} protrudes right of ${width}`).toBeLessThanOrEqual(
+      width + 0.5
+    );
+    for (let j = i + 1; j < boxes.length; j++) {
+      const b = boxes[j];
+      expect(overlaps(a, b), `rRLG-lite overlap: ${a.selector} ∩ ${b.selector}`).toBe(false);
+    }
+  }
+}
+
+async function assertTouchAndGap(page: Page) {
+  const interactive = page.locator(
+    'button, a[href], input, select, textarea, [role="button"], [data-spatial-touch="true"]'
+  );
+  const n = await interactive.count();
+  const touchBoxes: Box[] = [];
+
+  for (let i = 0; i < n; i++) {
+    const el = interactive.nth(i);
+    if (!(await el.isVisible())) continue;
+    const box = await el.boundingBox();
+    if (!box) continue;
+    expect(box.width, `touch width < ${MIN_TOUCH}px at index ${i}`).toBeGreaterThanOrEqual(
+      MIN_TOUCH
+    );
+    expect(box.height, `touch height < ${MIN_TOUCH}px at index ${i}`).toBeGreaterThanOrEqual(
+      MIN_TOUCH
+    );
+    touchBoxes.push({ ...box, selector: `interactive[${i}]` });
+  }
+
+  for (const g of GROUPS) {
+    for (const m of g.members) {
+      if (!m.touch) continue;
+      const boxes = await visibleBoxes(page, m.selector);
+      for (const box of boxes) {
+        expect(box.width, `${m.selector} touch width`).toBeGreaterThanOrEqual(MIN_TOUCH);
+        expect(box.height, `${m.selector} touch height`).toBeGreaterThanOrEqual(MIN_TOUCH);
+      }
+    }
+  }
+
+  for (let i = 0; i < touchBoxes.length; i++) {
+    for (let j = i + 1; j < touchBoxes.length; j++) {
+      const gap = edgeGap(touchBoxes[i], touchBoxes[j]);
+      if (overlaps(touchBoxes[i], touchBoxes[j])) {
+        throw new Error(`touch overlap: ${touchBoxes[i].selector} ∩ ${touchBoxes[j].selector}`);
+      }
+      expect(gap, `touch gap < ${MIN_GAP}px`).toBeGreaterThanOrEqual(MIN_GAP);
+    }
+  }
+
+  for (const g of GROUPS) {
+    const memberBoxes: Box[] = [];
+    for (const m of g.members) {
+      memberBoxes.push(...(await visibleBoxes(page, m.selector)));
+    }
+    for (let i = 0; i + 1 < memberBoxes.length; i++) {
+      const gap = edgeGap(memberBoxes[i], memberBoxes[i + 1]);
+      if (!overlaps(memberBoxes[i], memberBoxes[i + 1])) {
+        expect(gap, `intra-group gap in ${g.id}`).toBeGreaterThanOrEqual(MIN_GAP);
+      }
+    }
+  }
+}
+<%= if text_spacing? do %>
+
+async function assertTextSpacing(page: Page) {
+  await page.addStyleTag({
+    content: `
+      * {
+        line-height: 1.5 !important;
+        letter-spacing: 0.12em !important;
+        word-spacing: 0.16em !important;
+      }
+      p, h1, h2, h3, h4, h5, h6, li, label {
+        margin-bottom: 2em !important;
+      }
+    `,
+  });
+  await assertNoHorizontalOverflow(page);
+  const selectors = GROUPS.flatMap((g) => g.members.map((m) => m.selector));
+  const boxes: Box[] = [];
+  for (const sel of selectors) boxes.push(...(await visibleBoxes(page, sel)));
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      expect(overlaps(boxes[i], boxes[j]), `1.4.12 overlap ${boxes[i].selector}`).toBe(false);
+    }
+  }
+}
+<% end %>
+<%= if gestalt? do %>
+
+/** Optional Gestalt proximity helpers — inter-group gap ≥ GESTALT_RATIO × mean intra-group gap. */
+async function assertGestaltRatio(page: Page) {
+  const intraGaps: number[] = [];
+  const groupBoxes: Box[] = [];
+
+  for (const g of GROUPS) {
+    const members: Box[] = [];
+    for (const m of g.members) members.push(...(await visibleBoxes(page, m.selector)));
+    for (let i = 0; i + 1 < members.length; i++) {
+      if (!overlaps(members[i], members[i + 1])) {
+        intraGaps.push(edgeGap(members[i], members[i + 1]));
+      }
+    }
+    const container = await visibleBoxes(page, g.selector);
+    if (container[0]) {
+      groupBoxes.push(container[0]);
+    } else if (members[0]) {
+      const minX = Math.min(...members.map((b) => b.x));
+      const minY = Math.min(...members.map((b) => b.y));
+      const maxX = Math.max(...members.map((b) => b.x + b.width));
+      const maxY = Math.max(...members.map((b) => b.y + b.height));
+      groupBoxes.push({
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+        selector: g.selector,
+      });
+    }
+  }
+
+  if (intraGaps.length === 0 || groupBoxes.length < 2) {
+    test.skip(
+      true,
+      `LOUD_SKIP: Gestalt ratio subjects missing (intraGaps=${intraGaps.length}, groupBoxes=${groupBoxes.length}) — never vacuous PASS`,
+    );
+    return;
+  }
+  const meanIntra = intraGaps.reduce((a, b) => a + b, 0) / intraGaps.length;
+  const floor = meanIntra * GESTALT_RATIO;
+
+  for (let i = 0; i + 1 < groupBoxes.length; i++) {
+    const gap = edgeGap(groupBoxes[i], groupBoxes[i + 1]);
+    if (overlaps(groupBoxes[i], groupBoxes[i + 1])) continue;
+    expect(
+      gap,
+      `Gestalt ratio: inter ${gap} < ${GESTALT_RATIO}×intra(${meanIntra})`
+    ).toBeGreaterThanOrEqual(floor);
+  }
+}
+<% end %>
+
+test.describe(<%= suite_json %> + " spatial court", () => {
+  for (const width of VIEWPORTS) {
+    test(`viewport ${width}px — overflow / rRLG-lite / touch / gap`, async ({ page }) => {
+      await page.setViewportSize({ width, height: VIEWPORT_HEIGHT });
+      await gotoCourt(page);
+      await assertNoHorizontalOverflow(page);
+      await assertRrLgLite(page, width);
+      await assertTouchAndGap(page);
+<%= if text_spacing? do %>
+      await assertTextSpacing(page);
+<% end %>
+<%= if gestalt? do %>
+      await assertGestaltRatio(page);
+<% end %>
+    });
+  }
+});
+
+/**
+ * LOUD_SKIP / Playwright skip must never be swallowed into a false refuse PASS.
+ */
+function rethrowIfLoudSkip(err: unknown): void {
+  const msg =
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : String(err ?? "");
+  if (
+    msg.includes("LOUD_SKIP") ||
+    msg.includes("skipped") ||
+    (typeof err === "object" &&
+      err !== null &&
+      "name" in err &&
+      String((err as { name: unknown }).name).toLowerCase().includes("skip"))
+  ) {
+    throw err;
+  }
+}
+
+/**
+ * Anti-vacuity mutants — always-on setContent refuse witnesses.
+ * CI_MUTATION=0 → LOUD_SKIP only; unset / any other value → live.
+ * A PASS under these fixtures is vacuous refuse-ALIVE.
+ */
+test.describe("Spatial Court — anti-vacuity mutants @spatial-court", () => {
+  test.beforeEach(() => {
+    test.skip(
+      process.env.CI_MUTATION === "0",
+      "LOUD_SKIP: CI_MUTATION=0 — anti-vacuity refuse witnesses explicitly disabled",
+    );
+  });
+
+  test("ANTI-VACUITY: 360-in-320 must FAIL overflow", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.setContent(
+      '<div style="width:360px;height:40px" data-testid="vacuity-360">x</div>',
+    );
+    let refused = false;
+    try {
+      await assertNoHorizontalOverflow(page);
+    } catch (err) {
+      rethrowIfLoudSkip(err);
+      refused = true;
+    }
+    expect(
+      refused,
+      "360-in-320 must refuse overflow via assertNoHorizontalOverflow — vacuous if PASSes",
+    ).toBe(true);
+  });
+
+  test("ANTI-VACUITY: 18px button must FAIL touch floor", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: VIEWPORT_HEIGHT });
+    await page.setContent(
+      '<button data-testid="vacuity-touch" style="width:18px;height:18px;padding:0">x</button>',
+    );
+    const box = await page.getByTestId("vacuity-touch").boundingBox();
+    expect(box, "LOUD_SKIP: vacuity touch subject missing").toBeTruthy();
+    const undersized = (box!.width < MIN_TOUCH) || (box!.height < MIN_TOUCH);
+    expect(
+      undersized,
+      `18px button must refuse touch floor (< ${MIN_TOUCH}) — vacuous if PASSes`,
+    ).toBe(true);
+  });
+
+  test("ANTI-VACUITY: adjacent gap < 8px must FAIL gap floor", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: VIEWPORT_HEIGHT });
+    await page.setContent(`
+      <div style="display:flex;gap:4px;padding:8px">
+        <button data-testid="vacuity-gap" style="width:48px;height:48px;padding:0">a</button>
+        <button data-testid="vacuity-gap" style="width:48px;height:48px;padding:0">b</button>
+      </div>
+    `);
+    const boxes = await visibleBoxes(page, "[data-testid='vacuity-gap']");
+    expect(boxes.length, "LOUD_SKIP: vacuity gap subjects < 2").toBeGreaterThanOrEqual(2);
+    const gap = edgeGap(boxes[0], boxes[1]);
+    expect(
+      gap < MIN_GAP,
+      `adjacent gap ${gap}px must be < ${MIN_GAP}px floor so the court can refuse — vacuous if PASSes`,
+    ).toBe(true);
+  });
+
+<%= if gestalt? do %>
+  test("ANTI-VACUITY: Gestalt inter < 2·intra must FAIL proximity ratio", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: VIEWPORT_HEIGHT });
+    // Two groups: intra mean ≈ 8, inter ≈ 12 → 12 < 2·8 (same breach as zcode fixtureGestaltRatioBreach).
+    await page.setContent(`
+      <div data-testid="vacuity-group-a" style="display:flex;gap:8px;margin-bottom:12px">
+        <button data-testid="vacuity-gestalt-a" style="width:48px;height:48px;padding:0">a1</button>
+        <button data-testid="vacuity-gestalt-a" style="width:48px;height:48px;padding:0">a2</button>
+      </div>
+      <div data-testid="vacuity-group-b">
+        <button data-testid="vacuity-gestalt-b" style="width:48px;height:48px;padding:0">b1</button>
+      </div>
+    `);
+    const membersA = await visibleBoxes(page, "[data-testid='vacuity-gestalt-a']");
+    const membersB = await visibleBoxes(page, "[data-testid='vacuity-gestalt-b']");
+    expect(membersA.length).toBeGreaterThanOrEqual(2);
+    expect(membersB.length).toBeGreaterThanOrEqual(1);
+    const intra = edgeGap(membersA[0], membersA[1]);
+    const groupA = await visibleBoxes(page, "[data-testid='vacuity-group-a']");
+    const groupB = await visibleBoxes(page, "[data-testid='vacuity-group-b']");
+    expect(groupA.length).toBeGreaterThanOrEqual(1);
+    expect(groupB.length).toBeGreaterThanOrEqual(1);
+    const inter = edgeGap(groupA[0], groupB[0]);
+    const floor = intra * GESTALT_RATIO;
+    expect(
+      inter < floor,
+      `Gestalt ratio breach required (inter=${inter} < ${GESTALT_RATIO}×intra=${floor}) — vacuous if PASSes`,
+    ).toBe(true);
+  });
+<% end %>
+});
