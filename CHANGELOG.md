@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Fixed** HDDL `sj:observedAt` pin-as-of / malformed courts in `test/ggen_igniter_semantic_jira_pack_test.exs`: ontology already carries batch `observedAt` after every dogfood baseSha, so the old inject-after-baseSha mutation doubled values and tripped `sh:maxCount 1` (heavy group 5). Tests now replace (and strip SJ-003 for the additive-only witness).
 - **Fixed** CI `mix ggen_igniter.verify` pack path after ash manufacture moved to `priv/ggen/ash-manufacture-pack` (CI still pointed at deleted `test/fixtures/ash_manufacture_pack`, so Build died post-credo with EXIT 2). Local verify `--json` → EXIT 0 / `"ok": true`.
 - **Fixed** `mix credo` tip debt that blocked CI after the rebar3/format unblocks: de-nest / extract helpers in `BrandTheme`, `SpatialCourt`, `PackLock.reclaim_stale/1`, `SemanticJira.TargetPack.read_stamp/1`, and `HandAuthored.int_cell/2`; `Enum.map_join/3` in `OntologyAggregate.concat/1`; scoped `CyclomaticComplexity` exception for `ReviewEval.Corpus.validate_case/1` (schema-shape admission). Local `mix credo` → EXIT 0.
 - **Fixed** `mix format --check-formatted` drift on BrandTheme / SpatialCourt / semantic-jira courts that landed unformatted on main (exposed once rebar3 3.28.0 let CI past setup-beam).
