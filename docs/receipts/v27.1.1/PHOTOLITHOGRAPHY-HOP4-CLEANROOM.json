@@ -1,0 +1,34 @@
+{
+  "document_id": "PHOTOLITHOGRAPHY-HOP4-CLEANROOM",
+  "companion": [
+    "ECOSYSTEM-SPEC-27.1.1",
+    "PHOTOLITHOGRAPHY-STANDING-27.1.1",
+    "IGNITER-CLEANROOM-STANDING"
+  ],
+  "hop": 4,
+  "subject": "seanchatmangpt/ggen_igniter",
+  "tip_sha": "b5a15528eb6792dd366fe744ca87f24a80cc46fc",
+  "branch": "main",
+  "observed_at": "2026-11-22T10:30:00Z",
+  "command": "git diff --exit-code",
+  "exit": 0,
+  "standing": "ALIVE",
+  "optional_hygiene": {
+    "git_diff_cached_exit_code": 0,
+    "git_status_porcelain_empty": true
+  },
+  "subject_pins": {
+    "ggen_ecosystem_spec_tip_at_ledger": "16239f8232aa84055c2db0414810e637ff35d2dc",
+    "ggen_ecosystem_spec_tip_live": "c9e224d330ff1a8ae08894367f066fb3edce047d",
+    "ggen_photo_ledger_branch": "cursor/v2711-photo-ledger-bc54@c4245fc2c53b63bef2be10702d1430a9b85d2321",
+    "ggen_sibling_mount": null,
+    "ggen_sibling_required_for_crown": false
+  },
+  "notes": [
+    "Crown claim per IGNITER-CLEANROOM-STANDING: ALIVE iff git diff --exit-code exits 0 in seanchatmangpt/ggen_igniter.",
+    "This observation is hop-4 clean-room only; it does not promote photolithography path crown ALIVE (hops 1–3 PARTIAL; hop 5 UNSUPPORTED).",
+    "ggen sibling absent at /agent/repos/ggen — not required for hop-4 crown string.",
+    "mix / Elixir not on PATH in this VM; Jobs/C4 mix ggen_igniter.sync --check was not executed (not the hop-4 crown verifier)."
+  ],
+  "next": "In zcode-cli: pnpm test -- ui-layout-court (PHOTOLITHOGRAPHY hop 5) against a ggen AotSealReceipt fixture — fail closed on missing/stale digest"
+}
