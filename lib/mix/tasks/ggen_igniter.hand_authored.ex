@@ -1248,27 +1248,32 @@ defmodule Mix.Tasks.GgenIgniter.HandAuthored do
   # else (including "") raises ArgumentError rather than hiding a lexical diff.
   defp int_cell(row, key) do
     case Map.get(row, key) do
-      nil ->
-        0
+      nil -> 0
+      v when is_binary(v) -> parse_int_lexical(key, v)
+      v -> raise ArgumentError, "int_cell #{inspect(key)}: not an integer lexical: #{inspect(v)}"
+    end
+  end
 
-      v when is_binary(v) ->
-        case Integer.parse(v) do
-          {n, ""} ->
-            n
+  defp parse_int_lexical(key, v) do
+    with :error <- int_exact(v),
+         :error <- float_trunc(v) do
+      raise ArgumentError, "int_cell #{inspect(key)}: not an integer lexical: #{inspect(v)}"
+    else
+      {:ok, n} -> n
+    end
+  end
 
-          _ ->
-            case Float.parse(v) do
-              {f, ""} ->
-                trunc(f)
+  defp int_exact(v) do
+    case Integer.parse(v) do
+      {n, ""} -> {:ok, n}
+      _ -> :error
+    end
+  end
 
-              _ ->
-                raise ArgumentError,
-                      "int_cell #{inspect(key)}: not an integer lexical: #{inspect(v)}"
-            end
-        end
-
-      v ->
-        raise ArgumentError, "int_cell #{inspect(key)}: not an integer lexical: #{inspect(v)}"
+  defp float_trunc(v) do
+    case Float.parse(v) do
+      {f, ""} -> {:ok, trunc(f)}
+      _ -> :error
     end
   end
 
