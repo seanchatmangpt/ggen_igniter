@@ -873,16 +873,18 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
   defp do_run_tera_pack(igniter, opts) do
     alias GgenIgniter.PackFrontmatter.{Receipt, Sync}
 
-    if opts[:ontology] in [nil, ""] do
-      raise ArgumentError,
-            "--ontology is required for a Tera frontmatter pack (--pack/--pack-dir)"
-    end
+    # Same ontology admission as the EEx path: explicit `--ontology` wins,
+    # else `<pack_dir>/ontology.ttl` (docs/reference/cli/sync.md). Prefer the
+    # already-resolved Tera pack directory (absolute `--pack DIR` paths) over
+    # `Pack.resolve_dir!/1`'s priv/ggen NAME lookup.
+    pack_dir = tera_pack_path(opts)
+    ontology = resolve_tera_ontology!(opts, pack_dir)
 
     dry_run? = opts[:dry_run] == true
 
     sync_opts = [
-      pack_dir: tera_pack_path(opts),
-      ontologies: [opts[:ontology]],
+      pack_dir: pack_dir,
+      ontologies: [ontology],
       out_dir: opts[:out] || File.cwd!(),
       dry_run: dry_run?
     ]
@@ -913,6 +915,35 @@ defmodule Mix.Tasks.GgenIgniter.Sync do
     end
 
     igniter
+  end
+
+  defp resolve_tera_ontology!(opts, pack_dir) do
+    cond do
+      opts[:ontology] not in [nil, ""] ->
+        path = opts[:ontology]
+
+        unless File.exists?(path) do
+          raise ArgumentError,
+                "--ontology resolved ontology not found at #{path} (resolved against " <>
+                  "the current working directory, #{File.cwd!()})"
+        end
+
+        path
+
+      is_binary(pack_dir) ->
+        path = GgenIgniter.Pack.default_ontology(pack_dir)
+
+        unless File.exists?(path) do
+          raise ArgumentError,
+                "--pack/--pack-dir resolved ontology not found at #{path}"
+        end
+
+        path
+
+      true ->
+        raise ArgumentError,
+              "--ontology is required for a Tera frontmatter pack (--pack/--pack-dir)"
+    end
   end
 
   defp run_sync_eex(igniter, opts, pack_template_stem) do
