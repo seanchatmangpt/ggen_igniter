@@ -345,6 +345,7 @@ defmodule GgenIgniter.BrandTheme do
 
   # Fully expand `{token.path}` chains to a concrete CSS value.
   defp resolve_literal(raw, flat, depth \\ 0)
+
   defp resolve_literal(_raw, _flat, depth) when depth > 16,
     do: {:error, {:brand_theme_refused, :alias_cycle}}
 

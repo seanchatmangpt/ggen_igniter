@@ -37,7 +37,11 @@ defmodule Mix.Tasks.GgenIgniter.BrandTheme do
         Mix.shell().info(@moduledoc)
 
       invalid != [] ->
-        refuse(2, %{"status" => "invalid_invocation", "reason" => "unknown_options", "detail" => invalid})
+        refuse(2, %{
+          "status" => "invalid_invocation",
+          "reason" => "unknown_options",
+          "detail" => invalid
+        })
 
       !(is_binary(opts[:brand]) and opts[:brand] != "") ->
         refuse(2, %{"status" => "invalid_invocation", "reason" => "missing --brand"})
@@ -57,7 +61,9 @@ defmodule Mix.Tasks.GgenIgniter.BrandTheme do
 
     with {:ok, brand} <- BrandTheme.from_brand(opts[:brand]),
          {:ok, path} <- BrandTheme.emit(brand, render_opts) do
-      IO.puts(Jason.encode!(%{"status" => "ok", "path" => path, "tokens" => length(brand.tokens)}))
+      IO.puts(
+        Jason.encode!(%{"status" => "ok", "path" => path, "tokens" => length(brand.tokens)})
+      )
     else
       {:error, reason} ->
         refuse(1, %{"status" => "refused", "reason" => jsonable(reason)})
