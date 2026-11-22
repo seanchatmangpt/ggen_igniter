@@ -131,7 +131,8 @@ defmodule GgenIgniter.SpatialCourt do
       {[], errs} ->
         # Every remaining group failed (e.g. ungrouped_or_empty) — keep typed
         # reasons; do not collapse to :no_property_groups.
-        {:error, {:spatial_court_refused, {:group_errors, Enum.map(errs, fn {:error, r} -> r end)}}}
+        {:error,
+         {:spatial_court_refused, {:group_errors, Enum.map(errs, fn {:error, r} -> r end)}}}
 
       {oks, []} ->
         court_groups =
@@ -150,7 +151,8 @@ defmodule GgenIgniter.SpatialCourt do
          }}
 
       {_, errs} ->
-        {:error, {:spatial_court_refused, {:group_errors, Enum.map(errs, fn {:error, r} -> r end)}}}
+        {:error,
+         {:spatial_court_refused, {:group_errors, Enum.map(errs, fn {:error, r} -> r end)}}}
     end
   end
 
@@ -414,7 +416,9 @@ defmodule GgenIgniter.SpatialCourt do
     case RDF.Description.first(description, pred) do
       %RDF.Literal{} = lit ->
         case RDF.Literal.value(lit) do
-          n when is_number(n) -> n
+          n when is_number(n) ->
+            n
+
           s when is_binary(s) ->
             case Float.parse(s) do
               {n, _} -> n
@@ -440,7 +444,9 @@ defmodule GgenIgniter.SpatialCourt do
     end
   end
 
-  defp term_id(%RDF.BlankNode{} = b), do: "bnode-" <> String.replace(to_string(b), ~r/[^A-Za-z0-9_-]/, "")
+  defp term_id(%RDF.BlankNode{} = b),
+    do: "bnode-" <> String.replace(to_string(b), ~r/[^A-Za-z0-9_-]/, "")
+
   defp term_id(other), do: slug(inspect(other))
 
   defp blank?(%RDF.BlankNode{}), do: true

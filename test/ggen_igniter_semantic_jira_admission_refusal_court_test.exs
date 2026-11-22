@@ -143,7 +143,9 @@ defmodule GgenIgniter.SemanticJiraAdmissionRefusalCourtTest do
   end
 
   defp probe(:non_map), do: SemanticJira.admit_work_order([:not, :a, :map])
-  defp probe(overrides) when is_map(overrides), do: SemanticJira.admit_work_order(canonical(overrides))
+
+  defp probe(overrides) when is_map(overrides),
+    do: SemanticJira.admit_work_order(canonical(overrides))
 
   defp reason_of({:error, {:refused_work_order, reason}}), do: reason
   defp reason_of(other), do: flunk("expected refused_work_order, got: #{inspect(other)}")
@@ -164,6 +166,7 @@ defmodule GgenIgniter.SemanticJiraAdmissionRefusalCourtTest do
 
       test "kat_#{token}_refusal_live fires on malformed WorkOrder" do
         reason = probe(@input) |> reason_of()
+
         assert match_reason?(@token, reason),
                "#{@token} must fire on its documented trigger; got #{inspect(reason)}"
       end
@@ -202,6 +205,7 @@ defmodule GgenIgniter.SemanticJiraAdmissionRefusalCourtTest do
 
     test "register ontology lists exactly the KAT table tokens with observedTrigger" do
       graph = Ontology.load!(@register)
+
       query = """
       PREFIX ck: <urn:court-kit:>
       SELECT ?token ?obs WHERE {
@@ -226,33 +230,31 @@ defmodule GgenIgniter.SemanticJiraAdmissionRefusalCourtTest do
 
   # check_gate_witness_courts.py imports tomllib (stdlib since 3.11). Prefer
   # a 3.11+ binary when `python3` on PATH is older (common on macOS).
-  @python_for_qualify (
-    Enum.find_value(["python3.12", "python3.11", "python3"], fn bin ->
-      case System.find_executable(bin) do
-        nil ->
-          nil
+  @python_for_qualify Enum.find_value(["python3.12", "python3.11", "python3"], fn bin ->
+                        case System.find_executable(bin) do
+                          nil ->
+                            nil
 
-        path ->
-          case System.cmd(path, ["-c", "import tomllib"], stderr_to_stdout: true) do
-            {_, 0} -> path
-            _ -> nil
-          end
-      end
-    end)
-  )
+                          path ->
+                            case System.cmd(path, ["-c", "import tomllib"],
+                                   stderr_to_stdout: true
+                                 ) do
+                              {_, 0} -> path
+                              _ -> nil
+                            end
+                        end
+                      end)
 
-  @marketplace_skip_reason (
-    cond do
-      not @marketplace_checker_present? ->
-        "BLOCKED:marketplace-checker-absent (no #{@marketplace_checker})"
+  @marketplace_skip_reason (cond do
+                              not @marketplace_checker_present? ->
+                                "BLOCKED:marketplace-checker-absent (no #{@marketplace_checker})"
 
-      is_nil(@python_for_qualify) ->
-        "BLOCKED:tomllib-absent (need python3.11+ with tomllib for marketplace qualify)"
+                              is_nil(@python_for_qualify) ->
+                                "BLOCKED:tomllib-absent (need python3.11+ with tomllib for marketplace qualify)"
 
-      true ->
-        false
-    end
-  )
+                              true ->
+                                false
+                            end)
 
   describe "semantic-gate-witness court contract" do
     test "gate-court.toml declares exact-stem pass+fail coverage for the KAT gate" do
@@ -293,8 +295,12 @@ defmodule GgenIgniter.SemanticJiraAdmissionRefusalCourtTest do
       {out, status} = System.cmd(@python_for_qualify, ["-c", py], stderr_to_stdout: true)
       assert status == 0, "qualify failed:\n#{out}"
 
-      assert %{"standing" => "ALIVE", "case_count" => 1, "require_fail" => true,
-              "require_pass" => true} = Jason.decode!(out)
+      assert %{
+               "standing" => "ALIVE",
+               "case_count" => 1,
+               "require_fail" => true,
+               "require_pass" => true
+             } = Jason.decode!(out)
     end
   end
 end

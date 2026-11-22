@@ -15,6 +15,7 @@ defmodule GgenIgniter.SemanticJiraHandsFreeTwinCourtTest do
 
   setup do
     assert File.exists?(@parity_py), "parity helper missing at #{@parity_py}"
+
     tmp =
       Path.join(
         System.tmp_dir!(),

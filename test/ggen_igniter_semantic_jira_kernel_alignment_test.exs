@@ -123,6 +123,7 @@ defmodule GgenIgniter.SemanticJiraKernelAlignmentTest do
       assert Regex.match?(WorkOrderShape.sha_pattern(), String.duplicate("a", 40))
       assert Regex.match?(WorkOrderShape.repo_pattern(), "seanchatmangpt/ggen_igniter")
       assert Regex.match?(WorkOrderShape.pack_name_pattern(), "semantic-jira-pack")
+
       assert Regex.match?(
                WorkOrderShape.digest_pattern(),
                "sha256:" <> String.duplicate("b", 64)
@@ -132,4 +133,3 @@ defmodule GgenIgniter.SemanticJiraKernelAlignmentTest do
     end
   end
 end
-

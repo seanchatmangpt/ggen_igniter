@@ -59,6 +59,7 @@ defmodule GgenIgniter.SpatialCourtTest do
 
     assert {:ok, court} = SpatialCourt.from_ontology(@ccs_court)
     assert length(court.groups) == 3
+
     assert Enum.map(court.groups, & &1.id) == [
              "SightGlass",
              "HumanCircuitBreaker",
