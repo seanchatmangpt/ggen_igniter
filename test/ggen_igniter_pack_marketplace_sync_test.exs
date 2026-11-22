@@ -210,10 +210,8 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
       # nil when --template is set), so fixtures use EEx outs + a gate query.
       pack =
         write_pack!(root, [
-          {"a.txt.tmpl",
-           tera_template("#{root}/out/<%= package_name %>/a.txt", "A<%= \"\" %>")},
-          {"b.txt.tmpl",
-           tera_template("#{root}/out/<%= package_name %>/b.txt", "B<%= \"\" %>")}
+          {"a.txt.tmpl", tera_template("#{root}/out/<%= package_name %>/a.txt", "A<%= \"\" %>")},
+          {"b.txt.tmpl", tera_template("#{root}/out/<%= package_name %>/b.txt", "B<%= \"\" %>")}
         ])
 
       File.write!(Path.join(pack, "gates/010_spec.rq"), @spec_query)
