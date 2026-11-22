@@ -53,16 +53,13 @@ defmodule GgenIgniter.BrandTheme do
   """
   @spec from_brand(String.t()) :: {:ok, brand()} | {:error, term()}
   def from_brand(path) when is_binary(path) do
-    cond do
-      not File.regular?(path) ->
-        {:error, {:brand_theme_refused, {:brand_missing, path}}}
-
-      true ->
-        with {:ok, raw} <- File.read(path),
-             {:ok, table} <- decode_toml(raw),
-             {:ok, brand} <- build_brand(table, path) do
-          {:ok, brand}
-        end
+    if File.regular?(path) do
+      with {:ok, raw} <- File.read(path),
+           {:ok, table} <- decode_toml(raw) do
+        build_brand(table, path)
+      end
+    else
+      {:error, {:brand_theme_refused, {:brand_missing, path}}}
     end
   rescue
     e -> {:error, {:brand_theme_refused, {:brand_unreadable, path, Exception.message(e)}}}
@@ -83,30 +80,31 @@ defmodule GgenIgniter.BrandTheme do
       when is_list(entries) and entries != [] do
     template = Keyword.get(opts, :template) || template_path()
 
-    unless File.regular?(template) do
-      {:error, {:brand_theme_refused, {:template_missing, template}}}
+    if File.regular?(template) do
+      {:ok, render_theme_body(brand, entries, meta, template)}
     else
-      body =
-        template
-        |> File.read!()
-        |> strip_frontmatter()
-        |> GgenIgniter.Render.render(
-          theme_entries: entries,
-          meta: meta,
-          brand_id: Map.get(meta, "id") || Map.get(meta, :id) || "brand",
-          brand_name: Map.get(meta, "name") || Map.get(meta, :name) || "Brand",
-          dtcg: Map.get(meta, "dtcg") || Map.get(meta, :dtcg) || "2025.10",
-          source: brand.source,
-          token_count: length(brand.tokens)
-        )
-
-      {:ok, body}
+      {:error, {:brand_theme_refused, {:template_missing, template}}}
     end
   rescue
     e -> {:error, {:brand_theme_refused, {:render_failed, Exception.message(e)}}}
   end
 
   def render(_, _), do: {:error, {:brand_theme_refused, :empty_theme}}
+
+  defp render_theme_body(brand, entries, meta, template) do
+    template
+    |> File.read!()
+    |> strip_frontmatter()
+    |> GgenIgniter.Render.render(
+      theme_entries: entries,
+      meta: meta,
+      brand_id: Map.get(meta, "id") || Map.get(meta, :id) || "brand",
+      brand_name: Map.get(meta, "name") || Map.get(meta, :name) || "Brand",
+      dtcg: Map.get(meta, "dtcg") || Map.get(meta, :dtcg) || "2025.10",
+      source: brand.source,
+      token_count: length(brand.tokens)
+    )
+  end
 
   @doc """
   Render and write the theme CSS. `:out` is required (directory or `*.css` path).
@@ -161,23 +159,23 @@ defmodule GgenIgniter.BrandTheme do
   # Walk primitive / semantic / component for {$value} dimension leaves.
   defp collect_dimension_tokens(table) do
     Enum.reduce(["primitive", "semantic", "component"], %{}, fn layer, acc ->
-      case Map.get(table, layer) do
-        %{} = groups ->
-          Enum.reduce(groups, acc, fn {group, nodes}, acc2 ->
-            case nodes do
-              %{} = n ->
-                path_prefix = "#{layer}.#{group}"
-                Map.put(acc2, path_prefix, leaf_tokens(n, path_prefix))
-
-              _ ->
-                acc2
-            end
-          end)
-
-        _ ->
-          acc
-      end
+      merge_layer_tokens(acc, layer, Map.get(table, layer))
     end)
+  end
+
+  defp merge_layer_tokens(acc, _layer, groups) when not is_map(groups), do: acc
+
+  defp merge_layer_tokens(acc, layer, groups) do
+    Enum.reduce(groups, acc, fn {group, nodes}, acc2 ->
+      merge_group_tokens(acc2, layer, group, nodes)
+    end)
+  end
+
+  defp merge_group_tokens(acc, _layer, _group, nodes) when not is_map(nodes), do: acc
+
+  defp merge_group_tokens(acc, layer, group, nodes) do
+    path_prefix = "#{layer}.#{group}"
+    Map.put(acc, path_prefix, leaf_tokens(nodes, path_prefix))
   end
 
   defp leaf_tokens(nodes, path_prefix) do
@@ -362,16 +360,20 @@ defmodule GgenIgniter.BrandTheme do
     end
   end
 
+  @exact_css_names %{
+    "semantic.touch.target_min" => "--spacing-touch-min",
+    "semantic.touch.target_comfortable" => "--spacing-touch-comfortable",
+    "semantic.touch.gap_min" => "--spacing-touch-gap",
+    "primitive.touch.apple" => "--spacing-touch-min",
+    "primitive.touch.material" => "--spacing-touch-comfortable",
+    "primitive.touch.gap" => "--spacing-touch-gap"
+  }
+
   defp css_name_for_path(path, key) do
     cond do
       String.starts_with?(path, "primitive.space.") -> spacing_css(key)
       String.starts_with?(path, "semantic.space.") -> spacing_css(key)
-      path == "semantic.touch.target_min" -> "--spacing-touch-min"
-      path == "semantic.touch.target_comfortable" -> "--spacing-touch-comfortable"
-      path == "semantic.touch.gap_min" -> "--spacing-touch-gap"
-      path == "primitive.touch.apple" -> "--spacing-touch-min"
-      path == "primitive.touch.material" -> "--spacing-touch-comfortable"
-      path == "primitive.touch.gap" -> "--spacing-touch-gap"
+      Map.has_key?(@exact_css_names, path) -> Map.fetch!(@exact_css_names, path)
       true -> spacing_css(key)
     end
   end

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Fixed** `mix credo` tip debt that blocked CI after the rebar3/format unblocks: de-nest / extract helpers in `BrandTheme`, `SpatialCourt`, `PackLock.reclaim_stale/1`, `SemanticJira.TargetPack.read_stamp/1`, and `HandAuthored.int_cell/2`; `Enum.map_join/3` in `OntologyAggregate.concat/1`; scoped `CyclomaticComplexity` exception for `ReviewEval.Corpus.validate_case/1` (schema-shape admission). Local `mix credo` → EXIT 0.
 - **Fixed** `mix format --check-formatted` drift on BrandTheme / SpatialCourt / semantic-jira courts that landed unformatted on main (exposed once rebar3 3.28.0 let CI past setup-beam).
 - **Fixed** CI `erlef/setup-beam` rebar3 pin `3.24.0` → `3.28.0` so the OTP 29.1.2 toolchain can load rebar providers (`beam_load` refused 3.24.0 bytecode on OTP 29). Touches `.github/workflows/ci.yml` and `frontier-release-plan.yml`.
 - **Added** HITL-impossible validation receipt for the Semantic Jira dry/evidence/frontier ladder (`docs/sjira/v26.11.21/receipts/HITL-IMPOSSIBLE-VALIDATION.md`). live-sandbox stays `PARTIAL_ALIVE`. xaas `ee89b838` missing-`ggen` courts return `:ggen_not_found`; admit dogfood skipped. Fabric is not ALIVE. Bare live stays fail-closed.

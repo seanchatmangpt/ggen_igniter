@@ -482,13 +482,11 @@ defmodule GgenIgniter.PackLock do
   # write) is reclaimable on the same terms: its "token" is the empty string, and
   # the grave must still be ownerless to be removed.
   defp reclaim_stale(lockdir) do
-    if stale?(lockdir) do
-      case with_breaker(lockdir, fn -> claim_if_stale(lockdir) end) do
-        {:ok, reclaimed?} -> reclaimed?
-        :busy -> false
-      end
+    with true <- stale?(lockdir),
+         {:ok, reclaimed?} <- with_breaker(lockdir, fn -> claim_if_stale(lockdir) end) do
+      reclaimed?
     else
-      false
+      _ -> false
     end
   end
 

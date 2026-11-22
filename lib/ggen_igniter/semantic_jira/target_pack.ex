@@ -124,17 +124,22 @@ defmodule GgenIgniter.SemanticJira.TargetPack do
         {:error, :invalid}
 
       {:ok, body} ->
-        case Jason.decode(body) do
-          {:ok, %{"packs" => packs}} when is_map(packs) ->
-            if Enum.all?(packs, fn {k, v} -> is_binary(k) and is_binary(v) end) do
-              {:ok, packs}
-            else
-              {:error, :invalid}
-            end
+        decode_stamp_body(body)
+    end
+  end
 
-          _ ->
-            {:error, :invalid}
-        end
+  defp decode_stamp_body(body) do
+    case Jason.decode(body) do
+      {:ok, %{"packs" => packs}} when is_map(packs) -> validate_pack_map(packs)
+      _ -> {:error, :invalid}
+    end
+  end
+
+  defp validate_pack_map(packs) do
+    if Enum.all?(packs, fn {k, v} -> is_binary(k) and is_binary(v) end) do
+      {:ok, packs}
+    else
+      {:error, :invalid}
     end
   end
 

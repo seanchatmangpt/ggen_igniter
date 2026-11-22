@@ -164,7 +164,7 @@ defmodule GgenIgniter.OntologyAggregate do
   end
 
   defp concat(parts) do
-    joined = parts |> Enum.map(&elem(&1, 1)) |> Enum.join("\n")
+    joined = Enum.map_join(parts, "\n", &elem(&1, 1))
     if String.ends_with?(joined, "\n"), do: joined, else: joined <> "\n"
   end
 
