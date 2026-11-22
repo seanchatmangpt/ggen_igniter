@@ -1,0 +1,11 @@
+== sjira-loop [dry-run] observe: skipped (SJIRA_CANDIDATES=/tmp/hitl-phase2/prefloor-evidence/candidates.jsonl)
+== sjira-loop [dry-run] admit_candidates: mix semantic_jira.admit_candidates --candidates /tmp/hitl-phase2/prefloor-evidence/candidates.jsonl
+admit: admitted=2 refused=0
+work_orders: 2
+== sjira-loop [dry-run] frontier: mix semantic_jira.frontier --work-orders /tmp/hitl-phase2/prefloor-evidence/work_orders.json --ledger /tmp/hitl-phase2/prefloor-evidence/ledger.jsonl
+frontier: eligible=1 blocked=1
+hands-free frontier: parsed bytes=189
+REFUSED:HANDS_FREE_TWIN_DRIFT eligible-set mismatch mix=['FRI-FMT-A'] hands_free=[]
+REFUSED:HANDS_FREE_TWIN_DRIFT Mix↔hands-free eligible identity sets diverge (see stderr above)
+error: recipe `sjira-loop` failed with exit code 1
+error: recipe `sjira-loop-evidence` failed with exit code 1
