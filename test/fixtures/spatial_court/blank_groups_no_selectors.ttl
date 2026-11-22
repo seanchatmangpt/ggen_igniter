@@ -1,0 +1,28 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix ex:   <https://example.test/spatial-court#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui/> .
+
+# Mixed graph: one lawful named group (so SpatialCourt does not collapse to
+# :no_property_groups) + one blank-node group whose blank member lacks
+# shui:selector → typed {:group_errors, [{:member_errors, [{:selector_required, _}]}]}.
+
+ex:OkGroup a sh:PropertyGroup ;
+    rdfs:label "Ok" ;
+    sh:order 0 ;
+    shui:selector "[data-spatial-group=\"ok\"]" .
+
+ex:OkMember a sh:PropertyShape ;
+    sh:path rdfs:label ;
+    sh:order 0 ;
+    sh:group ex:OkGroup ;
+    shui:selector "[data-testid=\"ok-member\"]" .
+
+_:orphanGroup a sh:PropertyGroup ;
+    rdfs:label "Orphan" ;
+    sh:order 1 .
+
+_:orphanMember
+    sh:group _:orphanGroup ;
+    sh:order 0 .

@@ -1,0 +1,38 @@
+# Spatial Court vocabulary — annotations on sh:PropertyGroup / property shapes.
+# Consumed by GgenIgniter.SpatialCourt / mix ggen_igniter.spatial_court.
+# Does NOT participate in Semantic Jira court maps.
+# All annotation IRIs live under the public shui: namespace (trailing slash).
+
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui/> .
+
+shui:selector a rdf:Property ;
+  rdfs:label "CSS selector" ;
+  rdfs:comment "Literal CSS selector for a PropertyGroup container or member node." ;
+  rdfs:range xsd:string .
+
+shui:role a rdf:Property ;
+  rdfs:label "spatial role" ;
+  rdfs:comment "When 'touch' or 'interactive', the member is asserted as a ≥44px touch target." ;
+  rdfs:range xsd:string .
+
+shui:interactive a rdf:Property ;
+  rdfs:label "interactive" ;
+  rdfs:comment "xsd:boolean true → treat as touch target." ;
+  rdfs:range xsd:boolean .
+
+shui:touchTarget a rdf:Property ;
+  rdfs:label "touch target flag" ;
+  rdfs:range xsd:boolean .
+
+shui:minGap a rdf:Property ;
+  rdfs:label "minimum gap px (documentation; emitter uses court-wide floor 8)" ;
+  rdfs:range xsd:integer .
+
+shui:minTouch a rdf:Property ;
+  rdfs:label "minimum touch px (documentation; emitter uses court-wide floor 44)" ;
+  rdfs:range xsd:integer .

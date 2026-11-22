@@ -1,0 +1,76 @@
+# Court-ready twin of mobile-ui-layout-pack CCS PropertyGroups.
+# Named IRIs + shui:selector for a stable, pack-independent court fixture.
+# The live pack ontology.ttl is also blank-node + shui:selector and emits
+# via SpatialCourt (see marketplace pack emit case in the ExUnit suite).
+#
+# Mirrors Sight Glass / Human Circuit Breaker / Bottom Navigation from
+# ggen-marketplace/packs/mobile-ui-layout-pack/ontology.ttl.
+
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui/> .
+@prefix ccs:  <https://ggen-marketplace.dev/mobile-ui-layout/ccs#> .
+
+ccs:SightGlass a sh:PropertyGroup ;
+    rdfs:label "Sight Glass"@en ;
+    sh:order 0 ;
+    shui:selector "[data-spatial-group=\"sight-glass\"]" .
+
+ccs:HumanCircuitBreaker a sh:PropertyGroup ;
+    rdfs:label "Human Circuit Breaker"@en ;
+    sh:order 1 ;
+    shui:selector "[data-spatial-group=\"human-circuit-breaker\"]" .
+
+ccs:BottomNavigation a sh:PropertyGroup ;
+    rdfs:label "Bottom Navigation"@en ;
+    sh:order 3 ;
+    shui:selector "[data-spatial-group=\"bottom-navigation\"]" .
+
+ccs:SgLabel a sh:PropertyShape ;
+    sh:path rdfs:label ;
+    sh:name "sight-glass label"@en ;
+    sh:order 0 ;
+    sh:group ccs:SightGlass ;
+    shui:selector "[data-testid=\"sight-glass-label\"]" ;
+    shui:viewer shui:LiteralViewer .
+
+ccs:SgDetail a sh:PropertyShape ;
+    sh:path rdfs:comment ;
+    sh:name "sight-glass detail"@en ;
+    sh:order 1 ;
+    sh:group ccs:SightGlass ;
+    shui:selector "[data-testid=\"sight-glass-detail\"]" .
+
+ccs:HcbArmed a sh:PropertyShape ;
+    sh:path rdf:value ;
+    sh:name "circuit breaker armed"@en ;
+    sh:order 0 ;
+    sh:group ccs:HumanCircuitBreaker ;
+    shui:selector "[data-testid=\"hcb-armed\"]" ;
+    shui:role "touch" ;
+    shui:editor shui:BooleanEditor .
+
+ccs:HcbTripNote a sh:PropertyShape ;
+    sh:path rdfs:comment ;
+    sh:name "circuit breaker trip note"@en ;
+    sh:order 1 ;
+    sh:group ccs:HumanCircuitBreaker ;
+    shui:selector "[data-testid=\"hcb-trip-note\"]" ;
+    shui:interactive true .
+
+ccs:NavHome a sh:PropertyShape ;
+    sh:path rdfs:seeAlso ;
+    sh:name "Home"@en ;
+    sh:order 0 ;
+    sh:group ccs:BottomNavigation ;
+    shui:selector "[data-testid=\"nav-home\"]" ;
+    shui:role "touch" .
+
+ccs:NavObserve a sh:PropertyShape ;
+    sh:path rdfs:seeAlso ;
+    sh:name "Observe"@en ;
+    sh:order 1 ;
+    sh:group ccs:BottomNavigation ;
+    shui:selector "[data-testid=\"nav-observe\"]" ;
+    shui:role "touch" .

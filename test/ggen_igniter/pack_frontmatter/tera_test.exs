@@ -16,6 +16,14 @@ defmodule GgenIgniter.PackFrontmatter.TeraTest do
     assert Tera.render("a\n{%- if true -%}\n  b\n{%- endif %}\nc", %{}) == "ab\nc"
   end
 
+  test "multi-byte UTF-8 before a tag does not eat into {% for %}" do
+    # Regression: :binary.match byte idx + String.split_at grapheme idx turned
+    # `{% for row in xs %}` into `{% or row in xs %}` when `≥` preceded the tag
+    # (mobile-ui-layout-pack spatial court comment "vs ≥44 touch").
+    tpl = "touch ≥44\n{% for row in xs -%}[{{ row.a }}]{% endfor %}"
+    assert Tera.render(tpl, %{"xs" => [%{"a" => "1"}, %{"a" => "2"}]}) == "touch ≥44\n[1][2]"
+  end
+
   test "set + filter(attribute,value) + for + loop.last" do
     env = %{
       "rows" => [%{"k" => "a", "v" => "1"}, %{"k" => "b", "v" => "2"}, %{"k" => "a", "v" => "3"}]

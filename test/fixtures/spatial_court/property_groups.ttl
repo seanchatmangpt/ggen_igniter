@@ -1,0 +1,32 @@
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui/> .
+@prefix ex:   <https://example.test/ui#> .
+
+ex:PrimaryActions a sh:PropertyGroup ;
+  rdfs:label "Primary actions" ;
+  sh:order 1 ;
+  shui:selector "[data-spatial-group='primary-actions']" .
+
+ex:SaveButton
+  sh:group ex:PrimaryActions ;
+  sh:order 1 ;
+  shui:selector "[data-testid='save']" ;
+  shui:role "touch" .
+
+ex:CancelButton
+  sh:group ex:PrimaryActions ;
+  sh:order 2 ;
+  shui:selector "[data-testid='cancel']" ;
+  shui:interactive true .
+
+ex:MetaCluster a sh:PropertyGroup ;
+  rdfs:label "Meta" ;
+  sh:order 2 ;
+  shui:selector "[data-spatial-group='meta']" .
+
+ex:StatusChip
+  sh:group ex:MetaCluster ;
+  sh:order 1 ;
+  shui:selector "[data-testid='status']" .
