@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Fixed** `mix format --check-formatted` drift on BrandTheme / SpatialCourt / semantic-jira courts that landed unformatted on main (exposed once rebar3 3.28.0 let CI past setup-beam).
 - **Fixed** CI `erlef/setup-beam` rebar3 pin `3.24.0` → `3.28.0` so the OTP 29.1.2 toolchain can load rebar providers (`beam_load` refused 3.24.0 bytecode on OTP 29). Touches `.github/workflows/ci.yml` and `frontier-release-plan.yml`.
 
 ## v26.11.18

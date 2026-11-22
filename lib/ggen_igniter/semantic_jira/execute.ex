@@ -261,7 +261,8 @@ defmodule GgenIgniter.SemanticJira.Execute do
   # actuation, no receipt.
   defp execute_backend({:local, pack_dir, target_dir}, descriptor, opts, order) do
     with :ok <- check_target_pack(order && order["target_pack"], pack_dir),
-         :ok <- recheck_target_pack_digest(order && order["target_pack"], pack_dir, target_dir, opts),
+         :ok <-
+           recheck_target_pack_digest(order && order["target_pack"], pack_dir, target_dir, opts),
          {:ok, head} <- base_head(target_dir, descriptor["base_sha"]),
          {:ok, ontology} <- order_ontology(order, pack_dir),
          {:ok, paths, artifacts} <- actuate_artifacts(order, pack_dir, target_dir, opts, ontology),

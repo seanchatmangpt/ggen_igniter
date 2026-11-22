@@ -52,7 +52,9 @@ defmodule GgenIgniter.BrandThemeTest do
 
   test "refuses missing brand.toml" do
     assert {:error, {:brand_theme_refused, {:brand_missing, _}}} =
-             BrandTheme.from_brand("/tmp/definitely-missing-brand-#{System.unique_integer([:positive])}.toml")
+             BrandTheme.from_brand(
+               "/tmp/definitely-missing-brand-#{System.unique_integer([:positive])}.toml"
+             )
   end
 
   test "shipped template path exists under priv/ggen/brand-theme-pack" do
