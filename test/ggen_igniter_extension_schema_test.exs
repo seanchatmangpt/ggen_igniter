@@ -187,12 +187,14 @@ defmodule GgenIgniter.ExtensionSchemaTest do
     audit = Enum.find(@ext.sections(), &(&1.name == :audit))
     assert receipted
     assert audit
-    assert Enum.map(receipted.entities, & &1.name) == [:receipt, :attestation]
+    # Entity discovery order follows SPARQL; assert as a set, resolve by name.
+    assert Enum.sort(Enum.map(receipted.entities, & &1.name)) == [:attestation, :receipt]
     assert Enum.map(audit.entities, & &1.name) == [:witness]
     assert receipted.describe == "Receipt declarations."
 
-    [receipt, attestation] = receipted.entities
-    [witness] = audit.entities
+    receipt = Enum.find(receipted.entities, &(&1.name == :receipt))
+    attestation = Enum.find(receipted.entities, &(&1.name == :attestation))
+    witness = Enum.find(audit.entities, &(&1.name == :witness))
 
     # rx:argPosition + rx:required drive args: required -> :name, optional -> {:optional, :name}.
     assert receipt.args == [:kind]
