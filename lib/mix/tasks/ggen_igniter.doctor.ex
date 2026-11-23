@@ -163,6 +163,12 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
       schema: [
         pack: :string,
         pack_dir: :string,
+        # Removed flags stay in the schema so OptionParser admits them into
+        # opts; igniter/1 then refuses with the fixed-engine message (exit 2).
+        # Omitting them made `@known_flags` reject `--engine` first with a
+        # generic "invalid invocation -- --engine" and skipped the court.
+        engine: :string,
+        store_id: :string,
         hex_check: :boolean,
         fix: :boolean,
         strict: :boolean,
@@ -189,7 +195,7 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
   #       configuration mistake -- see `unsupported_capability_error/2`).
   #   4 - blocked by authority/lock/environment (`--fix` needs exclusive
   #       write access to CURRENT project state and cannot get it).
-  @known_flags ~w(--pack --pack-dir --hex-check --no-hex-check
+  @known_flags ~w(--pack --pack-dir --engine --store-id --hex-check --no-hex-check
                   --fix --no-fix --strict --no-strict --json --no-json --help --version --quiet
                   --no-quiet --verbose --no-verbose --no-color -h -v -q
                   --dry-run --no-dry-run --yes --no-yes --yes-to-deps --no-yes-to-deps
@@ -260,6 +266,12 @@ defmodule Mix.Tasks.GgenIgniter.Doctor do
         # silently honored choice.
         invalid_invocation_and_halt(
           "--engine #{inspect(opts[:engine])} is not accepted -- the engine is fixed to graphlaw (no engine choice)",
+          opts
+        )
+
+      opts[:store_id] not in [nil] ->
+        invalid_invocation_and_halt(
+          "--store-id is not accepted -- the engine is fixed to graphlaw (no store choice)",
           opts
         )
 

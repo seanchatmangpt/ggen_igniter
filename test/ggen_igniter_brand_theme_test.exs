@@ -8,7 +8,10 @@ defmodule GgenIgniter.BrandThemeTest do
   alias GgenIgniter.BrandTheme
 
   @fixture Path.expand("fixtures/brand_theme/fourth-watch.brand.toml", __DIR__)
-  @marketplace_brand "/Users/sac/ggen-marketplace/packs/mobile-ui-layout-pack/brand/fourth-watch.brand.toml"
+  @marketplace_brand Path.expand(
+                       "../../ggen-marketplace/packs/mobile-ui-layout-pack/brand/fourth-watch.brand.toml",
+                       __DIR__
+                     )
 
   test "from_brand resolves space aliases to var() and touch to literals" do
     assert {:ok, brand} = BrandTheme.from_brand(@fixture)
