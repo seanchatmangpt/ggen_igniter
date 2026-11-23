@@ -50,7 +50,7 @@ defmodule GgenIgniter.PlanTaskTest do
       refute File.exists?(out_path)
 
       payload = Jason.decode!(output)
-      assert payload["engine"] == "oxigraph"
+      assert payload["engine"] == "graphlaw"
       assert is_list(payload["pending_actuations"])
       assert [pending] = payload["pending_actuations"]
       assert pending["operation"] == "create"
