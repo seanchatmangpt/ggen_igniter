@@ -6,7 +6,11 @@ defmodule GgenIgniter.ManifestExportTest do
   real `mix ggen_igniter.manifest.dump` subprocess. Assertions are on the
   returned/printed bytes and exit statuses. No doubles.
   """
-  use ExUnit.Case, async: true
+  # async: false — the subprocess describe shares `_build-lane-9-manifest`.
+  # Concurrent `mix` children under async:true wait on Mix's build-dir lock
+  # past the ExUnit timeout (CI partition 3, run 45091239234: "Waiting for
+  # lock on the build directory" → TimeoutError at 300s).
+  use ExUnit.Case, async: false
 
   alias GgenIgniter.{Manifest, ManifestExport, Receipt}
 
