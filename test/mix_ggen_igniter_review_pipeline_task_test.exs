@@ -23,7 +23,10 @@ defmodule MixGgenIgniterReviewPipelineTaskTest do
   exit law's `1`/`2`/help arms only.
   """
 
-  use ExUnit.Case, async: true
+  # async: false — every test boots a real mix child against shared
+  # `_build-lane-e5`; concurrent children wait on Mix's build-dir lock past
+  # the ExUnit timeout (CI partition 6, run 45096587851).
+  use ExUnit.Case, async: false
 
   @task "ggen_igniter.review.pipeline"
 
