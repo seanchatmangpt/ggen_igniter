@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Fixed** CI partition tip-debt after the rebar3/format/credo/verify unblock: `spatial-court-pack` now ships `gates/*.rq` (InTreePackLoad); doctor re-admits removed `--engine`/`--store-id` into the schema so the fixed-engine refuse message fires (exit 2); `:marketplace` / `:frontier_shape_court` exclude when sibling repos are absent (no more CI flunk on missing collaborators); BrandTheme marketplace path uses the sibling tree (not a hardcoded `/Users/sac/...`); ExtensionSchema section/entity lookups are name-stable (SPARQL order is not a contract); `plan --json` court expects `graphlaw` (not stale `oxigraph`); WBPR heavy happy-path uses `@double_sync_timeout` so two syncs fit under CI load; `ManifestExportTest` and `MixGgenIgniterReviewPipelineTaskTest` are `async: false` so shared lane build roots cannot deadlock on Mix's build-dir lock.
+- **Fixed** HDDL `sj:observedAt` pin-as-of / malformed courts in `test/ggen_igniter_semantic_jira_pack_test.exs`: ontology already carries batch `observedAt` after every dogfood baseSha, so the old inject-after-baseSha mutation doubled values and tripped `sh:maxCount 1` (heavy group 5). Tests now replace (and strip SJ-003 for the additive-only witness).
+- **Fixed** credo tip-debt hand-edit of manufactured `SemanticJira.TargetPack.read_stamp/1` broke the target_pack manufacture byte-identity court; restore the manufactured shape and scope Nesting for that file until the template is updated.
+- **Fixed** Tera `--pack-dir` sync hard-required `--ontology` even when `<pack_dir>/ontology.ttl` exists (docs already promised pack default); reuse `resolve_ontology!/1`. Marketplace sync fixture now puts `for_each` data in frontmatter `sparql:` (gates/*.rq are inverted FM-PACK-013 courts on the Tera path).
+- **Fixed** CI `mix ggen_igniter.verify` pack path after ash manufacture moved to `priv/ggen/ash-manufacture-pack` (CI still pointed at deleted `test/fixtures/ash_manufacture_pack`, so Build died post-credo with EXIT 2). Local verify `--json` → EXIT 0 / `"ok": true`.
+- **Fixed** `mix credo` tip debt that blocked CI after the rebar3/format unblocks: de-nest / extract helpers in `BrandTheme`, `SpatialCourt`, `PackLock.reclaim_stale/1`, `SemanticJira.TargetPack.read_stamp/1`, and `HandAuthored.int_cell/2`; `Enum.map_join/3` in `OntologyAggregate.concat/1`; scoped `CyclomaticComplexity` exception for `ReviewEval.Corpus.validate_case/1` (schema-shape admission). Local `mix credo` → EXIT 0.
+- **Fixed** `mix format --check-formatted` drift on BrandTheme / SpatialCourt / semantic-jira courts that landed unformatted on main (exposed once rebar3 3.28.0 let CI past setup-beam).
+- **Fixed** CI `erlef/setup-beam` rebar3 pin `3.24.0` → `3.28.0` so the OTP 29.1.2 toolchain can load rebar providers (`beam_load` refused 3.24.0 bytecode on OTP 29). Touches `.github/workflows/ci.yml` and `frontier-release-plan.yml`.
+
 ## v26.11.18
 
 Released 2026-11-18. Defect-fix and ggen-parity release from the v26.11.17 audit wave:

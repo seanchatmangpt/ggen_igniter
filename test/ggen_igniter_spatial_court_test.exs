@@ -59,6 +59,7 @@ defmodule GgenIgniter.SpatialCourtTest do
 
     assert {:ok, court} = SpatialCourt.from_ontology(@ccs_court)
     assert length(court.groups) == 3
+
     assert Enum.map(court.groups, & &1.id) == [
              "SightGlass",
              "HumanCircuitBreaker",
@@ -169,6 +170,7 @@ defmodule GgenIgniter.SpatialCourtTest do
              SpatialCourt.from_ontology(missing)
   end
 
+  @tag :marketplace
   test "marketplace pack ontology emits Playwright Spatial Court (blank-node + shui:selector)" do
     assert File.regular?(@pack_ontology),
            "marketplace ontology missing at #{@pack_ontology} — expected real collaborator"

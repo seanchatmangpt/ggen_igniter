@@ -192,6 +192,10 @@
           # clause chain), Mix.Tasks.GgenIgniter.Verify.verify/1 (11; the
           # verify-ladder step dispatch). Each is inherent branch count,
           # not accidental nesting.
+          # HITL-impossible CI tip (2026-11-22): ReviewEval.Corpus.validate_case/1
+          # complexity is the schema shape + source-kind admission itself (map
+          # pattern + guards + kind membership). A mechanical split would only
+          # relocate the same clause count; scoped until a corpus-schema refactor.
           {Credo.Check.Refactor.CyclomaticComplexity,
            files: %{
              excluded: [
@@ -205,7 +209,8 @@
                "lib/ggen_igniter/epoch_watermark.ex",
                "lib/mix/tasks/ggen_igniter.shacl.ex",
                "lib/ggen_igniter/semantic_jira/epoch_plan.ex",
-               "lib/mix/tasks/ggen_igniter.verify.ex"
+               "lib/mix/tasks/ggen_igniter.verify.ex",
+               "lib/ggen_igniter/review_eval/corpus.ex"
              ]
            }},
           {Credo.Check.Refactor.FilterCount, []},
@@ -240,6 +245,10 @@
           # depth-4 block (line 137) is outside C11's lane contract; the
           # de-nest belongs to the epoch lane that owns watermark.ex.
           # Scoped until then.
+          # HITL CI tip (2026-11-22): TargetPack.read_stamp/1 nesting is owned
+          # by the manufactured semantic-jira-pack:target_pack template. A
+          # hand de-nest of lib/.../target_pack.ex broke the manufacture
+          # byte-identity court; scoped until the template itself is updated.
           {Credo.Check.Refactor.Nesting,
            files: %{
              excluded: [
@@ -251,7 +260,8 @@
                "lib/mix/tasks/ggen_igniter.sync.ex",
                "lib/mix/tasks/ggen_igniter.replay.ex",
                "test/ggen_igniter_artifact_identity_properties_test.exs",
-               "lib/ggen_igniter/epoch_watermark.ex"
+               "lib/ggen_igniter/epoch_watermark.ex",
+               "lib/ggen_igniter/semantic_jira/target_pack.ex"
              ]
            }},
           # C11 credo-zero closure (2026-10-02): GgenIgniter.SA2A.

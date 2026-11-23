@@ -131,7 +131,8 @@ defmodule GgenIgniter.SpatialCourt do
       {[], errs} ->
         # Every remaining group failed (e.g. ungrouped_or_empty) — keep typed
         # reasons; do not collapse to :no_property_groups.
-        {:error, {:spatial_court_refused, {:group_errors, Enum.map(errs, fn {:error, r} -> r end)}}}
+        {:error,
+         {:spatial_court_refused, {:group_errors, Enum.map(errs, fn {:error, r} -> r end)}}}
 
       {oks, []} ->
         court_groups =
@@ -150,7 +151,8 @@ defmodule GgenIgniter.SpatialCourt do
          }}
 
       {_, errs} ->
-        {:error, {:spatial_court_refused, {:group_errors, Enum.map(errs, fn {:error, r} -> r end)}}}
+        {:error,
+         {:spatial_court_refused, {:group_errors, Enum.map(errs, fn {:error, r} -> r end)}}}
     end
   end
 
@@ -172,9 +174,7 @@ defmodule GgenIgniter.SpatialCourt do
   def render(%{groups: groups} = court, opts) when is_list(groups) and groups != [] do
     template = Keyword.get(opts, :template) || template_path()
 
-    unless File.regular?(template) do
-      {:error, {:spatial_court_refused, {:template_missing, template}}}
-    else
+    if File.regular?(template) do
       suite = Keyword.get(opts, :suite) || hd(groups).id
       base_url = Keyword.get(opts, :base_url, "http://127.0.0.1:4173")
       route = Keyword.get(opts, :route, "/")
@@ -215,6 +215,8 @@ defmodule GgenIgniter.SpatialCourt do
 
       body = template |> File.read!() |> GgenIgniter.Render.render(bindings)
       {:ok, body}
+    else
+      {:error, {:spatial_court_refused, {:template_missing, template}}}
     end
   rescue
     e -> {:error, {:spatial_court_refused, {:render_failed, Exception.message(e)}}}
@@ -412,23 +414,21 @@ defmodule GgenIgniter.SpatialCourt do
 
   defp numeric_or(description, pred, default) do
     case RDF.Description.first(description, pred) do
-      %RDF.Literal{} = lit ->
-        case RDF.Literal.value(lit) do
-          n when is_number(n) -> n
-          s when is_binary(s) ->
-            case Float.parse(s) do
-              {n, _} -> n
-              :error -> default
-            end
-
-          _ ->
-            default
-        end
-
-      _ ->
-        default
+      %RDF.Literal{} = lit -> coerce_number(RDF.Literal.value(lit), default)
+      _ -> default
     end
   end
+
+  defp coerce_number(n, _default) when is_number(n), do: n
+
+  defp coerce_number(s, default) when is_binary(s) do
+    case Float.parse(s) do
+      {n, _} -> n
+      :error -> default
+    end
+  end
+
+  defp coerce_number(_other, default), do: default
 
   defp term_id(%RDF.IRI{} = i) do
     s = RDF.IRI.to_string(i)
@@ -440,7 +440,9 @@ defmodule GgenIgniter.SpatialCourt do
     end
   end
 
-  defp term_id(%RDF.BlankNode{} = b), do: "bnode-" <> String.replace(to_string(b), ~r/[^A-Za-z0-9_-]/, "")
+  defp term_id(%RDF.BlankNode{} = b),
+    do: "bnode-" <> String.replace(to_string(b), ~r/[^A-Za-z0-9_-]/, "")
+
   defp term_id(other), do: slug(inspect(other))
 
   defp blank?(%RDF.BlankNode{}), do: true

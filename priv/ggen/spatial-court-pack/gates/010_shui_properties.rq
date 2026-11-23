@@ -1,0 +1,11 @@
+# Vocabulary census for Spatial Court shui: annotation properties.
+# Discovery surface for sync / doctor; ontology ships property declarations only.
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX shui: <http://www.w3.org/ns/shacl-ui/>
+SELECT DISTINCT ?prop ?label WHERE {
+  ?prop a rdf:Property ;
+        rdfs:label ?label .
+  FILTER(STRSTARTS(STR(?prop), STR(shui:)))
+}
+ORDER BY ?prop

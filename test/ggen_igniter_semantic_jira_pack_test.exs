@@ -715,19 +715,28 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     work_dir = scratch_dir!("hddl_pin_as_of")
     stamped_ontology = Path.join(work_dir, "stamped.ttl")
 
-    # Stamp every order carrying the canonical SJ-001 base SHA; SJ-003 (a
-    # different base SHA) stays unstamped to witness the additive-only law.
+    # Ontology already carries batch `sj:observedAt "2026-10-13"` immediately
+    # after every dogfood WorkOrder's baseSha (see ontology pin-as-of law).
+    # Replace that stamp on SJ-001-baseSha orders; do not inject a second
+    # value (sh:maxCount 1). Strip SJ-003's batch stamp so the additive-only
+    # witness still holds for a different baseSha.
     source = File.read!(@ontology_path)
+    sj001_base_sha = "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3"
+    sj003_base_sha = "e45d2f597f16fd2a3da21b78ce2c91fe4714169b"
 
     stamped =
-      String.replace(
-        source,
-        ~r/^    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;\n/m,
-        "    sj:baseSha \"d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3\" ;\n    sj:observedAt \"2026-09-19T00:00:00Z\" ;\n",
+      source
+      |> String.replace(
+        ~r/^    sj:baseSha "#{sj001_base_sha}" ;\n    sj:observedAt "[^"]*" ;[^\n]*\n/m,
+        "    sj:baseSha \"#{sj001_base_sha}\" ;\n    sj:observedAt \"2026-09-19T00:00:00Z\" ;\n",
         global: true
       )
+      |> String.replace(
+        ~r/(    sj:baseSha "#{sj003_base_sha}" ;\n)    sj:observedAt "[^"]*" ;[^\n]*\n/,
+        "\\1"
+      )
 
-    refute stamped == source, "stamp injection must apply"
+    refute stamped == source, "stamp replacement must apply"
     File.write!(stamped_ontology, stamped)
 
     {output, exit_code} =
@@ -738,7 +747,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     bytes = File.read!(Path.join(work_dir, "SJ-001.hddl"))
 
     assert bytes =~
-             "(base-sha SJ-001 d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3) ;; observed-as-of 2026-09-19T00:00:00Z"
+             "(base-sha SJ-001 #{sj001_base_sha}) ;; observed-as-of 2026-09-19T00:00:00Z"
 
     assert bytes =~
              ~s[(repository SJ-001 "seanchatmangpt/ggen_igniter") ;; observed-as-of 2026-09-19T00:00:00Z]
@@ -748,7 +757,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     refute unstamped =~ "observed-as-of"
 
     assert unstamped =~
-             "(base-sha SJ-003 e45d2f597f16fd2a3da21b78ce2c91fe4714169b)\n"
+             "(base-sha SJ-003 #{sj003_base_sha})\n"
   end
 
   @tag timeout: @sync_timeout
@@ -756,10 +765,11 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     work_dir = scratch_dir!("hddl_bad_as_of")
     broken_ontology = Path.join(work_dir, "bad-as-of.ttl")
 
+    # Replace the batch observedAt (do not inject a second value — maxCount 1).
     broken =
       String.replace(
         File.read!(@ontology_path),
-        ~r/^    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;\n/m,
+        ~r/^    sj:baseSha "d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3" ;\n    sj:observedAt "[^"]*" ;[^\n]*\n/m,
         "    sj:baseSha \"d84da1419a6945c6a8a64b8f6cdca9d0b2c9e0f3\" ;\n    sj:observedAt \"september 19\" ;\n",
         global: true
       )
@@ -1162,7 +1172,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     # Two real sync subprocesses per happy-path test (render + replay) over 33
     # WorkOrders; a cold MIX_ENV=test build inside the subprocess exceeds the
     # 60s default (same headroom the doctor e2e suite grants via @moduletag).
-    @tag timeout: 300_000
+    # Must use @double_sync_timeout (8m): a lone 5m @sync_timeout budget is
+    # exactly one sync under load, and CI timed out mid-first-sync at 300s.
+    @tag timeout: @double_sync_timeout
     test "manufactures the WBPR work breakdown for dogfood SJ-001 and replays byte-identically" do
       work_dir = scratch_dir!("wbpr_projection")
       output_path = Path.join(work_dir, "SJ-001.wbpr.md")
@@ -1239,7 +1251,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert second_graph_hash == sha256_file(@ontology_path)
     end
 
-    @tag timeout: 300_000
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses the WBPR projection before any file is actuated" do
       work_dir = scratch_dir!("wbpr_missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")

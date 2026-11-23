@@ -10,8 +10,8 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
 
   @moduledoc """
   Read-only admission preview: `mix ggen_igniter.plan --template path.eex [--pack NAME |
-  --pack-dir DIR] --query name=path.rq (repeatable) [--engine oxigraph|sparql|qlever]
-  [--store-id ID] [--json]`.
+  --pack-dir DIR] --query name=path.rq (repeatable) [--json]`
+  (query engine is FIXED to graphlaw -- no `--engine` / `--store-id` choice).
 
   Runs the SAME observe -> load ontology -> resolve pack -> run queries -> render ->
   admit sequence `GgenIgniter.Reactors.ReconcileReactor.run/1` runs for a real `mix
@@ -39,8 +39,8 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
       each `%PendingActuation{}`'s `previous_hash`/`desired_hash`.
     * **query names/sources** -- every named query actually run, and whether it came
       from an explicit `--query`, a pack's `gates/*.rq`, or template frontmatter.
-    * **engine** -- the resolved `--engine` (default `oxigraph`) and, for `qlever`,
-      the resolved `--store-id`.
+    * **engine** -- always `graphlaw` (`GgenIgniter.Engine.fixed/0`); there is no
+      engine choice on plan.
     * **bindings** -- the semantic-source binding keys visible to each pending item
       (`semantic_source` on `%PendingActuation{}` -- ontology/query/template
       identity, never the full rendered content in the human-readable form; `--json`
@@ -327,8 +327,7 @@ defmodule Mix.Tasks.GgenIgniter.Plan do
         --pack NAME[:STEM] Pack convention (priv/ggen/NAME/...).
         --pack-dir DIR     Explicit pack directory (bypasses the priv/ggen/NAME convention).
         --query NAME=PATH  Named query (repeatable).
-        --engine ENGINE    One of: oxigraph, sparql, qlever. Default: oxigraph.
-        --store-id ID      Required with --engine qlever.
+        (no --engine/--store-id: the query engine is fixed to graphlaw)
         --json             Emit the plan as JSON instead of human-readable text.
         --json-envelope    Emit the plan inside the uniform envelope (TaskContract):
                            {schema_version, task, ok, exit_code, standing, refusal, data}.

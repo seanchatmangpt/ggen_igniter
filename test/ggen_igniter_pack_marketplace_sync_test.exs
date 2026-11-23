@@ -44,6 +44,9 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
   defp write_pack!(root, templates) do
     pack = Path.join(root, "pack")
     File.mkdir_p!(Path.join(pack, "templates"))
+    # Tera packs treat gates/*.rq as inverted violation courts (any row =
+    # REFUSED:PACK_GATE_VIOLATED). for_each data lives in frontmatter sparql:,
+    # not under gates/.
     File.mkdir_p!(Path.join(pack, "gates"))
 
     File.write!(Path.join(pack, "pack.toml"), """
@@ -54,7 +57,6 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
     """)
 
     File.write!(Path.join(pack, "ontology.ttl"), @ttl)
-    File.write!(Path.join(pack, "gates/010_spec.rq"), @spec_query)
 
     for {name, content} <- templates do
       File.write!(Path.join([pack, "templates", name]), content)
@@ -67,16 +69,27 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
     """
     ---
     to: "#{to}"
-    for_each: "spec"
+    force: true
+    sparql:
+      spec: |
+        #{String.replace(@spec_query, "\n", "\n        ")}
+    for_each: spec
     ---
     #{body}
     """
   end
 
-  defp sync(args, root) do
+  # `:out` — Tera packs need `--out <root>` so relative `to:` stays inside the
+  # path-escape boundary. Classic EEx packs take absolute `to:` / `--out` file
+  # paths; passing a directory as `--out` raises `:eisdir`.
+  defp sync(args, root, opts \\ []) do
+    out_args =
+      if Keyword.get(opts, :out, false), do: ["--out", root], else: []
+
     System.cmd(
       "mix",
-      ["ggen_igniter.sync", "--manifest-dir", root, "--verify-cwd", File.cwd!()] ++ args,
+      ["ggen_igniter.sync", "--manifest-dir", root, "--verify-cwd", File.cwd!()] ++
+        out_args ++ args,
       cd: File.cwd!(),
       stderr_to_stdout: true
     )
@@ -88,12 +101,12 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
         write_pack!(root, [
           {"one.txt.tmpl",
            tera_template(
-             "#{root}/out/{{ package_name }}/one.txt",
+             "out/{{ package_name }}/one.txt",
              "pkg={{ package_name | upper }}"
            )}
         ])
 
-      {output, code} = sync(["--pack-dir", pack], root)
+      {output, code} = sync(["--pack-dir", pack], root, out: true)
       assert code == 0, output
 
       assert File.read!(Path.join(root, "out/alpha_pkg/one.txt")) =~ "pkg=ALPHA_PKG"
@@ -107,6 +120,9 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
           {"eex.txt.tmpl",
            tera_template("#{root}/out/<%= package_name %>.eex.txt", "eex=<%= package_name %>")}
         ])
+
+      # Restore classic gate query: this pack is not classified as Tera.
+      File.write!(Path.join(pack, "gates/010_spec.rq"), @spec_query)
 
       {output, code} = sync(["--pack-dir", pack], root)
       assert code == 0, output
@@ -122,6 +138,8 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
              "<%= package_name %> {{ literal }}"
            )}
         ])
+
+      File.write!(Path.join(pack, "gates/010_spec.rq"), @spec_query)
 
       {output, code} = sync(["--pack-dir", pack], root)
       assert code == 0, output
@@ -167,13 +185,11 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
          %{root: root} do
       pack =
         write_pack!(root, [
-          {"a.txt.tmpl",
-           tera_template("#{root}/out/{{ package_name }}/a.txt", "A {{ package_name }}")},
-          {"b.txt.tmpl",
-           tera_template("#{root}/out/{{ package_name }}/b.txt", "B {{ package_name }}")}
+          {"a.txt.tmpl", tera_template("out/{{ package_name }}/a.txt", "A {{ package_name }}")},
+          {"b.txt.tmpl", tera_template("out/{{ package_name }}/b.txt", "B {{ package_name }}")}
         ])
 
-      {output, code} = sync(["--pack-dir", pack], root)
+      {output, code} = sync(["--pack-dir", pack], root, out: true)
       assert code == 0, output
 
       for pkg <- ~w(alpha_pkg beta_pkg) do
@@ -182,19 +198,23 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
       end
 
       before = File.stat!(Path.join(root, "out/alpha_pkg/a.txt")).mtime
-      {output2, code2} = sync(["--pack-dir", pack], root)
+      {output2, code2} = sync(["--pack-dir", pack], root, out: true)
       assert code2 == 0, output2
       assert File.stat!(Path.join(root, "out/alpha_pkg/a.txt")).mtime == before
-      assert output2 =~ "unchanged" or output2 =~ "reconciled"
+      assert output2 =~ "unchanged" or output2 =~ "reconciled" or output2 =~ "skip"
     end
 
     test "explicit --template on a multi-template pack-dir still renders only that template",
          %{root: root} do
+      # Explicit --template forces the classic EEx path (tera_pack_path/1 is
+      # nil when --template is set), so fixtures use EEx outs + a gate query.
       pack =
         write_pack!(root, [
-          {"a.txt.tmpl", tera_template("#{root}/out/{{ package_name }}/a.txt", "A")},
-          {"b.txt.tmpl", tera_template("#{root}/out/{{ package_name }}/b.txt", "B")}
+          {"a.txt.tmpl", tera_template("#{root}/out/<%= package_name %>/a.txt", "A<%= \"\" %>")},
+          {"b.txt.tmpl", tera_template("#{root}/out/<%= package_name %>/b.txt", "B<%= \"\" %>")}
         ])
+
+      File.write!(Path.join(pack, "gates/010_spec.rq"), @spec_query)
 
       {output, code} =
         sync(["--pack-dir", pack, "--template", Path.join(pack, "templates/a.txt.tmpl")], root)
@@ -207,10 +227,10 @@ defmodule GgenIgniter.PackMarketplaceSyncTest do
     test "single-template pack-dir behaves as before", %{root: root} do
       pack =
         write_pack!(root, [
-          {"only.txt.tmpl", tera_template("#{root}/out/{{ package_name }}/only.txt", "ONLY")}
+          {"only.txt.tmpl", tera_template("out/{{ package_name }}/only.txt", "ONLY")}
         ])
 
-      {output, code} = sync(["--pack-dir", pack], root)
+      {output, code} = sync(["--pack-dir", pack], root, out: true)
       assert code == 0, output
       assert File.read!(Path.join(root, "out/alpha_pkg/only.txt")) =~ "ONLY"
     end

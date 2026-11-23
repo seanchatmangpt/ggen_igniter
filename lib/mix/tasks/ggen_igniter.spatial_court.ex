@@ -45,7 +45,11 @@ defmodule Mix.Tasks.GgenIgniter.SpatialCourt do
         Mix.shell().info(@moduledoc)
 
       invalid != [] ->
-        refuse(2, %{"status" => "invalid_invocation", "reason" => "unknown_options", "detail" => invalid})
+        refuse(2, %{
+          "status" => "invalid_invocation",
+          "reason" => "unknown_options",
+          "detail" => invalid
+        })
 
       !(is_binary(opts[:ontology]) and opts[:ontology] != "") ->
         refuse(2, %{"status" => "invalid_invocation", "reason" => "missing --ontology"})

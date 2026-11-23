@@ -151,7 +151,8 @@ defmodule GgenIgniter.ExtensionSchemaTest do
       assert m in mods, "#{inspect(m)} missing from #{inspect(mods)}"
     end
 
-    assert Enum.map(@ext.sections(), & &1.name) == [:receipted, :audit]
+    # Section order follows SPARQL discovery; assert as a set, not a list order.
+    assert Enum.sort(Enum.map(@ext.sections(), & &1.name)) == [:audit, :receipted]
   end
 
   test "a resource declaring 2 sections / 3 entities exposes their values via get_entities/2" do
@@ -182,13 +183,18 @@ defmodule GgenIgniter.ExtensionSchemaTest do
   end
 
   test "generated Spark.Dsl.Entity args/schema equal the ontology triples" do
-    [receipted, audit] = @ext.sections()
-    assert Enum.map(receipted.entities, & &1.name) == [:receipt, :attestation]
+    receipted = Enum.find(@ext.sections(), &(&1.name == :receipted))
+    audit = Enum.find(@ext.sections(), &(&1.name == :audit))
+    assert receipted
+    assert audit
+    # Entity discovery order follows SPARQL; assert as a set, resolve by name.
+    assert Enum.sort(Enum.map(receipted.entities, & &1.name)) == [:attestation, :receipt]
     assert Enum.map(audit.entities, & &1.name) == [:witness]
     assert receipted.describe == "Receipt declarations."
 
-    [receipt, attestation] = receipted.entities
-    [witness] = audit.entities
+    receipt = Enum.find(receipted.entities, &(&1.name == :receipt))
+    attestation = Enum.find(receipted.entities, &(&1.name == :attestation))
+    witness = Enum.find(audit.entities, &(&1.name == :witness))
 
     # rx:argPosition + rx:required drive args: required -> :name, optional -> {:optional, :name}.
     assert receipt.args == [:kind]
@@ -289,7 +295,13 @@ defmodule GgenIgniter.ExtensionSchemaFalsifierTest do
     try do
       assert {:error, diags} = compile_resource("SchemaFixture.FlipA", omit_role())
       assert diags |> messages() |> Enum.join("\n") =~ "Spark.Error.DslError"
-      attestation = @ext.sections() |> hd() |> Map.fetch!(:entities) |> Enum.at(1)
+
+      attestation =
+        @ext.sections()
+        |> Enum.find(&(&1.name == :receipted))
+        |> Map.fetch!(:entities)
+        |> Enum.find(&(&1.name == :attestation))
+
       assert attestation.schema[:role][:required] == true
     after
       unload(mods)
@@ -302,7 +314,13 @@ defmodule GgenIgniter.ExtensionSchemaFalsifierTest do
     try do
       assert {:ok, compiled, _} = compile_resource("SchemaFixture.FlipB", omit_role())
       assert SchemaFixture.FlipB in compiled
-      attestation = @ext.sections() |> hd() |> Map.fetch!(:entities) |> Enum.at(1)
+
+      attestation =
+        @ext.sections()
+        |> Enum.find(&(&1.name == :receipted))
+        |> Map.fetch!(:entities)
+        |> Enum.find(&(&1.name == :attestation))
+
       assert attestation.schema[:role][:required] == false
     after
       unload(mods2)

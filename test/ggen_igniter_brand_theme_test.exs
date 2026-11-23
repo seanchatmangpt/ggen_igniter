@@ -8,7 +8,10 @@ defmodule GgenIgniter.BrandThemeTest do
   alias GgenIgniter.BrandTheme
 
   @fixture Path.expand("fixtures/brand_theme/fourth-watch.brand.toml", __DIR__)
-  @marketplace_brand "/Users/sac/ggen-marketplace/packs/mobile-ui-layout-pack/brand/fourth-watch.brand.toml"
+  @marketplace_brand Path.expand(
+                       "../../ggen-marketplace/packs/mobile-ui-layout-pack/brand/fourth-watch.brand.toml",
+                       __DIR__
+                     )
 
   test "from_brand resolves space aliases to var() and touch to literals" do
     assert {:ok, brand} = BrandTheme.from_brand(@fixture)
@@ -52,7 +55,9 @@ defmodule GgenIgniter.BrandThemeTest do
 
   test "refuses missing brand.toml" do
     assert {:error, {:brand_theme_refused, {:brand_missing, _}}} =
-             BrandTheme.from_brand("/tmp/definitely-missing-brand-#{System.unique_integer([:positive])}.toml")
+             BrandTheme.from_brand(
+               "/tmp/definitely-missing-brand-#{System.unique_integer([:positive])}.toml"
+             )
   end
 
   test "shipped template path exists under priv/ggen/brand-theme-pack" do

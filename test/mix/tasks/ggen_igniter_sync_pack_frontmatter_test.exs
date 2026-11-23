@@ -67,9 +67,14 @@ defmodule Mix.Tasks.GgenIgniterSyncPackFrontmatterTest do
     assert File.read!(target) == "hand-edited\n"
   end
 
-  test "missing --ontology is an invocation error (exit 2)", %{pack: pack, out: out} do
-    {output, code} = sync(["--pack", pack, "--out", out])
-    assert code == 2, output
-    assert output =~ "--ontology is required"
+  test "absent --ontology resolves <pack_dir>/ontology.ttl (docs pack default)", %{
+    pack: pack,
+    out: out
+  } do
+    # Absolute pack paths must use --pack-dir ( --pack NAME looks under priv/ggen/).
+    # Pack ontology has no Things; for_each yields zero renders — exit 0, no files.
+    {output, code} = sync(["--pack-dir", pack, "--out", out])
+    assert code == 0, output
+    refute File.exists?(Path.join(out, "things/alpha.txt"))
   end
 end
