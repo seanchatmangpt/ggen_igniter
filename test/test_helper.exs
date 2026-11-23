@@ -181,6 +181,28 @@ network_reachable? =
 
 excludes = if network_reachable?, do: excludes, else: [:requires_network | excludes]
 
+# Sibling-collaborator courts (Chicago): real ggen / ggen-marketplace trees at
+# the repo's parent directory. Hosted CI only checks out this repository, so
+# the tags must exclude rather than flunk when the collaborator is absent.
+# Opt back in with `mix test --include marketplace` / `--include frontier_shape_court`
+# after checking the sibling out beside this repo.
+marketplace_pack =
+  Path.expand("../ggen-marketplace/packs/mobile-ui-layout-pack", Path.join(__DIR__, ".."))
+
+excludes =
+  if File.dir?(marketplace_pack), do: excludes, else: [:marketplace | excludes]
+
+frontier_golden =
+  Path.expand(
+    "../ggen/crates/ggen-sjira/tests/fixtures/golden_frontier_orders.json",
+    Path.join(__DIR__, "..")
+  )
+
+excludes =
+  if File.regular?(frontier_golden),
+    do: excludes,
+    else: [:frontier_shape_court | excludes]
+
 # Fast lane (ERRC 2026-09-28, docs/jira/v26.9.28/ci-runtime-errc.md): tests tagged
 # `:integration` (real `mix`/`ggen` subprocesses, real git repos; they dominate
 # wall-clock) are excluded from a plain `mix test` and run with
