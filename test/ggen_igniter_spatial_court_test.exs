@@ -170,6 +170,7 @@ defmodule GgenIgniter.SpatialCourtTest do
              SpatialCourt.from_ontology(missing)
   end
 
+  @tag :marketplace
   test "marketplace pack ontology emits Playwright Spatial Court (blank-node + shui:selector)" do
     assert File.regular?(@pack_ontology),
            "marketplace ontology missing at #{@pack_ontology} — expected real collaborator"
