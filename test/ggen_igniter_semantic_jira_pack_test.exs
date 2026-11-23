@@ -1172,7 +1172,9 @@ defmodule GgenIgniter.SemanticJiraPackTest do
     # Two real sync subprocesses per happy-path test (render + replay) over 33
     # WorkOrders; a cold MIX_ENV=test build inside the subprocess exceeds the
     # 60s default (same headroom the doctor e2e suite grants via @moduletag).
-    @tag timeout: 300_000
+    # Must use @double_sync_timeout (8m): a lone 5m @sync_timeout budget is
+    # exactly one sync under load, and CI timed out mid-first-sync at 300s.
+    @tag timeout: @double_sync_timeout
     test "manufactures the WBPR work breakdown for dogfood SJ-001 and replays byte-identically" do
       work_dir = scratch_dir!("wbpr_projection")
       output_path = Path.join(work_dir, "SJ-001.wbpr.md")
@@ -1249,7 +1251,7 @@ defmodule GgenIgniter.SemanticJiraPackTest do
       assert second_graph_hash == sha256_file(@ontology_path)
     end
 
-    @tag timeout: 300_000
+    @tag timeout: @sync_timeout
     test "removing a required baseSha refuses the WBPR projection before any file is actuated" do
       work_dir = scratch_dir!("wbpr_missing_base_sha")
       broken_ontology = Path.join(work_dir, "missing-base-sha.ttl")
