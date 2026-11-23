@@ -1,0 +1,8 @@
+running 5 tests
+test authority::tests::canonical_index_admits_three_pack_objectives ... ok
+test authority::tests::load_pack_missing_authority_json_falls_back_to_canonical ... ok
+test authority::tests::stamping_is_idempotent ... ok
+test authority::tests::load_pack_corrupt_authority_json_refuses_unavailable ... ok
+test authority::tests::locator_grammar ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.00s
+AUTHORITY_EXIT:0

@@ -1,0 +1,4 @@
+running 1 test
+test none_authority_hands_free_admits_canonical_pack_origin ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+RECONCILE_EXIT:0

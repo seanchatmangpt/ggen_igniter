@@ -1,0 +1,11 @@
+== sjira-loop [dry-run] observe: skipped (SJIRA_CANDIDATES=/tmp/hitl-phase2/miss/candidates.jsonl)
+== sjira-loop [dry-run] admit_candidates: mix semantic_jira.admit_candidates --candidates /tmp/hitl-phase2/miss/candidates.jsonl
+admit: admitted=2 refused=0
+work_orders: 2
+== sjira-loop [dry-run] frontier: mix semantic_jira.frontier --work-orders /tmp/hitl-phase2/miss/work_orders.json --ledger /tmp/hitl-phase2/miss/ledger.jsonl
+frontier: eligible=1 blocked=1
+---- hands-free frontier (exit 127) ----
+scripts/sjira/autonomic_loop.sh: line 403: ggen: command not found
+REFUSED:HANDS_FREE frontier cross-check exited 127
+error: recipe `sjira-loop` failed with exit code 1
+error: recipe `sjira-loop-evidence` failed with exit code 1

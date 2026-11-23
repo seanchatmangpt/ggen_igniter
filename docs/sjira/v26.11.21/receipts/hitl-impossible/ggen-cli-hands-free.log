@@ -1,0 +1,6 @@
+running 3 tests
+test reconcile_hands_free_refuses_unknown_origin ... ok
+test frontier_hands_free_admits_canonical_code_work_origin ... ok
+test reconcile_hands_free_with_canonical_pack_origin ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.01s
+CLI_EXIT:0
