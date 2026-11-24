@@ -21,12 +21,17 @@ defmodule GgenIgniter.PackFrontmatter.Sync do
 
   ## Loud refusals (never silent)
 
-  Frontmatter fields with no implementation here (`inject`, `construct`, `when`, `sh_before`,
-  `sh_after`, `from`, `rdf`, `rdf_inline`, `shape`, `freeze_*`, `backup`, `skip_if`) raise
+  Frontmatter fields with no implementation here (`inject`, `construct`, `sh_before`,
+  `sh_after`, `from`, `rdf`, `rdf_inline`, `shape`, `freeze_*`, structured `skip_if`) raise
   `REFUSED:UNSUPPORTED_FRONTMATTER`; a non-`force` template whose target exists with different
   bytes raises `REFUSED:WRITE_WITHOUT_FORCE`; two renders targeting one path raise
   `REFUSED:DUPLICATE_OUTPUT`; a path resolving outside `:out_dir` raises
   `REFUSED:PATH_ESCAPE`.
+
+  Write-safety keys implemented (ggen parity): `when` (ASK guard), `force`, `unless_exists`,
+  `skip_empty` (whitespace-only render writes nothing), `backup` (replaced bytes kept in
+  `<path>.bak`), literal `skip_if` (existing file containing the string is left alone,
+  outcome `:skipped_match`).
 
   ## Options
 
@@ -44,7 +49,11 @@ defmodule GgenIgniter.PackFrontmatter.Sync do
   alias GgenIgniter.PackFrontmatter.Tera
 
   @unsupported ~w(inject construct sh_before sh_after from rdf rdf_inline shape
-                  freeze_policy freeze_slots_dir backup skip_if before after at_line)a
+                  freeze_policy freeze_slots_dir before after at_line)a
+
+  @doc "Frontmatter fields the pack-sync path refuses loudly (no implementation here)."
+  @spec unsupported() :: [atom()]
+  def unsupported, do: @unsupported
 
   @spec run!(keyword()) :: %{files: [map()], gates: [String.t()]}
   def run!(opts) do
@@ -219,7 +228,8 @@ defmodule GgenIgniter.PackFrontmatter.Sync do
                   "REFUSED:UNKNOWN_FOR_EACH #{name}: for_each #{inspect(each)} names no sparql: query"
       end
 
-    Enum.map(rows, fn row ->
+    rows
+    |> Enum.map(fn row ->
       env = Map.merge(base, row)
       rel = env_render(fm.to, env, name)
       path = Path.expand(rel, out_dir)
@@ -233,10 +243,24 @@ defmodule GgenIgniter.PackFrontmatter.Sync do
         path: path,
         content: Tera.render(body, env),
         force: fm.force,
-        unless_exists: fm.unless_exists
+        unless_exists: fm.unless_exists,
+        backup: fm.backup,
+        skip_empty: fm.skip_empty,
+        skip_if: skip_if_literal!(fm.skip_if, name)
       }
     end)
+    |> Enum.reject(&(&1.skip_empty and String.trim(&1.content) == ""))
   end
+
+  defp skip_if_literal!(nil, _name), do: nil
+  defp skip_if_literal!({:literal, s}, _name), do: s
+
+  defp skip_if_literal!({:structured, _}, name),
+    do:
+      raise(
+        ArgumentError,
+        "REFUSED:UNSUPPORTED_FRONTMATTER #{name}: skip_if (only the literal string form is supported)"
+      )
 
   defp env_render(to, env, name) do
     to
@@ -273,9 +297,31 @@ defmodule GgenIgniter.PackFrontmatter.Sync do
             "REFUSED:WRITE_WITHOUT_FORCE #{r.path} exists with different bytes and #{r.template} sets no `force: true`"
     end
 
+    maybe_backup!(r, dry_run)
+
     {:ok, outcome} =
-      Actuate.write_file!(r.path, r.content, unless_exists: r.unless_exists, dry_run: dry_run)
+      Actuate.write_file!(r.path, r.content,
+        unless_exists: r.unless_exists,
+        skip_if: r.skip_if,
+        dry_run: dry_run
+      )
 
     outcome
   end
+
+  # `backup: true`: keep the bytes about to be replaced in `<path>.bak`. Only when the write will
+  # actually change an existing file (not absent, identical, skipped by unless_exists/skip_if).
+  defp maybe_backup!(%{backup: true} = r, false) do
+    with true <- File.exists?(r.path),
+         false <- r.unless_exists,
+         existing = File.read!(r.path),
+         true <- existing != r.content,
+         false <- r.skip_if != nil and String.contains?(existing, r.skip_if) do
+      File.write!(r.path <> ".bak", existing)
+    end
+
+    :ok
+  end
+
+  defp maybe_backup!(_r, _dry_run), do: :ok
 end

@@ -133,6 +133,78 @@ defmodule GgenIgniter.PackFrontmatter.SyncTest do
     assert Exception.message(err) =~ "REFUSED:UNSUPPORTED_FRONTMATTER"
   end
 
+  describe "write-safety frontmatter (ggen parity)" do
+    defp mini_pack(out, templates) do
+      pack = Path.join(out, "wpack")
+      File.mkdir_p!(Path.join(pack, "templates"))
+      File.cp!(Path.join(@pack, "ontology.ttl"), Path.join(pack, "ontology.ttl"))
+
+      for {name, body} <- templates,
+          do: File.write!(Path.join(pack, "templates/#{name}.tmpl"), body)
+
+      pack
+    end
+
+    test "`skip_empty: true` writes nothing for a whitespace-only render", %{out: out} do
+      pack = mini_pack(out, [{"e", "---\nto: e.txt\nskip_empty: true\n---\n  \n"}])
+      proj = Path.join(out, "p")
+      result = Sync.run!(pack_dir: pack, ontologies: [@app], out_dir: proj)
+      assert result.files == []
+      refute File.exists?(Path.join(proj, "e.txt"))
+    end
+
+    test "without `skip_empty` an empty render is still written", %{out: out} do
+      pack = mini_pack(out, [{"e", "---\nto: e.txt\n---\n"}])
+      proj = Path.join(out, "p")
+      Sync.run!(pack_dir: pack, ontologies: [@app], out_dir: proj)
+      assert File.exists?(Path.join(proj, "e.txt"))
+    end
+
+    test "`backup: true` keeps the replaced bytes in <path>.bak", %{out: out} do
+      pack = mini_pack(out, [{"b", "---\nto: b.txt\nforce: true\nbackup: true\n---\nnew\n"}])
+      proj = Path.join(out, "p")
+      File.mkdir_p!(proj)
+      File.write!(Path.join(proj, "b.txt"), "old\n")
+      Sync.run!(pack_dir: pack, ontologies: [@app], out_dir: proj)
+      assert File.read!(Path.join(proj, "b.txt")) == "new\n"
+      assert File.read!(Path.join(proj, "b.txt.bak")) == "old\n"
+    end
+
+    test "`backup: true` makes no .bak when the file is absent or unchanged", %{out: out} do
+      pack = mini_pack(out, [{"b", "---\nto: b.txt\nbackup: true\n---\nnew\n"}])
+      proj = Path.join(out, "p")
+      Sync.run!(pack_dir: pack, ontologies: [@app], out_dir: proj)
+      Sync.run!(pack_dir: pack, ontologies: [@app], out_dir: proj)
+      refute File.exists?(Path.join(proj, "b.txt.bak"))
+    end
+
+    test "literal `skip_if` skips when the existing file contains it", %{out: out} do
+      pack =
+        mini_pack(out, [{"s", "---\nto: s.txt\nforce: true\nskip_if: KEEPME\n---\nfresh\n"}])
+
+      proj = Path.join(out, "p")
+      File.mkdir_p!(proj)
+      File.write!(Path.join(proj, "s.txt"), "hand KEEPME edit\n")
+      result = Sync.run!(pack_dir: pack, ontologies: [@app], out_dir: proj)
+      assert [%{outcome: :skipped_match}] = result.files
+      assert File.read!(Path.join(proj, "s.txt")) == "hand KEEPME edit\n"
+    end
+
+    test "structured `skip_if` is still refused loudly", %{out: out} do
+      pack =
+        mini_pack(out, [
+          {"s", "---\nto: s.txt\nskip_if:\n  pattern: X\n  matcher: regex\n---\nfresh\n"}
+        ])
+
+      err =
+        assert_raise ArgumentError, fn ->
+          Sync.run!(pack_dir: pack, ontologies: [@app], out_dir: Path.join(out, "p"))
+        end
+
+      assert Exception.message(err) =~ "REFUSED:UNSUPPORTED_FRONTMATTER"
+    end
+  end
+
   test "a `to:` escaping out_dir is refused", %{out: out} do
     pack = Path.join(out, "pack")
     File.mkdir_p!(Path.join(pack, "templates"))

@@ -78,6 +78,7 @@ target-lane*/
 # Session / agent scratch (sjira gap-close hygiene)
 loop_receipt.json
 **/loop_receipt.json
+/.claude/receipts/
 .env
 .env.*
 !.env.example

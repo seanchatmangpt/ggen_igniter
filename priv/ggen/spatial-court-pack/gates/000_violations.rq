@@ -1,0 +1,8 @@
+PREFIX shui: <http://www.w3.org/ns/shacl-ui/>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+# Any row is a violation: declared floors below the court-wide minimums (touch 44px, gap 8px).
+SELECT ?shape ?kind ?value WHERE {
+  { ?shape shui:minTouch ?value . FILTER(?value < 44) BIND("minTouch<44" AS ?kind) }
+  UNION
+  { ?shape shui:minGap ?value . FILTER(?value < 8) BIND("minGap<8" AS ?kind) }
+}
